@@ -20,9 +20,11 @@ def payload():
         "next": "I", "hold": None, "can_hold": True,
         "score": 0, "lines": 0, "level": 1,
         "candidates": [
-            {**details, "action": "left", "cleared_lines": 0, "holes": 0, "max_height": 2,
+            {**details, "target": {"kind": "O", "shape": [[1, 1], [1, 1]], "x": 0, "y": 18},
+             "action": "left", "cleared_lines": 0, "holes": 0, "max_height": 2,
              "aggregate_height": 4, "bumpiness": 2, "key_presses": 5},
-            {**details, "action": "drop", "cleared_lines": 0, "holes": 0, "max_height": 2,
+            {**details, "target": {"kind": "O", "shape": [[1, 1], [1, 1]], "x": 4, "y": 18},
+             "action": "drop", "cleared_lines": 0, "holes": 0, "max_height": 2,
              "aggregate_height": 4, "bumpiness": 4, "key_presses": 1},
         ],
     }
@@ -56,7 +58,10 @@ def test_tetris_decision_uses_authenticated_owner_and_fixed_workload(client: Tes
     body["can_hold"] = False
     response = client.post("/api/v1/tetris/decision", headers=auth_headers(session["token"]), json=body)
     assert response.status_code == 200, response.text
-    assert response.json() == {"action": "left", "latency_ms": 321, "model": "test/model", "provider": "test", "kind": "decision"}
+    assert response.json() == {
+        "action": "left", "latency_ms": 321, "model": "test/model", "provider": "test", "kind": "decision",
+        "placement": {"target": body["candidates"][0]["target"], "uses_hold": False},
+    }
     workload, context, args = calls[0]
     assert workload == "tetris.play"
     assert context.actor_user_id == session["user"]["id"]
@@ -100,6 +105,10 @@ def test_tetris_decision_uses_authenticated_owner_and_fixed_workload(client: Tes
     lambda body: body["candidates"][0].update(next_piece="T"),
     lambda body: body["candidates"][0].update(next_spawn_blocked=None),
     lambda body: body["candidates"][0].update(uses_hold=True),
+    lambda body: body["candidates"][0].pop("target"),
+    lambda body: body["candidates"][0]["target"].update(kind="T"),
+    lambda body: body["candidates"][0]["target"].update(x=9),
+    lambda body: body["candidates"][0]["target"].update(y=19),
 ])
 def test_invalid_game_never_calls_model(client, monkeypatch, mutate):
     session = dev_login(client, "administrator")
@@ -165,6 +174,7 @@ def test_single_candidate_still_requires_a_model_choice(client, monkeypatch):
     response = client.post("/api/v1/tetris/decision", headers=auth_headers(session["token"]), json=body)
     assert response.status_code == 200
     assert response.json()["action"] == "wait"
+    assert response.json()["placement"] is None
     assert set(calls[0]["questions"]["action"].options) == {"option_0", "wait"}
 
 
@@ -190,13 +200,16 @@ def test_model_sees_hold_tradeoff_and_two_placement_forecast(client, monkeypatch
         candidate["hold_after"] = "T"
     first = body["candidates"][0]
     first.update(action="hold", uses_hold=True, piece="T", hold_after="O", cleared_lines=2)
+    first["target"] = {"kind": "T", "shape": [[0, 1, 0], [1, 1, 1], [0, 0, 0]], "x": 0, "y": 18}
     first["follow_ups"] = [{
         "piece": "O", "uses_hold": True, "hold_after": "I", "cleared_lines": 2,
+        "target": {"kind": "O", "shape": [[1, 1], [1, 1]], "x": 4, "y": 18},
         "holes": 0, "max_height": 2, "aggregate_height": 4, "bumpiness": 4, "key_presses": 3,
     }]
     response = client.post("/api/v1/tetris/decision", headers=auth_headers(session["token"]), json=body)
     assert response.status_code == 200, response.text
     assert response.json()["action"] == "hold"
+    assert response.json()["placement"] == {"target": first["target"], "uses_hold": True}
     assert calls[0]["state"]["self"]["hold"] == "T"
     assert calls[0]["state"]["self"]["can_hold"] is True
     description = calls[0]["questions"]["action"].options["option_0"]
@@ -232,12 +245,53 @@ def test_both_model_kinds_receive_identical_rules_strategy_and_candidates(client
             body["opponent"] = {key: value for key, value in payload().items() if key != "candidates"}
         response = client.post("/api/v1/tetris/decision", headers=auth_headers(session["token"]), json=body)
         assert response.status_code == 200
+        assert response.json()["placement"] == {"target": body["candidates"][0]["target"], "uses_hold": False}
 
     assert observed["decision"] == observed["generation"]
     state = observed["decision"]["state"]
     assert state["rules"] and state["strategy"]
     assert ("attack_rules" in state) is duel
     assert ("opponent" in state) is duel
+
+
+@pytest.mark.parametrize("candidate_count", [26, 27, 32])
+def test_all_models_share_the_native_choice_limit(client, monkeypatch, candidate_count):
+    import json
+
+    observed = {}
+
+    def decision(*args, **kwargs):
+        observed["decision"] = {"state": kwargs["state"], "options": kwargs["questions"]["action"].options}
+        return result("option_25")
+
+    def generation(*args, **kwargs):
+        observed["generation"] = json.loads(kwargs["context_pack"].messages[1]["content"])
+        assert kwargs["output_schema"]["properties"]["choice"]["enum"] == list(observed["generation"]["options"])
+        return SimpleNamespace(
+            completion=SimpleNamespace(structured_output={"choice": "option_25"}),
+            metadata=SimpleNamespace(model="test/model", provider="test"),
+        )
+
+    monkeypatch.setattr(ai, "execute_decision", decision)
+    monkeypatch.setattr(ai, "execute_llm", generation)
+    session = dev_login(client, "administrator")
+    body = payload()
+    original = body["candidates"]
+    body["candidates"] = [
+        {**original[index % 2], "key_presses": index + 1}
+        for index in range(candidate_count)
+    ]
+    for kind in ("decision", "generation"):
+        body["model_choice"] = {"kind": kind, "model_id": "test-model"}
+        response = client.post("/api/v1/tetris/decision", headers=auth_headers(session["token"]), json=body)
+        assert response.status_code == 200, response.text
+        assert response.json()["action"] == body["candidates"][25]["action"]
+
+    assert observed["decision"] == observed["generation"]
+    options = observed["decision"]["options"]
+    assert list(options) == [f"option_{index}" for index in range(26)]
+    for index, description in enumerate(options.values()):
+        assert f"keys={index + 1}\n" in description
 
 
 def test_empty_hold_cannot_forecast_an_unseen_piece(client, monkeypatch):
@@ -251,6 +305,7 @@ def test_empty_hold_cannot_forecast_an_unseen_piece(client, monkeypatch):
     first = body["candidates"][0]
     first.update(action="hold", uses_hold=True, piece="I", hold_after="O", next_piece=None,
                  next_spawn_blocked=None)
+    first["target"] = {"kind": "I", "shape": [[0, 0, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]], "x": 0, "y": 18}
     headers = auth_headers(session["token"])
     response = client.post("/api/v1/tetris/decision", headers=headers, json=body)
     assert response.status_code == 200
@@ -259,6 +314,7 @@ def test_empty_hold_cannot_forecast_an_unseen_piece(client, monkeypatch):
     assert "then:" not in description
     first["follow_ups"] = [{
         "piece": "T", "uses_hold": False, "hold_after": "O", "cleared_lines": 0,
+        "target": {"kind": "T", "shape": [[0, 1, 0], [1, 1, 1], [0, 0, 0]], "x": 0, "y": 18},
         "holes": 0, "max_height": 2, "aggregate_height": 4, "bumpiness": 4, "key_presses": 3,
     }]
     assert client.post("/api/v1/tetris/decision", headers=headers, json=body).status_code == 422

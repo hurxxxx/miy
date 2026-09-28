@@ -1,10 +1,17 @@
 import type { ApiSchema } from '@open-work-hub/contracts';
-import { HEIGHT, WIDTH, step, type Cell, type Game } from './engine';
+import {
+  HEIGHT,
+  WIDTH,
+  landingPiece,
+  step,
+  type Cell,
+  type Game,
+} from './engine';
+import { reachablePoses } from './ai-placement';
 
 type Candidate = ApiSchema<'TetrisCandidate'>;
 type Landing = ApiSchema<'TetrisLanding'>;
 type Preview = { game: Game; action: Candidate['action']; outcome: Landing };
-const MOVES = ['left', 'right', 'clockwise', 'counterclockwise'] as const;
 const COSTS = [
   'holes',
   'max_height',
@@ -54,29 +61,19 @@ function noWorse(a: Landing, b: Landing): boolean {
 /** Enumerate legal paths with the real engine. Keep different reserve states:
  * identical board metrics can have different value for the following piece. */
 function landings(game: Game, allowHold: boolean): Preview[] {
-  if (game.status !== 'playing' || !game.active) return [];
-  const queue: {
-    game: Game;
-    action: Candidate['action'];
-    moves: number;
-    usesHold: boolean;
-  }[] = [{ game, action: 'drop', moves: 0, usesHold: false }];
-  if (allowHold && game.canHold) {
-    const held = step(game, 'hold', () => 0);
-    if (held.status === 'playing')
-      queue.push({ game: held, action: 'hold', moves: 1, usesHold: true });
-  }
-  const visited = new Set<string>();
   const results = new Map<string, Preview>();
-  for (let index = 0; index < queue.length; index++) {
-    const node = queue[index];
-    if (!node.game.active) continue;
-    const key = JSON.stringify([node.game.active, node.usesHold]);
-    if (visited.has(key)) continue;
-    visited.add(key);
+  for (const node of reachablePoses(game, allowHold)) {
+    const target = landingPiece(node.game);
+    if (!target) continue;
     const landed = step(node.game, 'drop', () => 0);
     const outcome: Landing = {
-      piece: node.game.active.kind,
+      piece: target.kind,
+      target: {
+        ...target,
+        shape: target.shape.map((row) =>
+          row.map((cell): 0 | 1 => (cell ? 1 : 0)),
+        ),
+      },
       uses_hold: node.usesHold,
       hold_after: landed.hold,
       cleared_lines: landed.lines - game.lines,
@@ -90,16 +87,6 @@ function landings(game: Game, allowHold: boolean): Preview[] {
     ]);
     if (!results.has(boardKey))
       results.set(boardKey, { game: landed, action: node.action, outcome });
-    for (const action of MOVES) {
-      const next = step(node.game, action, () => 0);
-      if (!visited.has(JSON.stringify([next.active, node.usesHold])))
-        queue.push({
-          game: next,
-          action: node.moves === 0 ? action : node.action,
-          moves: node.moves + 1,
-          usesHold: node.usesHold,
-        });
-    }
   }
   return [...results.values()];
 }
@@ -115,7 +102,7 @@ function futureValue(candidate: Candidate): Landing {
 }
 
 /** One visible next piece, at most two placements, no hidden bag access.
- * These previews never control the game. Jev still selects every single key. */
+ * These previews never select a target. The model chooses one landing. */
 export function buildCandidates(game: Game): Candidate[] {
   if (game.status !== 'playing' || !game.active) return [];
   const root = { ...game, queue: game.queue.slice(0, 1) };
@@ -174,7 +161,7 @@ export function buildCandidates(game: Game): Candidate[] {
       safe(a, b) || compare(futureValue(a), futureValue(b)) || compare(a, b),
   );
   // Alternate immediate and two-placement rankings, with and without hold, so
-  // the bounded choice list retains both kinds of tradeoff for Jev.
+  // the bounded choice list retains both kinds of tradeoff for every model.
   const lists = [
     byFuture.filter((c) => !c.uses_hold),
     byFuture.filter((c) => c.uses_hold),

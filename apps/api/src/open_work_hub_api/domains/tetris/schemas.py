@@ -27,9 +27,21 @@ class ActivePiece(GameInput):
         return self
 
 
-class TetrisLanding(GameInput):
-    piece: Kind
+class TetrisPlacement(GameInput):
+    target: ActivePiece
     uses_hold: bool
+
+    @model_validator(mode="after")
+    def target_inside_board(self):
+        for y, row in enumerate(self.target.shape):
+            for x, cell in enumerate(row):
+                if cell and not (0 <= self.target.x + x < 10 and 0 <= self.target.y + y < 20):
+                    raise ValueError("Landing must fit inside the board")
+        return self
+
+
+class TetrisLanding(TetrisPlacement):
+    piece: Kind
     hold_after: Kind | None
     cleared_lines: int = Field(ge=0, le=4)
     holes: int = Field(ge=0, le=200)
@@ -37,6 +49,12 @@ class TetrisLanding(GameInput):
     aggregate_height: int = Field(ge=0, le=200)
     bumpiness: int = Field(ge=0, le=180)
     key_presses: int = Field(ge=1, le=64)
+
+    @model_validator(mode="after")
+    def target_matches_piece(self):
+        if self.target.kind != self.piece:
+            raise ValueError("Landing must match the piece")
+        return self
 
 
 class TetrisCandidate(TetrisLanding):
@@ -114,6 +132,7 @@ class TetrisDecisionRequest(TetrisObservation):
 
 class TetrisDecisionResponse(BaseModel):
     action: Control
+    placement: TetrisPlacement | None
     latency_ms: int = Field(ge=0)
     model: str
     provider: str

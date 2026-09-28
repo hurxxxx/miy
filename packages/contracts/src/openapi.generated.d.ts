@@ -15856,13 +15856,14 @@ export interface components {
         };
         /** TetrisCandidate */
         TetrisCandidate: {
+            target: components["schemas"]["ActivePiece"];
+            /** Uses Hold */
+            uses_hold: boolean;
             /**
              * Piece
              * @enum {string}
              */
             piece: "I" | "J" | "L" | "O" | "S" | "T" | "Z";
-            /** Uses Hold */
-            uses_hold: boolean;
             /** Hold After */
             hold_after: ("I" | "J" | "L" | "O" | "S" | "T" | "Z") | null;
             /** Cleared Lines */
@@ -15921,6 +15922,7 @@ export interface components {
              * @enum {string}
              */
             action: "left" | "right" | "down" | "clockwise" | "counterclockwise" | "drop" | "hold" | "wait";
+            placement: components["schemas"]["TetrisPlacement"] | null;
             /** Latency Ms */
             latency_ms: number;
             /** Model */
@@ -15935,13 +15937,14 @@ export interface components {
         };
         /** TetrisLanding */
         TetrisLanding: {
+            target: components["schemas"]["ActivePiece"];
+            /** Uses Hold */
+            uses_hold: boolean;
             /**
              * Piece
              * @enum {string}
              */
             piece: "I" | "J" | "L" | "O" | "S" | "T" | "Z";
-            /** Uses Hold */
-            uses_hold: boolean;
             /** Hold After */
             hold_after: ("I" | "J" | "L" | "O" | "S" | "T" | "Z") | null;
             /** Cleared Lines */
@@ -16010,6 +16013,12 @@ export interface components {
             lines: number;
             /** Level */
             level: number;
+        };
+        /** TetrisPlacement */
+        TetrisPlacement: {
+            target: components["schemas"]["ActivePiece"];
+            /** Uses Hold */
+            uses_hold: boolean;
         };
         /** ToggleFavoriteResponse */
         ToggleFavoriteResponse: {

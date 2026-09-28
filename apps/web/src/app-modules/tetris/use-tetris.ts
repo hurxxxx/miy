@@ -6,7 +6,8 @@ import {
   type KeyboardEvent,
   type MutableRefObject,
 } from 'react';
-import { fallInterval, type Action } from './engine';
+import { fallInterval, type Action, type Game } from './engine';
+import { placementAction, type Placement } from './ai-placement';
 import {
   emptyMatch,
   pauseMatch,
@@ -123,6 +124,11 @@ function usePlayerAi(
     if (config.mode !== 'ai' || status !== 'playing') return;
     let stopped = false;
     let timer: number | undefined;
+    let plan: {
+      placement: Placement;
+      pieceId: number;
+      board: Game['board'];
+    } | null = null;
     const active = () =>
       !stopped &&
       current.current.round === round &&
@@ -137,6 +143,10 @@ function usePlayerAi(
     };
     const run = async () => {
       if (!active()) return;
+      if (advancePlan()) {
+        schedule(100);
+        return;
+      }
       if (inFlight.current) {
         schedule(250);
         return;
@@ -178,17 +188,20 @@ function usePlayerAi(
             ],
           }));
           const latest = current.current.match.games[player];
-          // Garbage changes the board without spawning a new piece. Discard the
-          // pre-attack plan, but allow ordinary gravity on the same piece.
+          // Retain the chosen landing through movement and hold. Gravity is
+          // independent; the shared engine rechecks its path before every key.
           if (
             latest.pieceId === snapshot.pieceId &&
             latest.board === snapshot.board &&
-            result.action !== 'wait'
-          )
-            update((value) => ({
-              ...value,
-              match: stepMatch(value.match, player, result.action as Action),
-            }));
+            result.placement
+          ) {
+            plan = {
+              placement: result.placement,
+              pieceId: latest.pieceId,
+              board: latest.board,
+            };
+            advancePlan();
+          }
         }
       } catch (error) {
         if (active()) {
@@ -205,9 +218,36 @@ function usePlayerAi(
         if (request.current === controller) request.current = null;
         if (!stopped) setStats((value) => ({ ...value, busy: false }));
         schedule(
-          retry ? 500 : Math.max(0, 250 - (performance.now() - started)),
+          retry
+            ? 500
+            : plan
+              ? 100
+              : Math.max(0, 250 - (performance.now() - started)),
         );
       }
+    };
+    const advancePlan = () => {
+      if (!plan) return false;
+      const game = current.current.match.games[player];
+      if (game.pieceId !== plan.pieceId || game.board !== plan.board) {
+        plan = null;
+        return false;
+      }
+      const action = placementAction(game, plan.placement);
+      if (!action) {
+        plan = null;
+        return false;
+      }
+      update((value) => ({
+        ...value,
+        match: stepMatch(value.match, player, action),
+      }));
+      if (action === 'drop') plan = null;
+      else if (action === 'hold') {
+        plan.pieceId = current.current.match.games[player].pieceId;
+        plan.placement = { ...plan.placement, uses_hold: false };
+      }
+      return true;
     };
     schedule(0);
     return () => {

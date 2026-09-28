@@ -31,6 +31,10 @@ describe('asynchronous Tetris observations', () => {
     const candidates = buildCandidates(game);
     vi.mocked(apiFetchJson).mockResolvedValue({
       action: 'left',
+      placement: {
+        target: candidates[0].target,
+        uses_hold: candidates[0].uses_hold,
+      },
       latency_ms: 300,
     });
     const signal = new AbortController().signal;
@@ -42,7 +46,12 @@ describe('asynchronous Tetris observations', () => {
     });
     expect(apiFetchJson).not.toHaveBeenCalled();
     worker.onmessage!({ data: candidates });
-    await expect(pending).resolves.toMatchObject({ action: 'left' });
+    await expect(pending).resolves.toMatchObject({
+      placement: {
+        target: candidates[0].target,
+        uses_hold: candidates[0].uses_hold,
+      },
+    });
     const [, token, init] = vi.mocked(apiFetchJson).mock.calls[0];
     expect(token).toBe('test-token');
     expect(JSON.parse(init!.body as string)).toMatchObject({

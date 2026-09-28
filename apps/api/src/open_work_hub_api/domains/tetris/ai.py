@@ -13,11 +13,14 @@ from open_work_hub_api.domains.ai.model_settings_service import list_selectable_
 from open_work_hub_api.domains.ai.registry import AiCapabilityRegistry
 from open_work_hub_api.domains.auth.models import User
 
-from .schemas import TetrisCandidate, TetrisDecisionRequest, TetrisDecisionResponse, TetrisLanding, TetrisModelOption, TetrisModelsResponse, TetrisObservation
+from .schemas import TetrisCandidate, TetrisDecisionRequest, TetrisDecisionResponse, TetrisLanding, TetrisModelOption, TetrisModelsResponse, TetrisObservation, TetrisPlacement
 
 WORKLOAD_ID = "tetris.play"
 GENERATION_WORKLOAD_ID = "tetris.play.generation"
 CHOICE_INSTRUCTION = "Choose the best first placement using the rules and priorities in state."
+# Keep the same choice budget for every model, including native endpoints that
+# accept at most 26 options. The engine orders candidates by immediate/future value.
+MAX_MODEL_CANDIDATES = 26
 
 
 def register_ai_capabilities(registry: AiCapabilityRegistry) -> None:
@@ -63,8 +66,10 @@ def models(db: Session) -> TetrisModelsResponse:
 
 
 def _landing_description(item: TetrisLanding) -> str:
+    shape = "/".join("".join(map(str, row)) for row in item.target.shape)
     return (
         f"piece={item.piece} hold={int(item.uses_hold)} reserve={item.hold_after or '-'} "
+        f"x={item.target.x} y={item.target.y} shape={shape} "
         f"clear={item.cleared_lines} attack={max(0, item.cleared_lines - 1)} "
         f"holes={item.holes} height={item.max_height} sum_height={item.aggregate_height} "
         f"roughness={item.bumpiness} keys={item.key_presses}"
@@ -101,13 +106,14 @@ def _observation(item: TetrisObservation) -> dict:
 def decide(db: Session, *, user: User, payload: TetrisDecisionRequest) -> TetrisDecisionResponse:
     # The browser's game engine supplies bounded hypothetical outcomes. They
     # are ephemeral game observations, not authoritative scores or access claims.
-    choices = {f"option_{index}": item.action for index, item in enumerate(payload.candidates)}
+    candidates = payload.candidates[:MAX_MODEL_CANDIDATES]
+    choices = {f"option_{index}": item for index, item in enumerate(candidates)}
     options = {
         f"option_{index}": _candidate_description(item)
-        for index, item in enumerate(payload.candidates)
+        for index, item in enumerate(candidates)
     }
     if len(options) == 1:
-        choices["wait"] = "wait"
+        choices["wait"] = None
         options["wait"] = "Wait instead of completing the only reachable landing. Gravity still runs."
     state = {
         "game": "Tetris duel" if payload.opponent else "Tetris solo",
@@ -119,7 +125,8 @@ def decide(db: Session, *, user: User, payload: TetrisDecisionRequest) -> Tetris
             "10x20 Tetris; 7-bag; move/rotate/hard drop; full rows clear on lock. "
             "Hold once per piece; empty hold consumes next. "
             "Top-out loss: stack overflow or active/next piece cannot fit. "
-            "One decision = first key press only, then reobserve. Gravity continues during requests."
+            "One decision commits to one landing. The engine follows a legal path one key at a time; "
+            "reobserve after placement or if the plan becomes invalid. Gravity continues during requests and movement."
         ),
         "strategy": [
             "Survival first; smaller clears for danger, or an immediate winning attack.",
@@ -133,6 +140,8 @@ def decide(db: Session, *, user: User, payload: TetrisDecisionRequest) -> Tetris
             "Boards/shapes: rows top-down, columns left-right; x/y are zero-based. "
             "Board '.'=empty, G=garbage, other letters=locked tetrominoes; active is separate. "
             "Shape 1=occupied, 0=empty. Candidates are engine-computed legal landings. "
+            "Each landing's x/y and slash-separated shape give its exact pose before rows clear; "
+            "then poses apply after now's placement and line clears. "
             "now=first landing; then=alternative second landings (choose at most one). "
             "hold=1 swaps; reserve=hold afterward ('-' empty). next/spawn_blocked unknown=no forecast; "
             "spawn_blocked=1 means top-out. clear=lines removed; attack=garbage sent in a duel; "
@@ -200,8 +209,11 @@ def decide(db: Session, *, user: User, payload: TetrisDecisionRequest) -> Tetris
             choice = value["choice"]
             latency = round((monotonic() - started) * 1000)
             metadata = generated.metadata
+        selected = choices[choice]
         return TetrisDecisionResponse(
-            action=choices[choice], latency_ms=latency,
+            action=selected.action if selected else "wait",
+            placement=TetrisPlacement(target=selected.target, uses_hold=selected.uses_hold) if selected else None,
+            latency_ms=latency,
             model=metadata.model, provider=metadata.provider, kind=kind,
         )
     except AiGatewayPolicyViolation as exc:
