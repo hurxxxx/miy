@@ -9,6 +9,7 @@ AiModelProviderId = Annotated[
     str,
     Field(min_length=1, max_length=32, pattern=r"^[a-z][a-z0-9_-]{0,31}$"),
 ]
+AiModelFamily = Literal["generation", "decision"]
 AiModelRouteMode = Literal["local", "external"]
 AiModelCredentialKind = Literal["none", "api_key"]
 AiModelEndpointSource = Literal["default", "custom"]
@@ -16,8 +17,10 @@ AiModelCatalogSource = Literal["manual", "discovered"]
 AiModelDiscoveryStatus = Literal["active", "stale"]
 AiModelCapability = Literal[
     "chat",
+    "non_reasoning",
     "tool_calling",
     "vision",
+    "decision",
 ]
 
 
@@ -126,6 +129,7 @@ class AiModelOrphanedOverrideResponse(BaseModel):
 
 
 class AiModelPolicyDefaultResponse(BaseModel):
+    model_family: AiModelFamily = "generation"
     app_id: str
     route_mode: AiModelRouteMode
     provider_id: AiModelProviderId | None = None
@@ -279,6 +283,7 @@ class AiModelConnectionCreateRequest(AiModelProviderUpdateRequest):
 
 
 class AiModelPolicyDefaultUpdateRequest(AiModelRegistryMutationRequest):
+    model_family: AiModelFamily = "generation"
     expected_version: int = Field(default=0, ge=0)
     expected_provider_version: int | None = Field(default=None, ge=1)
     provider_id: AiModelProviderId | None = None
@@ -287,6 +292,7 @@ class AiModelPolicyDefaultUpdateRequest(AiModelRegistryMutationRequest):
 
 
 class AiModelConnectionProbeRequest(AiModelRegistryMutationRequest):
+    model_id: str | None = Field(default=None, max_length=64)
     expected_version: int = Field(ge=1)
 
 

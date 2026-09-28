@@ -928,7 +928,7 @@ def configured_local_llm_control_plane(client: TestClient) -> None:
         from open_work_hub_api.domains.ai.model_settings_models import AiModelPolicyDefault
 
         db.merge(
-            AiModelPolicyDefault(
+            AiModelPolicyDefault(model_family="generation",
                 app_id="",
                 route_mode="local",
                 provider_id="local",

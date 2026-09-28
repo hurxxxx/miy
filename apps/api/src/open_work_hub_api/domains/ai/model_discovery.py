@@ -6,7 +6,7 @@ from typing import Any
 
 from open_work_hub_api.core.llm_provider_registry import llm_provider_descriptor
 
-MAX_DISCOVERED_MODELS = 500
+MAX_DISCOVERED_MODELS = 2000
 MAX_MODEL_KEY_LENGTH = 160
 MAX_DISPLAY_NAME_LENGTH = 160
 
@@ -112,6 +112,48 @@ def _discover_openai_compatible_models(
         _close_client(client)
 
 
+def _discover_openrouter_models(
+    *, endpoint_url: str, api_key: str, timeout_seconds: float
+) -> Iterable[DiscoveredProviderModel]:
+    import httpx
+
+    # Query decisions separately: the default OpenRouter inventory is text-only.
+    with httpx.Client(timeout=timeout_seconds, follow_redirects=False) as client:
+        for modalities in ("decisions", "text"):
+            with client.stream(
+                "GET",
+                endpoint_url + "/models",
+                params={"output_modalities": modalities},
+                headers={"Authorization": f"Bearer {api_key}"},
+            ) as response:
+                response.raise_for_status()
+                data = bytearray()
+                for chunk in response.iter_bytes():
+                    data.extend(chunk)
+                    if len(data) > 8_388_608:
+                        raise ProviderModelDiscoveryError("inventory_too_large")
+            import json
+
+            for model in json.loads(data)["data"]:
+                architecture = model.get("architecture") or {}
+                outputs = architecture.get("output_modalities") or []
+                capabilities = []
+                if "decisions" in outputs:
+                    capabilities.append("decision")
+                if "text" in outputs:
+                    capabilities.append("chat")
+                    reasoning = model.get("reasoning")
+                    if isinstance(reasoning, dict) and reasoning.get("mandatory") is False:
+                        capabilities.append("non_reasoning")
+                    if "tools" in (model.get("supported_parameters") or []):
+                        capabilities.append("tool_calling")
+                    if "image" in (architecture.get("input_modalities") or []):
+                        capabilities.append("vision")
+                yield DiscoveredProviderModel(
+                    str(model["id"]), str(model.get("name") or model["id"]), tuple(capabilities)
+                )
+
+
 def _discover_anthropic_models(
     *,
     endpoint_url: str,
@@ -171,6 +213,7 @@ def _discover_gemini_models(
 def _ensure_default_discovery_adapters_registered() -> None:
     for adapter_id, adapter in (
         ("openai_compatible", _discover_openai_compatible_models),
+        ("openrouter", _discover_openrouter_models),
         ("anthropic", _discover_anthropic_models),
         ("gemini", _discover_gemini_models),
     ):

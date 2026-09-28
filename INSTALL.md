@@ -880,7 +880,9 @@ Bento 등 별도 주소를 쓰는 기능은 사용 시 해당 기능 문서의 �
 | --- | --- |
 | PostgreSQL·Redis·파일 저장소·검색 | 네이티브 DB·Redis 연결은 유지하고 필요한 저장소·검색만 추가한다. 개발 DB, 큐, 버킷, 색인 연결이 실제 실행 대상과 일치하는지 확인한다. Docker 서비스 정의는 [개발 Compose](ops/compose/open-work-hub-dev.infra.yml), 앱 연결 설정은 [개발 환경 설정](scripts/dev-env.sh)을 따른다. |
 | 개인정보 필터 | `OPEN_WORK_HUB_OPF_SERVICE_BASE_URL`에 별도 서비스 주소가 있으면 해당 서비스를 먼저 준비한다. 아래 실행 예와 [서비스 구현](apps/api/src/open_work_hub_api/domains/ai/privacy_filter_service.py)을 따른다. |
-| 모든 생성형 AI·챗봇 작업 파일 | 관리자 LLM 정책(전역·앱·워크로드 상속), 공급자 키 암호화 설정, Hermes 활성화, Docker 소켓 그룹·동시 실행 한도·마이그레이션은 [Hermes 설치 문서](docs/domains/ai/hermes.md#fresh-environment-setup)를 따른다. 기존 설치에서 플러그인·샌드박스 설정을 갱신할 때는 [게이트웨이 재생성 → API·Worker 갱신 절차](docs/domains/ai/hermes.md#updating-an-existing-development-installation)를 따른다. API·Worker의 프로필 정책만 바뀌는 경우는 [대화 컨텍스트 정책 적용 절차](docs/domains/ai/hermes.md#conversation-context-policy)를 따른다. 네이티브 파일 쓰기는 Docker 호스트/VM의 Landlock ABI 3+가 필요하다. 신규·기존 설치 모두 [실제 샌드박스·네이티브 코드·파일·구조화 결과 제출·챗봇 실행 검사](docs/domains/ai/hermes.md#sandbox-execution-check)로 완료를 확인하고, 실패 시 [오류별 복구 절차](docs/domains/ai/hermes.md#sandbox-startup-recovery)를 적용한다. 정적 결과물은 기본 제공 Chromium과 `owh_preview`로 검사하며 Playwright를 추가 설치하지 않는다. [오프라인 렌더링·파일 수정·실행 종료 확인](docs/domains/ai/hermes.md#static-preview-execution)도 셋업 검증에 포함한다. 공급자별 temperature 지원과 확장 제약은 해당 문서의 [런타임 계약](docs/domains/ai/hermes.md#pinned-runtime-contract)·[확장 제약](docs/domains/ai/hermes.md#pinned-upstream-gaps)을 확인한다. 로컬 모델은 OpenRouter 키 없이 시작할 수 있다. 기본 모델·앱별 모델·공급자 API 키는 관리자 LLM 설정에서 관리하며, 기존 설치의 LLM 환경변수는 [DB 설정 이관 절차](docs/domains/ai/hermes.md#db-connection-and-default-policy-cutover)로 정리한다. 기존 로컬 연결이 암묵적 기본 주소를 사용했다면 해당 절차의 명시적 주소 사전 조건을 먼저 충족한다. vLLM/Ollama 서버는 별도로 실행한 뒤 관리자 연결에 등록한다. 호스트에 Hermes를 별도 설치하지 않는다. |
+| 판단 모델(분류·선택·점수·확률) | 먼저 DB 마이그레이션을 적용한다. 관리자에서 OpenRouter 연결·암호화 키를 저장하고 모델 목록을 갱신한 뒤 `판단` 기능 모델을 검토·활성화한다. AI 모델 기본 설정에서 `판단 모델` 종류를 선택하고 모델을 지정한다. 생성 모델 기본값과는 별도로 저장된다. `모델 목록에서 확인 (추론 없음)`으로 접근을 확인하고, 실제 유료 검증은 등록된 합성 workload로 `execute_decision`을 명시적으로 호출한다. 입력 제한·등록 예시·확인 기준은 [판단 workload 계약](docs/domains/ai/gateway.md#decision-workloads)을 따른다. Hermes 설치는 판단 API 호출의 전제 조건이 아니다. |
+| 기본 생성형 AI·챗봇 작업 파일 | 관리자 LLM 정책(전역·앱·워크로드 상속), 공급자 키 암호화 설정, Hermes 활성화, Docker 소켓 그룹·동시 실행 한도·마이그레이션은 [Hermes 설치 문서](docs/domains/ai/hermes.md#fresh-environment-setup)를 따른다. 기존 설치에서 플러그인·샌드박스 설정을 갱신할 때는 [게이트웨이 재생성 → API·Worker 갱신 절차](docs/domains/ai/hermes.md#updating-an-existing-development-installation)를 따른다. API·Worker의 프로필 정책만 바뀌는 경우는 [대화 컨텍스트 정책 적용 절차](docs/domains/ai/hermes.md#conversation-context-policy)를 따른다. 네이티브 파일 쓰기는 Docker 호스트/VM의 Landlock ABI 3+가 필요하다. 신규·기존 설치 모두 [실제 샌드박스·네이티브 코드·파일·구조화 결과 제출·챗봇 실행 검사](docs/domains/ai/hermes.md#sandbox-execution-check)로 완료를 확인하고, 실패 시 [오류별 복구 절차](docs/domains/ai/hermes.md#sandbox-startup-recovery)를 적용한다. 정적 결과물은 기본 제공 Chromium과 `owh_preview`로 검사하며 Playwright를 추가 설치하지 않는다. [오프라인 렌더링·파일 수정·실행 종료 확인](docs/domains/ai/hermes.md#static-preview-execution)도 셋업 검증에 포함한다. 공급자별 temperature 지원과 확장 제약은 해당 문서의 [런타임 계약](docs/domains/ai/hermes.md#pinned-runtime-contract)·[확장 제약](docs/domains/ai/hermes.md#pinned-upstream-gaps)을 확인한다. 로컬 모델은 OpenRouter 키 없이 시작할 수 있다. 기본 모델·앱별 모델·공급자 API 키는 관리자 LLM 설정에서 관리하며, 기존 설치의 LLM 환경변수는 [DB 설정 이관 절차](docs/domains/ai/hermes.md#db-connection-and-default-policy-cutover)로 정리한다. 기존 로컬 연결이 암묵적 기본 주소를 사용했다면 해당 절차의 명시적 주소 사전 조건을 먼저 충족한다. vLLM/Ollama 서버는 별도로 실행한 뒤 관리자 연결에 등록한다. 호스트에 Hermes를 별도 설치하지 않는다. |
+| 예외적 단일 생성 호출 | 명시적으로 등록된 [공통 직접 호출 어댑터](docs/domains/ai/gateway.md#direct-completion-exceptions)는 Hermes 없이 실행한다. 관리자 연결·암호화 키·활성 모델·출력 상한은 동일하게 준비한다. 구조화 출력은 선택한 엔드포인트의 JSON Schema 지원을 실제 등록 워크로드로 확인한다. |
 | 문서 AI·OCR·음성 인식 | 설정한 [Inference Gateway](docs/domains/inference-gateway/README.md)와 [RAG](docs/domains/rag/README.md) 연결을 준비한다. 개발 Compose가 외부 추론 서버까지 설치하지는 않는다. |
 | 슬라이드·다이어그램 | [Bento](docs/apps/bento/README.md)와 [Diagrams](docs/apps/diagrams/README.md)의 서버 주소·브라우저 연결을 확인한다. Bento의 별도 런타임 이미지와 Web bridge 프로토콜도 함께 맞춘다. |
 | 화상회의·녹음 | [Recording](docs/apps/recording/README.md)의 LiveKit·네트워크·추론 서비스 요구사항을 확인한다. |
@@ -1003,11 +1005,22 @@ Platform API 키나 OWH AI 공급자 설정을 요구하지 않는다.
 
 ## 6.2. 테트리스 개인 앱 사용
 
-테트리스는 OWH API·Web과 함께 설치되며 별도 서비스나 환경 설정이 필요 없다.
+테트리스는 OWH API·Web과 함께 설치되며 수동 플레이에는 별도 서비스나 환경 설정이 필요 없다.
 새 서버에서는 [테트리스 설치·활성화](docs/apps/tetris/README.md#설치와-앱-활성화)에 따라
 플랫폼 관리자가 앱을 켜고 대상 사용자를 선택한다. 개인 앱에서 테트리스를 열고 키보드와
 화면 버튼 조작·점수 증가·일시정지·재개 및 비허용 사용자 차단을 확인한다. 게임 진행은
 일시적인 화면 상태이며 페이지 이동·새로고침 시 초기화된다.
+플레이어 2를 없음으로 두면 혼자 플레이하며, 사람은 한 명까지 참여한다.
+AI 플레이를 사용하려면 [테트리스 AI 설정](docs/apps/tetris/README.md#ai-플레이)에 따라
+판단 모델을 `tetris.play`에 연결하고, 일반 LLM은 `tetris.play.generation`의 생성 기본값과
+JSON Schema 호환 연결을 준비한다. 이 워크로드는 공통 직접 호출 어댑터를 사용하므로
+Hermes가 필요 없다. 생성 모델은 추론을 끈 실제 호출을 확인한 뒤 관리자 카탈로그에서
+`추론 없이 응답` 기능을 승인해야 한다. 테트리스는 이 기능을 요구하므로 모델을 바꿔도
+추론을 끈다. 추론 필수 모델은 선택할 수 없다. 상세 계약은
+[공통 추론 끔 정책](docs/domains/ai/gateway.md#non-reasoning-workloads)을 따른다.
+양방향 즉시 공격, AI 대기 중 낙하, 오류 후 0.5초 간격 재시도, 게임 종료 시 양쪽 요청 중단을
+확인한다. 수동 혼자 플레이는 모델 설정 없이 가능하다. `OPEN_WORK_HUB_LLM_REQUIRED=true`이면
+전체 서버 준비 상태(`/readyz`)에 두 워크로드의 유효한 기본 연결이 모두 필요하다.
 
 ## 7. 실행 종료·재시작과 완료 확인
 

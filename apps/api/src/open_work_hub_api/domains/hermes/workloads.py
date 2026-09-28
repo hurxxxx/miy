@@ -21,8 +21,7 @@ from open_work_hub_api.core.llm_errors import LlmProviderError
 from open_work_hub_api.core.settings import get_settings
 from open_work_hub_api.domains.ai.registry import get_ai_capability_registry
 from open_work_hub_api.domains.ai.tool_context import current_tool_execution_context
-from open_work_hub_api.domains.auth.app_gate import can_use_app
-from open_work_hub_api.domains.auth.models import User
+from open_work_hub_api.domains.ai.workload_access import require_workload_owner
 from open_work_hub_api.domains.hermes.execution import execute_hermes_run
 from open_work_hub_api.domains.hermes.client import HermesClientError
 from open_work_hub_api.domains.hermes.model_policy import HermesModelPolicy
@@ -96,18 +95,7 @@ async def _run_workload(
         else None
     )
     with factory() as db:
-        user = db.get(User, owner_id)
-        if (
-            user is None
-            or user.status != "active"
-            or user.login_blocked
-            or not can_use_app(
-                db,
-                app_id=context.app_id,
-                user_id=user.id,
-            )
-        ):
-            raise LlmProviderError("Workload owner no longer has access to this app.")
+        user = require_workload_owner(db, owner_id=owner_id, app_id=context.app_id)
         binding = await ensure_profile_binding(db, user=user, model_policy=policy)
         run = HermesRunRepository(db).stage(
             binding=binding,

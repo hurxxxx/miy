@@ -325,6 +325,7 @@ def post_ai_model_connection_probe(
             provider_id=provider_id,
             expected_version=payload.expected_version,
             expected_registry_digest=payload.expected_registry_digest,
+            model_id=payload.model_id,
         )
     except AiModelSettingsError as exc:
         _raise_settings_error(db, exc)
@@ -370,6 +371,7 @@ def put_ai_model_policy_default(
         payload={
             "app_id": app_id,
             "route": route,
+            "model_family": payload.model_family,
             "provider_id": payload.provider_id,
             "model_id": payload.model_id,
             "max_output_tokens": payload.max_output_tokens,

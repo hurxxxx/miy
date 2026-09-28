@@ -62,6 +62,7 @@ function snapshot(defaultModel: string, version: number): AdminAiModelSettings {
     })),
     defaults: [
       {
+        model_family: 'generation',
         app_id: '',
         route_mode: 'external',
         provider_id: 'conn_main',
@@ -115,6 +116,7 @@ describe('LLM defaults refresh', () => {
         '',
         'external',
         {
+          model_family: 'generation',
           expected_registry_digest: 'registry',
           expected_version: 1,
           expected_provider_version: 2,
@@ -126,4 +128,64 @@ describe('LLM defaults refresh', () => {
     );
     expect(onSaved).toHaveBeenCalledWith(refreshed);
   });
+});
+
+it('separates decision defaults and hides generation caps and models', async () => {
+  const data = snapshot('model-a', 1);
+  data.models.push({
+    ...data.models[0],
+    id: 'decision',
+    model_key: 'decision',
+    display_name: 'Decision',
+    capabilities: ['decision'],
+  });
+  data.defaults.push({
+    model_family: 'decision',
+    app_id: '',
+    route_mode: 'external',
+    provider_id: 'conn_main',
+    model_id: 'decision',
+    max_output_tokens: null,
+    version: 2,
+  });
+  render(
+    <AdminLlmDefaults
+      token="test"
+      data={data}
+      disabled={false}
+      onSave={async (_key, mutation) => {
+        await mutation();
+      }}
+    />,
+  );
+  fireEvent.change(
+    screen.getByRole('combobox', {
+      name: 'admin.console.aiSecurity.llmDefaults.family',
+    }),
+    { target: { value: 'decision' } },
+  );
+  const form = screen.getByRole('form', {
+    name: 'admin.console.aiSecurity.modelSettings.routes.external',
+  });
+  expect(within(form).queryByRole('spinbutton')).toBeNull();
+  expect(
+    within(form).queryByRole('option', { name: 'model-a · model-a' }),
+  ).toBeNull();
+  expect(
+    within(form).getByRole('option', { name: 'Decision · decision' }),
+  ).toBeTruthy();
+  fireEvent.submit(form);
+  await waitFor(() =>
+    expect(updateAdminAiModelDefault).toHaveBeenLastCalledWith(
+      'test',
+      '',
+      'external',
+      expect.objectContaining({
+        model_family: 'decision',
+        model_id: 'decision',
+        max_output_tokens: null,
+        expected_version: 2,
+      }),
+    ),
+  );
 });

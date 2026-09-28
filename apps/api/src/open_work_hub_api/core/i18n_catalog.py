@@ -1192,6 +1192,34 @@ MESSAGES: dict[str, dict[str, str]] = {
         "ko-KR": "메일 발송에 실패했습니다: {error}",
         "en-US": "Mail send failed: {error}",
     },
+    "tetris.ai_failed": {
+        "ko-KR": "AI 판단에 실패했습니다.",
+        "en-US": "AI decision failed.",
+    },
+    "tetris.ai_rate_limited": {
+        "ko-KR": "모델 공급자의 호출 제한에 도달했습니다.",
+        "en-US": "The model provider's request limit was reached.",
+    },
+    "tetris.ai_output_limit": {
+        "ko-KR": "모델이 출력 상한 안에 판단을 완료하지 못했습니다.",
+        "en-US": "The model could not finish its decision within the output limit.",
+    },
+    "tetris.ai_timeout": {
+        "ko-KR": "모델 응답 제한 시간이 초과되었습니다.",
+        "en-US": "The model response timed out.",
+    },
+    "ai.model_selection_not_allowed": {
+        "ko-KR": "이 AI 작업은 모델 선택을 허용하지 않습니다.",
+        "en-US": "Model selection is not allowed for this AI workload.",
+    },
+    "ai.selected_model_unavailable": {
+        "ko-KR": "선택한 모델을 이 작업에 사용할 수 없습니다.",
+        "en-US": "The selected model is unavailable for this workload.",
+    },
+    "tetris.ai_blocked": {
+        "ko-KR": "AI 보안 정책으로 판단 요청이 차단되었습니다.",
+        "en-US": "AI security policy blocked the decision.",
+    },
     "mail.ai_failed": {
         "ko-KR": "메일 AI 작업에 실패했습니다.",
         "en-US": "Mail AI task failed.",

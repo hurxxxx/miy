@@ -2,7 +2,7 @@ export const WIDTH = 10;
 export const HEIGHT = 20;
 export const KINDS = ['I', 'J', 'L', 'O', 'S', 'T', 'Z'] as const;
 export type Kind = (typeof KINDS)[number];
-export type Cell = Kind | null;
+export type Cell = Kind | 'garbage' | null;
 export type Matrix = readonly (readonly number[])[];
 export const SHAPES: Record<Kind, Matrix> = {
   I: [
@@ -48,6 +48,7 @@ export interface Piece {
   y: number;
 }
 export interface Game {
+  pieceId: number;
   board: Cell[][];
   active: Piece | null;
   queue: Kind[];
@@ -71,6 +72,7 @@ export type Action =
   | 'resume';
 export function emptyGame(): Game {
   return {
+    pieceId: 0,
     board: Array.from({ length: HEIGHT }, () => Array<Cell>(WIDTH).fill(null)),
     active: null,
     queue: [],
@@ -111,10 +113,19 @@ export function fits(board: Cell[][], piece: Piece): boolean {
     ),
   );
 }
+/** Exact pose immediately before locking, shared by drop and AI planning. */
+export function landingPiece(game: Game): Piece | null {
+  let active = game.active;
+  if (!active) return null;
+  while (fits(game.board, { ...active, y: active.y + 1 }))
+    active = { ...active, y: active.y + 1 };
+  return active;
+}
 function activate(game: Game, kind: Kind): Game {
   const active = spawn(kind);
   return {
     ...game,
+    pieceId: game.pieceId + 1,
     active,
     status: fits(game.board, active) ? 'playing' : 'over',
   };
@@ -130,6 +141,37 @@ export function startGame(random: () => number = Math.random): Game {
 }
 export function fallInterval(level: number): number {
   return Math.max(100, 1000 * 0.8 ** (level - 1));
+}
+/** Incoming rows rise immediately; move the active piece only to resolve overlap. */
+export function addGarbage(game: Game, holes: readonly number[]): Game {
+  if (game.status !== 'playing' || !holes.length) return game;
+  if (
+    holes.some((hole) => !Number.isInteger(hole) || hole < 0 || hole >= WIDTH)
+  )
+    throw new RangeError('Invalid garbage hole');
+  if (
+    holes.length >= HEIGHT ||
+    game.board.slice(0, holes.length).some((row) => row.some(Boolean))
+  )
+    return { ...game, status: 'over' };
+  const board: Cell[][] = [
+    ...game.board.slice(holes.length),
+    ...holes.map((hole) =>
+      Array.from(
+        { length: WIDTH },
+        (_, x): Cell => (x === hole ? null : 'garbage'),
+      ),
+    ),
+  ];
+  let active = game.active;
+  while (active && !fits(board, active) && active.y > 0)
+    active = { ...active, y: active.y - 1 };
+  return {
+    ...game,
+    board,
+    active,
+    status: active && fits(board, active) ? 'playing' : 'over',
+  };
 }
 function lock(game: Game, random: () => number): Game {
   if (!game.active) return game;
@@ -174,12 +216,9 @@ export function step(
     return { ...next, hold: piece.kind, canHold: false };
   }
   if (action === 'drop') {
-    let active = piece;
-    let distance = 0;
-    while (fits(game.board, { ...active, y: active.y + 1 })) {
-      active = { ...active, y: active.y + 1 };
-      distance++;
-    }
+    const active = landingPiece(game);
+    if (!active) return game;
+    const distance = active.y - piece.y;
     return lock({ ...game, active, score: game.score + distance * 2 }, random);
   }
   if (action === 'clockwise' || action === 'counterclockwise') {

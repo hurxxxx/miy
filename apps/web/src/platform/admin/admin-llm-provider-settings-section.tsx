@@ -412,7 +412,10 @@ export function AdminLlmProviderSettingsSection({ token }: { token: string }) {
                     )}
                   </option>
                   {selectedModels
-                    .filter((model) => model.enabled)
+                    .filter(
+                      (model) =>
+                        model.enabled && model.capabilities.includes('chat'),
+                    )
                     .map((model) => (
                       <option key={model.id} value={model.id}>
                         {model.display_name} · {model.model_key}

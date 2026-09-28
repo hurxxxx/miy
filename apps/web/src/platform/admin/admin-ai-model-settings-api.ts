@@ -1,3 +1,4 @@
+import type { ApiSchema } from '@open-work-hub/contracts';
 import { jsonBodyHeaders, jsonHeaders } from '@/src/platform/api/client';
 
 export type AiModelRoute = 'local' | 'external';
@@ -103,14 +104,7 @@ export interface AiModelOrphanedOverride {
   updated_at: string | null;
 }
 
-export interface AiModelPolicyDefault {
-  app_id: string;
-  route_mode: AiModelRoute;
-  provider_id: string | null;
-  model_id: string | null;
-  max_output_tokens: number | null;
-  version: number;
-}
+export type AiModelPolicyDefault = ApiSchema<'AiModelPolicyDefaultResponse'>;
 
 export interface AdminAiModelSettings {
   defaults: AiModelPolicyDefault[];
@@ -386,6 +380,7 @@ export function probeAdminAiModelConnection(
   token: string,
   connection: AiModelProviderConfig,
   digest: string,
+  modelId?: string,
 ): Promise<{ ready: boolean; code: string | null; version: number }> {
   return request(
     token,
@@ -393,6 +388,7 @@ export function probeAdminAiModelConnection(
     {
       method: 'POST',
       body: JSON.stringify({
+        model_id: modelId,
         expected_version: connection.version,
         expected_registry_digest: digest,
       }),
@@ -400,14 +396,13 @@ export function probeAdminAiModelConnection(
   );
 }
 
-export interface AiModelPolicyDefaultUpdate {
-  expected_registry_digest: string;
-  expected_version: number;
-  expected_provider_version?: number;
-  provider_id: string | null;
-  model_id: string | null;
-  max_output_tokens: number | null;
-}
+// The wire API accepts an omitted family as generation for existing clients.
+export type AiModelPolicyDefaultUpdate = Omit<
+  ApiSchema<'AiModelPolicyDefaultUpdateRequest'>,
+  'model_family'
+> & {
+  model_family?: ApiSchema<'AiModelPolicyDefaultUpdateRequest'>['model_family'];
+};
 
 export function updateAdminAiModelDefault(
   token: string,

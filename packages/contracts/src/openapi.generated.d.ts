@@ -1910,6 +1910,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tetris/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Models */
+        get: operations["tetris_models_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tetris/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decision */
+        post: operations["tetris_decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dm/users": {
         parameters: {
             query?: never;
@@ -6325,6 +6359,20 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ActivePiece */
+        ActivePiece: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "I" | "J" | "L" | "O" | "S" | "T" | "Z";
+            /** Shape */
+            shape: (0 | 1)[][];
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+        };
         /**
          * ActiveRecordingLockOut
          * @description Indicates that a meeting currently has an in-progress recording.
@@ -7820,7 +7868,7 @@ export interface components {
             /** Display Name */
             display_name: string;
             /** Capabilities */
-            capabilities: ("chat" | "tool_calling" | "vision")[];
+            capabilities: ("chat" | "non_reasoning" | "tool_calling" | "vision" | "decision")[];
             /**
              * Enabled
              * @default true
@@ -7838,7 +7886,7 @@ export interface components {
             /** Display Name */
             display_name: string;
             /** Capabilities */
-            capabilities: ("chat" | "tool_calling" | "vision")[];
+            capabilities: ("chat" | "non_reasoning" | "tool_calling" | "vision" | "decision")[];
             /** Enabled */
             enabled: boolean;
             /**
@@ -7869,7 +7917,7 @@ export interface components {
             /** Display Name */
             display_name: string;
             /** Capabilities */
-            capabilities: ("chat" | "tool_calling" | "vision")[];
+            capabilities: ("chat" | "non_reasoning" | "tool_calling" | "vision" | "decision")[];
             /** Enabled */
             enabled: boolean;
         };
@@ -7918,6 +7966,8 @@ export interface components {
         AiModelConnectionProbeRequest: {
             /** Expected Registry Digest */
             expected_registry_digest: string;
+            /** Model Id */
+            model_id?: string | null;
             /** Expected Version */
             expected_version: number;
         };
@@ -7962,6 +8012,12 @@ export interface components {
         };
         /** AiModelPolicyDefaultResponse */
         AiModelPolicyDefaultResponse: {
+            /**
+             * Model Family
+             * @default generation
+             * @enum {string}
+             */
+            model_family: "generation" | "decision";
             /** App Id */
             app_id: string;
             /**
@@ -7985,6 +8041,12 @@ export interface components {
         AiModelPolicyDefaultUpdateRequest: {
             /** Expected Registry Digest */
             expected_registry_digest: string;
+            /**
+             * Model Family
+             * @default generation
+             * @enum {string}
+             */
+            model_family: "generation" | "decision";
             /**
              * Expected Version
              * @default 0
@@ -15792,6 +15854,172 @@ export interface components {
             /** Label Ids */
             label_ids?: string[] | null;
         };
+        /** TetrisCandidate */
+        TetrisCandidate: {
+            target: components["schemas"]["ActivePiece"];
+            /** Uses Hold */
+            uses_hold: boolean;
+            /**
+             * Piece
+             * @enum {string}
+             */
+            piece: "I" | "J" | "L" | "O" | "S" | "T" | "Z";
+            /** Hold After */
+            hold_after: ("I" | "J" | "L" | "O" | "S" | "T" | "Z") | null;
+            /** Cleared Lines */
+            cleared_lines: number;
+            /** Holes */
+            holes: number;
+            /** Max Height */
+            max_height: number;
+            /** Aggregate Height */
+            aggregate_height: number;
+            /** Bumpiness */
+            bumpiness: number;
+            /** Key Presses */
+            key_presses: number;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "left" | "right" | "clockwise" | "counterclockwise" | "drop" | "hold";
+            /** Next Piece */
+            next_piece: ("I" | "J" | "L" | "O" | "S" | "T" | "Z") | null;
+            /** Next Spawn Blocked */
+            next_spawn_blocked: boolean | null;
+            /** Follow Ups */
+            follow_ups: components["schemas"]["TetrisLanding"][];
+        };
+        /** TetrisDecisionRequest */
+        TetrisDecisionRequest: {
+            /** Board */
+            board: (("I" | "J" | "L" | "O" | "S" | "T" | "Z") | "garbage" | null)[][];
+            active: components["schemas"]["ActivePiece"];
+            /**
+             * Next
+             * @enum {string}
+             */
+            next: "I" | "J" | "L" | "O" | "S" | "T" | "Z";
+            /** Hold */
+            hold: ("I" | "J" | "L" | "O" | "S" | "T" | "Z") | null;
+            /** Can Hold */
+            can_hold: boolean;
+            /** Score */
+            score: number;
+            /** Lines */
+            lines: number;
+            /** Level */
+            level: number;
+            model_choice?: components["schemas"]["TetrisModelChoice"] | null;
+            opponent?: components["schemas"]["TetrisObservation"] | null;
+            /** Candidates */
+            candidates: components["schemas"]["TetrisCandidate"][];
+        };
+        /** TetrisDecisionResponse */
+        TetrisDecisionResponse: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "left" | "right" | "down" | "clockwise" | "counterclockwise" | "drop" | "hold" | "wait";
+            placement: components["schemas"]["TetrisPlacement"] | null;
+            /** Latency Ms */
+            latency_ms: number;
+            /** Model */
+            model: string;
+            /** Provider */
+            provider: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "decision" | "generation";
+        };
+        /** TetrisLanding */
+        TetrisLanding: {
+            target: components["schemas"]["ActivePiece"];
+            /** Uses Hold */
+            uses_hold: boolean;
+            /**
+             * Piece
+             * @enum {string}
+             */
+            piece: "I" | "J" | "L" | "O" | "S" | "T" | "Z";
+            /** Hold After */
+            hold_after: ("I" | "J" | "L" | "O" | "S" | "T" | "Z") | null;
+            /** Cleared Lines */
+            cleared_lines: number;
+            /** Holes */
+            holes: number;
+            /** Max Height */
+            max_height: number;
+            /** Aggregate Height */
+            aggregate_height: number;
+            /** Bumpiness */
+            bumpiness: number;
+            /** Key Presses */
+            key_presses: number;
+        };
+        /** TetrisModelChoice */
+        TetrisModelChoice: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "decision" | "generation";
+            /** Model Id */
+            model_id: string;
+        };
+        /** TetrisModelOption */
+        TetrisModelOption: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "decision" | "generation";
+            /** Model Id */
+            model_id: string;
+            /** Name */
+            name: string;
+            /** Model Key */
+            model_key: string;
+            /** Provider */
+            provider: string;
+            /** Is Default */
+            is_default: boolean;
+        };
+        /** TetrisModelsResponse */
+        TetrisModelsResponse: {
+            /** Models */
+            models: components["schemas"]["TetrisModelOption"][];
+        };
+        /** TetrisObservation */
+        TetrisObservation: {
+            /** Board */
+            board: (("I" | "J" | "L" | "O" | "S" | "T" | "Z") | "garbage" | null)[][];
+            active: components["schemas"]["ActivePiece"];
+            /**
+             * Next
+             * @enum {string}
+             */
+            next: "I" | "J" | "L" | "O" | "S" | "T" | "Z";
+            /** Hold */
+            hold: ("I" | "J" | "L" | "O" | "S" | "T" | "Z") | null;
+            /** Can Hold */
+            can_hold: boolean;
+            /** Score */
+            score: number;
+            /** Lines */
+            lines: number;
+            /** Level */
+            level: number;
+        };
+        /** TetrisPlacement */
+        TetrisPlacement: {
+            target: components["schemas"]["ActivePiece"];
+            /** Uses Hold */
+            uses_hold: boolean;
+        };
         /** ToggleFavoriteResponse */
         ToggleFavoriteResponse: {
             /** Is Favorite */
@@ -22482,6 +22710,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UsageEventResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Access denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tetris_models_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TetrisModelsResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Access denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    tetris_decision_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TetrisDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TetrisDecisionResponse"];
                 };
             };
             /** @description Authentication required. */

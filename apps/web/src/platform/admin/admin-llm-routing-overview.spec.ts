@@ -68,6 +68,7 @@ describe('workload inheritance mutations', () => {
       })),
       defaults: [
         {
+          model_family: 'generation',
           app_id: 'chatbot',
           route_mode: 'external',
           provider_id: 'connection-a',

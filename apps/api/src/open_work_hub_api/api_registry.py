@@ -73,6 +73,7 @@ from open_work_hub_api.domains.release_notes.router import router as release_not
 from open_work_hub_api.domains.retrieval.router import router as retrieval_router
 from open_work_hub_api.domains.search.router import router as search_router
 from open_work_hub_api.domains.usage.router import router as usage_router
+from open_work_hub_api.domains.tetris.router import router as tetris_router
 from open_work_hub_api.domains.video_chat.router import router as video_chat_router
 from open_work_hub_api.domains.whiteboard.group_sharing import (
     router as whiteboard_group_sharing_router,
@@ -139,6 +140,7 @@ def _router_specs() -> list[_RouterSpec]:
         _RouterSpec(admin_platform_api_keys_router, "protected"),
         _RouterSpec(directory_integrations_router),
         _RouterSpec(usage_router, "protected"),
+        _RouterSpec(tetris_router, "protected"),
         _RouterSpec(dm_router, "protected"),
         _RouterSpec(content_access_router),
         _RouterSpec(release_notes_router, "protected"),

@@ -700,6 +700,7 @@ def test_execute_llm_uses_registered_admin_route_without_caller_model_controls(
         "resolve_llm_workload_route",
         lambda *_args, **_kwargs: SimpleNamespace(
             workload=workload,
+            runtime_adapter_id=workload.default_runtime_adapter,
             route="external",
             provider_id="anthropic",
             adapter_provider="anthropic",
@@ -718,6 +719,7 @@ def test_execute_llm_uses_registered_admin_route_without_caller_model_controls(
         captured["db"] = db
         return SimpleNamespace(text="ok"), SimpleNamespace(provider=request.workload_config.provider, model=request.workload_config.default_model, chosen_pool=request.workload_config.pool), request.workload_config
 
+    monkeypatch.setattr(gateway_module, "require_workload_owner", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(gateway_module, "complete_gateway_chat_text", fake_complete)
     db = object()
     result = execute_llm(
@@ -755,6 +757,7 @@ def test_execute_llm_uses_route_cap_when_caller_omits_max_tokens(
         "resolve_llm_workload_route",
         lambda *_args, **_kwargs: SimpleNamespace(
             workload=workload,
+            runtime_adapter_id=workload.default_runtime_adapter,
             route="local",
             provider_id="local",
             adapter_provider="local",
@@ -772,6 +775,7 @@ def test_execute_llm_uses_route_cap_when_caller_omits_max_tokens(
         captured["request"] = request
         return SimpleNamespace(text="ok"), SimpleNamespace(provider=request.workload_config.provider, model=request.workload_config.default_model, chosen_pool=request.workload_config.pool), request.workload_config
 
+    monkeypatch.setattr(gateway_module, "require_workload_owner", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(gateway_module, "complete_gateway_chat_text", fake_complete)
     execute_llm(
         "chatbot",

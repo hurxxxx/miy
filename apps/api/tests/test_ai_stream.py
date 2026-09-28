@@ -336,7 +336,7 @@ def _configure_database_local_provider() -> None:
         provider.enabled = True
         provider.endpoint_url = "http://127.0.0.1:12434/engines/v1"
         provider.default_model_id = model.id
-        db.merge(AiModelPolicyDefault(app_id="", route_mode=provider.route_mode, provider_id=provider.provider_id, version=1))
+        db.merge(AiModelPolicyDefault(model_family="generation", app_id="", route_mode=provider.route_mode, provider_id=provider.provider_id, version=1))
         db.commit()
 
 
@@ -378,7 +378,7 @@ def _configure_database_external_provider(
         provider.endpoint_url = endpoint_url
         provider.api_key_ciphertext = encrypt_api_key(f"test-{provider_id}-key")
         provider.default_model_id = model.id
-        db.merge(AiModelPolicyDefault(app_id="", route_mode=provider.route_mode, provider_id=provider.provider_id, version=1))
+        db.merge(AiModelPolicyDefault(model_family="generation", app_id="", route_mode=provider.route_mode, provider_id=provider.provider_id, version=1))
         db.commit()
 
 

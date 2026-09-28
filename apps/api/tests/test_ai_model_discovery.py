@@ -179,7 +179,7 @@ def test_gemini_discovery_normalizes_resource_names_and_advertised_actions(
 def test_discovery_limits_unique_results_and_display_name_length(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    client = _FakeClient([SimpleNamespace(id=f"model-{index}") for index in range(501)])
+    client = _FakeClient([SimpleNamespace(id=f"model-{index}") for index in range(model_discovery.MAX_DISCOVERED_MODELS + 1)])
     monkeypatch.setattr(
         model_discovery,
         "_new_openai_client",
@@ -193,8 +193,8 @@ def test_discovery_limits_unique_results_and_display_name_length(
         10,
     )
 
-    assert len(result) == 500
-    assert result[-1].model_key == "model-499"
+    assert len(result) == model_discovery.MAX_DISCOVERED_MODELS
+    assert result[-1].model_key == f"model-{model_discovery.MAX_DISCOVERED_MODELS - 1}"
 
 
 def test_provider_errors_are_replaced_with_a_safe_code(

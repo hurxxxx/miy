@@ -44,7 +44,7 @@ def log_llm_call(
     model: str,
     status: str,
     latency_ms: int,
-    usage: dict[str, int] | None = None,
+    usage: dict[str, Any] | None = None,
     max_tokens: int | None = None,
     context_strategy: str | None = None,
     estimated_input_tokens: int | None = None,
@@ -76,6 +76,11 @@ def log_llm_call(
     conversation_id: str | None = None,
     detected_values: list[dict[str, object]] | None = None,
     workload_id: str | None = None,
+    execution_kind: str = "generation",
+    runtime_adapter_id: str | None = None,
+    connection_id: str | None = None,
+    provider: str | None = None,
+    requested_model: str | None = None,
 ) -> None:
     """Record a single LLM request to the audit log.
 
@@ -95,6 +100,11 @@ def log_llm_call(
             ),
             "task_kind": task_kind,
             "workload_id": workload_id,
+            "execution_kind": execution_kind,
+            "runtime_adapter_id": runtime_adapter_id,
+            "connection_id": connection_id,
+            "provider": provider,
+            "requested_model": requested_model,
             "app_id": app_id,
             "policy": policy,
             "chosen_pool": chosen_pool,
@@ -471,6 +481,8 @@ def _maybe_record_ai_interaction(
             principal_kind=payload.get("principal_kind"),
             principal_id=payload.get("principal_id"),
             task_kind=payload.get("task_kind"),
+            provider=payload.get("provider"),
+            capability="decision" if payload.get("execution_kind") == "decision" else "llm",
             pool=payload.get("chosen_pool"),
             model=payload.get("model"),
             status=str(payload.get("status") or "unknown"),
@@ -480,6 +492,10 @@ def _maybe_record_ai_interaction(
             metadata=_compact_dict(
                 {
                     "app_id": payload.get("app_id"),
+                    "workload_id": payload.get("workload_id"),
+                    "execution_kind": payload.get("execution_kind"),
+                    "connection_id": payload.get("connection_id"),
+                    "requested_model": payload.get("requested_model"),
                     "policy": payload.get("policy"),
                     "decision_reason": payload.get("decision_reason"),
                     "forced_local": payload.get("forced_local"),

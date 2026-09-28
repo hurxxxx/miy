@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal
@@ -28,6 +30,7 @@ from open_work_hub_api.core.llm_errors import LlmProviderError
 from open_work_hub_api.core.llm_provider_registry import parse_external_llm_provider_allowlist
 from open_work_hub_api.core.settings import get_settings
 from open_work_hub_api.domains.ai.audit import log_llm_call
+from open_work_hub_api.domains.ai.workload_access import require_workload_owner
 from open_work_hub_api.domains.ai.boundary_safety import (
     ExternalPayloadSafetyDecision,
     evaluate_external_payload_safety,
@@ -120,6 +123,7 @@ class AiGatewayRequest:
     native_tool_limit: int = 20
     app: str | None = None
     workload_id: str | None = None
+    runtime_adapter_id: str | None = None
     workload_route: Literal["local", "external"] | None = field(
         default=None,
         repr=False,
@@ -155,6 +159,10 @@ class AiGatewayRequest:
             if not normalized_workload_id:
                 raise ValueError("LLM workload_id must not be blank")
             object.__setattr__(self, "workload_id", normalized_workload_id)
+            if self.runtime_adapter_id is None:
+                workload = get_ai_capability_registry().get_llm_workload(normalized_workload_id)
+                if workload is not None:
+                    object.__setattr__(self, "runtime_adapter_id", workload.default_runtime_adapter)
         if self.workload_route is not None and self.workload_route not in {
             "local",
             "external",
@@ -206,6 +214,7 @@ class AiGatewayRequest:
             task_kind=self.task_kind,
             app_id=self.app,
             workload_id=self.workload_id,
+            runtime_adapter_id=self.runtime_adapter_id,
             principal_kind=self.principal_kind,
             principal_id=self.principal_id,
         )
@@ -476,6 +485,37 @@ class AiGatewayExecution:
     decision: AiGatewayDecision
     detected_values: tuple[AiSecurityDetectedValueInput, ...] = ()
 
+    def audit_fields(self, *, prefix: str = "") -> dict[str, Any]:
+        """One security metadata projection for every execution backend."""
+        names = (
+            "context_strategy",
+            "estimated_input_tokens",
+            "sensitivity_labels",
+            "blocked_entity_types",
+            "content_origin",
+            "source_kinds",
+            "ai_security_policy_effect",
+            "ai_security_policy_rule_id",
+            "ai_security_policy_reason",
+            "ai_security_policy_audit_only",
+            "custom_block_term_count",
+            "external_transfer_exception_id",
+            "external_transfer_exception_name",
+            "external_transfer_exception_reason",
+            "external_transfer_exception_blockers",
+            "ai_security_pipeline_exemption_id",
+            "ai_security_pipeline_exemption_name",
+            "ai_security_pipeline_exemption_reason",
+            "mask_applied",
+            "masked_entity_types",
+            "masked_text_count",
+            "privacy_filter_status",
+            "privacy_filter_used",
+        )
+        values = {prefix + name: getattr(self.decision, name) for name in names}
+        values[prefix + "detected_values"] = serialize_detected_values(self.detected_values)
+        return values
+
 
 @dataclass(frozen=True)
 class AiGatewayResponse:
@@ -523,6 +563,8 @@ class LlmWorkloadMetadata:
     provider: str
     model: str
     route: str
+    execution_kind: str = "generation"
+    requested_model: str | None = None
 
     @classmethod
     def from_execution(
@@ -534,6 +576,7 @@ class LlmWorkloadMetadata:
             decision.provider,
             decision.model,
             decision.chosen_pool,
+            requested_model=request.requested_model,
         )
 
 
@@ -544,6 +587,8 @@ def resolve_llm_workload_route(
     model_role: str = "default",
     app_id: str | None = None,
     require_tool_calling: bool = False,
+    require_structured_output: bool = False,
+    selected_model_id: str | None = None,
 ) -> ResolvedLlmWorkloadRoute:
     """Resolve the admin-selected route without executing it."""
 
@@ -553,6 +598,8 @@ def resolve_llm_workload_route(
         model_role=model_role,
         app_id=app_id,
         require_tool_calling=require_tool_calling,
+        require_structured_output=require_structured_output,
+        selected_model_id=selected_model_id,
     )
 
 
@@ -562,6 +609,7 @@ def execute_llm(
     db: Session,
     *,
     messages: list[dict[str, Any]],
+    selected_model_id: str | None = None,
     temperature: float | None = None,
     max_tokens: int | None = None,
     reasoning_effort: str | None = None,
@@ -577,13 +625,14 @@ def execute_llm(
     agent_run_id: str | None = None,
     conversation_id: str | None = None,
 ) -> LlmWorkloadResult:
-    """Execute one registered workload without exposing route/model controls."""
+    """Execute a registered workload with optional validated catalog selection."""
 
     request = build_llm_workload_request(
         workload_id,
         context,
         db,
         messages=messages,
+        selected_model_id=selected_model_id,
         temperature=temperature,
         max_tokens=max_tokens,
         reasoning_effort=reasoning_effort,
@@ -600,6 +649,7 @@ def execute_llm(
         agent_run_id=agent_run_id,
         conversation_id=conversation_id,
     )
+    require_generation_owner(request, db)
     completion, decision, config = complete_gateway_chat_text(request, db)
     return LlmWorkloadResult(
         completion=completion,
@@ -652,8 +702,98 @@ async def stream_llm(
         agent_run_id=agent_run_id,
         conversation_id=conversation_id,
     )
+    require_generation_owner(request, db)
     async for chunk, decision, config in complete_gateway_chat_stream(request, db):
         yield chunk, decision, LlmWorkloadMetadata.from_execution(request, decision, config)
+
+
+def require_generation_owner(request: AiGatewayRequest, db: Session) -> None:
+    workload = get_ai_capability_registry().resolve_llm_workload(request.workload_id or "")
+    if workload.execution_kind == "decision":
+        raise LlmProviderError("Decision workloads require execute_decision.")
+    require_workload_owner(
+        db, owner_id=request.execution_user_id or request.actor_user_id, app_id=request.app or ""
+    )
+
+
+def prepare_structured_workload(
+    workload_id: str,
+    context: LlmWorkloadContext,
+    db: Session,
+    *,
+    payload: dict[str, Any],
+    selected_model_id: str | None = None,
+    sensitivity_labels: tuple[str, ...] = (),
+    source_kinds: tuple[str, ...] = (),
+    content_origin: str = "user_prompt",
+) -> tuple[AiGatewayExecution, dict[str, Any]]:
+    """Apply the common route/security boundary to structured native payloads.
+
+    JSON is a security projection only; no chat request is sent. Scanning includes
+    keys, numeric values and all question descriptions. Masking may change string
+    values, but may never change container shape, keys, types or scalar values.
+    """
+    text = json.dumps(payload, ensure_ascii=False, allow_nan=False)
+    request = build_llm_workload_request(
+        workload_id,
+        context,
+        db,
+        selected_model_id=selected_model_id,
+        context_pack=AiGatewayContextPack(
+            messages=[{"role": "user", "content": text}],
+            context_strategy="structured_decision",
+            sensitivity_labels=sensitivity_labels,
+            source_kinds=source_kinds,
+            content_origin=content_origin,
+        ),
+    )
+    require_workload_owner(
+        db, owner_id=context.execution_user_id or context.actor_user_id, app_id=request.app or ""
+    )
+    execution = resolve_gateway_execution(request, db)
+    try:
+        masked = json.loads(execution.messages[0]["content"])
+        if not _same_payload_shape(payload, masked):
+            raise ValueError("shape")
+    except (ValueError, TypeError, KeyError, IndexError):
+        log_llm_call(
+            source=context.source,
+            actor_user_id=context.actor_user_id,
+            principal_kind=context.principal_kind,
+            principal_id=context.principal_id,
+            task_kind=request.task_kind,
+            workload_id=workload_id,
+            app_id=request.app or "",
+            policy=execution.decision.policy,
+            chosen_pool=execution.decision.chosen_pool,
+            decision_reason="structured_mask_invalid",
+            forced_local=False,
+            pii_hits=list(execution.decision.pii_hits),
+            model=execution.decision.model,
+            status="blocked_external",
+            latency_ms=0,
+            execution_kind="decision",
+            connection_id=execution.llm_execution.config.connection_id,
+            provider=execution.decision.provider,
+            requested_model=execution.decision.model,
+            **execution.audit_fields(),
+        )
+        raise LlmProviderError("Structured payload masking cannot preserve the contract.") from None
+    return execution, masked
+
+
+def _same_payload_shape(before: Any, after: Any) -> bool:
+    if type(before) is not type(after):
+        return False
+    if isinstance(before, dict):
+        return before.keys() == after.keys() and all(
+            _same_payload_shape(value, after[key]) for key, value in before.items()
+        )
+    if isinstance(before, list):
+        return len(before) == len(after) and all(
+            _same_payload_shape(a, b) for a, b in zip(before, after, strict=True)
+        )
+    return isinstance(before, str) or before == after
 
 
 def build_llm_workload_request(
@@ -662,14 +802,15 @@ def build_llm_workload_request(
     db: Session,
     **request_values: Any,
 ) -> AiGatewayRequest:
+    selected_model_id = request_values.pop("selected_model_id", None)
     try:
         route = resolve_llm_workload_route(
             workload_id,
             db,
             app_id=context.app_id,
-            require_tool_calling=bool(
-                request_values.get("tools") or request_values.get("output_schema")
-            ),
+            selected_model_id=selected_model_id,
+            require_tool_calling=bool(request_values.get("tools")),
+            require_structured_output=request_values.get("output_schema") is not None,
         )
     except AiModelSettingsError as error:
         raise LlmProviderError(error.code) from error
@@ -688,11 +829,17 @@ def build_llm_workload_request(
         int(requested_max_tokens) if requested_max_tokens is not None else route.max_output_tokens,
         route.max_output_tokens,
     )
+    if "non_reasoning" in workload.required_capabilities:
+        # Workload policy also applies to every explicitly selected catalog model.
+        # Drop caller transport options that could re-enable provider thinking.
+        request_values["reasoning_effort"] = "none"
+        request_values["extra_body"] = None
     if route.route == "external":
         request_values["extra_body"] = None
     return AiGatewayRequest(
         task_kind=workload.task_kind,
         workload_id=workload.workload_id,
+        runtime_adapter_id=route.runtime_adapter_id,
         workload_route=route.route,
         workload_config=runtime_config,
         workload_local_max_output_tokens=route.local_max_output_tokens,
@@ -932,6 +1079,23 @@ def _validate_registered_workload_request(request: AiGatewayRequest) -> None:
             task_kind=request.task_kind,
             requested_provider=request.requested_provider,
         )
+    if request.runtime_adapter_id not in workload.allowed_runtime_adapters:
+        raise AiGatewayPolicyViolation(
+            reason_code="runtime_adapter_not_allowed", task_kind=request.task_kind
+        )
+    if "non_reasoning" in workload.required_capabilities and (
+        request.reasoning_effort != "none" or request.extra_body
+    ):
+        raise AiGatewayPolicyViolation(
+            reason_code="reasoning_not_allowed", task_kind=request.task_kind
+        )
+    if request.runtime_adapter_id == "direct_completion" and (
+        request.stream or request.tools is not None or request.tool_choice is not None
+        or request.parallel_tool_calls is not None
+    ):
+        raise AiGatewayPolicyViolation(
+            reason_code="direct_completion_unsupported_operation", task_kind=request.task_kind
+        )
 
 
 def _resolved_registered_gateway_execution(
@@ -1016,6 +1180,20 @@ def _raise_external_transfer_blocked(
             principal_id=request.principal_id,
             task_kind=request.task_kind,
             workload_id=request.workload_id,
+            execution_kind=(
+                "decision"
+                if (
+                    workload := get_ai_capability_registry().get_llm_workload(
+                        request.workload_id or ""
+                    )
+                )
+                is not None
+                and workload.execution_kind == "decision"
+                else "generation"
+            ),
+            connection_id=config.connection_id,
+            provider=config.provider,
+            requested_model=request.requested_model,
             app_id=request.app or "",
             policy="external",
             chosen_pool="external",
@@ -1072,6 +1250,20 @@ def _raise_ai_security_enforcement_required(request: AiGatewayRequest) -> None:
             principal_id=request.principal_id,
             task_kind=request.task_kind,
             workload_id=request.workload_id,
+            execution_kind=(
+                "decision"
+                if (
+                    workload := get_ai_capability_registry().get_llm_workload(
+                        request.workload_id or ""
+                    )
+                )
+                is not None
+                and workload.execution_kind == "decision"
+                else "generation"
+            ),
+            connection_id=config.connection_id,
+            provider=config.provider,
+            requested_model=request.requested_model,
             app_id=request.app or "",
             policy="external",
             chosen_pool="external",
@@ -1117,7 +1309,7 @@ def complete_resolved_gateway_chat(
     response, _decision, config = _complete_chat(
         gateway_execution.llm_context,
         db,
-        completion_executor=_hermes_completion_executor(gateway_execution),
+        completion_executor=_completion_executor(gateway_execution),
         messages=gateway_execution.messages,
         temperature=request.temperature,
         max_tokens=request.max_tokens,
@@ -1134,48 +1326,7 @@ def complete_resolved_gateway_chat(
         resolved_execution=gateway_execution.llm_execution,
         agent_run_id=request.agent_run_id,
         conversation_id=request.conversation_id,
-        audit_context_strategy=gateway_execution.decision.context_strategy,
-        audit_estimated_input_tokens=gateway_execution.decision.estimated_input_tokens,
-        audit_sensitivity_labels=gateway_execution.decision.sensitivity_labels,
-        audit_blocked_entity_types=gateway_execution.decision.blocked_entity_types,
-        audit_content_origin=gateway_execution.decision.content_origin,
-        audit_source_kinds=gateway_execution.decision.source_kinds,
-        audit_ai_security_policy_effect=(gateway_execution.decision.ai_security_policy_effect),
-        audit_ai_security_policy_rule_id=(gateway_execution.decision.ai_security_policy_rule_id),
-        audit_ai_security_policy_reason=(gateway_execution.decision.ai_security_policy_reason),
-        audit_ai_security_policy_audit_only=(
-            gateway_execution.decision.ai_security_policy_audit_only
-        ),
-        audit_custom_block_term_count=(gateway_execution.decision.custom_block_term_count),
-        audit_external_transfer_exception_id=(
-            gateway_execution.decision.external_transfer_exception_id
-        ),
-        audit_external_transfer_exception_name=(
-            gateway_execution.decision.external_transfer_exception_name
-        ),
-        audit_external_transfer_exception_reason=(
-            gateway_execution.decision.external_transfer_exception_reason
-        ),
-        audit_external_transfer_exception_blockers=(
-            gateway_execution.decision.external_transfer_exception_blockers
-        ),
-        audit_ai_security_pipeline_exemption_id=(
-            gateway_execution.decision.ai_security_pipeline_exemption_id
-        ),
-        audit_ai_security_pipeline_exemption_name=(
-            gateway_execution.decision.ai_security_pipeline_exemption_name
-        ),
-        audit_ai_security_pipeline_exemption_reason=(
-            gateway_execution.decision.ai_security_pipeline_exemption_reason
-        ),
-        audit_mask_applied=gateway_execution.decision.mask_applied,
-        audit_masked_entity_types=gateway_execution.decision.masked_entity_types,
-        audit_masked_text_count=gateway_execution.decision.masked_text_count,
-        audit_privacy_filter_status=gateway_execution.decision.privacy_filter_status,
-        audit_privacy_filter_used=gateway_execution.decision.privacy_filter_used,
-        audit_detected_values=serialize_detected_values(
-            gateway_execution.detected_values,
-        ),
+        **gateway_execution.audit_fields(prefix="audit_"),
     )
     return AiGatewayResponse(
         response=response,
@@ -1200,7 +1351,7 @@ def complete_resolved_gateway_chat_text(
     completion, _decision, config = _complete_chat_text(
         gateway_execution.llm_context,
         db,
-        completion_executor=_hermes_completion_executor(gateway_execution),
+        completion_executor=_completion_executor(gateway_execution),
         messages=gateway_execution.messages,
         temperature=request.temperature,
         max_tokens=request.max_tokens,
@@ -1217,48 +1368,7 @@ def complete_resolved_gateway_chat_text(
         resolved_execution=gateway_execution.llm_execution,
         agent_run_id=request.agent_run_id,
         conversation_id=request.conversation_id,
-        audit_context_strategy=gateway_execution.decision.context_strategy,
-        audit_estimated_input_tokens=gateway_execution.decision.estimated_input_tokens,
-        audit_sensitivity_labels=gateway_execution.decision.sensitivity_labels,
-        audit_blocked_entity_types=gateway_execution.decision.blocked_entity_types,
-        audit_content_origin=gateway_execution.decision.content_origin,
-        audit_source_kinds=gateway_execution.decision.source_kinds,
-        audit_ai_security_policy_effect=(gateway_execution.decision.ai_security_policy_effect),
-        audit_ai_security_policy_rule_id=(gateway_execution.decision.ai_security_policy_rule_id),
-        audit_ai_security_policy_reason=(gateway_execution.decision.ai_security_policy_reason),
-        audit_ai_security_policy_audit_only=(
-            gateway_execution.decision.ai_security_policy_audit_only
-        ),
-        audit_custom_block_term_count=(gateway_execution.decision.custom_block_term_count),
-        audit_external_transfer_exception_id=(
-            gateway_execution.decision.external_transfer_exception_id
-        ),
-        audit_external_transfer_exception_name=(
-            gateway_execution.decision.external_transfer_exception_name
-        ),
-        audit_external_transfer_exception_reason=(
-            gateway_execution.decision.external_transfer_exception_reason
-        ),
-        audit_external_transfer_exception_blockers=(
-            gateway_execution.decision.external_transfer_exception_blockers
-        ),
-        audit_ai_security_pipeline_exemption_id=(
-            gateway_execution.decision.ai_security_pipeline_exemption_id
-        ),
-        audit_ai_security_pipeline_exemption_name=(
-            gateway_execution.decision.ai_security_pipeline_exemption_name
-        ),
-        audit_ai_security_pipeline_exemption_reason=(
-            gateway_execution.decision.ai_security_pipeline_exemption_reason
-        ),
-        audit_mask_applied=gateway_execution.decision.mask_applied,
-        audit_masked_entity_types=gateway_execution.decision.masked_entity_types,
-        audit_masked_text_count=gateway_execution.decision.masked_text_count,
-        audit_privacy_filter_status=gateway_execution.decision.privacy_filter_status,
-        audit_privacy_filter_used=gateway_execution.decision.privacy_filter_used,
-        audit_detected_values=serialize_detected_values(
-            gateway_execution.detected_values,
-        ),
+        **gateway_execution.audit_fields(prefix="audit_"),
     )
     return completion, gateway_execution.decision, config
 
@@ -1301,48 +1411,7 @@ async def complete_resolved_gateway_chat_stream(
         resolved_execution=gateway_execution.llm_execution,
         agent_run_id=request.agent_run_id,
         conversation_id=request.conversation_id,
-        audit_context_strategy=gateway_execution.decision.context_strategy,
-        audit_estimated_input_tokens=gateway_execution.decision.estimated_input_tokens,
-        audit_sensitivity_labels=gateway_execution.decision.sensitivity_labels,
-        audit_blocked_entity_types=gateway_execution.decision.blocked_entity_types,
-        audit_content_origin=gateway_execution.decision.content_origin,
-        audit_source_kinds=gateway_execution.decision.source_kinds,
-        audit_ai_security_policy_effect=(gateway_execution.decision.ai_security_policy_effect),
-        audit_ai_security_policy_rule_id=(gateway_execution.decision.ai_security_policy_rule_id),
-        audit_ai_security_policy_reason=(gateway_execution.decision.ai_security_policy_reason),
-        audit_ai_security_policy_audit_only=(
-            gateway_execution.decision.ai_security_policy_audit_only
-        ),
-        audit_custom_block_term_count=(gateway_execution.decision.custom_block_term_count),
-        audit_external_transfer_exception_id=(
-            gateway_execution.decision.external_transfer_exception_id
-        ),
-        audit_external_transfer_exception_name=(
-            gateway_execution.decision.external_transfer_exception_name
-        ),
-        audit_external_transfer_exception_reason=(
-            gateway_execution.decision.external_transfer_exception_reason
-        ),
-        audit_external_transfer_exception_blockers=(
-            gateway_execution.decision.external_transfer_exception_blockers
-        ),
-        audit_ai_security_pipeline_exemption_id=(
-            gateway_execution.decision.ai_security_pipeline_exemption_id
-        ),
-        audit_ai_security_pipeline_exemption_name=(
-            gateway_execution.decision.ai_security_pipeline_exemption_name
-        ),
-        audit_ai_security_pipeline_exemption_reason=(
-            gateway_execution.decision.ai_security_pipeline_exemption_reason
-        ),
-        audit_mask_applied=gateway_execution.decision.mask_applied,
-        audit_masked_entity_types=gateway_execution.decision.masked_entity_types,
-        audit_masked_text_count=gateway_execution.decision.masked_text_count,
-        audit_privacy_filter_status=gateway_execution.decision.privacy_filter_status,
-        audit_privacy_filter_used=gateway_execution.decision.privacy_filter_used,
-        audit_detected_values=serialize_detected_values(
-            gateway_execution.detected_values,
-        ),
+        **gateway_execution.audit_fields(prefix="audit_"),
     ):
         yield chunk, gateway_execution.decision, config
 
@@ -1445,6 +1514,8 @@ def _replace_gateway_text_inputs(
     messages: list[dict[str, Any]],
     replacements: tuple[str, ...],
 ) -> list[dict[str, Any]]:
+    if len(replacements) != len(_collect_gateway_text_inputs(messages)):
+        raise LlmProviderError("Masking text count mismatch")
     text_index = 0
     out: list[dict[str, Any]] = []
     for message in messages:
@@ -1527,7 +1598,23 @@ def _hermes_completion_executor(gateway_execution: AiGatewayExecution):
     )
 
 
+def _completion_executor(gateway_execution: AiGatewayExecution):
+    request = gateway_execution.request
+    _validate_registered_workload_request(request)
+    if request.runtime_adapter_id == "direct_completion":
+        from open_work_hub_api.core.llm import complete_direct_chat
+
+        return lambda execution, payload, timeout: complete_direct_chat(
+            execution, payload, timeout, output_schema=request.output_schema
+        )
+    if request.runtime_adapter_id != "chat_completion":
+        raise LlmProviderError("Generation requires a registered completion runtime.")
+    return _hermes_completion_executor(gateway_execution)
+
+
 def _hermes_stream_executor(gateway_execution: AiGatewayExecution):
+    if gateway_execution.request.runtime_adapter_id != "chat_completion":
+        raise LlmProviderError("This runtime does not support streaming.")
     from open_work_hub_api.domains.hermes.workloads import stream_workload
 
     return lambda execution, payload, timeout: stream_workload(
