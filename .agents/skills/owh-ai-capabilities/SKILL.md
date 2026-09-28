@@ -9,7 +9,8 @@ description: Use when changing product AI tools, MCP manifests, or registered LL
 - Register through `register_ai_capabilities(registry)` and `AiCapabilityRegistry`.
 - Use AI-specific DTOs, not REST request models.
 - Write tools require approval, discoverability predicate, execution ACL, audit.
-- Every generative call uses stable `RegisteredLlmWorkload` and `execute_llm`/`stream_llm`.
+- Every model decision/generative call uses stable `RegisteredLlmWorkload`: `execute_decision` for bounded semantic judgments; `execute_llm`/`stream_llm` for generation. Use deterministic code for exact rules.
+- For decision work, read [the gateway contract](../../../docs/domains/ai/gateway.md#decision-workloads). Keep thresholds/actions in the app; model results cannot authorize access or bypass write approval.
 - Workload is independently configurable function/stage. Split route/model/output-cap differences.
 - Caller never selects workload/provider/model/pool/endpoint/credential from user input.
 - Descriptor declares output caps, audit/tracing, external-data behavior.

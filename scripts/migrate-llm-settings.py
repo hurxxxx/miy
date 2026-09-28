@@ -103,7 +103,7 @@ def backfill(db, values: dict[str, str | None]) -> set[str]:
             decrypt_api_key(local.api_key_ciphertext)
     db.flush()
     for route in ("local", "external"):
-        row = db.get(AiModelPolicyDefault, ("", route))
+        row = db.get(AiModelPolicyDefault, ("generation", "", route))
         if row is None:
             row = AiModelPolicyDefault(
                 app_id="",

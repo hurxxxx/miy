@@ -59,12 +59,12 @@ def test_global_app_and_workload_inherit_independently_and_shared_workload_is_sc
         a, ma = seed(db, "one")
         b, mb = seed(db, "two")
         db.merge(
-            AiModelPolicyDefault(
+            AiModelPolicyDefault(model_family="generation",
                 app_id="", route_mode="local", provider_id=a.provider_id, max_output_tokens=32768
             )
         )
         db.merge(
-            AiModelPolicyDefault(
+            AiModelPolicyDefault(model_family="generation",
                 app_id="recording",
                 route_mode="local",
                 provider_id=b.provider_id,
@@ -98,7 +98,7 @@ def test_global_app_and_workload_inherit_independently_and_shared_workload_is_sc
         ) == ("two", 8192, "app")
         with pytest.raises(AiModelSettingsError, match="workload_app_required"):
             resolve_ai_model_workload_route(db, workload_id="meeting_summary")
-        db.get(AiModelPolicyDefault, ("", "local")).provider_id = "two"
+        db.get(AiModelPolicyDefault, ("generation", "", "local")).provider_id = "two"
         db.flush()
         assert (
             resolve_ai_model_workload_route(
@@ -242,7 +242,7 @@ def test_default_change_checks_inheriting_workload_capabilities_and_versions(cli
         good, gm = seed(db, "tools")
         bad, bm = seed(db, "chatonly", capabilities=["chat"])
         db.merge(
-            AiModelPolicyDefault(
+            AiModelPolicyDefault(model_family="generation",
                 app_id="", route_mode="local", provider_id=good.provider_id, version=1
             )
         )
@@ -279,7 +279,7 @@ def test_runtime_schema_requires_tools_even_when_static_workload_only_requires_c
     with get_session_factory()() as db:
         connection, _ = seed(db, "plain", capabilities=["chat"])
         db.merge(
-            AiModelPolicyDefault(app_id="", route_mode="local", provider_id=connection.provider_id)
+            AiModelPolicyDefault(model_family="generation", app_id="", route_mode="local", provider_id=connection.provider_id)
         )
         db.commit()
         assert (
@@ -530,7 +530,7 @@ def test_inherited_route_change_rejects_incompatible_model_and_rolls_back(client
         external.endpoint_url = "https://api.openai.com/v1"
         for connection in (local, external):
             db.merge(
-                AiModelPolicyDefault(
+                AiModelPolicyDefault(model_family="generation",
                     app_id="", route_mode=connection.route_mode, provider_id=connection.provider_id
                 )
             )
@@ -567,18 +567,18 @@ def test_new_workload_caps_inherit_registration_then_explicit_policy(client, mon
     monkeypatch.setattr(service, "get_ai_capability_registry", lambda: registry)
     with get_session_factory()() as db:
         connection, _ = seed(db, "caps")
-        global_default = AiModelPolicyDefault(
+        global_default = AiModelPolicyDefault(model_family="generation",
             app_id="", route_mode="local", provider_id=connection.provider_id
         )
         db.merge(global_default)
         db.commit()
         result = service.resolve_ai_model_workload_route(db, workload_id="test.compact")
         assert (result.max_output_tokens, result.output_cap_source) == (1024, "registry")
-        db.get(AiModelPolicyDefault, ("", "local")).max_output_tokens = 4096
+        db.get(AiModelPolicyDefault, ("generation", "", "local")).max_output_tokens = 4096
         db.flush()
         result = service.resolve_ai_model_workload_route(db, workload_id="test.compact")
         assert (result.max_output_tokens, result.output_cap_source) == (4096, "global")
-        db.add(AiModelPolicyDefault(app_id="chatbot", route_mode="local", max_output_tokens=8192))
+        db.add(AiModelPolicyDefault(model_family="generation", app_id="chatbot", route_mode="local", max_output_tokens=8192))
         db.flush()
         assert (
             service.resolve_ai_model_workload_route(
@@ -701,9 +701,9 @@ def test_runtime_health_preserves_same_family_connections_and_workload_readiness
         for identifier in ("healthy", "unavailable"):
             connection, _ = seed(db, identifier, kind="openai", route="external")
             connection.endpoint_url = "https://api.openai.com/v1"
-        db.merge(AiModelPolicyDefault(app_id="", route_mode="external", provider_id="healthy"))
+        db.merge(AiModelPolicyDefault(model_family="generation", app_id="", route_mode="external", provider_id="healthy"))
         db.add(
-            AiModelPolicyDefault(app_id="mail", route_mode="external", provider_id="unavailable")
+            AiModelPolicyDefault(model_family="generation", app_id="mail", route_mode="external", provider_id="unavailable")
         )
         db.commit()
         result = runtime_status.inspect_registered_llm_runtime(db)
@@ -754,7 +754,7 @@ def test_reset_cannot_break_a_ready_inherited_workload(client, method):
         inherited, _ = seed(db, "inherited-chat-only", capabilities=["chat"])
         explicit, _ = seed(db, "explicit-tools")
         db.merge(
-            AiModelPolicyDefault(app_id="", route_mode="local", provider_id=inherited.provider_id)
+            AiModelPolicyDefault(model_family="generation", app_id="", route_mode="local", provider_id=inherited.provider_id)
         )
         db.add(
             AiModelRouteOverride(

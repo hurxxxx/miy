@@ -13,6 +13,7 @@ class LlmProviderDescriptor:
     credential_kind: Literal["none", "api_key"] = "api_key"
     discovery_adapter_id: str = ""
     execution_adapter_id: str = ""
+    decision_adapter_id: str = ""
     aliases: tuple[str, ...] = ()
     official: bool = True
     openai_compatible: bool = False
@@ -55,6 +56,7 @@ def register_llm_provider(descriptor: LlmProviderDescriptor) -> None:
         credential_kind=descriptor.credential_kind,
         discovery_adapter_id=discovery_adapter_id,
         execution_adapter_id=execution_adapter_id,
+        decision_adapter_id=descriptor.decision_adapter_id,
         aliases=aliases,
         official=descriptor.official,
         openai_compatible=descriptor.openai_compatible,
@@ -115,7 +117,8 @@ def ensure_default_llm_providers_registered() -> None:
             "openrouter",
             display_name="OpenRouter",
             default_endpoint_url="https://openrouter.ai/api/v1",
-            discovery_adapter_id="openai_compatible",
+            discovery_adapter_id="openrouter",
+            decision_adapter_id="openrouter_decisions",
             execution_adapter_id="openai_compatible",
             openai_compatible=True,
         ),

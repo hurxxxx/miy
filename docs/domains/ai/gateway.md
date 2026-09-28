@@ -1,6 +1,6 @@
 # AI Gateway
 
-Generative model calls use registered workloads and the common execution gateway. App code never chooses provider SDK or external HTTP endpoint.
+Generative and decision model calls use registered workloads and the common execution gateway. App code never chooses provider SDK or external HTTP endpoint.
 
 Approval replay, graph execution, and artifact state are owned by [AI Execution](execution.md).
 
@@ -8,7 +8,7 @@ Approval replay, graph execution, and artifact state are owned by [AI Execution]
 
 - Workload registers ID, owner, routes, capability, output cap, audit/tracing, external-data policy.
 - Admin saves multiple named connections (OpenRouter, OpenAI, Anthropic, Gemini or OpenAI-compatible). Connection IDs are distinct from provider/transport kinds. Local connections support optional API-key authentication.
-- Global defaults → app defaults → `(app_id, workload_id)` overrides select connection/model/output cap per local/external route. Omitted values inherit; saving only a cap does not pin a resolved model. Output caps resolve explicit workload → app → global values, then the registered workload default (32K local / 64K external unless the workload declares another default). Untouched migration-seeded global caps are cleared by `llm_cap_defaults_20260918`; administrator edits are preserved. Global model changes use the selected connection default, while app/workload model overrides stay explicit.
+- Generation and decision each have independent global defaults → app defaults → `(app_id, workload_id)` overrides select connection/model/output cap per local/external route. Omitted values inherit; saving only a cap does not pin a resolved model. Output caps resolve explicit workload → app → global values, then the registered workload default (32K local / 64K external unless the workload declares another default). Untouched migration-seeded global caps are cleared by `llm_cap_defaults_20260918`; administrator edits are preserved. Generation global model changes use the selected connection default, while app/workload model overrides stay explicit. Decision defaults always store an explicit decision model and never inherit the generation connection default. Existing rows migrate to `generation`; no decision default is seeded.
 - Runtime policy is DB-only: missing/disabled connections, missing credentials, inactive catalog models, incompatible capabilities and disallowed routes fail closed. No unique-provider or environment fallback is used. Provider allowlists remain infrastructure/security policy.
 - External connections must also be admitted by both `OPEN_WORK_HUB_LLM_EXTERNAL_ALLOWED_PROVIDERS` and `OPEN_WORK_HUB_AI_ALLOWED_EXTERNAL_PROVIDERS` using their provider kind (for example `openrouter` or `openai_compatible`). Saving a connection does not widen either deployment allowlist; local compatible connections use the local host policy instead.
 - App catalog registrations declare `ai_capability_modules`; the AI registry imports each hook once and fails for missing hooks. A shared workload has independent settings for each owning app.
@@ -22,7 +22,7 @@ Approval replay, graph execution, and artifact state are owned by [AI Execution]
 - Tool execution checks the current user/execution principal, owning-app admission, descriptor discoverability, and
   source ACL; write tools also require approval.
 - Audit records actor, app, workload, provider/model, token usage, trace ID.
-- Every registered text/structured/stream completion delegates to [Hermes](hermes.md). Administrator workload policy still resolves model, data transfer and caps before dispatch. No SDK fallback is used when Hermes is unavailable.
+- Every registered generative text/structured/stream completion delegates to [Hermes](hermes.md). Administrator workload policy still resolves model, data transfer and caps before dispatch. No SDK fallback is used when Hermes is unavailable.
 - `AgentRuntimeAdapter` preserves the application orchestration interface; Bento registers only the Hermes implementation.
 - `execution_user_id` declares a private runtime owner for system work without replacing its audit actor.
 - `LlmCompletionResult.structured_output` is accepted through registered schema/semantic validation inside the Hermes loop. Apps never parse provider tool-call envelopes.
@@ -41,3 +41,58 @@ Approval replay, graph execution, and artifact state are owned by [AI Execution]
 - Qwen `reasoning_effort=none` maps to `chat_template_kwargs.enable_thinking=false`.
 - Runtime health retains connection identity, including multiple connections of one provider family; local serving status enumerates enabled local connections.
 - Legacy core adapter types remain for transport/health compatibility; application generation enters only the registered gateway.
+
+## Decision workloads
+
+Use deterministic code for exact validation, arithmetic and authorization. Use a decision model for bounded semantic classification, choosing among defined options, ordinal scoring or estimating a proposition's probability. Text synthesis and open-ended reasoning remain generation. Embedding, rerank, OCR and ASR keep their role-specific Inference Gateway interfaces.
+
+Register through the existing app hook, without a second registry:
+
+```python
+registry.register_llm_workload(
+    workload_id="example.triage", task_kind="example_triage",
+    owner_domain="example", app_id="example", description="Classify a case",
+    execution_kind="decision", required_capabilities=("decision",),
+    default_runtime_adapter="decision", allowed_runtime_adapters=("decision",),
+    default_route="external", allowed_routes=("external",),
+)
+```
+
+The app owns its stable workload constant and source ACL. Pass source `sensitivity_labels`, `source_kinds` and `content_origin` when calling the facade; do not relabel internal/retrieved content as a public user prompt. A caller supplies identity and input, never a provider/model/connection/key:
+
+```python
+from open_work_hub_api.domains.ai.decisions import execute_decision, ChoiceQuestion
+from open_work_hub_api.domains.ai.gateway import LlmWorkloadContext
+
+result = execute_decision(
+    "example.triage",
+    LlmWorkloadContext(source="example.triage", actor_user_id=user.id, app_id="example"),
+    db,
+    state={"case": authorized_text},
+    questions={"category": ChoiceQuestion(
+        instructions="Choose the relevant category.",
+        options={"delivery": "Shipping or delivery", "payment": "Billing or payment"},
+    )},
+)
+answer = result.response.answers["category"]
+```
+
+`ChoiceQuestion` returns a choice, distribution and optional provider confidence. `ScoreQuestion(levels=[...])` returns a continuous score from zero to `len(levels)-1`, with an ordinal distribution and optional confidence. `ProbabilityQuestion(true_description=..., false_description=...)` returns a probability in [0, 1]. The provider wire term `noul` is private to `decision_adapters.py`. Confidence is provider-reported, not a calibrated guarantee. Apps own thresholds, abstention/human review and downstream actions; no result grants app/resource access or write approval.
+
+`decision_contracts.py` owns bounds: state is a string, JSON object or array; at most 32 questions, 2–32 choices/levels, 64-character identifier keys, 4096-character instructions/descriptions, 256 KiB UTF-8 input and response, and a 30-second native request timeout. All answer keys/types, choices, finite values, distributions and score ranges are checked. Calls are nonstreaming, with no retry, provider fallback or chat emulation. Unknown usage/cost stays absent, never becomes zero.
+
+Native calls use the common DB resolver, active execution-owner/app admission, existing `llm` security policies and audit path. The gateway scans a JSON security projection containing state, keys, numbers, question instructions and option descriptions; only the validated structured payload reaches the native endpoint. Masking may change string values, but invalid JSON or altered keys/container shape/scalar types fails closed. Raw state/questions/answers and credentials are not logged. `llm_call`/AI interaction compatibility is preserved with `execution_kind=decision`, workload/connection/provider, requested/actual model, tokens, optional reported cost, latency and status. Existing detector-specific security monitoring remains governed by the security owner.
+
+The first native adapter uses OpenRouter's [public alpha Decisions endpoint](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request), which is not part of the pinned OpenAI SDK's chat surface. It uses HTTPS, no redirects, bounded response reads and safe error codes; only the canonical OpenRouter endpoint is supported. Model IDs are administrator configuration, not adapter branches. The alpha API may change: adapt the isolated wire contract and its fixture/live tests when upgrading. Future providers register a native adapter through the provider descriptor/composition root. `register_decision_adapter` is a composition/test seam, never an application routing override.
+
+OpenRouter discovery queries both text and decisions inventories and uses `architecture.output_modalities`, not model names, to classify capabilities. New discoveries remain disabled pending approval. Saving defaults checks model capability and versions. Admin model inventory checks perform no inference or quality evaluation. Live runtime health for decision workloads uses this inventory rather than chat completion health. A page view never performs paid inference.
+
+After setup, use a registered synthetic workload through `execute_decision` with authorized execution identity to explicitly test a real provider; verify category/score/probability semantics and exactly one audit event with actual model and usage. Do not send customer data as a smoke test. Compare reordered choices, repeated calls, Korean input and positive/negative cases before selecting application thresholds. Record latency and reported cost separately from correctness; a successful transport check is not an accuracy evaluation.
+
+Focused regression checks:
+
+```bash
+(cd apps/api && uv run --python 3.12 --group dev pytest tests/test_decisions.py tests/test_ai_gateway.py tests/test_llm_connection_policies.py tests/test_ai_model_discovery.py tests/test_ai_gateway_direct_call_guard.py tests/test_hermes_gateway_entry.py -q)
+```
+
+Follow the [validation harness](../../agents/vibe-coding-harness.md) for shared backend/frontend/contracts, migration and instruction changes.

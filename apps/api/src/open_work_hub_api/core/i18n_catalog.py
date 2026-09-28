@@ -1192,6 +1192,14 @@ MESSAGES: dict[str, dict[str, str]] = {
         "ko-KR": "메일 발송에 실패했습니다: {error}",
         "en-US": "Mail send failed: {error}",
     },
+    "tetris.ai_failed": {
+        "ko-KR": "AI 판단에 실패했습니다.",
+        "en-US": "AI decision failed.",
+    },
+    "tetris.ai_blocked": {
+        "ko-KR": "AI 보안 정책으로 판단 요청이 차단되었습니다.",
+        "en-US": "AI security policy blocked the decision.",
+    },
     "mail.ai_failed": {
         "ko-KR": "메일 AI 작업에 실패했습니다.",
         "en-US": "Mail AI task failed.",

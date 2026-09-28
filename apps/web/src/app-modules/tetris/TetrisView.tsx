@@ -1,6 +1,15 @@
 import { Button } from '@open-work-hub/ui';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SHAPES, visibleBoard, type Cell, type Kind } from './engine';
+import { useAuth } from '@/src/platform/auth/auth-provider';
+import { requestDecision } from './ai-api';
+import {
+  SHAPES,
+  visibleBoard,
+  type Cell,
+  type Kind,
+  type Game,
+} from './engine';
 import { useTetris } from './use-tetris';
 
 const BLOCK_STYLES: Record<Kind, string> = {
@@ -61,7 +70,24 @@ function Preview({
 }
 export function TetrisView() {
   const { t } = useTranslation('apps');
-  const { game, boardRef, start, pause, resume, onKeyDown, play } = useTetris();
+  const { token } = useAuth();
+  const decide = useCallback(
+    (game: Game, signal: AbortSignal) => requestDecision(token, game, signal),
+    [token],
+  );
+  const {
+    game,
+    boardRef,
+    start,
+    pause,
+    resume,
+    onKeyDown,
+    play,
+    aiEnabled,
+    aiBusy,
+    aiRetry,
+    toggleAi,
+  } = useTetris(decide);
   const controls = [
     { action: 'counterclockwise', label: t('tetris.Rotate left'), symbol: '↶' },
     { action: 'hold', label: t('tetris.Hold block'), symbol: 'C' },
@@ -81,15 +107,14 @@ export function TetrisView() {
     <section
       className="h-full overflow-auto bg-app-bg p-4 text-app-ink"
       aria-labelledby="tetris-title"
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null))
-          pause();
-      }}
     >
       <header className="mb-4 flex flex-wrap items-center gap-3">
         <h1 id="tetris-title" className="app-text-title-lg">
           {t('tetris.Tetris')}
         </h1>
+        <Button variant="secondary" aria-pressed={aiEnabled} onClick={toggleAi}>
+          {aiEnabled ? t('tetris.Disable AI play') : t('tetris.Enable AI play')}
+        </Button>
         {game.status === 'ready' ? (
           <Button variant="primary" onClick={start}>
             {t('tetris.Start game')}
@@ -113,6 +138,18 @@ export function TetrisView() {
         )}
         <p role="status" className="app-text-body text-app-ink-muted">
           {status}
+          {aiEnabled && (
+            <span>
+              {' · '}
+              {aiRetry > 0 && game.status === 'playing'
+                ? t('tetris.AI retrying (attempt {{attempt}})', {
+                    attempt: aiRetry,
+                  })
+                : aiBusy && game.status === 'playing'
+                  ? t('tetris.AI is deciding')
+                  : t('tetris.AI play enabled')}
+            </span>
+          )}
         </p>
       </header>
       <div className="grid max-w-[420px] grid-cols-[minmax(0,1fr)_88px] items-start gap-3 sm:grid-cols-[minmax(0,1fr)_120px]">
@@ -123,7 +160,7 @@ export function TetrisView() {
           aria-describedby="tetris-controls"
           tabIndex={0}
           onKeyDown={onKeyDown}
-          className="mx-auto w-[clamp(140px,calc((100dvh-350px)/2),280px)] max-w-full rounded-sm border border-app-border outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+          className="mx-auto w-[clamp(140px,calc((100dvh-390px)/2),280px)] max-w-full rounded-sm border border-app-border outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
         >
           <div aria-hidden="true" className="grid grid-cols-10">
             {visibleBoard(game)
@@ -144,6 +181,7 @@ export function TetrisView() {
               variant="secondary"
               className={`min-h-11 min-w-0 flex-col gap-0 px-1 touch-manipulation select-none ${action === 'drop' ? 'col-span-3' : ''}`}
               disabled={
+                aiEnabled ||
                 game.status !== 'playing' ||
                 (action === 'hold' && !game.canHold)
               }
@@ -202,7 +240,7 @@ export function TetrisView() {
           </p>
           <p>{t('tetris.Space drops instantly; C holds a block')}</p>
           <p>{t('tetris.P or Esc pauses or resumes')}</p>
-          <p>{t('tetris.Leaving the game pauses it; resume explicitly')}</p>
+          <p>{t('tetris.Play continues when focus leaves the game')}</p>
           <p>{t('tetris.Progress is not saved when you leave or reload')}</p>
         </div>
       </div>

@@ -9,6 +9,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StrictMode } from 'react';
 import { i18n } from '@/src/platform/i18n';
 import { TetrisView } from './TetrisView';
+vi.mock('@/src/platform/auth/auth-provider', () => ({
+  useAuth: () => ({ token: 'test-token' }),
+}));
 const board = () => screen.getByRole('region', { name: 'Game board' });
 const cells = () => board().querySelector('[aria-hidden]')!.innerHTML;
 function start() {
@@ -96,7 +99,7 @@ describe('tetris controls and lifecycle', () => {
     view.unmount();
     expect(vi.getTimerCount()).toBe(0);
   });
-  it('pauses on window blur, hidden tabs and focus leaving the game without automatic resume', () => {
+  it('keeps playing when the window, tab or game loses focus without intercepting outside keys', () => {
     render(
       <>
         <TetrisView />
@@ -104,20 +107,18 @@ describe('tetris controls and lifecycle', () => {
       </>,
     );
     start();
+    const initial = cells();
     fireEvent(window, new Event('blur'));
-    expect(screen.getByRole('status').textContent).toContain('Paused');
+    expect(screen.getByRole('status').textContent).toBe('Playing');
     fireEvent(window, new Event('focus'));
-    expect(screen.getByRole('status').textContent).toContain('Paused');
-    fireEvent.click(screen.getByRole('button', { name: 'Resume game' }));
     const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
     fireEvent(document, new Event('visibilitychange'));
-    expect(screen.getByRole('status').textContent).toContain('Paused');
+    expect(screen.getByRole('status').textContent).toBe('Playing');
     hidden.mockRestore();
-    fireEvent.click(screen.getByRole('button', { name: 'Resume game' }));
     act(() => {
       screen.getByRole('textbox').focus();
     });
-    expect(screen.getByRole('status').textContent).toContain('Paused');
+    expect(screen.getByRole('status').textContent).toBe('Playing');
     const event = new KeyboardEvent('keydown', {
       code: 'Space',
       bubbles: true,
@@ -125,6 +126,8 @@ describe('tetris controls and lifecycle', () => {
     });
     fireEvent(screen.getByRole('textbox'), event);
     expect(event.defaultPrevented).toBe(false);
+    act(() => vi.advanceTimersByTime(1000));
+    expect(cells()).not.toBe(initial);
   });
   it('consumes game keys only at the board and suppresses repeat for one-shot actions', () => {
     render(<TetrisView />);

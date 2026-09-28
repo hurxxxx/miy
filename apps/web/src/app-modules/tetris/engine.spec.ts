@@ -17,6 +17,18 @@ function piece(kind: Kind = 'O', x = 4, y = 0): Game {
   return { ...startGame(random), active: { kind, shape: SHAPES[kind], x, y } };
 }
 describe('tetris rules', () => {
+  it('identifies piece replacement even when the next kind and position are identical', () => {
+    const game = piece('O');
+    game.queue = ['O', 'I'];
+    const moved = step(game, 'left');
+    expect(moved.pieceId).toBe(game.pieceId);
+    const locked = step(game, 'drop', random);
+    expect(locked.active).toEqual(game.active);
+    expect(locked.pieceId).toBe(game.pieceId + 1);
+    const held = step({ ...game, hold: 'O' }, 'hold');
+    expect(held.active).toEqual(game.active);
+    expect(held.pieceId).toBe(game.pieceId + 1);
+  });
   it('supplies each kind once per bag and always has a preview', () => {
     let game = startGame(random);
     const seen: Kind[] = [];
