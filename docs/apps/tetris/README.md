@@ -85,13 +85,25 @@ AI를 사용하려면 관리자가 [공통 모델 설정](../../domains/ai/gatew
 후속 결과에서 열등한 후보를 줄여 최대 32개를 제공한다. 빈 홀드 사용으로 유일하게 보이는
 다음 기물을 소비하면 그 다음은 **알 수 없음**으로 처리한다. 숨겨진 기물 순서는 전달하지 않는다.
 
-두 종류 모델 모두 같은 후보·현재/다음/보관 기물·홀드 가능 여부·레벨을 받으며, 대결에서는
-상대의 공개 보드·현재/다음/보관 기물·점수·줄·레벨과 공격 규칙도 받는다. 모델이 착지를
-고르면 경로의 **첫 버튼 하나만** 실행하고 다시 관측한다. 후보 계산은 Web Worker에서
+두 종류 모델 모두 같은 후보와 자기 공개 보드·현재 기물의 위치와 회전·다음/보관 기물·
+홀드 가능 여부·점수·줄·레벨을 받으며, 대결에서는 상대의 같은 공개 정보와 공격 규칙도 받는다.
+보드는 위에서 아래로 20개의 10문자 행으로 표현한다. `.`은 빈칸, `G`는 공격 블록,
+나머지는 기물 문자다. 현재 기물은 위치와 0/1 모양 행을 별도로 전달하므로 셀 정보가 사라지지 않는다.
+모델이 착지를 고르면 경로의 **첫 버튼 하나만** 실행하고 다시 관측한다. 후보 계산은 Web Worker에서
 실행하며 완료·오류·취소 시 정리한다. 후보 계산과 요청 중에도 양쪽 중력은 독립적으로 작동한다.
 
-판단 모델과 생성 모델은 같은 게임 규칙과 전략 지침을 받는다. 대결의 목표는 상대가 먼저
-쌓여 패배하도록 하는 것이며 점수로 승자를 정하지 않는다. 안전하게 가능한 **4줄 동시 제거**를
+판단 모델과 생성 모델은 같은 간결한 규칙·전략·항목 정의를 매 요청마다 받는다. 규칙은
+10×20 Tetris, 7-bag, hard drop, 기물당 한 번 hold, top-out처럼 관용적인 명칭으로 표현하고,
+공격 표·즉시 반영·행마다 독립적인 빈칸·상쇄/콤보/B2B 보너스 없음은 명시한다.
+회전 규칙 전체를 SRS나 공식 가이드라인으로 지칭하지 않는다.
+후보는 `now`와 서로 배타적인 `then` 행의 짧은 `항목=값`으로 표현한다. 기물·홀드·보관 결과,
+제거/공격 줄·구멍·최대/총 높이·굴곡·입력 수와 각 후속 배치의 합계를 모두 유지한다.
+`next=unknown spawn_blocked=unknown`은 다음 기물을 모르는 경우이며,
+`spawn_blocked=1`은 다음 기물을 놓을 수 없는 패배 상태다. 후보 수·순서·값·규칙은
+모델에 따라 줄이거나 바꾸지 않는다. 압축은 입력 길이를 줄일 뿐 모델의 판단 정확도를 보장하지 않는다.
+
+대결의 목표는 상대가 먼저 쌓여 패배하도록 하는 것이며 점수로 승자를 정하지 않는다.
+안전하게 가능한 **4줄 동시 제거**를
 작은 제거보다 우선하고, 현재·다음·보관 기물과 두 번째 배치 예측을 이용해 4줄 기회를 준비한다.
 열린 한 열을 유지하고 I 기물을 보관·활용할 수 있지만 보이지 않는 I 기물의 도착을 가정하지 않는다.
 한 번의 4줄 제거는 3줄 공격, 두 번의 2줄 제거는 합계 2줄 공격임을 명시하고 후보에도 두 배치의
@@ -132,7 +144,7 @@ pnpm check:app-contracts
 pnpm check:api-contract
 pnpm exec vitest run --config apps/web/vite.config.mts apps/web/src/app-modules/tetris
 pnpm nx typecheck web
-uv run --frozen --directory apps/api --group dev pytest tests/test_tetris_app.py tests/test_tetris_decision.py -q
+uv run --frozen --directory apps/api --group dev pytest tests/test_tetris_app.py tests/test_tetris_decision.py tests/test_tetris_ai_observation.py -q
 pnpm exec playwright test --config apps/web/playwright.config.ts apps/web/e2e/tetris.spec.ts
 ```
 
