@@ -61,18 +61,21 @@ def test_tetris_decision_uses_authenticated_owner_and_fixed_workload(client: Tes
     assert workload == "tetris.play"
     assert context.actor_user_id == session["user"]["id"]
     assert context.app_id == "tetris"
-    assert args["state"]["active_piece"] == body["active"]["kind"]
-    assert args["state"]["next_piece"] == "I"
-    assert args["state"]["hold_piece"] is None
-    assert args["state"]["can_hold"] is False
-    assert "board" not in args["state"]
+    observation = args["state"]["self"]
+    assert observation["active"] == {**body["active"], "shape": ["11", "11"]}
+    assert observation["next"] == "I"
+    assert observation["hold"] is None
+    assert observation["can_hold"] is False
+    assert observation["board"] == [".........."] * 20
+    assert "model_choice" not in observation
     assert "candidates" not in args["state"]
+    assert "candidates" not in observation
     assert args["source_kinds"] == ("game_state",)
     assert "hold" not in args["questions"]["action"].options
     options = args["questions"]["action"].options
     assert set(options) == {"option_0", "option_1"}
-    assert "covered holes" in options["option_0"]
-    assert "surface roughness 4" in options["option_1"]
+    assert "holes=0" in options["option_0"]
+    assert "roughness=4" in options["option_1"]
 
 
 @pytest.mark.parametrize("mutate", [
@@ -194,14 +197,14 @@ def test_model_sees_hold_tradeoff_and_two_placement_forecast(client, monkeypatch
     response = client.post("/api/v1/tetris/decision", headers=auth_headers(session["token"]), json=body)
     assert response.status_code == 200, response.text
     assert response.json()["action"] == "hold"
-    assert calls[0]["state"]["hold_piece"] == "T"
-    assert calls[0]["state"]["can_hold"] is True
+    assert calls[0]["state"]["self"]["hold"] == "T"
+    assert calls[0]["state"]["self"]["can_hold"] is True
     description = calls[0]["questions"]["action"].options["option_0"]
-    assert "Place T using hold; reserve afterward: O" in description
-    assert "Next active piece: I" in description
-    assert "Place O using hold; reserve afterward: I" in description
-    assert "Total lines over both placements: 4" in description
-    assert "Total garbage rows over both placements in a duel: 2" in description
+    assert "now: piece=T hold=1 reserve=O" in description
+    assert "next=I spawn_blocked=0" in description
+    assert "then: piece=O hold=1 reserve=I" in description
+    assert "total_clear=4" in description
+    assert "total_attack=2" in description
 
 
 @pytest.mark.parametrize("duel", [False, True])
@@ -251,7 +254,9 @@ def test_empty_hold_cannot_forecast_an_unseen_piece(client, monkeypatch):
     headers = auth_headers(session["token"])
     response = client.post("/api/v1/tetris/decision", headers=headers, json=body)
     assert response.status_code == 200
-    assert "following piece is unknown" in calls[0]["questions"]["action"].options["option_0"]
+    description = calls[0]["questions"]["action"].options["option_0"]
+    assert "next=unknown spawn_blocked=unknown" in description
+    assert "then:" not in description
     first["follow_ups"] = [{
         "piece": "T", "uses_hold": False, "hold_after": "O", "cleared_lines": 0,
         "holes": 0, "max_height": 2, "aggregate_height": 4, "bumpiness": 4, "key_presses": 3,
@@ -331,7 +336,11 @@ def test_llm_uses_structured_choice_and_same_observation(client, selectable_mode
     assert kwargs["output_schema"]["additionalProperties"] is False
     import json
     observation = json.loads(kwargs["context_pack"].messages[1]["content"])
-    assert observation["state"]["opponent"] == body["opponent"]
+    assert observation["state"]["opponent"] == {
+        **body["opponent"], "board": [".........."] * 20,
+        "active": {**body["opponent"]["active"], "shape": ["11", "11"]},
+    }
+    assert observation["state"]["opponent"] == observation["state"]["self"]
     assert "1/2/3" in observation["state"]["attack_rules"]
     assert "non_reasoning" in get_ai_capability_registry().get_llm_workload(workload).required_capabilities
     assert kwargs["timeout_seconds"] == 30

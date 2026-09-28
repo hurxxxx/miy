@@ -13,11 +13,11 @@ from open_work_hub_api.domains.ai.model_settings_service import list_selectable_
 from open_work_hub_api.domains.ai.registry import AiCapabilityRegistry
 from open_work_hub_api.domains.auth.models import User
 
-from .schemas import TetrisCandidate, TetrisDecisionRequest, TetrisDecisionResponse, TetrisLanding, TetrisModelOption, TetrisModelsResponse
+from .schemas import TetrisCandidate, TetrisDecisionRequest, TetrisDecisionResponse, TetrisLanding, TetrisModelOption, TetrisModelsResponse, TetrisObservation
 
 WORKLOAD_ID = "tetris.play"
 GENERATION_WORKLOAD_ID = "tetris.play.generation"
-CHOICE_INSTRUCTION = "Choose the first legal landing that best follows the game rules and strategy in state."
+CHOICE_INSTRUCTION = "Choose the best first placement using the rules and priorities in state."
 
 
 def register_ai_capabilities(registry: AiCapabilityRegistry) -> None:
@@ -64,29 +64,38 @@ def models(db: Session) -> TetrisModelsResponse:
 
 def _landing_description(item: TetrisLanding) -> str:
     return (
-        f"Place {item.piece} {'using hold' if item.uses_hold else 'without hold'}; "
-        f"reserve afterward: {item.hold_after or 'empty'}. "
-        f"Clear {item.cleared_lines} lines (send {max(0, item.cleared_lines - 1)} garbage lines in a duel); {item.holes} covered holes; "
-        f"stack height {item.max_height}; total column heights {item.aggregate_height}; "
-        f"surface roughness {item.bumpiness}; {item.key_presses} key presses."
+        f"piece={item.piece} hold={int(item.uses_hold)} reserve={item.hold_after or '-'} "
+        f"clear={item.cleared_lines} attack={max(0, item.cleared_lines - 1)} "
+        f"holes={item.holes} height={item.max_height} sum_height={item.aggregate_height} "
+        f"roughness={item.bumpiness} keys={item.key_presses}"
     )
 
 
 def _candidate_description(item: TetrisCandidate) -> str:
-    description = _landing_description(item)
-    if item.next_spawn_blocked:
-        return description + " GAME OVER: the visible next piece cannot spawn."
-    if item.next_piece is None:
-        return description + " Empty hold consumed the visible next piece; the following piece is unknown. No forecast is available."
-    description += f" Next active piece: {item.next_piece}. Possible second placements (only one can happen):"
+    blocked = "unknown" if item.next_spawn_blocked is None else str(int(item.next_spawn_blocked))
+    description = (
+        f"now: {_landing_description(item)}\n"
+        f"next={item.next_piece or 'unknown'} spawn_blocked={blocked}"
+    )
     for future in item.follow_ups:
         description += (
-            f" [{_landing_description(future)} "
-            f"Total lines over both placements: {item.cleared_lines + future.cleared_lines}. "
-            f"Total garbage rows over both placements in a duel: "
-            f"{max(0, item.cleared_lines - 1) + max(0, future.cleared_lines - 1)}.]"
+            f"\nthen: {_landing_description(future)} "
+            f"total_clear={item.cleared_lines + future.cleared_lines} "
+            f"total_attack={max(0, item.cleared_lines - 1) + max(0, future.cleared_lines - 1)}"
         )
     return description
+
+
+def _observation(item: TetrisObservation) -> dict:
+    # Preserve every public cell and the active piece's exact pose; row strings
+    # avoid repeating JSON nulls and nested arrays in either model interface.
+    data = item.model_dump(include=set(TetrisObservation.model_fields))
+    data["board"] = [
+        "".join("." if cell is None else "G" if cell == "garbage" else cell for cell in row)
+        for row in item.board
+    ]
+    data["active"]["shape"] = ["".join(map(str, row)) for row in item.active.shape]
+    return data
 
 
 def decide(db: Session, *, user: User, payload: TetrisDecisionRequest) -> TetrisDecisionResponse:
@@ -103,43 +112,44 @@ def decide(db: Session, *, user: User, payload: TetrisDecisionRequest) -> Tetris
     state = {
         "game": "Tetris duel" if payload.opponent else "Tetris solo",
         "goal": (
-            "Win by making the opponent top out while you remain alive; score alone does not decide the winner."
-            if payload.opponent else "Survive and maximize line clears and score, favoring four-line clears."
+            "Make the opponent top out; stay alive. Score does not decide the winner."
+            if payload.opponent else "Survive; maximize clears and score."
         ),
         "rules": (
-            "The board is 10 columns by 20 rows. Move and rotate falling tetrominoes to fill entire rows; "
-            "all completed rows clear together when a piece locks. You lose if the stack overflows or "
-            "there is no room for the active or next piece. Hold exchanges the active piece with the reserve once per piece; "
-            "empty hold consumes the visible next piece. The engine supplies legal landing outcomes. "
-            "Only the chosen landing's first key press runs, then we observe again. Gravity never waits."
+            "10x20 Tetris; 7-bag; move/rotate/hard drop; full rows clear on lock. "
+            "Hold once per piece; empty hold consumes next. "
+            "Top-out loss: stack overflow or active/next piece cannot fit. "
+            "One decision = first key press only, then reobserve. Gravity continues during requests."
         ),
         "strategy": [
-            "Prefer a safe four-line clear (Tetris) over smaller clears. Prioritize creating and completing "
-            "four-line opportunities across the current and next placements, not merely flattening the stack.",
-            "Use the visible current, next and held pieces and the two-placement forecasts. When they support "
-            "a four-line setup, preserve an accessible one-column well and save or use an I piece via hold. "
-            "Do not block the well, bury holes, or assume an unseen I piece will arrive.",
-            "Take smaller clears to prevent imminent top-out or dangerous stacking; survival overrides "
-            "waiting for four lines. In a duel, take an immediate smaller attack if it can finish the opponent.",
-            "Compare each possible follow-up separately. For similarly safe plans, prefer four-line clears "
-            "and greater total garbage sent in a duel, then fewer holes and lower height. A deliberate open "
-            "well can justify extra surface roughness. Break equivalent ties with fewer key presses.",
+            "Survival first; smaller clears for danger, or an immediate winning attack.",
+            "Prefer safe Tetris (4-line clears). Plan with current/next/hold and each then alternative.",
+            "For a visible Tetris setup, keep an accessible one-column well and reserve/use I. "
+            "Do not block the well, bury holes, or assume hidden pieces.",
+            "Among similarly safe plans: Tetris > total attack > fewer holes > lower height. "
+            "A deliberate well may increase roughness. Fewer keys only breaks otherwise equal ties.",
         ],
-        "active_piece": payload.active.kind,
-        "next_piece": payload.next,
-        "hold_piece": payload.hold,
-        "can_hold": payload.can_hold,
-        "level": payload.level,
+        "legend": (
+            "Boards/shapes: rows top-down, columns left-right; x/y are zero-based. "
+            "Board '.'=empty, G=garbage, other letters=locked tetrominoes; active is separate. "
+            "Shape 1=occupied, 0=empty. Candidates are engine-computed legal landings. "
+            "now=first landing; then=alternative second landings (choose at most one). "
+            "hold=1 swaps; reserve=hold afterward ('-' empty). next/spawn_blocked unknown=no forecast; "
+            "spawn_blocked=1 means top-out. clear=lines removed; attack=garbage sent in a duel; "
+            "holes=covered empty cells; height=max column height; sum_height=sum of column heights; "
+            "roughness=sum of adjacent height differences; keys=inputs to complete that landing. "
+            "total_clear/total_attack=now plus that then, never all alternatives together."
+        ),
+        "self": _observation(payload),
     }
     if payload.opponent:
-        state["opponent"] = payload.opponent.model_dump()
+        state["opponent"] = _observation(payload.opponent)
         state["attack_rules"] = (
-            "Both players follow the same rules: clearing 1 line sends no attack; "
-            "clearing 2/3/4 lines at once immediately sends 1/2/3 garbage rows to the opponent. "
-            "Rows rise from the bottom and push the stack upward; each has one independently random hole. "
-            "No attack cancellation or combo bonus. One four-line clear sends 3 rows, while two separate "
-            "two-line clears send only 2 total. Favor safe four-line attacks and use the opponent's visible "
-            "stack to judge finishing opportunities and the risk of incoming attacks."
+            "Both players: clear 1/2/3/4 -> attack 0/1/2/3. "
+            "Garbage rises immediately; 1 independently random hole per row. "
+            "No cancellation, combo or B2B bonuses. "
+            "One Tetris sends 3; two doubles send 2 total. "
+            "Use the opponent's board to assess finishing attacks and incoming danger."
         )
     kind = payload.model_choice.kind if payload.model_choice else "decision"
     selection = payload.model_choice.model_id if payload.model_choice else None
