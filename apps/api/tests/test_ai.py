@@ -124,7 +124,7 @@ def _configure_external_llm(monkeypatch) -> None:
         provider.endpoint_url = "https://api.openai.com/v1"
         provider.api_key_ciphertext = encrypt_api_key("test-openai-key")
         provider.default_model_id = model.id
-        db.merge(AiModelPolicyDefault(app_id="", route_mode=provider.route_mode, provider_id=provider.provider_id, version=1))
+        db.merge(AiModelPolicyDefault(model_family="generation", app_id="", route_mode=provider.route_mode, provider_id=provider.provider_id, version=1))
         db.commit()
 
 
@@ -510,8 +510,46 @@ def test_readyz_uses_configured_readiness_while_ai_health_stays_live(
         ),
     )
 
+    # Generation defaults do not configure a newly registered decision workload.
+    missing_response = client.get("/readyz")
+    assert missing_response.status_code == 503
+    missing_tasks = {item["task_kind"]: item for item in missing_response.json()["llm_effective"]["tasks"]}
+    assert missing_tasks["tetris.play"]["ready"] is False
+
+    from open_work_hub_api.domains.ai import model_discovery
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "llm_external_allowed_providers", "openai,anthropic,openrouter")
+    with Session(get_engine()) as db:
+        db.add(AiModelProviderConfig(
+            provider_id="decision-readiness-test", provider_kind="openrouter",
+            display_name="Decision test", route_mode="external", credential_kind="none",
+            endpoint_url="https://openrouter.ai/api/v1", enabled=True, version=1,
+        ))
+        db.flush()
+        db.add(AiModelCatalogEntry(
+            id="decision-readiness-model", provider_id="decision-readiness-test",
+            model_key="test/decision", display_name="Decision test",
+            capabilities_json=["decision"], enabled=True, version=1,
+        ))
+        db.flush()
+        db.add(AiModelPolicyDefault(
+            model_family="decision", app_id="", route_mode="external",
+            provider_id="decision-readiness-test", model_id="decision-readiness-model", version=1,
+        ))
+        db.commit()
+
+    discoveries = []
+    def discover_decision_models(*args, **kwargs):
+        discoveries.append(args[0])
+        return (model_discovery.DiscoveredProviderModel(
+            model_key="test/decision", display_name="Decision test", capabilities=("decision",),
+        ),)
+    monkeypatch.setattr(model_discovery, "discover_provider_models", discover_decision_models)
+
     readyz_response = client.get("/readyz")
-    assert readyz_response.status_code == 200
+    assert readyz_response.status_code == 200, readyz_response.text
+    assert discoveries == []
     readyz_payload = readyz_response.json()
     assert readyz_payload["status"] == "ok"
     assert readyz_payload["llm"]["ready"] is True
@@ -521,6 +559,7 @@ def test_readyz_uses_configured_readiness_while_ai_health_stays_live(
     effective_tasks = {task["task_kind"]: task for task in readyz_payload["llm_effective"]["tasks"]}
     assert all(task["ready"] for task in effective_tasks.values())
     assert effective_tasks["chatbot"]["chosen_pool"] == "local"
+    assert effective_tasks["tetris.play"]["chosen_pool"] == "external"
 
     _set_policy("chatbot", "external")
     monkeypatch.setattr(llm_core, "_new_pool_client", fake_pool_client)
@@ -534,3 +573,4 @@ def test_readyz_uses_configured_readiness_while_ai_health_stays_live(
     assert health_payload["local"]["status"] == "model_missing"
     assert health_payload["local"]["detail"].startswith("Configured LLM model was not found.")
     assert health_payload["external"]["ready"] is True
+    assert discoveries == ["openrouter"]

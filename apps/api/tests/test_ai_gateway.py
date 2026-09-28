@@ -718,6 +718,7 @@ def test_execute_llm_uses_registered_admin_route_without_caller_model_controls(
         captured["db"] = db
         return SimpleNamespace(text="ok"), SimpleNamespace(provider=request.workload_config.provider, model=request.workload_config.default_model, chosen_pool=request.workload_config.pool), request.workload_config
 
+    monkeypatch.setattr(gateway_module, "require_workload_owner", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(gateway_module, "complete_gateway_chat_text", fake_complete)
     db = object()
     result = execute_llm(
@@ -772,6 +773,7 @@ def test_execute_llm_uses_route_cap_when_caller_omits_max_tokens(
         captured["request"] = request
         return SimpleNamespace(text="ok"), SimpleNamespace(provider=request.workload_config.provider, model=request.workload_config.default_model, chosen_pool=request.workload_config.pool), request.workload_config
 
+    monkeypatch.setattr(gateway_module, "require_workload_owner", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(gateway_module, "complete_gateway_chat_text", fake_complete)
     execute_llm(
         "chatbot",

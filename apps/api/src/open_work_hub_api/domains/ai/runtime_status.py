@@ -23,7 +23,7 @@ from open_work_hub_api.domains.ai.model_settings_service import (
 from open_work_hub_api.domains.ai.registry import get_ai_capability_registry
 
 RuntimeProbe = Literal["configured", "live"]
-_ConfigKey = tuple[str, str, str, str, str]
+_ConfigKey = tuple[str, str, str, str, str, str]
 
 
 @dataclass(frozen=True)
@@ -145,7 +145,7 @@ def inspect_registered_llm_runtime(
                     continue
 
                 config = build_resolved_llm_pool_config(route, settings=resolved_settings)
-                key = _config_key(config)
+                key = _config_key(config, workload.execution_kind)
                 configs.setdefault(key, config)
                 resolved_items.append(
                     (readiness_id, workload.description, workload.default_policy, key)
@@ -153,7 +153,11 @@ def inspect_registered_llm_runtime(
 
     health_by_config = {
         key: replace(
-            check_resolved_pool_health(config, live=probe == "live"),
+            (
+                _decision_health(config, live=probe == "live")
+                if key[-1] == "decision"
+                else check_resolved_pool_health(config, live=probe == "live")
+            ),
             connection_id=config.connection_id,
         )
         for key, config in configs.items()
@@ -193,13 +197,40 @@ def inspect_registered_llm_runtime(
     )
 
 
-def _config_key(config: LlmPoolConfig) -> _ConfigKey:
+def _decision_health(config: LlmPoolConfig, *, live: bool) -> LlmPoolHealth:
+    from open_work_hub_api.domains.ai.model_discovery import (
+        discover_provider_models,
+        ProviderModelDiscoveryError,
+    )
+
+    health = check_resolved_pool_health(config, live=False)
+    if not health.ready or not live:
+        return health
+    try:
+        models = discover_provider_models(
+            config.provider,
+            config.base_url,
+            config.api_key,
+            min(10.0, config.healthcheck_timeout_seconds),
+            requires_credentials=config.requires_credentials,
+        )
+        ready = any(
+            model.model_key == config.default_model and "decision" in model.capabilities
+            for model in models
+        )
+    except ProviderModelDiscoveryError:
+        ready = False
+    return replace(health, status="ready" if ready else "unavailable")
+
+
+def _config_key(config: LlmPoolConfig, kind: str = "chat") -> _ConfigKey:
     return (
         config.pool,
         config.connection_id or "",
         config.provider,
         config.base_url,
         config.default_model,
+        kind,
     )
 
 

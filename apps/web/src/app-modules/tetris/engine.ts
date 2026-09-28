@@ -48,6 +48,7 @@ export interface Piece {
   y: number;
 }
 export interface Game {
+  pieceId: number;
   board: Cell[][];
   active: Piece | null;
   queue: Kind[];
@@ -71,6 +72,7 @@ export type Action =
   | 'resume';
 export function emptyGame(): Game {
   return {
+    pieceId: 0,
     board: Array.from({ length: HEIGHT }, () => Array<Cell>(WIDTH).fill(null)),
     active: null,
     queue: [],
@@ -115,6 +117,7 @@ function activate(game: Game, kind: Kind): Game {
   const active = spawn(kind);
   return {
     ...game,
+    pieceId: game.pieceId + 1,
     active,
     status: fits(game.board, active) ? 'playing' : 'over',
   };

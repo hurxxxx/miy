@@ -11,6 +11,12 @@ ALLOWED_DIRECT_LLM_CALL_FILES = {
     Path("core/llm_execution_adapters.py"),
     Path("domains/ai/gateway.py"),
 }
+DIRECT_DECISION_ADAPTER_PATTERN = re.compile(r"\b(?:get_decision_adapter|OpenRouterDecisionAdapter)\s*\(")
+DECISION_RUNTIME_FILES = {
+    Path("domains/ai/decisions.py"),
+    Path("domains/ai/decision_adapters.py"),
+    Path("domains/ai/model_settings_service.py"),
+}
 DIRECT_LLM_CALL_PATTERN = re.compile(
     r"\b(?:complete_chat|complete_chat_text|complete_chat_stream|resolve_chat_execution)\s*\("
 )
@@ -25,13 +31,14 @@ PLATFORM_GATEWAY_RUNTIME_FILES = {
 }
 PROVIDER_CALL_PATTERN = re.compile(
     r"^\s*from\s+(?:anthropic|openai|agents(?:\.[\w.]+)?)\s+import\s+|"
-    r"/(?:chat/completions|v1/messages)[\"']"
+    r"/(?:chat/completions|v1/messages|alpha/decisions|v1/systemone)[\"']"
 )
 ALLOWED_PROVIDER_ADAPTER_FILES = {
     Path("core/llm.py"),
     Path("core/llm_execution_adapters.py"),
     Path("core/llm_official_providers.py"),
     Path("domains/ai/model_discovery.py"),
+    Path("domains/ai/decision_adapters.py"),
     Path("domains/images/agent_runtime.py"),
     Path("domains/rag/providers/local.py"),
     Path("domains/rag/providers/openai_compatible.py"),
@@ -86,3 +93,21 @@ def test_provider_sdk_calls_stay_in_registered_adapters() -> None:
                 violations.append(f"worker/{relative_path}:{line_number}:{line.strip()}")
 
     assert violations == []
+
+
+def test_native_decision_adapters_are_not_called_by_apps_or_workers() -> None:
+    violations = []
+    for root in (SRC_ROOT, WORKER_SRC_ROOT):
+        for path in root.rglob("*.py"):
+            relative = path.relative_to(root)
+            if root == SRC_ROOT and relative in DECISION_RUNTIME_FILES:
+                continue
+            for line in path.read_text().splitlines():
+                if DIRECT_DECISION_ADAPTER_PATTERN.search(line):
+                    violations.append(str(relative))
+    assert violations == []
+
+
+def test_provider_guard_recognizes_native_decision_endpoints() -> None:
+    for line in ('"https://openrouter.ai/api/alpha/decisions"', '"https://openrouter.ai/api/v1/systemone"'):
+        assert PROVIDER_CALL_PATTERN.search(line)

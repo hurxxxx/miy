@@ -139,10 +139,11 @@ def _workload_app(workload: RegisteredLlmWorkload, app_id: str | None) -> str:
     return str(app_id)
 
 
-def _policy_rows(db: Session, app_id: str, route: str):
+def _policy_rows(db: Session, app_id: str, route: str, family: str = "generation"):
+
     return (
-        db.get(AiModelPolicyDefault, (app_id, route)),
-        db.get(AiModelPolicyDefault, ("", route)),
+        db.get(AiModelPolicyDefault, (family, app_id, route)),
+        db.get(AiModelPolicyDefault, (family, "", route)),
     )
 
 
@@ -156,7 +157,9 @@ def _resolved_cap(
     value = getattr(override, f"{route}_max_output_tokens", None)
     if value is not None:
         return value, "workload"
-    app, company = _policy_rows(db, app_id, route)
+    app, company = _policy_rows(
+        db, app_id, route, "decision" if workload.execution_kind == "decision" else "generation"
+    )
     for row, source in ((app, "app"), (company, "global")):
         if row is not None and row.max_output_tokens is not None:
             return row.max_output_tokens, source
@@ -208,7 +211,9 @@ def resolve_ai_model_workload_route(
             code="admin.ai_model_runtime_adapter_not_allowed",
             context={"workload_id": workload_id},
         )
-    app, company = _policy_rows(db, app_id, route)
+    app, company = _policy_rows(
+        db, app_id, route, "decision" if workload.execution_kind == "decision" else "generation"
+    )
     connection_id = None
     selected_model_id = None
     connection_source = "global"
@@ -258,7 +263,9 @@ def resolve_ai_model_workload_route(
     _require_runtime_route_compatibility(
         workload, runtime_adapter_id=runtime, route=route, provider_id=kind, status_code=503
     )
-    selected_model_id = selected_model_id or connection.default_model_id
+    selected_model_id = selected_model_id or (
+        connection.default_model_id if workload.execution_kind != "decision" else None
+    )
     if not selected_model_id:
         raise AiModelSettingsError(status_code=503, code="admin.ai_model_selection_required")
     model = _require_provider_model(
@@ -280,6 +287,16 @@ def resolve_ai_model_workload_route(
         )
     if route == "local":
         _validate_endpoint_url(endpoint, provider_id=connection_id, route_mode="local")
+    if workload.execution_kind == "decision":
+        from open_work_hub_api.domains.ai.decision_adapters import get_decision_adapter
+        from open_work_hub_api.domains.ai.decision_contracts import DecisionError
+
+        try:
+            get_decision_adapter(kind).validate_endpoint(endpoint)
+        except DecisionError:
+            raise AiModelSettingsError(
+                status_code=503, code="admin.ai_model_runtime_route_mismatch"
+            ) from None
     api_key = None
     if connection.api_key_ciphertext:
         try:
@@ -461,12 +478,14 @@ def update_ai_model_provider(
         _raise_version_conflict()
 
     if payload.default_model_id is not None:
-        _require_provider_model(
+        default_model = _require_provider_model(
             db,
             provider_id=normalized_provider_id,
             model_id=payload.default_model_id,
             require_enabled=True,
         )
+        if "chat" not in default_model.capabilities:
+            raise AiModelSettingsError(status_code=422, code="admin.ai_model_capability_mismatch")
 
     encrypted_api_key = row.api_key_ciphertext
     if payload.api_key is not None:
@@ -773,6 +792,11 @@ def upsert_ai_model_route_override(
             code="admin.ai_model_workload_not_found",
             context={"workload_id": workload_id},
         )
+    if workload.execution_kind == "decision" and (
+        payload.local_max_output_tokens is not None
+        or payload.external_max_output_tokens is not None
+    ):
+        raise AiModelSettingsError(status_code=422, code="admin.ai_model_capability_mismatch")
     app_id = _workload_app(workload, app_id)
     _validate_route_override(db, workload=workload, payload=payload)
     row = db.scalar(
@@ -1204,6 +1228,13 @@ def _require_runtime_route_compatibility(
     provider_id: str | None,
     status_code: int,
 ) -> None:
+    if workload.execution_kind == "decision":
+        provider = llm_provider_descriptor(provider_id or "")
+        if runtime_adapter_id != "decision" or provider is None or not provider.decision_adapter_id:
+            raise AiModelSettingsError(
+                status_code=status_code, code="admin.ai_model_runtime_route_mismatch"
+            )
+        return
     if workload.execution_kind != "agent":
         return
     descriptor = get_agent_runtime_adapter_descriptor(runtime_adapter_id)
@@ -1361,10 +1392,16 @@ def update_ai_model_policy_default(
         raise AiModelSettingsError(status_code=422, code="admin.ai_model_route_provider_mismatch")
     if app_id and get_app_catalog_item(app_id) is None:
         raise AiModelSettingsError(status_code=404, code="admin.ai_model_app_not_found")
+    if payload.model_family == "decision" and payload.max_output_tokens is not None:
+        raise AiModelSettingsError(status_code=422, code="admin.ai_model_capability_mismatch")
     before = _ready_policies(db)
     row = db.scalar(
         select(AiModelPolicyDefault)
-        .where(AiModelPolicyDefault.app_id == app_id, AiModelPolicyDefault.route_mode == route)
+        .where(
+            AiModelPolicyDefault.app_id == app_id,
+            AiModelPolicyDefault.route_mode == route,
+            AiModelPolicyDefault.model_family == payload.model_family,
+        )
         .with_for_update()
     )
     if payload.expected_version != (row.version if row else 0):
@@ -1389,11 +1426,27 @@ def update_ai_model_policy_default(
         )
     if provider is not None and provider.route_mode != route:
         raise AiModelSettingsError(status_code=422, code="admin.ai_model_route_provider_mismatch")
+    if payload.model_family == "decision" and provider is not None:
+        descriptor = llm_provider_descriptor(provider.provider_kind)
+        if descriptor is None or not descriptor.decision_adapter_id:
+            raise AiModelSettingsError(
+                status_code=422, code="admin.ai_model_runtime_route_mismatch"
+            )
+        if not payload.model_id:
+            raise AiModelSettingsError(status_code=422, code="admin.ai_model_selection_required")
+        if (
+            payload.expected_provider_version is not None
+            and payload.expected_provider_version != provider.version
+        ):
+            _raise_version_conflict()
     if payload.model_id and provider is not None:
-        _require_provider_model(
+        model = _require_provider_model(
             db, provider_id=provider.provider_id, model_id=payload.model_id, require_enabled=True
         )
-        if not app_id:
+        required = "decision" if payload.model_family == "decision" else "chat"
+        if required not in model.capabilities:
+            raise AiModelSettingsError(status_code=422, code="admin.ai_model_capability_mismatch")
+        if not app_id and payload.model_family == "generation":
             if payload.expected_provider_version != provider.version:
                 _raise_version_conflict()
             provider.default_model_id = payload.model_id
@@ -1406,10 +1459,12 @@ def update_ai_model_policy_default(
             _preserve_ready_policies(db, before)
         return
     if row is None:
-        row = AiModelPolicyDefault(app_id=app_id, route_mode=route, version=0)
+        row = AiModelPolicyDefault(
+            model_family=payload.model_family, app_id=app_id, route_mode=route, version=0
+        )
         db.add(row)
     row.provider_id = payload.provider_id
-    row.model_id = payload.model_id if app_id else None
+    row.model_id = payload.model_id if app_id or payload.model_family == "decision" else None
     row.max_output_tokens = payload.max_output_tokens
     row.version += 1
     row.updated_by = actor_user_id
@@ -1422,7 +1477,12 @@ def update_ai_model_policy_default(
 
 
 def probe_ai_model_connection(
-    db: Session, *, provider_id: str, expected_version: int, expected_registry_digest: str
+    db: Session,
+    *,
+    provider_id: str,
+    expected_version: int,
+    expected_registry_digest: str,
+    model_id: str | None = None,
 ) -> bool:
     """Check a saved model inventory without holding a DB connection during I/O."""
     assert_registry_digest(expected_registry_digest)
@@ -1437,7 +1497,10 @@ def probe_ai_model_connection(
         _raise_version_conflict()
     _validate_endpoint_url(row.endpoint_url, provider_id=provider_id, route_mode=row.route_mode)
     model = _require_provider_model(
-        db, provider_id=provider_id, model_id=row.default_model_id or "", require_enabled=True
+        db,
+        provider_id=provider_id,
+        model_id=model_id or row.default_model_id or "",
+        require_enabled=True,
     )
     try:
         key = (
@@ -1455,6 +1518,17 @@ def probe_ai_model_connection(
         row.credential_kind == "api_key",
         model.model_key,
     )
+    is_decision = "decision" in model.capabilities and "chat" not in model.capabilities
+    if is_decision:
+        from open_work_hub_api.domains.ai.decision_adapters import get_decision_adapter
+        from open_work_hub_api.domains.ai.decision_contracts import DecisionError
+
+        try:
+            get_decision_adapter(kind).validate_endpoint(endpoint)
+        except DecisionError:
+            raise AiModelSettingsError(
+                status_code=422, code="admin.ai_model_runtime_route_mismatch"
+            ) from None
     model_id, model_version = model.id, model.version
     timeout = min(10.0, get_settings().llm_request_timeout_seconds)
     db.rollback()
@@ -1462,7 +1536,10 @@ def probe_ai_model_connection(
         inventory = discover_provider_models(
             kind, endpoint, key or None, timeout, requires_credentials=requires_key
         )
-        ready = any(item.model_key == model_key for item in inventory)
+        ready = any(
+            item.model_key == model_key and (not is_decision or "decision" in item.capabilities)
+            for item in inventory
+        )
     except ProviderModelDiscoveryError:
         ready = False
     current_connection = db.scalar(
@@ -1481,6 +1558,7 @@ def probe_ai_model_connection(
     )
     if current_model is None or current_model.version != model_version:
         _raise_version_conflict()
-    current_connection.verified_version = expected_version if ready else None
+    if current_connection.default_model_id == model_id:
+        current_connection.verified_version = expected_version if ready else None
     db.flush()
     return ready

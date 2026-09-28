@@ -69,7 +69,7 @@ def _enable_database_anthropic_provider(db) -> str:
     provider.api_key_ciphertext = ciphertext
     provider.default_model_id = model.id
     db.merge(
-        AiModelPolicyDefault(app_id="", route_mode="external", provider_id="anthropic", version=1)
+        AiModelPolicyDefault(model_family="generation", app_id="", route_mode="external", provider_id="anthropic", version=1)
     )
     db.commit()
     return ciphertext

@@ -25,7 +25,7 @@ OutputProjection = Literal["summary", "resource_ids", "full"]
 CapabilityKind = Literal["tool", "resource", "prompt"]
 LlmRoute = Literal["local", "external"]
 LlmPolicyMode = Literal["local_only", "external"]
-LlmExecutionKind = Literal["chat", "agent"]
+LlmExecutionKind = Literal["chat", "agent", "decision"]
 LlmManagementSurface = Literal["llm_routing", "document_processing"]
 AgentRuntimeAdapterId = str
 
@@ -419,7 +419,7 @@ class AiCapabilityRegistry:
             raise ValueError(f"LLM workload {normalized_workload_id} must declare owner_domain")
         if default_route not in ("local", "external"):
             raise ValueError(f"LLM workload {normalized_workload_id} has invalid default route")
-        if execution_kind not in ("chat", "agent"):
+        if execution_kind not in ("chat", "agent", "decision"):
             raise ValueError(f"LLM workload {normalized_workload_id} has invalid execution_kind")
         if management_surface not in ("llm_routing", "document_processing"):
             raise ValueError(
@@ -481,6 +481,18 @@ class AiCapabilityRegistry:
             raise ValueError(
                 f"Chat workload {normalized_workload_id} only supports chat_completion"
             )
+
+        if execution_kind == "decision" and (
+            normalized_runtime_adapters != ("decision",)
+            or normalized_capabilities != ("decision",)
+            or normalized_model_roles != ("default",)
+            or tuple(native_tools)
+        ):
+            raise ValueError(
+                "Decision workloads require decision capability/runtime, one role and no tools"
+            )
+        if execution_kind != "decision" and "decision" in normalized_capabilities:
+            raise ValueError("Decision capability requires decision execution")
 
         conflicting = [
             registered.workload_id

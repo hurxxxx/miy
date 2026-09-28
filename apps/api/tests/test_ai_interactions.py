@@ -48,6 +48,7 @@ def test_llm_audit_writes_raw_free_ai_interaction(client: TestClient) -> None:
     }
     assert row.conversation_id == "conversation-1"
     assert row.metadata_json == {
+        "execution_kind": "generation",
         "app_id": "test-chatbot",
         "policy": "local_only",
         "decision_reason": "policy_local_only",

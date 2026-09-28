@@ -48,6 +48,7 @@ def _migration_config(dsn: str | None = None) -> Config:
 def test_repository_starts_at_company_deployment_baseline() -> None:
     revisions = list(ScriptDirectory.from_config(_migration_config()).walk_revisions())
     assert [revision.revision for revision in revisions] == [
+        "decision_defaults_20260927",
         "llm_cap_defaults_20260918",
         "llm_connections_20260918",
         "hermes_initial_snapshot_20260914",
@@ -312,5 +313,26 @@ def test_group_unification_preserves_ids_assignments_grants_and_rollback(postgre
                 )
                 == "stable-child"
             )
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.migration
+def test_decision_defaults_preserve_generation_and_downgrade(postgres_dsn: str) -> None:
+    config = _migration_config(postgres_dsn)
+    command.upgrade(config, "llm_cap_defaults_20260918")
+    engine = sa.create_engine(postgres_dsn)
+    try:
+        with engine.begin() as conn:
+            conn.execute(sa.text("UPDATE ai_model_policy_defaults SET max_output_tokens=4096, version=3 WHERE app_id='' AND route_mode='local'"))
+            before = conn.execute(sa.text("SELECT app_id, route_mode, provider_id, model_id, max_output_tokens, version FROM ai_model_policy_defaults ORDER BY app_id, route_mode")).all()
+        command.upgrade(config, "head")
+        with engine.begin() as conn:
+            assert conn.execute(sa.text("SELECT app_id, route_mode, provider_id, model_id, max_output_tokens, version FROM ai_model_policy_defaults WHERE model_family='generation' ORDER BY app_id, route_mode")).all() == before
+            assert conn.scalar(sa.text("SELECT count(*) FROM ai_model_policy_defaults WHERE model_family='decision'")) == 0
+            conn.execute(sa.text("INSERT INTO ai_model_policy_defaults (model_family, app_id, route_mode, version, updated_at) VALUES ('decision', '', 'local', 1, CURRENT_TIMESTAMP)"))
+        command.downgrade(config, "llm_cap_defaults_20260918")
+        with engine.connect() as conn:
+            assert conn.execute(sa.text("SELECT app_id, route_mode, provider_id, model_id, max_output_tokens, version FROM ai_model_policy_defaults ORDER BY app_id, route_mode")).all() == before
     finally:
         engine.dispose()

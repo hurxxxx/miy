@@ -802,6 +802,14 @@ export const resources = {
     },
     apps: {
       tetris: {
+        'AI play decision': 'AI 플레이 판단',
+        'Choose one control from the current board.': '현재 보드를 보고 다음 조작 하나를 선택합니다.',
+        'Enable AI play': 'AI 플레이 켜기',
+        'Disable AI play': 'AI 플레이 끄기',
+        'AI is deciding': 'AI 판단 중',
+        'AI retrying (attempt {{attempt}})': 'AI 재시도 중 ({{attempt}}회)',
+        'AI play enabled': 'AI 플레이 켜짐',
+        'AI decision failed.': 'AI 판단에 실패했습니다.',
         'Rotate left': '왼쪽 회전',
         'Hold block': '블록 홀드',
         'Rotate right': '오른쪽 회전',
@@ -832,8 +840,8 @@ export const resources = {
           '↑/X 시계 방향 회전 · Z 반시계 방향 회전',
         'Space drops instantly; C holds a block': 'Space 즉시 낙하 · C 홀드',
         'P or Esc pauses or resumes': 'P/Esc 일시정지 또는 재개',
-        'Leaving the game pauses it; resume explicitly':
-          '게임을 벗어나면 일시정지합니다. 직접 재개해 주세요.',
+        'Play continues when focus leaves the game':
+          '포커스가 다른 곳으로 이동해도 게임은 계속됩니다.',
         'Progress is not saved when you leave or reload':
           '앱을 떠나거나 새로고침하면 진행 상태가 초기화됩니다.',
       },
@@ -2531,7 +2539,11 @@ export const resources = {
               total: '등록 워크로드',
             },
             llmDefaults: {
-              title: 'LLM 기본 설정',
+              title: 'AI 모델 기본 설정',
+              family: '모델 종류',
+              inventoryProbe: '모델 목록에서 확인 (추론 없음)',
+              generation: '생성 모델',
+              decision: '판단 모델',
               sources: {
                 global: '공통 기본값',
                 app: '앱 기본값',
@@ -2593,6 +2605,7 @@ export const resources = {
                 chat: '채팅',
                 tool_calling: '도구 호출',
                 vision: '비전',
+                decision: '판단',
               },
               conflict:
                 '다른 관리자 또는 새 배포가 설정을 변경했습니다. 최신 설정을 다시 불러왔습니다.',
@@ -2665,8 +2678,7 @@ export const resources = {
                 needsSetup: '설정 필요',
                 ready: '준비됨',
               },
-              workloadCatalog: {
-              },
+              workloadCatalog: {},
               workloads: {
                 count: '{{count}}개 워크로드',
                 defaultRoute: '기본: {{route}}',
@@ -6503,7 +6515,8 @@ export const resources = {
         personalApp: 'Personal app',
         opensInNewTab: 'Opens in a new tab',
         openAppInNewTab: 'Open {{app}} in a new tab',
-        consoleSignIn: 'Sign in to Codex Console with your private console password.',
+        consoleSignIn:
+          'Sign in to Codex Console with your private console password.',
         personalScope: 'Personal scope',
         title: 'App launcher',
         unavailableAppLabel: '{{app}} — unavailable',
@@ -6904,6 +6917,14 @@ export const resources = {
     },
     apps: {
       tetris: {
+        'AI play decision': 'AI play decision',
+        'Choose one control from the current board.': 'Choose one control from the current board.',
+        'Enable AI play': 'Enable AI play',
+        'Disable AI play': 'Disable AI play',
+        'AI is deciding': 'AI is deciding',
+        'AI retrying (attempt {{attempt}})': 'AI retrying (attempt {{attempt}})',
+        'AI play enabled': 'AI play enabled',
+        'AI decision failed.': 'AI decision failed.',
         'Rotate left': 'Rotate left',
         'Hold block': 'Hold block',
         'Rotate right': 'Rotate right',
@@ -6935,8 +6956,8 @@ export const resources = {
         'Space drops instantly; C holds a block':
           'Space drops instantly; C holds a block',
         'P or Esc pauses or resumes': 'P or Esc pauses or resumes',
-        'Leaving the game pauses it; resume explicitly':
-          'Leaving the game pauses it; resume explicitly',
+        'Play continues when focus leaves the game':
+          'Play continues when focus leaves the game',
         'Progress is not saved when you leave or reload':
           'Progress is not saved when you leave or reload',
       },
@@ -8661,7 +8682,11 @@ export const resources = {
               total: 'Registered workloads',
             },
             llmDefaults: {
-              title: 'LLM defaults',
+              title: 'AI model defaults',
+              family: 'Model family',
+              inventoryProbe: 'Check model inventory (no inference)',
+              generation: 'Generation models',
+              decision: 'Decision models',
               sources: {
                 global: 'Global default',
                 app: 'App default',
@@ -8724,6 +8749,7 @@ export const resources = {
                 chat: 'Chat',
                 tool_calling: 'Tool calling',
                 vision: 'Vision',
+                decision: 'Decision',
               },
               conflict:
                 'Another administrator or a new deployment changed these settings. The latest settings were reloaded.',
@@ -8799,8 +8825,7 @@ export const resources = {
                 needsSetup: 'Needs setup',
                 ready: 'Ready',
               },
-              workloadCatalog: {
-              },
+              workloadCatalog: {},
               workloads: {
                 count: '{{count}} workload(s)',
                 defaultRoute: 'Default: {{route}}',

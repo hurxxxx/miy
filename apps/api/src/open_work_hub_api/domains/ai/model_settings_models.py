@@ -194,6 +194,8 @@ class AiModelPolicyDefault(Base):
 
     __tablename__ = "ai_model_policy_defaults"
     __table_args__ = (
+        CheckConstraint("model_family IN ('generation', 'decision')", name="ck_ai_model_policy_family"),
+        CheckConstraint("model_family != 'decision' OR max_output_tokens IS NULL", name="ck_ai_model_decision_cap"),
         CheckConstraint(
             "route_mode IN ('local', 'external')", name="ck_ai_model_policy_default_route"
         ),
@@ -203,6 +205,9 @@ class AiModelPolicyDefault(Base):
         ),
     )
 
+    model_family: Mapped[str] = mapped_column(
+        String(16), primary_key=True, default="generation", server_default="generation"
+    )
     app_id: Mapped[str] = mapped_column(String(64), primary_key=True, default="")
     route_mode: Mapped[str] = mapped_column(String(16), primary_key=True)
     provider_id: Mapped[str | None] = mapped_column(
