@@ -17,6 +17,7 @@ AiModelCatalogSource = Literal["manual", "discovered"]
 AiModelDiscoveryStatus = Literal["active", "stale"]
 AiModelCapability = Literal[
     "chat",
+    "non_reasoning",
     "tool_calling",
     "vision",
     "decision",

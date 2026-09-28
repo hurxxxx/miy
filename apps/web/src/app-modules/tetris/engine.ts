@@ -2,7 +2,7 @@ export const WIDTH = 10;
 export const HEIGHT = 20;
 export const KINDS = ['I', 'J', 'L', 'O', 'S', 'T', 'Z'] as const;
 export type Kind = (typeof KINDS)[number];
-export type Cell = Kind | null;
+export type Cell = Kind | 'garbage' | null;
 export type Matrix = readonly (readonly number[])[];
 export const SHAPES: Record<Kind, Matrix> = {
   I: [
@@ -133,6 +133,37 @@ export function startGame(random: () => number = Math.random): Game {
 }
 export function fallInterval(level: number): number {
   return Math.max(100, 1000 * 0.8 ** (level - 1));
+}
+/** Incoming rows rise immediately; move the active piece only to resolve overlap. */
+export function addGarbage(game: Game, holes: readonly number[]): Game {
+  if (game.status !== 'playing' || !holes.length) return game;
+  if (
+    holes.some((hole) => !Number.isInteger(hole) || hole < 0 || hole >= WIDTH)
+  )
+    throw new RangeError('Invalid garbage hole');
+  if (
+    holes.length >= HEIGHT ||
+    game.board.slice(0, holes.length).some((row) => row.some(Boolean))
+  )
+    return { ...game, status: 'over' };
+  const board: Cell[][] = [
+    ...game.board.slice(holes.length),
+    ...holes.map((hole) =>
+      Array.from(
+        { length: WIDTH },
+        (_, x): Cell => (x === hole ? null : 'garbage'),
+      ),
+    ),
+  ];
+  let active = game.active;
+  while (active && !fits(board, active) && active.y > 0)
+    active = { ...active, y: active.y - 1 };
+  return {
+    ...game,
+    board,
+    active,
+    status: active && fits(board, active) ? 'playing' : 'over',
+  };
 }
 function lock(game: Game, random: () => number): Game {
   if (!game.active) return game;

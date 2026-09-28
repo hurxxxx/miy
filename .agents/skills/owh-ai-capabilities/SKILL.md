@@ -11,8 +11,9 @@ description: Use when changing product AI tools, MCP manifests, or registered LL
 - Write tools require approval, discoverability predicate, execution ACL, audit.
 - Every model decision/generative call uses stable `RegisteredLlmWorkload`: `execute_decision` for bounded semantic judgments; `execute_llm`/`stream_llm` for generation. Use deterministic code for exact rules.
 - For decision work, read [the gateway contract](../../../docs/domains/ai/gateway.md#decision-workloads). Keep thresholds/actions in the app; model results cannot authorize access or bypass write approval.
+- Generation defaults to Hermes. For exceptional single-response latency requirements, use the explicitly registered [direct completion contract](../../../docs/domains/ai/gateway.md#direct-completion-exceptions); never add app-local SDK calls, caller-controlled runtime flags or failure fallback.
 - Workload is independently configurable function/stage. Split route/model/output-cap differences.
-- Caller never selects workload/provider/model/pool/endpoint/credential from user input.
+- Caller never selects workload/provider/raw model key/pool/endpoint/credential from user input. A catalog model ID is accepted only through the common resolver for workloads that explicitly opt in; see the gateway contract.
 - Descriptor declares output caps, audit/tracing, external-data behavior.
 - Route override is only local/external selector; security block fails closed.
 - Quality fixes use generic operators/schemas/prompts/scoring/evals, not question-specific branches.

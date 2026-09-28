@@ -700,6 +700,7 @@ def test_execute_llm_uses_registered_admin_route_without_caller_model_controls(
         "resolve_llm_workload_route",
         lambda *_args, **_kwargs: SimpleNamespace(
             workload=workload,
+            runtime_adapter_id=workload.default_runtime_adapter,
             route="external",
             provider_id="anthropic",
             adapter_provider="anthropic",
@@ -756,6 +757,7 @@ def test_execute_llm_uses_route_cap_when_caller_omits_max_tokens(
         "resolve_llm_workload_route",
         lambda *_args, **_kwargs: SimpleNamespace(
             workload=workload,
+            runtime_adapter_id=workload.default_runtime_adapter,
             route="local",
             provider_id="local",
             adapter_provider="local",

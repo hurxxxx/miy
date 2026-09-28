@@ -142,6 +142,9 @@ def _discover_openrouter_models(
                     capabilities.append("decision")
                 if "text" in outputs:
                     capabilities.append("chat")
+                    reasoning = model.get("reasoning")
+                    if isinstance(reasoning, dict) and reasoning.get("mandatory") is False:
+                        capabilities.append("non_reasoning")
                     if "tools" in (model.get("supported_parameters") or []):
                         capabilities.append("tool_calling")
                     if "image" in (architecture.get("input_modalities") or []):

@@ -72,6 +72,37 @@ describe('asynchronous Tetris observations', () => {
     expect(apiFetchJson).not.toHaveBeenCalled();
   });
 
+  it('sends the selected catalog model and only the opponent’s public observation', async () => {
+    const game = startGame(() => 0.5);
+    const opponent = { ...startGame(() => 0.2), hold: 'T' as const };
+    const model = { kind: 'generation' as const, model_id: 'catalog-id' };
+    vi.mocked(apiFetchJson).mockResolvedValue({ action: 'drop' });
+    const pending = requestDecision(
+      'test-token',
+      game,
+      new AbortController().signal,
+      model,
+      opponent,
+    );
+    TestWorker.instances[0].onmessage!({ data: buildCandidates(game) });
+    await pending;
+    const init = vi.mocked(apiFetchJson).mock.calls[0][2];
+    const body = JSON.parse(init!.body as string);
+    expect(body.model_choice).toEqual(model);
+    expect(body.opponent).toEqual({
+      board: opponent.board,
+      active: opponent.active,
+      next: opponent.queue[0],
+      hold: 'T',
+      can_hold: true,
+      score: 0,
+      lines: 0,
+      level: 1,
+    });
+    expect(body.opponent).not.toHaveProperty('queue');
+    expect(body.opponent).not.toHaveProperty('pieceId');
+  });
+
   it('releases a failed worker and propagates failure to the retry loop', async () => {
     const pending = requestDecision(
       'test-token',

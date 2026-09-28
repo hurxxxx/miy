@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import SchemaError, ValidationError
+from referencing import Registry
+from referencing.exceptions import NoSuchResource, Unresolvable
 from openai import (
     APIConnectionError,
     APIStatusError,
@@ -14,7 +19,7 @@ from openai import (
 
 from open_work_hub_api.core.i18n import LocalizedApiMessage
 from open_work_hub_api.core.llm_adapters import StreamChunk, get_stream_adapter
-from open_work_hub_api.core.llm_errors import LlmProviderError
+from open_work_hub_api.core.llm_errors import LlmFailureReason, LlmProviderError
 from open_work_hub_api.core.llm_official_providers import (
     check_official_provider_health,
     complete_official_provider_chat,
@@ -245,6 +250,143 @@ class OpenAICompatibleLlmExecutionAdapter:
                 ),
             )
         return LlmExecutionHealthResult(status="ready")
+
+
+class DirectCompletionAdapter:
+    """One bounded text/JSON completion for explicitly opted-in workloads.
+
+    This composes the existing provider transport; it owns no agent/tool loop,
+    model selection, retry, fallback or audit. The common gateway owns those
+    boundaries and validates workload admission before reaching this adapter.
+    """
+
+    adapter_id = "direct_completion"
+
+    def complete(
+        self,
+        config: LlmExecutionConfig,
+        payload: dict[str, Any],
+        *,
+        output_schema: dict[str, Any] | None,
+        reasoning_effort: str,
+        timeout_seconds: float,
+        sync_client_factory: SyncPoolClientFactory,
+    ) -> dict[str, Any]:
+        def failure(reason: str, code: LlmFailureReason | None = None) -> LlmProviderError:
+            return LlmProviderError(
+                f"Direct completion: {reason}", pool=config.pool, provider=config.provider,
+                reason_code=code,
+            )
+
+        transport = select_llm_execution_adapter(config.pool, config.provider)
+        if transport.adapter_id != "openai_compatible":
+            raise failure("unsupported provider transport")
+        if any(payload.get(key) is not None for key in (
+            "tools", "tool_choice", "parallel_tool_calls", "functions", "function_call"
+        )) or payload.get("stream"):
+            raise failure("tools and streaming are unsupported")
+        if set(payload.get("extra_body") or {}).intersection({
+            "model", "models", "messages", "max_tokens", "max_completion_tokens",
+            "response_format", "stream", "tools", "tool_choice", "parallel_tool_calls",
+            "functions", "function_call", "provider", "plugins",
+        }):
+            raise failure("transport overrides are unsupported")
+
+        validator = None
+        request = dict(payload)
+        if output_schema is not None:
+            # Schema input is registered server code, but validation must still
+            # never fetch remote references from the API host.
+            def check_references(value: Any) -> None:
+                if isinstance(value, dict):
+                    for key, child in value.items():
+                        if key in {"$ref", "$dynamicRef"} and (
+                            not isinstance(child, str) or not child.startswith("#")
+                        ):
+                            raise failure("only local schema references are supported")
+                        check_references(child)
+                elif isinstance(value, list):
+                    for child in value:
+                        check_references(child)
+
+            check_references(output_schema)
+            def deny_retrieval(uri: str) -> Any:
+                raise NoSuchResource(ref=uri)
+
+            try:
+                Draft202012Validator.check_schema(output_schema)
+                validator = Draft202012Validator(
+                    output_schema, registry=Registry(retrieve=deny_retrieval)
+                )
+            except SchemaError:
+                raise failure("invalid output schema") from None
+            request["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {"name": "workload_result", "strict": True, "schema": output_schema},
+            }
+        if config.provider == "openrouter":
+            request["extra_body"] = {
+                **(request.get("extra_body") or {}),
+                # Hermes receives the resolved effort separately. Its shared
+                # payload profile omits it, so the direct runtime must encode
+                # the admitted value in OpenRouter's public request contract.
+                "reasoning": {"effort": reasoning_effort},
+                "provider": {"require_parameters": True, "allow_fallbacks": False},
+            }
+
+        try:
+            response = transport.complete(
+                config, request, timeout_seconds=timeout_seconds,
+                sync_client_factory=sync_client_factory,
+            )
+        except LlmProviderError as error:
+            # Provider error bodies can echo prompts/credentials. Keep the
+            # common audit safe while retaining a useful error category.
+            category = "provider request failed"
+            code: LlmFailureReason | None = None
+            if isinstance(error.__cause__, APITimeoutError):
+                category = "provider timeout"
+                code = "timeout"
+            elif isinstance(error.__cause__, APIStatusError):
+                category = f"provider HTTP {error.__cause__.status_code}"
+                if error.__cause__.status_code == 429:
+                    code = "rate_limited"
+            raise failure(category, code) from None
+        try:
+            result = response if isinstance(response, dict) else response.model_dump(mode="json")
+            choice = result["choices"][0]
+            message = choice["message"]
+            content = message.get("content")
+            if choice.get("finish_reason") == "length":
+                raise failure("output token limit reached", "output_limit")
+            if message.get("refusal"):
+                raise failure("response refused")
+            if (
+                choice.get("finish_reason") != "stop"
+                or message.get("tool_calls") or message.get("function_call")
+                or not isinstance(content, str) or not content.strip()
+            ):
+                raise ValueError("incomplete response")
+            if validator is not None:
+                def reject_constant(_value: str) -> Any:
+                    raise ValueError("non-JSON numeric constant")
+
+                def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+                    obj: dict[str, Any] = {}
+                    for key, value in pairs:
+                        if key in obj:
+                            raise ValueError("duplicate key")
+                        obj[key] = value
+                    return obj
+
+                structured = json.loads(
+                    content, parse_constant=reject_constant, object_pairs_hook=unique_object
+                )
+                validator.validate(structured)
+                result = {**result, "structured_output": structured}
+            return result
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError, ValidationError, Unresolvable):
+            raise failure("invalid or incomplete response") from None
 
 
 class OfficialProviderLlmExecutionAdapter:

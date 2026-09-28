@@ -14,6 +14,7 @@ export const tetrisModule = {
     {
       path: getAppRoutePattern('tetris.root'),
       chrome: getAppRouteChrome('tetris.root'),
+      subSidebar: 'hidden' as const,
       element: lazyRoute(createElement(TetrisView)),
     },
   ],

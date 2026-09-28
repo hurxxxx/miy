@@ -33,7 +33,7 @@ Protected scaffold: identity/registration, entitlement/bootstrap, shell/API comp
 - Server enforces entitlement/RBAC.
 - Authoritative state uses DB/object storage with transactions, retention, retry/idempotency, cleanup.
 - Files/URLs validate type, size, redirects, TLS, SSRF, active content, cleanup.
-- Generative AI uses registered workloads/common execution; app never selects provider/model/pool/fallback.
+- Generative AI uses registered workloads/common execution; app never selects provider/raw model key/pool/fallback. Explicit catalog selection follows the [common gateway contract](../../../docs/domains/ai/gateway.md#user-model-selection).
 - Worker task is complete only when deployed bootstrap/routing discovers it.
 - Migrations build from current head and preserve supported rows/workflows.
 - Search/retrieval uses source ACL, partition/projection lifecycle, backfill/cutover/rollback evidence.

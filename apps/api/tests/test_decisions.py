@@ -350,6 +350,21 @@ def test_masking_shape_rejects_key_number_and_container_changes():
     assert not gateway._same_payload_shape(["text"], [])
 
 
+@pytest.mark.parametrize("reasoning, supported", [
+    ({"mandatory": False}, True), ({"mandatory": True}, False),
+    ({}, False), (None, False), ({"mandatory": "false"}, False),
+])
+def test_discovery_only_proposes_non_reasoning_with_explicit_support(monkeypatch, reasoning, supported):
+    def handler(req):
+        return httpx.Response(200, json={"data": [] if req.url.params["output_modalities"] == "decisions" else [{
+            "id": "example/arbitrary-name", "architecture": {"output_modalities": ["text"]},
+            "reasoning": reasoning,
+        }]})
+    mock_http(monkeypatch, handler)
+    result = model_discovery.discover_provider_models("openrouter", config().base_url, "test", 2)
+    assert ("non_reasoning" in result[0].capabilities) is supported
+
+
 def test_security_block_scans_state_and_question_without_provider_call(
     client, decision_setup, monkeypatch
 ):

@@ -34,6 +34,7 @@ from typing import Any, Literal, Mapping
 
 from openai import (
     AsyncOpenAI,
+    DefaultHttpxClient,
     OpenAI,
     OpenAIError,
 )
@@ -42,6 +43,7 @@ from sqlalchemy.orm import Session
 from open_work_hub_api.core.i18n import DEFAULT_LOCALE, LocalizedApiMessage, translate_message
 from open_work_hub_api.core.llm_errors import LlmProviderError, LlmRuntimeError
 from open_work_hub_api.core.llm_execution_adapters import (
+    DirectCompletionAdapter,
     select_llm_execution_adapter,
 )
 from open_work_hub_api.core.llm_model_profiles import (
@@ -132,6 +134,7 @@ class LlmTaskContext:
     native_tool_limit: int = 20
     principal_kind: Literal["user", "service_account", "system"] = "user"
     principal_id: str | None = None
+    runtime_adapter_id: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "app_id", _normalize_required_llm_app_id(self.app_id))
@@ -461,6 +464,30 @@ def _new_pool_client(config: LlmPoolConfig) -> OpenAI:
         max_retries=0,
         timeout=settings.llm_request_timeout_seconds,
     )
+
+
+def complete_direct_chat(
+    execution: ResolvedLlmExecution,
+    payload: dict[str, Any],
+    timeout_seconds: float,
+    *,
+    output_schema: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Gateway-only executor; reuse the admitted configuration and transport."""
+    config = execution.config
+    with OpenAI(
+        api_key=config.api_key or "placeholder",
+        base_url=config.base_url,
+        default_headers=dict(config.default_headers) if config.default_headers else None,
+        max_retries=0,
+        timeout=timeout_seconds,
+        http_client=DefaultHttpxClient(follow_redirects=False),
+    ) as client:
+        return DirectCompletionAdapter().complete(
+            config, payload, output_schema=output_schema, timeout_seconds=timeout_seconds,
+            reasoning_effort=execution.resolved_reasoning_effort,
+            sync_client_factory=lambda _pool, _provider: client,
+        )
 
 
 @lru_cache(maxsize=8)
@@ -954,6 +981,7 @@ def complete_chat(
             principal_id=context.principal_id,
             task_kind=context.task_kind,
             workload_id=context.workload_id,
+            runtime_adapter_id=context.runtime_adapter_id,
             connection_id=config.connection_id,
             provider=config.provider,
             requested_model=execution.chosen_model,
@@ -1015,6 +1043,7 @@ def complete_chat(
             principal_id=context.principal_id,
             task_kind=context.task_kind,
             workload_id=context.workload_id,
+            runtime_adapter_id=context.runtime_adapter_id,
             connection_id=config.connection_id,
             provider=config.provider,
             requested_model=execution.chosen_model,
@@ -1053,6 +1082,7 @@ def complete_chat(
             principal_id=context.principal_id,
             task_kind=context.task_kind,
             workload_id=context.workload_id,
+            runtime_adapter_id=context.runtime_adapter_id,
             connection_id=config.connection_id,
             provider=config.provider,
             requested_model=execution.chosen_model,
@@ -1086,6 +1116,7 @@ def complete_chat(
             principal_id=context.principal_id,
             task_kind=context.task_kind,
             workload_id=context.workload_id,
+            runtime_adapter_id=context.runtime_adapter_id,
             connection_id=config.connection_id,
             provider=config.provider,
             requested_model=execution.chosen_model,
@@ -1121,6 +1152,7 @@ def complete_chat(
         principal_id=context.principal_id,
         task_kind=context.task_kind,
         workload_id=context.workload_id,
+        runtime_adapter_id=context.runtime_adapter_id,
         connection_id=config.connection_id,
         provider=config.provider,
         requested_model=execution.chosen_model,
@@ -1130,7 +1162,7 @@ def complete_chat(
         decision_reason=decision.reason,
         forced_local=decision.forced_local,
         pii_hits=decision.pii_hits,
-        model=getattr(response, "model", execution.chosen_model),
+        model=_response_model(response) or execution.chosen_model,
         status="ok",
         latency_ms=elapsed_ms,
         usage=usage,
@@ -1157,6 +1189,9 @@ def complete_chat_text(
 
     try:
         response, decision, config = complete_chat(context, db, **kwargs)
+    except LlmRuntimeError:
+        # Keep safe provider-neutral failure categories for workload callers.
+        raise
     except Exception as error:
         raise LlmRuntimeError(str(error)) from error
     return completion_result(response), decision, config
@@ -1499,6 +1534,7 @@ async def complete_chat_stream(
             principal_id=context.principal_id,
             task_kind=context.task_kind,
             workload_id=context.workload_id,
+            runtime_adapter_id=context.runtime_adapter_id,
             connection_id=config.connection_id,
             provider=config.provider,
             requested_model=execution.chosen_model,
@@ -1582,6 +1618,7 @@ async def complete_chat_stream(
             principal_id=context.principal_id,
             task_kind=context.task_kind,
             workload_id=context.workload_id,
+            runtime_adapter_id=context.runtime_adapter_id,
             connection_id=config.connection_id,
             provider=config.provider,
             requested_model=execution.chosen_model,

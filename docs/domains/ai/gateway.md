@@ -14,25 +14,78 @@ Approval replay, graph execution, and artifact state are owned by [AI Execution]
 - App catalog registrations declare `ai_capability_modules`; the AI registry imports each hook once and fails for missing hooks. A shared workload has independent settings for each owning app.
 - Retired app/workload overrides remain visible as orphaned settings. Administrators may reset them using their stored app/workload identity, current registry digest and row version; model references remain protected until reset.
 - Credentials are encrypted per connection with `OPEN_WORK_HUB_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY`. GET returns only `has_api_key`; omission preserves, replacement rotates, explicit clearing removes the key. The master key remains outside the DB and must be preserved for restores.
-- Structured output and tools require `tool_calling`, including tools/schema supplied at runtime. Model discovery does not approve capabilities automatically. Override writes validate the effective inherited route using the execution resolver before commit. Saved connection probes release the DB during I/O, recheck both connection and selected-model versions, and are invalidated by model edits/discovery.
+- Hermes structured output and tools require `tool_calling`, including tools/schema supplied at runtime. Direct completion uses the provider's JSON Schema response format instead of tools (see below). Model discovery does not approve capabilities automatically. Override writes validate the effective inherited route using the execution resolver before commit. Saved connection probes release the DB during I/O, recheck both connection and selected-model versions, and are invalidated by model edits/discovery.
 - `execute_llm` and `stream_llm` return safe execution metadata, never credential-bearing transport configuration. Interactive Hermes sessions retain their lifecycle while resolving the same model policy.
 - No local/external automatic fallback.
 - External transfer passes classification, masking, approval policy, and audit.
 - Graph planning egress uses the provider kind from the registered workload's resolved external execution. A local route or unresolved provider cannot activate external planning; search retains its separate configured provider.
 - Tool execution checks the current user/execution principal, owning-app admission, descriptor discoverability, and
   source ACL; write tools also require approval.
-- Audit records actor, app, workload, provider/model, token usage, trace ID.
-- Every registered generative text/structured/stream completion delegates to [Hermes](hermes.md). Administrator workload policy still resolves model, data transfer and caps before dispatch. No SDK fallback is used when Hermes is unavailable.
+- Audit records actor, app, workload, provider/model, token usage, trace ID and generation runtime adapter.
+- Registered generation defaults to [Hermes](hermes.md), including streaming, tools and agent loops. Only explicitly registered [direct completion exceptions](#direct-completion-exceptions) bypass the Hermes runtime. Administrator workload policy still resolves model, data transfer and caps before dispatch. Hermes failures never activate direct completion as a fallback.
 - `AgentRuntimeAdapter` preserves the application orchestration interface; Bento registers only the Hermes implementation.
 - `execution_user_id` declares a private runtime owner for system work without replacing its audit actor.
-- `LlmCompletionResult.structured_output` is accepted through registered schema/semantic validation inside the Hermes loop. Apps never parse provider tool-call envelopes.
+- `LlmCompletionResult.structured_output` is validated by the selected common runtime. Apps apply their semantic checks without parsing provider envelopes.
+
+## Direct completion exceptions
+
+Use `direct_completion` only for latency-sensitive, single-response generation that needs no agent loop, tools, conversation workspace or streaming. Hermes remains the default. Native semantic decisions continue to use `execute_decision`, not a chat emulation.
+
+An owner explicitly registers the exception; callers cannot enable it with a per-request flag:
+
+```python
+registry.register_llm_workload(
+    workload_id="example.bounded_choice", task_kind="example_bounded_choice",
+    owner_domain="example", app_id="example", description="One structured choice",
+    required_capabilities=("chat",),
+    default_runtime_adapter="direct_completion",
+    allowed_runtime_adapters=("direct_completion",),
+    local_max_output_tokens=1024, external_max_output_tokens=1024,
+)
+```
+
+Call the same `execute_llm(..., output_schema=...)` interface. The gateway resolves the registered/DB runtime, owner admission, catalog model, encrypted credentials, output cap and external security/masking before dispatch. The common core adapter uses the existing OpenAI-compatible transport and official SDK. OpenRouter, OpenAI and registered compatible connections are supported; incompatible provider transports fail during route resolution. Direct endpoints are revalidated against the common local-host/public-HTTPS policy, redirects are disabled and clients close after each attempt. No new environment variable or credential source is introduced.
+
+Structured requests use `response_format: {type: "json_schema", json_schema: {strict: true, ...}}`. Models/endpoints must support this format; `chat` capability alone is not proof. OpenRouter uses `require_parameters=true` and `allow_fallbacks=false` per its [structured-output](https://openrouter.ai/docs/guides/features/structured-outputs) and [provider-routing](https://openrouter.ai/docs/guides/routing/provider-selection) contracts. No response-healing plugin is enabled. Other compatible servers may reject unsupported schemas; there is no downgrade to free text or tool calling.
+
+The adapter validates JSON and the supplied schema server-side, forbids remote schema references, and rejects truncated/refused/empty responses, duplicate keys, non-JSON numbers and schema violations. Text-only completion is also supported when no schema is supplied. Native tools, tool parameters, streaming and transport overrides are rejected. Do not use this exception for AI write execution or agent workflows.
+
+Each attempt makes one provider request with a timeout, SDK retries disabled and no model/runtime fallback. The existing audit records success/failure, runtime, model, latency and usage once; errors do not retain provider response bodies. The caller owns bounded or cancellable retries. `tetris.play.generation` opts in and retains its game-scoped 500ms retry contract. Its latency still includes model inference and network time; bypassing Hermes does not guarantee a fast model.
+
+The direct adapter explicitly sends the resolved reasoning effort as OpenRouter's `reasoning.effort`; the shared Hermes payload profile does not encode that field. Provider defaults must not silently replace the admitted effort. Rate limiting, output-budget exhaustion and timeouts expose safe `LlmRuntimeError.reason_code` values (`rate_limited`, `output_limit`, `timeout`) through the high-level helper. Apps may localize these categories; never display raw provider exception bodies.
+
+## User model selection
+
+`RegisteredLlmWorkload.allow_model_selection` defaults to false. An opted-in workload may pass an opaque catalog entry ID as `selected_model_id` through `execute_llm` or `execute_decision`. This selects a model for one call; it does not write administrator defaults. Raw provider/model keys, credentials, endpoints and routes remain server-owned.
+
+The common resolver first determines the workload's configured local/external route, runtime and output caps. It then resolves the selected entry's connection and rechecks enabled/active status, capabilities, credentials, route compatibility and both external-provider allowlists. Selection cannot switch the configured route or bypass egress/security/owner admission. An absent selection preserves the existing inherited defaults. A rejected selection never falls back to another model.
+
+`list_selectable_workload_models` uses the same resolver and returns only catalog IDs, display names, model keys, provider kinds and the default marker. App endpoints still enforce current app admission. Each execution revalidates the selection even if the list was loaded earlier. Only the two Tetris play workloads currently opt in. Model lists perform no inference.
+
+## Non-reasoning workloads
+
+Latency-sensitive chat workloads declare `required_capabilities=("chat", "non_reasoning")`.
+The common gateway forces `reasoning_effort="none"` and removes caller transport options that
+could enable thinking, including when a caller requests another effort. This policy applies to
+inherited defaults and every user-selected model; other workloads retain their own effort.
+Lower-level gateway requests that contradict the policy are rejected before provider I/O.
+This contract is currently limited to chat workloads, not native decisions or agent loops.
+
+`non_reasoning` is an administrator-approved model capability: the model/endpoint must support
+answering without reasoning. Required-reasoning models and unverified catalog entries fail the
+same capability checks for listing, route saves and execution. There is no automatic fallback to
+`low`, another model or another runtime. OpenRouter discovery proposes this capability only when
+its reasoning metadata explicitly reports `mandatory=false`; missing metadata does not prove
+support. Discovery keeps new models disabled and preserves existing administrator capability
+approvals. For an existing or manually registered model, verify the endpoint and approve
+**Respond without reasoning** in the model catalog. Tetris generation uses this policy.
 
 ## Local Runtime
 
 - Register the endpoint and optional key in Admin → LLM connections. vLLM and Ollama presets use OpenAI-compatible `/v1` endpoints; OWH does not install/start these servers or manage model downloads/GPU allocation. The selected model must actually support the declared tools/stream/structured behavior.
 - Local endpoint hosts must be listed explicitly in `OPEN_WORK_HUB_LLM_LOCAL_ALLOWED_HOSTS`; include the address reachable from API and Hermes. Metadata, link-local and multicast addresses are rejected. External endpoints require public HTTPS on port 443. Model discovery does not follow redirects.
 - Use the saved-connection test after approving a model. This checks reachability/model availability; it does not certify every capability. Verify an actual structured/tool workload before switching the global default.
-- Model selection lives in Admin model catalog/routing, not env or app code.
+- Model availability/defaults live in Admin model catalog/routing, not env or app code. Explicitly opted-in workloads can accept a validated catalog selection as described above.
 - Non-secret LLM timeouts and preprocessing-model defaults live in the tracked
   [runtime configuration](../release/README.md#public-runtime-configuration); active model routing stays in the database.
 - Docker Model Runner profile uses OpenAI-compatible API.
@@ -58,7 +111,7 @@ registry.register_llm_workload(
 )
 ```
 
-The app owns its stable workload constant and source ACL. Pass source `sensitivity_labels`, `source_kinds` and `content_origin` when calling the facade; do not relabel internal/retrieved content as a public user prompt. A caller supplies identity and input, never a provider/model/connection/key:
+The app owns its stable workload constant and source ACL. Pass source `sensitivity_labels`, `source_kinds` and `content_origin` when calling the facade; do not relabel internal/retrieved content as a public user prompt. A caller supplies identity and input, never a provider/raw model key/connection/credential. Explicit catalog selection follows the opt-in contract above:
 
 ```python
 from open_work_hub_api.domains.ai.decisions import execute_decision, ChoiceQuestion

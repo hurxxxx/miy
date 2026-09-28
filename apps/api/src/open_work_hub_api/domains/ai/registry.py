@@ -108,6 +108,7 @@ class RegisteredLlmWorkload:
     description_key: str = ""
     external_data: bool = False
     native_tools: tuple[str, ...] = ()
+    allow_model_selection: bool = False
     local_max_output_tokens: int = DEFAULT_LOCAL_MAX_OUTPUT_TOKENS
     external_max_output_tokens: int = DEFAULT_EXTERNAL_MAX_OUTPUT_TOKENS
     management_surface: LlmManagementSurface = "llm_routing"
@@ -397,6 +398,7 @@ class AiCapabilityRegistry:
         description_key: str = "",
         external_data: bool = False,
         native_tools: tuple[str, ...] = (),
+        allow_model_selection: bool = False,
         local_max_output_tokens: int = DEFAULT_LOCAL_MAX_OUTPUT_TOKENS,
         external_max_output_tokens: int = DEFAULT_EXTERNAL_MAX_OUTPUT_TOKENS,
         management_surface: LlmManagementSurface = "llm_routing",
@@ -465,6 +467,8 @@ class AiCapabilityRegistry:
                 f"LLM workload {normalized_workload_id} must declare at least one model role"
             )
         normalized_capabilities = _normalize_registration_values(required_capabilities)
+        if "non_reasoning" in normalized_capabilities and execution_kind != "chat":
+            raise ValueError("Non-reasoning policy requires a chat workload")
         if not normalized_capabilities:
             raise ValueError(
                 f"LLM workload {normalized_workload_id} must declare model capabilities"
@@ -477,10 +481,16 @@ class AiCapabilityRegistry:
             raise ValueError(
                 f"LLM workload {normalized_workload_id} default runtime adapter must be allowed"
             )
-        if execution_kind == "chat" and normalized_runtime_adapters != ("chat_completion",):
+        if execution_kind == "chat" and not set(normalized_runtime_adapters).issubset(
+            {"chat_completion", "direct_completion"}
+        ):
             raise ValueError(
-                f"Chat workload {normalized_workload_id} only supports chat_completion"
+                f"Chat workload {normalized_workload_id} has an unsupported runtime adapter"
             )
+        if "direct_completion" in normalized_runtime_adapters and (
+            execution_kind != "chat" or tuple(native_tools)
+        ):
+            raise ValueError("Direct completion requires a chat workload without native tools")
 
         if execution_kind == "decision" and (
             normalized_runtime_adapters != ("decision",)
@@ -522,6 +532,7 @@ class AiCapabilityRegistry:
             description_key=description_key.strip(),
             external_data=external_data,
             native_tools=tuple(dict.fromkeys(native_tools)),
+            allow_model_selection=allow_model_selection,
             local_max_output_tokens=local_max_output_tokens,
             external_max_output_tokens=external_max_output_tokens,
             management_surface=management_surface,
