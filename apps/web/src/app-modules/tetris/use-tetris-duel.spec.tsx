@@ -1,6 +1,8 @@
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useTetris } from './use-tetris';
+import { decisionFor } from './ai-test-helpers';
+import type { Game } from './engine';
 import { startMatch, type Match } from './match';
 import type { Decide, TetrisDecision } from './ai-api';
 
@@ -13,12 +15,12 @@ vi.mock('./match', async (original) => {
       fixture.match ?? actual.startMatch(...args),
   };
 });
-const answer = (action: TetrisDecision['action'] = 'left'): TetrisDecision => ({
-  action,
-  latency_ms: 3,
+const answer = (
+  game: Game,
+  action: 'left' | 'drop' | 'wait' = 'left',
+): TetrisDecision => ({
+  ...decisionFor(game, action, 3),
   model: 'reported/model',
-  provider: 'test',
-  kind: 'decision',
 });
 const ai = (model_id: string) => ({
   mode: 'ai' as const,
@@ -64,8 +66,10 @@ function attackingMatch() {
 }
 it('runs two models independently while one waits, with separate response statistics', async () => {
   const slow = pending();
-  const decide = vi.fn<Decide>((_game, _signal, model) =>
-    model?.model_id === 'slow' ? slow.promise : Promise.resolve(answer('down')),
+  const decide = vi.fn<Decide>((game, _signal, model) =>
+    model?.model_id === 'slow'
+      ? slow.promise
+      : Promise.resolve(answer(game, 'drop')),
   );
   const { result } = renderHook(() => useTetris(decide));
   act(() => {
@@ -85,7 +89,7 @@ it('runs two models independently while one waits, with separate response statis
   expect(result.current.ai[0].samples).toHaveLength(0);
   expect(result.current.ai[1].samples.length).toBeGreaterThan(4);
   expect(decide.mock.calls.every((call) => call[3]?.active)).toBe(true);
-  await act(async () => slow.resolve(answer()));
+  await act(async () => slow.resolve(answer(result.current.match.games[0])));
   expect(result.current.ai[0].samples).toEqual([1500]);
   expect(result.current.ai[0].last!.model).toBe('reported/model');
 });
@@ -105,9 +109,49 @@ it('ignores a pre-attack response even when the same piece is still falling', as
   expect(result.current.match.games[1].pieceId).toBe(before.pieceId);
   expect(result.current.match.games[1].board).not.toBe(before.board);
   const after = result.current.match.games[1];
-  await act(async () => deferred.resolve(answer('left')));
+  await act(async () => deferred.resolve(answer(before, 'left')));
   expect(result.current.match.games[1]).toBe(after);
   await advance(250);
+  expect(decide.mock.calls[1][0].board).toBe(after.board);
+});
+it('abandons remaining movement when garbage invalidates an already selected target', async () => {
+  fixture.match = attackingMatch();
+  fixture.match.games[1].active = {
+    kind: 'O',
+    shape: [
+      [1, 1],
+      [1, 1],
+    ],
+    x: 4,
+    y: 0,
+  };
+  const initial = fixture.match.games[1];
+  const deferred = pending();
+  const decide = vi
+    .fn<Decide>()
+    .mockResolvedValueOnce(
+      answer(
+        {
+          ...initial,
+          active: { ...initial.active!, x: 0 },
+        },
+        'drop',
+      ),
+    )
+    .mockImplementation(() => deferred.promise);
+  const { result } = renderHook(() => useTetris(decide));
+  act(() => {
+    result.current.configure(0, { mode: 'human', model: null });
+    result.current.configure(1, ai('opponent'));
+    result.current.start();
+  });
+  await advance(0);
+  expect(result.current.match.games[1].active!.x).toBe(3);
+  act(() => result.current.play(0, 'drop'));
+  const after = result.current.match.games[1];
+  await advance(250);
+  expect(result.current.match.games[1]).toBe(after);
+  expect(decide).toHaveBeenCalledTimes(2);
   expect(decide.mock.calls[1][0].board).toBe(after.board);
 });
 it('stops both players and aborts pending AI when an attack ends the game', async () => {
@@ -126,7 +170,9 @@ it('stops both players and aborts pending AI when an attack ends the game', asyn
   expect(result.current.match.winner).toBe(0);
   expect(decide.mock.calls[0][1].aborted).toBe(true);
   const ended = result.current.match;
-  await act(async () => deferred.resolve(answer('drop')));
+  await act(async () =>
+    deferred.resolve(answer(result.current.match.games[1], 'drop')),
+  );
   await advance(4000);
   expect(decide).toHaveBeenCalledTimes(1);
   expect(result.current.match).toBe(ended);
@@ -146,7 +192,7 @@ it('changes models without overlap or applying the old response and resets timin
   await advance(300);
   expect(decide).toHaveBeenCalledTimes(1);
   const before = result.current.match.games[0];
-  await act(async () => deferred.resolve(answer()));
+  await act(async () => deferred.resolve(answer(before)));
   expect(result.current.match.games[0]).toBe(before);
   expect(result.current.ai[0].samples).toHaveLength(0);
   const next = pending();

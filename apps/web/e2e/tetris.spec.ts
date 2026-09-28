@@ -11,6 +11,19 @@ import {
   stubConversationsApi,
   stubShellBackend,
 } from './helpers';
+import type { ApiSchema } from '@open-work-hub/contracts';
+import { emptyGame, landingPiece } from '../src/app-modules/tetris/engine';
+
+function immediateDrop(body: ApiSchema<'TetrisDecisionRequest'>) {
+  return {
+    target: landingPiece({
+      ...emptyGame(),
+      active: body.active,
+      board: body.board,
+    }),
+    uses_hold: false,
+  };
+}
 
 const modelOptions = [
   {
@@ -188,6 +201,7 @@ test.describe('narrow touch screens', () => {
               route.fulfill({
                 json: {
                   action: 'wait',
+                  placement: null,
                   latency_ms: delay,
                   model: 'test/model-with-a-long-version-suffix',
                   provider: 'test',
@@ -311,6 +325,11 @@ test('AI keeps playing without focus and retries repeated failures until disable
       bumpiness: expect.any(Number),
       key_presses: expect.any(Number),
       piece: expect.any(String),
+      target: expect.objectContaining({
+        x: expect.any(Number),
+        y: expect.any(Number),
+        shape: expect.any(Array),
+      }),
       uses_hold: expect.any(Boolean),
       follow_ups: expect.any(Array),
     });
@@ -327,7 +346,8 @@ test('AI keeps playing without focus and retries repeated failures until disable
       await delayed;
       await route.fulfill({
         json: {
-          action: 'down',
+          action: 'drop',
+          placement: immediateDrop(body),
           latency_ms: 1200,
           model: 'test/decision',
           provider: 'test',
@@ -366,7 +386,11 @@ test('AI keeps playing without focus and retries repeated failures until disable
   expect(await board.innerHTML()).not.toBe(initial);
   expect(calls).toBe(1);
   finish();
-  await expect(page.getByTestId('tetris-score')).toHaveText('1');
+  await expect
+    .poll(async () =>
+      Number(await page.getByTestId('tetris-score').textContent()),
+    )
+    .toBeGreaterThan(0);
   await expect(
     aiStats(page).filter({ hasText: /AI 재시도|AI retrying/ }),
   ).toBeVisible();
@@ -383,8 +407,13 @@ test('AI keeps playing without focus and retries repeated failures until disable
   await page.waitForTimeout(1100);
   expect(await board.innerHTML()).not.toBe(before);
   expect(calls).toBe(stoppedAt);
+  const previousScore = Number(
+    await page.getByTestId('tetris-score').textContent(),
+  );
   await down.click();
-  await expect(page.getByTestId('tetris-score')).toHaveText('2');
+  await expect(page.getByTestId('tetris-score')).toHaveText(
+    String(previousScore + 1),
+  );
 });
 
 test('AI recovers after an invalid response and resumes controlling the fallen piece', async ({
@@ -395,7 +424,8 @@ test('AI recovers after an invalid response and resumes controlling the fallen p
   await stubConversationsApi(page);
   const observedY: number[] = [];
   await page.route('**/api/v1/tetris/decision', async (route) => {
-    observedY.push(route.request().postDataJSON().active.y);
+    const body = route.request().postDataJSON();
+    observedY.push(body.active.y);
     if (observedY.length === 1) {
       await page.waitForTimeout(600);
       await route.fulfill({
@@ -405,7 +435,8 @@ test('AI recovers after an invalid response and resumes controlling the fallen p
     } else {
       await route.fulfill({
         json: {
-          action: observedY.length === 2 ? 'down' : 'wait',
+          action: observedY.length === 2 ? 'drop' : 'wait',
+          placement: observedY.length === 2 ? immediateDrop(body) : null,
           latency_ms: 0,
           model: 'test/decision',
           provider: 'test',
@@ -425,7 +456,11 @@ test('AI recovers after an invalid response and resumes controlling the fallen p
   await expect(
     aiStats(page).filter({ hasText: /AI 재시도|AI retrying/ }),
   ).toBeVisible();
-  await expect(page.getByTestId('tetris-score')).toHaveText('1');
+  await expect
+    .poll(async () =>
+      Number(await page.getByTestId('tetris-score').textContent()),
+    )
+    .toBeGreaterThan(0);
   expect(observedY[1]).toBeGreaterThan(observedY[0]);
   await expect(playerMode(page)).toHaveValue('ai');
   await expect(
@@ -454,6 +489,7 @@ test('defaults to AI versus AI with the decision and generation defaults and sto
     await route.fulfill({
       json: {
         action: 'drop',
+        placement: immediateDrop(body),
         latency_ms: 5,
         model: `test/${id}`,
         provider: 'test',
@@ -509,6 +545,7 @@ test('loads new models dynamically and moves the human to player 2', async ({
     route.fulfill({
       json: {
         action: 'wait',
+        placement: null,
         latency_ms: 1,
         model: 'test/decision',
         provider: 'test',

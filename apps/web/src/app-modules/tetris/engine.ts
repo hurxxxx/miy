@@ -113,6 +113,14 @@ export function fits(board: Cell[][], piece: Piece): boolean {
     ),
   );
 }
+/** Exact pose immediately before locking, shared by drop and AI planning. */
+export function landingPiece(game: Game): Piece | null {
+  let active = game.active;
+  if (!active) return null;
+  while (fits(game.board, { ...active, y: active.y + 1 }))
+    active = { ...active, y: active.y + 1 };
+  return active;
+}
 function activate(game: Game, kind: Kind): Game {
   const active = spawn(kind);
   return {
@@ -208,12 +216,9 @@ export function step(
     return { ...next, hold: piece.kind, canHold: false };
   }
   if (action === 'drop') {
-    let active = piece;
-    let distance = 0;
-    while (fits(game.board, { ...active, y: active.y + 1 })) {
-      active = { ...active, y: active.y + 1 };
-      distance++;
-    }
+    const active = landingPiece(game);
+    if (!active) return game;
+    const distance = active.y - piece.y;
     return lock({ ...game, active, score: game.score + distance * 2 }, random);
   }
   if (action === 'clockwise' || action === 'counterclockwise') {

@@ -14,6 +14,10 @@ def _fields(text):
 
 def _assert_landing(fields, source):
     decoded = {
+        "target": {
+            "kind": fields["piece"], "x": int(fields["x"]), "y": int(fields["y"]),
+            "shape": [[int(cell) for cell in row] for row in fields["shape"].split("/")],
+        },
         "piece": fields["piece"],
         "uses_hold": fields["hold"] == "1",
         "hold_after": None if fields["reserve"] == "-" else fields["reserve"],
@@ -54,12 +58,15 @@ def test_all_32_candidates_keep_metrics_and_both_exclusive_forecasts():
     for index in range(32):
         landing = {
             "piece": "T", "uses_hold": bool(index % 2), "hold_after": "O",
+            "target": {"kind": "T", "shape": [[0, 1, 0], [1, 1, 1], [0, 0, 0]], "x": index % 8, "y": 18},
             "cleared_lines": index % 5, "holes": 200 - index, "max_height": 20,
             "aggregate_height": 200 - index, "bumpiness": 180 - index, "key_presses": 64 - index,
         }
         future = [
-            {**landing, "piece": "I", "uses_hold": False, "cleared_lines": 4, "key_presses": 2},
-            {**landing, "piece": "O", "uses_hold": True, "hold_after": "I", "cleared_lines": 2},
+            {**landing, "piece": "I", "uses_hold": False, "cleared_lines": 4, "key_presses": 2,
+             "target": {"kind": "I", "shape": [[0, 0, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]], "x": 3, "y": 18}},
+            {**landing, "piece": "O", "uses_hold": True, "hold_after": "I", "cleared_lines": 2,
+             "target": {"kind": "O", "shape": [[1, 1], [1, 1]], "x": 8, "y": 18}},
         ]
         candidate = TetrisCandidate(
             **landing, action="hold" if landing["uses_hold"] else "left",
@@ -86,6 +93,7 @@ def test_all_32_candidates_keep_metrics_and_both_exclusive_forecasts():
 def test_unknown_next_and_top_out_are_distinct(next_piece, blocked):
     candidate = TetrisCandidate(
         piece="T", uses_hold=True, hold_after="O", cleared_lines=0, holes=2,
+        target={"kind": "T", "shape": [[0, 1, 0], [1, 1, 1], [0, 0, 0]], "x": 0, "y": 18},
         max_height=20, aggregate_height=40, bumpiness=4, key_presses=1,
         action="hold", next_piece=next_piece, next_spawn_blocked=blocked, follow_ups=[],
     )

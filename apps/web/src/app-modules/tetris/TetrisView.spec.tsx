@@ -197,7 +197,8 @@ describe('tetris controls and lifecycle', async () => {
         new ApiRequestError(status, 'private', { code }),
       );
       vi.mocked(requestDecision).mockResolvedValue({
-        action: 'left',
+        action: 'wait',
+        placement: null,
         model: 'test/model',
         kind: 'generation',
         provider: 'test',
