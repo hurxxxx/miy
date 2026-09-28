@@ -4,10 +4,22 @@ import { i18n } from '@/src/platform/i18n';
 import type { Game } from './engine';
 
 export type TetrisDecision = ApiSchema<'TetrisDecisionResponse'>;
+export type ModelChoice = ApiSchema<'TetrisModelChoice'>;
+export type ModelOption = ApiSchema<'TetrisModelOption'>;
 export type Decide = (
   game: Game,
   signal: AbortSignal,
+  model?: ModelChoice | null,
+  opponent?: Game,
 ) => Promise<TetrisDecision>;
+
+export function listModels(token: string | null, signal: AbortSignal) {
+  return apiFetchJson<ApiSchema<'TetrisModelsResponse'>>(
+    '/api/v1/tetris/models',
+    token,
+    { signal },
+  );
+}
 
 function decisionError() {
   return new Error(i18n.t('apps:tetris.AI decision failed.'));
@@ -43,6 +55,8 @@ export async function requestDecision(
   token: string | null,
   game: Game,
   signal: AbortSignal,
+  model?: ModelChoice | null,
+  opponent?: Game,
 ): Promise<TetrisDecision> {
   if (!token || !game.active) throw decisionError();
   const candidates = await computeCandidates(game, signal);
@@ -61,6 +75,24 @@ export async function requestDecision(
     lines: game.lines,
     level: game.level,
     candidates,
+    model_choice: model,
+    opponent: opponent?.active
+      ? {
+          board: opponent.board,
+          active: {
+            ...opponent.active,
+            shape: opponent.active.shape.map((row) =>
+              row.map((cell): 0 | 1 => (cell ? 1 : 0)),
+            ),
+          },
+          next: opponent.queue[0],
+          hold: opponent.hold,
+          can_hold: opponent.canHold,
+          score: opponent.score,
+          lines: opponent.lines,
+          level: opponent.level,
+        }
+      : null,
   };
   return apiFetchJson('/api/v1/tetris/decision', token, {
     method: 'POST',

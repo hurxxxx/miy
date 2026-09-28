@@ -123,6 +123,7 @@ class AiGatewayRequest:
     native_tool_limit: int = 20
     app: str | None = None
     workload_id: str | None = None
+    runtime_adapter_id: str | None = None
     workload_route: Literal["local", "external"] | None = field(
         default=None,
         repr=False,
@@ -158,6 +159,10 @@ class AiGatewayRequest:
             if not normalized_workload_id:
                 raise ValueError("LLM workload_id must not be blank")
             object.__setattr__(self, "workload_id", normalized_workload_id)
+            if self.runtime_adapter_id is None:
+                workload = get_ai_capability_registry().get_llm_workload(normalized_workload_id)
+                if workload is not None:
+                    object.__setattr__(self, "runtime_adapter_id", workload.default_runtime_adapter)
         if self.workload_route is not None and self.workload_route not in {
             "local",
             "external",
@@ -209,6 +214,7 @@ class AiGatewayRequest:
             task_kind=self.task_kind,
             app_id=self.app,
             workload_id=self.workload_id,
+            runtime_adapter_id=self.runtime_adapter_id,
             principal_kind=self.principal_kind,
             principal_id=self.principal_id,
         )
@@ -581,6 +587,8 @@ def resolve_llm_workload_route(
     model_role: str = "default",
     app_id: str | None = None,
     require_tool_calling: bool = False,
+    require_structured_output: bool = False,
+    selected_model_id: str | None = None,
 ) -> ResolvedLlmWorkloadRoute:
     """Resolve the admin-selected route without executing it."""
 
@@ -590,6 +598,8 @@ def resolve_llm_workload_route(
         model_role=model_role,
         app_id=app_id,
         require_tool_calling=require_tool_calling,
+        require_structured_output=require_structured_output,
+        selected_model_id=selected_model_id,
     )
 
 
@@ -599,6 +609,7 @@ def execute_llm(
     db: Session,
     *,
     messages: list[dict[str, Any]],
+    selected_model_id: str | None = None,
     temperature: float | None = None,
     max_tokens: int | None = None,
     reasoning_effort: str | None = None,
@@ -614,13 +625,14 @@ def execute_llm(
     agent_run_id: str | None = None,
     conversation_id: str | None = None,
 ) -> LlmWorkloadResult:
-    """Execute one registered workload without exposing route/model controls."""
+    """Execute a registered workload with optional validated catalog selection."""
 
     request = build_llm_workload_request(
         workload_id,
         context,
         db,
         messages=messages,
+        selected_model_id=selected_model_id,
         temperature=temperature,
         max_tokens=max_tokens,
         reasoning_effort=reasoning_effort,
@@ -710,6 +722,7 @@ def prepare_structured_workload(
     db: Session,
     *,
     payload: dict[str, Any],
+    selected_model_id: str | None = None,
     sensitivity_labels: tuple[str, ...] = (),
     source_kinds: tuple[str, ...] = (),
     content_origin: str = "user_prompt",
@@ -725,6 +738,7 @@ def prepare_structured_workload(
         workload_id,
         context,
         db,
+        selected_model_id=selected_model_id,
         context_pack=AiGatewayContextPack(
             messages=[{"role": "user", "content": text}],
             context_strategy="structured_decision",
@@ -788,14 +802,15 @@ def build_llm_workload_request(
     db: Session,
     **request_values: Any,
 ) -> AiGatewayRequest:
+    selected_model_id = request_values.pop("selected_model_id", None)
     try:
         route = resolve_llm_workload_route(
             workload_id,
             db,
             app_id=context.app_id,
-            require_tool_calling=bool(
-                request_values.get("tools") or request_values.get("output_schema")
-            ),
+            selected_model_id=selected_model_id,
+            require_tool_calling=bool(request_values.get("tools")),
+            require_structured_output=request_values.get("output_schema") is not None,
         )
     except AiModelSettingsError as error:
         raise LlmProviderError(error.code) from error
@@ -814,11 +829,17 @@ def build_llm_workload_request(
         int(requested_max_tokens) if requested_max_tokens is not None else route.max_output_tokens,
         route.max_output_tokens,
     )
+    if "non_reasoning" in workload.required_capabilities:
+        # Workload policy also applies to every explicitly selected catalog model.
+        # Drop caller transport options that could re-enable provider thinking.
+        request_values["reasoning_effort"] = "none"
+        request_values["extra_body"] = None
     if route.route == "external":
         request_values["extra_body"] = None
     return AiGatewayRequest(
         task_kind=workload.task_kind,
         workload_id=workload.workload_id,
+        runtime_adapter_id=route.runtime_adapter_id,
         workload_route=route.route,
         workload_config=runtime_config,
         workload_local_max_output_tokens=route.local_max_output_tokens,
@@ -1058,6 +1079,23 @@ def _validate_registered_workload_request(request: AiGatewayRequest) -> None:
             task_kind=request.task_kind,
             requested_provider=request.requested_provider,
         )
+    if request.runtime_adapter_id not in workload.allowed_runtime_adapters:
+        raise AiGatewayPolicyViolation(
+            reason_code="runtime_adapter_not_allowed", task_kind=request.task_kind
+        )
+    if "non_reasoning" in workload.required_capabilities and (
+        request.reasoning_effort != "none" or request.extra_body
+    ):
+        raise AiGatewayPolicyViolation(
+            reason_code="reasoning_not_allowed", task_kind=request.task_kind
+        )
+    if request.runtime_adapter_id == "direct_completion" and (
+        request.stream or request.tools is not None or request.tool_choice is not None
+        or request.parallel_tool_calls is not None
+    ):
+        raise AiGatewayPolicyViolation(
+            reason_code="direct_completion_unsupported_operation", task_kind=request.task_kind
+        )
 
 
 def _resolved_registered_gateway_execution(
@@ -1271,7 +1309,7 @@ def complete_resolved_gateway_chat(
     response, _decision, config = _complete_chat(
         gateway_execution.llm_context,
         db,
-        completion_executor=_hermes_completion_executor(gateway_execution),
+        completion_executor=_completion_executor(gateway_execution),
         messages=gateway_execution.messages,
         temperature=request.temperature,
         max_tokens=request.max_tokens,
@@ -1313,7 +1351,7 @@ def complete_resolved_gateway_chat_text(
     completion, _decision, config = _complete_chat_text(
         gateway_execution.llm_context,
         db,
-        completion_executor=_hermes_completion_executor(gateway_execution),
+        completion_executor=_completion_executor(gateway_execution),
         messages=gateway_execution.messages,
         temperature=request.temperature,
         max_tokens=request.max_tokens,
@@ -1560,7 +1598,23 @@ def _hermes_completion_executor(gateway_execution: AiGatewayExecution):
     )
 
 
+def _completion_executor(gateway_execution: AiGatewayExecution):
+    request = gateway_execution.request
+    _validate_registered_workload_request(request)
+    if request.runtime_adapter_id == "direct_completion":
+        from open_work_hub_api.core.llm import complete_direct_chat
+
+        return lambda execution, payload, timeout: complete_direct_chat(
+            execution, payload, timeout, output_schema=request.output_schema
+        )
+    if request.runtime_adapter_id != "chat_completion":
+        raise LlmProviderError("Generation requires a registered completion runtime.")
+    return _hermes_completion_executor(gateway_execution)
+
+
 def _hermes_stream_executor(gateway_execution: AiGatewayExecution):
+    if gateway_execution.request.runtime_adapter_id != "chat_completion":
+        raise LlmProviderError("This runtime does not support streaming.")
     from open_work_hub_api.domains.hermes.workloads import stream_workload
 
     return lambda execution, payload, timeout: stream_workload(

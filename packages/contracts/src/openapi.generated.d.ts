@@ -1910,6 +1910,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tetris/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Models */
+        get: operations["tetris_models_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tetris/decision": {
         parameters: {
             query?: never;
@@ -7851,7 +7868,7 @@ export interface components {
             /** Display Name */
             display_name: string;
             /** Capabilities */
-            capabilities: ("chat" | "tool_calling" | "vision" | "decision")[];
+            capabilities: ("chat" | "non_reasoning" | "tool_calling" | "vision" | "decision")[];
             /**
              * Enabled
              * @default true
@@ -7869,7 +7886,7 @@ export interface components {
             /** Display Name */
             display_name: string;
             /** Capabilities */
-            capabilities: ("chat" | "tool_calling" | "vision" | "decision")[];
+            capabilities: ("chat" | "non_reasoning" | "tool_calling" | "vision" | "decision")[];
             /** Enabled */
             enabled: boolean;
             /**
@@ -7900,7 +7917,7 @@ export interface components {
             /** Display Name */
             display_name: string;
             /** Capabilities */
-            capabilities: ("chat" | "tool_calling" | "vision" | "decision")[];
+            capabilities: ("chat" | "non_reasoning" | "tool_calling" | "vision" | "decision")[];
             /** Enabled */
             enabled: boolean;
         };
@@ -15875,7 +15892,7 @@ export interface components {
         /** TetrisDecisionRequest */
         TetrisDecisionRequest: {
             /** Board */
-            board: (("I" | "J" | "L" | "O" | "S" | "T" | "Z") | null)[][];
+            board: (("I" | "J" | "L" | "O" | "S" | "T" | "Z") | "garbage" | null)[][];
             active: components["schemas"]["ActivePiece"];
             /**
              * Next
@@ -15892,6 +15909,8 @@ export interface components {
             lines: number;
             /** Level */
             level: number;
+            model_choice?: components["schemas"]["TetrisModelChoice"] | null;
+            opponent?: components["schemas"]["TetrisObservation"] | null;
             /** Candidates */
             candidates: components["schemas"]["TetrisCandidate"][];
         };
@@ -15904,6 +15923,15 @@ export interface components {
             action: "left" | "right" | "down" | "clockwise" | "counterclockwise" | "drop" | "hold" | "wait";
             /** Latency Ms */
             latency_ms: number;
+            /** Model */
+            model: string;
+            /** Provider */
+            provider: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "decision" | "generation";
         };
         /** TetrisLanding */
         TetrisLanding: {
@@ -15928,6 +15956,60 @@ export interface components {
             bumpiness: number;
             /** Key Presses */
             key_presses: number;
+        };
+        /** TetrisModelChoice */
+        TetrisModelChoice: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "decision" | "generation";
+            /** Model Id */
+            model_id: string;
+        };
+        /** TetrisModelOption */
+        TetrisModelOption: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "decision" | "generation";
+            /** Model Id */
+            model_id: string;
+            /** Name */
+            name: string;
+            /** Model Key */
+            model_key: string;
+            /** Provider */
+            provider: string;
+            /** Is Default */
+            is_default: boolean;
+        };
+        /** TetrisModelsResponse */
+        TetrisModelsResponse: {
+            /** Models */
+            models: components["schemas"]["TetrisModelOption"][];
+        };
+        /** TetrisObservation */
+        TetrisObservation: {
+            /** Board */
+            board: (("I" | "J" | "L" | "O" | "S" | "T" | "Z") | "garbage" | null)[][];
+            active: components["schemas"]["ActivePiece"];
+            /**
+             * Next
+             * @enum {string}
+             */
+            next: "I" | "J" | "L" | "O" | "S" | "T" | "Z";
+            /** Hold */
+            hold: ("I" | "J" | "L" | "O" | "S" | "T" | "Z") | null;
+            /** Can Hold */
+            can_hold: boolean;
+            /** Score */
+            score: number;
+            /** Lines */
+            lines: number;
+            /** Level */
+            level: number;
         };
         /** ToggleFavoriteResponse */
         ToggleFavoriteResponse: {
@@ -22646,6 +22728,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tetris_models_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TetrisModelsResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Access denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

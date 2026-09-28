@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Kind = Literal["I", "J", "L", "O", "S", "T", "Z"]
 Control = Literal["left", "right", "down", "clockwise", "counterclockwise", "drop", "hold", "wait"]
-CellRow = Annotated[list[Kind | None], Field(min_length=10, max_length=10)]
+CellRow = Annotated[list[Kind | Literal["garbage"] | None], Field(min_length=10, max_length=10)]
 ShapeRow = Annotated[list[Literal[0, 1]], Field(min_length=2, max_length=4)]
 
 
@@ -46,7 +46,23 @@ class TetrisCandidate(TetrisLanding):
     follow_ups: list[TetrisLanding] = Field(max_length=2)
 
 
-class TetrisDecisionRequest(GameInput):
+class TetrisModelChoice(GameInput):
+    kind: Literal["decision", "generation"]
+    model_id: str = Field(min_length=1, max_length=64)
+
+
+class TetrisModelOption(TetrisModelChoice):
+    name: str
+    model_key: str
+    provider: str
+    is_default: bool
+
+
+class TetrisModelsResponse(BaseModel):
+    models: list[TetrisModelOption]
+
+
+class TetrisObservation(GameInput):
     board: list[CellRow] = Field(min_length=20, max_length=20)
     active: ActivePiece
     next: Kind
@@ -55,6 +71,11 @@ class TetrisDecisionRequest(GameInput):
     score: int = Field(ge=0, le=2_147_483_647)
     lines: int = Field(ge=0, le=2_147_483_647)
     level: int = Field(ge=1, le=214_748_365)
+
+
+class TetrisDecisionRequest(TetrisObservation):
+    model_choice: TetrisModelChoice | None = None
+    opponent: TetrisObservation | None = None
     candidates: list[TetrisCandidate] = Field(min_length=1, max_length=32)
 
     @model_validator(mode="after")
@@ -94,3 +115,6 @@ class TetrisDecisionRequest(GameInput):
 class TetrisDecisionResponse(BaseModel):
     action: Control
     latency_ms: int = Field(ge=0)
+    model: str
+    provider: str
+    kind: Literal["decision", "generation"]

@@ -174,6 +174,8 @@ def resolve_ai_model_workload_route(
     model_role: str = "default",
     settings: Settings | None = None,
     require_tool_calling: bool = False,
+    require_structured_output: bool = False,
+    selected_model_id: str | None = None,
 ) -> ResolvedLlmWorkloadRoute:
     """Resolve company -> app -> workload policy once, without env fallback."""
     workload = get_ai_capability_registry().get_llm_workload(workload_id)
@@ -184,6 +186,9 @@ def resolve_ai_model_workload_route(
             context={"workload_id": workload_id},
         )
     app_id = _workload_app(workload, app_id)
+    requested_selection = selected_model_id
+    if requested_selection is not None and not workload.allow_model_selection:
+        raise AiModelSettingsError(status_code=403, code="ai.model_selection_not_allowed")
     role = model_role.strip().lower()
     if role not in workload.model_roles:
         raise AiModelSettingsError(
@@ -230,6 +235,13 @@ def resolve_ai_model_workload_route(
             selected_model_id = model_id
             model_source = source if model_id else "connection"
             break
+    if requested_selection is not None:
+        selected = db.get(AiModelCatalogEntry, requested_selection)
+        if selected is None:
+            raise AiModelSettingsError(status_code=422, code="ai.selected_model_unavailable")
+        connection_id = selected.provider_id
+        selected_model_id = selected.id
+        connection_source = model_source = "selection"
     if not connection_id:
         raise AiModelSettingsError(status_code=503, code="admin.ai_model_provider_required")
     connection = db.get(AiModelProviderConfig, connection_id)
@@ -260,6 +272,10 @@ def resolve_ai_model_workload_route(
             code="admin.ai_model_provider_not_allowed",
             context={"workload_id": workload_id},
         )
+    if requested_selection is not None and route == "external" and kind not in parse_external_llm_provider_allowlist(
+        (settings or get_settings()).ai_allowed_external_providers
+    ):
+        raise AiModelSettingsError(status_code=403, code="ai.selected_model_unavailable")
     _require_runtime_route_compatibility(
         workload, runtime_adapter_id=runtime, route=route, provider_id=kind, status_code=503
     )
@@ -272,7 +288,9 @@ def resolve_ai_model_workload_route(
         db, provider_id=connection_id, model_id=selected_model_id, require_enabled=True
     )
     _require_model_capabilities(model, workload=workload)
-    if require_tool_calling and "tool_calling" not in model.capabilities:
+    if (
+        require_tool_calling or (require_structured_output and runtime == "chat_completion")
+    ) and "tool_calling" not in model.capabilities:
         raise AiModelSettingsError(
             status_code=503,
             code="admin.ai_model_capability_mismatch",
@@ -285,8 +303,8 @@ def resolve_ai_model_workload_route(
             code="admin.ai_model_provider_not_ready",
             context={"provider_id": connection_id},
         )
-    if route == "local":
-        _validate_endpoint_url(endpoint, provider_id=connection_id, route_mode="local")
+    if route == "local" or runtime == "direct_completion":
+        _validate_endpoint_url(endpoint, provider_id=connection_id, route_mode=route)
     if workload.execution_kind == "decision":
         from open_work_hub_api.domains.ai.decision_adapters import get_decision_adapter
         from open_work_hub_api.domains.ai.decision_contracts import DecisionError
@@ -335,6 +353,50 @@ def resolve_ai_model_workload_route(
         model_source=model_source,
         output_cap_source=local_source if route == "local" else external_source,
     )
+
+
+@dataclass(frozen=True)
+class SelectableWorkloadModel:
+    id: str
+    name: str
+    model_key: str
+    provider: str
+    is_default: bool
+
+
+def list_selectable_workload_models(
+    db: Session, *, workload_id: str, app_id: str
+) -> list[SelectableWorkloadModel]:
+    """Safe catalog projection; use the execution resolver for every option."""
+    workload = get_ai_capability_registry().resolve_llm_workload(workload_id)
+    _workload_app(workload, app_id)
+    if not workload.allow_model_selection:
+        raise AiModelSettingsError(status_code=403, code="ai.model_selection_not_allowed")
+    try:
+        default_id = resolve_ai_model_workload_route(
+            db, workload_id=workload_id, app_id=app_id
+        ).model_entry_id
+    except AiModelSettingsError:
+        default_id = None
+    models = db.scalars(select(AiModelCatalogEntry).where(
+        AiModelCatalogEntry.enabled.is_(True),
+        AiModelCatalogEntry.discovery_status == "active",
+    ).order_by(AiModelCatalogEntry.display_name, AiModelCatalogEntry.id)).all()
+    result = []
+    for model in models:
+        if not set(workload.required_capabilities).issubset(model.capabilities):
+            continue
+        try:
+            route = resolve_ai_model_workload_route(
+                db, workload_id=workload_id, app_id=app_id, selected_model_id=model.id
+            )
+        except AiModelSettingsError:
+            continue
+        result.append(SelectableWorkloadModel(
+            id=model.id, name=model.display_name, model_key=model.model_key,
+            provider=route.adapter_provider, is_default=model.id == default_id,
+        ))
+    return sorted(result, key=lambda item: not item.is_default)
 
 
 def get_ai_model_settings_snapshot(db: Session) -> AiModelSettingsResponse:
@@ -1228,6 +1290,16 @@ def _require_runtime_route_compatibility(
     provider_id: str | None,
     status_code: int,
 ) -> None:
+    if runtime_adapter_id == "direct_completion":
+        provider = llm_provider_descriptor(provider_id or "")
+        if (
+            workload.execution_kind != "chat" or provider is None
+            or provider.execution_adapter_id != "openai_compatible"
+        ):
+            raise AiModelSettingsError(
+                status_code=status_code, code="admin.ai_model_runtime_route_mismatch"
+            )
+        return
     if workload.execution_kind == "decision":
         provider = llm_provider_descriptor(provider_id or "")
         if runtime_adapter_id != "decision" or provider is None or not provider.decision_adapter_id:

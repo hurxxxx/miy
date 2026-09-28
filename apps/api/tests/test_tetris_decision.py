@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from dev_accounts import auth_headers, dev_login
-from open_work_hub_api.core.llm_errors import LlmProviderError
+from open_work_hub_api.core.llm_errors import LlmProviderError, LlmRuntimeError
 from open_work_hub_api.domains.ai.decision_contracts import ChoiceAnswer, DecisionError
 from open_work_hub_api.domains.ai.gateway import AiGatewayPolicyViolation
 from open_work_hub_api.domains.ai.registry import get_ai_capability_registry
@@ -32,6 +32,7 @@ def result(action="option_0"):
     return SimpleNamespace(
         response=SimpleNamespace(answers={"action": ChoiceAnswer(choice=action, probabilities={action: 1.0})}),
         latency_ms=321,
+        metadata=SimpleNamespace(model="test/model", provider="test"),
     )
 
 
@@ -55,7 +56,7 @@ def test_tetris_decision_uses_authenticated_owner_and_fixed_workload(client: Tes
     body["can_hold"] = False
     response = client.post("/api/v1/tetris/decision", headers=auth_headers(session["token"]), json=body)
     assert response.status_code == 200, response.text
-    assert response.json() == {"action": "left", "latency_ms": 321}
+    assert response.json() == {"action": "left", "latency_ms": 321, "model": "test/model", "provider": "test", "kind": "decision"}
     workload, context, args = calls[0]
     assert workload == "tetris.play"
     assert context.actor_user_id == session["user"]["id"]
@@ -117,24 +118,28 @@ def test_tetris_decision_requires_current_app_admission(client, monkeypatch):
     assert client.post("/api/v1/tetris/decision", headers=headers, json=payload()).status_code == 403
 
 
+@pytest.mark.parametrize("kind", ["decision", "generation"])
 @pytest.mark.parametrize("error, status", [
     (DecisionError("decision_timeout"), 502),
     (DecisionError("decision_response_invalid"), 502),
     (LlmProviderError("private provider configuration"), 502),
+    (LlmRuntimeError("private runtime timeout details"), 502),
     (AiGatewayPolicyViolation(reason_code="blocked", task_kind="tetris_play"), 403),
 ])
-def test_tetris_decision_errors_are_localized_and_sanitized(client, monkeypatch, error, status):
+def test_tetris_decision_errors_are_localized_and_sanitized(client, monkeypatch, error, status, kind):
     session = dev_login(client, "administrator")
     def fail(*args, **kwargs):
         raise error
-    monkeypatch.setattr(ai, "execute_decision", fail)
-    response = client.post("/api/v1/tetris/decision", json=payload(),
+    monkeypatch.setattr(ai, "execute_decision" if kind == "decision" else "execute_llm", fail)
+    body = {**payload(), "model_choice": {"kind": kind, "model_id": "test"}}
+    response = client.post("/api/v1/tetris/decision", json=body,
                            headers={**auth_headers(session["token"]), "Accept-Language": "en-US"})
     assert response.status_code == status
     assert response.json()["detail"] == (
         "AI security policy blocked the decision." if status == 403 else "AI decision failed."
     )
     assert "private provider" not in response.text
+    assert "private runtime" not in response.text
 
 
 def test_tetris_rejects_unavailable_hold_choice(client, monkeypatch):
@@ -181,7 +186,7 @@ def test_model_sees_hold_tradeoff_and_two_placement_forecast(client, monkeypatch
     for candidate in body["candidates"]:
         candidate["hold_after"] = "T"
     first = body["candidates"][0]
-    first.update(action="hold", uses_hold=True, piece="T", hold_after="O")
+    first.update(action="hold", uses_hold=True, piece="T", hold_after="O", cleared_lines=2)
     first["follow_ups"] = [{
         "piece": "O", "uses_hold": True, "hold_after": "I", "cleared_lines": 2,
         "holes": 0, "max_height": 2, "aggregate_height": 4, "bumpiness": 4, "key_presses": 3,
@@ -195,7 +200,41 @@ def test_model_sees_hold_tradeoff_and_two_placement_forecast(client, monkeypatch
     assert "Place T using hold; reserve afterward: O" in description
     assert "Next active piece: I" in description
     assert "Place O using hold; reserve afterward: I" in description
-    assert "Total lines over both placements: 2" in description
+    assert "Total lines over both placements: 4" in description
+    assert "Total garbage rows over both placements in a duel: 2" in description
+
+
+@pytest.mark.parametrize("duel", [False, True])
+def test_both_model_kinds_receive_identical_rules_strategy_and_candidates(client, monkeypatch, duel):
+    import json
+    observed = {}
+
+    def decision(*args, **kwargs):
+        observed["decision"] = {"state": kwargs["state"], "options": kwargs["questions"]["action"].options}
+        return result()
+
+    def generation(*args, **kwargs):
+        observed["generation"] = json.loads(kwargs["context_pack"].messages[1]["content"])
+        return SimpleNamespace(
+            completion=SimpleNamespace(structured_output={"choice": "option_0"}),
+            metadata=SimpleNamespace(model="test/model", provider="test"),
+        )
+
+    monkeypatch.setattr(ai, "execute_decision", decision)
+    monkeypatch.setattr(ai, "execute_llm", generation)
+    session = dev_login(client, "administrator")
+    for kind in ("decision", "generation"):
+        body = {**payload(), "model_choice": {"kind": kind, "model_id": "test-model"}}
+        if duel:
+            body["opponent"] = {key: value for key, value in payload().items() if key != "candidates"}
+        response = client.post("/api/v1/tetris/decision", headers=auth_headers(session["token"]), json=body)
+        assert response.status_code == 200
+
+    assert observed["decision"] == observed["generation"]
+    state = observed["decision"]["state"]
+    assert state["rules"] and state["strategy"]
+    assert ("attack_rules" in state) is duel
+    assert ("opponent" in state) is duel
 
 
 def test_empty_hold_cannot_forecast_an_unseen_piece(client, monkeypatch):
@@ -219,3 +258,230 @@ def test_empty_hold_cannot_forecast_an_unseen_piece(client, monkeypatch):
     }]
     assert client.post("/api/v1/tetris/decision", headers=headers, json=body).status_code == 422
     assert len(calls) == 1
+
+
+@pytest.fixture
+def selectable_models(client, monkeypatch):
+    from open_work_hub_api.core.settings import get_settings
+    monkeypatch.setenv("OPEN_WORK_HUB_AI_ALLOWED_EXTERNAL_PROVIDERS", "openrouter")
+    get_settings.cache_clear()
+    from open_work_hub_api.core.db import get_session_factory
+    from open_work_hub_api.domains.ai.model_settings_models import AiModelProviderConfig, AiModelCatalogEntry, AiModelPolicyDefault
+    session = dev_login(client, "administrator")
+    with get_session_factory()() as db:
+        db.add(AiModelProviderConfig(
+            provider_id="arena-test", provider_kind="openrouter", display_name="Arena",
+            route_mode="external", credential_kind="none", endpoint_url="https://openrouter.ai/api/v1", enabled=True,
+        ))
+        db.flush()
+        for model_id, caps in (
+            ("arena-decision", ["decision"]),
+            ("arena-chat", ["chat", "non_reasoning", "tool_calling"]),
+            ("arena-plain", ["chat", "non_reasoning"]),
+            ("arena-thinking", ["chat", "tool_calling"]),
+        ):
+            db.add(AiModelCatalogEntry(id=model_id, provider_id="arena-test", model_key=f"test/{model_id}", display_name=model_id, capabilities_json=caps, enabled=True))
+        db.flush()
+        for family, model_id in (("decision", "arena-decision"), ("generation", "arena-chat")):
+            db.merge(AiModelPolicyDefault(model_family=family, app_id="tetris", route_mode="external", provider_id="arena-test", model_id=model_id))
+        db.commit()
+    return session
+
+
+def test_models_catalog_is_safe_dynamic_and_admitted(client, selectable_models):
+    from open_work_hub_api.core.db import get_session_factory
+    from open_work_hub_api.domains.ai.model_settings_models import AiModelCatalogEntry
+    assert client.get("/api/v1/tetris/models").status_code == 401
+    headers = auth_headers(selectable_models["token"])
+    response = client.get("/api/v1/tetris/models", headers=headers)
+    assert response.status_code == 200
+    models = response.json()["models"]
+    assert {(item["model_id"], item["kind"]) for item in models} == {
+        ("arena-decision", "decision"), ("arena-chat", "generation"), ("arena-plain", "generation"),
+    }
+    assert {item["model_id"] for item in models if item["is_default"]} == {"arena-decision", "arena-chat"}
+    assert all(set(item) == {"model_id", "kind", "name", "model_key", "provider", "is_default"} for item in models)
+    with get_session_factory()() as db:
+        db.get(AiModelCatalogEntry, "arena-chat").enabled = False
+        db.commit()
+    assert len(client.get("/api/v1/tetris/models", headers=headers).json()["models"]) == 2
+    client.put("/api/v1/admin/apps/tetris/access-policy", headers=headers,
+               json={"enabled": False, "audience": "all", "user_ids": [], "group_ids": []})
+    assert client.get("/api/v1/tetris/models", headers=headers).status_code == 403
+
+
+def test_llm_uses_structured_choice_and_same_observation(client, selectable_models, monkeypatch):
+    seen = []
+    def generate(workload, context, db, **kwargs):
+        seen.append((workload, context, kwargs))
+        return SimpleNamespace(completion=SimpleNamespace(structured_output={"choice": "option_1"}), metadata=SimpleNamespace(model="test/arena-chat", provider="openrouter"))
+    monkeypatch.setattr(ai, "execute_llm", generate)
+    body = payload()
+    body["model_choice"] = {"kind": "generation", "model_id": "arena-chat"}
+    body["opponent"] = {key: value for key, value in payload().items() if key != "candidates"}
+    response = client.post("/api/v1/tetris/decision", headers=auth_headers(selectable_models["token"]), json=body)
+    assert response.status_code == 200, response.text
+    assert response.json()["action"] == "drop"
+    assert response.json()["kind"] == "generation"
+    workload, context, kwargs = seen[0]
+    assert workload == "tetris.play.generation"
+    assert context.actor_user_id == selectable_models["user"]["id"]
+    assert kwargs["selected_model_id"] == "arena-chat"
+    assert kwargs["output_schema"]["properties"]["choice"]["enum"] == ["option_0", "option_1"]
+    assert kwargs["output_schema"]["additionalProperties"] is False
+    import json
+    observation = json.loads(kwargs["context_pack"].messages[1]["content"])
+    assert observation["state"]["opponent"] == body["opponent"]
+    assert "1/2/3" in observation["state"]["attack_rules"]
+    assert "non_reasoning" in get_ai_capability_registry().get_llm_workload(workload).required_capabilities
+    assert kwargs["timeout_seconds"] == 30
+    assert kwargs["max_tokens"] == 1024
+
+
+@pytest.mark.parametrize("model_id", ["arena-chat", "arena-plain"])
+def test_selected_models_cannot_reenable_reasoning(client, selectable_models, model_id):
+    from open_work_hub_api.core.db import get_session_factory
+    from open_work_hub_api.domains.ai.gateway import LlmWorkloadContext, build_llm_workload_request
+
+    with get_session_factory()() as db:
+        request = build_llm_workload_request(
+            ai.GENERATION_WORKLOAD_ID,
+            LlmWorkloadContext(source="test.non_reasoning", actor_user_id=selectable_models["user"]["id"], app_id="tetris"),
+            db,
+            selected_model_id=model_id,
+            reasoning_effort="high",
+            extra_body={"reasoning": {"enabled": True}},
+        )
+    assert request.reasoning_effort == "none"
+    assert request.extra_body is None
+    assert request.requested_model == f"test/{model_id}"
+
+
+def test_reasoning_required_model_is_rejected_before_inference(client, selectable_models, monkeypatch):
+    from open_work_hub_api.core import llm
+    monkeypatch.setattr(llm, "complete_direct_chat", lambda *a, **kw: pytest.fail("must not call model"))
+    body = {**payload(), "model_choice": {"kind": "generation", "model_id": "arena-thinking"}}
+    response = client.post("/api/v1/tetris/decision", headers=auth_headers(selectable_models["token"]), json=body)
+    assert response.status_code == 502
+
+
+@pytest.mark.parametrize("value", [None, {}, {"choice": "teleport"}, {"choice": 1}, {"choice": "option_0", "extra": True}, '{"choice":"option_0"}'])
+def test_llm_rejects_invalid_structured_results(client, monkeypatch, value):
+    session = dev_login(client, "administrator")
+    monkeypatch.setattr(ai, "execute_llm", lambda *a, **kw: SimpleNamespace(completion=SimpleNamespace(structured_output=value)))
+    body = payload()
+    body["model_choice"] = {"kind": "generation", "model_id": "test"}
+    response = client.post("/api/v1/tetris/decision", headers=auth_headers(session["token"]), json=body)
+    assert response.status_code == 502
+
+
+@pytest.mark.parametrize("reason, status, code", [
+    ("rate_limited", 429, "tetris.ai_rate_limited"),
+    ("output_limit", 502, "tetris.ai_output_limit"),
+    ("timeout", 504, "tetris.ai_timeout"),
+])
+def test_llm_exposes_only_safe_localized_failure_reason(client, monkeypatch, reason, status, code):
+    session = dev_login(client, "administrator")
+    def fail(*args, **kwargs):
+        raise LlmProviderError("private provider body", reason_code=reason)
+    monkeypatch.setattr(ai, "execute_llm", fail)
+    body = {**payload(), "model_choice": {"kind": "generation", "model_id": "test"}}
+    response = client.post("/api/v1/tetris/decision", headers=auth_headers(session["token"]), json=body)
+    assert response.status_code == status
+    assert response.json()["code"] == code
+    assert "private" not in response.text
+
+
+def test_model_selection_cannot_bypass_workload_route_or_capabilities(client, selectable_models):
+    from open_work_hub_api.core.db import get_session_factory
+    from open_work_hub_api.domains.ai.model_settings_service import resolve_ai_model_workload_route, AiModelSettingsError
+    from open_work_hub_api.domains.ai.model_settings_models import AiModelProviderConfig, AiModelCatalogEntry
+    with get_session_factory()() as db:
+        selected = resolve_ai_model_workload_route(db, workload_id="tetris.play.generation", selected_model_id="arena-chat")
+        assert selected.model_key == "test/arena-chat"
+        assert selected.model_source == "selection"
+        from open_work_hub_api.core.settings import get_settings
+        blocked = get_settings().model_copy(update={"ai_allowed_external_providers": "openai"})
+        with pytest.raises(AiModelSettingsError, match="selected_model_unavailable"):
+            resolve_ai_model_workload_route(
+                db, workload_id="tetris.play.generation", selected_model_id="arena-chat", settings=blocked,
+            )
+        with pytest.raises(AiModelSettingsError, match="selection_not_allowed"):
+            resolve_ai_model_workload_route(db, workload_id="chatbot", app_id="chatbot", selected_model_id="arena-chat")
+        for workload, model in (("tetris.play", "arena-chat"), ("tetris.play.generation", "arena-decision")):
+            with pytest.raises(AiModelSettingsError, match="capability_mismatch"):
+                resolve_ai_model_workload_route(db, workload_id=workload, selected_model_id=model)
+        db.get(AiModelCatalogEntry, "arena-chat").enabled = False
+        db.flush()
+        with pytest.raises(AiModelSettingsError):
+            resolve_ai_model_workload_route(db, workload_id="tetris.play.generation", selected_model_id="arena-chat")
+        db.get(AiModelCatalogEntry, "arena-chat").enabled = True
+        db.get(AiModelProviderConfig, "arena-test").route_mode = "local"
+        db.flush()
+        with pytest.raises(AiModelSettingsError, match="route_provider_mismatch"):
+            resolve_ai_model_workload_route(db, workload_id="tetris.play.generation", selected_model_id="arena-chat")
+
+
+@pytest.mark.parametrize("kind", ["decision", "generation"])
+def test_selected_model_reaches_common_execution_and_audit_without_changing_defaults(
+    client, selectable_models, monkeypatch, kind,
+):
+    from open_work_hub_api.core.db import get_session_factory
+    from open_work_hub_api.domains.ai import audit as ai_audit, decisions, gateway
+    from open_work_hub_api.domains.ai.decision_contracts import DecisionResponse
+    from open_work_hub_api.domains.ai.model_settings_models import AiModelCatalogEntry, AiModelPolicyDefault
+    from open_work_hub_api.core.llm_execution_adapters import OpenAICompatibleLlmExecutionAdapter
+
+    selected_id = f"selected-{kind}"
+    selected_key = f"test/{selected_id}"
+    with get_session_factory()() as db:
+        db.add(AiModelCatalogEntry(
+            id=selected_id, provider_id="arena-test", model_key=selected_key,
+            display_name=selected_id, enabled=True,
+            capabilities_json=["decision"] if kind == "decision" else ["chat", "non_reasoning"],
+        ))
+        db.commit()
+        default_before = db.get(AiModelPolicyDefault, (kind, "tetris", "external")).model_id
+    executed, audit = [], []
+
+    def native(config, request):
+        executed.append((config.default_model, config.connection_id))
+        return DecisionResponse(model=config.default_model, answers={"action": ChoiceAnswer(
+            choice="option_1", probabilities={"option_0": 0.0, "option_1": 1.0},
+        )})
+
+    def generate(self, config, payload, **kwargs):
+        # A different selected model must retain the workload's reasoning policy.
+        assert payload["extra_body"]["reasoning"] == {"effort": "none"}
+        executed.append((payload["model"], config.connection_id))
+        assert payload["response_format"]["json_schema"]["schema"]["properties"]["choice"]["enum"] == ["option_0", "option_1"]
+        return {
+            "model": payload["model"],
+            "choices": [{"message": {"content": '{"choice":"option_1"}'}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+        }
+
+    # Mock only the remote runtime, keeping resolution, admission, policy and audit paths real.
+    monkeypatch.setattr(decisions, "get_decision_adapter", lambda _: SimpleNamespace(execute=native))
+    monkeypatch.setattr(OpenAICompatibleLlmExecutionAdapter, "complete", generate)
+    monkeypatch.setattr(decisions, "log_llm_call", lambda **kwargs: audit.append(kwargs))
+    monkeypatch.setattr(gateway, "log_llm_call", lambda **kwargs: audit.append(kwargs))
+    monkeypatch.setattr(ai_audit, "log_llm_call", lambda **kwargs: audit.append(kwargs))
+    body = {**payload(), "model_choice": {"kind": kind, "model_id": selected_id}}
+    headers = auth_headers(selectable_models["token"])
+    response = client.post("/api/v1/tetris/decision", headers=headers, json=body)
+    assert response.status_code == 200, response.text
+    assert response.json()["model"] == selected_key
+    assert response.json()["action"] == "drop"
+    assert executed == [(selected_key, "arena-test")]
+    assert len(audit) == 1
+    assert audit[0]["requested_model"] == selected_key
+    assert audit[0]["actor_user_id"] == selectable_models["user"]["id"]
+    if kind == "generation":
+        assert audit[0]["runtime_adapter_id"] == "direct_completion"
+    with get_session_factory()() as db:
+        assert db.get(AiModelPolicyDefault, (kind, "tetris", "external")).model_id == default_before
+        db.get(AiModelCatalogEntry, selected_id).enabled = False
+        db.commit()
+    assert client.post("/api/v1/tetris/decision", headers=headers, json=body).status_code == 502
+    assert len(executed) == 1

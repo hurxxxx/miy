@@ -18,7 +18,8 @@ DECISION_RUNTIME_FILES = {
     Path("domains/ai/model_settings_service.py"),
 }
 DIRECT_LLM_CALL_PATTERN = re.compile(
-    r"\b(?:complete_chat|complete_chat_text|complete_chat_stream|resolve_chat_execution)\s*\("
+    r"\b(?:complete_chat|complete_chat_text|complete_chat_stream|resolve_chat_execution|"
+    r"complete_direct_chat|DirectCompletionAdapter)\s*\("
 )
 LEGACY_GATEWAY_CALL_PATTERN = re.compile(
     r"\b(?:complete_gateway_chat|complete_gateway_chat_text|complete_gateway_chat_stream|"

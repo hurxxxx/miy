@@ -20,6 +20,7 @@ import {
 
 const MODEL_CAPABILITIES = [
   'chat',
+  'non_reasoning',
   'tool_calling',
   'vision',
   'decision',

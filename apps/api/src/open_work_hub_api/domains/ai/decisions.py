@@ -44,11 +44,12 @@ def execute_decision(
     *,
     state: str | dict[str, Any] | list[Any],
     questions: dict[str, DecisionQuestion],
+    selected_model_id: str | None = None,
     sensitivity_labels: tuple[str, ...] = (),
     source_kinds: tuple[str, ...] = (),
     content_origin: str = "user_prompt",
 ) -> DecisionResult:
-    """One bounded native call. Apps choose a stable workload, never a model."""
+    """One bounded native call, with catalog selection only for opted-in workloads."""
     workload = get_ai_capability_registry().get_llm_workload(workload_id)
     if workload is None or workload.execution_kind != "decision":
         raise DecisionError("decision_workload_required")
@@ -61,6 +62,7 @@ def execute_decision(
         context,
         db,
         payload=payload.model_dump(),
+        selected_model_id=selected_model_id,
         sensitivity_labels=sensitivity_labels,
         source_kinds=source_kinds,
         content_origin=content_origin,

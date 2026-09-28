@@ -515,12 +515,16 @@ def test_readyz_uses_configured_readiness_while_ai_health_stays_live(
     assert missing_response.status_code == 503
     missing_tasks = {item["task_kind"]: item for item in missing_response.json()["llm_effective"]["tasks"]}
     assert missing_tasks["tetris.play"]["ready"] is False
+    assert missing_tasks["tetris.play.generation"]["ready"] is False
 
     from open_work_hub_api.domains.ai import model_discovery
 
     settings = get_settings()
     monkeypatch.setattr(settings, "llm_external_allowed_providers", "openai,anthropic,openrouter")
     with Session(get_engine()) as db:
+        # The real-time generation workload also needs an approved non-reasoning model.
+        generation_model = db.get(AiModelCatalogEntry, "openai-gpt-5-4-mini")
+        generation_model.capabilities_json = [*generation_model.capabilities, "non_reasoning"]
         db.add(AiModelProviderConfig(
             provider_id="decision-readiness-test", provider_kind="openrouter",
             display_name="Decision test", route_mode="external", credential_kind="none",
