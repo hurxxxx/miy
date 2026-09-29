@@ -15878,6 +15878,8 @@ export interface components {
             bumpiness: number;
             /** Key Presses */
             key_presses: number;
+            /** Wells */
+            wells?: components["schemas"]["TetrisWell"][];
             /**
              * Action
              * @enum {string}
@@ -15959,6 +15961,8 @@ export interface components {
             bumpiness: number;
             /** Key Presses */
             key_presses: number;
+            /** Wells */
+            wells?: components["schemas"]["TetrisWell"][];
         };
         /** TetrisModelChoice */
         TetrisModelChoice: {
@@ -16019,6 +16023,17 @@ export interface components {
             target: components["schemas"]["ActivePiece"];
             /** Uses Hold */
             uses_hold: boolean;
+        };
+        /** TetrisWell */
+        TetrisWell: {
+            /** Column */
+            column: number;
+            /** Depth */
+            depth: number;
+            /** Ready Rows */
+            ready_rows: number;
+            /** Filled Cells */
+            filled_cells: number;
         };
         /** ToggleFavoriteResponse */
         ToggleFavoriteResponse: {

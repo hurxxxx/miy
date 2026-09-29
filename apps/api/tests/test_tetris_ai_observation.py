@@ -21,6 +21,10 @@ def _assert_landing(fields, source):
         "piece": fields["piece"],
         "uses_hold": fields["hold"] == "1",
         "hold_after": None if fields["reserve"] == "-" else fields["reserve"],
+        "wells": [] if fields["wells"] == "-" else [
+            dict(zip(("column", "depth", "ready_rows", "filled_cells"), map(int, well.split(":")), strict=True))
+            for well in fields["wells"].split(",")
+        ],
         **{
             name: int(fields[label])
             for name, label in {
@@ -61,6 +65,7 @@ def test_all_32_candidates_keep_metrics_and_both_exclusive_forecasts():
             "target": {"kind": "T", "shape": [[0, 1, 0], [1, 1, 1], [0, 0, 0]], "x": index % 8, "y": 18},
             "cleared_lines": index % 5, "holes": 200 - index, "max_height": 20,
             "aggregate_height": 200 - index, "bumpiness": 180 - index, "key_presses": 64 - index,
+            "wells": [{"column": index % 10, "depth": 4, "ready_rows": 2, "filled_cells": 30}],
         }
         future = [
             {**landing, "piece": "I", "uses_hold": False, "cleared_lines": 4, "key_presses": 2,
@@ -87,6 +92,24 @@ def test_all_32_candidates_keep_metrics_and_both_exclusive_forecasts():
             )
     # Representation-growth guard, not a tokenizer-independent context guarantee.
     assert sum(len(text.encode()) for text in descriptions) < 18_000
+
+
+def test_four_alternative_forecasts_preserve_well_progress():
+    landing = {
+        "piece": "O", "uses_hold": False, "hold_after": "I", "cleared_lines": 0,
+        "target": {"kind": "O", "shape": [[1, 1], [1, 1]], "x": 3, "y": 18},
+        "holes": 0, "max_height": 2, "aggregate_height": 4, "bumpiness": 4, "key_presses": 1,
+        "wells": [],
+    }
+    forecasts = [
+        {**landing, "wells": [{"column": column, "depth": 4, "ready_rows": 2, "filled_cells": 18 + column}]}
+        for column in (0, 2, 6, 9)
+    ]
+    candidate = TetrisCandidate(**landing, action="drop", next_piece="O", next_spawn_blocked=False, follow_ups=forecasts)
+    lines = ai._candidate_description(candidate).splitlines()
+    assert len(lines) == 6
+    for line, expected in zip(lines[2:], forecasts, strict=True):
+        _assert_landing(_fields(line), expected)
 
 
 @pytest.mark.parametrize("next_piece, blocked", [(None, None), ("I", True)])

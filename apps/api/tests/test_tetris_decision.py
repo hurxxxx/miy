@@ -98,6 +98,11 @@ def test_tetris_decision_uses_authenticated_owner_and_fixed_workload(client: Tes
     lambda body: body.update(candidates=body["candidates"] * 17),
     lambda body: body["candidates"][0].update(holes=-1),
     lambda body: body["candidates"][0].update(key_presses=65),
+    lambda body: body["candidates"][0].update(wells=[{"column": 10, "depth": 4, "ready_rows": 4, "filled_cells": 36}]),
+    lambda body: body["candidates"][0].update(wells=[{"column": 0, "depth": 0, "ready_rows": 0, "filled_cells": 0}]),
+    lambda body: body["candidates"][0].update(wells=[{"column": 0, "depth": 2, "ready_rows": 3, "filled_cells": 27}]),
+    lambda body: body["candidates"][0].update(wells=[{"column": 0, "depth": 4, "ready_rows": 4, "filled_cells": 35}]),
+    lambda body: body["candidates"][0].update(wells=[{"column": 0, "depth": 4, "ready_rows": 4, "filled_cells": 36}] * 2),
     lambda body: body["candidates"][0].update(action="teleport"),
     lambda body: body["candidates"][0].update(instructions="untrusted"),
     lambda body: body["candidates"][0].update(piece="T"),
@@ -241,6 +246,7 @@ def test_both_model_kinds_receive_identical_rules_strategy_and_candidates(client
     session = dev_login(client, "administrator")
     for kind in ("decision", "generation"):
         body = {**payload(), "model_choice": {"kind": kind, "model_id": "test-model"}}
+        body["candidates"][0]["wells"] = [{"column": 9, "depth": 3, "ready_rows": 2, "filled_cells": 23}]
         if duel:
             body["opponent"] = {key: value for key, value in payload().items() if key != "candidates"}
         response = client.post("/api/v1/tetris/decision", headers=auth_headers(session["token"]), json=body)
@@ -248,6 +254,7 @@ def test_both_model_kinds_receive_identical_rules_strategy_and_candidates(client
         assert response.json()["placement"] == {"target": body["candidates"][0]["target"], "uses_hold": False}
 
     assert observed["decision"] == observed["generation"]
+    assert "wells=9:3:2:23" in observed["decision"]["options"]["option_0"]
     state = observed["decision"]["state"]
     assert state["rules"] and state["strategy"]
     assert ("attack_rules" in state) is duel
