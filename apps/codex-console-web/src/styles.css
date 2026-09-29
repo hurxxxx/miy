@@ -28,6 +28,7 @@ select {color: inherit; background: var(--ui-color-surface); border: 1px solid v
 textarea {color: inherit; background: transparent; resize: vertical; border: 0; outline: 0; width: 100%; padding: 12px; line-height: 1.75;}
 .actions {display: flex; align-items: center; gap: 6px; flex-wrap: wrap;}
 .stack {display: grid; gap: 14px;}
+.codex-update-prompt {border: 1px solid var(--ui-color-border-strong); border-radius: 6px; max-height: 40vh; font-size: 12px;}
 .dot {display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--ui-color-ink-subtle); flex-shrink: 0;}
 .dot.online {background: var(--ui-color-success-text);}
 .success {color: var(--ui-color-success-text);}
