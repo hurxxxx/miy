@@ -88,6 +88,7 @@ release_validation:
   before_script: []
   script:
     - bash scripts/ci/prepare-validation-runtime.sh --postgres
+    - source scripts/ci/normalize-validation-postgres-dsn.sh
     - cp .env.example .env
     - sed -i 's#^MTY_ENV_PROFILE=.*#MTY_ENV_PROFILE=test#; s#^MTY_WORKER_BROKER_URL=.*#MTY_WORKER_BROKER_URL=memory://#; s#^MTY_WORKER_RESULT_BACKEND=.*#MTY_WORKER_RESULT_BACKEND=cache+memory://#' .env
     - grep -qx 'MTY_ENV_PROFILE=test' .env
