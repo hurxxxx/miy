@@ -9,26 +9,26 @@ from types import SimpleNamespace
 
 import pytest
 
-from open_work_hub_api import evaluate_files_partitioned_quality as quality_cli
-from open_work_hub_api.domains.auth.models import User
-from open_work_hub_api.domains.retrieval import files_quality_judgments as quality_judgments
+from mty_api import evaluate_files_partitioned_quality as quality_cli
+from mty_api.domains.auth.models import User
+from mty_api.domains.retrieval import files_quality_judgments as quality_judgments
 
-from open_work_hub_api.domains.retrieval.contracts import (
+from mty_api.domains.retrieval.contracts import (
     RetrievalHit,
     RetrievalProfile,
     RetrievalQueryResponse,
     RetrievalStrategy,
 )
-from open_work_hub_api.domains.retrieval.evaluation import (
+from mty_api.domains.retrieval.evaluation import (
     RetrievalEvaluationReport,
     RetrievalQualityGateArtifact,
 )
-from open_work_hub_api.domains.retrieval.files_generation_runner import (
+from mty_api.domains.retrieval.files_generation_runner import (
     FilesBackendPairInspection,
     FilesPhysicalProjectionInventory,
     FilesSourceProjectionSnapshot,
 )
-from open_work_hub_api.domains.retrieval.files_quality_evaluator import (
+from mty_api.domains.retrieval.files_quality_evaluator import (
     FilesQualityEvaluationError,
     evaluate_files_partitioned_quality,
 )
@@ -113,8 +113,8 @@ def _corpus_bytes() -> bytes:
 
 def _settings():
     return SimpleNamespace(
-        opensearch_index_prefix="open-work-hub-search",
-        rag_qdrant_collection_prefix="open-work-hub-rag",
+        opensearch_index_prefix="mty-search",
+        rag_qdrant_collection_prefix="mty-rag",
         rag_embedding_provider="inference_gateway",
         rag_local_embedding_model="example/embedding-model",
         rag_local_embedding_revision="revision-a",
@@ -167,7 +167,7 @@ def test_evaluator_queries_only_the_exact_partitioned_physical_pair() -> None:
         identity_sha256="1" * 64,
         content_sha256="4" * 64,
         config_sha256="5" * 64,
-        physical_id="open-work-hub-rag-example-embedding-model-v1-release_20260723",
+        physical_id="mty-rag-example-embedding-model-v1-release_20260723",
     )
     backends = _Backends(FilesBackendPairInspection(opensearch=opensearch, qdrant=qdrant))
     keyword_bindings: list[str] = []
@@ -213,8 +213,8 @@ def test_evaluator_queries_only_the_exact_partitioned_physical_pair() -> None:
         retrieval_query=query_retrieval,
     )
 
-    assert keyword_bindings == ["open-work-hub-search_keyword_search_documents_v3_release_20260723"]
-    assert vector_bindings == ["open-work-hub-rag-example-embedding-model-v1-release_20260723"]
+    assert keyword_bindings == ["mty-search_keyword_search_documents_v3_release_20260723"]
+    assert vector_bindings == ["mty-rag-example-embedding-model-v1-release_20260723"]
     assert len(backends.inspected_specs) == 2
     assert backends.inspected_specs[0] == backends.inspected_specs[1]
     assert len(calls) == 180
@@ -227,7 +227,7 @@ def test_evaluator_queries_only_the_exact_partitioned_physical_pair() -> None:
     assert all(call["keyword_search_client"] is keyword_client for call in calls)
     assert all(call["rag_query_service"] is rag_query_service for call in calls)
     assert all(
-        call["rag_collection"] == "open-work-hub-rag-example-embedding-model-v1-release_20260723"
+        call["rag_collection"] == "mty-rag-example-embedding-model-v1-release_20260723"
         for call in calls
     )
     assert all(call["rag_allowed_unlisted_source_kinds"] == frozenset({"files"}) for call in calls)
@@ -262,7 +262,7 @@ def test_evaluator_fails_closed_if_the_physical_generation_changes_mid_run() -> 
         identity_sha256="1" * 64,
         content_sha256="4" * 64,
         config_sha256="5" * 64,
-        physical_id="open-work-hub-rag-example-embedding-model-v1-release_20260723",
+        physical_id="mty-rag-example-embedding-model-v1-release_20260723",
     )
 
     class ChangingBackends:
@@ -327,7 +327,7 @@ def test_evaluator_fails_closed_if_principal_acl_universe_changes_mid_run() -> N
         identity_sha256="1" * 64,
         content_sha256="4" * 64,
         config_sha256="5" * 64,
-        physical_id="open-work-hub-rag-example-embedding-model-v1-release_20260723",
+        physical_id="mty-rag-example-embedding-model-v1-release_20260723",
     )
     policies = iter(
         (
@@ -574,7 +574,7 @@ def test_cli_sanitizes_unexpected_evaluation_failures(
     monkeypatch.setattr(quality_cli, "FilesPhysicalGenerationBackends", Backends)
 
     def fail(**_kwargs):
-        logging.getLogger("open_work_hub_api.domains.retrieval.application").warning(
+        logging.getLogger("mty_api.domains.retrieval.application").warning(
             "sensitive query user-sensitive file-sensitive"
         )
         raise RuntimeError("sensitive query user-sensitive file-sensitive")

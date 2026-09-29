@@ -5,10 +5,10 @@ from datetime import UTC, datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from open_work_hub_api.core.db import Base
-from open_work_hub_api.domains.auth.models import User
-from open_work_hub_api.domains.pms.space_models import Team
-from open_work_hub_api.domains.docs.models import (
+from mty_api.core.db import Base
+from mty_api.domains.auth.models import User
+from mty_api.domains.pms.space_models import Team
+from mty_api.domains.docs.models import (
     DocMeetingAccess,
     DocsCollection,
     NativeDoc,
@@ -18,17 +18,17 @@ from open_work_hub_api.domains.docs.models import (
     NativeDocUserShare,
     NativeDocGroupShare,
 )
-from open_work_hub_api.domains.meeting.models import Meeting
-from open_work_hub_api.domains.files.models import (
+from mty_api.domains.meeting.models import Meeting
+from mty_api.domains.files.models import (
     FileManagerCorpus,
     FileManagerFile,
     FileManagerFileSourceMetadata,
 )
-from open_work_hub_api.domains.pms.models import Folder, Task, TaskList
-from open_work_hub_api.domains.retrieval.models import RetrievalPartition
-from open_work_hub_api.domains.search.docs_projection import load_docs_search_document
-from open_work_hub_api.domains.search.projections import all_search_documents, load_search_document
-from open_work_hub_api.domains.search.schemas import SearchEntityType
+from mty_api.domains.pms.models import Folder, Task, TaskList
+from mty_api.domains.retrieval.models import RetrievalPartition
+from mty_api.domains.search.docs_projection import load_docs_search_document
+from mty_api.domains.search.projections import all_search_documents, load_search_document
+from mty_api.domains.search.schemas import SearchEntityType
 
 
 def _session() -> Session:
@@ -64,7 +64,7 @@ def _add_user(session: Session) -> None:
         User(
             id="user-1",
             login_id="docs-owner",
-            email="docs-owner@open-work-hub.local",
+            email="docs-owner@mty.local",
             full_name="Docs Owner",
             password_hash="hash",
             status="active",

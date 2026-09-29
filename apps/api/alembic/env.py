@@ -7,9 +7,9 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 
 # Import Base and all model modules so Base.metadata is fully populated.
-from open_work_hub_api.core.db import Base
-from open_work_hub_api.core.model_registry import import_all_models
-from open_work_hub_api.core.settings import get_settings
+from mty_api.core.db import Base
+from mty_api.core.model_registry import import_all_models
+from mty_api.core.settings import get_settings
 import_all_models()
 
 config = context.config

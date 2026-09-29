@@ -18,8 +18,8 @@ API_SRC = WORKSPACE_ROOT / "apps" / "api" / "src"
 if str(API_SRC) not in sys.path:
     sys.path.insert(0, str(API_SRC))
 
-from open_work_hub_api.core.db import Base
-from open_work_hub_api.domains.files.models import FileManagerStorageCleanupJob
+from mty_api.core.db import Base
+from mty_api.domains.files.models import FileManagerStorageCleanupJob
 
 
 class _MissingObjectError(RuntimeError):
@@ -38,11 +38,11 @@ class _FakeMinioClient:
 
 
 def _load_tasks(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("OPEN_WORK_HUB_WORKER_QUEUE_GROUP", "default")
-    from open_work_hub_worker.settings import get_settings
+    monkeypatch.setenv("MTY_WORKER_QUEUE_GROUP", "default")
+    from mty_worker.settings import get_settings
 
     get_settings.cache_clear()
-    return importlib.import_module("open_work_hub_worker.tasks.file_storage_cleanup")
+    return importlib.import_module("mty_worker.tasks.file_storage_cleanup")
 
 
 def _engine():

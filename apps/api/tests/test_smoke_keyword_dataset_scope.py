@@ -4,13 +4,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from open_work_hub_api.domains.search.backend_contracts import (
+from mty_api.domains.search.backend_contracts import (
     KeywordSearchHit,
     KeywordSearchQuery,
     KeywordSearchResult,
 )
-from open_work_hub_api import smoke_keyword_dataset_scope
-from open_work_hub_api.smoke_keyword_dataset_scope import verify_keyword_index
+from mty_api import smoke_keyword_dataset_scope
+from mty_api.smoke_keyword_dataset_scope import verify_keyword_index
 
 
 class FakeKeywordClient:

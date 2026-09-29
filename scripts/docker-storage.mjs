@@ -7,17 +7,17 @@ import { pathToFileURL } from 'node:url';
 const GIB = 1024 ** 3;
 const RETENTION_MS = 48 * 60 * 60 * 1000;
 const CACHE_LABELS = [
-  'io.open-work-hub.build-cache=true',
-  'org.opencontainers.image.title=Open Work Hub',
+  'io.mty.build-cache=true',
+  'org.opencontainers.image.title=MTY',
 ];
 const KEEP_TAGS = [
-  'open-work-hub-app:prod',
-  'open-work-hub-app:prod-previous',
-  'open-work-hub-validation:node22-python312',
+  'mty-app:prod',
+  'mty-app:prod-previous',
+  'mty-validation:node22-python312',
 ];
-const RELEASE_TAG = /^open-work-hub-app:[0-9a-f]{12}$/;
+const RELEASE_TAG = /^mty-app:[0-9a-f]{12}$/;
 const VALIDATION_TAG =
-  /^open-work-hub-validation:(?:deps-[0-9a-f]{12}|(?:before-)?agents-[0-9a-f]{8}|redis64-impact-release)$/;
+  /^mty-validation:(?:deps-[0-9a-f]{12}|(?:before-)?agents-[0-9a-f]{8}|redis64-impact-release)$/;
 
 export function diskHeadroom(stats) {
   const available = stats.bavail * stats.bsize;
@@ -71,7 +71,7 @@ export function retirementPlan(images, containers, now = Date.now()) {
         return (
           Boolean(currentApp) &&
           image.Config?.Labels?.['org.opencontainers.image.title'] ===
-            'Open Work Hub'
+            'MTY'
         );
       }
       return (

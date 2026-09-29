@@ -8,16 +8,16 @@ import pytest
 
 from dev_accounts import auth_headers, dev_login
 
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.mail import clients as mail_clients
-from open_work_hub_api.domains.mail.clients import (
+from mty_api.core.db import get_session_factory
+from mty_api.domains.mail import clients as mail_clients
+from mty_api.domains.mail.clients import (
     FetchedAttachment,
     FetchedMessage,
     MailboxInfo,
     MailboxSyncBatch,
     MailConnectionSettings,
 )
-from open_work_hub_api.domains.mail.models import (
+from mty_api.domains.mail.models import (
     MailAccount,
     MailAttachment,
     MailDraft,
@@ -27,7 +27,7 @@ from open_work_hub_api.domains.mail.models import (
     MailSyncJob,
     MailSyncState,
 )
-from open_work_hub_api.domains.mail import service as mail_service
+from mty_api.domains.mail import service as mail_service
 
 
 class FakeMailClient:
@@ -942,7 +942,7 @@ def test_mail_account_unique_constraint_race_returns_conflict_without_partial_au
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from sqlalchemy import func, select
-    from open_work_hub_api.domains.auth.models import AuditLog
+    from mty_api.domains.auth.models import AuditLog
 
     monkeypatch.setattr(mail_service, "_mail_client", lambda: FakeMailClient())
     headers = auth_headers(dev_login(client)["token"])

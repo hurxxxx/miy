@@ -12,19 +12,19 @@ from fastapi import HTTPException
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from open_work_hub_api.core.settings import HERMES_FALLBACK_MODEL, HERMES_MODEL, HERMES_PROVIDER
-from open_work_hub_api.domains.auth.models import User
-from open_work_hub_api.domains.hermes.model_policy import HermesModelPolicy
-from open_work_hub_api.domains.hermes import mcp_router
-from open_work_hub_api.domains.hermes import maintenance as hermes_maintenance
-from open_work_hub_api.domains.hermes import router as hermes_router
-from open_work_hub_api.domains.hermes import service as hermes_service
-from open_work_hub_api.domains.hermes.client import (
+from mty_api.core.settings import HERMES_FALLBACK_MODEL, HERMES_MODEL, HERMES_PROVIDER
+from mty_api.domains.auth.models import User
+from mty_api.domains.hermes.model_policy import HermesModelPolicy
+from mty_api.domains.hermes import mcp_router
+from mty_api.domains.hermes import maintenance as hermes_maintenance
+from mty_api.domains.hermes import router as hermes_router
+from mty_api.domains.hermes import service as hermes_service
+from mty_api.domains.hermes.client import (
     HermesClientError,
     HermesManagementClient,
     HermesRuntimeClient,
 )
-from open_work_hub_api.domains.hermes.models import (
+from mty_api.domains.hermes.models import (
     HermesDispatchOutbox,
     HermesMaintenanceState,
     HermesProfileBinding,
@@ -33,16 +33,16 @@ from open_work_hub_api.domains.hermes.models import (
     HermesRunProjection,
     HermesToolApproval,
 )
-from open_work_hub_api.domains.hermes.repository import (
+from mty_api.domains.hermes.repository import (
     HermesDispatchRepository,
     HermesRunIdempotencyConflict,
     HermesRunRepository,
     sanitize_event_payload,
     utcnow_naive,
 )
-from open_work_hub_api.domains.hermes.research_sources import DEFAULT_RESEARCH_SOURCE_POLICY
-from open_work_hub_api.domains.hermes.schemas import HermesApprovalDecision, HermesRunCreate
-from open_work_hub_api.domains.hermes.service import (
+from mty_api.domains.hermes.research_sources import DEFAULT_RESEARCH_SOURCE_POLICY
+from mty_api.domains.hermes.schemas import HermesApprovalDecision, HermesRunCreate
+from mty_api.domains.hermes.service import (
     ensure_job_profile,
     internal_mcp_server_name,
     is_profile_scoped_mcp_server,
@@ -75,7 +75,7 @@ def test_stage_persists_run_before_foreign_key_children(
             binding = HermesProfileBinding(
                 id=str(uuid4()),
                 user_id=user.id,
-                profile_name=f"owh-test-{suffix[:32]}",
+                profile_name=f"mty-test-{suffix[:32]}",
                 status="active",
                 provider=HERMES_PROVIDER,
                 model=HERMES_MODEL,
@@ -406,7 +406,7 @@ async def test_expired_approval_without_a_remote_run_fails_the_local_run(
     binding = HermesProfileBinding(
         id=str(uuid4()),
         user_id=user.id,
-        profile_name=f"owh-expired-{suffix[:24]}",
+        profile_name=f"mty-expired-{suffix[:24]}",
         status="active",
         provider=HERMES_PROVIDER,
         model=HERMES_MODEL,
@@ -472,7 +472,7 @@ async def test_runtime_client_uses_profile_route_auth_and_run_idempotency(cancel
         "profile/with slash",
         input_text="Handle this task",
         session_id="session-1",
-        idempotency_key="owh-run-1",
+        idempotency_key="mty-run-1",
         instructions="Use the approved tools.",
         conversation_history=[{"role": "user", "content": "Earlier"}],
         cancel_admission=cancel_admission,
@@ -480,10 +480,10 @@ async def test_runtime_client_uses_profile_route_auth_and_run_idempotency(cancel
 
     assert result == {"run_id": "run-1", "status": "queued"}
     request = requests[0]
-    expected_path = b"/v1/owh/runs/cancel-admission" if cancel_admission else b"/v1/runs"
+    expected_path = b"/v1/mty/runs/cancel-admission" if cancel_admission else b"/v1/runs"
     assert request.url.raw_path == b"/p/profile%2Fwith%20slash" + expected_path
     assert request.headers["authorization"] == "Bearer runtime-secret-0000000000000001"
-    assert request.headers["idempotency-key"] == "owh-run-1"
+    assert request.headers["idempotency-key"] == "mty-run-1"
     assert request.headers["x-hermes-session-id"] == "session-1"
     assert json.loads(request.content) == {
         "input": "Handle this task",
@@ -534,20 +534,20 @@ async def test_management_client_pins_openrouter_model_and_dashboard_token() -> 
         transport=httpx.MockTransport(handler),
     )
     await client.create_profile(
-        profile_name="owh-profile",
+        profile_name="mty-profile",
         clone_from="default",
         description="isolated profile",
-        mcp_servers=[{"name": "open-work-hub", "url": "http://api/mcp"}],
+        mcp_servers=[{"name": "mty", "url": "http://api/mcp"}],
     )
 
     request = requests[0]
     assert request.url.path == "/api/profiles"
     assert request.headers["x-hermes-session-token"] == ("dashboard-secret-00000000000001")
     assert json.loads(request.content) == {
-        "name": "owh-profile",
+        "name": "mty-profile",
         "clone_from": "default",
         "description": "isolated profile",
-        "mcp_servers": [{"name": "open-work-hub", "url": "http://api/mcp"}],
+        "mcp_servers": [{"name": "mty", "url": "http://api/mcp"}],
     }
 
 
@@ -563,10 +563,10 @@ async def test_management_client_applies_managed_resilience_policy() -> None:
         session_token="dashboard-secret-00000000000001",
         transport=httpx.MockTransport(handler),
     )
-    await client.set_profile_model("owh/profile")
+    await client.set_profile_model("mty/profile")
 
     assert [request.url.raw_path for request in requests] == [
-        b"/api/profiles/owh%2Fprofile/model",
+        b"/api/profiles/mty%2Fprofile/model",
         b"/api/config",
     ]
     assert json.loads(requests[0].content) == {
@@ -574,7 +574,7 @@ async def test_management_client_applies_managed_resilience_policy() -> None:
         "model": HERMES_MODEL,
     }
     policy_request = json.loads(requests[1].content)
-    assert policy_request["profile"] == "owh/profile"
+    assert policy_request["profile"] == "mty/profile"
     policy = policy_request["config"]
     assert policy == {
         "model": {
@@ -711,7 +711,7 @@ def _mcp_approval_payload(
 
 
 def test_mcp_write_approval_matches_the_exact_hermes_trust_prompt() -> None:
-    profile_name = "owh-profile-a"
+    profile_name = "mty-profile-a"
     approval = SimpleNamespace(request_payload=_mcp_approval_payload(profile_name, "tasks.create"))
 
     assert mcp_router._approval_matches_mcp_tool(
@@ -746,7 +746,7 @@ def test_mcp_write_approval_is_consumed_once_and_bound_to_arguments() -> None:
     approval = SimpleNamespace(
         id="approval-row-1",
         request_payload=_mcp_approval_payload(
-            "owh-profile-a", "tasks.create", {"title": "Ship Hermes", "priority": 2}
+            "mty-profile-a", "tasks.create", {"title": "Ship Hermes", "priority": 2}
         ),
         consumed_at=None,
         consumed_tool_name=None,
@@ -773,7 +773,7 @@ def test_mcp_write_approval_is_consumed_once_and_bound_to_arguments() -> None:
     external_call_id = mcp_router._consume_external_tool_approval(
         db,
         run_id="run-1",
-        profile_name="owh-profile-a",
+        profile_name="mty-profile-a",
         tool_name="tasks.create",
         arguments=arguments,
     )
@@ -788,7 +788,7 @@ def test_mcp_write_approval_is_consumed_once_and_bound_to_arguments() -> None:
         mcp_router._consume_external_tool_approval(
             db,
             run_id="run-1",
-            profile_name="owh-profile-a",
+            profile_name="mty-profile-a",
             tool_name="tasks.create",
             arguments=arguments,
         )
@@ -990,9 +990,9 @@ def test_stop_request_survives_remote_attachment_and_in_flight_events(
 
 
 async def test_scheduled_jobs_use_a_separate_profile_without_any_mcp() -> None:
-    binding = SimpleNamespace(profile_name="owh-owner-profile")
+    binding = SimpleNamespace(profile_name="mty-owner-profile")
     removed: list[tuple[str, str]] = []
-    servers = {"open-work-hub", "third-party"}
+    servers = {"mty", "third-party"}
 
     class FakeManagementClient:
         async def update_profile_config(self, *_args, **_kwargs):
@@ -1002,14 +1002,14 @@ async def test_scheduled_jobs_use_a_separate_profile_without_any_mcp() -> None:
             return {"ok": True}
 
         async def list_profiles(self):
-            return {"profiles": [{"name": "owh-owner-profile-jobs"}]}
+            return {"profiles": [{"name": "mty-owner-profile-jobs"}]}
 
         async def set_profile_model(self, profile_name, **_kwargs):
-            assert profile_name == "owh-owner-profile-jobs"
+            assert profile_name == "mty-owner-profile-jobs"
             return {"ok": True}
 
         async def list_mcp_servers(self, profile_name):
-            assert profile_name == "owh-owner-profile-jobs"
+            assert profile_name == "mty-owner-profile-jobs"
             return {"servers": [{"name": name} for name in sorted(servers)]}
 
         async def remove_mcp_server(self, profile_name, server_name):
@@ -1029,14 +1029,14 @@ async def test_scheduled_jobs_use_a_separate_profile_without_any_mcp() -> None:
 
     assert profile_name == job_profile_name(binding)
     assert removed == [
-        ("owh-owner-profile-jobs", "open-work-hub"),
-        ("owh-owner-profile-jobs", "third-party"),
+        ("mty-owner-profile-jobs", "mty"),
+        ("mty-owner-profile-jobs", "third-party"),
     ]
 
 
 async def test_scheduled_job_profile_clones_the_interactive_profile() -> None:
-    binding = SimpleNamespace(profile_name="owh-owner-profile-create")
-    profiles: set[str] = {"owh-owner-profile-create"}
+    binding = SimpleNamespace(profile_name="mty-owner-profile-create")
+    profiles: set[str] = {"mty-owner-profile-create"}
     create_calls: list[dict[str, Any]] = []
 
     class FakeManagementClient:
@@ -1072,9 +1072,9 @@ async def test_scheduled_job_profile_clones_the_interactive_profile() -> None:
 
     assert create_calls == [
         {
-            "profile_name": "owh-owner-profile-create-jobs",
-            "clone_from": "owh-owner-profile-create",
-            "description": "Open Work Hub isolated scheduled-agent profile",
+            "profile_name": "mty-owner-profile-create-jobs",
+            "clone_from": "mty-owner-profile-create",
+            "description": "MTY isolated scheduled-agent profile",
             "mcp_servers": [],
         }
     ]
@@ -1086,7 +1086,7 @@ async def test_scheduled_job_profile_clones_the_interactive_profile() -> None:
 async def test_profile_reconciliation_enforces_compression_before_activation(
     monkeypatch, route, profile_exists, reject_config,
 ) -> None:
-    profile_name = f"owh-{uuid4().hex}" + ("-local" if route == "local" else "")
+    profile_name = f"mty-{uuid4().hex}" + ("-local" if route == "local" else "")
     binding = SimpleNamespace(
         profile_name=profile_name,
         status="active" if profile_exists else "pending",
@@ -1176,7 +1176,7 @@ async def test_profile_reconciliation_enforces_compression_before_activation(
 async def test_profile_reconciliation_replaces_stale_internal_mcp_url(
     monkeypatch,
 ) -> None:
-    profile_name = "owh-33333333333333333333333333333333"
+    profile_name = "mty-33333333333333333333333333333333"
     internal_name = internal_mcp_server_name(profile_name)
     external_name = scoped_mcp_server_name(profile_name, "project-tracker")
     binding = SimpleNamespace(
@@ -1271,7 +1271,7 @@ async def test_profile_reconciliation_replaces_stale_internal_mcp_url(
         ),
     )
 
-    from open_work_hub_api.domains.hermes.model_policy import HermesModelPolicy
+    from mty_api.domains.hermes.model_policy import HermesModelPolicy
 
     reconciled = await hermes_service.ensure_profile_binding(
         FakeDb(),
@@ -1296,8 +1296,8 @@ async def test_profile_reconciliation_replaces_stale_internal_mcp_url(
 
 
 def test_mcp_server_names_are_unique_to_the_hermes_profile() -> None:
-    first_profile = "owh-11111111111111111111111111111111"
-    second_profile = "owh-22222222222222222222222222222222"
+    first_profile = "mty-11111111111111111111111111111111"
+    second_profile = "mty-22222222222222222222222222222222"
 
     first_internal = internal_mcp_server_name(first_profile)
     second_internal = internal_mcp_server_name(second_profile)

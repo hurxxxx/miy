@@ -1,6 +1,6 @@
 import pytest
 
-from open_work_hub_api.core.app_routes import InternalAppLocation, app_route_pattern, build_app_href
+from mty_api.core.app_routes import InternalAppLocation, app_route_pattern, build_app_href
 
 
 def test_build_company_app_href() -> None:

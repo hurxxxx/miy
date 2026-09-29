@@ -1,4 +1,4 @@
-import type { BlockContent } from '@open-work-hub/ui';
+import type { BlockContent } from '@mty/ui';
 import type { TFunction } from 'i18next';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 

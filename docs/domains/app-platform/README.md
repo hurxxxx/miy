@@ -148,8 +148,8 @@ the event contains `notification: null` and the current count, without the old t
 ## Backend Registration
 
 - A domain exports one immutable leaf registration from
-  `apps/api/src/open_work_hub_api/domains/<domain>/app_catalog.py`.
-- `apps/api/src/open_work_hub_api/domains/auth/app_catalog.py` is the explicit composition root.
+  `apps/api/src/mty_api/domains/<domain>/app_catalog.py`.
+- `apps/api/src/mty_api/domains/auth/app_catalog.py` is the explicit composition root.
 - `compile_app_registry()` rejects duplicate identity/routes/nav, invalid ownership, and inconsistent route metadata.
 - Bootstrap, route/API gates, admin controls, AI discovery/execution, search, and background work consume compiled identity plus runtime availability.
 - Executable app-owned user work rechecks the current actor's app admission after claiming the job,
@@ -178,7 +178,7 @@ source authorization.
 ## Keyword Search
 
 Participating apps provide an app-owned `SearchEntityAdapter`, explicit composition in
-`apps/api/src/open_work_hub_api/domains/search/default_entity_adapters.py`, lifecycle projection
+`apps/api/src/mty_api/domains/search/default_entity_adapters.py`, lifecycle projection
 hooks, source ACL, and disabled/empty/missing-index tests. Search results use the canonical generated
 browser route and recheck source access. Retrieval partition is candidate scope, not authorization.
 

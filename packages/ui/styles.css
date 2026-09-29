@@ -300,7 +300,7 @@
 }
 
 /* Mantine/BlockNote ship unlayered global resets after the app CSS is loaded.
-   Keep the Open Work Hub typography tokens ahead of those third-party defaults without
+   Keep the MTY typography tokens ahead of those third-party defaults without
    relying on `!important` or per-screen overrides. */
 html body {
   font-family: var(--ui-font-sans);

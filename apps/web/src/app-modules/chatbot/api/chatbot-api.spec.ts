@@ -48,8 +48,8 @@ describe('Hermes chat session creation', () => {
 
   it('leaves first-turn titles to the official Hermes auto-title flow', async () => {
     hermesMocks.createHermesSession
-      .mockResolvedValueOnce({ id: 'owh-session-1' })
-      .mockResolvedValueOnce({ id: 'owh-session-2' });
+      .mockResolvedValueOnce({ id: 'mty-session-1' })
+      .mockResolvedValueOnce({ id: 'mty-session-2' });
     const payload = {
       conversation_id: null,
       messages: [{ role: 'user', content: '같은 첫 질문' }],
@@ -81,7 +81,7 @@ describe('Hermes chat session creation', () => {
 
   it('reuses one idempotency key after an ambiguous create response', async () => {
     vi.useFakeTimers();
-    hermesMocks.createHermesSession.mockResolvedValue({ id: 'owh-session-1' });
+    hermesMocks.createHermesSession.mockResolvedValue({ id: 'mty-session-1' });
     hermesMocks.createHermesRun
       .mockRejectedValueOnce(new HermesAgentApiError(0, 'network disconnected'))
       .mockResolvedValueOnce({ id: 'run-1' });
@@ -105,7 +105,7 @@ describe('Hermes chat session creation', () => {
 
   it('reconnects the durable event stream without creating another run', async () => {
     vi.useFakeTimers();
-    hermesMocks.createHermesSession.mockResolvedValue({ id: 'owh-session-1' });
+    hermesMocks.createHermesSession.mockResolvedValue({ id: 'mty-session-1' });
     hermesMocks.streamHermesRunEvents
       .mockRejectedValueOnce(new Error('temporary disconnect'))
       .mockResolvedValueOnce(
@@ -134,7 +134,7 @@ describe('Hermes chat session creation', () => {
 
   it('backs off repeated event streams that close before yielding an event', async () => {
     vi.useFakeTimers();
-    hermesMocks.createHermesSession.mockResolvedValue({ id: 'owh-session-1' });
+    hermesMocks.createHermesSession.mockResolvedValue({ id: 'mty-session-1' });
     hermesMocks.streamHermesRunEvents
       .mockResolvedValueOnce(
         new Response('', { headers: { 'Content-Type': 'text/event-stream' } }),
@@ -169,7 +169,7 @@ describe('Hermes chat session creation', () => {
   });
 
   it('resolves an intentionally closed event stream from the durable run projection', async () => {
-    hermesMocks.createHermesSession.mockResolvedValue({ id: 'owh-session-1' });
+    hermesMocks.createHermesSession.mockResolvedValue({ id: 'mty-session-1' });
     hermesMocks.getHermesRun.mockResolvedValue({
       id: 'run-1',
       output_text: 'retained result',
@@ -200,7 +200,7 @@ describe('Hermes chat session creation', () => {
 
   it('does not reconnect after the response consumer cancels the stream', async () => {
     vi.useFakeTimers();
-    hermesMocks.createHermesSession.mockResolvedValue({ id: 'owh-session-1' });
+    hermesMocks.createHermesSession.mockResolvedValue({ id: 'mty-session-1' });
     hermesMocks.streamHermesRunEvents.mockResolvedValue(
       new Response('', { headers: { 'Content-Type': 'text/event-stream' } }),
     );

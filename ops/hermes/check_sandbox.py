@@ -14,8 +14,8 @@ from contextvars import ContextVar
 from unittest.mock import patch
 
 sys.path.insert(0, "/opt/hermes/plugins")
-import owh_runtime
-from owh_runtime.sandbox import WorkspaceEnvironment
+import mty_runtime
+from mty_runtime.sandbox import WorkspaceEnvironment
 
 image = sys.argv[1]
 current = ContextVar("sandbox_check_conversation", default="first")
@@ -30,11 +30,11 @@ def transport():
 def rpc(server, run_id, method, params):
     assert run_id == "run_synthetic_sandbox_check"
     files = snapshots[server["fixture"]]
-    if method == "owh/files/list":
+    if method == "mty/files/list":
         return {"files": list(files.values())}
-    if method == "owh/files/read":
+    if method == "mty/files/read":
         return files[params["id"]]
-    if method == "owh/files/write":
+    if method == "mty/files/write":
         path = params["path"]
         files[path] = {
             "id": path,
@@ -67,8 +67,8 @@ def execute(environment, conversation, command):
 
 
 with (
-    patch.object(owh_runtime, "_rpc", rpc),
-    patch.object(owh_runtime, "runtime_transport", transport),
+    patch.object(mty_runtime, "_rpc", rpc),
+    patch.object(mty_runtime, "runtime_transport", transport),
 ):
     try:
         first, second = create("first"), create("second")
@@ -93,12 +93,12 @@ with (
                 mount for mount in details["Mounts"] if mount["Type"] == "volume"
             ]
             assert len(volumes) == 1 and not volumes[0]["RW"]
-            assert volumes[0]["Destination"] == "/run/owh-egress-ca.crt"
+            assert volumes[0]["Destination"] == "/run/mty-egress-ca.crt"
 
         execute(
             first,
             "first",
-            'test ! -e /var/run/docker.sock && test -r /run/owh-egress-ca.crt && test -z "$OPENROUTER_API_KEY$API_SERVER_KEY"',
+            'test ! -e /var/run/docker.sock && test -r /run/mty-egress-ca.crt && test -z "$OPENROUTER_API_KEY$API_SERVER_KEY"',
         )
         execute(first, "first", "printf sandbox-check-content > proof.txt")
         execute(second, "second", "test ! -e /workspace/proof.txt")

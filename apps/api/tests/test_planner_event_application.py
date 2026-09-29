@@ -6,19 +6,19 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
-from open_work_hub_api.core.principal import CallerPrincipal
-from open_work_hub_api.domains.planner.event_access import (
+from mty_api.core.principal import CallerPrincipal
+from mty_api.domains.planner.event_access import (
     ensure_planner_principal_user,
     require_planner_user_write_principal,
 )
-from open_work_hub_api.domains.planner.event_application import (
+from mty_api.domains.planner.event_application import (
     PlannerEventCreateCommand,
     PlannerEventUpdateCommand,
     apply_planner_event_update,
     new_planner_event,
 )
-from open_work_hub_api.domains.planner.models import PlannerEvent
-from open_work_hub_api.domains.rag.contracts import RagSyncOperation
+from mty_api.domains.planner.models import PlannerEvent
+from mty_api.domains.rag.contracts import RagSyncOperation
 
 
 def test_new_planner_event_builds_model_from_command() -> None:

@@ -5,4 +5,4 @@ export {
   resolveCoreAppGate as resolveAppGate,
   type CoreAppGateResult as AppGateResult,
   type CoreAppGateStatus as AppGateStatus,
-} from '@open-work-hub/core-web/app-access';
+} from '@mty/core-web/app-access';

@@ -3,11 +3,11 @@ from __future__ import annotations
 import pytest
 from types import SimpleNamespace
 
-from open_work_hub_api.domains.rag.contracts import RagGroundedAnswer, RagGroundedCitation
-from open_work_hub_api.domains.rag.providers.fake import FakeRerankClient
-from open_work_hub_api.domains.retrieval.contracts import RetrievalHit
-from open_work_hub_api.domains.retrieval import grounding
-from open_work_hub_api.domains.retrieval.ranking import (
+from mty_api.domains.rag.contracts import RagGroundedAnswer, RagGroundedCitation
+from mty_api.domains.rag.providers.fake import FakeRerankClient
+from mty_api.domains.retrieval.contracts import RetrievalHit
+from mty_api.domains.retrieval import grounding
+from mty_api.domains.retrieval.ranking import (
     candidate_limit,
     canonical_resource_identity,
     dedupe_ranked_hits,

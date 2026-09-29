@@ -16,15 +16,15 @@ def _bootstrap_admin_session(client: TestClient) -> dict:
     response = client.post(
         "/api/v1/auth/setup",
         json={
-            "full_name": "Open Work Hub Admin",
-            "email": "admin@open-work-hub.local",
+            "full_name": "MTY Admin",
+            "email": "admin@mty.local",
             "password": "supersecret123",
         },
     )
     assert response.status_code == 201
     session = response.json()
     from dev_accounts import configure_company_app_access
-    from open_work_hub_api.core.db import get_session_factory
+    from mty_api.core.db import get_session_factory
 
     with get_session_factory()() as db:
         configure_company_app_access(db)
@@ -217,7 +217,7 @@ def test_non_organizer_attendee_cannot_modify_meeting(client: TestClient) -> Non
     member = _create_company_user(
         client,
         admin_token,
-        email="member@open-work-hub.local",
+        email="member@mty.local",
         full_name="Meeting Member",
     )
     member_token = _login(client, member["user"]["email"], member["temporary_password"])
@@ -265,19 +265,19 @@ def test_attendee_can_invite_other_attendees(client: TestClient) -> None:
     invitee_a = _create_company_user(
         client,
         admin_token,
-        email="invitee-a@open-work-hub.local",
+        email="invitee-a@mty.local",
         full_name="Invitee A",
     )
     invitee_b = _create_company_user(
         client,
         admin_token,
-        email="invitee-b@open-work-hub.local",
+        email="invitee-b@mty.local",
         full_name="Invitee B",
     )
     outsider = _create_company_user(
         client,
         admin_token,
-        email="outsider-meeting@open-work-hub.local",
+        email="outsider-meeting@mty.local",
         full_name="Meeting Outsider",
     )
 
@@ -423,7 +423,7 @@ def test_meeting_notes_attendee_can_edit_and_loses_access_when_removed(client: T
     attendee = _create_company_user(
         client,
         admin_token,
-        email="notes-attendee@open-work-hub.local",
+        email="notes-attendee@mty.local",
         full_name="Notes Attendee",
     )
     attendee_token = _login(
@@ -545,7 +545,7 @@ def test_attach_task_returns_403_for_user_without_list_access(
     organizer = _create_company_user(
         client,
         admin_token,
-        email="organizer@open-work-hub.local",
+        email="organizer@mty.local",
         full_name="Meeting Organizer",
     )
     organizer_token = _login(client, organizer["user"]["email"], organizer["temporary_password"])
@@ -625,12 +625,12 @@ def test_meeting_create_rejects_attendees_without_meeting_admission(
     outsider = _create_company_user(
         client,
         admin_token,
-        email="no-meeting-access@open-work-hub.local",
+        email="no-meeting-access@mty.local",
         full_name="No Meeting Access",
     )
 
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.auth.app_access_models import AppAccessPolicy
 
     with get_session_factory()() as db:
         db.get(AppAccessPolicy, "meeting").audience = "selected"
@@ -659,7 +659,7 @@ def test_user_without_meeting_app_admission_is_blocked(
     outsider = _create_company_user(
         client,
         admin_token,
-        email="outsider@open-work-hub.local",
+        email="outsider@mty.local",
         full_name="Outsider",
     )
     outsider_token = _login(
@@ -668,8 +668,8 @@ def test_user_without_meeting_app_admission_is_blocked(
         outsider["temporary_password"],
     )
 
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.auth.app_access_models import AppAccessPolicy
 
     with get_session_factory()() as db:
         db.get(AppAccessPolicy, "meeting").audience = "selected"
@@ -691,19 +691,19 @@ def test_meeting_user_search_returns_users_without_pms_access(
     _create_company_user(
         client,
         admin_token,
-        email="alice@open-work-hub.local",
+        email="alice@mty.local",
         full_name="Alice Park",
     )
     _create_company_user(
         client,
         admin_token,
-        email="bob@open-work-hub.local",
+        email="bob@mty.local",
         full_name="Bob Lee",
     )
     _create_company_user(
         client,
         admin_token,
-        email="outsider@open-work-hub.local",
+        email="outsider@mty.local",
         full_name="Company Colleague",
     )
 
@@ -716,11 +716,11 @@ def test_meeting_user_search_returns_users_without_pms_access(
     payload = response.json()
     emails = {item["email"] for item in payload}
     assert {
-        "admin@open-work-hub.local",
-        "alice@open-work-hub.local",
-        "bob@open-work-hub.local",
+        "admin@mty.local",
+        "alice@mty.local",
+        "bob@mty.local",
     } <= emails
-    assert "outsider@open-work-hub.local" in emails
+    assert "outsider@mty.local" in emails
 
     # Partial-name query.
     name_response = client.get(
@@ -729,7 +729,7 @@ def test_meeting_user_search_returns_users_without_pms_access(
         params={"q": "alice"},
     )
     assert name_response.status_code == 200
-    assert [item["email"] for item in name_response.json()] == ["alice@open-work-hub.local"]
+    assert [item["email"] for item in name_response.json()] == ["alice@mty.local"]
 
     # Partial-email query — confirms that users without PMS space membership
     # are still searchable from the meeting modal.
@@ -739,7 +739,7 @@ def test_meeting_user_search_returns_users_without_pms_access(
         params={"q": "bob@"},
     )
     assert email_response.status_code == 200
-    assert [item["email"] for item in email_response.json()] == ["bob@open-work-hub.local"]
+    assert [item["email"] for item in email_response.json()] == ["bob@mty.local"]
 
 
 def test_company_meeting_routes_preserve_current_user_context(client: TestClient) -> None:
@@ -748,7 +748,7 @@ def test_company_meeting_routes_preserve_current_user_context(client: TestClient
     member = _create_company_user(
         client,
         admin["token"],
-        email="administrator-meeting-member@open-work-hub.local",
+        email="administrator-meeting-member@mty.local",
         full_name="Administrator Meeting Member",
     )
     admin_token = admin["token"]
@@ -765,8 +765,8 @@ def test_company_meeting_routes_preserve_current_user_context(client: TestClient
     )
     assert scoped_users_response.status_code == 200
     scoped_emails = {item["email"] for item in scoped_users_response.json()}
-    assert "admin@open-work-hub.local" in scoped_emails
-    assert "innovation-lab-admin@open-work-hub.local" not in scoped_emails
+    assert "admin@mty.local" in scoped_emails
+    assert "innovation-lab-admin@mty.local" not in scoped_emails
 
     legacy_users_response = client.get(
         "/api/v1/meeting/users",
@@ -775,8 +775,8 @@ def test_company_meeting_routes_preserve_current_user_context(client: TestClient
     )
     assert legacy_users_response.status_code == 200
     legacy_emails = {item["email"] for item in legacy_users_response.json()}
-    assert "admin@open-work-hub.local" in legacy_emails
-    assert "innovation-lab-admin@open-work-hub.local" not in legacy_emails
+    assert "admin@mty.local" in legacy_emails
+    assert "innovation-lab-admin@mty.local" not in legacy_emails
 
     create_response = client.post(
         "/api/v1/meeting/meetings",
@@ -889,7 +889,7 @@ def _install_fake_minio(monkeypatch) -> _FakeMinioClient:
     """Patch the meeting service module's storage and URL builder to a
     fake in-memory MinIO so the upload/list/delete paths can be exercised
     without external dependencies."""
-    from open_work_hub_api.domains.meeting import file_storage as meeting_file_storage
+    from mty_api.domains.meeting import file_storage as meeting_file_storage
 
     fake = _FakeMinioClient()
     monkeypatch.setattr(
@@ -986,7 +986,7 @@ def test_attendee_space_admin_can_share_task_with_meeting(client: TestClient) ->
     attendee = _create_company_user(
         client,
         admin_token,
-        email="space-prep@open-work-hub.local",
+        email="space-prep@mty.local",
         full_name="Space Prep",
     )
     add_space_member = client.post(
@@ -1035,7 +1035,7 @@ def test_attendee_can_attach_doc_and_only_adder_can_remove(
     attendee = _create_company_user(
         client,
         admin_token,
-        email="prep@open-work-hub.local",
+        email="prep@mty.local",
         full_name="Prep Attendee",
     )
     attendee_token = _login(client, attendee["user"]["email"], attendee["temporary_password"])
@@ -1115,7 +1115,7 @@ def test_meeting_attachment_grants_allow_read_but_not_metadata_or_sharing(
     attendee = _create_company_user(
         client,
         admin_token,
-        email="meeting-reader@open-work-hub.local",
+        email="meeting-reader@mty.local",
         full_name="Meeting Reader",
     )
     attendee_token = _login(
@@ -1187,7 +1187,7 @@ def test_meeting_add_attendee_inherits_existing_task_and_doc_attachment_grants(
     attendee = _create_company_user(
         client,
         admin_token,
-        email="late-reader@open-work-hub.local",
+        email="late-reader@mty.local",
         full_name="Late Reader",
     )
     attendee_token = _login(
@@ -1254,7 +1254,7 @@ def test_meeting_detach_preserves_other_meeting_grants_until_last_source_is_remo
     attendee = _create_company_user(
         client,
         admin_token,
-        email="multi-reader@open-work-hub.local",
+        email="multi-reader@mty.local",
         full_name="Multi Reader",
     )
     attendee_token = _login(
@@ -1338,7 +1338,7 @@ def test_meeting_reschedule_resyncs_issue_and_doc_grant_expiry(
     attendee = _create_company_user(
         client,
         admin_token,
-        email="expiry-reader@open-work-hub.local",
+        email="expiry-reader@mty.local",
         full_name="Expiry Reader",
     )
     attendee_token = _login(
@@ -1424,7 +1424,7 @@ def test_meeting_file_attachment_upload_and_permission_matrix(
     attendee = _create_company_user(
         client,
         admin_token,
-        email="filer@open-work-hub.local",
+        email="filer@mty.local",
         full_name="File Attendee",
     )
     attendee_token = _login(client, attendee["user"]["email"], attendee["temporary_password"])
@@ -1524,7 +1524,7 @@ def test_meeting_file_upload_rejects_non_participant(client: TestClient, monkeyp
     stranger = _create_company_user(
         client,
         admin_token,
-        email="lurker3@open-work-hub.local",
+        email="lurker3@mty.local",
         full_name="Stranger",
     )
     stranger_token = _login(client, stranger["user"]["email"], stranger["temporary_password"])
@@ -1549,7 +1549,7 @@ def test_non_participant_cannot_attach_doc(client: TestClient) -> None:
     stranger = _create_company_user(
         client,
         admin_token,
-        email="lurker2@open-work-hub.local",
+        email="lurker2@mty.local",
         full_name="Lurker",
     )
     stranger_token = _login(client, stranger["user"]["email"], stranger["temporary_password"])
@@ -1676,7 +1676,7 @@ def test_upcoming_scope_does_not_leak_other_users_meetings(
     outsider = _create_company_user(
         client,
         admin_token,
-        email="lurker@open-work-hub.local",
+        email="lurker@mty.local",
         full_name="Lurker",
     )
     outsider_token = _login(
@@ -1740,7 +1740,7 @@ def test_meeting_update_changes_time_and_attendees(client: TestClient) -> None:
     member = _create_company_user(
         client,
         admin_token,
-        email="invitee@open-work-hub.local",
+        email="invitee@mty.local",
         full_name="Invitee User",
     )
 

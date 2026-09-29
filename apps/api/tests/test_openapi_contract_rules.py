@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from open_work_hub_api.openapi_contract_rules import validate_openapi_contract_rules
+from mty_api.openapi_contract_rules import validate_openapi_contract_rules
 
 
 def messages(schema: dict) -> list[str]:

@@ -5,4 +5,4 @@ export {
   createCoreMobileShellRouteKey as createMobileShellRouteKey,
   resolveActiveCoreMobileShellMenuState as resolveActiveMobileShellMenuState,
   type CoreMobileShellMenuState as MobileShellMenuState,
-} from '@open-work-hub/core-web/mobile-shell-menu';
+} from '@mty/core-web/mobile-shell-menu';

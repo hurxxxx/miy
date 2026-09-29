@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from open_work_hub_worker.tasks import mail
-from open_work_hub_api.domains.mail.sync_policy import MailSyncAccessRevoked
+from mty_worker.tasks import mail
+from mty_api.domains.mail.sync_policy import MailSyncAccessRevoked
 
 
 class _Session:

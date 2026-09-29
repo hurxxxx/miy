@@ -4,15 +4,15 @@ from types import SimpleNamespace
 
 import pytest
 
-from open_work_hub_api.domains.rag import application as rag_application
-from open_work_hub_api.domains.rag.contracts import RagAnswerMode, RagProjection, RagQueryRequest
-from open_work_hub_api.domains.rag import grounded_answer
-from open_work_hub_api.domains.rag.grounded_answer import LlmGroundedAnswerSynthesizer
-from open_work_hub_api.domains.rag.grounded_answer_assembly import GroundedAnswerAssembler
-from open_work_hub_api.domains.rag.providers import RagProviderTransientError
-from open_work_hub_api.domains.rag.providers.fake import FakeEmbeddingClient, FakeVectorIndexClient
-from open_work_hub_api.domains.rag.query_service import RagQueryService
-from open_work_hub_api.domains.rag.service import RagService
+from mty_api.domains.rag import application as rag_application
+from mty_api.domains.rag.contracts import RagAnswerMode, RagProjection, RagQueryRequest
+from mty_api.domains.rag import grounded_answer
+from mty_api.domains.rag.grounded_answer import LlmGroundedAnswerSynthesizer
+from mty_api.domains.rag.grounded_answer_assembly import GroundedAnswerAssembler
+from mty_api.domains.rag.providers import RagProviderTransientError
+from mty_api.domains.rag.providers.fake import FakeEmbeddingClient, FakeVectorIndexClient
+from mty_api.domains.rag.query_service import RagQueryService
+from mty_api.domains.rag.service import RagService
 
 
 def test_company_rag_query_wraps_provider_failures_as_unavailable(monkeypatch) -> None:

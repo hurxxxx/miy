@@ -1,8 +1,8 @@
 import { useAppAdmission } from '@/src/platform/apps/app-bootstrap-context';
-import { useFeedback } from '@open-work-hub/ui';
-import { useConfirm } from '@open-work-hub/ui/feedback/confirm-dialog';
-import { InlineNotice } from '@open-work-hub/ui/feedback/inline-notice';
-import { usePrompt } from '@open-work-hub/ui/feedback/prompt-dialog';
+import { useFeedback } from '@mty/ui';
+import { useConfirm } from '@mty/ui/feedback/confirm-dialog';
+import { InlineNotice } from '@mty/ui/feedback/inline-notice';
+import { usePrompt } from '@mty/ui/feedback/prompt-dialog';
 import { ChevronDown, ChevronRight, Loader2, Plus } from 'lucide-react';
 import { AnimatePresence, LazyMotion, domAnimation, m } from 'motion/react';
 import {

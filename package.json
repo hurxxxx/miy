@@ -1,5 +1,5 @@
 {
-  "name": "open-work-hub",
+  "name": "mty",
   "version": "0.1.1",
   "private": true,
   "packageManager": "pnpm@10.34.5",
@@ -89,7 +89,7 @@
     "ci:api": "pnpm check:api-architecture && pnpm nx lint api && pnpm nx typecheck api && pnpm nx test api",
     "ci:api:full": "pnpm check:api-architecture && pnpm nx lint api && pnpm nx typecheck api && pnpm nx run api:test-full",
     "ci:python-contract-guardrails": "pnpm test:alembic-graph && pnpm test:python-source-integrity && pnpm check:alembic-graph && pnpm check:python-source-integrity && pnpm check:api-i18n",
-    "ci:app-api-contracts": "uv lock --check --directory apps/api && uv lock --check --directory apps/worker && UV_PROJECT_ENVIRONMENT=../../.runtime/ci-api-venv uv sync --frozen --python 3.12 --group dev --directory apps/api && UV_PROJECT_ENVIRONMENT=../../.runtime/ci-worker-venv uv sync --frozen --python 3.12 --group dev --directory apps/worker && OPEN_WORK_HUB_POSTGRES_DSN=postgresql+psycopg://contract:contract@127.0.0.1:1/open_work_hub_ci_contracts OPEN_WORK_HUB_WORKER_QUEUE_GROUP=default pnpm nx run api:ci-contracts --parallel=6 --outputStyle=static --skip-nx-cache",
+    "ci:app-api-contracts": "uv lock --check --directory apps/api && uv lock --check --directory apps/worker && UV_PROJECT_ENVIRONMENT=../../.runtime/ci-api-venv uv sync --frozen --python 3.12 --group dev --directory apps/api && UV_PROJECT_ENVIRONMENT=../../.runtime/ci-worker-venv uv sync --frozen --python 3.12 --group dev --directory apps/worker && MTY_POSTGRES_DSN=postgresql+psycopg://contract:contract@127.0.0.1:1/mty_ci_contracts MTY_WORKER_QUEUE_GROUP=default pnpm nx run api:ci-contracts --parallel=6 --outputStyle=static --skip-nx-cache",
     "ci:app-web-contracts": "pnpm nx run-many -p web -t architecture,typecheck,test --parallel=3 --outputStyle=static --skip-nx-cache",
     "ci:contract": "pnpm check:app-contracts && pnpm check:auth-realtime-contract && pnpm check:api-contract && pnpm check:contracts-sources && pnpm nx typecheck contracts && pnpm nx test contracts && pnpm build:contracts",
     "ci:core-web": "pnpm check:core-web-boundaries && pnpm nx typecheck core-web && pnpm nx test core-web && pnpm nx build core-web",

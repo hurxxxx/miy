@@ -20,8 +20,8 @@ Approval replay, graph execution, and artifact state are owned by [AI Execution]
 
 ## Local Runtime
 
-- Endpoint: `OPEN_WORK_HUB_LLM_LOCAL_BASE_URL`.
-- Profile: `OPEN_WORK_HUB_LLM_LOCAL_PROVIDER`.
+- Endpoint: `MTY_LLM_LOCAL_BASE_URL`.
+- Profile: `MTY_LLM_LOCAL_PROVIDER`.
 - Model selection lives in Admin model catalog/routing, not env or app code.
 - Docker Model Runner profile uses OpenAI-compatible API.
 - Dev default: `http://127.0.0.1:12434/engines/v1`.

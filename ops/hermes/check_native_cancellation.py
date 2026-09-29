@@ -17,7 +17,7 @@ from unittest.mock import patch
 from gateway.platforms import api_server, api_server_runs
 from gateway.platforms.api_server_run_idempotency import RunIdempotencyStore
 
-spec = importlib.util.spec_from_file_location("owh_review_entry", "/opt/owh_gateway_entry.py")
+spec = importlib.util.spec_from_file_location("mty_review_entry", "/opt/mty_gateway_entry.py")
 entry = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(entry)
 
@@ -62,13 +62,13 @@ async def check():
             "model": "synthetic",
             "model_options": {},
         }
-        profile_token = api_server._api_request_profile.set("owh-" + "a" * 32)
+        profile_token = api_server._api_request_profile.set("mty-" + "a" * 32)
         try:
             request = Request("cancel-first", body)
             handler = next(
                 row[2]
                 for row in api_server_runs._http_routes(adapter)
-                if row[1] == "/v1/owh/runs/cancel-admission"
+                if row[1] == "/v1/mty/runs/cancel-admission"
             )
             denied = Request("denied", body)
             denied.headers.pop("Authorization")
@@ -144,7 +144,7 @@ async def check():
                 }
                 assert len(scheduled) == 1
             adapter._active_run_tasks.pop(original_id).cancel()
-            other_token = api_server._api_request_profile.set("owh-" + "b" * 32)
+            other_token = api_server._api_request_profile.set("mty-" + "b" * 32)
             try:
                 other = await handler(accepted)
                 assert json.loads(other.body)["status"] == "cancelled"

@@ -1,8 +1,8 @@
-import { buildAppHref } from '@open-work-hub/contracts/app-routes';
+import { buildAppHref } from '@mty/contracts/app-routes';
 import {
   REALTIME_TOPIC_EVENT_TYPES,
   createDocsPagesRealtimeSubscriptionMessage,
-} from '@open-work-hub/contracts/realtime';
+} from '@mty/contracts/realtime';
 import {
   Button,
   Dialog,
@@ -10,7 +10,7 @@ import {
   markdownToBlockContent,
   useConfirm,
   type BlockContent,
-} from '@open-work-hub/ui';
+} from '@mty/ui';
 import {
   AlertCircle,
   ChevronDown,

@@ -6,11 +6,11 @@ from types import SimpleNamespace
 import pytest
 from pydantic import SecretStr
 
-from open_work_hub_api.core.settings import Settings
-from open_work_hub_api.domains.ai.external_gateway import AiExternalCapabilityRequest
-from open_work_hub_api.domains.ai import external_gateway
-from open_work_hub_api.domains.ai.model_settings_service import AiModelSettingsError
-from open_work_hub_api.domains.web_search import router, service
+from mty_api.core.settings import Settings
+from mty_api.domains.ai.external_gateway import AiExternalCapabilityRequest
+from mty_api.domains.ai import external_gateway
+from mty_api.domains.ai.model_settings_service import AiModelSettingsError
+from mty_api.domains.web_search import router, service
 
 
 def _settings(**overrides) -> Settings:
@@ -106,7 +106,7 @@ def test_prepare_web_search_execution_maps_database_route_error(monkeypatch) -> 
 
 @pytest.mark.anyio
 async def test_stream_web_search_uses_registered_hermes_result_and_budget(monkeypatch):
-    from open_work_hub_api.core.llm_adapters import StreamChunk
+    from mty_api.core.llm_adapters import StreamChunk
 
     audit_records = []
     monkeypatch.setattr(

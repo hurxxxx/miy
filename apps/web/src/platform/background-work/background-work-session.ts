@@ -15,4 +15,4 @@ export {
   type CoreBackgroundWorkSourceItemsSnapshot as BackgroundWorkSourceItemsSnapshot,
   type CoreBackgroundWorkStatus as BackgroundWorkStatus,
   type CoreBackgroundWorkToastEvent as BackgroundWorkToastEvent,
-} from '@open-work-hub/core-web/background-work';
+} from '@mty/core-web/background-work';

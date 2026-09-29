@@ -5,15 +5,15 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
-from open_work_hub_api.core.db import Base
-from open_work_hub_api.core.model_registry import import_all_models
-from open_work_hub_api.domains.auth.models import CompanyAppControl, User
-from open_work_hub_api.domains.auth.app_access_models import (
+from mty_api.core.db import Base
+from mty_api.core.model_registry import import_all_models
+from mty_api.domains.auth.models import CompanyAppControl, User
+from mty_api.domains.auth.app_access_models import (
     AppAccessPolicy,
     AppUserGrant,
     AppGroupGrant,
 )
-from open_work_hub_api.domains.groups.models import Group
+from mty_api.domains.groups.models import Group
 from test_alembic_migrations import _migration_config
 
 

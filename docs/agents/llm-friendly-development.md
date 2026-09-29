@@ -12,7 +12,7 @@
 
 ## Shape
 
-- Backend domain: `apps/api/src/open_work_hub_api/domains/<domain>/`.
+- Backend domain: `apps/api/src/mty_api/domains/<domain>/`.
 - Frontend app: `apps/web/src/app-modules/<moduleId>/`.
 - Composition roots assemble registrations; no copied app ID allowlists in shell/auth/search.
 - Router owns HTTP/SSE envelope, dependencies, response models, localized errors.

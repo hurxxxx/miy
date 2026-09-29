@@ -10,16 +10,16 @@ from sqlalchemy import create_engine, delete, event, func, select
 from sqlalchemy.orm import sessionmaker
 
 from company_admission_fixture import seed_company_app_access
-from open_work_hub_api.domains.auth.access import load_user_graph
-from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
-from open_work_hub_api.domains.auth.models import CompanyAppControl, User, UserSystemRole
-from open_work_hub_api.domains.files import service as files_service
-from open_work_hub_api.domains.files.models import (
+from mty_api.domains.auth.access import load_user_graph
+from mty_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
+from mty_api.domains.auth.models import CompanyAppControl, User, UserSystemRole
+from mty_api.domains.files import service as files_service
+from mty_api.domains.files.models import (
     FileManagerCorpus,
     FileManagerFile,
     FileManagerFolder,
 )
-from open_work_hub_api.domains.retrieval.models import RetrievalPartition
+from mty_api.domains.retrieval.models import RetrievalPartition
 
 pytestmark = pytest.mark.migration
 _ACTOR_ID = "corpus-race-owner"

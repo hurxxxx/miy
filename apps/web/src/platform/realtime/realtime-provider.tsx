@@ -13,7 +13,7 @@ import {
   isDocsPagesRealtimeSubscriptionMessage,
   isWhiteboardAccessRealtimeSubscriptionMessage,
   resolveRealtimeWebSocketUrl,
-} from '@open-work-hub/contracts/realtime';
+} from '@mty/contracts/realtime';
 
 import {
   createRealtimeRuntime,

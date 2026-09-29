@@ -1,5 +1,5 @@
 import { UserSearchMultiSelect } from '@/src/platform/users/UserSearchMultiSelect';
-import { Button } from '@open-work-hub/ui';
+import { Button } from '@mty/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {

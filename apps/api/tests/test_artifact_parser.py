@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from open_work_hub_api.domains.ai.artifact_parser import (
+from mty_api.domains.ai.artifact_parser import (
     ArtifactStreamParser,
     ParsedArtifactBody,
     ParsedArtifactEnd,

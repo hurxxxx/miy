@@ -13,7 +13,7 @@ export function shouldBlockPlannerCalendar(
   return Boolean(error) && !hasUsableSnapshot;
 }
 
-const TIMELINE_RANGE_STORAGE_KEY = 'open-work-hub:planner-timeline-range-days';
+const TIMELINE_RANGE_STORAGE_KEY = 'mty:planner-timeline-range-days';
 type PlannerDateFormatterKind =
   | 'timelineStartSameYear'
   | 'timelineStartWithYear'

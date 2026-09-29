@@ -1,0 +1,3 @@
+name: mty_runtime
+version: 1.0.0
+description: Authenticated per-run MTY tool transport for Hermes v2026.8.31.

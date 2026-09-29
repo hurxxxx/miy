@@ -4,4 +4,4 @@ export type {
   ApiOperation,
   ApiPath,
   ApiSchema,
-} from '@open-work-hub/contracts/api';
+} from '@mty/contracts/api';

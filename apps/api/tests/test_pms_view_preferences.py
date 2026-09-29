@@ -27,7 +27,7 @@ def test_pms_view_preference_is_per_user_and_shared_across_sessions(
     first = _session(
         client,
         login_id="pref-user-a",
-        email="pref-user-a@open-work-hub.local",
+        email="pref-user-a@mty.local",
     )
     path = "/api/v1/pms/view-preferences"
 
@@ -59,7 +59,7 @@ def test_pms_view_preference_is_per_user_and_shared_across_sessions(
     second = _session(
         client,
         login_id="pref-user-b",
-        email="pref-user-b@open-work-hub.local",
+        email="pref-user-b@mty.local",
     )
     second_response = client.get(path, headers=_headers(second["token"]))
     assert second_response.status_code == 200, second_response.text
@@ -68,7 +68,7 @@ def test_pms_view_preference_is_per_user_and_shared_across_sessions(
     same_user_next_session = _session(
         client,
         login_id="pref-user-a",
-        email="pref-user-a@open-work-hub.local",
+        email="pref-user-a@mty.local",
     )
     next_session_response = client.get(
         "/api/v1/pms/view-preferences",
@@ -84,7 +84,7 @@ def test_pms_view_preference_rejects_invalid_or_inaccessible_requests(
     session = _session(
         client,
         login_id="pref-guard-user",
-        email="pref-guard-user@open-work-hub.local",
+        email="pref-guard-user@mty.local",
     )
     path = "/api/v1/pms/view-preferences"
 
@@ -98,8 +98,8 @@ def test_pms_view_preference_rejects_invalid_or_inaccessible_requests(
     unauthenticated_response = client.get(path)
     assert unauthenticated_response.status_code == 401
 
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.auth.app_access_models import AppAccessPolicy
 
     with get_session_factory()() as db:
         db.get(AppAccessPolicy, "pms").audience = "selected"

@@ -7,32 +7,32 @@ import pytest
 from sqlalchemy import create_engine, event, select, update
 from sqlalchemy.orm import Session
 
-from open_work_hub_api.core.db import Base
-from open_work_hub_api.domains.auth.models import User
-from open_work_hub_api.domains.groups.models import Group
-from open_work_hub_api.domains.files.rag_sync import (
+from mty_api.core.db import Base
+from mty_api.domains.auth.models import User
+from mty_api.domains.groups.models import Group
+from mty_api.domains.files.rag_sync import (
     adopt_legacy_file_retrieval_heads,
     capture_file_retrieval_event_watermark,
     inspect_file_retrieval_reconciliation,
     stage_file_retrieval_reconciliation,
 )
-from open_work_hub_api.domains.files import rag_sync as files_rag_sync
-from open_work_hub_api.domains.files.models import (
+from mty_api.domains.files import rag_sync as files_rag_sync
+from mty_api.domains.files.models import (
     FileManagerCorpus,
     FileManagerFile,
     FileManagerFolder,
 )
-from open_work_hub_api.domains.rag.models import RagSyncJob
-from open_work_hub_api.domains.rag.contracts import RagSyncOperation
-from open_work_hub_api.domains.retrieval.models import (
+from mty_api.domains.rag.models import RagSyncJob
+from mty_api.domains.rag.contracts import RagSyncOperation
+from mty_api.domains.retrieval.models import (
     RetrievalPartition,
     RetrievalProjectionEvent,
     RetrievalProjectionHead,
 )
-from open_work_hub_api.domains.retrieval.projection_fencing import record_projection_event
-from open_work_hub_api.domains.retrieval.projection_fencing import ProjectionEventRef
-from open_work_hub_api.domains.search.models import SearchIndexJob
-from open_work_hub_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOURCE_TYPE
+from mty_api.domains.retrieval.projection_fencing import record_projection_event
+from mty_api.domains.retrieval.projection_fencing import ProjectionEventRef
+from mty_api.domains.search.models import SearchIndexJob
+from mty_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOURCE_TYPE
 
 
 _PARTITION_ID = "6fa05b2e-8f30-4388-af56-c229636fa6c9"

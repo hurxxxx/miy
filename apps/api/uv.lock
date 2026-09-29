@@ -1540,6 +1540,130 @@ wheels = [
 ]
 
 [[package]]
+name = "mty-api"
+version = "0.1.1"
+source = { editable = "." }
+dependencies = [
+    { name = "alembic" },
+    { name = "anthropic" },
+    { name = "celery" },
+    { name = "cryptography" },
+    { name = "docker" },
+    { name = "fastapi" },
+    { name = "google-auth", extra = ["requests"] },
+    { name = "google-genai" },
+    { name = "httpx" },
+    { name = "httpx2" },
+    { name = "jsonschema" },
+    { name = "langgraph" },
+    { name = "langgraph-checkpoint-postgres" },
+    { name = "minio" },
+    { name = "numpy" },
+    { name = "olefile" },
+    { name = "openai" },
+    { name = "openpyxl" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp-proto-grpc" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-sdk" },
+    { name = "opf" },
+    { name = "pdfplumber" },
+    { name = "psycopg", extra = ["binary"] },
+    { name = "pydantic-settings" },
+    { name = "pymupdf" },
+    { name = "python-docx" },
+    { name = "python-dotenv" },
+    { name = "python-multipart" },
+    { name = "qdrant-client" },
+    { name = "redis" },
+    { name = "sqlalchemy" },
+    { name = "sse-starlette" },
+    { name = "uvicorn", extra = ["standard"] },
+    { name = "y-py" },
+    { name = "ypy-websocket" },
+]
+
+[package.optional-dependencies]
+asr-local = [
+    { name = "faster-whisper" },
+]
+privacy-filter = [
+    { name = "opf" },
+]
+rag-local = [
+    { name = "docling" },
+    { name = "easyocr" },
+    { name = "sentence-transformers" },
+    { name = "torch" },
+    { name = "transformers" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "import-linter" },
+    { name = "pytest" },
+    { name = "pytest-xdist" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "alembic", specifier = ">=1.19.2,<2.0.0" },
+    { name = "anthropic", specifier = ">=1.4.0,<2.0.0" },
+    { name = "celery", specifier = ">=5.6.3,<6.0.0" },
+    { name = "cryptography", specifier = ">=50.0.1,<51.0.0" },
+    { name = "docker", specifier = ">=7.2.0,<8.0.0" },
+    { name = "docling", marker = "extra == 'rag-local'", specifier = ">=2.126.0,<3.0.0" },
+    { name = "easyocr", marker = "extra == 'rag-local'", specifier = ">=1.7.2,<2.0.0" },
+    { name = "fastapi", specifier = ">=0.141.1,<0.142.0" },
+    { name = "faster-whisper", marker = "extra == 'asr-local'", specifier = ">=1.2.1,<2.0.0" },
+    { name = "google-auth", extras = ["requests"], specifier = ">=2.57.1,<3.0.0" },
+    { name = "google-genai", specifier = ">=2.22.0,<3.0.0" },
+    { name = "httpx", specifier = ">=0.28.1,<0.29.0" },
+    { name = "httpx2", specifier = ">=2.12.0,<3.0.0" },
+    { name = "jsonschema", specifier = ">=4.26.0,<5.0.0" },
+    { name = "langgraph", specifier = ">=1.2.11,<2.0.0" },
+    { name = "langgraph-checkpoint-postgres", specifier = ">=3.1.2,<4.0.0" },
+    { name = "minio", specifier = ">=7.2.20,<8.0.0" },
+    { name = "numpy", specifier = ">=2.5.3,<3.0.0" },
+    { name = "olefile", specifier = ">=0.47,<0.48.0" },
+    { name = "openai", specifier = ">=3.8.0,<4.0.0" },
+    { name = "openpyxl", specifier = ">=3.1.5,<4.0.0" },
+    { name = "opentelemetry-api", specifier = ">=1.44.0,<2.0.0" },
+    { name = "opentelemetry-exporter-otlp-proto-grpc", specifier = ">=1.44.0,<2.0.0" },
+    { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.44.0,<2.0.0" },
+    { name = "opentelemetry-sdk", specifier = ">=1.44.0,<2.0.0" },
+    { name = "opf", git = "https://github.com/openai/privacy-filter.git?rev=f7f00ca7fb869683eb732c010299d901457f19c3" },
+    { name = "opf", marker = "extra == 'privacy-filter'", git = "https://github.com/openai/privacy-filter.git?rev=f7f00ca7fb869683eb732c010299d901457f19c3" },
+    { name = "pdfplumber", specifier = ">=0.11.10,<0.12.0" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.5,<4.0.0" },
+    { name = "pydantic-settings", specifier = ">=2.15.0,<3.0.0" },
+    { name = "pymupdf", specifier = ">=1.28.2,<2.0.0" },
+    { name = "python-docx", specifier = ">=1.2.0,<2.0.0" },
+    { name = "python-dotenv", specifier = ">=1.2.3,<2.0.0" },
+    { name = "python-multipart", specifier = ">=0.0.32,<0.1.0" },
+    { name = "qdrant-client", specifier = "==1.17.1" },
+    { name = "redis", specifier = ">=8.1.0,<9.0.0" },
+    { name = "sentence-transformers", marker = "extra == 'rag-local'", specifier = ">=6.0.1,<7.0.0" },
+    { name = "sqlalchemy", specifier = ">=2.0.52,<3.0.0" },
+    { name = "sse-starlette", specifier = ">=3.4.11,<4.0.0" },
+    { name = "torch", marker = "extra == 'rag-local'", specifier = ">=2.14.0,<3.0.0" },
+    { name = "transformers", marker = "extra == 'rag-local'", specifier = ">=5.16.1,<6.0.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.4,<0.53.0" },
+    { name = "y-py", specifier = ">=0.6.2,<0.7.0" },
+    { name = "ypy-websocket", specifier = ">=0.12.4,<0.13.0" },
+]
+provides-extras = ["rag-local", "asr-local", "privacy-filter"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "import-linter", specifier = ">=2.15,<3.0.0" },
+    { name = "pytest", specifier = ">=9.1.1,<10.0.0" },
+    { name = "pytest-xdist", specifier = ">=3.8.0,<4.0.0" },
+    { name = "ruff", specifier = ">=0.16.6,<0.17.0" },
+]
+
+[[package]]
 name = "multiprocess"
 version = "0.70.19"
 source = { registry = "https://pypi.org/simple" }
@@ -1807,130 +1931,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/96/eb/e6968f5e41aac3125f2ff5708855f09cb0b70d85ed3115b625b0b58305ba/onnxruntime-1.29.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:2b80d8c7ec2cc7438e4da3760b88c24568cba72c9ace96d668800a6c79419acb", size = 23136745, upload-time = "2026-08-17T22:53:53.92Z" },
     { url = "https://files.pythonhosted.org/packages/b4/80/5b28f1f1111210fc4a336ddbc6950f468ebf9a6a265420568f4f43fa33ce/onnxruntime-1.29.0-cp312-cp312-win_amd64.whl", hash = "sha256:4acf2b4948b7ede87221ca6332344b8facdc8059d6ac751a7d367d04532b02dd", size = 14001407, upload-time = "2026-08-17T22:53:56.486Z" },
     { url = "https://files.pythonhosted.org/packages/6f/d6/6883f89ea4b044e6e8447ebfaf9bcecdf457b7d80a683635e130b25498e0/onnxruntime-1.29.0-cp312-cp312-win_arm64.whl", hash = "sha256:dc61a79cb39afd66ab3f01fd2c23591a7f01de89c1668e1fb6315067fc279164", size = 13746981, upload-time = "2026-08-17T22:53:58.977Z" },
-]
-
-[[package]]
-name = "open-work-hub-api"
-version = "0.1.1"
-source = { editable = "." }
-dependencies = [
-    { name = "alembic" },
-    { name = "anthropic" },
-    { name = "celery" },
-    { name = "cryptography" },
-    { name = "docker" },
-    { name = "fastapi" },
-    { name = "google-auth", extra = ["requests"] },
-    { name = "google-genai" },
-    { name = "httpx" },
-    { name = "httpx2" },
-    { name = "jsonschema" },
-    { name = "langgraph" },
-    { name = "langgraph-checkpoint-postgres" },
-    { name = "minio" },
-    { name = "numpy" },
-    { name = "olefile" },
-    { name = "openai" },
-    { name = "openpyxl" },
-    { name = "opentelemetry-api" },
-    { name = "opentelemetry-exporter-otlp-proto-grpc" },
-    { name = "opentelemetry-exporter-otlp-proto-http" },
-    { name = "opentelemetry-sdk" },
-    { name = "opf" },
-    { name = "pdfplumber" },
-    { name = "psycopg", extra = ["binary"] },
-    { name = "pydantic-settings" },
-    { name = "pymupdf" },
-    { name = "python-docx" },
-    { name = "python-dotenv" },
-    { name = "python-multipart" },
-    { name = "qdrant-client" },
-    { name = "redis" },
-    { name = "sqlalchemy" },
-    { name = "sse-starlette" },
-    { name = "uvicorn", extra = ["standard"] },
-    { name = "y-py" },
-    { name = "ypy-websocket" },
-]
-
-[package.optional-dependencies]
-asr-local = [
-    { name = "faster-whisper" },
-]
-privacy-filter = [
-    { name = "opf" },
-]
-rag-local = [
-    { name = "docling" },
-    { name = "easyocr" },
-    { name = "sentence-transformers" },
-    { name = "torch" },
-    { name = "transformers" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "import-linter" },
-    { name = "pytest" },
-    { name = "pytest-xdist" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "alembic", specifier = ">=1.19.2,<2.0.0" },
-    { name = "anthropic", specifier = ">=1.4.0,<2.0.0" },
-    { name = "celery", specifier = ">=5.6.3,<6.0.0" },
-    { name = "cryptography", specifier = ">=50.0.1,<51.0.0" },
-    { name = "docker", specifier = ">=7.2.0,<8.0.0" },
-    { name = "docling", marker = "extra == 'rag-local'", specifier = ">=2.126.0,<3.0.0" },
-    { name = "easyocr", marker = "extra == 'rag-local'", specifier = ">=1.7.2,<2.0.0" },
-    { name = "fastapi", specifier = ">=0.141.1,<0.142.0" },
-    { name = "faster-whisper", marker = "extra == 'asr-local'", specifier = ">=1.2.1,<2.0.0" },
-    { name = "google-auth", extras = ["requests"], specifier = ">=2.57.1,<3.0.0" },
-    { name = "google-genai", specifier = ">=2.22.0,<3.0.0" },
-    { name = "httpx", specifier = ">=0.28.1,<0.29.0" },
-    { name = "httpx2", specifier = ">=2.12.0,<3.0.0" },
-    { name = "jsonschema", specifier = ">=4.26.0,<5.0.0" },
-    { name = "langgraph", specifier = ">=1.2.11,<2.0.0" },
-    { name = "langgraph-checkpoint-postgres", specifier = ">=3.1.2,<4.0.0" },
-    { name = "minio", specifier = ">=7.2.20,<8.0.0" },
-    { name = "numpy", specifier = ">=2.5.3,<3.0.0" },
-    { name = "olefile", specifier = ">=0.47,<0.48.0" },
-    { name = "openai", specifier = ">=3.8.0,<4.0.0" },
-    { name = "openpyxl", specifier = ">=3.1.5,<4.0.0" },
-    { name = "opentelemetry-api", specifier = ">=1.44.0,<2.0.0" },
-    { name = "opentelemetry-exporter-otlp-proto-grpc", specifier = ">=1.44.0,<2.0.0" },
-    { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.44.0,<2.0.0" },
-    { name = "opentelemetry-sdk", specifier = ">=1.44.0,<2.0.0" },
-    { name = "opf", git = "https://github.com/openai/privacy-filter.git?rev=f7f00ca7fb869683eb732c010299d901457f19c3" },
-    { name = "opf", marker = "extra == 'privacy-filter'", git = "https://github.com/openai/privacy-filter.git?rev=f7f00ca7fb869683eb732c010299d901457f19c3" },
-    { name = "pdfplumber", specifier = ">=0.11.10,<0.12.0" },
-    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.5,<4.0.0" },
-    { name = "pydantic-settings", specifier = ">=2.15.0,<3.0.0" },
-    { name = "pymupdf", specifier = ">=1.28.2,<2.0.0" },
-    { name = "python-docx", specifier = ">=1.2.0,<2.0.0" },
-    { name = "python-dotenv", specifier = ">=1.2.3,<2.0.0" },
-    { name = "python-multipart", specifier = ">=0.0.32,<0.1.0" },
-    { name = "qdrant-client", specifier = "==1.17.1" },
-    { name = "redis", specifier = ">=8.1.0,<9.0.0" },
-    { name = "sentence-transformers", marker = "extra == 'rag-local'", specifier = ">=6.0.1,<7.0.0" },
-    { name = "sqlalchemy", specifier = ">=2.0.52,<3.0.0" },
-    { name = "sse-starlette", specifier = ">=3.4.11,<4.0.0" },
-    { name = "torch", marker = "extra == 'rag-local'", specifier = ">=2.14.0,<3.0.0" },
-    { name = "transformers", marker = "extra == 'rag-local'", specifier = ">=5.16.1,<6.0.0" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.4,<0.53.0" },
-    { name = "y-py", specifier = ">=0.6.2,<0.7.0" },
-    { name = "ypy-websocket", specifier = ">=0.12.4,<0.13.0" },
-]
-provides-extras = ["rag-local", "asr-local", "privacy-filter"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "import-linter", specifier = ">=2.15,<3.0.0" },
-    { name = "pytest", specifier = ">=9.1.1,<10.0.0" },
-    { name = "pytest-xdist", specifier = ">=3.8.0,<4.0.0" },
-    { name = "ruff", specifier = ">=0.16.6,<0.17.0" },
 ]
 
 [[package]]

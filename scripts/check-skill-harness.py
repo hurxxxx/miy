@@ -51,26 +51,26 @@ SCOPED_CLAUDE_PATHS = frozenset(
 REQUIRED_SKILLS = {
     "agent-browser",
     "diagnose",
-    "owh-agent-harness",
-    "owh-ai-capabilities",
-    "owh-app-delivery",
-    "owh-design-review",
-    "owh-dev-environment",
-    "owh-docs-reader",
-    "owh-env-contracts",
-    "owh-issues",
-    "owh-mr-review",
-    "owh-production",
-    "owh-release",
-    "owh-worktrees",
+    "mty-agent-harness",
+    "mty-ai-capabilities",
+    "mty-app-delivery",
+    "mty-design-review",
+    "mty-dev-environment",
+    "mty-docs-reader",
+    "mty-env-contracts",
+    "mty-issues",
+    "mty-mr-review",
+    "mty-production",
+    "mty-release",
+    "mty-worktrees",
 }
 
 RETIRED_SKILLS = {
     "caveman",
     "grill-me",
-    "open-work-hub-agent-work-intake",
-    "open-work-hub-desktop-release",
-    "open-work-hub-pr-review-validation",
+    "mty-agent-work-intake",
+    "mty-desktop-release",
+    "mty-pr-review-validation",
     "prototype",
     "setup-matt-pocock-skills",
     "tdd",
@@ -80,27 +80,27 @@ RETIRED_SKILLS = {
 
 REQUIRED_RESOURCES = {
     Path(".agents/skills/diagnose/scripts/hitl-loop.template.sh"),
-    Path(".agents/skills/owh-design-review/ADR-FORMAT.md"),
-    Path(".agents/skills/owh-design-review/DEEPENING.md"),
-    Path(".agents/skills/owh-design-review/INTERFACE-DESIGN.md"),
-    Path(".agents/skills/owh-design-review/LANGUAGE.md"),
-    Path(".agents/skills/owh-docs-reader/scripts/read_open_work_hub_doc.py"),
-    Path(".agents/skills/owh-env-contracts/scripts/env-inventory.sh"),
-    Path(".agents/skills/owh-env-contracts/scripts/local-env-files.sh"),
-    Path(".agents/skills/owh-issues/AGENT-BRIEF.md"),
-    Path(".agents/skills/owh-agent-harness/references/ci-review.md"),
-    Path(".agents/skills/owh-design-review/references/plan-review.md"),
-    Path(".agents/skills/owh-design-review/references/architecture.md"),
-    Path(".agents/skills/owh-env-contracts/references/env-files.md"),
-    Path(".agents/skills/owh-env-contracts/references/separation.md"),
-    Path(".agents/skills/owh-issues/references/prd.md"),
-    Path(".agents/skills/owh-issues/references/slices.md"),
-    Path(".agents/skills/owh-issues/references/triage.md"),
+    Path(".agents/skills/mty-design-review/ADR-FORMAT.md"),
+    Path(".agents/skills/mty-design-review/DEEPENING.md"),
+    Path(".agents/skills/mty-design-review/INTERFACE-DESIGN.md"),
+    Path(".agents/skills/mty-design-review/LANGUAGE.md"),
+    Path(".agents/skills/mty-docs-reader/scripts/read_mty_doc.py"),
+    Path(".agents/skills/mty-env-contracts/scripts/env-inventory.sh"),
+    Path(".agents/skills/mty-env-contracts/scripts/local-env-files.sh"),
+    Path(".agents/skills/mty-issues/AGENT-BRIEF.md"),
+    Path(".agents/skills/mty-agent-harness/references/ci-review.md"),
+    Path(".agents/skills/mty-design-review/references/plan-review.md"),
+    Path(".agents/skills/mty-design-review/references/architecture.md"),
+    Path(".agents/skills/mty-env-contracts/references/env-files.md"),
+    Path(".agents/skills/mty-env-contracts/references/separation.md"),
+    Path(".agents/skills/mty-issues/references/prd.md"),
+    Path(".agents/skills/mty-issues/references/slices.md"),
+    Path(".agents/skills/mty-issues/references/triage.md"),
 }
 
 STALE_SKILL_GUIDE_PATTERNS = {
-    r"\bCONTEXT(?:-MAP)?\.md\b": "Open Work Hub does not use generic context glossary files",
-    r"\bdocs/adr/": "Open Work Hub ADRs live in root adr/",
+    r"\bCONTEXT(?:-MAP)?\.md\b": "MTY does not use generic context glossary files",
+    r"\bdocs/adr/": "MTY ADRs live in root adr/",
     r"/projects/": "fixed internal checkout paths are not portable",
     r"\bdocs/current/": "docs/README.md and current owner docs replace docs/current",
     r"\b(?:Legacy Issues|mcloudoc)\b": "retired internal apps must not appear in skills",
@@ -116,7 +116,7 @@ RETIRED_TRIAGE_PATTERNS = {
 }
 
 TRIAGE_GUIDANCE_PATHS = {
-    Path(".agents/skills/owh-issues/SKILL.md"),
+    Path(".agents/skills/mty-issues/SKILL.md"),
     Path("docs/agents/triage-labels.md"),
 }
 
@@ -152,12 +152,12 @@ PNPM_BUILTINS = {
 }
 
 STALE_PATTERNS = {
-    r"(?i)\bai-do\b|\bAI_DO\b|\bai_do\b": "retired AI-DO identifiers must not appear in Open Work Hub guidance",
+    r"(?i)\bai-do\b|\bAI_DO\b|\bai_do\b": "retired AI-DO identifiers must not appear in MTY guidance",
     r"/projects/ai-do\b": "AI-DO internal checkout paths are not portable",
-    r"\bdwdcc\b": "DWDCC project references must not appear in Open Work Hub guidance",
+    r"\bdwdcc\b": "DWDCC project references must not appear in MTY guidance",
     r"\bvm:app\b": "preview VM app scripts are retired",
     r"\bvm-app-stack\b": "preview VM app harness is retired",
-    r"\bopen-work-hub-preview-deploy\b": "preview deploy skill is retired",
+    r"\bmty-preview-deploy\b": "preview deploy skill is retired",
     r"\.env\.remote-dev\b": "remote-dev profile is retired",
     r"\bremote-dev\b": "remote-dev profile is retired",
 }
@@ -436,7 +436,7 @@ def _is_triage_guidance(root: Path, path: Path) -> bool:
     relative = path.relative_to(root)
     return (
         relative in TRIAGE_GUIDANCE_PATHS
-        or relative.parts[:3] == (".agents", "skills", "owh-issues")
+        or relative.parts[:3] == (".agents", "skills", "mty-issues")
     )
 
 

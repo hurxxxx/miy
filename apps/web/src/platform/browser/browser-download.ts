@@ -54,7 +54,7 @@ async function fetchAuthenticatedContent(token: string, url: string) {
   const request = parseAuthenticatedContentUrl(url);
   return apiFetchBinary(request.url, token, {
     headers: {
-      'X-Open-Work-Hub-Content-Grant': request.grant,
+      'X-MTY-Content-Grant': request.grant,
     },
   });
 }

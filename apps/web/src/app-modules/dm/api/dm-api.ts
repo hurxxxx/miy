@@ -10,7 +10,7 @@ import type {
   DmSendMessageRequest,
   DmUpdateConversationRequest,
   DmUser,
-} from '@open-work-hub/contracts/dm';
+} from '@mty/contracts/dm';
 import {
   DM_MAX_ATTACHMENT_BYTES,
   dmRoutes,
@@ -26,7 +26,7 @@ import {
   normalizeDmSendMessageRequest,
   normalizeDmUpdateConversationRequest,
   normalizeDmUserListResponse,
-} from '@open-work-hub/contracts/dm';
+} from '@mty/contracts/dm';
 
 import { ApiRequestError, apiFetchJson } from '@/src/platform/api/client';
 
@@ -40,7 +40,7 @@ export type {
   DmMessageListResponse,
   DmRealtimeEvent,
   DmUser,
-} from '@open-work-hub/contracts/dm';
+} from '@mty/contracts/dm';
 
 export type DmThread = DmConversation;
 export type DmThreadListResponse = DmConversationListResponse;

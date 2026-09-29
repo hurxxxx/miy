@@ -29,7 +29,7 @@ describe('Hermes approval references', () => {
     expect(
       hermesApprovalToolName({
         command:
-          "MCP tool 'tasks.create' on UNTRUSTED server 'owh-mcp-0123456789abcdefabcd-internal' wants to run. This tool is write-capable.",
+          "MCP tool 'tasks.create' on UNTRUSTED server 'mty-mcp-0123456789abcdefabcd-internal' wants to run. This tool is write-capable.",
       }),
     ).toBe('tasks.create');
     expect(

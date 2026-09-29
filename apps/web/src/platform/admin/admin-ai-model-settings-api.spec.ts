@@ -199,7 +199,7 @@ describe('admin AI model settings model', () => {
           status: 409,
           headers: {
             'Content-Type': 'application/json',
-            'X-Open-Work-Hub-Error-Code': 'admin.ai_model_registry_changed',
+            'X-MTY-Error-Code': 'admin.ai_model_registry_changed',
           },
         }),
       ),

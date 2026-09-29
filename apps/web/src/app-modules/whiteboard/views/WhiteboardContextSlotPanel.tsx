@@ -3,7 +3,7 @@ import {
   InlineNotice,
   useConfirm,
   useFeedback,
-} from '@open-work-hub/ui';
+} from '@mty/ui';
 import { Loader2, PencilRuler, Plus, Search } from 'lucide-react';
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { useTranslation } from 'react-i18next';

@@ -24,7 +24,7 @@ type NavigatorWithOpfs = Navigator & {
   };
 };
 
-const RECORDING_OPFS_ROOT = 'open-work-hub-recording';
+const RECORDING_OPFS_ROOT = 'mty-recording';
 
 function opfsNavigator(): NavigatorWithOpfs | null {
   if (typeof navigator === 'undefined') {

@@ -1,5 +1,5 @@
-import { NOTIFICATION_REALTIME_EVENT_TYPE_VALUES } from '@open-work-hub/contracts/notifications';
-import { FeedbackProvider } from '@open-work-hub/ui';
+import { NOTIFICATION_REALTIME_EVENT_TYPE_VALUES } from '@mty/contracts/notifications';
+import { FeedbackProvider } from '@mty/ui';
 import { lazy, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BrowserRouter as Router } from 'react-router-dom';

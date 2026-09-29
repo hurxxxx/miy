@@ -242,7 +242,7 @@ export const resources = {
         backToHelpCenter: '도움말 센터로 돌아가기',
         featureGuideButton: '사용 가이드',
         description:
-          'Open Work Hub 앱을 사용할 때 필요한 공식 사용 가이드를 확인합니다.',
+          'MTY 앱을 사용할 때 필요한 공식 사용 가이드를 확인합니다.',
         eyebrow: '도움말',
         open: '도움말',
         pmsGuideDescription:
@@ -446,7 +446,7 @@ export const resources = {
         'whiteboard-create': '화이트보드',
       },
       documentTitle: {
-        app: '{{app}} | Open Work Hub',
+        app: '{{app}} | MTY',
         profile: '내 설정',
       },
       apps: {
@@ -497,7 +497,7 @@ export const resources = {
         'bento-mine': '내 프레젠테이션',
         'bento-archived': '보관됨',
         chatbot: 'AI 챗봇',
-        search: 'Open Work Hub 통합검색',
+        search: 'MTY 통합검색',
         'retrieval-search': 'Retrieval 진단 검색',
         'web-search': '웹 검색 봇',
         'docs-all': '전체 문서',
@@ -684,31 +684,31 @@ export const resources = {
       settings: {
         activeSessions: '활성 세션',
         appearance: '화면 설정',
-        openWorkHubDesktop: 'AI 어시스턴트 데스크탑',
-        openWorkHubDesktopDescription:
+        mtyDesktop: 'AI 어시스턴트 데스크탑',
+        mtyDesktopDescription:
           '브라우저를 닫아도 각 OS의 트레이 또는 상태 영역에서 DM 알림과 채팅을 유지합니다.',
-        openWorkHubDesktopCurrentOs: '현재 OS',
-        openWorkHubDesktopDownload: '{{platform}} 다운로드',
-        openWorkHubDesktopInstall: '앱 설치',
-        openWorkHubDesktopLinuxDescription:
+        mtyDesktopCurrentOs: '현재 OS',
+        mtyDesktopDownload: '{{platform}} 다운로드',
+        mtyDesktopInstall: '앱 설치',
+        mtyDesktopLinuxDescription:
           'Ubuntu/Debian 계열 Linux 데스크톱용 DEB 설치본입니다.',
-        openWorkHubDesktopLinuxGuide:
+        mtyDesktopLinuxGuide:
           '다운로드 후 소프트웨어 설치 프로그램으로 열거나 dpkg로 설치하세요.',
-        openWorkHubDesktopLinuxTitle: 'Linux',
-        openWorkHubDesktopMacDescription:
+        mtyDesktopLinuxTitle: 'Linux',
+        mtyDesktopMacDescription:
           'macOS 빌드가 업로드되면 이 링크로 설치본을 받을 수 있습니다.',
-        openWorkHubDesktopMacGuide:
-          '압축을 풀거나 DMG를 열어 Open Work Hub Desktop을 Applications로 이동하세요.',
-        openWorkHubDesktopMacTitle: 'macOS',
-        openWorkHubDesktopSettingsDescription:
-          '운영체제별 Open Work Hub Desktop 설치 파일을 다운로드합니다.',
-        openWorkHubDesktopTitle: 'Open Work Hub Desktop 데스크톱 앱',
-        openWorkHubDesktopUnavailable: '준비 중',
-        openWorkHubDesktopWindowsDescription:
+        mtyDesktopMacGuide:
+          '압축을 풀거나 DMG를 열어 MTY Desktop을 Applications로 이동하세요.',
+        mtyDesktopMacTitle: 'macOS',
+        mtyDesktopSettingsDescription:
+          '운영체제별 MTY Desktop 설치 파일을 다운로드합니다.',
+        mtyDesktopTitle: 'MTY Desktop 데스크톱 앱',
+        mtyDesktopUnavailable: '준비 중',
+        mtyDesktopWindowsDescription:
           'Windows 트레이에서 상주하는 NSIS 설치 파일입니다.',
-        openWorkHubDesktopWindowsGuide:
+        mtyDesktopWindowsGuide:
           '다운로드한 설치 파일을 실행하면 현재 사용자 계정으로 설치됩니다.',
-        openWorkHubDesktopWindowsTitle: 'Windows',
+        mtyDesktopWindowsTitle: 'Windows',
         avatar: '아바타',
         currentPassword: '현재 비밀번호',
         customizeAppearance: '앱 표시 방식을 설정합니다.',
@@ -755,7 +755,7 @@ export const resources = {
         passwordRequired: '비밀번호 변경이 필요합니다.',
         profile: '프로필',
         releaseNotes: '업데이트 내역',
-        releaseNotesDescription: 'Open Work Hub 배포 변경사항을 확인합니다.',
+        releaseNotesDescription: 'MTY 배포 변경사항을 확인합니다.',
         releaseNotesEmpty: '표시할 업데이트 내역이 없습니다.',
         releaseNotesLoadFailed: '업데이트 내역을 불러오지 못했습니다.',
         releaseNotesRead: '확인함',
@@ -1450,7 +1450,7 @@ export const resources = {
           loadingApprovals: '승인 요청을 불러오는 중입니다.',
           loadingFiles: '작업 파일을 불러오는 중입니다.',
           noApprovalsDescription:
-            'Open Work Hub 쓰기 도구를 요청하면 여기에 표시됩니다.',
+            'MTY 쓰기 도구를 요청하면 여기에 표시됩니다.',
           noApprovalsTitle: '승인 요청이 없습니다.',
           noFilesDescription:
             'Hermes가 /workspace에 생성한 파일이 여기에 표시됩니다.',
@@ -1484,7 +1484,7 @@ export const resources = {
           starting: '시작 중...',
           title: '새 Hermes 터미널 세션',
           yoloAcknowledgement:
-            'Hermes의 위험 명령 확인을 건너뛰는 위험을 이해합니다. Open Work Hub 쓰기 승인과 격리 정책은 계속 적용됩니다.',
+            'Hermes의 위험 명령 확인을 건너뛰는 위험을 이해합니다. MTY 쓰기 승인과 격리 정책은 계속 적용됩니다.',
           yoloDescription:
             '공식 --yolo 플래그로 Hermes 자체 위험 명령 확인만 건너뜁니다.',
           yoloTitle: 'YOLO 모드',
@@ -1525,7 +1525,7 @@ export const resources = {
         preparingTitle: 'Hermes 세션을 준비 중입니다.',
         privateWorkspace: '사용자 전용 작업공간',
         securityNotice:
-          'OpenRouter 키는 격리 실행기에 전달되지 않습니다. YOLO에서도 Open Work Hub 쓰기 승인, 인증, 네트워크 격리는 유지됩니다.',
+          'OpenRouter 키는 격리 실행기에 전달되지 않습니다. YOLO에서도 MTY 쓰기 승인, 인증, 네트워크 격리는 유지됩니다.',
         sessionCapacity: '실행 세션 {{active}}/{{limit}}',
         sessionEndedDescription:
           '보존 기간 동안 오른쪽 결과 파일을 내려받을 수 있습니다.',
@@ -4087,7 +4087,7 @@ export const resources = {
             '대화 목록에 표시할 이름을 입력하세요.',
           renameConversationFailed: '대화 이름을 변경하지 못했습니다.',
           renameConversationSuccess: '대화 이름을 변경했습니다.',
-          search: 'Open Work Hub 통합검색',
+          search: 'MTY 통합검색',
           searchConversations: '대화 검색',
           untitledConversation: '제목 없는 대화',
           newConversation: '새 대화',
@@ -4138,7 +4138,7 @@ export const resources = {
           sortRelevance: '관련도',
           subtitle: '{{app}}의 문서, 회의, PMS, 일정을 검색합니다.',
           subtitleFallback: '업무 데이터를 검색합니다.',
-          title: 'Open Work Hub 통합검색',
+          title: 'MTY 통합검색',
           updated: '{{date}} 업데이트',
           visibilityPrivate: '비공개',
           visibilityPublic: '공개',
@@ -4386,7 +4386,7 @@ export const resources = {
           },
           selectedDocument: '선택한 문서',
           selectedEvidence: '선택 근거',
-          title: 'Open Work Hub 통합검색',
+          title: 'MTY 통합검색',
           topResults: '상위 결과',
           type: '유형',
           views: {
@@ -6247,7 +6247,7 @@ export const resources = {
         aiGuideTitle: 'AI features guide',
         backToHelpCenter: 'Back to help center',
         featureGuideButton: 'Usage guide',
-        description: 'Find official user guides for Open Work Hub apps.',
+        description: 'Find official user guides for MTY apps.',
         eyebrow: 'Help',
         open: 'Help',
         pmsGuideDescription:
@@ -6454,7 +6454,7 @@ export const resources = {
         'whiteboard-create': 'Whiteboard',
       },
       documentTitle: {
-        app: '{{app}} | Open Work Hub',
+        app: '{{app}} | MTY',
         profile: 'My Settings',
       },
       apps: {
@@ -6505,7 +6505,7 @@ export const resources = {
         'bento-mine': 'My Presentations',
         'bento-archived': 'Archived',
         chatbot: 'AI Chatbot',
-        search: 'Open Work Hub Search',
+        search: 'MTY Search',
         'retrieval-search': 'Retrieval Diagnostics',
         'web-search': 'Web Search Bot',
         'docs-all': 'All Docs',
@@ -6693,31 +6693,31 @@ export const resources = {
       settings: {
         activeSessions: 'Active Sessions',
         appearance: 'Appearance',
-        openWorkHubDesktop: 'Open Work Hub Desktop',
-        openWorkHubDesktopDescription:
+        mtyDesktop: 'MTY Desktop',
+        mtyDesktopDescription:
           'Keep DM notifications and chat available in each OS tray or status area after closing the browser.',
-        openWorkHubDesktopCurrentOs: 'Current OS',
-        openWorkHubDesktopDownload: 'Download {{platform}}',
-        openWorkHubDesktopInstall: 'Install App',
-        openWorkHubDesktopLinuxDescription:
+        mtyDesktopCurrentOs: 'Current OS',
+        mtyDesktopDownload: 'Download {{platform}}',
+        mtyDesktopInstall: 'Install App',
+        mtyDesktopLinuxDescription:
           'DEB installer for Ubuntu/Debian-based Linux desktops.',
-        openWorkHubDesktopLinuxGuide:
+        mtyDesktopLinuxGuide:
           'After downloading, open it with the software installer or install it with dpkg.',
-        openWorkHubDesktopLinuxTitle: 'Linux',
-        openWorkHubDesktopMacDescription:
+        mtyDesktopLinuxTitle: 'Linux',
+        mtyDesktopMacDescription:
           'Once the macOS build is uploaded, this link will provide the installer.',
-        openWorkHubDesktopMacGuide:
-          'Unzip it or open the DMG, then move Open Work Hub Desktop to Applications.',
-        openWorkHubDesktopMacTitle: 'macOS',
-        openWorkHubDesktopSettingsDescription:
-          'Download the Open Work Hub Desktop installer for each operating system.',
-        openWorkHubDesktopTitle: 'Open Work Hub Desktop App',
-        openWorkHubDesktopUnavailable: 'Preparing',
-        openWorkHubDesktopWindowsDescription:
+        mtyDesktopMacGuide:
+          'Unzip it or open the DMG, then move MTY Desktop to Applications.',
+        mtyDesktopMacTitle: 'macOS',
+        mtyDesktopSettingsDescription:
+          'Download the MTY Desktop installer for each operating system.',
+        mtyDesktopTitle: 'MTY Desktop App',
+        mtyDesktopUnavailable: 'Preparing',
+        mtyDesktopWindowsDescription:
           'NSIS installer for the Windows tray app.',
-        openWorkHubDesktopWindowsGuide:
+        mtyDesktopWindowsGuide:
           'Run the downloaded installer to install it for the current user.',
-        openWorkHubDesktopWindowsTitle: 'Windows',
+        mtyDesktopWindowsTitle: 'Windows',
         avatar: 'Avatar',
         currentPassword: 'Current Password',
         customizeAppearance: 'Customize how the app looks.',
@@ -6765,7 +6765,7 @@ export const resources = {
         passwordRequired: 'You must change your password.',
         profile: 'Profile',
         releaseNotes: 'Update History',
-        releaseNotesDescription: 'Review Open Work Hub release changes.',
+        releaseNotesDescription: 'Review MTY release changes.',
         releaseNotesEmpty: 'No updates to show.',
         releaseNotesLoadFailed: 'Could not load update history.',
         releaseNotesRead: 'Read',
@@ -7465,7 +7465,7 @@ export const resources = {
           loadingApprovals: 'Loading approval requests.',
           loadingFiles: 'Loading workspace files.',
           noApprovalsDescription:
-            'Open Work Hub write-tool requests will appear here.',
+            'MTY write-tool requests will appear here.',
           noApprovalsTitle: 'No approval requests.',
           noFilesDescription:
             'Files Hermes creates under /workspace will appear here.',
@@ -7501,7 +7501,7 @@ export const resources = {
           starting: 'Starting...',
           title: 'New Hermes terminal session',
           yoloAcknowledgement:
-            'I understand the risk of skipping Hermes dangerous-command prompts. Open Work Hub write approvals and isolation still apply.',
+            'I understand the risk of skipping Hermes dangerous-command prompts. MTY write approvals and isolation still apply.',
           yoloDescription:
             'Use the official --yolo flag to skip only Hermes native dangerous-command prompts.',
           yoloTitle: 'YOLO mode',
@@ -7541,7 +7541,7 @@ export const resources = {
         preparingTitle: 'Preparing the Hermes session.',
         privateWorkspace: 'User-private workspace',
         securityNotice:
-          'The OpenRouter key never enters the isolated runner. Open Work Hub write approvals, authentication, and network isolation remain active in YOLO mode.',
+          'The OpenRouter key never enters the isolated runner. MTY write approvals, authentication, and network isolation remain active in YOLO mode.',
         sessionCapacity: 'Running sessions {{active}}/{{limit}}',
         sessionEndedDescription:
           'You can download result files on the right during the retention period.',
@@ -10149,7 +10149,7 @@ export const resources = {
             'Enter the name shown in the conversation list.',
           renameConversationFailed: 'Could not rename the conversation.',
           renameConversationSuccess: 'Conversation renamed.',
-          search: 'Open Work Hub Search',
+          search: 'MTY Search',
           searchConversations: 'Search conversations',
           untitledConversation: 'Untitled conversation',
           newConversation: 'New conversation',
@@ -10200,7 +10200,7 @@ export const resources = {
           sortRelevance: 'Relevance',
           subtitle: 'Search docs, meetings, PMS, and schedules in {{app}}.',
           subtitleFallback: 'Search work data.',
-          title: 'Open Work Hub Search',
+          title: 'MTY Search',
           updated: 'Updated {{date}}',
           visibilityPrivate: 'Private',
           visibilityPublic: 'Public',
@@ -10456,7 +10456,7 @@ export const resources = {
           },
           selectedDocument: 'Selected document',
           selectedEvidence: 'Selected evidence',
-          title: 'Open Work Hub unified search',
+          title: 'MTY unified search',
           topResults: 'Top results',
           type: 'Type',
           views: {

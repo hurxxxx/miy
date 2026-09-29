@@ -1,4 +1,4 @@
-import { useFeedback } from '@open-work-hub/ui';
+import { useFeedback } from '@mty/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
