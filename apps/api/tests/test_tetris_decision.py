@@ -332,6 +332,7 @@ def test_empty_hold_cannot_forecast_an_unseen_piece(client, monkeypatch):
 def selectable_models(client, monkeypatch):
     from mty_api.core.settings import get_settings
     monkeypatch.setenv("MTY_AI_ALLOWED_EXTERNAL_PROVIDERS", "openrouter")
+    monkeypatch.setenv("MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS", "openrouter")
     get_settings.cache_clear()
     from mty_api.core.db import get_session_factory
     from mty_api.domains.ai.model_settings_models import AiModelProviderConfig, AiModelCatalogEntry, AiModelPolicyDefault
@@ -353,7 +354,8 @@ def selectable_models(client, monkeypatch):
         for family, model_id in (("decision", "arena-decision"), ("generation", "arena-chat")):
             db.merge(AiModelPolicyDefault(model_family=family, app_id="tetris", route_mode="external", provider_id="arena-test", model_id=model_id))
         db.commit()
-    return session
+    yield session
+    get_settings.cache_clear()
 
 
 def test_models_catalog_is_safe_dynamic_and_admitted(client, selectable_models):

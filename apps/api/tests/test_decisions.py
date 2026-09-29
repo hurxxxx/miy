@@ -187,7 +187,12 @@ def test_timeout_no_retry(monkeypatch):
 
 
 @pytest.fixture
-def decision_setup(client):
+def decision_setup(client, monkeypatch):
+    from mty_api.core.settings import get_settings
+
+    monkeypatch.setenv("MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS", "openrouter")
+    monkeypatch.setenv("MTY_AI_ALLOWED_EXTERNAL_PROVIDERS", "openrouter")
+    get_settings.cache_clear()
     session = dev_login(client)
     registry = get_ai_capability_registry()
     registry.register_llm_workload(
@@ -246,6 +251,7 @@ def decision_setup(client):
     )
     registry.llm_workloads.pop("test_decision", None)
     registry.llm_tasks.pop("test_decision", None)
+    get_settings.cache_clear()
 
 
 def test_facade_routes_audits_once_and_preserves_generation(client, decision_setup, monkeypatch):
