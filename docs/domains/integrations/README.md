@@ -1,6 +1,6 @@
 # 플랫폼 API 키와 외부 연계 계약
 
-이 도메인은 회사 내부 또는 승인된 외부 시스템이 Open Work Hub의 제한된 company-level
+이 도메인은 회사 내부 또는 승인된 외부 시스템이 MTY의 제한된 company-level
 projection을 읽는 경계를 소유한다. 현재 제공하는 기능은 조직·임직원 디렉터리의 읽기 전용
 연계이며 사용자 세션, 관리자 API, 앱 API를 대신하는 범용 서비스 계정이 아니다.
 
@@ -9,12 +9,12 @@ projection을 읽는 경계를 소유한다. 현재 제공하는 기능은 조�
 
 ## 자격 증명 경계
 
-- 키 형식은 `owh_pk_` 접두사를 가진 opaque bearer token이다.
+- 키 형식은 `mty_pk_` 접두사를 가진 opaque bearer token이다.
 - 외부 endpoint는 일반 사용자 access token을 거부하고, 일반 API도 플랫폼 API 키를 사용자
   세션으로 인정하지 않는다.
 - 서버는 인증용 SHA-256 hash, 목록용 prefix, 관리자 재표시용 암호문만 저장한다.
 - 암호화에는 전용
-  `OPEN_WORK_HUB_PLATFORM_API_KEY_ENCRYPTION_KEY`를 사용한다. 값이 없으면 키 발급·재표시는
+  `MTY_PLATFORM_API_KEY_ENCRYPTION_KEY`를 사용한다. 값이 없으면 키 발급·재표시는
   fail closed지만 기존 hash 기반 인증은 계속 동작한다.
 - 폐기 시 암호문을 즉시 비우고 hash row는 감사·재사용 방지를 위해 보존한다. 폐기된 키는
   다시 활성화하거나 재표시할 수 없다.
@@ -32,7 +32,7 @@ projection을 읽는 경계를 소유한다. 현재 제공하는 기능은 조�
 | `people:read`       | `GET /api/v1/integrations/directory/people`             | 사용자 식별·프로필·주 소속 메타데이터 |
 
 Scope registry는 코드의 고정 allowlist이며 임의 문자열 scope를 발급할 수 없다. 각 route는
-OpenAPI의 `x-open-work-hub-platform-api-scopes` extension으로 요구 scope를 선언한다. 관리자
+OpenAPI의 `x-mty-platform-api-scopes` extension으로 요구 scope를 선언한다. 관리자
 목록 API는 이 OpenAPI 계약에서 scope별 operation과 Swagger/ReDoc 링크를 파생한다. 문서 목록을
 별도 하드코딩하지 않는다.
 

@@ -1,4 +1,4 @@
-from open_work_hub_api.domains.recording.chunk_sequence import chunk_sequences, plan_chunk_assembly
+from mty_api.domains.recording.chunk_sequence import chunk_sequences, plan_chunk_assembly
 
 
 def test_chunk_sequences_ignores_non_chunk_metadata_and_sorts_numeric_keys() -> None:

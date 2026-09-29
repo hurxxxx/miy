@@ -8,15 +8,15 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from open_work_hub_api.core.settings import Settings
-from open_work_hub_api.domains.admin import model_runtime_status_router
-from open_work_hub_api.domains.admin import model_runtime_status_service
-from open_work_hub_api.domains.admin.model_runtime_status_schemas import (
+from mty_api.core.settings import Settings
+from mty_api.domains.admin import model_runtime_status_router
+from mty_api.domains.admin import model_runtime_status_service
+from mty_api.domains.admin.model_runtime_status_schemas import (
     AdminModelRuntimeStatusResponse,
     ModelRuntimeModelResponse,
     ModelRuntimeTargetResponse,
 )
-from open_work_hub_api.domains.admin.model_runtime_status_service import (
+from mty_api.domains.admin.model_runtime_status_service import (
     collect_model_runtime_status,
 )
 from dev_accounts import auth_headers, dev_login
@@ -43,7 +43,7 @@ def _runtime_db(**overrides):
 def _settings(**overrides: object) -> Settings:
     values = {
         "postgres_dsn": (
-            "postgresql+psycopg://open_work_hub_test:open_work_hub_test@127.0.0.1:5432/open_work_hub_test"
+            "postgresql+psycopg://mty_test:mty_test@127.0.0.1:5432/mty_test"
         ),
         "inference_gateway_base_url": "http://current-server:18080",
         "inference_gateway_api_key": "gateway-secret",
@@ -291,8 +291,8 @@ def test_admin_model_runtime_status_returns_snapshot(
 
 @pytest.mark.anyio
 async def test_named_local_connections_are_probed_independently_without_holding_db(client):
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.ai.model_settings_models import (
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.ai.model_settings_models import (
         AiModelCatalogEntry,
         AiModelProviderConfig,
     )

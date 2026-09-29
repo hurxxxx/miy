@@ -1,4 +1,4 @@
-import { Tooltip } from '@open-work-hub/ui';
+import { Tooltip } from '@mty/ui';
 import { Bot, Check, Copy, Pencil, RotateCcw, User, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';

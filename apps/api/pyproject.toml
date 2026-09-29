@@ -1,7 +1,7 @@
 [project]
-name = "open-work-hub-api"
+name = "mty-api"
 version = "0.1.1"
-description = "FastAPI API for Open Work Hub."
+description = "FastAPI API for MTY."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
@@ -91,4 +91,4 @@ allow-direct-references = true
 select = ["E4", "E7", "E9", "F"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/open_work_hub_api"]
+packages = ["src/mty_api"]

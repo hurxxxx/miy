@@ -102,10 +102,10 @@ async function runCli() {
   const envPath = process.argv[2] ?? '.env';
   const config = assertProductionAppEnv(readEnvFile(envPath));
   const expectedRevision = (
-    process.env.OPEN_WORK_HUB_EXPECTED_REVISION ?? ''
+    process.env.MTY_EXPECTED_REVISION ?? ''
   ).trim();
   if (!expectedRevision) {
-    throw new Error('OPEN_WORK_HUB_EXPECTED_REVISION is required');
+    throw new Error('MTY_EXPECTED_REVISION is required');
   }
   await runProductionSmoke({ ...config, expectedRevision });
   process.stdout.write(

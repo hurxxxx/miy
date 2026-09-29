@@ -1,4 +1,4 @@
-import { Badge, Button, EmptyState, useFeedback } from '@open-work-hub/ui';
+import { Badge, Button, EmptyState, useFeedback } from '@mty/ui';
 import { ChevronLeft, GitBranch, RefreshCw, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';

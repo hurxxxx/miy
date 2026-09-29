@@ -8,10 +8,10 @@ import pytest
 from sqlalchemy import select
 
 from dev_accounts import dev_login
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.auth.models import CompanyAppControl, User, AuthSession
-from open_work_hub_api.domains.whiteboard.models import Whiteboard, WhiteboardLinkShare
-from open_work_hub_api.domains.whiteboard.router import _authorize_whiteboard_collab_access
+from mty_api.core.db import get_session_factory
+from mty_api.domains.auth.models import CompanyAppControl, User, AuthSession
+from mty_api.domains.whiteboard.models import Whiteboard, WhiteboardLinkShare
+from mty_api.domains.whiteboard.router import _authorize_whiteboard_collab_access
 
 
 def _setup(client: TestClient):

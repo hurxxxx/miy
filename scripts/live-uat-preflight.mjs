@@ -8,7 +8,7 @@ const REQUEST_TIMEOUT_MS = 10_000;
 
 export function normalizePublicBaseUrl(
   rawValue,
-  variableName = 'OPEN_WORK_HUB_UAT_BASE_URL',
+  variableName = 'MTY_UAT_BASE_URL',
 ) {
   if (!rawValue?.trim()) {
     throw new Error(`${variableName} is required`);
@@ -157,9 +157,9 @@ export async function runPublicDevSmoke({
   statusOutput,
   report = true,
 } = {}) {
-  const publicBaseUrl = normalizePublicBaseUrl(env.OPEN_WORK_HUB_UAT_BASE_URL);
-  const apiPort = localPort('OPEN_WORK_HUB_API_DEV_PORT', '8001', env);
-  const webPort = localPort('OPEN_WORK_HUB_WEB_DEV_PORT', '4200', env);
+  const publicBaseUrl = normalizePublicBaseUrl(env.MTY_UAT_BASE_URL);
+  const apiPort = localPort('MTY_API_DEV_PORT', '8001', env);
+  const webPort = localPort('MTY_WEB_DEV_PORT', '4200', env);
   const localApi = new URL(`http://127.0.0.1:${apiPort}/`);
   const localWeb = new URL(`http://127.0.0.1:${webPort}/`);
 
@@ -226,11 +226,11 @@ export async function runPreflight({ env = process.env } = {}) {
     report: false,
   });
   const objectStorageEndpoint = new URL(
-    env.OPEN_WORK_HUB_MINIO_ENDPOINT ?? 'http://127.0.0.1:59010',
+    env.MTY_MINIO_ENDPOINT ?? 'http://127.0.0.1:59010',
   );
   if (objectStorageEndpoint.username || objectStorageEndpoint.password) {
     throw new Error(
-      'OPEN_WORK_HUB_MINIO_ENDPOINT must not contain credentials',
+      'MTY_MINIO_ENDPOINT must not contain credentials',
     );
   }
 
@@ -244,7 +244,7 @@ export async function runPreflight({ env = process.env } = {}) {
         '3.12',
         'celery',
         '-A',
-        'open_work_hub_worker.celery_app:celery_app',
+        'mty_worker.celery_app:celery_app',
         'inspect',
         'ping',
         '--timeout',

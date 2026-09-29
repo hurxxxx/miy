@@ -1,4 +1,4 @@
-import { Button } from '@open-work-hub/ui';
+import { Button } from '@mty/ui';
 import {
   Check,
   ChevronDown,

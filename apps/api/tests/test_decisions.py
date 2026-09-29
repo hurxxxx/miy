@@ -9,30 +9,30 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from dev_accounts import dev_login, auth_headers
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.core.llm import LlmPoolConfig
-from open_work_hub_api.core.llm_errors import LlmProviderError
-from open_work_hub_api.domains.ai import decisions, decision_adapters, gateway, model_discovery
-from open_work_hub_api.domains.ai.decision_contracts import (
+from mty_api.core.db import get_session_factory
+from mty_api.core.llm import LlmPoolConfig
+from mty_api.core.llm_errors import LlmProviderError
+from mty_api.domains.ai import decisions, decision_adapters, gateway, model_discovery
+from mty_api.domains.ai.decision_contracts import (
     ChoiceQuestion,
     ScoreQuestion,
     ProbabilityQuestion,
     DecisionInput,
     DecisionError,
 )
-from open_work_hub_api.domains.ai.gateway import LlmWorkloadContext, execute_llm
-from open_work_hub_api.domains.ai.registry import get_ai_capability_registry
-from open_work_hub_api.domains.ai.model_settings_models import (
+from mty_api.domains.ai.gateway import LlmWorkloadContext, execute_llm
+from mty_api.domains.ai.registry import get_ai_capability_registry
+from mty_api.domains.ai.model_settings_models import (
     AiModelCatalogEntry,
     AiModelProviderConfig,
     AiModelPolicyDefault,
 )
-from open_work_hub_api.domains.ai.model_settings_service import (
+from mty_api.domains.ai.model_settings_service import (
     ai_model_registry_digest,
     resolve_ai_model_workload_route,
     AiModelSettingsError,
 )
-from open_work_hub_api.domains.auth.models import User, CompanyAppControl
+from mty_api.domains.auth.models import User, CompanyAppControl
 
 
 def request():
@@ -187,7 +187,12 @@ def test_timeout_no_retry(monkeypatch):
 
 
 @pytest.fixture
-def decision_setup(client):
+def decision_setup(client, monkeypatch):
+    from mty_api.core.settings import get_settings
+
+    monkeypatch.setenv("MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS", "openrouter")
+    monkeypatch.setenv("MTY_AI_ALLOWED_EXTERNAL_PROVIDERS", "openrouter")
+    get_settings.cache_clear()
     session = dev_login(client)
     registry = get_ai_capability_registry()
     registry.register_llm_workload(
@@ -204,7 +209,7 @@ def decision_setup(client):
         allowed_runtime_adapters=("decision",),
     )
     with get_session_factory()() as db:
-        user_id = db.scalar(select(User.id).where(User.email == "admin@open-work-hub.local"))
+        user_id = db.scalar(select(User.id).where(User.email == "admin@mty.local"))
         db.add(
             AiModelProviderConfig(
                 provider_id="decision-test",
@@ -246,6 +251,7 @@ def decision_setup(client):
     )
     registry.llm_workloads.pop("test_decision", None)
     registry.llm_tasks.pop("test_decision", None)
+    get_settings.cache_clear()
 
 
 def test_facade_routes_audits_once_and_preserves_generation(client, decision_setup, monkeypatch):
@@ -368,7 +374,7 @@ def test_discovery_only_proposes_non_reasoning_with_explicit_support(monkeypatch
 def test_security_block_scans_state_and_question_without_provider_call(
     client, decision_setup, monkeypatch
 ):
-    from open_work_hub_api.domains.ai.security_policy import AiSecurityPolicyDecision
+    from mty_api.domains.ai.security_policy import AiSecurityPolicyDecision
 
     context, _ = decision_setup
     scans, audit, calls = [], [], []
@@ -391,8 +397,8 @@ def test_security_block_scans_state_and_question_without_provider_call(
 def test_security_masking_preserves_payload_or_fails_closed(
     client, decision_setup, monkeypatch, invalid
 ):
-    from open_work_hub_api.domains.ai.security_policy import AiSecurityPolicyDecision
-    from open_work_hub_api.domains.ai.masking import ExternalPayloadMaskingResult
+    from mty_api.domains.ai.security_policy import AiSecurityPolicyDecision
+    from mty_api.domains.ai.masking import ExternalPayloadMaskingResult
 
     context, _ = decision_setup
     monkeypatch.setattr(gateway, "ai_security_enforcement_enabled", lambda db: True)
@@ -466,7 +472,7 @@ def test_decision_probe_checks_inventory_without_inference(client, decision_setu
 
 
 def test_registered_test_adapter_receives_structured_input(client, decision_setup, monkeypatch):
-    from open_work_hub_api.domains.ai.decision_contracts import DecisionResponse
+    from mty_api.domains.ai.decision_contracts import DecisionResponse
 
     context, _ = decision_setup
     seen = []
@@ -513,7 +519,7 @@ def test_decision_cannot_send_to_custom_host(monkeypatch):
 
 
 def test_registry_rejects_decision_tool_runtime_and_capability_mismatch():
-    from open_work_hub_api.domains.ai.registry import AiCapabilityRegistry
+    from mty_api.domains.ai.registry import AiCapabilityRegistry
 
     for extra in (
         {"required_capabilities": ("chat",)},

@@ -173,8 +173,8 @@ def test_public_and_bound_loopback_login_have_separate_cookie_security(client):
         local.close()
 
 
-def test_open_work_hub_handoff_creates_console_session(client, monkeypatch):
-    from codex_console import owh_sso
+def test_mty_handoff_creates_console_session(client, monkeypatch):
+    from codex_console import mty_sso
 
     assert client.delete("/api/session").status_code == 200
     owner_subject = UUID("11111111-1111-4111-8111-111111111111")
@@ -182,7 +182,7 @@ def test_open_work_hub_handoff_creates_console_session(client, monkeypatch):
         "https://dev.example.test": owner_subject,
     }
     exchange = monkeypatch.setattr(
-        owh_sso,
+        mty_sso,
         "exchange_code",
         lambda **values: str(owner_subject)
         if values
@@ -192,7 +192,7 @@ def test_open_work_hub_handoff_creates_console_session(client, monkeypatch):
     assert exchange is None
 
     response = client.post(
-        "/api/session/owh",
+        "/api/session/mty",
         json={"issuer": "https://dev.example.test", "code": "cc1_" + "a" * 32},
     )
     assert response.status_code == 200
@@ -200,18 +200,18 @@ def test_open_work_hub_handoff_creates_console_session(client, monkeypatch):
     assert client.get("/api/tasks").status_code == 200
 
 
-def test_open_work_hub_handoff_fails_closed(client, monkeypatch):
-    from codex_console import owh_sso
+def test_mty_handoff_fails_closed(client, monkeypatch):
+    from codex_console import mty_sso
 
     assert client.delete("/api/session").status_code == 200
     client.app.state.settings.sso_subjects = {}
     monkeypatch.setattr(
-        owh_sso,
+        mty_sso,
         "exchange_code",
         lambda **values: pytest.fail("an unconfigured issuer must not be contacted"),
     )
     response = client.post(
-        "/api/session/owh",
+        "/api/session/mty",
         json={"issuer": "https://evil.example", "code": "cc1_" + "a" * 32},
     )
     assert response.status_code == 401
@@ -219,21 +219,21 @@ def test_open_work_hub_handoff_fails_closed(client, monkeypatch):
     assert client.get("/api/tasks").status_code == 401
 
 
-def test_open_work_hub_handoff_rejects_a_different_user(client, monkeypatch):
-    from codex_console import owh_sso
+def test_mty_handoff_rejects_a_different_user(client, monkeypatch):
+    from codex_console import mty_sso
 
     assert client.delete("/api/session").status_code == 200
     client.app.state.settings.sso_subjects = {
         "https://dev.example.test": UUID("11111111-1111-4111-8111-111111111111"),
     }
     monkeypatch.setattr(
-        owh_sso,
+        mty_sso,
         "exchange_code",
         lambda **values: "22222222-2222-4222-8222-222222222222",
     )
 
     response = client.post(
-        "/api/session/owh",
+        "/api/session/mty",
         json={"issuer": "https://dev.example.test", "code": "cc1_" + "a" * 32},
     )
     assert response.status_code == 401

@@ -7,16 +7,16 @@ from fastapi.testclient import TestClient
 import pytest
 
 from dev_accounts import dev_login
-from open_work_hub_api.core.llm import LlmCompletionResult
-from open_work_hub_api.domains.ai.registry import get_ai_capability_registry
-from open_work_hub_api.domains.bento import (
+from mty_api.core.llm import LlmCompletionResult
+from mty_api.domains.ai.registry import get_ai_capability_registry
+from mty_api.domains.bento import (
     BENTO_EDIT_WORKLOAD_ID,
     BENTO_GENERATE_WORKLOAD_ID,
     BENTO_PLAN_WORKLOAD_ID,
 )
-from open_work_hub_api.domains.bento import generation as bento_generation
-from open_work_hub_api.domains.bento import router as bento_router
-from open_work_hub_api.domains.bento.execution import execute_bento_agent_job
+from mty_api.domains.bento import generation as bento_generation
+from mty_api.domains.bento import router as bento_router
+from mty_api.domains.bento.execution import execute_bento_agent_job
 
 
 def _auth_headers(token: str) -> dict[str, str]:
@@ -636,7 +636,7 @@ def test_bento_ai_generation_uses_registered_local_workload_and_persists_documen
     assert plan_call["max_tokens"] == 16_384
     assert plan_call["context"].source == "api.bento.generate.plan"
     assert plan_call["output_schema"]["required"] == ["plan_json"]
-    assert plan_call["output_schema"]["x-owh-slide-count"] == 4
+    assert plan_call["output_schema"]["x-mty-slide-count"] == 4
     assert "topic-specific storyboard" in plan_call["messages"][0]["content"]
     assert render_call["temperature"] == 0.5
     assert render_call["reasoning_effort"] == "none"
@@ -644,7 +644,7 @@ def test_bento_ai_generation_uses_registered_local_workload_and_persists_documen
     assert render_call["max_tokens"] == 32_768
     assert render_call["context"].app_id == "bento"
     assert render_call["output_schema"]["required"] == ["document_json"]
-    assert render_call["output_schema"]["x-owh-slide-count"] == 4
+    assert render_call["output_schema"]["x-mty-slide-count"] == 4
     system_message = render_call["messages"][0]
     assert "Morph is Bento's signature" in system_message["content"]
     assert "Two columns: x=96 and 656" in system_message["content"]

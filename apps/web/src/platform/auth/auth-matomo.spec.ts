@@ -8,9 +8,9 @@ function user(overrides: Partial<AuthUser> = {}): AuthUser {
   return createAuthUser({
     app_bar_layout: { pinned_app_ids: [] },
     date_format: 'korean',
-    display_name: 'Open Work Hub Member',
-    email: 'member@open-work-hub.local',
-    full_name: 'Open Work Hub Member',
+    display_name: 'MTY Member',
+    email: 'member@mty.local',
+    full_name: 'MTY Member',
     id: 'internal-user-1',
     last_login_at: null,
     locale: 'ko-KR',
@@ -31,7 +31,7 @@ describe('resolveMatomoUserIdentity', () => {
     expect(resolveMatomoUserIdentity(user())).toEqual({
       userId: 'member',
       userLoginId: 'member',
-      userName: 'Open Work Hub Member',
+      userName: 'MTY Member',
     });
   });
 

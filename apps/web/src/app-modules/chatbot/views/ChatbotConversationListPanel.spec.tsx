@@ -25,8 +25,8 @@ vi.mock('@/src/platform/auth/auth-provider', () => ({
   useAuth: () => ({ token: 'token-1' }),
 }));
 
-vi.mock('@open-work-hub/ui', async (original) => ({
-  ...(await original<typeof import('@open-work-hub/ui')>()),
+vi.mock('@mty/ui', async (original) => ({
+  ...(await original<typeof import('@mty/ui')>()),
   useConfirm: () => ({
     confirm: vi.fn(),
     confirmDialog: null,

@@ -76,7 +76,7 @@ Use `pnpm ci:app-api-contracts`, `pnpm ci:app-web-contracts`, or `pnpm ci:all` o
 - For explicitly requested MR work, source changes require affected evidence refresh and target changes require rechecking the merged surface.
 - Contract package tags `contracts-v*` publish through GitLab Package Registry.
 - Explicit simplified/urgent/fast releases use the [impact-based release procedure](../domains/release/README.md#impact-based-release-validation). It selects related checks for a bounded non-runtime diff; it does not disable CI, waive failed checks, or replace production rollout gates.
-- Use `owh-mr-review` only when review/merge decision is requested.
+- Use `mty-mr-review` only when review/merge decision is requested.
 
 ## Stop
 
@@ -97,18 +97,18 @@ Discovery loads descriptions first; read a matching skill and only the reference
 | --------------------- | ---------------------------------------------------------------------------------------- |
 | `agent-browser`       | Rendered browser/Electron interaction; installed CLI's native skill reference            |
 | `diagnose`            | Evidence-backed diagnosis; implement only when repair is requested                       |
-| `owh-design-review`   | Plan challenge or architectural deepening; select that mode's reference                  |
-| `owh-agent-harness`   | Instructions, skills, hooks/evals; CI review maintenance reference only for that surface |
-| `owh-dev-environment` | Local setup/services; preserve existing ignored env files                                |
-| `owh-docs-reader`     | Local native Docs extraction; verified dev storage, read-only SQL, bounded media copies  |
-| `owh-env-contracts`   | Env contracts/files or dev/prod separation; select the relevant reference                |
-| `owh-ai-capabilities` | Existing/new product AI capability and workload governance                               |
-| `owh-app-delivery`    | New/ported apps or missing platform scaffold; not routine existing-app changes           |
-| `owh-issues`          | PRD, vertical issue slicing, or triage; select the requested mode; drafts do not publish |
-| `owh-mr-review`       | Explicit MR mergeability review; not an automatic implementation stage                   |
-| `owh-release`         | Explicit dev-to-main promotion; not deployment                                           |
-| `owh-production`      | Explicit guarded production operations from prod                                         |
-| `owh-worktrees`       | Requested isolation/branch operations or unsuitable checkout recovery                    |
+| `mty-design-review`   | Plan challenge or architectural deepening; select that mode's reference                  |
+| `mty-agent-harness`   | Instructions, skills, hooks/evals; CI review maintenance reference only for that surface |
+| `mty-dev-environment` | Local setup/services; preserve existing ignored env files                                |
+| `mty-docs-reader`     | Local native Docs extraction; verified dev storage, read-only SQL, bounded media copies  |
+| `mty-env-contracts`   | Env contracts/files or dev/prod separation; select the relevant reference                |
+| `mty-ai-capabilities` | Existing/new product AI capability and workload governance                               |
+| `mty-app-delivery`    | New/ported apps or missing platform scaffold; not routine existing-app changes           |
+| `mty-issues`          | PRD, vertical issue slicing, or triage; select the requested mode; drafts do not publish |
+| `mty-mr-review`       | Explicit MR mergeability review; not an automatic implementation stage                   |
+| `mty-release`         | Explicit dev-to-main promotion; not deployment                                           |
+| `mty-production`      | Explicit guarded production operations from prod                                         |
+| `mty-worktrees`       | Requested isolation/branch operations or unsuitable checkout recovery                    |
 
 The catalog is 14 skills; start a new Codex/Claude session after renaming to refresh discovery. Previous entrypoint names are intentionally not kept as aliases; their necessary resources live in the consolidated skills and Git retains the old versions. The checker enforces root/scoped line budgets, per-skill size limits, a 4,700-character aggregate description budget, naming, required resources, resolved Markdown links, command references, and Claude bridges. The budget is a project maintenance limit, not a claim that shorter instructions always improve quality. The scanner prunes dependency/generated/runtime trees before descent; it still checks unexpected instruction scopes in owned source trees. Synthetic evaluations and derived hook metadata belong only under ignored scratch/runtime locations.
 

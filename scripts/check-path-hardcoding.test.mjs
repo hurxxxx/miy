@@ -25,7 +25,7 @@ test('isReadableRepoFile skips tracked symlinks that resolve to directories', ()
   );
 });
 
-const legacyBase = '/projects/open-work-hub-';
+const legacyBase = '/projects/mty-';
 const legacyPath = (suffix) => `${legacyBase}${suffix}`;
 
 test('buildLegacyPathPattern detects legacy prod and dev checkouts only at path boundaries', () => {

@@ -4,8 +4,8 @@ import re
 
 import pytest
 
-from open_work_hub_api.domains.tetris import ai
-from open_work_hub_api.domains.tetris.schemas import TetrisCandidate, TetrisObservation
+from mty_api.domains.tetris import ai
+from mty_api.domains.tetris.schemas import TetrisCandidate, TetrisObservation
 
 
 def _fields(text):

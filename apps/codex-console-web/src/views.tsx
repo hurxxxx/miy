@@ -1,4 +1,4 @@
-import { Button, Dialog, Input } from '@open-work-hub/ui';
+import { Button, Dialog, Input } from '@mty/ui';
 import { MultiFileDiff } from '@pierre/diffs/react';
 import {
   Check,

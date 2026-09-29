@@ -17,8 +17,8 @@ vi.mock('@/src/platform/auth/auth-provider', () => ({
 }));
 const feedbackError = vi.hoisted(() => vi.fn());
 const feedback = { error: feedbackError };
-vi.mock('@open-work-hub/ui', async (original) => ({
-  ...(await original<typeof import('@open-work-hub/ui')>()),
+vi.mock('@mty/ui', async (original) => ({
+  ...(await original<typeof import('@mty/ui')>()),
   useFeedback: () => feedback,
 }));
 vi.mock('./ai-api', () => ({
@@ -96,7 +96,9 @@ describe('tetris controls and lifecycle', async () => {
         loaded = resolve;
       }),
     );
-    vi.mocked(requestDecision).mockImplementation(() => new Promise(() => {}));
+    vi.mocked(requestDecision).mockImplementation(
+      () => new Promise(() => undefined),
+    );
     await renderView(<TetrisView />);
     for (const player of [1, 2])
       expect(

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from open_work_hub_api.core.settings import get_settings
-from open_work_hub_api.domains.ai.registry import (
+from mty_api.core.settings import get_settings
+from mty_api.domains.ai.registry import (
     AiCapabilityRegistry,
     get_ai_capability_registry,
     reset_ai_capability_registry,
@@ -17,7 +17,8 @@ def _reset_settings_and_registry() -> None:
     reset_ai_capability_registry()
 
 
-def test_openai_tool_specs_export_registered_read_tools() -> None:
+def test_openai_tool_specs_export_registered_read_tools(monkeypatch) -> None:
+    monkeypatch.setenv("MTY_AI_WRITE_TOOLS_ENABLED", "0")
     _reset_settings_and_registry()
     registry = get_ai_capability_registry()
 
@@ -150,7 +151,8 @@ def test_llm_workload_rejects_invalid_output_token_caps(
         )
 
 
-def test_pms_write_anchors_are_hidden_when_write_tools_disabled() -> None:
+def test_pms_write_anchors_are_hidden_when_write_tools_disabled(monkeypatch) -> None:
+    monkeypatch.setenv("MTY_AI_WRITE_TOOLS_ENABLED", "0")
     _reset_settings_and_registry()
     registry = get_ai_capability_registry()
 
@@ -165,7 +167,7 @@ def test_pms_write_anchors_are_hidden_when_write_tools_disabled() -> None:
 
 
 def test_pms_write_tools_register_when_enabled(monkeypatch) -> None:
-    monkeypatch.setenv("OPEN_WORK_HUB_AI_WRITE_TOOLS_ENABLED", "1")
+    monkeypatch.setenv("MTY_AI_WRITE_TOOLS_ENABLED", "1")
     _reset_settings_and_registry()
     try:
         registry = get_ai_capability_registry()
@@ -223,5 +225,5 @@ def test_pms_write_tools_register_when_enabled(monkeypatch) -> None:
         } <= full_specs
         assert "docs.create_page" not in full_specs
     finally:
-        monkeypatch.delenv("OPEN_WORK_HUB_AI_WRITE_TOOLS_ENABLED", raising=False)
+        monkeypatch.delenv("MTY_AI_WRITE_TOOLS_ENABLED", raising=False)
         _reset_settings_and_registry()

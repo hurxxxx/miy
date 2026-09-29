@@ -14,7 +14,7 @@ type TestLocale = 'ko-KR' | 'en-US';
 const config = {
   defaultLocale: 'ko-KR',
   supportedLocales: ['ko-KR', 'en-US'],
-  storageKey: 'open-work-hub:locale',
+  storageKey: 'mty:locale',
 } satisfies LocaleSessionConfig<TestLocale>;
 
 function createStore(initial: Record<string, string> = {}): {

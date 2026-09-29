@@ -3,16 +3,16 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 import pytest
 
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.core.llm_provider_registry import (
+from mty_api.core.db import get_session_factory
+from mty_api.core.llm_provider_registry import (
     ExternalLlmProviderDescriptor,
     ensure_default_external_llm_providers_registered,
     register_external_llm_provider,
     reset_external_llm_providers,
 )
-from open_work_hub_api.domains.ai import model_settings_service
-from open_work_hub_api.domains.ai.model_discovery import DiscoveredProviderModel
-from open_work_hub_api.domains.ai.model_settings_service import (
+from mty_api.domains.ai import model_settings_service
+from mty_api.domains.ai.model_discovery import DiscoveredProviderModel
+from mty_api.domains.ai.model_settings_service import (
     AiModelSettingsError,
     get_ai_model_provider_default_model_key,
     resolve_ai_model_workload_route,
@@ -405,7 +405,7 @@ def test_admin_ai_model_settings_rejects_stale_registry_digest(client: TestClien
     )
 
     assert response.status_code == 409
-    assert response.headers["X-Open-Work-Hub-Error-Code"] == "admin.ai_model_registry_changed"
+    assert response.headers["X-MTY-Error-Code"] == "admin.ai_model_registry_changed"
 
 
 def test_admin_ai_model_settings_rejects_output_token_caps_outside_bounds(
@@ -487,7 +487,7 @@ def test_admin_ai_model_settings_rejects_private_external_endpoint(
 
     assert response.status_code == 422
     assert (
-        response.headers["X-Open-Work-Hub-Error-Code"]
+        response.headers["X-MTY-Error-Code"]
         == "admin.ai_model_endpoint_public_https_required"
     )
 
@@ -511,7 +511,7 @@ def test_admin_ai_model_discovery_requires_key_then_creates_unapproved_models(
     )
     assert missing_key.status_code == 422
     assert (
-        missing_key.headers["X-Open-Work-Hub-Error-Code"] == "admin.ai_model_provider_key_required"
+        missing_key.headers["X-MTY-Error-Code"] == "admin.ai_model_provider_key_required"
     )
 
     configured = client.put(
@@ -571,7 +571,7 @@ def test_admin_ai_model_discovery_requires_key_then_creates_unapproved_models(
     )
     assert changed_provider_key.status_code == 422
     assert (
-        changed_provider_key.headers["X-Open-Work-Hub-Error-Code"]
+        changed_provider_key.headers["X-MTY-Error-Code"]
         == "admin.ai_model_discovered_key_read_only"
     )
 
@@ -590,7 +590,7 @@ def test_admin_ai_model_discovery_requires_key_then_creates_unapproved_models(
     )
     assert rejected_route.status_code == 422
     assert (
-        rejected_route.headers["X-Open-Work-Hub-Error-Code"]
+        rejected_route.headers["X-MTY-Error-Code"]
         == "admin.ai_model_catalog_invalid_for_provider"
     )
 

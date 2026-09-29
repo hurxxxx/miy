@@ -6,37 +6,37 @@ from types import SimpleNamespace
 
 import pytest
 
-import open_work_hub_api.platform_extensions as platform_extensions
-from open_work_hub_api.domains.ai.registry import (
+import mty_api.platform_extensions as platform_extensions
+from mty_api.domains.ai.registry import (
     get_ai_capability_registry,
     reset_ai_capability_registry,
 )
-from open_work_hub_api.core import llm as llm_core
-from open_work_hub_api.core.app_registry import AppCatalogItem, AppRegistration
-from open_work_hub_api.core.asr_backend_registry import reset_asr_backends
-from open_work_hub_api.core.settings import Settings, get_settings
-from open_work_hub_api.core.llm_provider_registry import (
+from mty_api.core import llm as llm_core
+from mty_api.core.app_registry import AppCatalogItem, AppRegistration
+from mty_api.core.asr_backend_registry import reset_asr_backends
+from mty_api.core.settings import Settings, get_settings
+from mty_api.core.llm_provider_registry import (
     ExternalLlmProviderDescriptor,
     ensure_default_external_llm_providers_registered,
     external_llm_provider_ids,
     register_external_llm_provider,
     reset_external_llm_providers,
 )
-from open_work_hub_api.core.platform_retirements import KNOWLEDGE_SOURCE_REGISTRY_RETIRED
-from open_work_hub_api.core.llm_execution_adapters import (
+from mty_api.core.platform_retirements import KNOWLEDGE_SOURCE_REGISTRY_RETIRED
+from mty_api.core.llm_execution_adapters import (
     ensure_default_llm_execution_adapters_registered,
     llm_execution_adapter_keys,
     reset_llm_execution_adapters,
     supports_tool_calling,
 )
-from open_work_hub_api.core.llm_pool_config_registry import (
+from mty_api.core.llm_pool_config_registry import (
     LlmPoolConfigValues,
     ensure_default_llm_pool_config_resolvers_registered,
     llm_pool_config_resolver_keys,
     register_llm_pool_config_resolver,
     reset_llm_pool_config_resolvers,
 )
-from open_work_hub_api.core.llm_model_profiles import (
+from mty_api.core.llm_model_profiles import (
     LlmGenerationProfile,
     build_chat_payload,
     ensure_default_llm_generation_profiles_registered,
@@ -46,7 +46,7 @@ from open_work_hub_api.core.llm_model_profiles import (
     resolve_reasoning_effort,
     select_llm_generation_profile,
 )
-from open_work_hub_api.domains.ai.runtime.external_adapters import (
+from mty_api.domains.ai.runtime.external_adapters import (
     register_external_planner_execution_adapter,
     register_external_search_execution_adapter,
     reset_external_execution_adapters,
@@ -55,31 +55,31 @@ from open_work_hub_api.domains.ai.runtime.external_adapters import (
     supported_external_planner_execution_adapters,
     supported_external_search_execution_adapters,
 )
-from open_work_hub_api.domains.ai.runtime.external_planner import ExternalPlannerExecutionResult
-from open_work_hub_api.domains.ai.runtime.external_search import ExternalSearchExecutionResult
-from open_work_hub_api.domains.conversations.default_scope_adapters import (
+from mty_api.domains.ai.runtime.external_planner import ExternalPlannerExecutionResult
+from mty_api.domains.ai.runtime.external_search import ExternalSearchExecutionResult
+from mty_api.domains.conversations.default_scope_adapters import (
     ensure_conversation_scope_adapters_registered,
 )
-from open_work_hub_api.domains.conversations.scope_registry import (
+from mty_api.domains.conversations.scope_registry import (
     get_conversation_scope_adapter,
     reset_conversation_scope_adapters,
 )
-from open_work_hub_api.domains.docs.app_catalog import DOCS_APP
-from open_work_hub_api.domains.docs import search_projection as docs_search_projection
-from open_work_hub_api.domains.docs.search_projection import DOCS_KEYWORD_SEARCH_ADAPTER
-from open_work_hub_api.domains.docs.source_access import NativeDocSourceAccessAdapter
-from open_work_hub_api.domains.files import search_projection as file_search_projection
-from open_work_hub_api.domains.files.retrieval_contract import (
+from mty_api.domains.docs.app_catalog import DOCS_APP
+from mty_api.domains.docs import search_projection as docs_search_projection
+from mty_api.domains.docs.search_projection import DOCS_KEYWORD_SEARCH_ADAPTER
+from mty_api.domains.docs.source_access import NativeDocSourceAccessAdapter
+from mty_api.domains.files import search_projection as file_search_projection
+from mty_api.domains.files.retrieval_contract import (
     files_retrieval_active_for_environment,
 )
-from open_work_hub_api.domains.meeting.app_catalog import MEETING_APP
-from open_work_hub_api.domains.planner.app_catalog import PLANNER_APP
-from open_work_hub_api.domains.pms.app_catalog import PMS_APP
-from open_work_hub_api.domains.rag.default_source_adapters import (
+from mty_api.domains.meeting.app_catalog import MEETING_APP
+from mty_api.domains.planner.app_catalog import PLANNER_APP
+from mty_api.domains.pms.app_catalog import PMS_APP
+from mty_api.domains.rag.default_source_adapters import (
     ensure_rag_source_adapters_registered,
     resolve_rag_resource_types_for_source_kinds,
 )
-from open_work_hub_api.domains.rag.source_adapter_registry import (
+from mty_api.domains.rag.source_adapter_registry import (
     RagResourceAdapter,
     RagSourceAdapter,
     RagVisibilityScopeAdapter,
@@ -90,24 +90,24 @@ from open_work_hub_api.domains.rag.source_adapter_registry import (
     register_rag_visibility_scope_adapter,
     reset_rag_source_adapters,
 )
-from open_work_hub_api.domains.retrieval.partition_adapter_ids import (
+from mty_api.domains.retrieval.partition_adapter_ids import (
     FILES_RETRIEVAL_PARTITION_ADAPTER_ID,
 )
-from open_work_hub_api.domains.retrieval.partition_adapter_registry import (
+from mty_api.domains.retrieval.partition_adapter_registry import (
     register_retrieval_partition_adapter,
     reset_retrieval_partition_adapters,
 )
-from open_work_hub_api.domains.search.default_entity_adapters import (
+from mty_api.domains.search.default_entity_adapters import (
     ensure_search_entity_descriptors_registered,
 )
-from open_work_hub_api.domains.search.default_index_hook_adapters import (
+from mty_api.domains.search.default_index_hook_adapters import (
     ensure_search_index_hooks_registered,
 )
-from open_work_hub_api.domains.search.backend_factory import reset_keyword_search_backends
-from open_work_hub_api.domains.search.default_projection_adapters import (
+from mty_api.domains.search.backend_factory import reset_keyword_search_backends
+from mty_api.domains.search.default_projection_adapters import (
     ensure_search_projection_adapters_registered,
 )
-from open_work_hub_api.domains.search.entity_adapter_registry import (
+from mty_api.domains.search.entity_adapter_registry import (
     SearchEntityAdapter,
     SearchIndexLifecycleHooks,
     get_search_entity_adapter,
@@ -118,32 +118,32 @@ from open_work_hub_api.domains.search.entity_adapter_registry import (
     search_people_roles,
     search_sort_fields,
 )
-from open_work_hub_api.domains.search.entity_registry import (
+from mty_api.domains.search.entity_registry import (
     SearchEntityDescriptor,
     label_for_search_entity,
     register_search_entity_descriptor,
     reset_search_entity_descriptors,
 )
-from open_work_hub_api.domains.search import hooks as search_hooks
-from open_work_hub_api.domains.search.hook_registry import (
+from mty_api.domains.search import hooks as search_hooks
+from mty_api.domains.search.hook_registry import (
     get_search_index_hook_registration,
     has_search_index_hook,
     register_search_index_hook,
     reset_search_index_hooks,
 )
-from open_work_hub_api.domains.search.projection_registry import (
+from mty_api.domains.search.projection_registry import (
     FunctionSearchProjectionAdapter,
     get_search_projection_adapter,
     register_search_projection_adapter,
     reset_search_projection_adapters,
 )
-from open_work_hub_api.domains.search.resource_mapping import resource_type_for_search_entity
-from open_work_hub_api.domains.search.schemas import SearchEntityType
-from open_work_hub_api.domains.source_access.policy import SourceAclPolicy
-from open_work_hub_api.domains.source_access.default_adapters import (
+from mty_api.domains.search.resource_mapping import resource_type_for_search_entity
+from mty_api.domains.search.schemas import SearchEntityType
+from mty_api.domains.source_access.policy import SourceAclPolicy
+from mty_api.domains.source_access.default_adapters import (
     ensure_builtin_source_access_adapters_registered,
 )
-from open_work_hub_api.domains.source_access.targets import (
+from mty_api.domains.source_access.targets import (
     TargetAccessProjection,
     TargetRef,
     target_access_allowed,
@@ -153,17 +153,17 @@ from open_work_hub_api.domains.source_access.targets import (
     register_target_access_adapter,
     reset_target_access_adapters,
 )
-from open_work_hub_api.domains.source_access.registry import (
+from mty_api.domains.source_access.registry import (
     get_source_access_adapter,
     has_source_access_adapter,
     register_source_access_adapter,
     reset_source_access_adapters,
 )
-from open_work_hub_api.domains.source_access.resource_types import (
+from mty_api.domains.source_access.resource_types import (
     FILE_MANAGER_FILE_RESOURCE_TYPE,
     NATIVE_DOC_RESOURCE_TYPE,
 )
-from open_work_hub_api.platform_extensions import (
+from mty_api.platform_extensions import (
     PlatformExtensionBootstrapError,
     initialize_platform_extensions,
     validate_platform_extension_registries,
@@ -192,8 +192,8 @@ def _reset_platform_registries() -> None:
 
 def _test_settings(**overrides) -> Settings:
     return Settings(
-        OPEN_WORK_HUB_POSTGRES_DSN=(
-            "postgresql+psycopg://open_work_hub_test:open_work_hub_test@127.0.0.1:5432/open_work_hub_test"
+        MTY_POSTGRES_DSN=(
+            "postgresql+psycopg://mty_test:mty_test@127.0.0.1:5432/mty_test"
         ),
         **overrides,
     )
@@ -517,10 +517,10 @@ def test_platform_extension_validation_keeps_disabled_rag_gateway_tools_register
 ) -> None:
     _reset_platform_registries()
     get_settings.cache_clear()
-    monkeypatch.setenv("OPEN_WORK_HUB_RAG_ENABLED", "0")
+    monkeypatch.setenv("MTY_RAG_ENABLED", "0")
     try:
         snapshot = initialize_platform_extensions(
-            settings=_test_settings(OPEN_WORK_HUB_RAG_ENABLED=False),
+            settings=_test_settings(MTY_RAG_ENABLED=False),
         )
 
         assert "rag.query" in snapshot.ai_tool_names
@@ -532,7 +532,7 @@ def test_platform_extension_validation_keeps_disabled_rag_gateway_tools_register
 def test_platform_extension_validation_rejects_unregistered_asr_backend() -> None:
     _reset_platform_registries()
     try:
-        settings = _test_settings(OPEN_WORK_HUB_API_ASR_BACKEND="plugin_asr")
+        settings = _test_settings(MTY_API_ASR_BACKEND="plugin_asr")
 
         with pytest.raises(
             PlatformExtensionBootstrapError,
@@ -549,8 +549,8 @@ def test_platform_extension_validation_rejects_enabled_external_execution_adapte
     _reset_platform_registries()
     try:
         planner_settings = _test_settings(
-            OPEN_WORK_HUB_AI_EXTERNAL_PLANNER_EXECUTION_ENABLED=True,
-            OPEN_WORK_HUB_AI_EXTERNAL_PLANNER_EXECUTION_ADAPTER="vendor-planner",
+            MTY_AI_EXTERNAL_PLANNER_EXECUTION_ENABLED=True,
+            MTY_AI_EXTERNAL_PLANNER_EXECUTION_ADAPTER="vendor-planner",
         )
 
         with pytest.raises(
@@ -562,8 +562,8 @@ def test_platform_extension_validation_rejects_enabled_external_execution_adapte
             initialize_platform_extensions(settings=planner_settings)
 
         search_settings = _test_settings(
-            OPEN_WORK_HUB_AI_EXTERNAL_SEARCH_EXECUTION_ENABLED=True,
-            OPEN_WORK_HUB_AI_EXTERNAL_SEARCH_EXECUTION_ADAPTER="vendor-search",
+            MTY_AI_EXTERNAL_SEARCH_EXECUTION_ENABLED=True,
+            MTY_AI_EXTERNAL_SEARCH_EXECUTION_ADAPTER="vendor-search",
         )
 
         with pytest.raises(
@@ -653,12 +653,12 @@ def test_platform_validation_accepts_search_only_external_provider_adapter() -> 
             VendorSearchAdapter,
         )
         settings = _test_settings(
-            OPEN_WORK_HUB_AI_ALLOWED_EXTERNAL_PROVIDERS="vendor-search",
-            OPEN_WORK_HUB_AI_DEFAULT_EXTERNAL_LLM_PROVIDER="openai",
-            OPEN_WORK_HUB_AI_DEFAULT_EXTERNAL_SEARCH_PROVIDER="vendor-search",
-            OPEN_WORK_HUB_AI_EXTERNAL_SEARCH_ENABLED=True,
-            OPEN_WORK_HUB_AI_EXTERNAL_SEARCH_EXECUTION_ENABLED=True,
-            OPEN_WORK_HUB_AI_EXTERNAL_SEARCH_EXECUTION_ADAPTER="vendor-search",
+            MTY_AI_ALLOWED_EXTERNAL_PROVIDERS="vendor-search",
+            MTY_AI_DEFAULT_EXTERNAL_LLM_PROVIDER="openai",
+            MTY_AI_DEFAULT_EXTERNAL_SEARCH_PROVIDER="vendor-search",
+            MTY_AI_EXTERNAL_SEARCH_ENABLED=True,
+            MTY_AI_EXTERNAL_SEARCH_EXECUTION_ENABLED=True,
+            MTY_AI_EXTERNAL_SEARCH_EXECUTION_ADAPTER="vendor-search",
         )
 
         snapshot = initialize_platform_extensions(settings=settings)
@@ -801,8 +801,8 @@ def test_platform_extension_validation_rejects_enabled_unknown_rag_provider() ->
     _reset_platform_registries()
     try:
         settings = _test_settings(
-            OPEN_WORK_HUB_RAG_ENABLED=True,
-            OPEN_WORK_HUB_RAG_VECTOR_INDEX_PROVIDER="missing-vector",
+            MTY_RAG_ENABLED=True,
+            MTY_RAG_VECTOR_INDEX_PROVIDER="missing-vector",
         )
 
         with pytest.raises(
@@ -1005,9 +1005,9 @@ def test_platform_extension_validation_rejects_search_contract_owned_by_another_
         def secret_index_hook():
             return None
 
-        secret_company_loader.__module__ = "open_work_hub_api.domains.secret.search_projection"
-        secret_document_loader.__module__ = "open_work_hub_api.domains.secret.search_projection"
-        secret_index_hook.__module__ = "open_work_hub_api.domains.secret.search_hooks"
+        secret_company_loader.__module__ = "mty_api.domains.secret.search_projection"
+        secret_document_loader.__module__ = "mty_api.domains.secret.search_projection"
+        secret_index_hook.__module__ = "mty_api.domains.secret.search_hooks"
 
         hook_name = "secret.enqueue_record"
         register_search_index_hook(
@@ -1077,9 +1077,9 @@ def test_platform_extension_validation_accepts_explicit_backend_domain_different
         def index_hook():
             return None
 
-        company_loader.__module__ = "open_work_hub_api.domains.quality_records.search_projection"
-        document_loader.__module__ = "open_work_hub_api.domains.quality_records.search_projection"
-        index_hook.__module__ = "open_work_hub_api.domains.quality_records.search_hooks"
+        company_loader.__module__ = "mty_api.domains.quality_records.search_projection"
+        document_loader.__module__ = "mty_api.domains.quality_records.search_projection"
+        index_hook.__module__ = "mty_api.domains.quality_records.search_hooks"
 
         class QualitySourceAccessAdapter:
             adapter_id = "quality_records"
@@ -1748,7 +1748,7 @@ def test_target_access_import_does_not_register_default_adapters() -> None:
     reset_target_access_adapters()
 
     source_access_targets = importlib.import_module(
-        "open_work_hub_api.domains.source_access.targets"
+        "mty_api.domains.source_access.targets"
     )
     importlib.reload(source_access_targets)
 
@@ -1815,7 +1815,7 @@ def test_external_provider_descriptor_projects_default_pool_config() -> None:
             )
         )
         settings = _test_settings(
-            OPEN_WORK_HUB_LLM_EXTERNAL_ALLOWED_PROVIDERS="plugin",
+            MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS="plugin",
         )
 
         config = llm_core.get_pool_config(
@@ -1839,7 +1839,7 @@ def test_configured_custom_llm_provider_requires_runtime_adapter() -> None:
     try:
         register_external_llm_provider(ExternalLlmProviderDescriptor("plugin", official=False))
         settings = _test_settings(
-            OPEN_WORK_HUB_LLM_EXTERNAL_ALLOWED_PROVIDERS="plugin",
+            MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS="plugin",
         )
 
         with pytest.raises(
@@ -1855,7 +1855,7 @@ def test_custom_llm_provider_settings_can_be_created_before_provider_registratio
     _reset_platform_registries()
     try:
         settings = _test_settings(
-            OPEN_WORK_HUB_LLM_EXTERNAL_ALLOWED_PROVIDERS="plugin",
+            MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS="plugin",
         )
         register_external_llm_provider(
             ExternalLlmProviderDescriptor(
@@ -1891,7 +1891,7 @@ def test_platform_validation_rejects_unknown_external_llm_provider_setting() -> 
     _reset_platform_registries()
     try:
         settings = _test_settings(
-            OPEN_WORK_HUB_LLM_EXTERNAL_ALLOWED_PROVIDERS="typo-provider",
+            MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS="typo-provider",
         )
 
         with pytest.raises(PlatformExtensionBootstrapError) as excinfo:
@@ -1899,7 +1899,7 @@ def test_platform_validation_rejects_unknown_external_llm_provider_setting() -> 
 
         message = str(excinfo.value)
         assert (
-            "OPEN_WORK_HUB_LLM_EXTERNAL_ALLOWED_PROVIDERS contains unsupported external "
+            "MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS contains unsupported external "
             "provider(s): typo-provider"
         ) in message
     finally:
@@ -1910,10 +1910,10 @@ def test_platform_validation_ignores_retired_ai_external_llm_default_outside_all
     _reset_platform_registries()
     try:
         settings = _test_settings(
-            OPEN_WORK_HUB_AI_EXTERNAL_LLM_ENABLED=True,
-            OPEN_WORK_HUB_AI_ALLOWED_EXTERNAL_PROVIDERS="anthropic",
-            OPEN_WORK_HUB_AI_DEFAULT_EXTERNAL_LLM_PROVIDER="openai",
-            OPEN_WORK_HUB_AI_DEFAULT_EXTERNAL_SEARCH_PROVIDER="anthropic",
+            MTY_AI_EXTERNAL_LLM_ENABLED=True,
+            MTY_AI_ALLOWED_EXTERNAL_PROVIDERS="anthropic",
+            MTY_AI_DEFAULT_EXTERNAL_LLM_PROVIDER="openai",
+            MTY_AI_DEFAULT_EXTERNAL_SEARCH_PROVIDER="anthropic",
         )
 
         initialize_platform_extensions(settings=settings)
@@ -1926,8 +1926,8 @@ def test_platform_validation_ignores_retired_unknown_ai_external_llm_default() -
     _reset_platform_registries()
     try:
         settings = _test_settings(
-            OPEN_WORK_HUB_AI_EXTERNAL_LLM_ENABLED=True,
-            OPEN_WORK_HUB_AI_DEFAULT_EXTERNAL_LLM_PROVIDER="typo-provider",
+            MTY_AI_EXTERNAL_LLM_ENABLED=True,
+            MTY_AI_DEFAULT_EXTERNAL_LLM_PROVIDER="typo-provider",
         )
 
         initialize_platform_extensions(settings=settings)
@@ -1956,7 +1956,7 @@ def test_configured_custom_llm_provider_requires_explicit_runtime_contract() -> 
             ),
         )
         settings = _test_settings(
-            OPEN_WORK_HUB_LLM_EXTERNAL_ALLOWED_PROVIDERS="plugin",
+            MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS="plugin",
         )
 
         with pytest.raises(PlatformExtensionBootstrapError) as exc_info:
@@ -1995,7 +1995,7 @@ def test_openai_compatible_custom_llm_provider_can_use_default_runtime_contract(
             ),
         )
         settings = _test_settings(
-            OPEN_WORK_HUB_LLM_EXTERNAL_ALLOWED_PROVIDERS="plugin",
+            MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS="plugin",
         )
 
         snapshot = initialize_platform_extensions(settings=settings)
@@ -2329,7 +2329,7 @@ def test_default_source_access_adapters_reregister_after_reset() -> None:
 def test_source_access_policy_import_does_not_register_default_adapters() -> None:
     reset_source_access_adapters()
 
-    source_access_policy = importlib.import_module("open_work_hub_api.domains.source_access.policy")
+    source_access_policy = importlib.import_module("mty_api.domains.source_access.policy")
     importlib.reload(source_access_policy)
 
     assert has_source_access_adapter(NATIVE_DOC_RESOURCE_TYPE) is False
@@ -2344,7 +2344,7 @@ def test_source_access_policy_import_does_not_register_default_adapters() -> Non
 
 
 def test_default_source_access_adapters_allow_partial_resource_override(monkeypatch) -> None:
-    from open_work_hub_api.domains.source_access import policy as source_policy
+    from mty_api.domains.source_access import policy as source_policy
 
     monkeypatch.setattr(source_policy, "can_use_app", lambda *args, **kwargs: True)
 

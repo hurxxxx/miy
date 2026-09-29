@@ -1,4 +1,4 @@
-import { DetailDrawer } from '@open-work-hub/ui';
+import { DetailDrawer } from '@mty/ui';
 import { Check, LayoutGrid, X } from 'lucide-react';
 import {
   AnimatePresence,

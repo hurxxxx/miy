@@ -1,7 +1,7 @@
-export const FLOATING_DM_OPEN_EVENT = 'open-work-hub:floating-dm-open';
-export const FLOATING_PMS_OPEN_EVENT = 'open-work-hub:floating-pms-open';
+export const FLOATING_DM_OPEN_EVENT = 'mty:floating-dm-open';
+export const FLOATING_PMS_OPEN_EVENT = 'mty:floating-pms-open';
 export const PERSONAL_TODO_PMS_TASK_CREATED_EVENT =
-  'open-work-hub:personal-todo-pms-task-created';
+  'mty:personal-todo-pms-task-created';
 
 export type FloatingDmOpenEventDetail = {
   threadId?: string | null;

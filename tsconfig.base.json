@@ -13,20 +13,20 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["node"],
     "paths": {
-      "@open-work-hub/contracts": ["./packages/contracts/src/index.ts"],
-      "@open-work-hub/contracts/openapi": [
+      "@mty/contracts": ["./packages/contracts/src/index.ts"],
+      "@mty/contracts/openapi": [
         "./packages/contracts/src/openapi.generated.d.ts"
       ],
-      "@open-work-hub/contracts/*": ["./packages/contracts/src/*"],
-      "@open-work-hub/core-web": ["./packages/core-web/src/index.ts"],
-      "@open-work-hub/core-web/*": ["./packages/core-web/src/*"],
-      "@open-work-hub/web-shell": ["./apps/web/src/app/shell/AppContent.tsx"],
-      "@open-work-hub/web/styles.css": ["./apps/web/src/index.css"],
-      "@open-work-hub/web/fullcalendar-theme.css": [
+      "@mty/contracts/*": ["./packages/contracts/src/*"],
+      "@mty/core-web": ["./packages/core-web/src/index.ts"],
+      "@mty/core-web/*": ["./packages/core-web/src/*"],
+      "@mty/web-shell": ["./apps/web/src/app/shell/AppContent.tsx"],
+      "@mty/web/styles.css": ["./apps/web/src/index.css"],
+      "@mty/web/fullcalendar-theme.css": [
         "./apps/web/src/styles/fullcalendar-theme.css"
       ],
-      "@open-work-hub/ui": ["./packages/ui/src/index.ts"],
-      "@open-work-hub/ui/*": ["./packages/ui/src/lib/*"]
+      "@mty/ui": ["./packages/ui/src/index.ts"],
+      "@mty/ui/*": ["./packages/ui/src/lib/*"]
     }
   },
   "exclude": ["node_modules", "dist"]

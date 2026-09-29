@@ -7,26 +7,26 @@ import pytest
 
 from dev_accounts import create_company_user_session, dev_login
 
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.auth.access import load_user_graph
-from open_work_hub_api.domains.auth.models import User
-from open_work_hub_api.domains.auth.security import new_id
-from open_work_hub_api.domains.docs import service as docs_service
-from open_work_hub_api.domains.docs.access_grants import grant_doc_access
-from open_work_hub_api.domains.docs.models import (
+from mty_api.core.db import get_session_factory
+from mty_api.domains.auth.access import load_user_graph
+from mty_api.domains.auth.models import User
+from mty_api.domains.auth.security import new_id
+from mty_api.domains.docs import service as docs_service
+from mty_api.domains.docs.access_grants import grant_doc_access
+from mty_api.domains.docs.models import (
     NativeDocLinkShare,
     NativeDocPage,
     NativeDocUserShare,
 )
-from open_work_hub_api.domains.rag.contracts import RagQueryRequest, RagVectorSearchHit
-from open_work_hub_api.domains.rag.access_filter import build_user_rag_post_filter
-from open_work_hub_api.domains.rag.docs_projection import (
+from mty_api.domains.rag.contracts import RagQueryRequest, RagVectorSearchHit
+from mty_api.domains.rag.access_filter import build_user_rag_post_filter
+from mty_api.domains.rag.docs_projection import (
     NATIVE_DOC_RESOURCE_TYPE,
     load_native_doc_projection,
 )
-from open_work_hub_api.domains.rag.providers.fake import FakeEmbeddingClient, FakeVectorIndexClient
-from open_work_hub_api.domains.rag.query_service import RagQueryService
-from open_work_hub_api.domains.rag.service import RagService
+from mty_api.domains.rag.providers.fake import FakeEmbeddingClient, FakeVectorIndexClient
+from mty_api.domains.rag.query_service import RagQueryService
+from mty_api.domains.rag.service import RagService
 
 
 def _dev_login(client: TestClient, account_key: str) -> dict:
@@ -41,7 +41,7 @@ def test_native_doc_projection_preserves_grants_for_query_time_expiry_checks(
     expired_session = create_company_user_session(
         client,
         login_id="docsragexpiredprojection",
-        email="docs-rag-expired-projection@open-work-hub.local",
+        email="docs-rag-expired-projection@mty.local",
         full_name="Docs RAG Expired Projection",
     )
     revoked_session = _dev_login(client, "delivery-hub-member")
@@ -163,7 +163,7 @@ def test_native_doc_query_post_filter_rejects_expired_grant_hits(client: TestCli
     expired_session = create_company_user_session(
         client,
         login_id="docsragexpiredquery",
-        email="docs-rag-expired-query@open-work-hub.local",
+        email="docs-rag-expired-query@mty.local",
         full_name="Docs RAG Expired Query",
     )
     vector_index = FakeVectorIndexClient()

@@ -6,11 +6,11 @@ from dataclasses import replace
 import httpx2 as httpx
 import pytest
 
-from open_work_hub_api.core import llm
-from open_work_hub_api.core.llm_errors import LlmProviderError
-from open_work_hub_api.domains.ai import audit
-from open_work_hub_api.domains.ai.gateway import AiGatewayPolicyViolation, complete_gateway_chat, complete_gateway_chat_text
-from open_work_hub_api.domains.ai.registry import AiCapabilityRegistry, get_ai_capability_registry
+from mty_api.core import llm
+from mty_api.core.llm_errors import LlmProviderError
+from mty_api.domains.ai import audit
+from mty_api.domains.ai.gateway import AiGatewayPolicyViolation, complete_gateway_chat, complete_gateway_chat_text
+from mty_api.domains.ai.registry import AiCapabilityRegistry, get_ai_capability_registry
 from test_ai_gateway import _FakePolicyDb, _request
 
 

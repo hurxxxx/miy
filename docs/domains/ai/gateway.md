@@ -10,10 +10,10 @@ Approval replay, graph execution, and artifact state are owned by [AI Execution]
 - Admin saves multiple named connections (OpenRouter, OpenAI, Anthropic, Gemini or OpenAI-compatible). Connection IDs are distinct from provider/transport kinds. Local connections support optional API-key authentication.
 - Generation and decision each have independent global defaults → app defaults → `(app_id, workload_id)` overrides select connection/model/output cap per local/external route. Omitted values inherit; saving only a cap does not pin a resolved model. Output caps resolve explicit workload → app → global values, then the registered workload default (32K local / 64K external unless the workload declares another default). Untouched migration-seeded global caps are cleared by `llm_cap_defaults_20260918`; administrator edits are preserved. Generation global model changes use the selected connection default, while app/workload model overrides stay explicit. Decision defaults always store an explicit decision model and never inherit the generation connection default. Existing rows migrate to `generation`; no decision default is seeded.
 - Runtime policy is DB-only: missing/disabled connections, missing credentials, inactive catalog models, incompatible capabilities and disallowed routes fail closed. No unique-provider or environment fallback is used. Provider allowlists remain infrastructure/security policy.
-- External connections must also be admitted by both `OPEN_WORK_HUB_LLM_EXTERNAL_ALLOWED_PROVIDERS` and `OPEN_WORK_HUB_AI_ALLOWED_EXTERNAL_PROVIDERS` using their provider kind (for example `openrouter` or `openai_compatible`). Saving a connection does not widen either deployment allowlist; local compatible connections use the local host policy instead.
+- External connections must also be admitted by both `MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS` and `MTY_AI_ALLOWED_EXTERNAL_PROVIDERS` using their provider kind (for example `openrouter` or `openai_compatible`). Saving a connection does not widen either deployment allowlist; local compatible connections use the local host policy instead.
 - App catalog registrations declare `ai_capability_modules`; the AI registry imports each hook once and fails for missing hooks. A shared workload has independent settings for each owning app.
 - Retired app/workload overrides remain visible as orphaned settings. Administrators may reset them using their stored app/workload identity, current registry digest and row version; model references remain protected until reset.
-- Credentials are encrypted per connection with `OPEN_WORK_HUB_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY`. GET returns only `has_api_key`; omission preserves, replacement rotates, explicit clearing removes the key. The master key remains outside the DB and must be preserved for restores.
+- Credentials are encrypted per connection with `MTY_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY`. GET returns only `has_api_key`; omission preserves, replacement rotates, explicit clearing removes the key. The master key remains outside the DB and must be preserved for restores.
 - Hermes structured output and tools require `tool_calling`, including tools/schema supplied at runtime. Direct completion uses the provider's JSON Schema response format instead of tools (see below). Model discovery does not approve capabilities automatically. Override writes validate the effective inherited route using the execution resolver before commit. Saved connection probes release the DB during I/O, recheck both connection and selected-model versions, and are invalidated by model edits/discovery.
 - `execute_llm` and `stream_llm` return safe execution metadata, never credential-bearing transport configuration. Interactive Hermes sessions retain their lifecycle while resolving the same model policy.
 - No local/external automatic fallback.
@@ -82,8 +82,8 @@ approvals. For an existing or manually registered model, verify the endpoint and
 
 ## Local Runtime
 
-- Register the endpoint and optional key in Admin → LLM connections. vLLM and Ollama presets use OpenAI-compatible `/v1` endpoints; OWH does not install/start these servers or manage model downloads/GPU allocation. The selected model must actually support the declared tools/stream/structured behavior.
-- Local endpoint hosts must be listed explicitly in `OPEN_WORK_HUB_LLM_LOCAL_ALLOWED_HOSTS`; include the address reachable from API and Hermes. Metadata, link-local and multicast addresses are rejected. External endpoints require public HTTPS on port 443. Model discovery does not follow redirects.
+- Register the endpoint and optional key in Admin → LLM connections. vLLM and Ollama presets use OpenAI-compatible `/v1` endpoints; MTY does not install/start these servers or manage model downloads/GPU allocation. The selected model must actually support the declared tools/stream/structured behavior.
+- Local endpoint hosts must be listed explicitly in `MTY_LLM_LOCAL_ALLOWED_HOSTS`; include the address reachable from API and Hermes. Metadata, link-local and multicast addresses are rejected. External endpoints require public HTTPS on port 443. Model discovery does not follow redirects.
 - Use the saved-connection test after approving a model. This checks reachability/model availability; it does not certify every capability. Verify an actual structured/tool workload before switching the global default.
 - Model availability/defaults live in Admin model catalog/routing, not env or app code. Explicitly opted-in workloads can accept a validated catalog selection as described above.
 - Non-secret LLM timeouts and preprocessing-model defaults live in the tracked
@@ -114,8 +114,8 @@ registry.register_llm_workload(
 The app owns its stable workload constant and source ACL. Pass source `sensitivity_labels`, `source_kinds` and `content_origin` when calling the facade; do not relabel internal/retrieved content as a public user prompt. A caller supplies identity and input, never a provider/raw model key/connection/credential. Explicit catalog selection follows the opt-in contract above:
 
 ```python
-from open_work_hub_api.domains.ai.decisions import execute_decision, ChoiceQuestion
-from open_work_hub_api.domains.ai.gateway import LlmWorkloadContext
+from mty_api.domains.ai.decisions import execute_decision, ChoiceQuestion
+from mty_api.domains.ai.gateway import LlmWorkloadContext
 
 result = execute_decision(
     "example.triage",

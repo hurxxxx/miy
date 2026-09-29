@@ -1,5 +1,5 @@
 export const CALENDAR_EVENTS_CHANGED_EVENT =
-  'open-work-hub:calendar-events-changed';
+  'mty:calendar-events-changed';
 
 export function dispatchCalendarEventsChanged(): void {
   if (typeof window === 'undefined') {

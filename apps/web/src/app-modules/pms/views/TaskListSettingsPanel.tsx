@@ -5,7 +5,7 @@ import {
 } from '@/src/platform/time/time-utils';
 import { UserSearchMultiSelect } from '@/src/platform/users/UserSearchMultiSelect';
 import { selectUserOptionsForPicker } from '@/src/platform/users/user-option-picker-model';
-import { Button, Dialog, InlineNotice } from '@open-work-hub/ui';
+import { Button, Dialog, InlineNotice } from '@mty/ui';
 import {
   Check,
   GripVertical,

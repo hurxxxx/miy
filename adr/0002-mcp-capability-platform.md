@@ -21,7 +21,7 @@ and [Source Access](../docs/domains/source-access/README.md). This ADR retains t
 - Execution repeats app availability and discoverability, then applies domain source ACL/service
   authorization.
 - Hidden in discovery means blocked in execution.
-- Write capability requires `approval_required=True`, `preview_builder_id`, and `OPEN_WORK_HUB_AI_WRITE_TOOLS_ENABLED=true` for discovery exposure.
+- Write capability requires `approval_required=True`, `preview_builder_id`, and `MTY_AI_WRITE_TOOLS_ENABLED=true` for discovery exposure.
 
 ## Schema
 

@@ -4,9 +4,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from dev_accounts import content_headers
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.pms.attachments import normalize_task_attachment_filename
-from open_work_hub_api.domains.pms.models import Attachment, TaskActivityLog
+from mty_api.core.db import get_session_factory
+from mty_api.domains.pms.attachments import normalize_task_attachment_filename
+from mty_api.domains.pms.models import Attachment, TaskActivityLog
 from test_pms_issues import (
     _add_task_list_member,
     _auth_headers,
@@ -135,7 +135,7 @@ def test_task_attachment_viewer_cannot_upload_or_delete(
     viewer = _create_user(
         client,
         admin_token,
-        email="attachment-viewer@open-work-hub.local",
+        email="attachment-viewer@mty.local",
         full_name="Attachment Viewer",
     )
     _add_task_list_member(client, admin_token, task_list["id"], viewer["user"]["id"], "viewer")
@@ -156,7 +156,7 @@ def test_task_attachment_viewer_cannot_upload_or_delete(
 
 
 def _install_fake_store(monkeypatch, store: "_FakeTaskAttachmentStore") -> None:
-    from open_work_hub_api.domains.pms import attachments
+    from mty_api.domains.pms import attachments
 
     monkeypatch.setattr(attachments, "task_attachment_object_store", lambda: store)
 

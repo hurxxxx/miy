@@ -5,7 +5,7 @@ import base64
 import pytest
 from fastapi import HTTPException, status
 
-from open_work_hub_api.domains.recording import tus_protocol
+from mty_api.domains.recording import tus_protocol
 
 
 def _encoded(value: str) -> str:

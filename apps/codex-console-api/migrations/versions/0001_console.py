@@ -1,4 +1,4 @@
-"""Initial independent console schema; never run against the OWH application DB."""
+"""Initial independent console schema; never run against the MTY application DB."""
 
 import sqlalchemy as sa
 from alembic import op

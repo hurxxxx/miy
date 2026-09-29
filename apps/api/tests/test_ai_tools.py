@@ -9,12 +9,12 @@ from dev_accounts import dev_login
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from open_work_hub_api.core.settings import get_settings
-from open_work_hub_api.core.principal import user_principal
-from open_work_hub_api.domains.ai.registry import reset_ai_capability_registry
-from open_work_hub_api.domains.ai.tool_service import _extract_resource_ids, execute_tool
-from open_work_hub_api.core.db import get_engine
-from open_work_hub_api.domains.auth.models import AuditLog, CompanyAppControl, User
+from mty_api.core.settings import get_settings
+from mty_api.core.principal import user_principal
+from mty_api.domains.ai.registry import reset_ai_capability_registry
+from mty_api.domains.ai.tool_service import _extract_resource_ids, execute_tool
+from mty_api.core.db import get_engine
+from mty_api.domains.auth.models import AuditLog, CompanyAppControl, User
 
 
 def _dev_login(client: TestClient, account_key: str) -> dict:
@@ -151,7 +151,7 @@ def test_pms_ai_write_rechecks_viewer_acl_after_external_approval(
     client: TestClient,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("OPEN_WORK_HUB_AI_WRITE_TOOLS_ENABLED", "1")
+    monkeypatch.setenv("MTY_AI_WRITE_TOOLS_ENABLED", "1")
     _reset_settings_and_registry()
     try:
         owner = _dev_login(client, "delivery-hub-admin")
@@ -196,7 +196,7 @@ def test_pms_ai_write_rechecks_viewer_acl_after_external_approval(
         assert detail_response.status_code == 200, detail_response.text
         assert detail_response.json()["task"]["archived"] is False
     finally:
-        monkeypatch.delenv("OPEN_WORK_HUB_AI_WRITE_TOOLS_ENABLED", raising=False)
+        monkeypatch.delenv("MTY_AI_WRITE_TOOLS_ENABLED", raising=False)
         _reset_settings_and_registry()
 
 
@@ -204,7 +204,7 @@ def test_pms_ai_write_tools_apply_daily_fields_archive_restore_and_delete(
     client: TestClient,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("OPEN_WORK_HUB_AI_WRITE_TOOLS_ENABLED", "1")
+    monkeypatch.setenv("MTY_AI_WRITE_TOOLS_ENABLED", "1")
     _reset_settings_and_registry()
     try:
         session = _dev_login(client, "delivery-hub-admin")
@@ -387,7 +387,7 @@ def test_pms_ai_write_tools_apply_daily_fields_archive_restore_and_delete(
         assert delete_audit["tool_name"] == "pms.delete_task"
         assert delete_audit["resource_ids"] == [created["id"]]
     finally:
-        monkeypatch.delenv("OPEN_WORK_HUB_AI_WRITE_TOOLS_ENABLED", raising=False)
+        monkeypatch.delenv("MTY_AI_WRITE_TOOLS_ENABLED", raising=False)
         _reset_settings_and_registry()
 
 
@@ -449,7 +449,7 @@ def test_ai_tool_invoke_pms_write_tool_requires_approval_when_enabled(
     client: TestClient,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("OPEN_WORK_HUB_AI_WRITE_TOOLS_ENABLED", "1")
+    monkeypatch.setenv("MTY_AI_WRITE_TOOLS_ENABLED", "1")
     _reset_settings_and_registry()
     try:
         session = _dev_login(client, "delivery-hub-admin")
@@ -495,7 +495,7 @@ def test_ai_tool_invoke_pms_write_tool_requires_approval_when_enabled(
         assert delete_audit_payload["tool_name"] == "pms.delete_task"
         assert delete_audit_payload["status"] == "blocked"
     finally:
-        monkeypatch.delenv("OPEN_WORK_HUB_AI_WRITE_TOOLS_ENABLED", raising=False)
+        monkeypatch.delenv("MTY_AI_WRITE_TOOLS_ENABLED", raising=False)
         _reset_settings_and_registry()
 
 
@@ -503,7 +503,7 @@ def test_ai_tool_invoke_meeting_and_planner_write_tools_require_approval_when_en
     client: TestClient,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("OPEN_WORK_HUB_AI_WRITE_TOOLS_ENABLED", "1")
+    monkeypatch.setenv("MTY_AI_WRITE_TOOLS_ENABLED", "1")
     _reset_settings_and_registry()
     try:
         session = _dev_login(client, "delivery-hub-admin")
@@ -555,5 +555,5 @@ def test_ai_tool_invoke_meeting_and_planner_write_tools_require_approval_when_en
         )
         assert planner_delete_response.status_code == 409, planner_delete_response.text
     finally:
-        monkeypatch.delenv("OPEN_WORK_HUB_AI_WRITE_TOOLS_ENABLED", raising=False)
+        monkeypatch.delenv("MTY_AI_WRITE_TOOLS_ENABLED", raising=False)
         _reset_settings_and_registry()

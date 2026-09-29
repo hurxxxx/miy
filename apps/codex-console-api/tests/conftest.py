@@ -130,10 +130,10 @@ class FakeRPC:
 
 @pytest.fixture(scope="session")
 def database_url():
-    template = os.environ.get("OPEN_WORK_HUB_TEST_POSTGRES_TEMPLATE_DSN")
+    template = os.environ.get("MTY_TEST_POSTGRES_TEMPLATE_DSN")
     if not template:
         pytest.skip(
-            "Set OPEN_WORK_HUB_TEST_POSTGRES_TEMPLATE_DSN to a non-production PostgreSQL 18 DB"
+            "Set MTY_TEST_POSTGRES_TEMPLATE_DSN to a non-production PostgreSQL 18 DB"
         )
     url = make_url(template)
     name = "console_test_" + uuid4().hex

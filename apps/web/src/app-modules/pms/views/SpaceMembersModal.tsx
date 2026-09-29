@@ -1,5 +1,5 @@
 import { SpaceGroupBindings } from './SpaceGroupBindings';
-import { Button, Dialog, useConfirm } from '@open-work-hub/ui';
+import { Button, Dialog, useConfirm } from '@mty/ui';
 import {
   Check,
   Crown,

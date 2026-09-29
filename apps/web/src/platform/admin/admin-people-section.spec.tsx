@@ -39,8 +39,8 @@ vi.mock('@/src/platform/auth/auth-provider', () => ({
   }),
 }));
 
-vi.mock('@open-work-hub/ui', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@open-work-hub/ui')>()),
+vi.mock('@mty/ui', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@mty/ui')>()),
   useFeedback: () => feedback,
   useConfirm: () => ({ confirm: feedback.confirm, confirmDialog: null }),
   DropdownMenu: ({

@@ -19,12 +19,12 @@ test('validation source metadata follows every installed dependency layer', () =
   assert.ok(metadata > source.lastIndexOf('COPY '));
   assert.match(
     source.slice(metadata),
-    /io.open-work-hub.validation.contract="\$\{VALIDATION_CONTRACT_SHA256\}"/,
+    /io.mty.validation.contract="\$\{VALIDATION_CONTRACT_SHA256\}"/,
   );
 });
 
 function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'owh-validation-build-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mty-validation-build-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const write = (name, content) => {
     const target = path.join(root, name);
@@ -65,7 +65,7 @@ else if (args[0] === 'buildx') {
   const log = path.join(root, 'docker.log');
   const env = {
     PATH: `${path.dirname(docker)}:${process.env.PATH}`,
-    OPEN_WORK_HUB_VALIDATION_REPO_ROOT: root,
+    MTY_VALIDATION_REPO_ROOT: root,
     TEST_DOCKER_LOG: log,
     TEST_DOCKER_STATE: path.join(root, 'docker.state'),
   };

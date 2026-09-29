@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from open_work_hub_api.core.settings import Settings
+from mty_api.core.settings import Settings
 
 
 POSTGRES_DSN = "postgresql+psycopg://test:test@127.0.0.1:1/test"
@@ -27,11 +27,11 @@ def test_development_accepts_seeded_login_without_required_object_storage() -> N
     [
         (
             {"seed_dev_login_account": True},
-            "OPEN_WORK_HUB_API_SEED_DEV_LOGIN_ACCOUNT",
+            "MTY_API_SEED_DEV_LOGIN_ACCOUNT",
         ),
         (
             {"object_storage_required": False},
-            "OPEN_WORK_HUB_API_OBJECT_STORAGE_REQUIRED",
+            "MTY_API_OBJECT_STORAGE_REQUIRED",
         ),
     ],
 )

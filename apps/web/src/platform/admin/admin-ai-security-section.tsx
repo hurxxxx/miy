@@ -26,7 +26,7 @@ import {
   TabsList,
   TabsTrigger,
   useFeedback,
-} from '@open-work-hub/ui';
+} from '@mty/ui';
 
 import { useAuth } from '@/src/platform/auth/auth-provider';
 import {

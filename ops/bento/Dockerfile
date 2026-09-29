@@ -23,14 +23,14 @@ RUN curl --fail --location --retry 3 \
       "https://raw.githubusercontent.com/nyblnet/bento/${BENTO_SOURCE_REVISION}/THIRD_PARTY_NOTICES.md" \
     && printf '%s  %s\n' "${BENTO_NOTICES_SHA256}" THIRD_PARTY_NOTICES.md | sha256sum -c \
     && test "$(grep -o '</body>' index.html | wc -l)" -eq 1 \
-    && sed -i 's#</body>#<script src="/open-work-hub-bridge.js"></script></body>#' index.html \
-    && grep -q 'src="/open-work-hub-bridge.js"' index.html
+    && sed -i 's#</body>#<script src="/mty-bridge.js"></script></body>#' index.html \
+    && grep -q 'src="/mty-bridge.js"' index.html
 
 FROM nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
 
 COPY ops/bento/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=fetch /opt/bento/index.html /usr/share/nginx/html/index.html
-COPY ops/bento/open-work-hub-bridge.js /usr/share/nginx/html/open-work-hub-bridge.js
+COPY ops/bento/mty-bridge.js /usr/share/nginx/html/mty-bridge.js
 COPY --from=fetch /opt/bento/LICENSE /usr/share/nginx/html/licenses/LICENSE
 COPY --from=fetch /opt/bento/THIRD_PARTY_NOTICES.md /usr/share/nginx/html/licenses/THIRD_PARTY_NOTICES.md
 

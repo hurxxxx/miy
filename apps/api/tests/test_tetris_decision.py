@@ -4,11 +4,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from dev_accounts import auth_headers, dev_login
-from open_work_hub_api.core.llm_errors import LlmProviderError, LlmRuntimeError
-from open_work_hub_api.domains.ai.decision_contracts import ChoiceAnswer, DecisionError
-from open_work_hub_api.domains.ai.gateway import AiGatewayPolicyViolation
-from open_work_hub_api.domains.ai.registry import get_ai_capability_registry
-from open_work_hub_api.domains.tetris import ai
+from mty_api.core.llm_errors import LlmProviderError, LlmRuntimeError
+from mty_api.domains.ai.decision_contracts import ChoiceAnswer, DecisionError
+from mty_api.domains.ai.gateway import AiGatewayPolicyViolation
+from mty_api.domains.ai.registry import get_ai_capability_registry
+from mty_api.domains.tetris import ai
 
 
 def payload():
@@ -330,11 +330,12 @@ def test_empty_hold_cannot_forecast_an_unseen_piece(client, monkeypatch):
 
 @pytest.fixture
 def selectable_models(client, monkeypatch):
-    from open_work_hub_api.core.settings import get_settings
-    monkeypatch.setenv("OPEN_WORK_HUB_AI_ALLOWED_EXTERNAL_PROVIDERS", "openrouter")
+    from mty_api.core.settings import get_settings
+    monkeypatch.setenv("MTY_AI_ALLOWED_EXTERNAL_PROVIDERS", "openrouter")
+    monkeypatch.setenv("MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS", "openrouter")
     get_settings.cache_clear()
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.ai.model_settings_models import AiModelProviderConfig, AiModelCatalogEntry, AiModelPolicyDefault
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.ai.model_settings_models import AiModelProviderConfig, AiModelCatalogEntry, AiModelPolicyDefault
     session = dev_login(client, "administrator")
     with get_session_factory()() as db:
         db.add(AiModelProviderConfig(
@@ -353,12 +354,13 @@ def selectable_models(client, monkeypatch):
         for family, model_id in (("decision", "arena-decision"), ("generation", "arena-chat")):
             db.merge(AiModelPolicyDefault(model_family=family, app_id="tetris", route_mode="external", provider_id="arena-test", model_id=model_id))
         db.commit()
-    return session
+    yield session
+    get_settings.cache_clear()
 
 
 def test_models_catalog_is_safe_dynamic_and_admitted(client, selectable_models):
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.ai.model_settings_models import AiModelCatalogEntry
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.ai.model_settings_models import AiModelCatalogEntry
     assert client.get("/api/v1/tetris/models").status_code == 401
     headers = auth_headers(selectable_models["token"])
     response = client.get("/api/v1/tetris/models", headers=headers)
@@ -412,8 +414,8 @@ def test_llm_uses_structured_choice_and_same_observation(client, selectable_mode
 
 @pytest.mark.parametrize("model_id", ["arena-chat", "arena-plain"])
 def test_selected_models_cannot_reenable_reasoning(client, selectable_models, model_id):
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.ai.gateway import LlmWorkloadContext, build_llm_workload_request
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.ai.gateway import LlmWorkloadContext, build_llm_workload_request
 
     with get_session_factory()() as db:
         request = build_llm_workload_request(
@@ -430,7 +432,7 @@ def test_selected_models_cannot_reenable_reasoning(client, selectable_models, mo
 
 
 def test_reasoning_required_model_is_rejected_before_inference(client, selectable_models, monkeypatch):
-    from open_work_hub_api.core import llm
+    from mty_api.core import llm
     monkeypatch.setattr(llm, "complete_direct_chat", lambda *a, **kw: pytest.fail("must not call model"))
     body = {**payload(), "model_choice": {"kind": "generation", "model_id": "arena-thinking"}}
     response = client.post("/api/v1/tetris/decision", headers=auth_headers(selectable_models["token"]), json=body)
@@ -465,14 +467,14 @@ def test_llm_exposes_only_safe_localized_failure_reason(client, monkeypatch, rea
 
 
 def test_model_selection_cannot_bypass_workload_route_or_capabilities(client, selectable_models):
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.ai.model_settings_service import resolve_ai_model_workload_route, AiModelSettingsError
-    from open_work_hub_api.domains.ai.model_settings_models import AiModelProviderConfig, AiModelCatalogEntry
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.ai.model_settings_service import resolve_ai_model_workload_route, AiModelSettingsError
+    from mty_api.domains.ai.model_settings_models import AiModelProviderConfig, AiModelCatalogEntry
     with get_session_factory()() as db:
         selected = resolve_ai_model_workload_route(db, workload_id="tetris.play.generation", selected_model_id="arena-chat")
         assert selected.model_key == "test/arena-chat"
         assert selected.model_source == "selection"
-        from open_work_hub_api.core.settings import get_settings
+        from mty_api.core.settings import get_settings
         blocked = get_settings().model_copy(update={"ai_allowed_external_providers": "openai"})
         with pytest.raises(AiModelSettingsError, match="selected_model_unavailable"):
             resolve_ai_model_workload_route(
@@ -498,11 +500,11 @@ def test_model_selection_cannot_bypass_workload_route_or_capabilities(client, se
 def test_selected_model_reaches_common_execution_and_audit_without_changing_defaults(
     client, selectable_models, monkeypatch, kind,
 ):
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.ai import audit as ai_audit, decisions, gateway
-    from open_work_hub_api.domains.ai.decision_contracts import DecisionResponse
-    from open_work_hub_api.domains.ai.model_settings_models import AiModelCatalogEntry, AiModelPolicyDefault
-    from open_work_hub_api.core.llm_execution_adapters import OpenAICompatibleLlmExecutionAdapter
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.ai import audit as ai_audit, decisions, gateway
+    from mty_api.domains.ai.decision_contracts import DecisionResponse
+    from mty_api.domains.ai.model_settings_models import AiModelCatalogEntry, AiModelPolicyDefault
+    from mty_api.core.llm_execution_adapters import OpenAICompatibleLlmExecutionAdapter
 
     selected_id = f"selected-{kind}"
     selected_key = f"test/{selected_id}"

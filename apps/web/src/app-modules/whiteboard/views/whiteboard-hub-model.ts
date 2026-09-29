@@ -1,4 +1,4 @@
-import { buildAppHref } from '@open-work-hub/contracts/app-routes';
+import { buildAppHref } from '@mty/contracts/app-routes';
 import type {
   createWhiteboard,
   listWhiteboardHub,
@@ -55,7 +55,7 @@ export type WhiteboardViewAction =
 
 type LayoutModeStorage = Pick<Storage, 'getItem' | 'setItem'>;
 
-export const VIEW_MODE_STORAGE_KEY = 'open-work-hub:whiteboard:view-mode';
+export const VIEW_MODE_STORAGE_KEY = 'mty:whiteboard:view-mode';
 export const WHITEBOARD_HUB_PAGE_SIZE = 200;
 
 export const VIEW_LABEL_KEYS: Record<WhiteboardHubView, string> = {

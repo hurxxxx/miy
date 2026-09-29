@@ -6,21 +6,21 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy.orm import Session
 
-from open_work_hub_api.domains.ai.conversation_scope import conversation_scope_turn_context
-from open_work_hub_api.core.db import get_engine
-from open_work_hub_api.domains.ai import approvals as ai_approvals
-from open_work_hub_api.domains.auth.models import User
-from open_work_hub_api.domains.conversations.default_scope_adapters import (
+from mty_api.domains.ai.conversation_scope import conversation_scope_turn_context
+from mty_api.core.db import get_engine
+from mty_api.domains.ai import approvals as ai_approvals
+from mty_api.domains.auth.models import User
+from mty_api.domains.conversations.default_scope_adapters import (
     ensure_conversation_scope_adapters_registered,
 )
-from open_work_hub_api.domains.conversations import service as conversations_service
-from open_work_hub_api.domains.conversations.models import Conversation
-from open_work_hub_api.domains.conversations.scope_registry import (
+from mty_api.domains.conversations import service as conversations_service
+from mty_api.domains.conversations.models import Conversation
+from mty_api.domains.conversations.scope_registry import (
     ConversationExperience,
     register_conversation_scope_adapter,
     reset_conversation_scope_adapters,
 )
-from open_work_hub_api.platform_extensions import _validate_conversation_scope_registry_contracts
+from mty_api.platform_extensions import _validate_conversation_scope_registry_contracts
 from test_meeting import _auth_headers, _bootstrap_admin_session, _create_meeting
 
 

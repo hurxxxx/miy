@@ -1,4 +1,4 @@
-import type { ApiSchema } from '@open-work-hub/contracts';
+import type { ApiSchema } from '@mty/contracts';
 import { apiFetchJson } from '@/src/platform/api/client';
 import { i18n } from '@/src/platform/i18n';
 import type { Game } from './engine';

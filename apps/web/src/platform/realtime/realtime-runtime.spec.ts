@@ -1,14 +1,14 @@
 import {
   AUTH_REALTIME_EVENT_TYPES,
   AUTH_ACCESS_CHANGE_REASONS,
-} from '@open-work-hub/contracts/auth';
+} from '@mty/contracts/auth';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   REALTIME_CLIENT_EVENT_TYPES,
   REALTIME_SERVER_EVENT_TYPES,
   createDocsPagesRealtimeSubscriptionMessage,
   createWhiteboardAccessRealtimeSubscriptionMessage,
-} from '@open-work-hub/contracts/realtime';
+} from '@mty/contracts/realtime';
 
 import {
   createRealtimeRuntime,

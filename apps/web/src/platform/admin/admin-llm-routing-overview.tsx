@@ -2,7 +2,7 @@ import { RefreshCw, RotateCcw, Save, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button, useFeedback } from '@open-work-hub/ui';
+import { Button, useFeedback } from '@mty/ui';
 
 import {
   AdminAiModelSettingsApiError,

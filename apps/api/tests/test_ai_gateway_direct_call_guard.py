@@ -4,8 +4,8 @@ import re
 from pathlib import Path
 
 
-SRC_ROOT = Path(__file__).parents[1] / "src" / "open_work_hub_api"
-WORKER_SRC_ROOT = Path(__file__).parents[2] / "worker" / "src" / "open_work_hub_worker"
+SRC_ROOT = Path(__file__).parents[1] / "src" / "mty_api"
+WORKER_SRC_ROOT = Path(__file__).parents[2] / "worker" / "src" / "mty_worker"
 ALLOWED_DIRECT_LLM_CALL_FILES = {
     Path("core/llm.py"),
     Path("core/llm_execution_adapters.py"),

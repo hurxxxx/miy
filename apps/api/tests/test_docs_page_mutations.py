@@ -5,12 +5,12 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.core.principal import user_principal
-from open_work_hub_api.domains.auth.access import load_user_graph
-from open_work_hub_api.domains.docs import service as docs_service
-from open_work_hub_api.domains.docs.models import NativeDocPage
-from open_work_hub_api.domains.docs.page_mutations import (
+from mty_api.core.db import get_session_factory
+from mty_api.core.principal import user_principal
+from mty_api.domains.auth.access import load_user_graph
+from mty_api.domains.docs import service as docs_service
+from mty_api.domains.docs.models import NativeDocPage
+from mty_api.domains.docs.page_mutations import (
     CreateNativePageCommand,
     DeleteNativePageCommand,
     UpdateNativePageCommand,

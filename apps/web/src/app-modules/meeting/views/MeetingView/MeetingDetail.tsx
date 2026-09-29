@@ -1,5 +1,5 @@
-import { buildAppHref } from '@open-work-hub/contracts/app-routes';
-import { Button, Dialog, InlineNotice, useConfirm } from '@open-work-hub/ui';
+import { buildAppHref } from '@mty/contracts/app-routes';
+import { Button, Dialog, InlineNotice, useConfirm } from '@mty/ui';
 import {
   CheckSquare,
   Download,

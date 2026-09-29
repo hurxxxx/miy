@@ -1,4 +1,4 @@
-import { InlineNotice } from '@open-work-hub/ui/feedback/inline-notice';
+import { InlineNotice } from '@mty/ui/feedback/inline-notice';
 
 import { SettingsSectionHeader } from './SettingsSectionHeader';
 import type { SettingsTranslator } from './settings-page-model';

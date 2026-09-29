@@ -1,4 +1,4 @@
-import type { ApiSchema } from '@open-work-hub/contracts';
+import type { ApiSchema } from '@mty/contracts';
 import {
   HEIGHT,
   WIDTH,

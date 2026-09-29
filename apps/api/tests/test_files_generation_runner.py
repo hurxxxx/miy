@@ -12,15 +12,15 @@ import pytest
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from open_work_hub_api.core.db import Base
-from open_work_hub_api.domains.auth.models import User
-from open_work_hub_api.domains.files.models import (
+from mty_api.core.db import Base
+from mty_api.domains.auth.models import User
+from mty_api.domains.files.models import (
     FileManagerCorpus,
     FileManagerFile,
     FileManagerFileSourceMetadata,
     FileManagerFolder,
 )
-from open_work_hub_api.domains.retrieval.files_generation_runner import (
+from mty_api.domains.retrieval.files_generation_runner import (
     FilesBackendPairInspection,
     FilesGenerationBaselineMode,
     FilesGenerationError,
@@ -31,22 +31,22 @@ from open_work_hub_api.domains.retrieval.files_generation_runner import (
     FilesSourceProjectionSnapshot,
     load_files_source_snapshot,
 )
-from open_work_hub_api.domains.retrieval.files_quality_judgments import FilesQualityJudgmentSnapshot
-from open_work_hub_api.domains.retrieval.evaluation import (
+from mty_api.domains.retrieval.files_quality_judgments import FilesQualityJudgmentSnapshot
+from mty_api.domains.retrieval.evaluation import (
     RetrievalEvaluationReport,
     RetrievalQualityGateArtifact,
     retrieval_embedding_generation_identity,
     retrieval_quality_corpus_sha256,
     retrieval_reranker_generation_identity,
 )
-from open_work_hub_api.domains.retrieval.files_generation_backends import (
+from mty_api.domains.retrieval.files_generation_backends import (
     FilesPhysicalGenerationBackends,
 )
-from open_work_hub_api.domains.retrieval.files_generation_materializer import (
+from mty_api.domains.retrieval.files_generation_materializer import (
     FilesCachedProjectionMaterializer,
 )
-from open_work_hub_api.domains.rag.models import RagSyncJob
-from open_work_hub_api.domains.retrieval.models import (
+from mty_api.domains.rag.models import RagSyncJob
+from mty_api.domains.retrieval.models import (
     RetrievalPartition,
     RetrievalProjectionEvent,
     RetrievalProjectionGeneration,
@@ -54,20 +54,20 @@ from open_work_hub_api.domains.retrieval.models import (
     RetrievalProjectionGenerationState,
     RetrievalProjectionHead,
 )
-from open_work_hub_api.domains.retrieval.projection_identity import (
+from mty_api.domains.retrieval.projection_identity import (
     canonical_search_document_id,
     canonical_vector_point_id,
 )
-from open_work_hub_api.domains.rag.runtime import (
+from mty_api.domains.rag.runtime import (
     resolve_default_collection_name,
     resolve_partitioned_rag_collection_alias,
 )
-from open_work_hub_api.domains.search.index_gateway import (
+from mty_api.domains.search.index_gateway import (
     keyword_search_index_alias,
     keyword_search_partitioned_index_alias,
 )
-from open_work_hub_api.domains.search.models import SearchIndexJob
-from open_work_hub_api.domains.source_access.resource_types import (
+from mty_api.domains.search.models import SearchIndexJob
+from mty_api.domains.source_access.resource_types import (
     FILE_MANAGER_FILE_RESOURCE_TYPE,
     NATIVE_DOC_RESOURCE_TYPE,
 )

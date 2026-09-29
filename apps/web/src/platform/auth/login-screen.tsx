@@ -12,8 +12,8 @@ import { domAnimation, LazyMotion, m } from 'motion/react';
 import { useEffect, useReducer, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useFeedback } from '@open-work-hub/ui/feedback/feedback-provider';
-import { InlineNotice } from '@open-work-hub/ui/feedback/inline-notice';
+import { useFeedback } from '@mty/ui/feedback/feedback-provider';
+import { InlineNotice } from '@mty/ui/feedback/inline-notice';
 
 import { useAuth } from './auth-context';
 import {
@@ -321,8 +321,11 @@ function LoginFormCard({
   return (
     <div className="order-1 rounded-2xl border border-app-border bg-app-surface p-8 shadow-2xl lg:order-2">
       <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-xl bg-app-accent text-xl font-bold text-app-accent-fg shadow-lg shadow-app-accent/20">
-          ID
+        <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-xl bg-app-accent text-sm font-bold text-app-accent-fg shadow-lg shadow-app-accent/20">
+          {t('login.brandName')}
+        </div>
+        <div className="mb-4 text-xs font-semibold text-app-ink/55">
+          {t('login.brandTagline')}
         </div>
         <h1 className="mb-2 text-2xl font-bold text-app-ink">
           {isSetupMode

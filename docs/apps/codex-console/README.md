@@ -2,8 +2,8 @@
 
 본인의 ChatGPT 구독으로 로그인한 Codex를 사용하는 독립 개발 작업실이다.
 계획과 실행 두 모드로 질문·조사·문서 정리·코딩과 결과 검토를 진행한다.
-소스는 같은 저장소에서 관리하며, OWH 개인 앱에서 새 탭으로 연다. 콘솔의 실행 프로세스·
-로그인 세션·업무 DB는 OWH와 분리되어 있다. OWH에서 허용된 관리자가 앱 링크를 열면 짧게
+소스는 같은 저장소에서 관리하며, MTY 개인 앱에서 새 탭으로 연다. 콘솔의 실행 프로세스·
+로그인 세션·업무 DB는 MTY와 분리되어 있다. MTY에서 허용된 관리자가 앱 링크를 열면 짧게
 유효한 일회용 코드로 별도 콘솔 세션을 만들 수 있다.
 
 ## 실행 경계
@@ -14,7 +14,7 @@
   자동으로 허용한다.
   더 오래된 버전·시험판·스키마가 달라진 버전은 실행 전에 차단한다. Codex가 구독 인증,
   토큰 갱신, 원본 대화와 도구 실행을 관리한다. 클라이언트는 인증 파일을 읽거나 복사하지 않는다.
-- 이 도구는 개인 코딩 에이전트 클라이언트다. OWH 제품 앱의 생성형 호출, 공용 AI 공급자,
+- 이 도구는 개인 코딩 에이전트 클라이언트다. MTY 제품 앱의 생성형 호출, 공용 AI 공급자,
   사용자·회사 권한을 대신하지 않는다. 제품 AI 기능에는 기존 등록 workload 계약을 적용한다.
 - 현재 서버의 Codex 사용자와 인증 저장소를 사용한다. 웹 비밀번호와 ChatGPT 로그인은 별개다.
   웹 로그아웃·비밀번호 변경은 웹 세션만 폐기한다.
@@ -28,7 +28,7 @@
 
 ### 개인 CLI 클라이언트와 제품 AI의 연결 경계
 
-OWH API의 콘솔 연결 기능은 허용된 소유자에게 브라우저 launch URL만 반환한다. 제품 API나
+MTY API의 콘솔 연결 기능은 허용된 소유자에게 브라우저 launch URL만 반환한다. 제품 API나
 worker가 콘솔에 생성 요청을 위임하는 경로는 없다. 콘솔은 별도 로그인·설치·DB를 사용하는
 공식 [App Server 클라이언트](https://learn.chatgpt.com/docs/app-server)이며 소유자가 직접
 입력한 개발 작업을 기존 ChatGPT 구독 세션에 전달한다. 제품 도메인 서비스의 workload와
@@ -52,7 +52,7 @@ API key 인증과 다른 공급자는 계속 거부한다. 제품 앱의 모델 
 
 | 설정 | 기본값 | 용도 |
 | --- | --- | --- |
-| `OPEN_WORK_HUB_CODEX_CONSOLE_ALLOWED_REASONING_EFFORTS` | `["none","minimal","low","medium","high","xhigh"]` | 콘솔에서 선택·실행할 수 있는 강도. 빈 목록·빈 이름은 거부한다. |
+| `MTY_CODEX_CONSOLE_ALLOWED_REASONING_EFFORTS` | `["none","minimal","low","medium","high","xhigh"]` | 콘솔에서 선택·실행할 수 있는 강도. 빈 목록·빈 이름은 거부한다. |
 
 강도를 생략하면 같은 모델의 native thread 강도가 허용 범위에 있을 때 유지하고, 그렇지
 않으면 모델 권장 기본값을 사용한다. 권장값도 허용되지 않으면 해당 모델이 지원하는 허용
@@ -131,12 +131,12 @@ Git 작업을 직접 요청하면 Codex가 해당 저장소 지침에 따라 수
 
 | 설정 | 기본값 | 용도 |
 | --- | --- | --- |
-| `OPEN_WORK_HUB_CODEX_CONSOLE_WORKTREE_BASE_REF` | `HEAD` | 격리 작업의 기준 ref. 실제 커밋으로 검증한다. |
-| `OPEN_WORK_HUB_CODEX_CONSOLE_WORKTREE_ROOT` | `~/.local/share/owh-codex-console/worktrees` | 설정한 체크아웃 밖의 절대 경로. |
-| `OPEN_WORK_HUB_CODEX_CONSOLE_PROTECTED_WORKSPACES` | `[]` | 접근 금지할 운영 체크아웃의 절대 경로 JSON 배열. |
-| `OPEN_WORK_HUB_CODEX_CONSOLE_FORBIDDEN_DATABASE_NAMES` | `[]` | 재사용 금지할 제품 DB 이름 JSON 배열. |
+| `MTY_CODEX_CONSOLE_WORKTREE_BASE_REF` | `HEAD` | 격리 작업의 기준 ref. 실제 커밋으로 검증한다. |
+| `MTY_CODEX_CONSOLE_WORKTREE_ROOT` | `~/.local/share/mty-codex-console/worktrees` | 설정한 체크아웃 밖의 절대 경로. |
+| `MTY_CODEX_CONSOLE_PROTECTED_WORKSPACES` | `[]` | 접근 금지할 운영 체크아웃의 절대 경로 JSON 배열. |
+| `MTY_CODEX_CONSOLE_FORBIDDEN_DATABASE_NAMES` | `[]` | 재사용 금지할 제품 DB 이름 JSON 배열. |
 
-OWH 서버에서는 기준 ref를 `origin/dev`, 워크트리 경로를 체크아웃 루트의 `worktrees`로 설정하고
+MTY 서버에서는 기준 ref를 `origin/dev`, 워크트리 경로를 체크아웃 루트의 `worktrees`로 설정하고
 실제 `prod` 경로와 dev/prod 제품 DB 이름을 금지 목록에 넣는다. 다른 저장소는 그 저장소의
 구성에 맞춘다. 전용 DB는 모든 설치에 필요하며 migration은 기존 비콘솔 테이블이 있으면 거부한다.
 
@@ -147,7 +147,7 @@ OWH 서버에서는 기준 ref를 `origin/dev`, 워크트리 경로를 체크아
 현재 사용자로 `codex login status`가 성공하는 Codex 0.156.0 이상의 안정 버전이 필요하다.
 서비스는 Codex 프로세스를 연결할 때 설치된 CLI가 기준 RPC 계약과 호환되는지 검사한다.
 
-1. PostgreSQL에 **전용 역할과 전용 DB** `codex_console`을 준비한다. OWH 업무 DB와 그
+1. PostgreSQL에 **전용 역할과 전용 DB** `codex_console`을 준비한다. MTY 업무 DB와 그
    migration을 재사용하지 않는다. DB 관리자는 전용 DB에만 소유권을 부여한다.
    호스트 PostgreSQL의 초기 생성 예는 아래와 같다. 기존 역할·DB가 있으면 재생성하지 말고
    소유권·접속 정보를 확인한다. PostgreSQL이 여러 인스턴스이면 대상 포트도 명시한다.
@@ -183,49 +183,49 @@ uv run --frozen codex-console serve
 
 ## 개인 앱과 HTTPS 접속 연결
 
-OWH 루트 `.env`의 `OPEN_WORK_HUB_CODEX_CONSOLE_LAUNCH_URL`은 브라우저가 열 주소다.
+MTY 루트 `.env`의 `MTY_CODEX_CONSOLE_LAUNCH_URL`은 브라우저가 열 주소다.
 빈 값은 미설치 상태이며 앱을 숨긴다. HTTPS 절대 URL 또는 `/codex-console/` 같은 같은 origin
 경로를 사용한다. 로컬 단독 개발에는 loopback HTTP URL도 허용한다. URL에 사용자 정보나
 토큰을 넣지 않는다. 같은 개발 서버를 loopback과 원격 주소로 함께 사용하는 경우
-`OPEN_WORK_HUB_CODEX_CONSOLE_LAUNCH_URL_BY_HOST`에 API가 받은 `Host` 헤더 값
+`MTY_CODEX_CONSOLE_LAUNCH_URL_BY_HOST`에 API가 받은 `Host` 헤더 값
 (호스트와 선택적 포트)을 키로, 해당 Console HTTPS 주소를 값으로 JSON 객체에 등록한다.
 Vite 프록시는 브라우저의 `host:port`를 전달하지만, 개발 Nginx는 포트 없는 `$host`를 전달하므로
 실제 API에 전달되는 값과 키를 맞춘다. 일치하는 항목이 없으면 기본 launch URL을 사용하고,
 기본값도 비어 있으면 해당 호스트의 콘솔 앱을 표시하지 않는다. 매핑된 URL은 비워 둘 수 없다.
 설정 변경 후 **개발** API·Web 서비스를 해당 호스트의 감독
-서비스로 재시작한다. 운영 OWH에 적용하는 작업은 별도 릴리스·배포 절차를 따른다.
+서비스로 재시작한다. 운영 MTY에 적용하는 작업은 별도 릴리스·배포 절차를 따른다.
 
 ```dotenv
-OPEN_WORK_HUB_CODEX_CONSOLE_LAUNCH_URL=http://127.0.0.1:19365
-OPEN_WORK_HUB_CODEX_CONSOLE_LAUNCH_URL_BY_HOST='{"100.64.0.10:4200":"https://100.64.0.10:19443"}'
+MTY_CODEX_CONSOLE_LAUNCH_URL=http://127.0.0.1:19365
+MTY_CODEX_CONSOLE_LAUNCH_URL_BY_HOST='{"100.64.0.10:4200":"https://100.64.0.10:19443"}'
 ```
 
-위 주소는 예시다. loopback OWH에서 열면 기본 주소를, 지정한 원격 OWH host에서 열면
+위 주소는 예시다. loopback MTY에서 열면 기본 주소를, 지정한 원격 MTY host에서 열면
 매핑한 HTTPS 주소를 사용한다. 매핑 목적지도 기본 URL과 같은 검증을 거치며 원격 HTTP,
 사용자 정보, query, fragment는 허용하지 않는다.
 
-콘솔 `.env`의 `OPEN_WORK_HUB_CODEX_CONSOLE_SSO_SUBJECTS`에는 자동 로그인을 허용할 OWH의
-정확한 origin과 그 환경에서 콘솔을 소유한 OWH 사용자 UUID를 JSON 객체로 등록한다. OWH 앱
-링크는 현재 OWH 세션과 Codex Console 앱 권한을 확인해
+콘솔 `.env`의 `MTY_CODEX_CONSOLE_SSO_SUBJECTS`에는 자동 로그인을 허용할 MTY의
+정확한 origin과 그 환경에서 콘솔을 소유한 MTY 사용자 UUID를 JSON 객체로 등록한다. MTY 앱
+링크는 현재 MTY 세션과 Codex Console 앱 권한을 확인해
 60초짜리 `cc1_` 코드를 만들고 URL fragment로 전달한다. 콘솔은 fragment를 즉시 지우고
-허용 목록의 origin에 있는 고정 교환 API만 호출한다. 코드는 한 번만 사용할 수 있으며 OWH
+허용 목록의 origin에 있는 고정 교환 API만 호출한다. 코드는 한 번만 사용할 수 있으며 MTY
 세션이 종료되었거나 앱 권한이 회수되면 실패한다. 교환 응답의 안정적인 사용자 UUID가 해당
-origin에 설정된 소유자 UUID와 일치할 때만 콘솔 세션을 발급한다. OWH bearer token과 사용자
+origin에 설정된 소유자 UUID와 일치할 때만 콘솔 세션을 발급한다. MTY bearer token과 사용자
 프로필은 콘솔에 전달하지 않는다. 직접 콘솔 주소를 열거나 교환이 실패하면 기존 소유자
 비밀번호 로그인을 사용한다.
 
 | 설정 | 기본값 | 용도 |
 | --- | --- | --- |
-| `OPEN_WORK_HUB_CODEX_CONSOLE_SSO_SUBJECTS` | `{}` | 자동 로그인을 허용할 개발·운영 OWH HTTPS origin을 소유자 사용자 UUID에 연결한 JSON 객체. loopback HTTP는 로컬 개발에서만 허용한다. |
+| `MTY_CODEX_CONSOLE_SSO_SUBJECTS` | `{}` | 자동 로그인을 허용할 개발·운영 MTY HTTPS origin을 소유자 사용자 UUID에 연결한 JSON 객체. loopback HTTP는 로컬 개발에서만 허용한다. |
 
 개발 Web 재시작과 무관하게 접속하려면 **전용 HTTPS 도메인**을 사용하고 앞단 프록시를
 콘솔에 직접 연결한다. DNS 등록뿐 아니라 프록시의 upstream 주소·포트도 준비해야 한다.
 
 | 설정 위치 | 키 | 값 |
 | --- | --- | --- |
-| OWH 루트 `.env` | `OPEN_WORK_HUB_CODEX_CONSOLE_LAUNCH_URL` | `https://codex.example.com/` |
-| 콘솔 `.env` | `OPEN_WORK_HUB_CODEX_CONSOLE_ORIGIN` | `https://codex.example.com` |
-| 콘솔 `.env` | `OPEN_WORK_HUB_CODEX_CONSOLE_BASE_PATH` | 빈 값 |
+| MTY 루트 `.env` | `MTY_CODEX_CONSOLE_LAUNCH_URL` | `https://codex.example.com/` |
+| 콘솔 `.env` | `MTY_CODEX_CONSOLE_ORIGIN` | `https://codex.example.com` |
+| 콘솔 `.env` | `MTY_CODEX_CONSOLE_BASE_PATH` | 빈 값 |
 
 실제 도메인으로 바꾸고 `브라우저 → HTTPS 프록시 → 콘솔(19365)`로 연결한다. 같은 호스트에서
 TLS를 종료한다면 `ops/codex-console/nginx.conf.example`을 사용한다. 콘솔 API는 계속
@@ -240,11 +240,11 @@ TLS를 종료한다면 `ops/codex-console/nginx.conf.example`을 사용한다. �
 
 | 설정 위치 | 키 | 값 |
 | --- | --- | --- |
-| OWH 루트 `.env` | `OPEN_WORK_HUB_CODEX_CONSOLE_LAUNCH_URL` | `/codex-console/` |
-| 콘솔 `.env` | `OPEN_WORK_HUB_CODEX_CONSOLE_ORIGIN` | 실제 개발 사이트의 HTTPS origin |
-| 콘솔 `.env` | `OPEN_WORK_HUB_CODEX_CONSOLE_BASE_PATH` | `/codex-console` |
+| MTY 루트 `.env` | `MTY_CODEX_CONSOLE_LAUNCH_URL` | `/codex-console/` |
+| 콘솔 `.env` | `MTY_CODEX_CONSOLE_ORIGIN` | 실제 개발 사이트의 HTTPS origin |
+| 콘솔 `.env` | `MTY_CODEX_CONSOLE_BASE_PATH` | `/codex-console` |
 
-OWH Vite 개발·preview 서버에는 `/codex-console` → `127.0.0.1:19365` 프록시가 등록되어 있다.
+MTY Vite 개발·preview 서버에는 `/codex-console` → `127.0.0.1:19365` 프록시가 등록되어 있다.
 앞단 HTTPS 프록시는 이 경로를 기존 Web으로 전달한다. 별도 프록시에서 콘솔에 직접
 연결하는 경우에는 경로를 제거하지 않는 `ops/codex-console/nginx-path.conf.example`을 참고한다.
 쿠키는 콘솔 경로에 한정되고 API·정적 파일·SSE도 같은 prefix로 동작한다.
@@ -257,20 +257,20 @@ DNS 없이 서버 IP로 구성할 때는 IP SAN 인증서와 PC의 CA 신뢰 등
 
 이미 사용 중인 주소를 바꿀 때는 실행 중인 콘솔 작업을 먼저 완료·중단한다. 전용 프록시를
 준비한 뒤 콘솔 origin·base path를 함께 변경하고 콘솔 서비스를 재시작한다. 새 주소에서
-로그인·API·SSE·첨부 업로드를 확인한 후 OWH launch URL을 반영하고 개발 서비스를 재시작한다.
+로그인·API·SSE·첨부 업로드를 확인한 후 MTY launch URL을 반영하고 개발 서비스를 재시작한다.
 `.auth_info`의 콘솔 URL도 갱신한다. 도메인이 바뀌면 기존 웹 쿠키가 전달되지 않으므로 같은
 작업실 비밀번호로 다시 로그인한다. 작업·첨부·ChatGPT 인증은 그대로 유지되며 UI 재빌드나
 DB migration은 필요 없다.
 
-OWH 플랫폼 관리자로 로그인하여 **관리자 설정 → 앱 사용/접근 설정**에서 `Codex 콘솔`을 켠다.
+MTY 플랫폼 관리자로 로그인하여 **관리자 설정 → 앱 사용/접근 설정**에서 `Codex 콘솔`을 켠다.
 기존 설치에 새 앱을 등록하면 기본 비활성·선택 대상 상태이며 기존 권한을 자동 확대하지 않는다.
 등록 계약은 `platform_admin`을 요구한다. 개인 앱의 링크가 표시되더라도 실제 코딩 작업은
-콘솔의 별도 비밀번호 인증으로 보호된다. 이 링크는 OWH 인증 토큰이나 Codex 자격증명을 전달하지 않는다.
+콘솔의 별도 비밀번호 인증으로 보호된다. 이 링크는 MTY 인증 토큰이나 Codex 자격증명을 전달하지 않는다.
 
 설치 완료 검사는 다음을 모두 포함한다.
 
 1. 콘솔 서비스가 실행 중이고 `/codex-console/healthz` 또는 전용 호스트의 `/healthz`가 성공한다.
-2. OWH **개인 앱 → Codex 콘솔** 클릭 시 새 탭에 로그인 화면이 표시되고 기존 탭이 유지된다.
+2. MTY **개인 앱 → Codex 콘솔** 클릭 시 새 탭에 로그인 화면이 표시되고 기존 탭이 유지된다.
 3. 작업실 비밀번호로 로그인한 뒤 **구독 연결됨**이 표시된다. 미연결이면 공식 ChatGPT 로그인을 수행한다.
 4. 새로고침 후 화면 복원, 로그아웃 후 API 접근 차단, 콘솔 URL 아래의 API·SSE 응답을 확인한다.
 5. [.auth_info 관리](../../../INSTALL.md#11-로그인-정보-파일-관리)에 따라 주소·비밀번호를 서버에
@@ -290,22 +290,22 @@ OWH 플랫폼 관리자로 로그인하여 **관리자 설정 → 앱 사용/접
 이 구간은 신뢰하는 사설망에서만 사용하며 신뢰할 수 없는 네트워크에서는 호스트 간 TLS나
 인증된 터널을 구성한다. 외부 포트 전달로 이 HTTP 포트를 공개하지 않는다.
 
-Docker가 준비된 Linux 호스트에서는 OWH Compose와 별개로 실행할 수 있다. 다음 명령 전
+Docker가 준비된 Linux 호스트에서는 MTY Compose와 별개로 실행할 수 있다. 다음 명령 전
 설정 파일을 설치하고 템플릿의 예시 IP·도메인을 실제 값으로 바꾼다. 기존 파일을 덮어쓰지 않는다.
 
 ```bash
-install -m 644 ops/codex-console/nginx-upstream.conf.example "$HOME/.config/owh-codex-console/upstream.conf"
+install -m 644 ops/codex-console/nginx-upstream.conf.example "$HOME/.config/mty-codex-console/upstream.conf"
 # upstream.conf의 수신 IP, 허용 프록시 IP, 도메인을 서버 편집기에서 설정한다.
 docker run --rm --network host --user 101:101 --read-only --cap-drop ALL \
   --security-opt no-new-privileges \
   --tmpfs /tmp:rw,noexec,nosuid,size=64m,uid=101,gid=101 \
-  --mount "type=bind,src=$HOME/.config/owh-codex-console/upstream.conf,dst=/etc/nginx/nginx.conf,readonly" \
+  --mount "type=bind,src=$HOME/.config/mty-codex-console/upstream.conf,dst=/etc/nginx/nginx.conf,readonly" \
   --entrypoint nginx nginx:1.27-alpine -t
 docker run -d --name codex-console-upstream --restart unless-stopped \
   --network host --user 101:101 --read-only --cap-drop ALL \
   --security-opt no-new-privileges \
   --tmpfs /tmp:rw,noexec,nosuid,size=64m,uid=101,gid=101 \
-  --mount "type=bind,src=$HOME/.config/owh-codex-console/upstream.conf,dst=/etc/nginx/nginx.conf,readonly" \
+  --mount "type=bind,src=$HOME/.config/mty-codex-console/upstream.conf,dst=/etc/nginx/nginx.conf,readonly" \
   --entrypoint nginx nginx:1.27-alpine -g 'daemon off;'
 ```
 
@@ -316,8 +316,8 @@ HTTPS `/healthz`와 로그인, 첨부 업로드를 확인한다. 허용하지 �
 `docker exec codex-console-upstream nginx -s reload`로 반영한다. 중지·재시작은
 `docker stop codex-console-upstream`, `docker restart codex-console-upstream`을 사용한다.
 
-이 연결 지점과 콘솔은 OWH Web·API 재시작에 종속되지 않는다. Docker로 실행하면 Docker
-재시작에는 영향을 받는다. 콘솔 전용 DB를 OWH와 같은 PostgreSQL 서버에 만들었다면 그 DB
+이 연결 지점과 콘솔은 MTY Web·API 재시작에 종속되지 않는다. Docker로 실행하면 Docker
+재시작에는 영향을 받는다. 콘솔 전용 DB를 MTY와 같은 PostgreSQL 서버에 만들었다면 그 DB
 서버의 재시작도 영향을 준다. 전용 DB는 PostgreSQL 인스턴스 자체의 분리를 의미하지 않는다.
 
 ## 파일 보관과 메시지별 첨부
@@ -343,9 +343,9 @@ DB에서 사본을 복원한다. 원본을 삭제하면 DB 바이너리와 읽�
 
 | 콘솔 설정 | 기본값 | 용도 |
 | --- | --- | --- |
-| `OPEN_WORK_HUB_CODEX_CONSOLE_ATTACHMENT_CACHE` | `~/.local/share/owh-codex-console/attachments` | 소유자 전용 읽기 사본. Git 저장소·릴리스 디렉터리 밖의 고정 경로를 사용한다. |
-| `OPEN_WORK_HUB_CODEX_CONSOLE_ATTACHMENT_MAX_BYTES` | `52428800` | 파일당 50 MiB. 최대 설정값은 100 MiB. |
-| `OPEN_WORK_HUB_CODEX_CONSOLE_ATTACHMENT_TASK_MAX_BYTES` | `524288000` | 작업당 활성 원본 500 MiB. |
+| `MTY_CODEX_CONSOLE_ATTACHMENT_CACHE` | `~/.local/share/mty-codex-console/attachments` | 소유자 전용 읽기 사본. Git 저장소·릴리스 디렉터리 밖의 고정 경로를 사용한다. |
+| `MTY_CODEX_CONSOLE_ATTACHMENT_MAX_BYTES` | `52428800` | 파일당 50 MiB. 최대 설정값은 100 MiB. |
+| `MTY_CODEX_CONSOLE_ATTACHMENT_TASK_MAX_BYTES` | `524288000` | 작업당 활성 원본 500 MiB. |
 
 작업당 활성 파일은 200개, 메시지당 선택은 20개까지다. 업로드는 원본 바이너리
 `PUT /api/tasks/{task_id}/attachments/{attachment_id}`로 전달하고 URL 인코딩한 파일 이름을
@@ -370,21 +370,21 @@ DB에서 사본을 복원한다. 원본을 삭제하면 DB 바이너리와 읽�
 다음은 사용자의 홈 디렉터리에 설치하는 예다. 이미 존재하는 릴리스는 덮어쓰지 않는다.
 
 ```bash
-bash scripts/build-codex-console.sh "$HOME/.local/share/owh-codex-console/releases/initial"
-mkdir -p "$HOME/.config/owh-codex-console" "$HOME/.config/systemd/user"
-install -m 600 apps/codex-console-api/.env.example "$HOME/.config/owh-codex-console/console.env"
-ln -s "$HOME/.local/share/owh-codex-console/releases/initial" "$HOME/.local/share/owh-codex-console/current"
+bash scripts/build-codex-console.sh "$HOME/.local/share/mty-codex-console/releases/initial"
+mkdir -p "$HOME/.config/mty-codex-console" "$HOME/.config/systemd/user"
+install -m 600 apps/codex-console-api/.env.example "$HOME/.config/mty-codex-console/console.env"
+ln -s "$HOME/.local/share/mty-codex-console/releases/initial" "$HOME/.local/share/mty-codex-console/current"
 install -m 644 ops/codex-console/codex-console.service "$HOME/.config/systemd/user/"
 ```
 
-`console.env`를 서버 편집기에서 설정한다. `OPEN_WORK_HUB_CODEX_CONSOLE_BINARY`는 현재 구독
+`console.env`를 서버 편집기에서 설정한다. `MTY_CODEX_CONSOLE_BINARY`는 현재 구독
 로그인 사용자가 실행하는 Codex의 절대 경로로 지정한다. 서비스 설치 계정도 동일하게 유지한다.
 서비스 활성화 전에 해당 환경으로 `migrate`, `set-password`를 수행한다. dotenv 형식으로
 작성한 환경 파일은 릴리스의 API 디렉터리에 `.env` 심볼릭 링크로 연결하면 CLI에서도 읽는다.
 
 ```bash
-ln -s "$HOME/.config/owh-codex-console/console.env" "$HOME/.local/share/owh-codex-console/current/apps/codex-console-api/.env"
-cd "$HOME/.local/share/owh-codex-console/current/apps/codex-console-api"
+ln -s "$HOME/.config/mty-codex-console/console.env" "$HOME/.local/share/mty-codex-console/current/apps/codex-console-api/.env"
+cd "$HOME/.local/share/mty-codex-console/current/apps/codex-console-api"
 .venv/bin/codex-console migrate
 .venv/bin/codex-console set-password
 systemctl --user daemon-reload
@@ -434,8 +434,11 @@ operation ID·task ID·kind·digest와 일치하는 구형 계획만 운영자�
 
 ### 배포 완료 확인
 
+MTY 이름 전환은 전용 설정 파일의 환경변수와 별도 서비스 릴리스를 함께 바꾼다.
+[릴리스 전환 절차](../../domains/release/README.md#mty-naming-cutover)에 따라 기존 DB·작업·설정의 백업과 경로 이동을 검증한 뒤 아래 순서를 적용한다.
+
 소스 수정·커밋·푸시·dev/main 동기화와 실행 중인 콘솔 업데이트는 별개의 단계다.
-OWH 개발 서버나 운영 앱만 재시작해도 콘솔에는 반영되지 않는다. 사용자가 화면에 반영할
+MTY 개발 서버나 운영 앱만 재시작해도 콘솔에는 반영되지 않는다. 사용자가 화면에 반영할
 Codex Console 구현을 요청하면 로컬 변경 또는 검증만으로 범위를 제한하지 않은 한 전용 콘솔
 릴리스와 공개 검증까지 완료해야 작업 완료로 보고한다. 실제 소스 통합과 서비스 변경 권한은
 루트 `AGENTS.md`를 따른다. 배포 승인이 아직 없다면 검증된 릴리스를 구체적으로 준비한 뒤
@@ -450,7 +453,7 @@ Codex Console 구현을 요청하면 로컬 변경 또는 검증만으로 범위
    로그인 세션에서 변경된 API 응답과 브라우저 동작도 검사한다. 추론 강도 변경은
    `/api/codex/models`와 실제 선택 목록을 모두 확인한다. 공개 경로의 prefix가 있으면
    각 경로에 적용한다. 쿠키·비밀번호·대화 내용은 검사 출력에 남기지 않는다.
-   자동 로그인 변경은 개발·운영 OWH 각각에서 앱 링크를 열어 비밀번호 화면 없이 콘솔에
+   자동 로그인 변경은 개발·운영 MTY 각각에서 앱 링크를 열어 비밀번호 화면 없이 콘솔에
    들어가며 fragment가 주소에서 제거되는지 확인한다.
 4. 배포한 소스 커밋·릴리스 경로·서비스 상태·동작 검사 결과를 구분해 보고한다.
    빌드만 완료했거나 이전 릴리스가 실행 중이면 배포 완료로 간주하지 않는다.
@@ -529,7 +532,7 @@ pnpm --dir apps/codex-console-web build
 pnpm --dir apps/codex-console-web e2e
 ```
 
-DB/E2E 검사는 `OPEN_WORK_HUB_TEST_POSTGRES_TEMPLATE_DSN`에 비운영 PostgreSQL 18 접속 정보를
+DB/E2E 검사는 `MTY_TEST_POSTGRES_TEMPLATE_DSN`에 비운영 PostgreSQL 18 접속 정보를
 설정한다. 테스트 계정은 임시 `console_test_*` DB를 생성·제거할 권한이 필요하다. 없으면 DB
 pytest가 skip되며 전체 검증 통과로 취급하면 안 된다. E2E는 실제 HTTP·DB와 테스트 전용
 공식 프로토콜 대역을 사용한다. production 앱에는 mock 실행 모드가 없다.

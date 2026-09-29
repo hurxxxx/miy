@@ -6,13 +6,13 @@ from typing import Any
 
 import pytest
 
-from open_work_hub_api.domains.search.backend_contracts import KeywordSearchQuery
-from open_work_hub_api.domains.search.opensearch import (
+from mty_api.domains.search.backend_contracts import KeywordSearchQuery
+from mty_api.domains.search.opensearch import (
     OpenSearchError,
     OpenSearchKeywordClient,
     _bulk_document_chunks,
 )
-from open_work_hub_api.domains.search.index_gateway import (
+from mty_api.domains.search.index_gateway import (
     build_partitioned_bulk_index_ndjson,
     keyword_acl_query_field_names,
     keyword_acl_query_properties,
@@ -25,7 +25,7 @@ from open_work_hub_api.domains.search.index_gateway import (
     keyword_search_partitioned_index_name,
     keyword_search_versioned_index_name,
 )
-from open_work_hub_api.domains.retrieval.projection_identity import canonical_search_document_id
+from mty_api.domains.retrieval.projection_identity import canonical_search_document_id
 
 
 class _Response:
@@ -400,7 +400,7 @@ def test_content_sha256_hashes_canonical_documents_in_stable_order() -> None:
 
 
 def test_content_sha256_paginates_with_the_canonical_two_field_cursor(monkeypatch) -> None:
-    from open_work_hub_api.domains.search import opensearch
+    from mty_api.domains.search import opensearch
 
     monkeypatch.setattr(opensearch, "MAX_BULK_INDEX_DOCUMENTS", 1)
     target = keyword_search_versioned_index_name("test", generation="release_20260721")
