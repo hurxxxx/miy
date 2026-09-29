@@ -4,19 +4,19 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import delete
 
-from open_work_hub_api.core import llm as llm_core
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.core.settings import get_settings
-from open_work_hub_api.domains.ai import gateway as gateway_module
-from open_work_hub_api.domains.ai.gateway import LlmWorkloadContext, build_llm_workload_request
-from open_work_hub_api.domains.ai.model_credentials import encrypt_api_key
-from open_work_hub_api.domains.ai.model_settings_models import (
+from mty_api.core import llm as llm_core
+from mty_api.core.db import get_session_factory
+from mty_api.core.settings import get_settings
+from mty_api.domains.ai import gateway as gateway_module
+from mty_api.domains.ai.gateway import LlmWorkloadContext, build_llm_workload_request
+from mty_api.domains.ai.model_credentials import encrypt_api_key
+from mty_api.domains.ai.model_settings_models import (
     AiModelCatalogEntry,
     AiModelProviderConfig,
     AiModelPolicyDefault,
     AiModelRouteOverride,
 )
-from open_work_hub_api.domains.ai.model_settings_service import (
+from mty_api.domains.ai.model_settings_service import (
     AiModelSettingsError,
     get_ai_model_settings_snapshot,
     resolve_ai_model_workload_route,
@@ -31,10 +31,10 @@ _DB_SECRET = "test-db-anthropic-secret"
 
 
 def _configure_conflicting_external_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OPEN_WORK_HUB_LLM_ANTHROPIC_API_KEY", "test-env-anthropic-secret")
-    monkeypatch.setenv("OPEN_WORK_HUB_LLM_ANTHROPIC_BASE_URL", "https://env.example.test")
-    monkeypatch.setenv("OPEN_WORK_HUB_LLM_ANTHROPIC_DEFAULT_MODEL", "env-only-model")
-    monkeypatch.setenv("OPEN_WORK_HUB_LLM_ANTHROPIC_CANONICAL_MODEL", "env-only-model")
+    monkeypatch.setenv("MTY_LLM_ANTHROPIC_API_KEY", "test-env-anthropic-secret")
+    monkeypatch.setenv("MTY_LLM_ANTHROPIC_BASE_URL", "https://env.example.test")
+    monkeypatch.setenv("MTY_LLM_ANTHROPIC_DEFAULT_MODEL", "env-only-model")
+    monkeypatch.setenv("MTY_LLM_ANTHROPIC_CANONICAL_MODEL", "env-only-model")
     get_settings.cache_clear()
 
 
@@ -69,7 +69,7 @@ def _enable_database_anthropic_provider(db) -> str:
     provider.api_key_ciphertext = ciphertext
     provider.default_model_id = model.id
     db.merge(
-        AiModelPolicyDefault(app_id="", route_mode="external", provider_id="anthropic", version=1)
+        AiModelPolicyDefault(model_family="generation", app_id="", route_mode="external", provider_id="anthropic", version=1)
     )
     db.commit()
     return ciphertext

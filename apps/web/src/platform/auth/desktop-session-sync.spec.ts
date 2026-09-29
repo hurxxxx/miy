@@ -46,7 +46,7 @@ describe('desktop session sync environment policy', () => {
     expect(isLocalDesktopSessionHost('localhost')).toBe(true);
     expect(isLocalDesktopSessionHost('127.0.0.1')).toBe(true);
     expect(isLocalDesktopSessionHost('[::1]')).toBe(true);
-    expect(isLocalDesktopSessionHost('open-work-hub.local')).toBe(true);
+    expect(isLocalDesktopSessionHost('mty.local')).toBe(true);
     expect(isLocalDesktopSessionHost('app.example.com')).toBe(false);
   });
 
@@ -124,7 +124,7 @@ describe('desktop session sync', () => {
 
     expect(createDesktopSessionLinkMock).toHaveBeenCalledWith('web-token');
     expect(document.querySelector('iframe')?.getAttribute('src')).toBe(
-      'open-work-hub-desktop://auth/sync?server_url=https%3A%2F%2Fapp.example.com&code=desktop-code',
+      'mty-desktop://auth/sync?server_url=https%3A%2F%2Fapp.example.com&code=desktop-code',
     );
 
     vi.runOnlyPendingTimers();
@@ -137,7 +137,7 @@ describe('desktop session sync', () => {
     });
 
     expect(document.querySelector('iframe')?.getAttribute('src')).toBe(
-      'open-work-hub-desktop://auth/logout?server_url=https%3A%2F%2Fapp.example.com',
+      'mty-desktop://auth/logout?server_url=https%3A%2F%2Fapp.example.com',
     );
   });
 });

@@ -244,7 +244,7 @@ wheels = [
 ]
 
 [[package]]
-name = "owh-codex-console"
+name = "mty-codex-console"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

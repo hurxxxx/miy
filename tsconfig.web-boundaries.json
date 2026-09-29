@@ -3,13 +3,13 @@
   "compilerOptions": {
     "paths": {
       "@/src/*": ["./apps/web/src/*"],
-      "@open-work-hub/contracts": ["./packages/contracts/src/index.ts"],
-      "@open-work-hub/contracts/openapi": [
+      "@mty/contracts": ["./packages/contracts/src/index.ts"],
+      "@mty/contracts/openapi": [
         "./packages/contracts/src/openapi.generated.d.ts"
       ],
-      "@open-work-hub/contracts/*": ["./packages/contracts/src/*"],
-      "@open-work-hub/ui": ["./packages/ui/src/index.ts"],
-      "@open-work-hub/ui/styles.css": ["./packages/ui/styles.css"]
+      "@mty/contracts/*": ["./packages/contracts/src/*"],
+      "@mty/ui": ["./packages/ui/src/index.ts"],
+      "@mty/ui/styles.css": ["./packages/ui/styles.css"]
     }
   },
   "include": ["apps/web/src/**/*.ts", "apps/web/src/**/*.tsx"]

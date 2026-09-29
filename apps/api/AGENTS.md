@@ -1,7 +1,7 @@
 # API Agent Rules
 
 - Start with current API code/tests and the closest owning domain document; read accepted ADRs only for touched contracts.
-- Assemble FastAPI routers through `open_work_hub_api.api_registry`; keep routers thin and domain behavior in application/service layers.
+- Assemble FastAPI routers through `mty_api.api_registry`; keep routers thin and domain behavior in application/service layers.
 - Enforce actor, declared execution identity, current company app admission, and source-owned resource ACL on the server.
 - Product workspaces are removed under ADR 0012. App-local spaces and groups never become a global execution container.
 - API/OpenAPI changes must update response models and regenerate the client when `pnpm check:api-contract` requires it.

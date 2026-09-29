@@ -5,8 +5,8 @@ from datetime import UTC, datetime
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.auth.models import CompanyAppControl
+from mty_api.core.db import get_session_factory
+from mty_api.domains.auth.models import CompanyAppControl
 
 from test_meeting import _auth_headers, _bootstrap_admin_session, _create_company_user, _login
 
@@ -154,7 +154,7 @@ def test_planner_event_owner_only_access(client: TestClient) -> None:
     member = _create_company_user(
         client,
         admin_token,
-        email="planner-member@open-work-hub.local",
+        email="planner-member@mty.local",
         full_name="Planner Member",
     )
     member_token = _login(client, member["user"]["email"], member["temporary_password"])
@@ -192,7 +192,7 @@ def test_calendar_events_include_only_current_user_planner_events(client: TestCl
     member = _create_company_user(
         client,
         admin_token,
-        email="planner-public@open-work-hub.local",
+        email="planner-public@mty.local",
         full_name="Planner Public",
     )
     member_token = _login(client, member["user"]["email"], member["temporary_password"])
@@ -361,7 +361,7 @@ def test_meeting_availability_masks_other_users_personal_events(client: TestClie
     attendee = _create_company_user(
         client,
         admin_token,
-        email="availability-user@open-work-hub.local",
+        email="availability-user@mty.local",
         full_name="Availability User",
     )
     attendee_token = _login(client, attendee["user"]["email"], attendee["temporary_password"])
@@ -444,7 +444,7 @@ def test_meeting_availability_rejects_inactive_company_users(client: TestClient)
     outsider = _create_company_user(
         client,
         admin_token,
-        email="availability-outsider@open-work-hub.local",
+        email="availability-outsider@mty.local",
         full_name="Availability Outsider",
     )
 

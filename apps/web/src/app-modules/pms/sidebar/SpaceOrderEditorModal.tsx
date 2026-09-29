@@ -1,5 +1,5 @@
-import { Button } from '@open-work-hub/ui/primitives/button';
-import { Dialog } from '@open-work-hub/ui/primitives/dialog';
+import { Button } from '@mty/ui/primitives/button';
+import { Dialog } from '@mty/ui/primitives/dialog';
 import {
   ArrowDown,
   ArrowUp,

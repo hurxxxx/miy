@@ -18,7 +18,7 @@ export function jsonHeaders(
   return {
     Accept: 'application/json',
     ...(locale
-      ? { 'Accept-Language': locale, 'X-Open-Work-Hub-Locale': locale }
+      ? { 'Accept-Language': locale, 'X-MTY-Locale': locale }
       : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(headers ?? {}),

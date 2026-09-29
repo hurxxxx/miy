@@ -1,4 +1,4 @@
-import { DetailDrawer, useFeedback } from '@open-work-hub/ui';
+import { DetailDrawer, useFeedback } from '@mty/ui';
 import {
   Maximize2,
   Minimize2,

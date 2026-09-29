@@ -7,9 +7,9 @@ The legacy fixture format is decoded here only; production has no SDK fallback.
 
 import pytest
 
-from open_work_hub_api.core import llm as llm_core
-from open_work_hub_api.core.llm_execution_adapters import select_llm_execution_adapter
-from open_work_hub_api.domains.hermes import workloads
+from mty_api.core import llm as llm_core
+from mty_api.core.llm_execution_adapters import select_llm_execution_adapter
+from mty_api.domains.hermes import workloads
 
 
 @pytest.fixture

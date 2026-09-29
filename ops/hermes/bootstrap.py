@@ -1,4 +1,4 @@
-"""Configure Open Work Hub-managed Hermes profiles before gateway startup.
+"""Configure MTY-managed Hermes profiles before gateway startup.
 
 This runs inside the pinned Hermes image before the gateway starts. Hermes
 intentionally scopes provider and API-server credentials per profile, so the
@@ -23,7 +23,7 @@ from hermes_constants import (
     set_hermes_home_override,
 )
 
-_MANAGED_PROFILE_PATTERN = re.compile(r"^owh-[0-9a-f]{32}(?:-local)?(?:-jobs)?$")
+_MANAGED_PROFILE_PATTERN = re.compile(r"^mty-[0-9a-f]{32}(?:-local)?(?:-jobs)?$")
 _COMPRESSION_POLICY = {
     "enabled": True,
     "threshold": 0.50,
@@ -36,7 +36,7 @@ _COMPRESSION_POLICY = {
 }
 
 
-def _is_open_work_hub_profile(profile_name: str) -> bool:
+def _is_mty_profile(profile_name: str) -> bool:
     return profile_name == "default" or bool(_MANAGED_PROFILE_PATTERN.fullmatch(profile_name))
 
 
@@ -44,11 +44,11 @@ def _apply_runtime_policy(config: dict[str, Any]) -> bool:
     """Bootstrap transport/lifecycle only; administrator DB owns model selection."""
     before = deepcopy(config)
     plugins = config.setdefault("plugins", {})
-    plugins["enabled"] = sorted(set(plugins.get("enabled", [])) | {"owh_runtime"})
-    plugins["disabled"] = [name for name in plugins.get("disabled", []) if name != "owh_runtime"]
+    plugins["enabled"] = sorted(set(plugins.get("enabled", [])) | {"mty_runtime"})
+    plugins["disabled"] = [name for name in plugins.get("disabled", []) if name != "mty_runtime"]
     config.setdefault("gateway", {}).setdefault("api_server", {})["max_concurrent_runs"] = 0
     config["terminal"] = {
-        "backend": "owh_sandbox",
+        "backend": "mty_sandbox",
         "container_persistent": False,
         "cwd": "/workspace",
     }
@@ -62,7 +62,7 @@ def _apply_runtime_policy(config: dict[str, Any]) -> bool:
         "session_search",
         "code_execution",
         "delegation",
-        "owh_runtime",
+        "mty_runtime",
     ]
     config["compression"] = {**config.get("compression", {}), **_COMPRESSION_POLICY}
     config.setdefault("agent", {})["api_max_retries"] = 1
@@ -70,7 +70,7 @@ def _apply_runtime_policy(config: dict[str, Any]) -> bool:
 
 
 def _reconcile_runtime_config(profile_name: str) -> bool:
-    if not _is_open_work_hub_profile(profile_name):
+    if not _is_mty_profile(profile_name):
         return False
     config = load_config()
     if not _apply_runtime_policy(config):
@@ -127,7 +127,7 @@ def main() -> None:
     print(
         "Hermes bootstrap synchronized "
         f"{len(targets)} profile(s); reconciled {reconciled} "
-        "Open Work Hub profile(s)."
+        "MTY profile(s)."
     )
 
 

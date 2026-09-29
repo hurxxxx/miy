@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from fastapi import FastAPI
 import pytest
 
-from open_work_hub_api import external_runtime as runtime_module
+from mty_api import external_runtime as runtime_module
 
 
 class _ProbeService:

@@ -3,9 +3,9 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from open_work_hub_api.core import settings as settings_module
+from mty_api.core import settings as settings_module
 
-NAMESPACE_KEY = "OPEN_WORK_HUB_HERMES_TERMINAL_RESOURCE_NAMESPACE"
+NAMESPACE_KEY = "MTY_HERMES_TERMINAL_RESOURCE_NAMESPACE"
 
 
 @pytest.fixture(autouse=True)

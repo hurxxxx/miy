@@ -2,7 +2,7 @@ import { ChevronRight, Plus, RefreshCw, Save } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button, useFeedback } from '@open-work-hub/ui';
+import { Button, useFeedback } from '@mty/ui';
 
 import {
   AdminAiModelSettingsApiError,
@@ -18,7 +18,13 @@ import {
   SurfaceCard,
 } from './admin-shared';
 
-const MODEL_CAPABILITIES = ['chat', 'tool_calling', 'vision'] as const;
+const MODEL_CAPABILITIES = [
+  'chat',
+  'non_reasoning',
+  'tool_calling',
+  'vision',
+  'decision',
+] as const;
 
 interface ModelDraft {
   modelKey: string;

@@ -1,4 +1,4 @@
-import { InlineNotice } from '@open-work-hub/ui';
+import { InlineNotice } from '@mty/ui';
 import { useRef, type ChangeEvent } from 'react';
 
 import { FormDialog } from '@/src/components/form/FormDialog';

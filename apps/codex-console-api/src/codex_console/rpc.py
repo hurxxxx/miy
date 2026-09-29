@@ -118,7 +118,7 @@ class CodexRPC:
         await self.call(
             "initialize",
             {
-                "clientInfo": {"name": "owh_codex_console", "version": "0.1.0"},
+                "clientInfo": {"name": "mty_codex_console", "version": "0.1.0"},
                 "capabilities": {"experimentalApi": True},
             },
         )

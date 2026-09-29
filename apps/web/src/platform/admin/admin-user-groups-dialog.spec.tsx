@@ -11,8 +11,8 @@ const mock = vi.hoisted(() => ({
   error: vi.fn(),
 }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: mock.t }) }));
-vi.mock('@open-work-hub/ui', async (original) => ({
-  ...(await original<typeof import('@open-work-hub/ui')>()),
+vi.mock('@mty/ui', async (original) => ({
+  ...(await original<typeof import('@mty/ui')>()),
   useFeedback: () => mock,
   useConfirm: () => ({ confirm: mock.confirm, confirmDialog: null }),
 }));

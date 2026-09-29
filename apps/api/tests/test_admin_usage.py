@@ -6,27 +6,27 @@ from zoneinfo import ZoneInfo
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.auth.access import record_audit_log
-from open_work_hub_api.domains.auth.models import AuthSession, utcnow_naive
-from open_work_hub_api.domains.auth.security import new_id
-from open_work_hub_api.domains.community.models import (
+from mty_api.core.db import get_session_factory
+from mty_api.domains.auth.access import record_audit_log
+from mty_api.domains.auth.models import AuthSession, utcnow_naive
+from mty_api.domains.auth.security import new_id
+from mty_api.domains.community.models import (
     CommunityChannel,
     CommunityComment,
     CommunityPost,
 )
-from open_work_hub_api.domains.community.service import DEFAULT_CHANNEL_KEY, ensure_default_channels
-from open_work_hub_api.domains.docs.models import NativeDoc
-from open_work_hub_api.domains.meeting.models import Meeting
-from open_work_hub_api.domains.pms.models import Attachment, Task, TaskList
-from open_work_hub_api.domains.usage.models import UsageEvent, UsageExcludedUser
-from open_work_hub_api.domains.usage.service import (
+from mty_api.domains.community.service import DEFAULT_CHANNEL_KEY, ensure_default_channels
+from mty_api.domains.docs.models import NativeDoc
+from mty_api.domains.meeting.models import Meeting
+from mty_api.domains.pms.models import Attachment, Task, TaskList
+from mty_api.domains.usage.models import UsageEvent, UsageExcludedUser
+from mty_api.domains.usage.service import (
     USAGE_EVENT_APP_OPEN,
     USAGE_EVENT_CONTENT_VIEW,
     USAGE_EVENT_SEARCH_QUERY,
     record_usage_event,
 )
-from open_work_hub_api.domains.whiteboard.models import Whiteboard
+from mty_api.domains.whiteboard.models import Whiteboard
 
 
 def _auth_headers(token: str) -> dict[str, str]:
@@ -37,8 +37,8 @@ def _bootstrap_admin_session(client: TestClient) -> dict:
     response = client.post(
         "/api/v1/auth/setup",
         json={
-            "full_name": "Open Work Hub Admin",
-            "email": "admin@open-work-hub.local",
+            "full_name": "MTY Admin",
+            "email": "admin@mty.local",
             "password": "supersecret123",
         },
     )

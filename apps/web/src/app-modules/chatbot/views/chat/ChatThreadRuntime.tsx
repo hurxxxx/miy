@@ -76,7 +76,7 @@ export interface ChatThreadRuntimeProps {
   children: ReactNode;
 }
 
-/** A read projection of OWH state; the controller remains the execution owner. */
+/** A read projection of MTY state; the controller remains the execution owner. */
 export function ChatThreadRuntime({
   turns,
   liveAssistant,
@@ -93,7 +93,7 @@ export function ChatThreadRuntime({
         ? [
             projectChatTurn(
               {
-                id: 'owh-live-assistant',
+                id: 'mty-live-assistant',
                 role: 'assistant',
                 content: liveAssistant.content,
                 reasoning: liveAssistant.reasoning,

@@ -5,7 +5,7 @@ import {
   FormFieldRow,
 } from '@/src/components/form/FormDialog';
 import { useAuth } from '@/src/platform/auth/auth-provider';
-import { InlineNotice } from '@open-work-hub/ui';
+import { InlineNotice } from '@mty/ui';
 import { useEffect, useId, useReducer, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPmsTaskList, type PmsTaskList } from '../api/pms-api';

@@ -8,10 +8,10 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      '@open-work-hub/ui/styles.css': fileURLToPath(
+      '@mty/ui/styles.css': fileURLToPath(
         new URL('../../packages/ui/styles.css', import.meta.url),
       ),
-      '@open-work-hub/ui': fileURLToPath(
+      '@mty/ui': fileURLToPath(
         new URL('../../packages/ui/src/index.ts', import.meta.url),
       ),
     },

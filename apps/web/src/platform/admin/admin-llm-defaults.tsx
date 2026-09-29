@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@open-work-hub/ui';
+import { Button } from '@mty/ui';
 import {
   updateAdminAiModelDefault,
+  probeAdminAiModelConnection,
+  getAdminAiModelSettings,
+  AdminAiModelSettingsApiError,
   type AdminAiModelSettings,
   type AiModelRoute,
 } from './admin-ai-model-settings-api';
@@ -24,6 +27,7 @@ export function AdminLlmDefaults({
 }) {
   const { t } = useTranslation('apps');
   const [appId, setAppId] = useState('');
+  const [family, setFamily] = useState<'generation' | 'decision'>('generation');
   const apps = [
     ...new Set(data.workloads.map((workload) => workload.app_id)),
   ].sort();
@@ -32,6 +36,26 @@ export function AdminLlmDefaults({
       title={t('admin.console.aiSecurity.llmDefaults.title')}
       description={t('admin.console.aiSecurity.llmDefaults.description')}
     >
+      <label className="block space-y-1">
+        <span className="app-text-caption text-app-ink/60">
+          {t('admin.console.aiSecurity.llmDefaults.family')}
+        </span>
+        <select
+          className="app-field-input"
+          value={family}
+          disabled={disabled}
+          onChange={(event) =>
+            setFamily(event.target.value as 'generation' | 'decision')
+          }
+        >
+          <option value="generation">
+            {t('admin.console.aiSecurity.llmDefaults.generation')}
+          </option>
+          <option value="decision">
+            {t('admin.console.aiSecurity.llmDefaults.decision')}
+          </option>
+        </select>
+      </label>
       <label className="block space-y-1">
         <span className="app-text-caption text-app-ink/60">
           {t('admin.console.aiSecurity.llmDefaults.scope')}
@@ -55,11 +79,11 @@ export function AdminLlmDefaults({
       <div className="mt-3 grid gap-3 lg:grid-cols-2">
         {(['local', 'external'] as const).map((route) => (
           <DefaultEditor
-            key={`${appId}:${route}:${data.defaults.find((row) => row.app_id === appId && row.route_mode === route)?.version ?? 0}:${data.providers
+            key={`${family}:${appId}:${route}:${data.defaults.find((row) => row.app_id === appId && row.route_mode === route && (row.model_family ?? 'generation') === family)?.version ?? 0}:${data.providers
               .filter((row) => row.route_mode === route)
               .map((row) => `${row.provider_id}:${row.version}`)
               .join(',')}:${data.registry_digest}`}
-            {...{ token, data, disabled, onSave, appId, route }}
+            {...{ token, data, disabled, onSave, appId, route, family }}
           />
         ))}
       </div>
@@ -74,6 +98,7 @@ function DefaultEditor({
   onSave,
   appId,
   route,
+  family,
 }: {
   token: string;
   data: AdminAiModelSettings;
@@ -83,18 +108,24 @@ function DefaultEditor({
     mutation: () => Promise<AdminAiModelSettings>,
   ) => Promise<void>;
   appId: string;
+  family: 'generation' | 'decision';
   route: AiModelRoute;
 }) {
   const { t } = useTranslation('apps');
   const saved = data.defaults.find(
-    (row) => row.app_id === appId && row.route_mode === route,
+    (row) =>
+      row.app_id === appId &&
+      row.route_mode === route &&
+      (row.model_family ?? 'generation') === family,
   );
   const [connectionId, setConnectionId] = useState(saved?.provider_id ?? '');
   const connection = data.providers.find(
     (row) => row.provider_id === connectionId,
   );
   const [modelId, setModelId] = useState(
-    saved?.model_id ?? (!appId ? connection?.default_model_id : '') ?? '',
+    saved?.model_id ??
+      (!appId && family === 'generation' ? connection?.default_model_id : '') ??
+      '',
   );
   const [cap, setCap] = useState(
     saved?.max_output_tokens ? String(saved.max_output_tokens / 1024) : '',
@@ -103,7 +134,8 @@ function DefaultEditor({
     (row) =>
       row.provider_id === connectionId &&
       row.enabled &&
-      row.discovery_status === 'active',
+      row.discovery_status === 'active' &&
+      row.capabilities.includes(family === 'decision' ? 'decision' : 'chat'),
   );
   return (
     <form
@@ -112,14 +144,16 @@ function DefaultEditor({
       onSubmit={async (event) => {
         event.preventDefault();
         if (disabled) return;
-        await onSave(`default:${appId}:${route}`, () =>
+        await onSave(`default:${family}:${appId}:${route}`, () =>
           updateAdminAiModelDefault(token, appId, route, {
+            model_family: family,
             expected_registry_digest: data.registry_digest,
             expected_version: saved?.version ?? 0,
             expected_provider_version: connection?.version,
             provider_id: connectionId || null,
             model_id: modelId || null,
-            max_output_tokens: cap ? Number(cap) * 1024 : null,
+            max_output_tokens:
+              family === 'generation' && cap ? Number(cap) * 1024 : null,
           }),
         );
       }}
@@ -168,8 +202,11 @@ function DefaultEditor({
         >
           <option value="">
             {t('admin.console.aiSecurity.llmDefaults.inherit')} ·{' '}
-            {data.models.find((row) => row.id === connection?.default_model_id)
-              ?.model_key ?? '—'}
+            {family === 'generation'
+              ? (data.models.find(
+                  (row) => row.id === connection?.default_model_id,
+                )?.model_key ?? '—')
+              : '—'}
           </option>
           {models.map((row) => (
             <option key={row.id} value={row.id}>
@@ -178,22 +215,50 @@ function DefaultEditor({
           ))}
         </select>
       </label>
-      <label className="block space-y-1">
-        <span className="app-text-caption text-app-ink/60">
-          {t('admin.console.aiSecurity.llmDefaults.cap')}
-        </span>
-        <input
-          className={FORM_FIELD_CLASS}
-          type="number"
-          min={1}
-          max={64}
-          step={1}
-          value={cap}
-          disabled={disabled}
-          placeholder={t('admin.console.aiSecurity.llmDefaults.inherit')}
-          onChange={(event) => setCap(event.target.value)}
-        />
-      </label>
+      {family === 'generation' && (
+        <label className="block space-y-1">
+          <span className="app-text-caption text-app-ink/60">
+            {t('admin.console.aiSecurity.llmDefaults.cap')}
+          </span>
+          <input
+            className={FORM_FIELD_CLASS}
+            type="number"
+            min={1}
+            max={64}
+            step={1}
+            value={cap}
+            disabled={disabled}
+            placeholder={t('admin.console.aiSecurity.llmDefaults.inherit')}
+            onChange={(event) => setCap(event.target.value)}
+          />
+        </label>
+      )}
+      {family === 'decision' && (
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={disabled || !connection || !modelId}
+          onClick={async () => {
+            if (!connection || !modelId || disabled) return;
+            await onSave(`probe:${connectionId}:${modelId}`, async () => {
+              const result = await probeAdminAiModelConnection(
+                token,
+                connection,
+                data.registry_digest,
+                modelId,
+              );
+              if (!result.ready)
+                throw new AdminAiModelSettingsApiError(
+                  503,
+                  t('admin.console.aiSecurity.llmConnections.probeFailed'),
+                );
+              return getAdminAiModelSettings(token);
+            });
+          }}
+        >
+          {t('admin.console.aiSecurity.llmDefaults.inventoryProbe')}
+        </Button>
+      )}
       <Button type="submit" disabled={disabled} variant="primary">
         {t('common:actions.save')}
       </Button>

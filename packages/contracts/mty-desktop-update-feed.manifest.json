@@ -1,0 +1,85 @@
+{
+  "feedPathPrefix": "/api/v1/mty-desktop/updates",
+  "updateBaseUrlEnv": "MTY_DESKTOP_UPDATE_BASE_URL",
+  "trustedUpdateOriginsEnv": "MTY_DESKTOP_TRUSTED_UPDATE_ORIGINS",
+  "servedArtifactContentTypes": {
+    ".deb": "application/vnd.debian.binary-package",
+    ".dmg": "application/x-apple-diskimage",
+    ".exe": "application/octet-stream",
+    ".zip": "application/zip"
+  },
+  "platformOrder": ["win", "mac", "linux"],
+  "platforms": {
+    "win": {
+      "packageName": "mty-desktop-win",
+      "installerUrlEnv": "VITE_MTY_DESKTOP_INSTALLER_URL_WIN",
+      "installerStableCopy": "MTY-Desktop-Setup-latest.exe",
+      "updateDirEnv": "MTY_DESKTOP_UPDATE_WIN_DIR",
+      "defaultDir": ".mty-desktop-updates/win",
+      "updateFile": "latest.yml",
+      "servedArtifactSuffixes": [".exe", ".blockmap"],
+      "packagedArtifacts": [
+        {
+          "template": "MTY Desktop Setup ${version}.exe"
+        },
+        {
+          "template": "MTY Desktop Setup ${version}.exe.blockmap"
+        }
+      ],
+      "stableCopies": [
+        {
+          "template": "MTY Desktop Setup ${version}.exe",
+          "to": "MTY-Desktop-Setup-latest.exe"
+        }
+      ]
+    },
+    "mac": {
+      "packageName": "mty-desktop-mac",
+      "installerUrlEnv": "VITE_MTY_DESKTOP_INSTALLER_URL_MAC",
+      "installerStableCopy": "MTY-Desktop-latest.dmg",
+      "updateDirEnv": "MTY_DESKTOP_UPDATE_MAC_DIR",
+      "defaultDir": ".mty-desktop-updates/mac",
+      "updateFile": "latest-mac.yml",
+      "servedArtifactSuffixes": [".dmg", ".zip", ".blockmap"],
+      "packagedArtifacts": [
+        {
+          "prefixTemplate": "MTY-Desktop-${version}-mac-"
+        }
+      ],
+      "stableCopies": [
+        {
+          "prefixTemplate": "MTY-Desktop-${version}-mac-",
+          "suffix": ".dmg",
+          "to": "MTY-Desktop-latest.dmg"
+        },
+        {
+          "prefixTemplate": "MTY-Desktop-${version}-mac-",
+          "suffix": ".zip",
+          "to": "MTY-Desktop-latest-mac.zip"
+        }
+      ]
+    },
+    "linux": {
+      "packageName": "mty-desktop-linux",
+      "installerUrlEnv": "VITE_MTY_DESKTOP_INSTALLER_URL_LINUX",
+      "installerStableCopy": "MTY-Desktop-latest.deb",
+      "updateDirEnv": "MTY_DESKTOP_UPDATE_LINUX_DIR",
+      "defaultDir": ".mty-desktop-updates/linux",
+      "updateFile": "latest-linux.yml",
+      "servedArtifactSuffixes": [".deb", ".blockmap"],
+      "packagedArtifacts": [
+        {
+          "prefixTemplate": "MTY-Desktop-${version}-linux-",
+          "suffix": ".deb"
+        }
+      ],
+      "stableCopies": [
+        {
+          "prefixTemplate": "MTY-Desktop-${version}-linux-",
+          "suffix": ".deb",
+          "to": "MTY-Desktop-latest.deb"
+        }
+      ]
+    }
+  }
+}

@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from open_work_hub_api.version import RUNTIME_REVISION, VERSION
+from mty_api.version import RUNTIME_REVISION, VERSION
 
 
 def test_healthz(client: TestClient) -> None:
@@ -19,7 +19,7 @@ def test_healthz_preserves_inbound_trace_id(client: TestClient) -> None:
         headers={"traceparent": f"00-{trace_id}-1234567890abcdef-01"},
     )
     assert response.status_code == 200
-    assert response.headers["X-Open-Work-Hub-Trace-Id"] == trace_id
+    assert response.headers["X-MTY-Trace-Id"] == trace_id
 
 
 def test_auth_bootstrap_and_protected_retrieval(client: TestClient) -> None:
@@ -37,8 +37,8 @@ def test_auth_bootstrap_and_protected_retrieval(client: TestClient) -> None:
     setup_response = client.post(
         "/api/v1/auth/setup",
         json={
-            "full_name": "Open Work Hub Admin",
-            "email": "admin@open-work-hub.local",
+            "full_name": "MTY Admin",
+            "email": "admin@mty.local",
             "password": "supersecret123",
         },
     )
@@ -65,7 +65,7 @@ def test_auth_bootstrap_and_protected_retrieval(client: TestClient) -> None:
         headers={"Authorization": f"Bearer {token}"},
     )
     assert me_response.status_code == 200
-    assert me_response.json()["email"] == "admin@open-work-hub.local"
+    assert me_response.json()["email"] == "admin@mty.local"
 
     denied_retrieval_response = client.get(
         "/api/v1/retrieval/sources",
@@ -74,7 +74,7 @@ def test_auth_bootstrap_and_protected_retrieval(client: TestClient) -> None:
     assert denied_retrieval_response.status_code == 403
 
     from dev_accounts import configure_company_app_access
-    from open_work_hub_api.core.db import get_session_factory
+    from mty_api.core.db import get_session_factory
 
     with get_session_factory()() as db:
         configure_company_app_access(db)
@@ -102,9 +102,9 @@ def test_auth_login_success_and_invalid_password(client: TestClient) -> None:
     setup_response = client.post(
         "/api/v1/auth/setup",
         json={
-            "full_name": "Open Work Hub Admin",
+            "full_name": "MTY Admin",
             "login_id": "admin",
-            "email": "admin@open-work-hub.local",
+            "email": "admin@mty.local",
             "password": "supersecret123",
         },
     )
@@ -118,7 +118,7 @@ def test_auth_login_success_and_invalid_password(client: TestClient) -> None:
         },
     )
     assert login_response.status_code == 200
-    assert login_response.json()["user"]["email"] == "admin@open-work-hub.local"
+    assert login_response.json()["user"]["email"] == "admin@mty.local"
     assert "platform_admin" in login_response.json()["user"]["system_roles"]
     assert login_response.json()["token"]
 
@@ -238,8 +238,8 @@ def test_auth_signup_creates_company_user_without_workspace_membership(
     setup_response = client.post(
         "/api/v1/auth/setup",
         json={
-            "full_name": "Open Work Hub Admin",
-            "email": "admin@open-work-hub.local",
+            "full_name": "MTY Admin",
+            "email": "admin@mty.local",
             "password": "supersecret123",
         },
     )
@@ -250,7 +250,7 @@ def test_auth_signup_creates_company_user_without_workspace_membership(
         json={
             "full_name": "New Member",
             "login_id": "new-member",
-            "email": "NEW@open-work-hub.local",
+            "email": "NEW@mty.local",
             "password": "memberpass123",
             "password_confirm": "memberpass123",
         },
@@ -258,7 +258,7 @@ def test_auth_signup_creates_company_user_without_workspace_membership(
     assert signup_response.status_code == 201, signup_response.text
     signup_body = signup_response.json()
     assert signup_body["user"]["login_id"] == "new-member"
-    assert signup_body["user"]["email"] == "new@open-work-hub.local"
+    assert signup_body["user"]["email"] == "new@mty.local"
     assert signup_body["user"]["system_roles"] == []
     assert "workspaces" not in signup_body["user"]
     _assert_user_has_no_business_memberships(signup_body["user"]["id"])
@@ -278,7 +278,7 @@ def test_auth_signup_requires_setup_and_validates_duplicates_and_passwords(
         json={
             "full_name": "Early Member",
             "login_id": "early",
-            "email": "early@open-work-hub.local",
+            "email": "early@mty.local",
             "password": "memberpass123",
             "password_confirm": "memberpass123",
         },
@@ -289,8 +289,8 @@ def test_auth_signup_requires_setup_and_validates_duplicates_and_passwords(
     setup_response = client.post(
         "/api/v1/auth/setup",
         json={
-            "full_name": "Open Work Hub Admin",
-            "email": "admin@open-work-hub.local",
+            "full_name": "MTY Admin",
+            "email": "admin@mty.local",
             "password": "supersecret123",
         },
     )
@@ -301,7 +301,7 @@ def test_auth_signup_requires_setup_and_validates_duplicates_and_passwords(
         json={
             "full_name": "Duplicate Admin",
             "login_id": "duplicate-admin",
-            "email": "ADMIN@open-work-hub.local",
+            "email": "ADMIN@mty.local",
             "password": "memberpass123",
             "password_confirm": "memberpass123",
         },
@@ -315,7 +315,7 @@ def test_auth_signup_requires_setup_and_validates_duplicates_and_passwords(
         json={
             "full_name": "Mismatch Member",
             "login_id": "mismatch",
-            "email": "mismatch@open-work-hub.local",
+            "email": "mismatch@mty.local",
             "password": "memberpass123",
             "password_confirm": "different123",
         },
@@ -329,8 +329,8 @@ def test_auth_error_messages_are_localized(client: TestClient) -> None:
     setup_response = client.post(
         "/api/v1/auth/setup",
         json={
-            "full_name": "Open Work Hub Admin",
-            "email": "admin@open-work-hub.local",
+            "full_name": "MTY Admin",
+            "email": "admin@mty.local",
             "password": "supersecret123",
         },
     )
@@ -347,7 +347,7 @@ def test_auth_error_messages_are_localized(client: TestClient) -> None:
     assert english_response.status_code == 401
     assert english_response.json()["detail"] == "ID or password is invalid."
     assert english_response.json()["code"] == "auth.invalid_credentials"
-    assert english_response.headers["X-Open-Work-Hub-Error-Code"] == "auth.invalid_credentials"
+    assert english_response.headers["X-MTY-Error-Code"] == "auth.invalid_credentials"
 
     korean_response = client.post(
         "/api/v1/auth/login",
@@ -365,7 +365,7 @@ def test_auth_error_messages_are_localized(client: TestClient) -> None:
         "/api/v1/auth/me",
         headers={
             "Accept-Language": "en-US",
-            "X-Open-Work-Hub-Locale": "ko-KR",
+            "X-MTY-Locale": "ko-KR",
         },
     )
     assert explicit_locale_response.status_code == 401
@@ -571,9 +571,9 @@ def _bootstrap_admin(client: TestClient) -> str:
 
 def _assert_user_has_no_business_memberships(user_id: str) -> None:
     from sqlalchemy import select
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.pms.space_models import TeamMember
-    from open_work_hub_api.domains.groups.models import GroupMember
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.pms.space_models import TeamMember
+    from mty_api.domains.groups.models import GroupMember
 
     with get_session_factory()() as db:
         assert db.scalar(select(TeamMember.id).where(TeamMember.user_id == user_id)) is None
@@ -598,9 +598,9 @@ def _create_direct_user(
     system_roles: tuple[str, ...] = (),
 ) -> tuple[str, str]:
 
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.auth.models import AuthSession, User, UserSystemRole
-    from open_work_hub_api.domains.auth.security import (
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.auth.models import AuthSession, User, UserSystemRole
+    from mty_api.domains.auth.security import (
         hash_password,
         issue_session_token,
         new_id,
@@ -705,7 +705,7 @@ def test_admin_identity_management_endpoints(client: TestClient) -> None:
         "/api/v1/admin/users",
         headers=headers,
         json={
-            "email": "legacy-group-field@open-work-hub.local",
+            "email": "legacy-group-field@mty.local",
             "full_name": "Legacy Group Field",
             "group_ids": [],
         },
@@ -716,8 +716,8 @@ def test_admin_identity_management_endpoints(client: TestClient) -> None:
         "/api/v1/admin/users",
         headers=headers,
         json={
-            "email": "member@open-work-hub.local",
-            "full_name": "Open Work Hub Member",
+            "email": "member@mty.local",
+            "full_name": "MTY Member",
             "display_name": "Member",
             "system_roles": ["platform_admin"],
         },
@@ -725,7 +725,7 @@ def test_admin_identity_management_endpoints(client: TestClient) -> None:
     assert create_user_response.status_code == 201
     created_user = create_user_response.json()["user"]
     temporary_password = create_user_response.json()["temporary_password"]
-    assert created_user["email"] == "member@open-work-hub.local"
+    assert created_user["email"] == "member@mty.local"
     assert created_user["must_change_password"] is True
     assert temporary_password
 
@@ -765,14 +765,14 @@ def test_admin_identity_management_endpoints(client: TestClient) -> None:
         f"/api/v1/admin/users/{created_user['id']}",
         headers=headers,
         json={
-            "full_name": "Open Work Hub Member Updated",
+            "full_name": "MTY Member Updated",
             "display_name": "Updated Member",
             "status": "active",
             "system_roles": ["platform_admin"],
         },
     )
     assert update_user_response.status_code == 200
-    assert update_user_response.json()["full_name"] == "Open Work Hub Member Updated"
+    assert update_user_response.json()["full_name"] == "MTY Member Updated"
     assert update_user_response.json()["display_name"] == "Updated Member"
     assert update_user_response.json()["system_roles"] == ["platform_admin"]
 
@@ -780,7 +780,7 @@ def test_admin_identity_management_endpoints(client: TestClient) -> None:
         "/api/v1/admin/users",
         headers=headers,
         json={
-            "email": "delete-me@open-work-hub.local",
+            "email": "delete-me@mty.local",
             "full_name": "Delete Me",
             "display_name": "Delete Me",
         },
@@ -841,8 +841,8 @@ def test_pms_space_owner_has_no_company_group_administration(client: TestClient)
 
 
 def test_company_app_grant_does_not_grant_other_apps(client: TestClient) -> None:
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
 
     _bootstrap_admin(client)
     user_id, token = _create_direct_user(
@@ -863,7 +863,7 @@ def test_company_app_grant_does_not_grant_other_apps(client: TestClient) -> None
 def test_pms_membership_permissions(client: TestClient) -> None:
     admin_token = _bootstrap_admin(client)
     outsider_id, outsider_token = _create_direct_user(
-        email="member@open-work-hub.local",
+        email="member@mty.local",
         full_name="List Member",
     )
 
@@ -894,8 +894,8 @@ def test_pms_membership_permissions(client: TestClient) -> None:
 
 
 def test_pms_space_members_require_current_app_admission(client: TestClient) -> None:
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.auth.app_access_models import AppAccessPolicy
 
     admin_token = _bootstrap_admin(client)
     user_id, token = _create_direct_user(email="pms-member@example.test", full_name="PMS Member")
@@ -922,7 +922,7 @@ def test_pms_space_members_require_current_app_admission(client: TestClient) -> 
 def test_pms_space_creator_becomes_owner_and_last_manager_is_protected(client: TestClient) -> None:
     _bootstrap_admin(client)
     creator_id, creator_token = _create_direct_user(
-        email="space-creator@open-work-hub.local",
+        email="space-creator@mty.local",
         full_name="Space Creator",
     )
 
@@ -978,8 +978,8 @@ def test_platform_admin_reads_business_space_without_implicit_write_role(
 def test_app_grant_removal_revokes_existing_session_without_deleting_account(
     client: TestClient,
 ) -> None:
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
 
     _bootstrap_admin(client)
     user_id, token = _create_direct_user(email="revoked-app@example.test", full_name="Revoked App")

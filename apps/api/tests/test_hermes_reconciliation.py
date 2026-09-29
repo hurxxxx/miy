@@ -6,10 +6,10 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from open_work_hub_api.domains.hermes import execution, maintenance
-from open_work_hub_api.domains.hermes.client import HermesClientError
-from open_work_hub_api.domains.hermes.models import HermesRunEvent, HermesRunProjection
-from open_work_hub_api.domains.hermes.repository import HermesRunRepository, utcnow_naive
+from mty_api.domains.hermes import execution, maintenance
+from mty_api.domains.hermes.client import HermesClientError
+from mty_api.domains.hermes.models import HermesRunEvent, HermesRunProjection
+from mty_api.domains.hermes.repository import HermesRunRepository, utcnow_naive
 from test_hermes_runtime import seed, session_for, stage
 
 

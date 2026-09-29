@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { APP_CONTRACTS } from '@open-work-hub/contracts/app-contracts';
-import { buildAppHref } from '@open-work-hub/contracts/app-routes';
+import { APP_CONTRACTS } from '@mty/contracts/app-contracts';
+import { buildAppHref } from '@mty/contracts/app-routes';
 import {
   FAKE_PLATFORM_ADMIN_USER,
   stubConversationsApi,

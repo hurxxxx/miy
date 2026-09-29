@@ -7,10 +7,10 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from open_work_hub_api.core.db import get_engine
-from open_work_hub_api.domains.recording import blob_store
-from open_work_hub_api.domains.recording import service as canonical_recording_service
-from open_work_hub_api.domains.recording.models import Recording, RecordingTarget, RecordingStaging
+from mty_api.core.db import get_engine
+from mty_api.domains.recording import blob_store
+from mty_api.domains.recording import service as canonical_recording_service
+from mty_api.domains.recording.models import Recording, RecordingTarget, RecordingStaging
 
 from test_meeting import _auth_headers, _bootstrap_admin_session, _create_meeting
 
@@ -236,7 +236,7 @@ def test_only_one_user_can_record_at_a_time(client, monkeypatch, tmp_path) -> No
     second = _create_company_user(
         client,
         admin_token,
-        email="second-recorder@open-work-hub.local",
+        email="second-recorder@mty.local",
         full_name="Second Recorder",
     )
     second_token = _login(client, second["user"]["email"], second["temporary_password"])
@@ -330,7 +330,7 @@ def test_delete_recording_permission_and_cleanup(client, monkeypatch, tmp_path) 
     other = _create_company_user(
         client,
         admin_token,
-        email="other-recording@open-work-hub.local",
+        email="other-recording@mty.local",
         full_name="Other Recording",
     )
     other_token = _login(client, other["user"]["email"], other["temporary_password"])

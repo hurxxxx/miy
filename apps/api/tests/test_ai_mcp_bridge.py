@@ -6,10 +6,10 @@ from dev_accounts import dev_login
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from open_work_hub_api.core.settings import get_settings
-from open_work_hub_api.domains.ai.registry import reset_ai_capability_registry
-from open_work_hub_api.core.db import get_engine
-from open_work_hub_api.domains.auth.models import CompanyAppControl
+from mty_api.core.settings import get_settings
+from mty_api.domains.ai.registry import reset_ai_capability_registry
+from mty_api.core.db import get_engine
+from mty_api.domains.auth.models import CompanyAppControl
 
 
 def _dev_login(client: TestClient, account_key: str) -> dict:
@@ -71,7 +71,11 @@ def test_capability_manifest_returns_filtered_tool_inventory(client: TestClient)
     assert all("_meta" in item for item in payload["tools"])
 
 
-def test_app_manifest_and_openapi_are_scoped_to_one_app(client: TestClient) -> None:
+def test_app_manifest_and_openapi_are_scoped_to_one_app(
+    client: TestClient, monkeypatch
+) -> None:
+    monkeypatch.setenv("MTY_AI_WRITE_TOOLS_ENABLED", "0")
+    _reset_settings_and_registry()
     auth = _dev_login(client, "delivery-hub-admin")
 
     manifest_response = client.get(
@@ -118,7 +122,7 @@ def test_manifest_and_openapi_include_pms_write_tools_when_enabled(
     client: TestClient,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("OPEN_WORK_HUB_AI_WRITE_TOOLS_ENABLED", "1")
+    monkeypatch.setenv("MTY_AI_WRITE_TOOLS_ENABLED", "1")
     _reset_settings_and_registry()
     try:
         auth = _dev_login(client, "delivery-hub-admin")
@@ -175,7 +179,7 @@ def test_manifest_and_openapi_include_pms_write_tools_when_enabled(
         assert "/mcp/tools/planner.delete_event" in openapi_payload["paths"]
         assert "/mcp/tools/docs.create_page" not in openapi_payload["paths"]
     finally:
-        monkeypatch.delenv("OPEN_WORK_HUB_AI_WRITE_TOOLS_ENABLED", raising=False)
+        monkeypatch.delenv("MTY_AI_WRITE_TOOLS_ENABLED", raising=False)
         _reset_settings_and_registry()
 
 
@@ -183,7 +187,7 @@ def test_planner_app_manifest_and_openapi_include_write_tool_when_enabled(
     client: TestClient,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("OPEN_WORK_HUB_AI_WRITE_TOOLS_ENABLED", "1")
+    monkeypatch.setenv("MTY_AI_WRITE_TOOLS_ENABLED", "1")
     _reset_settings_and_registry()
     try:
         auth = _dev_login(client, "delivery-hub-admin")
@@ -214,5 +218,5 @@ def test_planner_app_manifest_and_openapi_include_write_tool_when_enabled(
             "/mcp/tools/planner.delete_event",
         }
     finally:
-        monkeypatch.delenv("OPEN_WORK_HUB_AI_WRITE_TOOLS_ENABLED", raising=False)
+        monkeypatch.delenv("MTY_AI_WRITE_TOOLS_ENABLED", raising=False)
         _reset_settings_and_registry()

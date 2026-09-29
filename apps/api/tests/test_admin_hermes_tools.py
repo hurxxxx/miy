@@ -5,8 +5,8 @@ from types import SimpleNamespace
 from fastapi.testclient import TestClient
 import pytest
 
-from open_work_hub_api.domains.hermes import admin_router
-from open_work_hub_api.domains.hermes.research_sources import (
+from mty_api.domains.hermes import admin_router
+from mty_api.domains.hermes.research_sources import (
     DEFAULT_RESEARCH_SOURCE_POLICY,
     academic_research_environment_hint,
     disabled_research_source_domains,
@@ -100,7 +100,7 @@ async def test_profile_inventory_includes_official_toolset_status(
     binding = SimpleNamespace(
         id="binding-id",
         user_id="user-id",
-        profile_name="owh-profile",
+        profile_name="mty-profile",
         status="active",
         provider="openrouter",
         model="qwen/qwen3.8-flash",
@@ -159,12 +159,12 @@ async def test_profile_inventory_includes_official_toolset_status(
 async def test_model_reapplication_uses_admin_policy_and_preserves_route(monkeypatch, route):
     from unittest.mock import AsyncMock, Mock
     from fastapi import HTTPException
-    from open_work_hub_api.domains.hermes.model_policy import HermesModelPolicy
+    from mty_api.domains.hermes.model_policy import HermesModelPolicy
 
     binding = SimpleNamespace(
         id="binding-id",
         user_id="user-id",
-        profile_name="owh-profile",
+        profile_name="mty-profile",
         route=route,
         status="active",
         provider="old-provider",

@@ -207,18 +207,18 @@ def test_test_resource_names_are_scoped_to_the_run() -> None:
     minio_target = infra.new_minio_target()
     index_prefix = infra.new_opensearch_index_prefix()
 
-    assert minio_target.bucket.startswith("open-work-hub-api-test-abc123-")
-    assert index_prefix.startswith("open_work_hub_api_test_abc123_")
-    assert infra.postgres_run_prefix == "open_work_hub_test_abc123_"
+    assert minio_target.bucket.startswith("mty-api-test-abc123-")
+    assert index_prefix.startswith("mty_api_test_abc123_")
+    assert infra.postgres_run_prefix == "mty_test_abc123_"
 
 
 def test_cleanup_refuses_resources_outside_the_current_run() -> None:
     infra = _infra()
 
     with pytest.raises(RuntimeError, match="outside this test run"):
-        infra.cleanup_minio_bucket("open-work-hub-dev")
+        infra.cleanup_minio_bucket("mty-dev")
     with pytest.raises(RuntimeError, match="outside this test run"):
-        infra.cleanup_opensearch_indices("open-work-hub-dev")
+        infra.cleanup_opensearch_indices("mty-dev")
 
 
 def test_opensearch_cleanup_deletes_and_verifies_run_prefix(monkeypatch) -> None:
@@ -245,25 +245,25 @@ def test_opensearch_cleanup_deletes_and_verifies_run_prefix(monkeypatch) -> None
         lambda url, **_kwargs: calls.append(("get", url)) or Response(),
     )
 
-    infra.cleanup_opensearch_indices("open_work_hub_api_test_abc123_case")
+    infra.cleanup_opensearch_indices("mty_api_test_abc123_case")
 
     assert calls == [
-        ("delete", "http://127.0.0.1:59210/open_work_hub_api_test_abc123_case*"),
+        ("delete", "http://127.0.0.1:59210/mty_api_test_abc123_case*"),
         (
             "get",
-            "http://127.0.0.1:59210/_cat/indices/open_work_hub_api_test_abc123_case*",
+            "http://127.0.0.1:59210/_cat/indices/mty_api_test_abc123_case*",
         ),
     ]
 
 
 def test_load_refuses_production_profile(monkeypatch) -> None:
     values = {
-        "OPEN_WORK_HUB_TEST_REDIS_URL": "redis://127.0.0.1:56380/0",
-        "OPEN_WORK_HUB_TEST_MINIO_ENDPOINT": "http://127.0.0.1:59010",
-        "OPEN_WORK_HUB_TEST_MINIO_ACCESS_KEY": "test-access",
-        "OPEN_WORK_HUB_TEST_MINIO_SECRET_KEY": "test-secret",
-        "OPEN_WORK_HUB_TEST_OPENSEARCH_URL": "http://127.0.0.1:59210",
-        "OPEN_WORK_HUB_ENV_PROFILE": "production",
+        "MTY_TEST_REDIS_URL": "redis://127.0.0.1:56380/0",
+        "MTY_TEST_MINIO_ENDPOINT": "http://127.0.0.1:59010",
+        "MTY_TEST_MINIO_ACCESS_KEY": "test-access",
+        "MTY_TEST_MINIO_SECRET_KEY": "test-secret",
+        "MTY_TEST_OPENSEARCH_URL": "http://127.0.0.1:59210",
+        "MTY_ENV_PROFILE": "production",
     }
     monkeypatch.setattr(
         infra_module.os,
@@ -278,11 +278,11 @@ def test_load_refuses_production_profile(monkeypatch) -> None:
 
 def test_load_refuses_missing_environment_profile(monkeypatch) -> None:
     values = {
-        "OPEN_WORK_HUB_TEST_REDIS_URL": "redis://127.0.0.1:56380/0",
-        "OPEN_WORK_HUB_TEST_MINIO_ENDPOINT": "http://127.0.0.1:59010",
-        "OPEN_WORK_HUB_TEST_MINIO_ACCESS_KEY": "test-access",
-        "OPEN_WORK_HUB_TEST_MINIO_SECRET_KEY": "test-secret",
-        "OPEN_WORK_HUB_TEST_OPENSEARCH_URL": "http://127.0.0.1:59210",
+        "MTY_TEST_REDIS_URL": "redis://127.0.0.1:56380/0",
+        "MTY_TEST_MINIO_ENDPOINT": "http://127.0.0.1:59010",
+        "MTY_TEST_MINIO_ACCESS_KEY": "test-access",
+        "MTY_TEST_MINIO_SECRET_KEY": "test-secret",
+        "MTY_TEST_OPENSEARCH_URL": "http://127.0.0.1:59210",
     }
     monkeypatch.setattr(
         infra_module.os,
@@ -325,7 +325,7 @@ def test_minio_cleanup_verifies_bucket_absence(monkeypatch) -> None:
         lambda _self: fake_client,
     )
 
-    bucket = "open-work-hub-api-test-abc123-case"
+    bucket = "mty-api-test-abc123-case"
     infra.cleanup_minio_bucket(bucket)
 
     assert removed == [f"{bucket}/item", bucket]
@@ -335,12 +335,12 @@ def test_unrecognized_test_endpoint_requires_explicit_non_production_ack(
     monkeypatch,
 ) -> None:
     values = {
-        "OPEN_WORK_HUB_TEST_REDIS_URL": "redis://production-alias.invalid:6379/0",
-        "OPEN_WORK_HUB_TEST_MINIO_ENDPOINT": "https://production-alias.invalid:9000",
-        "OPEN_WORK_HUB_TEST_MINIO_ACCESS_KEY": "test-access",
-        "OPEN_WORK_HUB_TEST_MINIO_SECRET_KEY": "test-secret",
-        "OPEN_WORK_HUB_TEST_OPENSEARCH_URL": "https://production-alias.invalid:9200",
-        "OPEN_WORK_HUB_ENV_PROFILE": "development",
+        "MTY_TEST_REDIS_URL": "redis://production-alias.invalid:6379/0",
+        "MTY_TEST_MINIO_ENDPOINT": "https://production-alias.invalid:9000",
+        "MTY_TEST_MINIO_ACCESS_KEY": "test-access",
+        "MTY_TEST_MINIO_SECRET_KEY": "test-secret",
+        "MTY_TEST_OPENSEARCH_URL": "https://production-alias.invalid:9200",
+        "MTY_ENV_PROFILE": "development",
     }
     monkeypatch.setattr(
         infra_module.os,
@@ -360,7 +360,7 @@ def test_unrecognized_postgres_template_is_rejected_without_ack(monkeypatch) -> 
         infra_module.os,
         "getenv",
         lambda name, default=None: (
-            "development" if name == "OPEN_WORK_HUB_ENV_PROFILE" else default
+            "development" if name == "MTY_ENV_PROFILE" else default
         ),
     )
     monkeypatch.setattr(infra_module, "_approved_dev_values", lambda _name: set())
@@ -404,10 +404,10 @@ def test_application_composition_restores_environment_before_external_discovery(
     from fastapi import FastAPI
 
     original_endpoint = "http://127.0.0.1:59010"
-    monkeypatch.setenv("OPEN_WORK_HUB_MINIO_ENDPOINT", original_endpoint)
+    monkeypatch.setenv("MTY_MINIO_ENDPOINT", original_endpoint)
 
     def build(patch, **_kwargs):
-        patch.setenv("OPEN_WORK_HUB_MINIO_ENDPOINT", "http://127.0.0.1:1")
+        patch.setenv("MTY_MINIO_ENDPOINT", "http://127.0.0.1:1")
         return FastAPI()
 
     monkeypatch.setattr(conftest, "_build_test_application", build)
@@ -417,6 +417,6 @@ def test_application_composition_restores_environment_before_external_discovery(
     )
     try:
         next(lifecycle)
-        assert infra_module.os.getenv("OPEN_WORK_HUB_MINIO_ENDPOINT") == original_endpoint
+        assert infra_module.os.getenv("MTY_MINIO_ENDPOINT") == original_endpoint
     finally:
         lifecycle.close()

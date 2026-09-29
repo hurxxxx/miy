@@ -5,12 +5,12 @@ from typing import Any
 
 import pytest
 
-from open_work_hub_api.core.llm import LlmPoolConfig
-from open_work_hub_api.core.settings import get_settings
-from open_work_hub_api.domains.ai import audit as audit_module
-from open_work_hub_api.domains.ai import gateway as gateway_module
-from open_work_hub_api.domains.ai import masking as masking_module
-from open_work_hub_api.domains.ai.gateway import (
+from mty_api.core.llm import LlmPoolConfig
+from mty_api.core.settings import get_settings
+from mty_api.domains.ai import audit as audit_module
+from mty_api.domains.ai import gateway as gateway_module
+from mty_api.domains.ai import masking as masking_module
+from mty_api.domains.ai.gateway import (
     AiGatewayContextPack,
     AiGatewayPolicyViolation,
     AiGatewayRequest,
@@ -19,12 +19,12 @@ from open_work_hub_api.domains.ai.gateway import (
     execute_llm,
     resolve_gateway_execution,
 )
-from open_work_hub_api.domains.ai.privacy_filter import PrivacyFilterDetection, PrivacyFilterSpan
-from open_work_hub_api.domains.ai.registry import (
+from mty_api.domains.ai.privacy_filter import PrivacyFilterDetection, PrivacyFilterSpan
+from mty_api.domains.ai.registry import (
     get_ai_capability_registry,
     reset_ai_capability_registry,
 )
-from open_work_hub_api.domains.ai.security_policy import (
+from mty_api.domains.ai.security_policy import (
     POLICY_MASK_AND_SEND_REASON,
     AiSecurityPolicyDecision,
 )
@@ -125,7 +125,7 @@ def test_chatbot_task_is_registered_with_default_budgets() -> None:
 
 
 def test_common_completion_executes_hermes_instead_of_provider_sdk(monkeypatch):
-    from open_work_hub_api.domains.hermes import workloads
+    from mty_api.domains.hermes import workloads
 
     calls = []
 
@@ -162,7 +162,7 @@ def test_gateway_unknown_task_kind_does_not_route_external() -> None:
 def test_registered_external_provider_is_blocked_by_egress_allowlist_even_when_security_is_off(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("OPEN_WORK_HUB_LLM_EXTERNAL_ALLOWED_PROVIDERS", "openai")
+    monkeypatch.setenv("MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS", "openai")
     get_settings.cache_clear()
     try:
         with pytest.raises(AiGatewayPolicyViolation) as exc_info:
@@ -700,6 +700,7 @@ def test_execute_llm_uses_registered_admin_route_without_caller_model_controls(
         "resolve_llm_workload_route",
         lambda *_args, **_kwargs: SimpleNamespace(
             workload=workload,
+            runtime_adapter_id=workload.default_runtime_adapter,
             route="external",
             provider_id="anthropic",
             adapter_provider="anthropic",
@@ -718,6 +719,7 @@ def test_execute_llm_uses_registered_admin_route_without_caller_model_controls(
         captured["db"] = db
         return SimpleNamespace(text="ok"), SimpleNamespace(provider=request.workload_config.provider, model=request.workload_config.default_model, chosen_pool=request.workload_config.pool), request.workload_config
 
+    monkeypatch.setattr(gateway_module, "require_workload_owner", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(gateway_module, "complete_gateway_chat_text", fake_complete)
     db = object()
     result = execute_llm(
@@ -755,6 +757,7 @@ def test_execute_llm_uses_route_cap_when_caller_omits_max_tokens(
         "resolve_llm_workload_route",
         lambda *_args, **_kwargs: SimpleNamespace(
             workload=workload,
+            runtime_adapter_id=workload.default_runtime_adapter,
             route="local",
             provider_id="local",
             adapter_provider="local",
@@ -772,6 +775,7 @@ def test_execute_llm_uses_route_cap_when_caller_omits_max_tokens(
         captured["request"] = request
         return SimpleNamespace(text="ok"), SimpleNamespace(provider=request.workload_config.provider, model=request.workload_config.default_model, chosen_pool=request.workload_config.pool), request.workload_config
 
+    monkeypatch.setattr(gateway_module, "require_workload_owner", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(gateway_module, "complete_gateway_chat_text", fake_complete)
     execute_llm(
         "chatbot",

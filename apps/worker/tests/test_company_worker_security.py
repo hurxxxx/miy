@@ -9,17 +9,17 @@ from fastapi import HTTPException
 from sqlalchemy import create_engine, delete, update
 from sqlalchemy.orm import Session
 
-from open_work_hub_worker.tasks import meeting, rag_sync, recording, search_index
+from mty_worker.tasks import meeting, rag_sync, recording, search_index
 
-from open_work_hub_api.core.db import Base
-from open_work_hub_api.domains.auth.app_access_models import (
+from mty_api.core.db import Base
+from mty_api.domains.auth.app_access_models import (
     AppAccessPolicy,
     AppGroupGrant,
     AppUserGrant,
 )
-from open_work_hub_api.domains.auth.models import CompanyAppControl, User, UserSystemRole
-from open_work_hub_api.domains.groups.models import Group, GroupMember
-from open_work_hub_api.domains.meeting.models import Meeting, MeetingAttendee
+from mty_api.domains.auth.models import CompanyAppControl, User, UserSystemRole
+from mty_api.domains.groups.models import Group, GroupMember
+from mty_api.domains.meeting.models import Meeting, MeetingAttendee
 
 
 @pytest.fixture

@@ -16,9 +16,9 @@ function user(overrides: Partial<AuthUser> = {}): AuthUser {
   return createAuthUser({
     app_bar_layout: { pinned_app_ids: [] },
     date_format: 'korean',
-    display_name: 'Open Work Hub Member',
-    email: 'member@open-work-hub.local',
-    full_name: 'Open Work Hub Member',
+    display_name: 'MTY Member',
+    email: 'member@mty.local',
+    full_name: 'MTY Member',
     id: 'user-1',
     last_login_at: null,
     locale: 'ko-KR',
@@ -50,7 +50,7 @@ function devAccount(overrides: Partial<DevLoginAccount> = {}): DevLoginAccount {
     account_key: 'platform-admin',
     category: 'Administrators',
     description: 'Platform administrator account.',
-    email: 'platform-admin@open-work-hub.local',
+    email: 'platform-admin@mty.local',
     label: 'Platform Admin',
     ...overrides,
   };
@@ -72,7 +72,7 @@ describe('auth session model', () => {
   it('projects valid stored token recovery as authenticated state with sync metadata', () => {
     const currentUser = user({
       date_format: 'iso',
-      email: 'saved@open-work-hub.local',
+      email: 'saved@mty.local',
       locale: 'en-US',
     });
     const accounts = [devAccount()];
@@ -183,7 +183,7 @@ describe('auth session model', () => {
       devAccount({
         account_key: 'company-member',
         category: 'Company',
-        email: 'company-member@open-work-hub.local',
+        email: 'company-member@mty.local',
         label: 'Company Member',
       }),
     ];

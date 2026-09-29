@@ -43,7 +43,7 @@ all actors and check Back/Forward again.
 ## Live Browser Execution Contract
 
 - For development, start the documented Web/API/Worker and real dependencies with
-  `./dev.sh --with-worker --restart`. Run `OPEN_WORK_HUB_UAT_BASE_URL=https://… pnpm uat:preflight`
+  `./dev.sh --with-worker --restart`. Run `MTY_UAT_BASE_URL=https://… pnpm uat:preflight`
   before the measured public-domain development gate. Record environment, origin, deployed Git commit,
   UTC run ID, service readiness and first rendered login snapshot. Localhost smoke does not replace it.
   A production journey follows the authorized deployment and uses a separate evidence record; never

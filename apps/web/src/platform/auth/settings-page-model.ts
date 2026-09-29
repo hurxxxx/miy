@@ -20,7 +20,7 @@ export type SettingsSection =
   | 'security'
   | 'notifications'
   | 'releaseNotes'
-  | 'openWorkHubDesktop';
+  | 'mtyDesktop';
 
 export type SettingsTranslator = (
   key: string,

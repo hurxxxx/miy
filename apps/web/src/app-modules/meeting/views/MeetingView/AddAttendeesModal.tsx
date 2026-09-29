@@ -3,7 +3,7 @@
 // MeetingEditModal which is organizer-only and edits everything.
 //
 // Backed by POST /meeting/meetings/{id}/attendees which is participant-permissioned.
-import { InlineNotice } from '@open-work-hub/ui';
+import { InlineNotice } from '@mty/ui';
 import { UserPlus } from 'lucide-react';
 import { useEffect, useMemo, useReducer } from 'react';
 import { useTranslation } from 'react-i18next';

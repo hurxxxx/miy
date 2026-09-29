@@ -1,20 +1,20 @@
 import { afterEach, expect, it } from 'vitest';
-import { consumeOwhSessionHandoff } from './api';
+import { consumeMTYSessionHandoff } from './api';
 
 afterEach(() => window.history.replaceState(null, '', '/'));
 
-it('consumes a valid Open Work Hub handoff without retaining it in the URL', () => {
+it('consumes a valid MTY handoff without retaining it in the URL', () => {
   const code = `cc1_${'a'.repeat(32)}`;
   window.history.replaceState(
     { preserved: true },
     '',
     `/?task=1#${new URLSearchParams({
-      owh_issuer: 'https://dev.example.test',
-      owh_code: code,
+      mty_issuer: 'https://dev.example.test',
+      mty_code: code,
     })}`,
   );
 
-  expect(consumeOwhSessionHandoff()).toEqual({
+  expect(consumeMTYSessionHandoff()).toEqual({
     issuer: 'https://dev.example.test',
     code,
   });
@@ -23,7 +23,7 @@ it('consumes a valid Open Work Hub handoff without retaining it in the URL', () 
 });
 
 it('removes an invalid handoff and refuses to exchange it', () => {
-  window.history.replaceState(null, '', '/#owh_issuer=x&owh_code=bad');
-  expect(consumeOwhSessionHandoff()).toBeNull();
+  window.history.replaceState(null, '', '/#mty_issuer=x&mty_code=bad');
+  expect(consumeMTYSessionHandoff()).toBeNull();
   expect(window.location.hash).toBe('');
 });

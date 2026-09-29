@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-repo_root="${OPEN_WORK_HUB_VALIDATION_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-image="${OPEN_WORK_HUB_VALIDATION_IMAGE:-open-work-hub-validation:node22-python312}"
-docker_config_dir="${OPEN_WORK_HUB_VALIDATION_DOCKER_CONFIG:-$repo_root/.runtime/ci-validation-docker-config}"
+repo_root="${MTY_VALIDATION_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+image="${MTY_VALIDATION_IMAGE:-mty-validation:node22-python312}"
+docker_config_dir="${MTY_VALIDATION_DOCKER_CONFIG:-$repo_root/.runtime/ci-validation-docker-config}"
 postgres_major=""
 postgres_client_image=""
 platform=""
@@ -110,17 +110,17 @@ verify_image() {
       python --version
       uv --version
       tmux -V
-      test "$(cat /opt/open-work-hub/locks/api/postgres-major)" = "$expected_major"
+      test "$(cat /opt/mty/locks/api/postgres-major)" = "$expected_major"
       pg_dump --version | grep -Eq "^pg_dump \(PostgreSQL\) ${expected_major}\."
       pg_restore --version | grep -Eq "^pg_restore \(PostgreSQL\) ${expected_major}\."
       psql --version | grep -Eq "^psql \(PostgreSQL\) ${expected_major}\."
-      test -r "$OPEN_WORK_HUB_API_IMAGE_DEPENDENCY_FILE"
-      test -r "$OPEN_WORK_HUB_NODE_IMAGE_DEPENDENCY_FILE"
-      test -r "$OPEN_WORK_HUB_WORKER_IMAGE_DEPENDENCY_FILE"
-      test "$(cat "$OPEN_WORK_HUB_API_IMAGE_DEPENDENCY_FILE")" = "$2"
-      test "$(cat "$OPEN_WORK_HUB_NODE_IMAGE_DEPENDENCY_FILE")" = "$3"
-      test "$(cat "$OPEN_WORK_HUB_WORKER_IMAGE_DEPENDENCY_FILE")" = "$4"
-      cd /opt/open-work-hub/node-runtime
+      test -r "$MTY_API_IMAGE_DEPENDENCY_FILE"
+      test -r "$MTY_NODE_IMAGE_DEPENDENCY_FILE"
+      test -r "$MTY_WORKER_IMAGE_DEPENDENCY_FILE"
+      test "$(cat "$MTY_API_IMAGE_DEPENDENCY_FILE")" = "$2"
+      test "$(cat "$MTY_NODE_IMAGE_DEPENDENCY_FILE")" = "$3"
+      test "$(cat "$MTY_WORKER_IMAGE_DEPENDENCY_FILE")" = "$4"
+      cd /opt/mty/node-runtime
       pnpm exec nx --version
       node -e '\''const { chromium } = require("@playwright/test"); chromium.launch({ headless: true }).then((browser) => browser.close()).catch((error) => { console.error(error); process.exit(1); })'\''
     ' -- "$postgres_major" "$(api_dependency_sha256)" "$(node_dependency_sha256)" "$(worker_dependency_sha256)"
@@ -160,7 +160,7 @@ build_image() {
   local contract_sha256 existing_contract
   contract_sha256="$(print_contract | sha256sum | awk '{print $1}')"
   existing_contract="$(docker --config "$docker_config_dir" image inspect \
-    --format '{{index .Config.Labels "io.open-work-hub.validation.contract"}}' "$image" 2>/dev/null || true)"
+    --format '{{index .Config.Labels "io.mty.validation.contract"}}' "$image" 2>/dev/null || true)"
   if [[ "$existing_contract" == "$contract_sha256" ]]; then
     verify_image
     print_contract

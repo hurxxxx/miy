@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from open_work_hub_api.domains.pms.links import (
+from mty_api.domains.pms.links import (
     pms_root_path,
     pms_space_docs_path,
     pms_space_path,

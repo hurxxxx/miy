@@ -7,7 +7,7 @@ from celery import Celery
 from celery.signals import after_task_publish, beat_init
 import pytest
 
-from open_work_hub_worker import beat_health
+from mty_worker import beat_health
 
 
 @pytest.fixture

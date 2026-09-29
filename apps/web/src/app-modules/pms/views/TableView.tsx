@@ -1,5 +1,5 @@
 import { DateInput } from '@/src/components/date/DateInput';
-import { Badge, Button } from '@open-work-hub/ui';
+import { Badge, Button } from '@mty/ui';
 import {
   CheckSquare,
   CornerDownRight,

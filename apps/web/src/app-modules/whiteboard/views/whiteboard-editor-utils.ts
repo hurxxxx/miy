@@ -1,4 +1,4 @@
-import { colorForCollaborativeUser } from '@open-work-hub/ui';
+import { colorForCollaborativeUser } from '@mty/ui';
 
 export type SaveStatus = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 export type CollabStatus =

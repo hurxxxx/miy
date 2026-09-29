@@ -242,7 +242,7 @@ export const resources = {
         backToHelpCenter: '도움말 센터로 돌아가기',
         featureGuideButton: '사용 가이드',
         description:
-          'Open Work Hub 앱을 사용할 때 필요한 공식 사용 가이드를 확인합니다.',
+          'MTY 앱을 사용할 때 필요한 공식 사용 가이드를 확인합니다.',
         eyebrow: '도움말',
         open: '도움말',
         pmsGuideDescription:
@@ -449,7 +449,7 @@ export const resources = {
         'whiteboard-create': '화이트보드',
       },
       documentTitle: {
-        app: '{{app}} | Open Work Hub',
+        app: '{{app}} | MTY',
         profile: '내 설정',
       },
       apps: {
@@ -500,7 +500,7 @@ export const resources = {
         'bento-mine': '내 프레젠테이션',
         'bento-archived': '보관됨',
         chatbot: 'AI 챗봇',
-        search: 'Open Work Hub 통합검색',
+        search: 'MTY 통합검색',
         'retrieval-search': 'Retrieval 진단 검색',
         'docs-all': '전체 문서',
         'docs-my': '내 문서',
@@ -646,6 +646,8 @@ export const resources = {
       },
       login: {
         alreadyHaveAccount: '이미 계정이 있나요?',
+        brandName: 'MTY',
+        brandTagline: 'Make Them Yourself',
         createAdmin: '관리자 계정 만들기',
         createAccount: '계정 만들기',
         devAdminButton: '개발용 관리자 바로 로그인',
@@ -685,31 +687,31 @@ export const resources = {
       settings: {
         activeSessions: '활성 세션',
         appearance: '화면 설정',
-        openWorkHubDesktop: 'AI 어시스턴트 데스크탑',
-        openWorkHubDesktopDescription:
+        mtyDesktop: 'AI 어시스턴트 데스크탑',
+        mtyDesktopDescription:
           '브라우저를 닫아도 각 OS의 트레이 또는 상태 영역에서 DM 알림과 채팅을 유지합니다.',
-        openWorkHubDesktopCurrentOs: '현재 OS',
-        openWorkHubDesktopDownload: '{{platform}} 다운로드',
-        openWorkHubDesktopInstall: '앱 설치',
-        openWorkHubDesktopLinuxDescription:
+        mtyDesktopCurrentOs: '현재 OS',
+        mtyDesktopDownload: '{{platform}} 다운로드',
+        mtyDesktopInstall: '앱 설치',
+        mtyDesktopLinuxDescription:
           'Ubuntu/Debian 계열 Linux 데스크톱용 DEB 설치본입니다.',
-        openWorkHubDesktopLinuxGuide:
+        mtyDesktopLinuxGuide:
           '다운로드 후 소프트웨어 설치 프로그램으로 열거나 dpkg로 설치하세요.',
-        openWorkHubDesktopLinuxTitle: 'Linux',
-        openWorkHubDesktopMacDescription:
+        mtyDesktopLinuxTitle: 'Linux',
+        mtyDesktopMacDescription:
           'macOS 빌드가 업로드되면 이 링크로 설치본을 받을 수 있습니다.',
-        openWorkHubDesktopMacGuide:
-          '압축을 풀거나 DMG를 열어 Open Work Hub Desktop을 Applications로 이동하세요.',
-        openWorkHubDesktopMacTitle: 'macOS',
-        openWorkHubDesktopSettingsDescription:
-          '운영체제별 Open Work Hub Desktop 설치 파일을 다운로드합니다.',
-        openWorkHubDesktopTitle: 'Open Work Hub Desktop 데스크톱 앱',
-        openWorkHubDesktopUnavailable: '준비 중',
-        openWorkHubDesktopWindowsDescription:
+        mtyDesktopMacGuide:
+          '압축을 풀거나 DMG를 열어 MTY Desktop을 Applications로 이동하세요.',
+        mtyDesktopMacTitle: 'macOS',
+        mtyDesktopSettingsDescription:
+          '운영체제별 MTY Desktop 설치 파일을 다운로드합니다.',
+        mtyDesktopTitle: 'MTY Desktop 데스크톱 앱',
+        mtyDesktopUnavailable: '준비 중',
+        mtyDesktopWindowsDescription:
           'Windows 트레이에서 상주하는 NSIS 설치 파일입니다.',
-        openWorkHubDesktopWindowsGuide:
+        mtyDesktopWindowsGuide:
           '다운로드한 설치 파일을 실행하면 현재 사용자 계정으로 설치됩니다.',
-        openWorkHubDesktopWindowsTitle: 'Windows',
+        mtyDesktopWindowsTitle: 'Windows',
         avatar: '아바타',
         currentPassword: '현재 비밀번호',
         customizeAppearance: '앱 표시 방식을 설정합니다.',
@@ -756,7 +758,7 @@ export const resources = {
         passwordRequired: '비밀번호 변경이 필요합니다.',
         profile: '프로필',
         releaseNotes: '업데이트 내역',
-        releaseNotesDescription: 'Open Work Hub 배포 변경사항을 확인합니다.',
+        releaseNotesDescription: 'MTY 배포 변경사항을 확인합니다.',
         releaseNotesEmpty: '표시할 업데이트 내역이 없습니다.',
         releaseNotesLoadFailed: '업데이트 내역을 불러오지 못했습니다.',
         releaseNotesRead: '확인함',
@@ -802,6 +804,53 @@ export const resources = {
     },
     apps: {
       tetris: {
+        'Rotate': '회전',
+        'Left': '왼쪽',
+        'Right': '오른쪽',
+        'Down': '내리기',
+        'Drop': '낙하',
+        'Duel': '대결',
+        'Solo play': '혼자 플레이',
+        'VS': 'VS',
+        'Arrows move; Space drops; C holds': '← → 이동 · Space 낙하 · C 홀드',
+        'Waiting to start': '게임 시작 대기',
+        'Paused': '일시정지',
+        'Winner': '승리',
+        'No responses yet': '아직 응답 없음',
+        'No successful responses yet': '아직 성공한 응답 없음',
+        'Model request limit reached': '모델 공급자 호출 제한',
+        'Model output limit reached': '모델 출력 상한 초과',
+        'Model response timed out': '모델 응답 시간 초과',
+        'Controls and rules': '조작법과 대결 규칙',
+        'AI play with LLM': 'LLM으로 AI 플레이',
+        'Could not load AI models.': 'AI 모델 목록을 불러오지 못했습니다.',
+        'Player {{player}}': '플레이어 {{player}}',
+        'Player {{player}} wins!': '플레이어 {{player}} 승리!',
+        'Refresh models': '모델 새로고침',
+        'No player': '없음',
+        'Human': '사람',
+        'AI': 'AI',
+        'AI model for player {{player}}': '플레이어 {{player}} AI 모델',
+        'Model unavailable': '사용할 수 없는 모델',
+        'Decision model': '판단 모델',
+        'LLM': 'LLM',
+        'Default model': '기본 모델',
+        'Loading AI models…': 'AI 모델 불러오는 중…',
+        'No compatible AI models are enabled.': '활성화된 호환 AI 모델이 없습니다.',
+        'Latest response': '최근 응답',
+        'Average (last 20)': '평균(최근 20회)',
+        '{{time}} ms': '{{time}} ms',
+        'Attack lines sent': '보낸 공격 줄',
+        'Clear 2 / 3 / 4 lines to send 1 / 2 / 3 garbage lines immediately.': '2 / 3 / 4줄을 지우면 상대에게 방해 줄 1 / 2 / 3줄을 즉시 보냅니다.',
+        'Set player 2 to no player for solo play. Only one human can play.': '플레이어 2를 없음으로 두면 혼자 플레이합니다. 사람은 한 명만 참여할 수 있습니다.',
+        'AI play decision': 'AI 플레이 판단',
+        'Choose one control from the current board.': '현재 보드를 보고 다음 조작 하나를 선택합니다.',
+        'Enable AI play': 'AI 플레이 켜기',
+        'Disable AI play': 'AI 플레이 끄기',
+        'AI is deciding': 'AI 판단 중',
+        'AI retrying (attempt {{attempt}})': 'AI 재시도 중 ({{attempt}}회)',
+        'AI play enabled': 'AI 플레이 켜짐',
+        'AI decision failed.': 'AI 판단에 실패했습니다.',
         'Rotate left': '왼쪽 회전',
         'Hold block': '블록 홀드',
         'Rotate right': '오른쪽 회전',
@@ -832,8 +881,8 @@ export const resources = {
           '↑/X 시계 방향 회전 · Z 반시계 방향 회전',
         'Space drops instantly; C holds a block': 'Space 즉시 낙하 · C 홀드',
         'P or Esc pauses or resumes': 'P/Esc 일시정지 또는 재개',
-        'Leaving the game pauses it; resume explicitly':
-          '게임을 벗어나면 일시정지합니다. 직접 재개해 주세요.',
+        'Play continues when focus leaves the game':
+          '포커스가 다른 곳으로 이동해도 게임은 계속됩니다.',
         'Progress is not saved when you leave or reload':
           '앱을 떠나거나 새로고침하면 진행 상태가 초기화됩니다.',
       },
@@ -1491,7 +1540,7 @@ export const resources = {
           loadingApprovals: '승인 요청을 불러오는 중입니다.',
           loadingFiles: '작업 파일을 불러오는 중입니다.',
           noApprovalsDescription:
-            'Open Work Hub 쓰기 도구를 요청하면 여기에 표시됩니다.',
+            'MTY 쓰기 도구를 요청하면 여기에 표시됩니다.',
           noApprovalsTitle: '승인 요청이 없습니다.',
           noFilesDescription:
             'Hermes가 /workspace에 생성한 파일이 여기에 표시됩니다.',
@@ -1525,7 +1574,7 @@ export const resources = {
           starting: '시작 중...',
           title: '새 Hermes 터미널 세션',
           yoloAcknowledgement:
-            'Hermes의 위험 명령 확인을 건너뛰는 위험을 이해합니다. Open Work Hub 쓰기 승인과 격리 정책은 계속 적용됩니다.',
+            'Hermes의 위험 명령 확인을 건너뛰는 위험을 이해합니다. MTY 쓰기 승인과 격리 정책은 계속 적용됩니다.',
           yoloDescription:
             '공식 --yolo 플래그로 Hermes 자체 위험 명령 확인만 건너뜁니다.',
           yoloTitle: 'YOLO 모드',
@@ -1566,7 +1615,7 @@ export const resources = {
         preparingTitle: 'Hermes 세션을 준비 중입니다.',
         privateWorkspace: '사용자 전용 작업공간',
         securityNotice:
-          'OpenRouter 키는 격리 실행기에 전달되지 않습니다. YOLO에서도 Open Work Hub 쓰기 승인, 인증, 네트워크 격리는 유지됩니다.',
+          'OpenRouter 키는 격리 실행기에 전달되지 않습니다. YOLO에서도 MTY 쓰기 승인, 인증, 네트워크 격리는 유지됩니다.',
         sessionCapacity: '실행 세션 {{active}}/{{limit}}',
         sessionEndedDescription:
           '보존 기간 동안 오른쪽 결과 파일을 내려받을 수 있습니다.',
@@ -2531,7 +2580,11 @@ export const resources = {
               total: '등록 워크로드',
             },
             llmDefaults: {
-              title: 'LLM 기본 설정',
+              title: 'AI 모델 기본 설정',
+              family: '모델 종류',
+              inventoryProbe: '모델 목록에서 확인 (추론 없음)',
+              generation: '생성 모델',
+              decision: '판단 모델',
               sources: {
                 global: '공통 기본값',
                 app: '앱 기본값',
@@ -2591,8 +2644,10 @@ export const resources = {
             modelSettings: {
               capabilities: {
                 chat: '채팅',
+                non_reasoning: '추론 없이 응답',
                 tool_calling: '도구 호출',
                 vision: '비전',
+                decision: '판단',
               },
               conflict:
                 '다른 관리자 또는 새 배포가 설정을 변경했습니다. 최신 설정을 다시 불러왔습니다.',
@@ -2665,8 +2720,7 @@ export const resources = {
                 needsSetup: '설정 필요',
                 ready: '준비됨',
               },
-              workloadCatalog: {
-              },
+              workloadCatalog: {},
               workloads: {
                 count: '{{count}}개 워크로드',
                 defaultRoute: '기본: {{route}}',
@@ -4176,7 +4230,7 @@ export const resources = {
             '대화 목록에 표시할 이름을 입력하세요.',
           renameConversationFailed: '대화 이름을 변경하지 못했습니다.',
           renameConversationSuccess: '대화 이름을 변경했습니다.',
-          search: 'Open Work Hub 통합검색',
+          search: 'MTY 통합검색',
           searchConversations: '대화 검색',
           searchLoadedTitles: '불러온 대화의 제목에서 검색합니다.',
           untitledConversation: '제목 없는 대화',
@@ -4228,7 +4282,7 @@ export const resources = {
           sortRelevance: '관련도',
           subtitle: '{{app}}의 문서, 회의, PMS, 일정을 검색합니다.',
           subtitleFallback: '업무 데이터를 검색합니다.',
-          title: 'Open Work Hub 통합검색',
+          title: 'MTY 통합검색',
           updated: '{{date}} 업데이트',
           visibilityPrivate: '비공개',
           visibilityPublic: '공개',
@@ -4476,7 +4530,7 @@ export const resources = {
           },
           selectedDocument: '선택한 문서',
           selectedEvidence: '선택 근거',
-          title: 'Open Work Hub 통합검색',
+          title: 'MTY 통합검색',
           topResults: '상위 결과',
           type: '유형',
           views: {
@@ -6337,7 +6391,7 @@ export const resources = {
         aiGuideTitle: 'AI features guide',
         backToHelpCenter: 'Back to help center',
         featureGuideButton: 'Usage guide',
-        description: 'Find official user guides for Open Work Hub apps.',
+        description: 'Find official user guides for MTY apps.',
         eyebrow: 'Help',
         open: 'Help',
         pmsGuideDescription:
@@ -6503,7 +6557,8 @@ export const resources = {
         personalApp: 'Personal app',
         opensInNewTab: 'Opens in a new tab',
         openAppInNewTab: 'Open {{app}} in a new tab',
-        consoleSignIn: 'Sign in to Codex Console with your private console password.',
+        consoleSignIn:
+          'Sign in to Codex Console with your private console password.',
         personalScope: 'Personal scope',
         title: 'App launcher',
         unavailableAppLabel: '{{app}} — unavailable',
@@ -6547,7 +6602,7 @@ export const resources = {
         'whiteboard-create': 'Whiteboard',
       },
       documentTitle: {
-        app: '{{app}} | Open Work Hub',
+        app: '{{app}} | MTY',
         profile: 'My Settings',
       },
       apps: {
@@ -6598,7 +6653,7 @@ export const resources = {
         'bento-mine': 'My Presentations',
         'bento-archived': 'Archived',
         chatbot: 'AI Chatbot',
-        search: 'Open Work Hub Search',
+        search: 'MTY Search',
         'retrieval-search': 'Retrieval Diagnostics',
         'docs-all': 'All Docs',
         'docs-my': 'My Docs',
@@ -6745,6 +6800,8 @@ export const resources = {
       },
       login: {
         alreadyHaveAccount: 'Already have an account?',
+        brandName: 'MTY',
+        brandTagline: 'Make Them Yourself',
         createAdmin: 'Create admin account',
         createAccount: 'Create account',
         devAdminButton: 'Sign in as development admin',
@@ -6784,31 +6841,31 @@ export const resources = {
       settings: {
         activeSessions: 'Active Sessions',
         appearance: 'Appearance',
-        openWorkHubDesktop: 'Open Work Hub Desktop',
-        openWorkHubDesktopDescription:
+        mtyDesktop: 'MTY Desktop',
+        mtyDesktopDescription:
           'Keep DM notifications and chat available in each OS tray or status area after closing the browser.',
-        openWorkHubDesktopCurrentOs: 'Current OS',
-        openWorkHubDesktopDownload: 'Download {{platform}}',
-        openWorkHubDesktopInstall: 'Install App',
-        openWorkHubDesktopLinuxDescription:
+        mtyDesktopCurrentOs: 'Current OS',
+        mtyDesktopDownload: 'Download {{platform}}',
+        mtyDesktopInstall: 'Install App',
+        mtyDesktopLinuxDescription:
           'DEB installer for Ubuntu/Debian-based Linux desktops.',
-        openWorkHubDesktopLinuxGuide:
+        mtyDesktopLinuxGuide:
           'After downloading, open it with the software installer or install it with dpkg.',
-        openWorkHubDesktopLinuxTitle: 'Linux',
-        openWorkHubDesktopMacDescription:
+        mtyDesktopLinuxTitle: 'Linux',
+        mtyDesktopMacDescription:
           'Once the macOS build is uploaded, this link will provide the installer.',
-        openWorkHubDesktopMacGuide:
-          'Unzip it or open the DMG, then move Open Work Hub Desktop to Applications.',
-        openWorkHubDesktopMacTitle: 'macOS',
-        openWorkHubDesktopSettingsDescription:
-          'Download the Open Work Hub Desktop installer for each operating system.',
-        openWorkHubDesktopTitle: 'Open Work Hub Desktop App',
-        openWorkHubDesktopUnavailable: 'Preparing',
-        openWorkHubDesktopWindowsDescription:
+        mtyDesktopMacGuide:
+          'Unzip it or open the DMG, then move MTY Desktop to Applications.',
+        mtyDesktopMacTitle: 'macOS',
+        mtyDesktopSettingsDescription:
+          'Download the MTY Desktop installer for each operating system.',
+        mtyDesktopTitle: 'MTY Desktop App',
+        mtyDesktopUnavailable: 'Preparing',
+        mtyDesktopWindowsDescription:
           'NSIS installer for the Windows tray app.',
-        openWorkHubDesktopWindowsGuide:
+        mtyDesktopWindowsGuide:
           'Run the downloaded installer to install it for the current user.',
-        openWorkHubDesktopWindowsTitle: 'Windows',
+        mtyDesktopWindowsTitle: 'Windows',
         avatar: 'Avatar',
         currentPassword: 'Current Password',
         customizeAppearance: 'Customize how the app looks.',
@@ -6856,7 +6913,7 @@ export const resources = {
         passwordRequired: 'You must change your password.',
         profile: 'Profile',
         releaseNotes: 'Update History',
-        releaseNotesDescription: 'Review Open Work Hub release changes.',
+        releaseNotesDescription: 'Review MTY release changes.',
         releaseNotesEmpty: 'No updates to show.',
         releaseNotesLoadFailed: 'Could not load update history.',
         releaseNotesRead: 'Read',
@@ -6904,6 +6961,53 @@ export const resources = {
     },
     apps: {
       tetris: {
+        'Rotate': 'Rotate',
+        'Left': 'Left',
+        'Right': 'Right',
+        'Down': 'Down',
+        'Drop': 'Drop',
+        'Duel': 'Duel',
+        'Solo play': 'Solo play',
+        'VS': 'VS',
+        'Arrows move; Space drops; C holds': 'Arrows move; Space drops; C holds',
+        'Waiting to start': 'Waiting to start',
+        'Paused': 'Paused',
+        'Winner': 'Winner',
+        'No responses yet': 'No responses yet',
+        'No successful responses yet': 'No successful responses yet',
+        'Model request limit reached': 'Model provider request limit reached',
+        'Model output limit reached': 'Model output limit reached',
+        'Model response timed out': 'Model response timed out',
+        'Controls and rules': 'Controls and rules',
+        'AI play with LLM': 'AI play with LLM',
+        'Could not load AI models.': 'Could not load AI models.',
+        'Player {{player}}': 'Player {{player}}',
+        'Player {{player}} wins!': 'Player {{player}} wins!',
+        'Refresh models': 'Refresh models',
+        'No player': 'No player',
+        'Human': 'Human',
+        'AI': 'AI',
+        'AI model for player {{player}}': 'AI model for player {{player}}',
+        'Model unavailable': 'Model unavailable',
+        'Decision model': 'Decision model',
+        'LLM': 'LLM',
+        'Default model': 'Default model',
+        'Loading AI models…': 'Loading AI models…',
+        'No compatible AI models are enabled.': 'No compatible AI models are enabled.',
+        'Latest response': 'Latest response',
+        'Average (last 20)': 'Average (last 20)',
+        '{{time}} ms': '{{time}} ms',
+        'Attack lines sent': 'Attack lines sent',
+        'Clear 2 / 3 / 4 lines to send 1 / 2 / 3 garbage lines immediately.': 'Clear 2 / 3 / 4 lines to send 1 / 2 / 3 garbage lines immediately.',
+        'Set player 2 to no player for solo play. Only one human can play.': 'Set player 2 to no player for solo play. Only one human can play.',
+        'AI play decision': 'AI play decision',
+        'Choose one control from the current board.': 'Choose one control from the current board.',
+        'Enable AI play': 'Enable AI play',
+        'Disable AI play': 'Disable AI play',
+        'AI is deciding': 'AI is deciding',
+        'AI retrying (attempt {{attempt}})': 'AI retrying (attempt {{attempt}})',
+        'AI play enabled': 'AI play enabled',
+        'AI decision failed.': 'AI decision failed.',
         'Rotate left': 'Rotate left',
         'Hold block': 'Hold block',
         'Rotate right': 'Rotate right',
@@ -6935,8 +7039,8 @@ export const resources = {
         'Space drops instantly; C holds a block':
           'Space drops instantly; C holds a block',
         'P or Esc pauses or resumes': 'P or Esc pauses or resumes',
-        'Leaving the game pauses it; resume explicitly':
-          'Leaving the game pauses it; resume explicitly',
+        'Play continues when focus leaves the game':
+          'Play continues when focus leaves the game',
         'Progress is not saved when you leave or reload':
           'Progress is not saved when you leave or reload',
       },
@@ -7597,7 +7701,7 @@ export const resources = {
           loadingApprovals: 'Loading approval requests.',
           loadingFiles: 'Loading workspace files.',
           noApprovalsDescription:
-            'Open Work Hub write-tool requests will appear here.',
+            'MTY write-tool requests will appear here.',
           noApprovalsTitle: 'No approval requests.',
           noFilesDescription:
             'Files Hermes creates under /workspace will appear here.',
@@ -7633,7 +7737,7 @@ export const resources = {
           starting: 'Starting...',
           title: 'New Hermes terminal session',
           yoloAcknowledgement:
-            'I understand the risk of skipping Hermes dangerous-command prompts. Open Work Hub write approvals and isolation still apply.',
+            'I understand the risk of skipping Hermes dangerous-command prompts. MTY write approvals and isolation still apply.',
           yoloDescription:
             'Use the official --yolo flag to skip only Hermes native dangerous-command prompts.',
           yoloTitle: 'YOLO mode',
@@ -7673,7 +7777,7 @@ export const resources = {
         preparingTitle: 'Preparing the Hermes session.',
         privateWorkspace: 'User-private workspace',
         securityNotice:
-          'The OpenRouter key never enters the isolated runner. Open Work Hub write approvals, authentication, and network isolation remain active in YOLO mode.',
+          'The OpenRouter key never enters the isolated runner. MTY write approvals, authentication, and network isolation remain active in YOLO mode.',
         sessionCapacity: 'Running sessions {{active}}/{{limit}}',
         sessionEndedDescription:
           'You can download result files on the right during the retention period.',
@@ -8661,7 +8765,11 @@ export const resources = {
               total: 'Registered workloads',
             },
             llmDefaults: {
-              title: 'LLM defaults',
+              title: 'AI model defaults',
+              family: 'Model family',
+              inventoryProbe: 'Check model inventory (no inference)',
+              generation: 'Generation models',
+              decision: 'Decision models',
               sources: {
                 global: 'Global default',
                 app: 'App default',
@@ -8722,8 +8830,10 @@ export const resources = {
             modelSettings: {
               capabilities: {
                 chat: 'Chat',
+                non_reasoning: 'Respond without reasoning',
                 tool_calling: 'Tool calling',
                 vision: 'Vision',
+                decision: 'Decision',
               },
               conflict:
                 'Another administrator or a new deployment changed these settings. The latest settings were reloaded.',
@@ -8799,8 +8909,7 @@ export const resources = {
                 needsSetup: 'Needs setup',
                 ready: 'Ready',
               },
-              workloadCatalog: {
-              },
+              workloadCatalog: {},
               workloads: {
                 count: '{{count}} workload(s)',
                 defaultRoute: 'Default: {{route}}',
@@ -10330,7 +10439,7 @@ export const resources = {
             'Enter the name shown in the conversation list.',
           renameConversationFailed: 'Could not rename the conversation.',
           renameConversationSuccess: 'Conversation renamed.',
-          search: 'Open Work Hub Search',
+          search: 'MTY Search',
           searchConversations: 'Search conversations',
           searchLoadedTitles: 'Searches titles of loaded conversations.',
           untitledConversation: 'Untitled conversation',
@@ -10382,7 +10491,7 @@ export const resources = {
           sortRelevance: 'Relevance',
           subtitle: 'Search docs, meetings, PMS, and schedules in {{app}}.',
           subtitleFallback: 'Search work data.',
-          title: 'Open Work Hub Search',
+          title: 'MTY Search',
           updated: 'Updated {{date}}',
           visibilityPrivate: 'Private',
           visibilityPublic: 'Public',
@@ -10638,7 +10747,7 @@ export const resources = {
           },
           selectedDocument: 'Selected document',
           selectedEvidence: 'Selected evidence',
-          title: 'Open Work Hub unified search',
+          title: 'MTY unified search',
           topResults: 'Top results',
           type: 'Type',
           views: {

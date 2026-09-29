@@ -3,7 +3,7 @@ import {
   isDmImageMimeType,
   readyDmPendingAttachmentIds,
   uploadingDmPendingAttachmentCount,
-} from '@open-work-hub/contracts/dm';
+} from '@mty/contracts/dm';
 
 import type { DmMessageAttachment } from '../api/dm-api';
 

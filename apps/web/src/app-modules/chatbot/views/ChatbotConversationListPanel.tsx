@@ -1,5 +1,5 @@
-import type { AppRouteId } from '@open-work-hub/contracts/app-contracts';
-import { buildAppHref } from '@open-work-hub/contracts/app-routes';
+import type { AppRouteId } from '@mty/contracts/app-contracts';
+import { buildAppHref } from '@mty/contracts/app-routes';
 import {
   MessageSquare,
   MoreHorizontal,
@@ -24,7 +24,7 @@ import {
   useConfirm,
   useFeedback,
   usePrompt,
-} from '@open-work-hub/ui';
+} from '@mty/ui';
 
 import { cn } from '@/src/lib/utils';
 import { updateHermesSession } from '../api/hermes-agent-api';

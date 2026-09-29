@@ -1,4 +1,4 @@
-import type { BlockContent } from '@open-work-hub/ui';
+import type { BlockContent } from '@mty/ui';
 
 import type {
   createTaskListTask,

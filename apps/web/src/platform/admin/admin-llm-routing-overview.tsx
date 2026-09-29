@@ -2,7 +2,7 @@ import { RefreshCw, RotateCcw, Save, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button, useFeedback } from '@open-work-hub/ui';
+import { Button, useFeedback } from '@mty/ui';
 
 import {
   AdminAiModelSettingsApiError,
@@ -109,10 +109,19 @@ function inheritedProviderId(
 ): string {
   return (
     data.defaults.find(
-      (row) => row.app_id === workload.app_id && row.route_mode === route,
+      (row) =>
+        row.app_id === workload.app_id &&
+        row.route_mode === route &&
+        (row.model_family ?? 'generation') ===
+          (workload.execution_kind === 'decision' ? 'decision' : 'generation'),
     )?.provider_id ??
-    data.defaults.find((row) => row.app_id === '' && row.route_mode === route)
-      ?.provider_id ??
+    data.defaults.find(
+      (row) =>
+        row.app_id === '' &&
+        row.route_mode === route &&
+        (row.model_family ?? 'generation') ===
+          (workload.execution_kind === 'decision' ? 'decision' : 'generation'),
+    )?.provider_id ??
     ''
   );
 }
@@ -148,14 +157,22 @@ export function selectedModelId(
     : [workload.app_id, '']
         .map((appId) =>
           data.defaults.find(
-            (row) => row.app_id === appId && row.route_mode === draft.routeMode,
+            (row) =>
+              row.app_id === appId &&
+              row.route_mode === draft.routeMode &&
+              (row.model_family ?? 'generation') ===
+                (workload.execution_kind === 'decision'
+                  ? 'decision'
+                  : 'generation'),
           ),
         )
         .find((row) => row?.provider_id);
   const providerDefault = data.providers.find(
     (provider) => provider.provider_id === draft.providerId,
   )?.default_model_id;
-  const modelId = inherited?.model_id || providerDefault;
+  const modelId =
+    inherited?.model_id ||
+    (workload.execution_kind !== 'decision' ? providerDefault : '');
   return models.some((model) => model.id === modelId) ? modelId || '' : '';
 }
 
@@ -857,8 +874,10 @@ export function AdminLlmRoutingOverview({ token }: { token: string }) {
                           ['external', 'externalMaxOutputK'],
                         ] as const
                       )
-                        .filter(([route]) =>
-                          workload.allowed_routes.includes(route),
+                        .filter(
+                          ([route]) =>
+                            workload.execution_kind !== 'decision' &&
+                            workload.allowed_routes.includes(route),
                         )
                         .map(([route, field]) => (
                           <label

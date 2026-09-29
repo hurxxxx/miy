@@ -37,7 +37,7 @@ tmp/
 .rag-validation/
 .local-sysperf/
 .dm-*-updates/
-.open-work-hub-desktop-updates/
+.mty-desktop-updates/
 app-platform-guardrails.json
 data/
 backups/local/

@@ -5,18 +5,18 @@ from fastapi.testclient import TestClient
 from dev_accounts import dev_login
 from sqlalchemy import select
 
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.core.llm import get_supported_llm_tasks
-from open_work_hub_api.domains.ai.registry import get_ai_capability_registry
-from open_work_hub_api.domains.auth import access as auth_access
-from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy
-from open_work_hub_api.domains.auth.models import CompanyAppControl, PlatformAppBarCategoryApp
-from open_work_hub_api.domains.auth.app_catalog import (
+from mty_api.core.db import get_session_factory
+from mty_api.core.llm import get_supported_llm_tasks
+from mty_api.domains.ai.registry import get_ai_capability_registry
+from mty_api.domains.auth import access as auth_access
+from mty_api.domains.auth.app_access_models import AppAccessPolicy
+from mty_api.domains.auth.models import CompanyAppControl, PlatformAppBarCategoryApp
+from mty_api.domains.auth.app_catalog import (
     AppCatalogItem,
     AppNavCatalogItem,
     iter_app_catalog,
 )
-from open_work_hub_api.domains.auth.bootstrap_projection import project_bootstrap_apps
+from mty_api.domains.auth.bootstrap_projection import project_bootstrap_apps
 
 
 def _dev_login(client: TestClient, account_key: str) -> dict:

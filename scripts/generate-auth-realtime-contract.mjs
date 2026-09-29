@@ -14,7 +14,7 @@ const tsPath = path.join(
 );
 const pyPath = path.join(
   root,
-  'apps/api/src/open_work_hub_api/domains/auth/realtime_contract_generated.py',
+  'apps/api/src/mty_api/domains/auth/realtime_contract_generated.py',
 );
 const check = process.argv.includes('--check');
 

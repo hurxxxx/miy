@@ -1,5 +1,5 @@
-import { buildAppHref } from '@open-work-hub/contracts/app-routes';
-import { Button } from '@open-work-hub/ui';
+import { buildAppHref } from '@mty/contracts/app-routes';
+import { Button } from '@mty/ui';
 import { FileText, Loader2, Plus, Users, Video } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useReducer } from 'react';
 import { useTranslation } from 'react-i18next';

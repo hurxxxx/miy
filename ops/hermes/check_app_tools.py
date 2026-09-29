@@ -16,7 +16,7 @@ from uuid import uuid4
 
 sys.path.insert(0, "/opt/hermes/plugins")
 import hermes_constants
-import owh_runtime
+import mty_runtime
 from agent.tool_executor import execute_tool_calls_sequential
 from hermes_cli import config, middleware
 from run_agent import AIAgent
@@ -25,8 +25,8 @@ from tools.mcp_tool import mcp_prefixed_tool_name
 from tools.registry import registry
 
 logging.disable(logging.CRITICAL)
-profile = "owh-" + uuid4().hex
-server_name = "owh-mcp-" + hashlib.sha256(profile.encode()).hexdigest()[:20] + "-internal"
+profile = "mty-" + uuid4().hex
+server_name = "mty-mcp-" + hashlib.sha256(profile.encode()).hexdigest()[:20] + "-internal"
 server = {"url": "http://synthetic.invalid", "headers": {"Authorization": "Bearer synthetic"}}
 toolset = "mcp-" + server_name
 names = {key: mcp_prefixed_tool_name(server_name, key) for key in ("app.read", "app.write", "app.archive")}
@@ -38,7 +38,7 @@ def rpc(configured, run_id, method, params):
     assert configured == server
     if run_id not in scopes:
         raise ValueError("Unadmitted run")
-    if method == "owh/context":
+    if method == "mty/context":
         return {"allow_native_tools": True}
     if method == "tools/list":
         return {"tools": [{"name": name, "annotations": {"readOnlyHint": True}}
@@ -87,8 +87,8 @@ with (
         "mcp_servers": {server_name: server}, "platform_toolsets": {"api_server": [toolset]},
     }),
     patch.object(hermes_constants, "get_hermes_home", lambda: Path(home) / profile),
-    patch.object(owh_runtime, "_rpc", rpc),
-    patch.object(middleware, "_get_middleware_callbacks", lambda kind: [owh_runtime.execute_tool] if kind == "tool_execution" else []),
+    patch.object(mty_runtime, "_rpc", rpc),
+    patch.object(middleware, "_get_middleware_callbacks", lambda kind: [mty_runtime.execute_tool] if kind == "tool_execution" else []),
     patch.object(socket.socket, "connect", side_effect=AssertionError("Network access forbidden")),
     redirect_stdout(io.StringIO()),
     redirect_stderr(io.StringIO()),
@@ -122,7 +122,7 @@ with (
     assert call(agent, "run_read", "tool_describe", {"names": [names["app.read"]]})["tools"] == {}
     scopes["run_all"] = ["app.read", "app.archive"]
     stale = call(agent, "run_all", "tool_search", {"queries": ["app"]})
-    assert stale["code"] == "owh.tools.catalog_refresh_required", stale
+    assert stale["code"] == "mty.tools.catalog_refresh_required", stale
     assert stale["missing_tools"] == [names["app.archive"]]
     # Native re-registration models the new process after the standard restart.
     registry.deregister(names["app.write"])

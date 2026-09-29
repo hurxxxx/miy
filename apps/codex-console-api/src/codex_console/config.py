@@ -14,68 +14,68 @@ from .errors import ConsoleError
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
-    database_url: str = Field(validation_alias="OPEN_WORK_HUB_CODEX_CONSOLE_DATABASE_URL")
-    origin: str = Field(validation_alias="OPEN_WORK_HUB_CODEX_CONSOLE_ORIGIN")
-    base_path: str = Field(default="", validation_alias="OPEN_WORK_HUB_CODEX_CONSOLE_BASE_PATH")
-    workspace: Path = Field(validation_alias="OPEN_WORK_HUB_CODEX_CONSOLE_WORKSPACE")
+    database_url: str = Field(validation_alias="MTY_CODEX_CONSOLE_DATABASE_URL")
+    origin: str = Field(validation_alias="MTY_CODEX_CONSOLE_ORIGIN")
+    base_path: str = Field(default="", validation_alias="MTY_CODEX_CONSOLE_BASE_PATH")
+    workspace: Path = Field(validation_alias="MTY_CODEX_CONSOLE_WORKSPACE")
     worktree_base_ref: str = Field(
         default="HEAD",
         min_length=1,
         max_length=1024,
-        validation_alias="OPEN_WORK_HUB_CODEX_CONSOLE_WORKTREE_BASE_REF",
+        validation_alias="MTY_CODEX_CONSOLE_WORKTREE_BASE_REF",
     )
     worktree_root: Path = Field(
-        default_factory=lambda: Path.home() / ".local/share/owh-codex-console/worktrees",
-        validation_alias="OPEN_WORK_HUB_CODEX_CONSOLE_WORKTREE_ROOT",
+        default_factory=lambda: Path.home() / ".local/share/mty-codex-console/worktrees",
+        validation_alias="MTY_CODEX_CONSOLE_WORKTREE_ROOT",
     )
     protected_workspaces: list[Path] = Field(
         default_factory=list,
-        validation_alias="OPEN_WORK_HUB_CODEX_CONSOLE_PROTECTED_WORKSPACES",
+        validation_alias="MTY_CODEX_CONSOLE_PROTECTED_WORKSPACES",
     )
     forbidden_database_names: list[str] = Field(
         default_factory=list,
-        validation_alias="OPEN_WORK_HUB_CODEX_CONSOLE_FORBIDDEN_DATABASE_NAMES",
+        validation_alias="MTY_CODEX_CONSOLE_FORBIDDEN_DATABASE_NAMES",
     )
-    binary: str = Field(default="codex", validation_alias="OPEN_WORK_HUB_CODEX_CONSOLE_BINARY")
+    binary: str = Field(default="codex", validation_alias="MTY_CODEX_CONSOLE_BINARY")
     allowed_reasoning_efforts: list[
         Annotated[str, Field(min_length=1, max_length=40, pattern=r"^\S+$")]
     ] = Field(
         default_factory=lambda: ["none", "minimal", "low", "medium", "high", "xhigh"],
         min_length=1,
-        validation_alias="OPEN_WORK_HUB_CODEX_CONSOLE_ALLOWED_REASONING_EFFORTS",
+        validation_alias="MTY_CODEX_CONSOLE_ALLOWED_REASONING_EFFORTS",
     )
     bind_host: str = Field(
-        default="127.0.0.1", validation_alias="OPEN_WORK_HUB_CODEX_CONSOLE_BIND_HOST"
+        default="127.0.0.1", validation_alias="MTY_CODEX_CONSOLE_BIND_HOST"
     )
     port: int = Field(
-        default=19365, ge=1024, le=65535, validation_alias="OPEN_WORK_HUB_CODEX_CONSOLE_PORT"
+        default=19365, ge=1024, le=65535, validation_alias="MTY_CODEX_CONSOLE_PORT"
     )
     web_dist: Path = Field(
         default=Path("../codex-console-web/dist"),
-        validation_alias="OPEN_WORK_HUB_CODEX_CONSOLE_WEB_DIST",
+        validation_alias="MTY_CODEX_CONSOLE_WEB_DIST",
     )
     session_hours: int = Field(
-        default=12, ge=1, le=24, validation_alias="OPEN_WORK_HUB_CODEX_CONSOLE_SESSION_HOURS"
+        default=12, ge=1, le=24, validation_alias="MTY_CODEX_CONSOLE_SESSION_HOURS"
     )
     sso_subjects: dict[str, UUID] = Field(
         default_factory=dict,
-        validation_alias="OPEN_WORK_HUB_CODEX_CONSOLE_SSO_SUBJECTS",
+        validation_alias="MTY_CODEX_CONSOLE_SSO_SUBJECTS",
     )
     attachment_cache: Path = Field(
-        default_factory=lambda: Path.home() / ".local/share/owh-codex-console/attachments",
-        validation_alias="OPEN_WORK_HUB_CODEX_CONSOLE_ATTACHMENT_CACHE",
+        default_factory=lambda: Path.home() / ".local/share/mty-codex-console/attachments",
+        validation_alias="MTY_CODEX_CONSOLE_ATTACHMENT_CACHE",
     )
     attachment_max_bytes: int = Field(
         default=50 * 1024 * 1024,
         ge=1,
         le=100 * 1024 * 1024,
-        validation_alias="OPEN_WORK_HUB_CODEX_CONSOLE_ATTACHMENT_MAX_BYTES",
+        validation_alias="MTY_CODEX_CONSOLE_ATTACHMENT_MAX_BYTES",
     )
     attachment_task_max_bytes: int = Field(
         default=500 * 1024 * 1024,
         ge=1,
         le=10 * 1024 * 1024 * 1024,
-        validation_alias="OPEN_WORK_HUB_CODEX_CONSOLE_ATTACHMENT_TASK_MAX_BYTES",
+        validation_alias="MTY_CODEX_CONSOLE_ATTACHMENT_TASK_MAX_BYTES",
     )
 
     @field_validator("attachment_cache")

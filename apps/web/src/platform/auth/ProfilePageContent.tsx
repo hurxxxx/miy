@@ -1,9 +1,9 @@
-import { InlineNotice } from '@open-work-hub/ui/feedback/inline-notice';
+import { InlineNotice } from '@mty/ui/feedback/inline-notice';
 import { LogOut } from 'lucide-react';
 
 import { AppearanceSettingsSection } from './AppearanceSettingsSection';
 import { NotificationsSettingsSection } from './NotificationsSettingsSection';
-import { OpenWorkHubDesktopSettingsSection } from './OpenWorkHubDesktopSettingsSection';
+import { MTYDesktopSettingsSection } from './MTYDesktopSettingsSection';
 import { ProfileSettingsSection } from './ProfileSettingsSection';
 import { ReleaseNotesSettingsSection } from './ReleaseNotesSettingsSection';
 import { SecuritySettingsSection } from './SecuritySettingsSection';
@@ -126,8 +126,8 @@ export function ProfilePageContent({
                 token={auth.token}
               />
             ) : null}
-            {state.activeSection === 'openWorkHubDesktop' ? (
-              <OpenWorkHubDesktopSettingsSection t={t} />
+            {state.activeSection === 'mtyDesktop' ? (
+              <MTYDesktopSettingsSection t={t} />
             ) : null}
           </div>
         </div>

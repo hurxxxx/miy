@@ -1,4 +1,4 @@
-# Open Work Hub Docs
+# MTY Docs
 
 Use the narrowest owner doc. Code and tests are final for implemented behavior.
 

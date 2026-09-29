@@ -19,23 +19,23 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 import uvicorn
 
-from open_work_hub_api.core import llm as llm_core
-from open_work_hub_api.core.db import get_engine, get_session_factory
-from open_work_hub_api.core.llm_adapters import StreamChunk
-from open_work_hub_api.core.settings import get_settings
-from open_work_hub_api.domains.ai.model_credentials import encrypt_api_key
-from open_work_hub_api.domains.ai.model_settings_models import (
+from mty_api.core import llm as llm_core
+from mty_api.core.db import get_engine, get_session_factory
+from mty_api.core.llm_adapters import StreamChunk
+from mty_api.core.settings import get_settings
+from mty_api.domains.ai.model_credentials import encrypt_api_key
+from mty_api.domains.ai.model_settings_models import (
     AiModelCatalogEntry,
     AiModelProviderConfig,
     AiModelPolicyDefault,
 )
-from open_work_hub_api.domains.ai.registry import get_ai_capability_registry
-from open_work_hub_api.domains.ai import agent as ai_agent
-from open_work_hub_api.domains.ai import approvals as ai_approvals
-from open_work_hub_api.domains.ai import router as ai_router
-from open_work_hub_api.domains.auth.models import AuditLog, User
+from mty_api.domains.ai.registry import get_ai_capability_registry
+from mty_api.domains.ai import agent as ai_agent
+from mty_api.domains.ai import approvals as ai_approvals
+from mty_api.domains.ai import router as ai_router
+from mty_api.domains.auth.models import AuditLog, User
 from hermes_route_stub import hermes_route_stub  # noqa: F401
-from open_work_hub_api.domains.conversations.scope_registry import (
+from mty_api.domains.conversations.scope_registry import (
     ConversationScopeArtifact,
     ConversationScopeTurnContext,
 )
@@ -336,7 +336,7 @@ def _configure_database_local_provider() -> None:
         provider.enabled = True
         provider.endpoint_url = "http://127.0.0.1:12434/engines/v1"
         provider.default_model_id = model.id
-        db.merge(AiModelPolicyDefault(app_id="", route_mode=provider.route_mode, provider_id=provider.provider_id, version=1))
+        db.merge(AiModelPolicyDefault(model_family="generation", app_id="", route_mode=provider.route_mode, provider_id=provider.provider_id, version=1))
         db.commit()
 
 
@@ -378,7 +378,7 @@ def _configure_database_external_provider(
         provider.endpoint_url = endpoint_url
         provider.api_key_ciphertext = encrypt_api_key(f"test-{provider_id}-key")
         provider.default_model_id = model.id
-        db.merge(AiModelPolicyDefault(app_id="", route_mode=provider.route_mode, provider_id=provider.provider_id, version=1))
+        db.merge(AiModelPolicyDefault(model_family="generation", app_id="", route_mode=provider.route_mode, provider_id=provider.provider_id, version=1))
         db.commit()
 
 
@@ -436,15 +436,15 @@ def _chat_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [event for event in events if event.get("type") != "conversation_attached"]
 
 
-def _assert_open_work_hub_identity_system_message(messages: list[dict[str, Any]]) -> None:
+def _assert_mty_identity_system_message(messages: list[dict[str, Any]]) -> None:
     assert messages[0]["role"] == "system"
     system_prompt = messages[0]["content"]
     assert ai_agent.AGENT_SYSTEM_PROMPT in system_prompt
-    assert "저는 Open Work Hub의 업무용 AI 어시스턴트입니다." in system_prompt
+    assert "저는 MTY의 업무용 AI 어시스턴트입니다." in system_prompt
     assert "Qwen, Tongyi, OpenAI" in system_prompt
 
 
-def test_chat_sync_injects_open_work_hub_identity_prompt_for_plain_business_chat(
+def test_chat_sync_injects_mty_identity_prompt_for_plain_business_chat(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     auth = _seeded_dev_login(client, "administrator")
@@ -460,7 +460,7 @@ def test_chat_sync_injects_open_work_hub_identity_prompt_for_plain_business_chat
         class _Msg:
             role = "assistant"
             reasoning_content = None
-            content = "저는 Open Work Hub의 업무용 챗봇 AI 어시스턴트(Open Work Hub)입니다."
+            content = "저는 MTY의 업무용 챗봇 AI 어시스턴트(MTY)입니다."
 
         class _Choice:
             finish_reason = "stop"
@@ -501,10 +501,10 @@ def test_chat_sync_injects_open_work_hub_identity_prompt_for_plain_business_chat
     )
 
     assert response.status_code == 200
-    _assert_open_work_hub_identity_system_message(captured_messages)
+    _assert_mty_identity_system_message(captured_messages)
 
 
-def test_chat_stream_injects_open_work_hub_identity_prompt_for_plain_business_chat(
+def test_chat_stream_injects_mty_identity_prompt_for_plain_business_chat(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     auth = _seeded_dev_login(client, "administrator")
@@ -534,7 +534,7 @@ def test_chat_stream_injects_open_work_hub_identity_prompt_for_plain_business_ch
 
     assert status_code == 200
     assert any(event["type"] == "done" for event in _chat_events(events))
-    _assert_open_work_hub_identity_system_message(captured_messages)
+    _assert_mty_identity_system_message(captured_messages)
 
 
 def _find_free_port() -> int:
@@ -876,7 +876,7 @@ def test_chat_stream_requires_current_app_admission(client: TestClient) -> None:
     outsider = _create_company_user(
         client,
         admin["token"],
-        email="stream-outsider@open-work-hub.local",
+        email="stream-outsider@mty.local",
         full_name="Stream Outsider",
     )
     outsider_token = _login(
@@ -885,7 +885,7 @@ def test_chat_stream_requires_current_app_admission(client: TestClient) -> None:
         outsider["temporary_password"],
     )
 
-    from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy
+    from mty_api.domains.auth.app_access_models import AppAccessPolicy
 
     with get_session_factory()() as db:
         db.get(AppAccessPolicy, "chatbot").audience = "selected"
@@ -2956,4 +2956,4 @@ def test_chat_stream_business_context_question_reaches_llm_call(
     assert pool_client.chat.completions.calls
     messages = _messages_in_first_call(pool_client)
     assert [message["role"] for message in messages] == ["system", "user"]
-    _assert_open_work_hub_identity_system_message(messages)
+    _assert_mty_identity_system_message(messages)

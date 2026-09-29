@@ -16,21 +16,21 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
-from open_work_hub_api.core.db import get_db_session
-from open_work_hub_api.core.settings import get_settings
-from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy
-from open_work_hub_api.domains.auth.dependencies import require_current_user
-from open_work_hub_api.domains.auth.models import CompanyAppControl, User
-from open_work_hub_api.domains.hermes import file_router, files, mcp_router
-from open_work_hub_api.domains.hermes.models import (
+from mty_api.core.db import get_db_session
+from mty_api.core.settings import get_settings
+from mty_api.domains.auth.app_access_models import AppAccessPolicy
+from mty_api.domains.auth.dependencies import require_current_user
+from mty_api.domains.auth.models import CompanyAppControl, User
+from mty_api.domains.hermes import file_router, files, mcp_router
+from mty_api.domains.hermes.models import (
     HermesFileObject,
     HermesProfileBinding,
     HermesRunProjection,
     HermesSessionBinding,
     HermesSessionFile,
 )
-from open_work_hub_api.domains.hermes.repository import HermesRunRepository, utcnow_naive
-from open_work_hub_api.domains.hermes.service import mcp_profile_bearer_secret
+from mty_api.domains.hermes.repository import HermesRunRepository, utcnow_naive
+from mty_api.domains.hermes.service import mcp_profile_bearer_secret
 
 
 @pytest.fixture
@@ -93,7 +93,7 @@ def deferred_io(application_postgres_dsn, monkeypatch):
         profile = HermesProfileBinding(
             id=str(uuid4()),
             user_id=user.id,
-            profile_name=f"owh-{uuid4().hex}",
+            profile_name=f"mty-{uuid4().hex}",
             status="active",
             provider="openai",
             model="test",
@@ -177,7 +177,7 @@ async def test_context_does_not_infer_physical_resources_from_database_namespace
         response = await client.post(
             state.url,
             headers=state.headers,
-            json={"jsonrpc": "2.0", "id": 1, "method": "owh/context", "params": {}},
+            json={"jsonrpc": "2.0", "id": 1, "method": "mty/context", "params": {}},
         )
     assert response.status_code == 200
     context = response.json()["result"]
@@ -199,7 +199,7 @@ def payload(state, operation):
     )
     return {
         "id": 1,
-        "method": "tools/call" if operation == "tool" else f"owh/files/{operation}",
+        "method": "tools/call" if operation == "tool" else f"mty/files/{operation}",
         "params": params,
     }
 

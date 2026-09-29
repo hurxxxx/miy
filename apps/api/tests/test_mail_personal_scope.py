@@ -8,22 +8,22 @@ import pytest
 from sqlalchemy import create_engine, select, update
 from sqlalchemy.orm import Session
 
-from open_work_hub_api.core.db import Base
-from open_work_hub_api.domains.auth.app_access_models import (
+from mty_api.core.db import Base
+from mty_api.domains.auth.app_access_models import (
     AppAccessPolicy,
     AppGroupGrant,
     AppUserGrant,
 )
-from open_work_hub_api.domains.auth.models import CompanyAppControl, User
-from open_work_hub_api.domains.groups.models import Group, GroupMember
-from open_work_hub_api.domains.mail import service
-from open_work_hub_api.domains.mail.clients import (
+from mty_api.domains.auth.models import CompanyAppControl, User
+from mty_api.domains.groups.models import Group, GroupMember
+from mty_api.domains.mail import service
+from mty_api.domains.mail.clients import (
     FetchedMessage,
     MailboxInfo,
     MailboxSyncBatch,
     MailConnectionSettings,
 )
-from open_work_hub_api.domains.mail.models import (
+from mty_api.domains.mail.models import (
     MailAccount,
     MailAttachment,
     MailMailbox,
@@ -32,7 +32,7 @@ from open_work_hub_api.domains.mail.models import (
     MailSyncJob,
     MailSyncState,
 )
-from open_work_hub_api.domains.mail.sync_policy import MailSyncAccessRevoked
+from mty_api.domains.mail.sync_policy import MailSyncAccessRevoked
 
 
 def _user(user_id: str) -> User:

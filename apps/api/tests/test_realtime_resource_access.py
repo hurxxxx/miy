@@ -8,11 +8,11 @@ from sqlalchemy import select
 from starlette.websockets import WebSocketDisconnect
 
 from dev_accounts import auth_headers, dev_login
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.auth.models import AuthSession, CompanyAppControl, User
-from open_work_hub_api.domains.auth.security import hash_token
-from open_work_hub_api.domains.realtime import router
-from open_work_hub_api.domains.realtime.resource_subscriptions import (
+from mty_api.core.db import get_session_factory
+from mty_api.domains.auth.models import AuthSession, CompanyAppControl, User
+from mty_api.domains.auth.security import hash_token
+from mty_api.domains.realtime import router
+from mty_api.domains.realtime.resource_subscriptions import (
     requested_resource_subscription,
 )
 
@@ -176,8 +176,8 @@ def test_websocket_rechecks_session_for_every_message_without_waiting_for_monito
 
 def test_queued_docs_content_is_redacted_after_revocation_and_stale_envelopes_discarded(client):
     _owner, reader, item_id, link = _resource(client, "docs")
-    from open_work_hub_api.domains.docs.models import NativeDocLinkShare
-    from open_work_hub_api.core.realtime import InProcessAppRealtimeHub
+    from mty_api.domains.docs.models import NativeDocLinkShare
+    from mty_api.core.realtime import InProcessAppRealtimeHub
 
     async def exercise():
         hub = InProcessAppRealtimeHub(instance_id="queued-revocation")
@@ -240,8 +240,8 @@ def test_queued_docs_content_is_redacted_after_revocation_and_stale_envelopes_di
 
 def test_direct_and_shared_link_subscriptions_keep_distinct_authority_and_refcounts(client):
     owner, _reader, item_id, link = _resource(client, "docs")
-    from open_work_hub_api.core.realtime import InProcessAppRealtimeHub
-    from open_work_hub_api.domains.docs.models import NativeDocLinkShare
+    from mty_api.core.realtime import InProcessAppRealtimeHub
+    from mty_api.domains.docs.models import NativeDocLinkShare
 
     async def exercise():
         hub = InProcessAppRealtimeHub(instance_id="distinct-link-contexts")

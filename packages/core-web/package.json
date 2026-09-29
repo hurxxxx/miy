@@ -1,5 +1,5 @@
 {
-  "name": "@open-work-hub/core-web",
+  "name": "@mty/core-web",
   "version": "0.0.1",
   "type": "module",
   "main": "./dist/index.js",

@@ -1,4 +1,4 @@
-import { Button } from '@open-work-hub/ui';
+import { Button } from '@mty/ui';
 import { Download, File, Trash2, Upload, X } from 'lucide-react';
 import { useRef } from 'react';
 import {

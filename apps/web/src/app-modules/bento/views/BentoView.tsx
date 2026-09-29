@@ -1,4 +1,4 @@
-import { DropdownMenu, type DropdownItem } from '@open-work-hub/ui';
+import { DropdownMenu, type DropdownItem } from '@mty/ui';
 import {
   Archive,
   ArrowLeft,

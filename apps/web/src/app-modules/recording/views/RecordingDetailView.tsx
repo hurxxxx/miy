@@ -1,4 +1,4 @@
-import { Button, useConfirm } from '@open-work-hub/ui';
+import { Button, useConfirm } from '@mty/ui';
 import {
   AlertCircle,
   ArrowLeft,

@@ -1,4 +1,4 @@
-import { buildAppHref } from '@open-work-hub/contracts/app-routes';
+import { buildAppHref } from '@mty/contracts/app-routes';
 import type { MeetingDetail } from '../../api/meeting-api';
 import type {
   MeetingInsightItem,

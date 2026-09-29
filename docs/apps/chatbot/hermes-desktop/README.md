@@ -1,6 +1,6 @@
 # 챗봇 UI 운영·유지보수
 
-Hermes Desktop의 대화·도구 내역·결과 패널 구성을 OWH 챗봇에 적용한 앱 소유 문서다. 런타임 설치, 컨텍스트 압축, 모델·도구 정책, 파일 보관·용량·마이그레이션은 [Hermes 런타임 문서](../../../domains/ai/hermes.md)가 관리한다.
+Hermes Desktop의 대화·도구 내역·결과 패널 구성을 MTY 챗봇에 적용한 앱 소유 문서다. 런타임 설치, 컨텍스트 압축, 모델·도구 정책, 파일 보관·용량·마이그레이션은 [Hermes 런타임 문서](../../../domains/ai/hermes.md)가 관리한다.
 
 ## 제공 기능
 
@@ -21,7 +21,7 @@ Hermes Desktop의 대화·도구 내역·결과 패널 구성을 OWH 챗봇에 �
 
 - 기본 `chatbot.root`는 `conversationListPlacement: 'shell'`로 등록한다. 다른 앱에 임베딩하는 `ChatbotExperienceConfig`의 기본값은 `inline`이므로 소유 앱 메뉴와 대화 스코프를 보존한다.
 - sidebar 확장점과 포털은 DOM 배치만 담당한다. 목록과 실행 controller는 각각 하나이며 모바일 메뉴 선택 시 공통 `onNavigate`로 닫는다.
-- `@assistant-ui/react`의 공개 `ExternalStoreRuntime`에 OWH turn/live 상태를 투영한다. 전송·중지·편집·재시도는 기존 controller를 호출한다. 모델 선택, 실행 전송, 승인, 영속 저장의 별도 소유자를 만들지 않는다.
+- `@assistant-ui/react`의 공개 `ExternalStoreRuntime`에 MTY turn/live 상태를 투영한다. 전송·중지·편집·재시도는 기존 controller를 호출한다. 모델 선택, 실행 전송, 승인, 영속 저장의 별도 소유자를 만들지 않는다.
 - 현재 의존성은 `@assistant-ui/react 0.15.18`이다. 실제 설치 기준은 [package.json](../../../../package.json)과 lockfile이며 `pnpm install --frozen-lockfile`을 사용한다. 버전을 바꿀 때 `ChatThreadRuntime.spec.tsx`의 메시지 ID 교체와 thread 복원 검사를 유지한다.
 - native와 `durable_background` 복원, 앱별 custom renderer·기존 report/analysis 교체 의미는 각 소유 계약을 따른다. [AI Execution](../../../domains/ai/execution.md), [AI Write Policy](../../../domains/ai/write-policy.md).
 
@@ -57,7 +57,7 @@ Hermes는 도구 결과를 받은 뒤 새 호출을 선택해 작업을 계속�
 | assistant-ui·도구 묶음·스크롤 | [ChatThreadRuntime.tsx](../../../../apps/web/src/app-modules/chatbot/views/chat/ChatThreadRuntime.tsx), [ChatThread.tsx](../../../../apps/web/src/app-modules/chatbot/views/chat/ChatThread.tsx) |
 | 전송·중지·native history | [useChatStream.ts](../../../../apps/web/src/app-modules/chatbot/api/useChatStream.ts), [conversations-api.ts](../../../../apps/web/src/app-modules/chatbot/api/conversations-api.ts) |
 | 생성 결과·파일 UI | [HermesGeneratedResults.tsx](../../../../apps/web/src/app-modules/chatbot/views/chat/HermesGeneratedResults.tsx), [ChatResultSurface.tsx](../../../../apps/web/src/app-modules/chatbot/views/chat/ChatResultSurface.tsx), [HermesFilePanel.tsx](../../../../apps/web/src/app-modules/chatbot/views/chat/HermesFilePanel.tsx) |
-| 파일 저장·revision·API | [files.py](../../../../apps/api/src/open_work_hub_api/domains/hermes/files.py), [file_router.py](../../../../apps/api/src/open_work_hub_api/domains/hermes/file_router.py) |
+| 파일 저장·revision·API | [files.py](../../../../apps/api/src/mty_api/domains/hermes/files.py), [file_router.py](../../../../apps/api/src/mty_api/domains/hermes/file_router.py) |
 
 참고한 Desktop 소스는 [고정 커밋의 chat 구성](https://github.com/NousResearch/hermes-agent/tree/98a3324821c64b78c13d5d0f105508da0ab71cee/apps/desktop/src/app/chat)과 [thread 구성](https://github.com/NousResearch/hermes-agent/tree/98a3324821c64b78c13d5d0f105508da0ab71cee/apps/desktop/src/components/assistant-ui/thread)이다. 연결 방식은 [공식 ExternalStoreRuntime API](https://www.assistant-ui.com/docs/runtimes/custom/external-store)를 사용한다.
 

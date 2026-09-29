@@ -2,7 +2,7 @@ import { KeyRound, RefreshCw, Save } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button, useFeedback } from '@open-work-hub/ui';
+import { Button, useFeedback } from '@mty/ui';
 
 import {
   AdminAiModelSettingsApiError,
@@ -412,7 +412,10 @@ export function AdminLlmProviderSettingsSection({ token }: { token: string }) {
                     )}
                   </option>
                   {selectedModels
-                    .filter((model) => model.enabled)
+                    .filter(
+                      (model) =>
+                        model.enabled && model.capabilities.includes('chat'),
+                    )
                     .map((model) => (
                       <option key={model.id} value={model.id}>
                         {model.display_name} · {model.model_key}

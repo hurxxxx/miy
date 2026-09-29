@@ -11,7 +11,7 @@ import {
   StatusSlot,
   useConfirm,
   useFeedback,
-} from '@open-work-hub/ui';
+} from '@mty/ui';
 
 import {
   createPlatformApiKey,

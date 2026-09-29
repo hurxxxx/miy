@@ -1,24 +1,25 @@
 from __future__ import annotations
 
-from open_work_hub_api.core.settings import Settings
+from mty_api.core.settings import Settings
 
 
 def test_model_status_targets_accept_runtime_env_aliases() -> None:
     settings = Settings(
         _env_file=None,
-        postgres_dsn="postgresql+psycopg://open_work_hub_test:open_work_hub_test@127.0.0.1:5432/open_work_hub_test",
-        OPEN_WORK_HUB_MODEL_STATUS_REQUEST_TIMEOUT_SECONDS="7",
-        OPEN_WORK_HUB_MODEL_STATUS_DIAGNOSTIC_TARGETS_JSON='[{"id":"replica-a"}]',
+        postgres_dsn="postgresql+psycopg://mty_test:mty_test@127.0.0.1:5432/mty_test",
+        MTY_MODEL_STATUS_REQUEST_TIMEOUT_SECONDS="7",
+        MTY_MODEL_STATUS_DIAGNOSTIC_TARGETS_JSON='[{"id":"replica-a"}]',
     )
 
     assert settings.model_status_request_timeout_seconds == 7
     assert settings.model_status_diagnostic_targets_json == '[{"id":"replica-a"}]'
 
 
-def test_phase6_runtime_feature_flags_default_off() -> None:
+def test_phase6_runtime_feature_flags_default_off(monkeypatch) -> None:
+    monkeypatch.delenv("MTY_AI_ALLOWED_EXTERNAL_PROVIDERS", raising=False)
     settings = Settings(
         _env_file=None,
-        postgres_dsn="postgresql+psycopg://open_work_hub_test:open_work_hub_test@127.0.0.1:5432/open_work_hub_test"
+        postgres_dsn="postgresql+psycopg://mty_test:mty_test@127.0.0.1:5432/mty_test"
     )
 
     assert settings.ai_runtime_graph_enabled is False
@@ -45,8 +46,8 @@ def test_phase6_runtime_feature_flags_default_off() -> None:
 def test_phase6_runtime_shadow_write_flag_accepts_corporate_api_alias() -> None:
     settings = Settings(
         _env_file=None,
-        postgres_dsn="postgresql+psycopg://open_work_hub_test:open_work_hub_test@127.0.0.1:5432/open_work_hub_test",
-        OPEN_WORK_HUB_AI_RUNTIME_SHADOW_WRITE_ENABLED="0",
+        postgres_dsn="postgresql+psycopg://mty_test:mty_test@127.0.0.1:5432/mty_test",
+        MTY_AI_RUNTIME_SHADOW_WRITE_ENABLED="0",
     )
 
     assert settings.ai_runtime_shadow_write_enabled is False
@@ -55,8 +56,8 @@ def test_phase6_runtime_shadow_write_flag_accepts_corporate_api_alias() -> None:
 def test_phase6_runtime_trace_payload_cap_accepts_corporate_api_alias() -> None:
     settings = Settings(
         _env_file=None,
-        postgres_dsn="postgresql+psycopg://open_work_hub_test:open_work_hub_test@127.0.0.1:5432/open_work_hub_test",
-        OPEN_WORK_HUB_AI_RUNTIME_TRACE_PAYLOAD_MAX_BYTES="65536",
+        postgres_dsn="postgresql+psycopg://mty_test:mty_test@127.0.0.1:5432/mty_test",
+        MTY_AI_RUNTIME_TRACE_PAYLOAD_MAX_BYTES="65536",
     )
 
     assert settings.ai_runtime_trace_payload_max_bytes == 65536
@@ -65,8 +66,8 @@ def test_phase6_runtime_trace_payload_cap_accepts_corporate_api_alias() -> None:
 def test_local_tool_calling_flag_accepts_corporate_api_alias() -> None:
     settings = Settings(
         _env_file=None,
-        postgres_dsn="postgresql+psycopg://open_work_hub_test:open_work_hub_test@127.0.0.1:5432/open_work_hub_test",
-        OPEN_WORK_HUB_AI_LOCAL_TOOL_CALLING_ENABLED="1",
+        postgres_dsn="postgresql+psycopg://mty_test:mty_test@127.0.0.1:5432/mty_test",
+        MTY_AI_LOCAL_TOOL_CALLING_ENABLED="1",
     )
 
     assert settings.ai_local_tool_calling_enabled is True

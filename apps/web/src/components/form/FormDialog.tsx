@@ -1,4 +1,4 @@
-import { Button, Dialog } from '@open-work-hub/ui';
+import { Button, Dialog } from '@mty/ui';
 import type { ReactNode } from 'react';
 
 export const FORM_FIELD_CONTROL_CLASS_NAME =

@@ -25,7 +25,7 @@ Default AI behavior is read/search/summarize. Source-changing tools execute only
 
 ## Implementation
 
-- `OPEN_WORK_HUB_AI_WRITE_TOOLS_ENABLED=false` hides write descriptors from registry/AI surface.
+- `MTY_AI_WRITE_TOOLS_ENABLED=false` hides write descriptors from registry/AI surface.
 - Enabled descriptors use `mode="write"`, `approval_required=True`, valid `preview_builder_id`.
 - Registry derives `approval_policy="required"`.
 - Approval preview emits `approval_required`; mutation does not run.

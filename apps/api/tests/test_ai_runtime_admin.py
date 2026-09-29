@@ -6,12 +6,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from open_work_hub_api.core.db import get_engine
-from open_work_hub_api.domains.ai.runtime.models import AgentInvocation, AgentRun, AgentTraceEvent
-from open_work_hub_api.domains.auth.models import AuditLog, User
-from open_work_hub_api.domains.auth.security import new_id
-from open_work_hub_api.domains.conversations.models import Conversation
-from open_work_hub_api.domains.meeting.models import utcnow_naive
+from mty_api.core.db import get_engine
+from mty_api.domains.ai.runtime.models import AgentInvocation, AgentRun, AgentTraceEvent
+from mty_api.domains.auth.models import AuditLog, User
+from mty_api.domains.auth.security import new_id
+from mty_api.domains.conversations.models import Conversation
+from mty_api.domains.meeting.models import utcnow_naive
 from test_meeting import _auth_headers, _bootstrap_admin_session
 
 

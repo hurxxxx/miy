@@ -1,6 +1,6 @@
 import { createDesktopSessionLink } from './auth-api';
 
-const DESKTOP_PROTOCOL_URL = 'open-work-hub-desktop://auth';
+const DESKTOP_PROTOCOL_URL = 'mty-desktop://auth';
 const LOCAL_DESKTOP_SESSION_HOSTS = new Set([
   'localhost',
   '127.0.0.1',

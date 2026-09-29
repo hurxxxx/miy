@@ -2,7 +2,7 @@ import { apiFetchJson } from '@/src/platform/api/client';
 import type { ApiSchema } from '@/src/platform/api/types';
 import { useAppBootstrapContext } from '@/src/platform/apps/app-bootstrap-context';
 import { DirectoryPicker } from '@/src/platform/directory/DirectoryPicker';
-import { Button, useFeedback } from '@open-work-hub/ui';
+import { Button, useFeedback } from '@mty/ui';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {

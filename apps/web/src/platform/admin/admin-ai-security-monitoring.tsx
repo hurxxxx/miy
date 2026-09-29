@@ -7,7 +7,7 @@ import {
   type ChartSeries,
   Dialog,
   InlineNotice,
-} from '@open-work-hub/ui';
+} from '@mty/ui';
 
 import { formatDateTime } from '@/src/platform/time/time-utils';
 

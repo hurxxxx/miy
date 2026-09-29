@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.integrations.models import PlatformApiKey
+from mty_api.core.db import get_session_factory
+from mty_api.domains.integrations.models import PlatformApiKey
 
 
 def _auth_headers(token: str) -> dict[str, str]:
@@ -15,7 +15,7 @@ def _bootstrap_admin(client: TestClient) -> dict:
         "/api/v1/auth/setup",
         json={
             "full_name": "Directory Admin",
-            "email": "directory-admin@open-work-hub.local",
+            "email": "directory-admin@mty.local",
             "password": "supersecret123",
         },
     )
@@ -89,7 +89,7 @@ def test_organization_hierarchy_user_metadata_and_filters(client: TestClient) ->
         "/api/v1/admin/users",
         headers=_auth_headers(token),
         json={
-            "email": "researcher@open-work-hub.local",
+            "email": "researcher@mty.local",
             "full_name": "Researcher One",
             "employee_code": "E-1001",
             "job_title": "Staff Researcher",
@@ -154,7 +154,7 @@ def test_organization_hierarchy_user_metadata_and_filters(client: TestClient) ->
         "/api/v1/admin/users",
         headers=_auth_headers(token),
         json={
-            "email": "inactive-unit@open-work-hub.local",
+            "email": "inactive-unit@mty.local",
             "full_name": "Inactive Unit",
             "primary_organization_unit_id": child["id"],
         },
@@ -194,7 +194,7 @@ def test_scoped_platform_api_keys_are_revealable_audited_and_revocable(
     issued = issue_response.json()
     key_id = issued["item"]["id"]
     api_key = issued["api_key"]
-    assert api_key.startswith("owh_pk_")
+    assert api_key.startswith("mty_pk_")
     assert issued["item"]["key_prefix"] == api_key[:18]
 
     with get_session_factory()() as db:
@@ -305,7 +305,7 @@ def test_people_scope_returns_only_the_external_directory_projection(
         "/api/v1/admin/users",
         headers=_auth_headers(admin_token),
         json={
-            "email": "finance@open-work-hub.local",
+            "email": "finance@mty.local",
             "full_name": "Finance Person",
             "employee_code": "F-2001",
             "job_title": "Controller",

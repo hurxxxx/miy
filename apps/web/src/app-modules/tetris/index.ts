@@ -1,7 +1,7 @@
 import {
   getAppRouteChrome,
   getAppRoutePattern,
-} from '@open-work-hub/contracts/app-routes';
+} from '@mty/contracts/app-routes';
 import { createElement, lazy } from 'react';
 import { lazyRoute } from '@/src/app/shell/lazy-route';
 import { tetrisManifest } from './manifest';
@@ -14,6 +14,7 @@ export const tetrisModule = {
     {
       path: getAppRoutePattern('tetris.root'),
       chrome: getAppRouteChrome('tetris.root'),
+      subSidebar: 'hidden' as const,
       element: lazyRoute(createElement(TetrisView)),
     },
   ],
