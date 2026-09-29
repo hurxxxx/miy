@@ -40,6 +40,19 @@ class TetrisPlacement(GameInput):
         return self
 
 
+class TetrisWell(GameInput):
+    column: int = Field(ge=0, le=9)
+    depth: int = Field(ge=1, le=20)
+    ready_rows: int = Field(ge=0, le=4)
+    filled_cells: int = Field(ge=0, le=36)
+
+    @model_validator(mode="after")
+    def consistent_progress(self):
+        if self.ready_rows > self.depth or self.ready_rows * 9 > self.filled_cells:
+            raise ValueError("Well progress must fit its depth and filled cells")
+        return self
+
+
 class TetrisLanding(TetrisPlacement):
     piece: Kind
     hold_after: Kind | None
@@ -49,11 +62,14 @@ class TetrisLanding(TetrisPlacement):
     aggregate_height: int = Field(ge=0, le=200)
     bumpiness: int = Field(ge=0, le=180)
     key_presses: int = Field(ge=1, le=64)
+    wells: list[TetrisWell] = Field(default_factory=list, max_length=5)
 
     @model_validator(mode="after")
     def target_matches_piece(self):
         if self.target.kind != self.piece:
             raise ValueError("Landing must match the piece")
+        if len({well.column for well in self.wells}) != len(self.wells):
+            raise ValueError("Well columns must be distinct")
         return self
 
 
@@ -61,7 +77,7 @@ class TetrisCandidate(TetrisLanding):
     action: Literal["left", "right", "clockwise", "counterclockwise", "drop", "hold"]
     next_piece: Kind | None
     next_spawn_blocked: bool | None
-    follow_ups: list[TetrisLanding] = Field(max_length=2)
+    follow_ups: list[TetrisLanding] = Field(max_length=4)
 
 
 class TetrisModelChoice(GameInput):
