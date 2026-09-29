@@ -49,6 +49,7 @@ import {
   type DocumentDraft,
 } from './views';
 import { AttachmentBadges, FileLibrary } from './attachments';
+import { CodexUpdateGuide } from './codex-update';
 import { GitWorkspace, GitSummary, useGitState } from './git';
 import {
   ExecutionSettings,
@@ -106,7 +107,11 @@ export function App() {
   const [stage, setStage] = useState<'plan' | 'implement'>('plan');
   const git = useGitState(task);
   const [models, setModels] = useState<Model[]>([]);
-  const [modelsFailed, setModelsFailed] = useState(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+  const [updateGuideOpen, setUpdateGuideOpen] = useState(false);
+  const versionMismatch = [modelsError, account?.error_code, error].includes(
+    'codex_version_mismatch',
+  );
   const [execution, setExecution] = useState<Execution>({
     model: null,
     effort: null,
@@ -211,7 +216,7 @@ export function App() {
   }, []);
   const refreshModels = useCallback(
     async (taskId: string, signal?: AbortSignal) => {
-      setModelsFailed(false);
+      setModelsError(null);
       try {
         const rows = await api<Model[]>(
           `/codex/models?task_id=${encodeURIComponent(taskId)}`,
@@ -220,8 +225,11 @@ export function App() {
           signal,
         );
         if (!signal?.aborted) setModels(rows);
-      } catch {
-        if (!signal?.aborted) setModelsFailed(true);
+      } catch (error) {
+        if (!signal?.aborted)
+          setModelsError(
+            error instanceof ApiError ? error.code : 'request_failed',
+          );
       }
     },
     [],
@@ -668,14 +676,21 @@ export function App() {
           <strong>{t('Codex workspace')}</strong>
         </div>
         <div className="topbar-actions">
-          <button className="account-badge" onClick={() => setUsageOpen(true)}>
+          <button
+            className="account-badge"
+            onClick={() =>
+              versionMismatch ? setUpdateGuideOpen(true) : setUsageOpen(true)
+            }
+          >
             <span
               className={`dot ${account?.auth_type === 'chatgpt' ? 'online' : ''}`}
             />
             {t(
-              account?.auth_type === 'chatgpt'
-                ? 'Subscription connected'
-                : 'Codex unavailable',
+              versionMismatch
+                ? 'Codex update required'
+                : account?.auth_type === 'chatgpt'
+                  ? 'Subscription connected'
+                  : 'Codex unavailable',
             )}
           </button>
           {language}
@@ -1108,7 +1123,8 @@ export function App() {
                         ? task.stage === 'implement'
                         : stage === 'implement'
                     }
-                    failed={modelsFailed}
+                    error={modelsError}
+                    onUpdateGuide={() => setUpdateGuideOpen(true)}
                     onRetry={() => selected && void refreshModels(selected)}
                     t={t}
                   />
@@ -1437,6 +1453,12 @@ export function App() {
           </Button>
         </div>
       </Dialog>
+      <CodexUpdateGuide
+        open={updateGuideOpen}
+        onOpenChange={setUpdateGuideOpen}
+        locale={locale}
+        t={t}
+      />
       <Dialog
         open={usageOpen}
         onOpenChange={setUsageOpen}
@@ -1453,7 +1475,16 @@ export function App() {
           </strong>
           {account?.error_code && <p>{t(errorCopy(account.error_code))}</p>}
           {account?.plan_type && <p>{account.plan_type}</p>}
-          {account?.auth_type === 'chatgpt' ? (
+          {versionMismatch ? (
+            <Button
+              onClick={() => {
+                setUsageOpen(false);
+                setUpdateGuideOpen(true);
+              }}
+            >
+              {t('Update instructions')}
+            </Button>
+          ) : account?.auth_type === 'chatgpt' ? (
             <Usage account={account} locale={locale} t={t} />
           ) : (
             <Button

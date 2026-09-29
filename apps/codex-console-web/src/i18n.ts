@@ -31,6 +31,17 @@ export const korean = {
   'Change settings': '설정 변경',
   'Hide settings': '설정 접기',
   'Loading model catalog…': '모델 목록 불러오는 중…',
+  'Could not load models.': '모델 목록을 불러오지 못했습니다.',
+  'Codex update required': 'Codex 업데이트 필요',
+  'Update instructions': '업데이트 안내',
+  'The Codex version does not match this console. A compatibility update is required.':
+    'Codex 버전 불일치로 콘솔 호환성 업데이트가 필요합니다.',
+  'Administrator: open a terminal on the console server, start codex in the source repository, and paste the prompt below. After deployment, refresh this page.':
+    '관리자는 콘솔 서버의 터미널 모드에서 소스 저장소로 이동해 codex를 실행하고 아래 프롬프트를 입력하세요. 배포 완료 후 이 페이지를 새로고침하세요.',
+  'Update prompt for Codex CLI': 'Codex CLI 업데이트 프롬프트',
+  'Copy prompt': '프롬프트 복사',
+  'Prompt copied.': '프롬프트를 복사했습니다.',
+  'Copy the selected prompt manually.': '선택된 프롬프트를 직접 복사하세요.',
   Permissions: '실행 권한',
   'Read-only': '읽기 전용',
   'Ask when needed': '필요할 때 승인 요청',
@@ -318,7 +329,8 @@ const errors: Record<string, Copy> = {
   output_too_large: 'This file or output is too large to display.',
   invalid_input: 'Check the entered values.',
   invalid_answer: 'Check the entered values.',
-  codex_version_mismatch: 'A compatible Codex version is required.',
+  codex_version_mismatch:
+    'The Codex version does not match this console. A compatibility update is required.',
   codex_unavailable: 'Codex unavailable',
   codex_request_uncertain:
     'The request may have started. Recover its state before retrying.',

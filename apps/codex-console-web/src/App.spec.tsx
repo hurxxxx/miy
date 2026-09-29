@@ -134,6 +134,90 @@ async function openAndCompose() {
   });
 }
 
+it('shows the terminal repair prompt for model version failures and clears it after retry', async () => {
+  const original = vi.mocked(api).getMockImplementation()!;
+  let mismatch = true;
+  vi.mocked(api).mockImplementation(async (path, ...args) => {
+    if (mismatch && path.startsWith('/codex/models?task_id='))
+      throw new ApiError('codex_version_mismatch');
+    return original(path, ...args);
+  });
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  vi.stubGlobal('navigator', { clipboard: { writeText } });
+  render(<App />);
+  await screen.findByRole('button', { name: 'Codex 업데이트 필요' });
+  expect(screen.queryByText('모델 목록 불러오는 중…')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '설정 변경' }));
+  await screen.findByText(
+    'Codex 버전 불일치로 콘솔 호환성 업데이트가 필요합니다.',
+  );
+  fireEvent.click(screen.getByRole('button', { name: '업데이트 안내' }));
+  const dialog = screen.getByRole('dialog', { name: 'Codex 업데이트 필요' });
+  const prompt = within(dialog).getByRole('textbox', {
+    name: 'Codex CLI 업데이트 프롬프트',
+  }) as HTMLTextAreaElement;
+  expect(prompt.readOnly).toBe(true);
+  expect(prompt.value).toContain('커밋');
+  expect(prompt.value).toContain('GitLab origin에 푸시');
+  expect(prompt.value).toContain('서비스 재시작');
+  fireEvent.click(
+    within(dialog).getByRole('button', { name: '프롬프트 복사' }),
+  );
+  await within(dialog).findByText('프롬프트를 복사했습니다.');
+  expect(writeText).toHaveBeenCalledWith(prompt.value);
+  fireEvent.click(within(dialog).getByRole('button', { name: '닫기' }));
+  mismatch = false;
+  fireEvent.click(
+    screen.getByRole('button', { name: '모델 목록 다시 불러오기' }),
+  );
+  await waitFor(() =>
+    expect(screen.getByLabelText('모델')).toHaveProperty('disabled', false),
+  );
+  expect(
+    screen.queryByRole('button', { name: 'Codex 업데이트 필요' }),
+  ).toBeNull();
+});
+
+it('makes account version guidance available without a task and supports manual copying', async () => {
+  window.history.replaceState(null, '', '/');
+  const original = vi.mocked(api).getMockImplementation()!;
+  vi.mocked(api).mockImplementation(async (path, ...args) => {
+    if (path === '/tasks') return [];
+    if (path === '/codex/account')
+      return { connected: false, error_code: 'codex_version_mismatch' };
+    return original(path, ...args);
+  });
+  vi.stubGlobal('navigator', {
+    clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
+  });
+  render(<App />);
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Codex 업데이트 필요' }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '프롬프트 복사' }));
+  await screen.findByText('선택된 프롬프트를 직접 복사하세요.');
+  const prompt = screen.getByRole('textbox', {
+    name: 'Codex CLI 업데이트 프롬프트',
+  }) as HTMLTextAreaElement;
+  expect(prompt.selectionEnd).toBe(prompt.value.length);
+  expect(prompt.selectionStart).toBe(0);
+});
+
+it('does not label other model failures as a version mismatch', async () => {
+  const original = vi.mocked(api).getMockImplementation()!;
+  vi.mocked(api).mockImplementation(async (path, ...args) => {
+    if (path.startsWith('/codex/models?task_id='))
+      throw new ApiError('codex_unavailable');
+    return original(path, ...args);
+  });
+  render(<App />);
+  await screen.findByText('모델 목록을 불러오지 못했습니다.');
+  expect(screen.queryByText('모델 목록 불러오는 중…')).toBeNull();
+  expect(
+    screen.queryByRole('button', { name: 'Codex 업데이트 필요' }),
+  ).toBeNull();
+});
+
 it('retries an unavailable initial session check without a page reload', async () => {
   vi.mocked(api).mockRejectedValueOnce(new ApiError('request_failed'));
   render(<App />);
@@ -493,7 +577,11 @@ it('does not override the native model when only permissions change', async () =
   await waitFor(() =>
     expect(api).toHaveBeenCalledWith(
       `/tasks/${taskId}/implement`,
-      expect.objectContaining({ model: null, effort: null, permissions: 'yolo' }),
+      expect.objectContaining({
+        model: null,
+        effort: null,
+        permissions: 'yolo',
+      }),
     ),
   );
 });
