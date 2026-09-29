@@ -56,6 +56,7 @@ test('contract rejects extra or weakened jobs', () => {
     source.replace('$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == "dev" && ', ''),
     source.replace('node scripts/release-validation.mjs ci', 'pnpm ci:harness'),
     source.replace('prepare-validation-runtime.sh --postgres', 'prepare-validation-runtime.sh'),
+    source.replace('source scripts/ci/normalize-validation-postgres-dsn.sh', 'true'),
     source.replace('      - test-results/\n', ''),
     source.replace("    MTY_API_PYTEST_WORKERS: '2'\n", ''),
     source.replace("    NODE_OPTIONS: '--max-old-space-size=3072'\n", ''),
