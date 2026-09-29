@@ -9,8 +9,12 @@ import {
 } from './engine';
 import { reachablePoses } from './ai-placement';
 
-type Candidate = ApiSchema<'TetrisCandidate'>;
-type Landing = ApiSchema<'TetrisLanding'>;
+type Well = ApiSchema<'TetrisWell'>;
+type Landing = ApiSchema<'TetrisLanding'> & { wells: Well[] };
+type Candidate = Landing &
+  Omit<ApiSchema<'TetrisCandidate'>, keyof Landing | 'follow_ups'> & {
+    follow_ups: Landing[];
+  };
 type Preview = { game: Game; action: Candidate['action']; outcome: Landing };
 const COSTS = [
   'holes',
@@ -31,6 +35,31 @@ function surface(board: Cell[][]) {
       if (board[y][x] === null) holes++;
     }
   }
+  const wells: Well[] = [];
+  for (let column = 0; column < WIDTH; column++) {
+    const depth =
+      Math.min(heights[column - 1] ?? HEIGHT, heights[column + 1] ?? HEIGHT) -
+      heights[column];
+    if (depth <= 0) continue;
+    // Only the shaft above the column's highest cell is open from the top.
+    // Covered gaps must never be presented as accessible attack setups.
+    const floor = HEIGHT - heights[column];
+    let readyRows = 0;
+    let filledCells = 0;
+    for (let y = Math.max(0, floor - 4); y < floor; y++) {
+      const filled = board[y].filter(
+        (cell, x) => x !== column && cell !== null,
+      ).length;
+      filledCells += filled;
+      if (filled === WIDTH - 1) readyRows++;
+    }
+    wells.push({
+      column,
+      depth,
+      ready_rows: readyRows,
+      filled_cells: filledCells,
+    });
+  }
   return {
     holes,
     max_height: Math.max(...heights),
@@ -38,6 +67,7 @@ function surface(board: Cell[][]) {
     bumpiness: heights
       .slice(1)
       .reduce((sum, height, x) => sum + Math.abs(height - heights[x]), 0),
+    wells,
   };
 }
 
@@ -54,8 +84,49 @@ function compare(a: Landing, b: Landing): number {
 
 function noWorse(a: Landing, b: Landing): boolean {
   return (
-    a.cleared_lines >= b.cleared_lines && COSTS.every((key) => a[key] <= b[key])
+    a.cleared_lines >= b.cleared_lines &&
+    COSTS.every((key) => a[key] <= b[key]) &&
+    // Similar surface costs do not make different attack shafts interchangeable.
+    b.wells.every((bw) =>
+      a.wells.some(
+        (aw) =>
+          aw.column === bw.column &&
+          Math.min(aw.depth, 4) >= Math.min(bw.depth, 4) &&
+          aw.ready_rows >= bw.ready_rows &&
+          aw.filled_cells >= bw.filled_cells,
+      ),
+    )
   );
+}
+
+function wellValue(landing: Landing): number {
+  // Completed rows, then filled cells in the four-row target area. Depth alone
+  // earns no reward: a tall thin tower is not better than filling out the stack.
+  return Math.max(
+    0,
+    ...landing.wells.map(
+      (well) => well.ready_rows * (4 * (WIDTH - 1) + 1) + well.filled_cells,
+    ),
+  );
+}
+
+function compareAttack(a: Landing, b: Landing): number {
+  return (
+    a.holes - b.holes ||
+    Math.max(0, b.cleared_lines - 1) - Math.max(0, a.cleared_lines - 1) ||
+    wellValue(b) - wellValue(a) ||
+    compare(a, b)
+  );
+}
+
+function attackFuture(candidate: Candidate) {
+  const end = [...candidate.follow_ups].sort(compareAttack)[0] ?? candidate;
+  return {
+    end,
+    attack:
+      Math.max(0, candidate.cleared_lines - 1) +
+      (end === candidate ? 0 : Math.max(0, end.cleared_lines - 1)),
+  };
 }
 
 /** Enumerate legal paths with the real engine. Keep different reserve states:
@@ -118,10 +189,13 @@ export function buildCandidates(game: Game): Candidate[] {
         // Future empty hold would read the hidden bag; only a known reserve is legal.
         const future = landings({ ...landed, queue: [] }, landed.hold !== null);
         for (const usesHold of [false, true]) {
-          const best = future
+          const alternatives = future
             .filter((item) => item.outcome.uses_hold === usesHold)
-            .sort((a, b) => compare(a.outcome, b.outcome))[0];
-          if (best) followUps.push(best.outcome);
+            .map((item) => item.outcome);
+          const safe = [...alternatives].sort(compare)[0];
+          const attack = [...alternatives].sort(compareAttack)[0];
+          if (safe) followUps.push(safe);
+          if (attack && attack !== safe) followUps.push(attack);
         }
       }
       return {
@@ -160,12 +234,30 @@ export function buildCandidates(game: Game): Candidate[] {
     (a, b) =>
       safe(a, b) || compare(futureValue(a), futureValue(b)) || compare(a, b),
   );
-  // Alternate immediate and two-placement rankings, with and without hold, so
-  // the bounded choice list retains both kinds of tradeoff for every model.
+  const byAttack = [...frontier].sort(
+    (a, b) => safe(a, b) || compareAttack(a, b),
+  );
+  const byAttackFuture = [...frontier].sort((a, b) => {
+    const af = attackFuture(a);
+    const bf = attackFuture(b);
+    return (
+      safe(a, b) ||
+      af.end.holes - bf.end.holes ||
+      bf.attack - af.attack ||
+      wellValue(bf.end) - wellValue(af.end) ||
+      compare(af.end, bf.end) ||
+      compare(a, b)
+    );
+  });
+  // Interleave survival and attack (now/next, with/without hold) before the
+  // server's shared 26-choice limit. These are options, never an engine policy.
   const lists = [
+    byNow,
+    byAttackFuture.filter((c) => !c.uses_hold),
+    byAttackFuture.filter((c) => c.uses_hold),
+    byAttack,
     byFuture.filter((c) => !c.uses_hold),
     byFuture.filter((c) => c.uses_hold),
-    byNow,
     byFuture,
   ];
   const chosen = new Set<Candidate>();

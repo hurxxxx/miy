@@ -119,11 +119,17 @@ describe('Tetris observations for decisions', () => {
       game.board[y] = Array.from({ length: 10 }, (_, x) =>
         x === 5 ? null : 'J',
       );
-    const candidates = buildCandidates(game);
+    const candidates = buildCandidates(game).slice(0, 26);
     expect(
       candidates.some(
         (c) =>
           c.cleared_lines === 0 &&
+          c.wells.some(
+            (well) =>
+              well.column === 5 &&
+              well.ready_rows === 4 &&
+              well.filled_cells === 36,
+          ) &&
           c.follow_ups.some(
             (f) => f.piece === 'I' && !f.uses_hold && f.cleared_lines === 4,
           ),
@@ -149,7 +155,7 @@ describe('Tetris observations for decisions', () => {
       game.board[y] = Array.from({ length: 10 }, (_, x) =>
         x === 5 ? null : 'J',
       );
-    const candidates = buildCandidates(game);
+    const candidates = buildCandidates(game).slice(0, 26);
     expect(
       candidates.some(
         (c) =>
@@ -206,5 +212,99 @@ describe('Tetris observations for decisions', () => {
           ),
       ),
     ).toBe(true);
+  });
+
+  it('keeps both edge-well openings within the shared choice budget before an I is visible', () => {
+    const game = { ...gameWith('O'), queue: ['O', 'Z'] as Kind[] };
+    const candidates = buildCandidates(game).slice(0, 26);
+    for (const [x, column] of [
+      [1, 0],
+      [7, 9],
+    ]) {
+      expect(candidates).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            target: expect.objectContaining({ x }),
+            cleared_lines: 0,
+            holes: 0,
+            wells: [{ column, depth: 2, ready_rows: 0, filled_cells: 4 }],
+          }),
+        ]),
+      );
+    }
+    // Survival alternatives remain available; the engine does not choose attack.
+    expect(candidates.some((c) => c.target.x === 0 && c.max_height === 2)).toBe(
+      true,
+    );
+    expect(buildCandidates({ ...game, queue: ['O', 'I'] })).toEqual(
+      buildCandidates(game),
+    );
+  });
+
+  it('preserves an attack-building follow-up alongside a flatter survival follow-up', () => {
+    const game = { ...gameWith('O'), queue: ['O'] as Kind[] };
+    const candidate = buildCandidates(game)
+      .slice(0, 26)
+      .find((c) => c.target.x === 3);
+    if (!candidate) throw new Error('Missing central landing');
+    expect(
+      candidate.follow_ups.some(
+        (f) => f.wells.length === 0 && f.max_height === 2,
+      ),
+    ).toBe(true);
+    expect(
+      candidate.follow_ups.some(
+        (f) =>
+          f.wells.some(
+            (well) => well.column === 0 && well.filled_cells === 8,
+          ) && f.max_height === 2,
+      ),
+    ).toBe(true);
+    expect(candidate.follow_ups.length).toBeLessThanOrEqual(4);
+  });
+
+  it.each([0, 5, 9])(
+    'measures partial four-row preparation in open column %s',
+    (column) => {
+      const game = { ...gameWith('O'), queue: ['O'] as Kind[] };
+      for (let y = 18; y < 20; y++)
+        game.board[y] = game.board[y].map((_, x) =>
+          x === column ? null : 'J',
+        );
+      const candidate = buildCandidates(game)
+        .slice(0, 26)
+        .find((c) => c.target.x === 3);
+      if (!candidate) throw new Error('Missing central landing');
+      expect(candidate.wells).toContainEqual({
+        column,
+        depth: 2,
+        ready_rows: 2,
+        filled_cells: 22,
+      });
+      expect(candidate.cleared_lines).toBe(0);
+    },
+  );
+
+  it('does not describe a covered shaft as accessible preparation', () => {
+    const game = { ...gameWith('O'), queue: ['O'] as Kind[] };
+    for (let y = 16; y < 20; y++)
+      game.board[y] = game.board[y].map((_, x) => (x === 0 ? null : 'J'));
+    game.board[15][0] = 'J';
+    const candidates = buildCandidates(game);
+    expect(candidates.length).toBeGreaterThan(0);
+    expect(candidates.every((c) => c.holes >= 4)).toBe(true);
+    // A new shallow shaft can form ABOVE the cover; the four buried rows must
+    // not be counted as its depth or as ready attack rows.
+    const aboveCover = candidates
+      .flatMap((c) => c.wells)
+      .filter((well) => well.column === 0);
+    expect(aboveCover.length).toBeGreaterThan(0);
+    for (const well of aboveCover)
+      expect(well).toEqual({
+        column: 0,
+        depth: 1,
+        ready_rows: 0,
+        filled_cells: 2,
+      });
   });
 });

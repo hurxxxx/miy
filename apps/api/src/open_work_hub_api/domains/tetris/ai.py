@@ -17,7 +17,12 @@ from .schemas import TetrisCandidate, TetrisDecisionRequest, TetrisDecisionRespo
 
 WORKLOAD_ID = "tetris.play"
 GENERATION_WORKLOAD_ID = "tetris.play.generation"
-CHOICE_INSTRUCTION = "Choose the best first placement using the rules and priorities in state."
+CHOICE_INSTRUCTION = (
+    "Choose one landing to win, following state rules. Use 9-0 Tetris stacking while safe: "
+    "build four rows around one open column and save I to attack. "
+    "A safe setup is better than a single clear or merely lowering the board. "
+    "Switch to survival clears for actual top-out danger, or attack immediately to finish the opponent."
+)
 # Keep the same choice budget for every model, including native endpoints that
 # accept at most 26 options. The engine orders candidates by immediate/future value.
 MAX_MODEL_CANDIDATES = 26
@@ -67,12 +72,16 @@ def models(db: Session) -> TetrisModelsResponse:
 
 def _landing_description(item: TetrisLanding) -> str:
     shape = "/".join("".join(map(str, row)) for row in item.target.shape)
+    wells = ",".join(
+        f"{well.column}:{well.depth}:{well.ready_rows}:{well.filled_cells}"
+        for well in item.wells
+    ) or "-"
     return (
         f"piece={item.piece} hold={int(item.uses_hold)} reserve={item.hold_after or '-'} "
         f"x={item.target.x} y={item.target.y} shape={shape} "
         f"clear={item.cleared_lines} attack={max(0, item.cleared_lines - 1)} "
         f"holes={item.holes} height={item.max_height} sum_height={item.aggregate_height} "
-        f"roughness={item.bumpiness} keys={item.key_presses}"
+        f"roughness={item.bumpiness} wells={wells} keys={item.key_presses}"
     )
 
 
@@ -129,10 +138,18 @@ def decide(db: Session, *, user: User, payload: TetrisDecisionRequest) -> Tetris
             "reobserve after placement or if the plan becomes invalid. Gravity continues during requests and movement."
         ),
         "strategy": [
-            "Survival first; smaller clears for danger, or an immediate winning attack.",
-            "Prefer safe Tetris (4-line clears). Plan with current/next/hold and each then alternative.",
-            "For a visible Tetris setup, keep an accessible one-column well and reserve/use I. "
-            "Do not block the well, bury holes, or assume hidden pieces.",
+            "Avoid actual top-out danger (blocked spawn, a stack near the spawn area, or buried holes "
+            "preventing recovery). A modest height increase on a low, hole-free board is not such danger.",
+            "Build for repeated Tetris (4-line clears), not only immediate clears. "
+            "On a low, hole-free board, leave one column open and fill the other nine across four rows. "
+            "Prefer an edge well when starting; preserve an existing useful well rather than switching sides.",
+            "Prepare this stack over several pieces, even before I is visible; keep it modest while waiting. "
+            "Reserve a visible I for the four-row well instead of spending it just to flatten the board. "
+            "Use current/next/hold and each then alternative; do not assume hidden pieces or an I arrival time.",
+            "Do not cover the well or bury holes. While safe, preserve attack preparation instead of "
+            "taking a single clear for no attack. Accept a higher, rougher stack to increase well ready_rows "
+            "and filled_cells; do not optimize minimum height or score at the expense of the setup. "
+            "Abandon the setup to avoid top-out or finish the opponent.",
             "Among similarly safe plans: Tetris > total attack > fewer holes > lower height. "
             "A deliberate well may increase roughness. Fewer keys only breaks otherwise equal ties.",
         ],
@@ -147,6 +164,13 @@ def decide(db: Session, *, user: User, payload: TetrisDecisionRequest) -> Tetris
             "spawn_blocked=1 means top-out. clear=lines removed; attack=garbage sent in a duel; "
             "holes=covered empty cells; height=max column height; sum_height=sum of column heights; "
             "roughness=sum of adjacent height differences; keys=inputs to complete that landing. "
+            "wells=comma-separated column:depth:ready_rows:filled_cells after that landing ('-' none). "
+            "Each well is a one-column shaft open from above, bounded by neighbors or a board edge. "
+            "Depth is measured from its floor to the lower adjacent surface. "
+            "In the four rows just above its floor, ready_rows have all other nine cells filled; "
+            "filled_cells counts those other cells (0..36). Four ready rows enable a vertical-I Tetris. "
+            "These are board geometry, not a guarantee that the next I can reach it before gravity. "
+            "Deeper than four is not extra preparation; height/holes still measure danger. "
             "total_clear/total_attack=now plus that then, never all alternatives together."
         ),
         "self": _observation(payload),
