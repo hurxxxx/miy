@@ -18,7 +18,8 @@ from codex_console.rpc import CONTRACT
 
 
 def test_generated_protocol_schemas_are_valid():
-    assert supports_contract_version("codex-cli 0.156.0", CONTRACT["codexVersion"])
+    assert CONTRACT["codexVersion"] == "0.158.0"
+    assert supports_contract_version("codex-cli 0.158.0", CONTRACT["codexVersion"])
     for schema in CONTRACT["schemas"].values():
         Draft7Validator.check_schema(schema)
 
@@ -27,10 +28,13 @@ def test_generated_protocol_schemas_are_valid():
     ("output", "expected"),
     [
         ("codex-cli 0.155.1", False),
-        ("codex-cli 0.156.0", True),
-        ("codex-cli 0.157.0", True),
+        ("codex-cli 0.156.0", False),
+        ("codex-cli 0.157.0", False),
+        ("codex-cli 0.158.0", True),
+        ("codex-cli 0.159.0", True),
         ("codex-cli 1.0.0", True),
-        ("codex-cli 0.156.0-alpha.1", False),
+        ("codex-cli 0.158.0-alpha.1", False),
+        ("codex-cli 0.159.0-alpha.1", False),
         ("codex-cli latest", False),
     ],
 )
@@ -38,16 +42,17 @@ def test_codex_contract_requires_a_stable_minimum_version(output, expected):
     assert supports_contract_version(output, CONTRACT["codexVersion"]) is expected
 
 
-def test_codex_contract_accepts_only_matching_selected_schemas(tmp_path):
+@pytest.mark.parametrize("name", COMPATIBILITY_SCHEMA_NAMES)
+def test_codex_contract_accepts_only_matching_selected_schemas(tmp_path, name):
     schema = {"type": "object", "properties": {"value": {"type": "string"}}}
-    for name in COMPATIBILITY_SCHEMA_NAMES:
-        (tmp_path / f"{name}.json").write_text(json.dumps(schema))
+    for schema_name in COMPATIBILITY_SCHEMA_NAMES:
+        (tmp_path / f"{schema_name}.json").write_text(json.dumps(schema))
     contract = build_contract(CONTRACT["codexVersion"], tmp_path)
     assert schemas_are_compatible(contract, tmp_path)
 
-    changed = json.loads((tmp_path / "ModelListParams.json").read_text())
+    changed = json.loads((tmp_path / f"{name}.json").read_text())
     changed["required"] = ["incompatible"]
-    (tmp_path / "ModelListParams.json").write_text(json.dumps(changed))
+    (tmp_path / f"{name}.json").write_text(json.dumps(changed))
     assert not schemas_are_compatible(contract, tmp_path)
 
 

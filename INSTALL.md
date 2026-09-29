@@ -953,8 +953,9 @@ AI 보호 정책을 끄지 않는다. 추가 키·서버가 필요한 기능은 
 
 [Codex Console 소유 문서](docs/apps/codex-console/README.md)의 설치·서비스 실행·개인 앱 연결
 절차를 수행한다. MTY 업무 DB와 별개의 전용 PostgreSQL 역할·DB를 만들고, Codex를 구독으로
-로그인한 OS 사용자로 서비스를 실행한다. 콘솔은 기준 버전 이상의 공식 app-server를 사용하고
-시작 시 RPC 스키마 호환성을 검사하며
+로그인한 OS 사용자로 서비스를 실행한다. 콘솔은 [현재 기준 버전](docs/apps/codex-console/README.md#설치)
+이상의 안정 CLI를 사용한다. 서비스의 `MTY_CODEX_CONSOLE_BINARY`와 검증 명령의 CLI가
+같은지 확인한다. 시작 시 RPC 스키마 호환성을 검사하며
 Platform API 키나 MTY AI 공급자 설정을 요구하지 않는다.
 
 - 콘솔의 `.env`와 웹 비밀번호를 준비하고 migration·정적 UI 빌드·systemd 자동 시작을 완료한다.

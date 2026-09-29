@@ -15,6 +15,43 @@ from codex_console.cli import ROOT
 from codex_console.rpc import CodexRPC
 
 
+def test_new_native_subscription_kind_is_preserved(client, monkeypatch):
+    client.get("/api/codex/account")
+    rpc = client.app.state.runtime.rpc
+    original = rpc.call
+
+    async def account(method, params):
+        result = await original(method, params)
+        if method == "account/read":
+            result["account"]["planType"] = "promax"
+        return result
+
+    monkeypatch.setattr(rpc, "call", account)
+    result = client.get("/api/codex/account").json()
+    assert result["connected"] and result["auth_type"] == "chatgpt"
+    assert result["plan_type"] == "promax"
+
+
+def test_native_flex_unavailable_finishes_as_execution_failure(client):
+    task = send_message(client, new_task(client)).json()
+    notify(
+        client,
+        task,
+        "turn/completed",
+        {
+            "turn": {
+                "id": task["turn_id"],
+                "status": "failed",
+                "error": {"codexErrorInfo": "flexUnavailable"},
+            }
+        },
+    )
+    result = client.get(f"/api/tasks/{task['id']}").json()
+    assert result["status"] == "failed"
+    assert result["error_code"] == "execution_failed"
+    assert result["requests"] == []
+
+
 def test_account_model_catalog_follows_native_pagination(client, monkeypatch):
     client.get("/api/codex/account")
     rpc = client.app.state.runtime.rpc

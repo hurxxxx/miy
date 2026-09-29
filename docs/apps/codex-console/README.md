@@ -9,7 +9,7 @@
 ## 실행 경계
 
 - 소유자 한 명, 설정한 Git 개발 체크아웃 하나를 대상으로 한다. 공개 가입이나 팀 공유는 없다.
-- 공식 `codex app-server`의 stdio 프로토콜을 사용한다. 기준 계약은 **0.156.0**이며,
+- 공식 `codex app-server`의 stdio 프로토콜을 사용한다. 기준 계약은 **0.158.0**이며,
   그 이상의 안정 CLI는 콘솔이 사용하는 요청·응답·알림 RPC 스키마가 기준 계약과 같을 때
   자동으로 허용한다.
   더 오래된 버전·시험판·스키마가 달라진 버전은 실행 전에 차단한다. Codex가 구독 인증,
@@ -18,8 +18,9 @@
   사용자·회사 권한을 대신하지 않는다. 제품 AI 기능에는 기존 등록 workload 계약을 적용한다.
 - 현재 서버의 Codex 사용자와 인증 저장소를 사용한다. 웹 비밀번호와 ChatGPT 로그인은 별개다.
   웹 로그아웃·비밀번호 변경은 웹 세션만 폐기한다.
-- 공식 프로토콜의 실험적 계획·질문 기능을 사용하므로 버전을 고정한다. 다른 버전이면 실행을
-  차단한다. 업그레이드 때 스키마 재생성, 계약 테스트, 실제 계정 smoke를 함께 수행한다.
+- 공식 프로토콜의 실험적 계획·질문 기능을 사용하므로 기준 버전의 계약을 고정한다. 최소
+  안정 버전과 RPC 스키마 검사를 모두 통과해야 실행한다. 업그레이드 때 스키마 재생성,
+  계약 테스트, 실제 계정 smoke를 함께 수행한다.
 - 개인 클라이언트가 필요한 HTTP 인증·문서 버전·실행 승인과 공식 RPC 사이만 변환한다.
   터미널 화면 파싱, 비공식 ChatGPT 엔드포인트, API 과금 fallback, 별도 OAuth 구현은 없다.
 
@@ -144,7 +145,7 @@ MTY 서버에서는 기준 ref를 `origin/dev`, 워크트리 경로를 체크아
 
 사전 준비는 [INSTALL.md](../../../INSTALL.md)를 따른다. Node·pnpm과 Python·uv 버전은
 저장소의 package.json 및 각 앱의 pyproject.toml/lock을 사용한다. PostgreSQL 18과
-현재 사용자로 `codex login status`가 성공하는 Codex 0.156.0 이상의 안정 버전이 필요하다.
+현재 사용자로 `codex login status`가 성공하는 Codex 0.158.0 이상의 안정 버전이 필요하다.
 서비스는 Codex 프로세스를 연결할 때 설치된 CLI가 기준 RPC 계약과 호환되는지 검사한다.
 
 1. PostgreSQL에 **전용 역할과 전용 DB** `codex_console`을 준비한다. MTY 업무 DB와 그
@@ -548,6 +549,14 @@ uv run --frozen --directory apps/codex-console-api --group dev python tests/live
 Codex 업그레이드 계약은 설치된 안정 CLI가 최소 버전 이상이고 선택된 RPC 스키마와 호환되는지
 검사한다. 스키마가 같으면 소스 변경 없이 새 CLI를 사용할 수 있다. 스키마가 다르면 이 검사가
 실패하며, 기준 버전과 생성 계약을 함께 검토·갱신해야 한다.
+
+0.158.0 기준은 공식 CLI의 `--experimental` 스키마로 생성한다. 0.156.0 대비 사용 중인
+RPC에는 `InitializeCapabilities.explicitGatewayOauth`, 구독 종류 `promax`, 오류 종류
+`flexUnavailable`이 추가됐다. 콘솔은 새 OAuth 기능을 요청하지 않으며 구독 종류는 그대로
+표시하고 새 실행 오류는 기존 일반 실패 경로로 처리한다. 실행·승인·샌드박스 요청 계약은
+동일하다. 호환성 해시에는 이 추가 필드와 enum도 포함하므로 이후 드리프트 역시 차단한다.
+검사·재생성에는 서비스의 `MTY_CODEX_CONSOLE_BINARY`와 같은 CLI가 `PATH`에서 선택되는지
+확인한다. 재생성은 `scripts/generate_protocol.py`의 기준 버전과 정확히 같은 CLI에서만 허용한다.
 
 ```bash
 uv run --frozen --directory apps/codex-console-api python scripts/generate_protocol.py --check
