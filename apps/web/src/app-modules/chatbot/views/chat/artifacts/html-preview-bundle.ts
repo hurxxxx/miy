@@ -34,7 +34,7 @@ export function previewPath(value: string, importer: string): string {
     invalidPathCharacters(path) ||
     path
       .split('/')
-      .some((part) => !part || ['.', '..', '.owh-runtime'].includes(part))
+      .some((part) => !part || ['.', '..', '.mty-runtime'].includes(part))
   )
     throw new Error(i18n.t('apps:ai.htmlArtifact.previewFailed'), {
       cause: 'preview.invalid_dependency',

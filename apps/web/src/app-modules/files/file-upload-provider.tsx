@@ -1,4 +1,4 @@
-import { useFeedback } from '@open-work-hub/ui';
+import { useFeedback } from '@mty/ui';
 import {
   AlertCircle,
   CheckCircle2,

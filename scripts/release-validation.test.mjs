@@ -56,7 +56,7 @@ test('docs/instructions use focused guidance checks without app suites', () => {
 });
 
 for (const file of [
-  '.agents/skills/owh-release/SKILL.md',
+  '.agents/skills/mty-release/SKILL.md',
   '.codex/hooks.json',
   'scripts/setup-claude-skills.mjs',
   'scripts/codex-review-ci.sh',
@@ -75,10 +75,10 @@ for (const file of [
   'package.json',
   'pnpm-lock.yaml',
   'apps/api/pyproject.toml',
-  'apps/api/src/open_work_hub_api/core/settings.py',
-  'apps/api/src/open_work_hub_api/core/runtime_config.py',
-  'apps/api/src/open_work_hub_api/core/app_contracts_generated.py',
-  'apps/api/src/open_work_hub_api/domains/auth/realtime_contract_generated.py',
+  'apps/api/src/mty_api/core/settings.py',
+  'apps/api/src/mty_api/core/runtime_config.py',
+  'apps/api/src/mty_api/core/app_contracts_generated.py',
+  'apps/api/src/mty_api/domains/auth/realtime_contract_generated.py',
   'apps/web/package.json',
   'apps/codex-console-api/pyproject.toml',
   'apps/codex-console-api/src/codex_console/config.py',
@@ -86,7 +86,7 @@ for (const file of [
   'apps/codex-console-api/migrations/versions/new.py',
   'apps/worker/uv.lock',
   'dev.sh',
-  'ops/compose/open-work-hub-prod.app.yml',
+  'ops/compose/mty-prod.app.yml',
   'ops/app/Dockerfile',
   '.env.example',
   'scripts/prod-app.sh',
@@ -276,7 +276,7 @@ test('failed checks or changed source/target never yield passing evidence', () =
 
 function fixture(t) {
   const root = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'owh-release-validation-'),
+    path.join(os.tmpdir(), 'mty-release-validation-'),
   );
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const git = (args) =>

@@ -9,7 +9,7 @@ import {
   TabsList,
   TabsTrigger,
   Tooltip,
-} from '@open-work-hub/ui';
+} from '@mty/ui';
 
 import {
   filterIconPickerKeys,

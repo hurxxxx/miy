@@ -4,14 +4,14 @@ from datetime import date
 
 from fastapi.testclient import TestClient
 
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.auth.security import new_id
-from open_work_hub_api.domains.pms.models import TaskUserAccess
-from open_work_hub_api.domains.pms.search_projection import (
+from mty_api.core.db import get_session_factory
+from mty_api.domains.auth.security import new_id
+from mty_api.domains.pms.models import TaskUserAccess
+from mty_api.domains.pms.search_projection import (
     load_pms_task_search_document,
     load_pms_task_search_documents,
 )
-from open_work_hub_api.domains.rag.pms_projection import load_task_projection
+from mty_api.domains.rag.pms_projection import load_task_projection
 from test_pms_issues import (
     _add_task_list_member,
     _auth_headers,
@@ -257,7 +257,7 @@ def test_list_archive_roles_and_direct_grants_are_scoped_to_each_resource(
         account = _create_user(
             client,
             owner["token"],
-            email=f"archive-{role}@open-work-hub.local",
+            email=f"archive-{role}@mty.local",
             full_name=f"Archive {role.title()}",
         )
         _add_task_list_member(
@@ -320,7 +320,7 @@ def test_list_archive_roles_and_direct_grants_are_scoped_to_each_resource(
     grant_reader = _create_user(
         client,
         owner["token"],
-        email="archive-grant-reader@open-work-hub.local",
+        email="archive-grant-reader@mty.local",
         full_name="Archive Grant Reader",
     )
     grant_reader_token = _login(

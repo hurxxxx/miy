@@ -1,7 +1,7 @@
 import {
   getAppRouteChrome,
   getAppRoutePattern,
-} from '@open-work-hub/contracts/app-routes';
+} from '@mty/contracts/app-routes';
 import { createElement, lazy } from 'react';
 import { lazyRoute } from '@/src/app/shell/lazy-route';
 import { tetrisManifest } from './manifest';

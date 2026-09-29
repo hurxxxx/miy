@@ -10,15 +10,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from dev_accounts import auth_headers, dev_login
-from open_work_hub_api.core import db
-from open_work_hub_api.domains.auth import dependencies
+from mty_api.core import db
+from mty_api.domains.auth import dependencies
 
 
 @pytest.mark.parametrize("invalid_credentials", [False, True])
 def test_authenticated_read_burst_does_not_starve_request_threads(
     client, monkeypatch, invalid_credentials
 ):
-    from open_work_hub_api.app import create_app
+    from mty_api.app import create_app
 
     headers = auth_headers(dev_login(client)["token"])
     engine = create_engine(db.get_engine().url, pool_size=2, max_overflow=0, pool_timeout=0.5)

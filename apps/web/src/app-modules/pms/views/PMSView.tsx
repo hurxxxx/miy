@@ -1,9 +1,9 @@
 import { cn } from '@/src/lib/utils';
 import { useAuth } from '@/src/platform/auth/auth-provider';
-import { buildAppHref } from '@open-work-hub/contracts/app-routes';
-import { useFeedback } from '@open-work-hub/ui';
-import { useConfirm } from '@open-work-hub/ui/feedback/confirm-dialog';
-import { usePrompt } from '@open-work-hub/ui/feedback/prompt-dialog';
+import { buildAppHref } from '@mty/contracts/app-routes';
+import { useFeedback } from '@mty/ui';
+import { useConfirm } from '@mty/ui/feedback/confirm-dialog';
+import { usePrompt } from '@mty/ui/feedback/prompt-dialog';
 import {
   Activity,
   Archive,

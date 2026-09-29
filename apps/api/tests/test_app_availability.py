@@ -3,17 +3,17 @@ from types import SimpleNamespace
 from fastapi.testclient import TestClient
 
 from dev_accounts import create_company_user_session, dev_login
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.core.principal import system_principal, user_principal
-from open_work_hub_api.domains.auth.app_access import can_use_app
-from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
-from open_work_hub_api.domains.auth.app_availability import (
+from mty_api.core.db import get_session_factory
+from mty_api.core.principal import system_principal, user_principal
+from mty_api.domains.auth.app_access import can_use_app
+from mty_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
+from mty_api.domains.auth.app_availability import (
     is_company_app_enabled,
     load_app_availability_snapshot,
 )
-from open_work_hub_api.domains.auth.app_catalog import get_app_catalog_item
-from open_work_hub_api.domains.auth.app_gate import is_app_enabled_for_principal
-from open_work_hub_api.domains.auth.models import CompanyAppControl, User
+from mty_api.domains.auth.app_catalog import get_app_catalog_item
+from mty_api.domains.auth.app_gate import is_app_enabled_for_principal
+from mty_api.domains.auth.models import CompanyAppControl, User
 
 
 def test_app_admission_requires_company_master_and_selected_user(client: TestClient) -> None:

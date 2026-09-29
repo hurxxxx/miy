@@ -7,9 +7,9 @@ import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
 
 export const CONTRACT = 'feature-codex-release-v1';
-export const VALIDATION_IMAGE = 'open-work-hub-validation:node22-python312';
-export const VALIDATION_TAG = 'open-work-hub-validation';
-export const CODEX_ENTRYPOINT = '/usr/local/bin/open-work-hub-codex-review-ci';
+export const VALIDATION_IMAGE = 'mty-validation:node22-python312';
+export const VALIDATION_TAG = 'mty-validation';
+export const CODEX_ENTRYPOINT = '/usr/local/bin/mty-codex-review-ci';
 
 export const FEATURE_MR_RULE =
   '$CI_PIPELINE_SOURCE == "merge_request_event" && ' +
@@ -28,7 +28,7 @@ const REDIS_SERVICE =
   'redis@sha256:5a77f0f4698389019f828f6387049ce1d5adbea204e56422aa7720dab7034287';
 const MINIO_SERVICE =
   'minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e';
-const OPENSEARCH_SERVICE = 'open-work-hub-opensearch:3.3.2-nori';
+const OPENSEARCH_SERVICE = 'mty-opensearch:3.3.2-nori';
 const RETIRED_IDENTIFIER_PATTERN = new RegExp(
   [
     String.raw`\bA` + String.raw`I_DO\b`,
@@ -68,8 +68,8 @@ export function expectedGitlabPipelineConfig() {
           command: ['server', '/data', '--console-address=:9001'],
           variables: {
             HEALTHCHECK_TCP_PORT: '9000',
-            MINIO_ROOT_PASSWORD: 'open_work_hub_ci_minio_job_only',
-            MINIO_ROOT_USER: 'open_work_hub_ci_minio',
+            MINIO_ROOT_PASSWORD: 'mty_ci_minio_job_only',
+            MINIO_ROOT_USER: 'mty_ci_minio',
           },
         },
         {
@@ -86,51 +86,51 @@ export function expectedGitlabPipelineConfig() {
       tags: [VALIDATION_TAG],
       inherit: {
         default: false,
-        variables: ['OPEN_WORK_HUB_CI_POSTGRES_DSN'],
+        variables: ['MTY_CI_POSTGRES_DSN'],
       },
       dependencies: [],
       allow_failure: false,
       interruptible: true,
-      resource_group: 'open-work-hub-release-validation',
+      resource_group: 'mty-release-validation',
       environment: { name: 'ci-validation', action: 'access' },
       variables: {
         GIT_DEPTH: '0',
         NODE_OPTIONS: '--max-old-space-size=3072',
-        OPEN_WORK_HUB_API_PYTEST_WORKERS: '2',
+        MTY_API_PYTEST_WORKERS: '2',
         VITEST_MAX_WORKERS: '1',
         PLAYWRIGHT_WORKERS: '1',
-        OPEN_WORK_HUB_API_COLLAB_REDIS_URL: 'redis://redis:6379/0',
-        OPEN_WORK_HUB_API_REALTIME_REDIS_URL: 'redis://redis:6379/0',
-        OPEN_WORK_HUB_API_TEST_RUN_ID: '$CI_JOB_ID',
-        OPEN_WORK_HUB_ENV_PROFILE: 'test',
-        OPEN_WORK_HUB_MINIO_ACCESS_KEY: 'open_work_hub_ci_minio',
-        OPEN_WORK_HUB_MINIO_BUCKET: 'open-work-hub-ci',
-        OPEN_WORK_HUB_MINIO_ENDPOINT: 'http://minio:9000',
-        OPEN_WORK_HUB_MINIO_SECRET_KEY: 'open_work_hub_ci_minio_job_only',
-        OPEN_WORK_HUB_OPENSEARCH_INDEX_PREFIX: 'open-work-hub-ci',
-        OPEN_WORK_HUB_OPENSEARCH_URL: 'http://opensearch:9200',
-        OPEN_WORK_HUB_POSTGRES_DSN: '$OPEN_WORK_HUB_CI_POSTGRES_DSN',
-        OPEN_WORK_HUB_TEST_MINIO_ACCESS_KEY: 'open_work_hub_ci_minio',
-        OPEN_WORK_HUB_TEST_MINIO_ENDPOINT: 'http://minio:9000',
-        OPEN_WORK_HUB_TEST_MINIO_SECRET_KEY: 'open_work_hub_ci_minio_job_only',
-        OPEN_WORK_HUB_TEST_NON_PRODUCTION_ACK: 'non-production',
-        OPEN_WORK_HUB_TEST_OPENSEARCH_URL: 'http://opensearch:9200',
-        OPEN_WORK_HUB_TEST_POSTGRES_TEMPLATE_DSN:
-          '$OPEN_WORK_HUB_CI_POSTGRES_DSN',
-        OPEN_WORK_HUB_TEST_REDIS_URL: 'redis://redis:6379/0',
-        OPEN_WORK_HUB_WORKER_BROKER_URL: 'memory://',
-        OPEN_WORK_HUB_WORKER_QUEUE_GROUP: 'default',
-        OPEN_WORK_HUB_WORKER_RESULT_BACKEND: 'cache+memory://',
+        MTY_API_COLLAB_REDIS_URL: 'redis://redis:6379/0',
+        MTY_API_REALTIME_REDIS_URL: 'redis://redis:6379/0',
+        MTY_API_TEST_RUN_ID: '$CI_JOB_ID',
+        MTY_ENV_PROFILE: 'test',
+        MTY_MINIO_ACCESS_KEY: 'mty_ci_minio',
+        MTY_MINIO_BUCKET: 'mty-ci',
+        MTY_MINIO_ENDPOINT: 'http://minio:9000',
+        MTY_MINIO_SECRET_KEY: 'mty_ci_minio_job_only',
+        MTY_OPENSEARCH_INDEX_PREFIX: 'mty-ci',
+        MTY_OPENSEARCH_URL: 'http://opensearch:9200',
+        MTY_POSTGRES_DSN: '$MTY_CI_POSTGRES_DSN',
+        MTY_TEST_MINIO_ACCESS_KEY: 'mty_ci_minio',
+        MTY_TEST_MINIO_ENDPOINT: 'http://minio:9000',
+        MTY_TEST_MINIO_SECRET_KEY: 'mty_ci_minio_job_only',
+        MTY_TEST_NON_PRODUCTION_ACK: 'non-production',
+        MTY_TEST_OPENSEARCH_URL: 'http://opensearch:9200',
+        MTY_TEST_POSTGRES_TEMPLATE_DSN:
+          '$MTY_CI_POSTGRES_DSN',
+        MTY_TEST_REDIS_URL: 'redis://redis:6379/0',
+        MTY_WORKER_BROKER_URL: 'memory://',
+        MTY_WORKER_QUEUE_GROUP: 'default',
+        MTY_WORKER_RESULT_BACKEND: 'cache+memory://',
       },
       rules: [{ if: RELEASE_MR_RULE }],
       before_script: [],
       script: [
         'bash scripts/ci/prepare-validation-runtime.sh --postgres',
         'cp .env.example .env',
-        "sed -i 's#^OPEN_WORK_HUB_ENV_PROFILE=.*#OPEN_WORK_HUB_ENV_PROFILE=test#; s#^OPEN_WORK_HUB_WORKER_BROKER_URL=.*#OPEN_WORK_HUB_WORKER_BROKER_URL=memory://#; s#^OPEN_WORK_HUB_WORKER_RESULT_BACKEND=.*#OPEN_WORK_HUB_WORKER_RESULT_BACKEND=cache+memory://#' .env",
-        "grep -qx 'OPEN_WORK_HUB_ENV_PROFILE=test' .env",
-        "grep -qx 'OPEN_WORK_HUB_WORKER_BROKER_URL=memory://' .env",
-        "grep -qx 'OPEN_WORK_HUB_WORKER_RESULT_BACKEND=cache+memory://' .env",
+        "sed -i 's#^MTY_ENV_PROFILE=.*#MTY_ENV_PROFILE=test#; s#^MTY_WORKER_BROKER_URL=.*#MTY_WORKER_BROKER_URL=memory://#; s#^MTY_WORKER_RESULT_BACKEND=.*#MTY_WORKER_RESULT_BACKEND=cache+memory://#' .env",
+        "grep -qx 'MTY_ENV_PROFILE=test' .env",
+        "grep -qx 'MTY_WORKER_BROKER_URL=memory://' .env",
+        "grep -qx 'MTY_WORKER_RESULT_BACKEND=cache+memory://' .env",
         'printf \'release_validation source=%s target=%s base=%s\\n\' "$CI_COMMIT_SHA" "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" "$CI_MERGE_REQUEST_DIFF_BASE_SHA" > release-validation-context.md',
         'node scripts/check-gitlab-pipeline.mjs',
         'node scripts/check-mr-target-policy.mjs',
@@ -192,7 +192,7 @@ export function expectedGitlabPipelineConfig() {
         'pnpm build:contracts',
         'export NPM_CONFIG_USERCONFIG="$(mktemp)"',
         'trap \'rm -f "$NPM_CONFIG_USERCONFIG"\' EXIT',
-        'printf \'@open-work-hub:registry=%s/projects/%s/packages/npm/\\n\' "$CI_API_V4_URL" "$CI_PROJECT_ID" > "$NPM_CONFIG_USERCONFIG"',
+        'printf \'@mty:registry=%s/projects/%s/packages/npm/\\n\' "$CI_API_V4_URL" "$CI_PROJECT_ID" > "$NPM_CONFIG_USERCONFIG"',
         'printf \'//%s/projects/%s/packages/npm/:_authToken=%s\\n\' "${CI_API_V4_URL#*://}" "$CI_PROJECT_ID" "$CI_JOB_TOKEN" >> "$NPM_CONFIG_USERCONFIG"',
         'cd packages/contracts',
         'pnpm publish --no-git-checks',

@@ -66,7 +66,7 @@ def test_announcement_requires_admin_to_write(client: TestClient) -> None:
     member = _create_company_user(
         client,
         admin_token,
-        email="ann-member@open-work-hub.local",
+        email="ann-member@mty.local",
         full_name="Announcement Member",
     )
     member_token = _login(
@@ -90,14 +90,14 @@ def test_announcement_requires_admin_to_write(client: TestClient) -> None:
 def test_announcement_default_and_explicit_company_audience_require_active_company_user(
     client: TestClient,
 ) -> None:
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.auth.models import User
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.auth.models import User
 
     admin = _bootstrap_admin_session(client)
     other = _create_company_user(
         client,
         admin["token"],
-        email="ann-colleague@open-work-hub.local",
+        email="ann-colleague@mty.local",
         full_name="Company Colleague",
     )
     other_token = _login(client, other["user"]["email"], other["temporary_password"])
@@ -135,7 +135,7 @@ def test_company_announcement_requires_platform_admin(client: TestClient) -> Non
     member = _create_company_user(
         client,
         admin_token,
-        email="ann-company-member@open-work-hub.local",
+        email="ann-company-member@mty.local",
         full_name="Company Member",
     )
     member_token = _login(

@@ -16,8 +16,8 @@ import {
 import { HermesFilePanel } from './HermesFilePanel';
 
 const feedback = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
-vi.mock('@open-work-hub/ui', async (original) => ({
-  ...(await original<typeof import('@open-work-hub/ui')>()),
+vi.mock('@mty/ui', async (original) => ({
+  ...(await original<typeof import('@mty/ui')>()),
   useFeedback: () => feedback,
 }));
 

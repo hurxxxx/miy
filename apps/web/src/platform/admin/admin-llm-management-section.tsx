@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 
-import { Tabs, TabsList, TabsTrigger } from '@open-work-hub/ui';
+import { Tabs, TabsList, TabsTrigger } from '@mty/ui';
 
 import { AdminAiModelSettingsSection } from './admin-ai-model-settings-section';
 import { AdminLlmProviderSettingsSection } from './admin-llm-provider-settings-section';

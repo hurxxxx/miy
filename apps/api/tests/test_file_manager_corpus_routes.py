@@ -4,8 +4,8 @@ from fastapi.testclient import TestClient
 
 from dev_accounts import auth_headers, create_company_user_session, dev_login
 
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.files.models import (
+from mty_api.core.db import get_session_factory
+from mty_api.domains.files.models import (
     FileManagerCorpus,
     FileManagerFile,
     FileManagerFolder,

@@ -12,7 +12,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button, SearchField, Tooltip, useFeedback } from '@open-work-hub/ui';
+import { Button, SearchField, Tooltip, useFeedback } from '@mty/ui';
 
 import { IconPickerDialog } from '@/src/components/picker/IconPickerDialog';
 import type { IconPickerGroup } from '@/src/components/picker/icon-picker-model';

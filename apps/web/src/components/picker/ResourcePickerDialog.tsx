@@ -1,4 +1,4 @@
-import { Button, Dialog, InlineNotice } from '@open-work-hub/ui';
+import { Button, Dialog, InlineNotice } from '@mty/ui';
 import { Loader2 } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 

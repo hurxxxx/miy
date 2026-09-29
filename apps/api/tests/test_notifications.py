@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from open_work_hub_api.domains.community.service import DEFAULT_CHANNEL_KEY
+from mty_api.domains.community.service import DEFAULT_CHANNEL_KEY
 from dev_accounts import auth_headers, dev_login
 
 

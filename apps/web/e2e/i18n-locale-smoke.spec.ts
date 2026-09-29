@@ -7,7 +7,7 @@ import {
   stubAppDataBackend,
 } from './helpers';
 
-const LOCALE_STORAGE_KEY = 'open-work-hub:locale';
+const LOCALE_STORAGE_KEY = 'mty:locale';
 
 async function stubFullShell(
   page: Page,

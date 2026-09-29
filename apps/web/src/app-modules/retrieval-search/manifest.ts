@@ -1,4 +1,4 @@
-import { getAppRoutePattern } from '@open-work-hub/contracts/app-routes';
+import { getAppRoutePattern } from '@mty/contracts/app-routes';
 import { Search } from 'lucide-react';
 
 import type { AppModuleManifest } from '@/src/app/shell/navigation-types';

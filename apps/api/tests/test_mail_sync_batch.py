@@ -5,21 +5,21 @@ from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from open_work_hub_api.core.db import Base
-from open_work_hub_api.domains.auth.models import User
-from open_work_hub_api.domains.mail.clients import (
+from mty_api.core.db import Base
+from mty_api.domains.auth.models import User
+from mty_api.domains.mail.clients import (
     FetchedAttachment,
     FetchedMessage,
     MailboxSyncBatch,
 )
-from open_work_hub_api.domains.mail.models import (
+from mty_api.domains.mail.models import (
     MailAccount,
     MailAttachment,
     MailMailbox,
     MailMessage,
     MailMessageBody,
 )
-from open_work_hub_api.domains.mail.sync_batch import apply_sync_batch, cursor_for_mailbox_sync
+from mty_api.domains.mail.sync_batch import apply_sync_batch, cursor_for_mailbox_sync
 
 
 def _session() -> Session:
@@ -42,7 +42,7 @@ def _user() -> User:
     return User(
         id="user-1",
         login_id="user-1",
-        email="user-1@open-work-hub.local",
+        email="user-1@mty.local",
         full_name="User One",
         password_hash="hash",
         status="active",

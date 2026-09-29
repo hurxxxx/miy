@@ -26,12 +26,12 @@ export class ApiError extends Error {
   }
 }
 
-export type OwhSessionHandoff = { issuer: string; code: string };
+export type MTYSessionHandoff = { issuer: string; code: string };
 
-export function consumeOwhSessionHandoff(): OwhSessionHandoff | null {
+export function consumeMTYSessionHandoff(): MTYSessionHandoff | null {
   const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-  const issuer = fragment.get('owh_issuer');
-  const code = fragment.get('owh_code');
+  const issuer = fragment.get('mty_issuer');
+  const code = fragment.get('mty_code');
   if (!issuer && !code) return null;
   window.history.replaceState(
     window.history.state,

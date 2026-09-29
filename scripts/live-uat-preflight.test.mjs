@@ -26,18 +26,18 @@ test('browser login smoke loads the checkout env contract', async () => {
 
 test('accepts only credential-free HTTPS public origins', () => {
   assert.equal(
-    normalizePublicBaseUrl('https://owh.example.com').href,
-    'https://owh.example.com/',
+    normalizePublicBaseUrl('https://mty.example.com').href,
+    'https://mty.example.com/',
   );
   for (const value of [
     '',
-    'http://owh.example.com',
+    'http://mty.example.com',
     'https://localhost:4200',
     'https://127.0.0.1',
-    'https://owh',
-    'https://user:password@owh.example.com',
-    'https://owh.example.com/app',
-    'https://owh.example.com/?token=secret',
+    'https://mty',
+    'https://user:password@mty.example.com',
+    'https://mty.example.com/app',
+    'https://mty.example.com/?token=secret',
   ]) {
     assert.throws(() => normalizePublicBaseUrl(value));
   }
@@ -98,7 +98,7 @@ test('validates health JSON and the login HTML shell', async (context) => {
     });
   await assertJsonEndpoint(
     'ready',
-    new URL('https://owh.example.com/readyz'),
+    new URL('https://mty.example.com/readyz'),
     'ok',
   );
   await assertOkEndpoint(
@@ -107,7 +107,7 @@ test('validates health JSON and the login HTML shell', async (context) => {
   );
   await assertJsonObjectEndpoint(
     'bootstrap',
-    new URL('https://owh.example.com/api/v1/auth/bootstrap-status'),
+    new URL('https://mty.example.com/api/v1/auth/bootstrap-status'),
   );
 
   globalThis.fetch = async () =>
@@ -117,14 +117,14 @@ test('validates health JSON and the login HTML shell', async (context) => {
         headers: { 'content-type': 'text/html; charset=utf-8' },
       },
     );
-  await assertLoginPage('login', new URL('https://owh.example.com/login'));
+  await assertLoginPage('login', new URL('https://mty.example.com/login'));
 
   globalThis.fetch = async () =>
     new Response('<html><body>Service unavailable</body></html>', {
       headers: { 'content-type': 'text/html' },
     });
   await assert.rejects(
-    assertLoginPage('login', new URL('https://owh.example.com/login')),
+    assertLoginPage('login', new URL('https://mty.example.com/login')),
     /rendered web shell/,
   );
 });
@@ -163,9 +163,9 @@ test('public dev smoke covers the local runtime and public ingress', async (cont
 
   await runPublicDevSmoke({
     env: {
-      OPEN_WORK_HUB_API_DEV_PORT: '8002',
-      OPEN_WORK_HUB_UAT_BASE_URL: 'https://owh.example.com',
-      OPEN_WORK_HUB_WEB_DEV_PORT: '4200',
+      MTY_API_DEV_PORT: '8002',
+      MTY_UAT_BASE_URL: 'https://mty.example.com',
+      MTY_WEB_DEV_PORT: '4200',
     },
     statusOutput: 'web running\napi running\n',
     report: false,
@@ -173,15 +173,15 @@ test('public dev smoke covers the local runtime and public ingress', async (cont
 
   assert.deepEqual(requested, [
     'http://127.0.0.1:8002/healthz',
-    'https://owh.example.com/healthz',
+    'https://mty.example.com/healthz',
     'http://127.0.0.1:8002/readyz',
-    'https://owh.example.com/readyz',
+    'https://mty.example.com/readyz',
     'http://127.0.0.1:8002/api/v1/auth/bootstrap-status',
-    'https://owh.example.com/api/v1/auth/bootstrap-status',
+    'https://mty.example.com/api/v1/auth/bootstrap-status',
     'http://127.0.0.1:4200/',
     'http://127.0.0.1:4200/login',
-    'https://owh.example.com/',
-    'https://owh.example.com/login',
+    'https://mty.example.com/',
+    'https://mty.example.com/login',
   ]);
 });
 
@@ -192,7 +192,7 @@ test('public dev smoke fails closed on a public bad gateway', async (context) =>
   });
   globalThis.fetch = async (url) => {
     const parsed = new URL(url);
-    if (parsed.origin === 'https://owh.example.com') {
+    if (parsed.origin === 'https://mty.example.com') {
       return new Response('Bad Gateway', {
         status: 502,
         headers: { 'content-type': 'text/plain' },
@@ -213,9 +213,9 @@ test('public dev smoke fails closed on a public bad gateway', async (context) =>
   await assert.rejects(
     runPublicDevSmoke({
       env: {
-        OPEN_WORK_HUB_API_DEV_PORT: '8002',
-        OPEN_WORK_HUB_UAT_BASE_URL: 'https://owh.example.com',
-        OPEN_WORK_HUB_WEB_DEV_PORT: '4200',
+        MTY_API_DEV_PORT: '8002',
+        MTY_UAT_BASE_URL: 'https://mty.example.com',
+        MTY_WEB_DEV_PORT: '4200',
       },
       statusOutput: 'web running\napi running\n',
       report: false,

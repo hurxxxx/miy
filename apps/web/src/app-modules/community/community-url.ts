@@ -1,4 +1,4 @@
-import { buildAppHref } from '@open-work-hub/contracts/app-routes';
+import { buildAppHref } from '@mty/contracts/app-routes';
 import { DEFAULT_COMMUNITY_CHANNEL_KEY } from './community-constants';
 
 export function buildCommunityListUrl(channelKey?: string | null): string {

@@ -38,8 +38,8 @@ export function SettingsNavigation({
       icon: Newspaper,
     },
     {
-      id: 'openWorkHubDesktop' as const,
-      label: t('auth:settings.openWorkHubDesktop'),
+      id: 'mtyDesktop' as const,
+      label: t('auth:settings.mtyDesktop'),
       icon: Monitor,
     },
   ];

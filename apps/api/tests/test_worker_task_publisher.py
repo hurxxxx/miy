@@ -4,12 +4,12 @@ from uuid import uuid4
 
 import pytest
 
-from open_work_hub_api.core.worker_task_publisher import create_fail_fast_celery_publisher
+from mty_api.core.worker_task_publisher import create_fail_fast_celery_publisher
 
 
 def test_fail_fast_celery_publisher_disables_publish_retries() -> None:
     client = create_fail_fast_celery_publisher(
-        "open_work_hub_api_test",
+        "mty_api_test",
         broker="memory://",
         ignore_result=True,
     )
@@ -34,7 +34,7 @@ def test_fail_fast_celery_publisher_disables_publish_retries() -> None:
 )
 def test_publisher_delivers_serialized_task_to_the_requested_queue(request, transport):
     broker = "memory://" if transport == "memory" else request.getfixturevalue("redis_url")
-    queue_name = f"open-work-hub-api-test-publisher-{uuid4().hex}"
+    queue_name = f"mty-api-test-publisher-{uuid4().hex}"
     job_id = str(uuid4())
     publisher = create_fail_fast_celery_publisher(
         "test_delivery", broker=broker, ignore_result=True
@@ -61,7 +61,7 @@ def test_publisher_delivers_serialized_task_to_the_requested_queue(request, tran
 
 
 def test_search_outbox_publishes_the_registered_task_and_job_id():
-    from open_work_hub_api.domains.search import outbox
+    from mty_api.domains.search import outbox
 
     publisher = outbox.get_celery_client()
     job_id = str(uuid4())

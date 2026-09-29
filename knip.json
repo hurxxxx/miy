@@ -35,19 +35,19 @@
         "@/src/*": [
           "apps/web/src/*"
         ],
-        "@open-work-hub/ui": [
+        "@mty/ui": [
           "packages/ui/src/index.ts"
         ],
-        "@open-work-hub/ui/styles.css": [
+        "@mty/ui/styles.css": [
           "packages/ui/styles.css"
         ],
-        "@open-work-hub/web-shell": [
+        "@mty/web-shell": [
           "apps/web/src/app/shell/AppContent.tsx"
         ],
-        "@open-work-hub/web/styles.css": [
+        "@mty/web/styles.css": [
           "apps/web/src/index.css"
         ],
-        "@open-work-hub/web/fullcalendar-theme.css": [
+        "@mty/web/fullcalendar-theme.css": [
           "apps/web/src/styles/fullcalendar-theme.css"
         ]
       },
@@ -75,19 +75,19 @@
         "@/src/*": [
           "src/*"
         ],
-        "@open-work-hub/ui": [
+        "@mty/ui": [
           "../../packages/ui/src/index.ts"
         ],
-        "@open-work-hub/ui/styles.css": [
+        "@mty/ui/styles.css": [
           "../../packages/ui/styles.css"
         ],
-        "@open-work-hub/web-shell": [
+        "@mty/web-shell": [
           "../web/src/app/shell/AppContent.tsx"
         ],
-        "@open-work-hub/web/styles.css": [
+        "@mty/web/styles.css": [
           "../web/src/index.css"
         ],
-        "@open-work-hub/web/fullcalendar-theme.css": [
+        "@mty/web/fullcalendar-theme.css": [
           "../web/src/styles/fullcalendar-theme.css"
         ]
       },

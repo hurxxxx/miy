@@ -11,8 +11,8 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { ChatResultSurface } from './ChatResultSurface';
 
 const feedback = vi.hoisted(() => ({ error: vi.fn() }));
-vi.mock('@open-work-hub/ui', async (original) => ({
-  ...(await original<typeof import('@open-work-hub/ui')>()),
+vi.mock('@mty/ui', async (original) => ({
+  ...(await original<typeof import('@mty/ui')>()),
   useFeedback: () => feedback,
 }));
 

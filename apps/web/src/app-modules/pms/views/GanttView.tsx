@@ -5,7 +5,7 @@ import {
   RangeSliderRange,
   RangeSliderThumb,
   RangeSliderTrack,
-} from '@open-work-hub/ui';
+} from '@mty/ui';
 import {
   CalendarDays,
   ChevronDown,

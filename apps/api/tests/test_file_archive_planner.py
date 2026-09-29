@@ -1,4 +1,4 @@
-from open_work_hub_api.domains.files.archive_planner import (
+from mty_api.domains.files.archive_planner import (
     ArchivePlanFile,
     ArchivePlanFolder,
     PlannedArchiveEntry,

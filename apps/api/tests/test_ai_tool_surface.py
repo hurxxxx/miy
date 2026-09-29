@@ -6,15 +6,15 @@ from sqlalchemy.orm import Session
 
 from dev_accounts import dev_login
 
-from open_work_hub_api.core.db import get_engine, get_session_factory
-from open_work_hub_api.core.principal import CallerPrincipal, user_principal
-from open_work_hub_api.domains.ai.registry import get_ai_capability_registry
-from open_work_hub_api.domains.ai.tool_surface import (
+from mty_api.core.db import get_engine, get_session_factory
+from mty_api.core.principal import CallerPrincipal, user_principal
+from mty_api.domains.ai.registry import get_ai_capability_registry
+from mty_api.domains.ai.tool_surface import (
     resolve_agent_tool_surface,
     resolve_filtered_capability_tools,
 )
-from open_work_hub_api.domains.auth.access import load_user_graph
-from open_work_hub_api.domains.auth.models import CompanyAppControl
+from mty_api.domains.auth.access import load_user_graph
+from mty_api.domains.auth.models import CompanyAppControl
 
 
 def _dev_login(client: TestClient, account_key: str) -> dict:

@@ -20,7 +20,7 @@ from codex_console.models import Owner, database
 
 
 def main():
-    url = make_url(os.environ["OPEN_WORK_HUB_TEST_POSTGRES_TEMPLATE_DSN"])
+    url = make_url(os.environ["MTY_TEST_POSTGRES_TEMPLATE_DSN"])
     name = "console_test_attachment_" + uuid4().hex
     with psycopg.connect(
         url.set(drivername="postgresql").render_as_string(hide_password=False), autocommit=True

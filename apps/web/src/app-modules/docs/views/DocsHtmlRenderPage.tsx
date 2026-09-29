@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import {
   REALTIME_TOPIC_EVENT_TYPES,
   createDocsPagesRealtimeSubscriptionMessage,
-} from '@open-work-hub/contracts/realtime';
+} from '@mty/contracts/realtime';
 import {
   useRealtimeEvent,
   useRealtimeSubscription,

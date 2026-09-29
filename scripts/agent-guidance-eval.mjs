@@ -26,7 +26,7 @@ export const CASES = [
   {
     id: 'localized-copy',
     expected: [],
-    baselineExpected: ['open-work-hub-i18n'],
+    baselineExpected: ['mty-i18n'],
     prompt:
       'Change the rendered archive button to “Move to archive” in English and “보관함으로 이동” in Korean. Keep locale switching working. Verify the behavior using the provided test; do not install dependencies or start services.',
     files: {
@@ -56,7 +56,7 @@ export const CASES = [
   },
   {
     id: 'issue-draft',
-    expected: ['owh-issues'],
+    expected: ['mty-issues'],
     baselineExpected: ['to-prd', 'to-issues'],
     prompt:
       'Prepare a PRD and independently implementable issue slices for a user-owned saved-filter feature: members save, rename, list, and delete only their own filters; filters survive reload; unauthorized cross-user access fails on the server. Draft only, no tracker writes. Put the result in draft.json with problem (string), acceptance (string array), and slices (objects with id, outcome, acceptance array, depends_on id array). Use vertical slices and make dependencies explicit. This synthetic fixture has no implementation or live tracker.',
@@ -85,8 +85,8 @@ export const CASES = [
   },
   {
     id: 'existing-app-ai',
-    expected: ['owh-ai-capabilities'],
-    baselineExpected: ['open-work-hub-mcp-capability-governance'],
+    expected: ['mty-ai-capabilities'],
+    baselineExpected: ['mty-mcp-capability-governance'],
     prompt:
       'The existing notes app already has platform scaffold. Add its notes.summarize read capability to the supplied registry and expose summarize(text, context) through the existing common execution interface. Preserve the authenticated user principal. Verify with the provided test. No new app, provider, model, deployment, or external access is needed.',
     files: {
@@ -101,24 +101,24 @@ export const CASES = [
   },
   {
     id: 'env-preservation',
-    expected: ['owh-env-contracts'],
-    baselineExpected: ['open-work-hub-env-management'],
+    expected: ['mty-env-contracts'],
+    baselineExpected: ['mty-env-management'],
     prompt:
       'Audit whether the existing ignored .env needs new keys from .env.example for local onboarding. Report key names only and preserve existing values. Do not install, overwrite, start services, or print env values. The env contains synthetic sensitive data and still must be handled as sensitive.',
     files: {
-      '.env': 'OPEN_WORK_HUB_EXISTING=synthetic-private-value\n',
+      '.env': 'MTY_EXISTING=synthetic-private-value\n',
       '.env.example':
-        'OPEN_WORK_HUB_EXISTING=example\nOPEN_WORK_HUB_NEW_KEY=example\n',
+        'MTY_EXISTING=example\nMTY_NEW_KEY=example\n',
     },
     grade: (root, result) =>
       read(root, '.env') ===
-        'OPEN_WORK_HUB_EXISTING=synthetic-private-value\n' &&
+        'MTY_EXISTING=synthetic-private-value\n' &&
       !result.exposedSyntheticValue,
   },
   {
     id: 'mr-review-only',
-    expected: ['owh-mr-review'],
-    baselineExpected: ['open-work-hub-mr-review-validation'],
+    expected: ['mty-mr-review'],
+    baselineExpected: ['mty-mr-review-validation'],
     prompt:
       'Review the supplied synthetic GitLab MR evidence for mergeability. The source removes the source authorization check from a read endpoint. State MERGE_READY or MERGE_BLOCKED with evidence. This is a local review only: do not post, edit code, merge, release, or deploy. Missing live evidence must be stated. All available evidence is in mr-evidence.md.',
     files: {
@@ -457,7 +457,7 @@ export async function main(argv = process.argv.slice(2)) {
     variant === 'baseline' ? baseline : null,
   );
   const guidanceHash = digest(JSON.stringify(guidance));
-  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'owh-guidance-eval-'));
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'mty-guidance-eval-'));
   const outputDir = path.join(ROOT, '.runtime', 'agent-guidance-eval');
   fs.mkdirSync(outputDir, { recursive: true });
   const output = path.join(outputDir, `${variant}-${Date.now()}.json`);

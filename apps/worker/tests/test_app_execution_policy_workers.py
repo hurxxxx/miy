@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 from celery.exceptions import Ignore
 
-from open_work_hub_worker.tasks import meeting, rag_sync, recording
+from mty_worker.tasks import meeting, rag_sync, recording
 
 
 def _rag_sync_job() -> SimpleNamespace:

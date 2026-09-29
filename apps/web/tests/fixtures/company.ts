@@ -1,4 +1,4 @@
-import { APP_CONTRACTS } from '@open-work-hub/contracts/app-contracts';
+import { APP_CONTRACTS } from '@mty/contracts/app-contracts';
 
 import type { AuthUser } from '@/src/platform/auth/auth-api';
 import type {

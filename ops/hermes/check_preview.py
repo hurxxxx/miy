@@ -6,8 +6,8 @@ import sys
 from unittest.mock import patch
 
 sys.path.insert(0, "/opt/hermes/plugins")
-import owh_runtime
-from owh_runtime.preview import render_preview
+import mty_runtime
+from mty_runtime.preview import render_preview
 from agent.display import _detect_tool_failure
 
 files = {
@@ -19,10 +19,10 @@ files = {
 
 def rpc(server, run_id, method, params):
     assert run_id == "run_preview_check"
-    if method == "owh/files/list":
+    if method == "mty/files/list":
         return {"files": [{"id": p, "relative_path": p, "sha256": hashlib.sha256(b).hexdigest()}
                           for p, b in files.items()]}
-    if method == "owh/files/read":
+    if method == "mty/files/read":
         return {"data": base64.b64encode(files[params["id"]]).decode()}
     raise AssertionError("Preview must not write files or invoke an application tool")
 
@@ -32,7 +32,7 @@ def render(*, vision=True, path="demo/index.html"):
         payload = render_preview({"path": path},
             execution={"sandbox": {"image": sys.argv[1], "no_proxy": "localhost"}},
             server={"fixture": True}, run_id="run_preview_check")
-    failed, _ = _detect_tool_failure("owh_preview", payload)
+    failed, _ = _detect_tool_failure("mty_preview", payload)
     if vision and not failed:
         assert isinstance(payload, dict) and payload.get("_multimodal"), "Native vision envelope missing"
         assert payload["content"][1]["image_url"]["url"].startswith("data:image/jpeg;base64,")
@@ -43,7 +43,7 @@ def render(*, vision=True, path="demo/index.html"):
     return summary
 
 
-with patch.object(owh_runtime, "_rpc", rpc):
+with patch.object(mty_runtime, "_rpc", rpc):
     good = render()
     assert good.get("status") == "rendered" and not good["errors"], good
     assert len(good["files"]) == 3 and good["page"]["canvases"] == [{"width": 200, "height": 100}]

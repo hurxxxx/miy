@@ -24,7 +24,7 @@ progress_file="${project_root}/codex-review-progress-start.md"
 cleanup() {
   [[ -n "$review_workspace" ]] || return 0
   case "$review_workspace" in
-    /tmp/open-work-hub-codex-review.??????)
+    /tmp/mty-codex-review.??????)
       rm -rf -- "$review_workspace"
       ;;
     *)
@@ -86,8 +86,8 @@ const names = ['REVIEW_TARGET_SHA', 'CI_API_V4_URL', 'CI_PROJECT_ID', 'CI_PIPELI
   'CI_MERGE_REQUEST_DIFF_BASE_SHA'];
 const input = Object.fromEntries(names.map(name => [name, process.env[name]]));
 try {
-  process.stdout.write(execFileSync('sudo', ['-n', '-H', '-u', 'owh-review-evidence',
-    '/usr/local/libexec/open-work-hub-review-evidence'], {
+  process.stdout.write(execFileSync('sudo', ['-n', '-H', '-u', 'mty-review-evidence',
+    '/usr/local/libexec/mty-review-evidence'], {
     input: JSON.stringify(input), encoding: 'utf8', timeout: 240000,
     maxBuffer: 65536, stdio: ['pipe', 'pipe', 'pipe'],
     env: { PATH: process.env.PATH, HOME: process.env.HOME, LANG: 'C.UTF-8' },
@@ -166,7 +166,7 @@ prepare_review_workspace() {
   [[ "$(git rev-parse "$target_ref")" == "$target_sha" ]] ||
     fail "target branch SHA changed during review setup."
 
-  review_workspace="$(mktemp -d /tmp/open-work-hub-codex-review.XXXXXX)" ||
+  review_workspace="$(mktemp -d /tmp/mty-codex-review.XXXXXX)" ||
     fail "could not create review workspace."
   env GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null \
     git clone --quiet --local --no-hardlinks --no-checkout \
@@ -214,7 +214,7 @@ prepare_review_workspace() {
 
 write_prompt() {
   cat <<'PROMPT'
-Review this GitLab feature MR for Open Work Hub.
+Review this GitLab feature MR for MTY.
 
 Scope:
 - Base branch is origin/dev.

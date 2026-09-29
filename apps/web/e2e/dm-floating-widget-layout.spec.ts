@@ -46,7 +46,7 @@ function dmUser(index: number): DmUserFixture {
 function currentUser(): DmUserFixture {
   return {
     id: CURRENT_USER_ID,
-    email: 'e2e@open-work-hub.local',
+    email: 'e2e@mty.local',
     full_name: 'E2E Tester',
     display_name: 'E2E Tester',
   };
@@ -172,7 +172,7 @@ test('keeps the floating DM composer inside the widget viewport', async ({
 
   await page.evaluate((threadId) => {
     window.dispatchEvent(
-      new CustomEvent('open-work-hub:floating-dm-open', {
+      new CustomEvent('mty:floating-dm-open', {
         detail: { threadId },
       }),
     );

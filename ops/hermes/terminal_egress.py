@@ -32,7 +32,7 @@ from agent.proxy_sources.iron_proxy import (
 _TUNNEL_PORT = 19090
 _UPSTREAM_RESPONSE_HEADER_TIMEOUT = "300s"
 _CLIENT_DIR = Path(
-    os.environ.get("OWH_HERMES_TERMINAL_EGRESS_CLIENT_DIR", "/opt/data/home/egress-client")
+    os.environ.get("MTY_HERMES_TERMINAL_EGRESS_CLIENT_DIR", "/opt/data/home/egress-client")
 )
 _stop_requested = False
 

@@ -1,4 +1,4 @@
-import { Button, Dialog } from '@open-work-hub/ui';
+import { Button, Dialog } from '@mty/ui';
 import { CalendarDays, Clock3 } from 'lucide-react';
 import { useEffect, useMemo, useReducer } from 'react';
 import { useTranslation } from 'react-i18next';

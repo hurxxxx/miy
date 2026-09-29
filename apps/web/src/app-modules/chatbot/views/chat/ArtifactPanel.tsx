@@ -1,4 +1,4 @@
-import { Tooltip, useFeedback } from '@open-work-hub/ui';
+import { Tooltip, useFeedback } from '@mty/ui';
 import 'highlight.js/styles/github.css';
 import { Check, Copy, Download, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';

@@ -7,14 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.ai.model_settings_models import (
+from mty_api.core.db import get_session_factory
+from mty_api.domains.ai.model_settings_models import (
     AiModelCatalogEntry,
     AiModelPolicyDefault,
     AiModelProviderConfig,
     AiModelRouteOverride,
 )
-from open_work_hub_api.domains.ai.model_settings_service import (
+from mty_api.domains.ai.model_settings_service import (
     AiModelSettingsError,
     ai_model_registry_digest,
     resolve_ai_model_workload_route,
@@ -297,8 +297,8 @@ def test_env_cutover_preserves_ciphertext_and_unrelated_env_and_is_idempotent(cl
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     values = {
-        "OPEN_WORK_HUB_LLM_LOCAL_BASE_URL": "http://127.0.0.1:11434/v1",
-        "OPEN_WORK_HUB_LLM_LOCAL_API_KEY": "synthetic-only",
+        "MTY_LLM_LOCAL_BASE_URL": "http://127.0.0.1:11434/v1",
+        "MTY_LLM_LOCAL_API_KEY": "synthetic-only",
     }
     with get_session_factory()() as db:
         keys = module.backfill(db, values)
@@ -307,14 +307,14 @@ def test_env_cutover_preserves_ciphertext_and_unrelated_env_and_is_idempotent(cl
         assert module.backfill(db, values) == keys
         assert db.get(AiModelProviderConfig, "local").api_key_ciphertext == original
         assert db.get(AiModelProviderConfig, "local").credential_kind == "api_key"
-    text = "# comment\nOPEN_WORK_HUB_LLM_LOCAL_API_KEY=synthetic-only\nOPEN_WORK_HUB_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY=preserved\n"
+    text = "# comment\nMTY_LLM_LOCAL_API_KEY=synthetic-only\nMTY_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY=preserved\n"
     assert (
         module.prune_keys(text, keys)
-        == "# comment\nOPEN_WORK_HUB_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY=preserved\n"
+        == "# comment\nMTY_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY=preserved\n"
     )
     with pytest.raises(ValueError):
-        module.prune_keys(text + "OTHER=${OPEN_WORK_HUB_LLM_LOCAL_API_KEY}\n", keys)
-    for key in ("OPEN_WORK_HUB_LLM_LOCAL_API_KEY", "OPENROUTER_API_KEY"):
+        module.prune_keys(text + "OTHER=${MTY_LLM_LOCAL_API_KEY}\n", keys)
+    for key in ("MTY_LLM_LOCAL_API_KEY", "OPENROUTER_API_KEY"):
         # Refuse before the first DB read/write instead of storing a placeholder.
         with pytest.raises(ValueError, match="referenced LLM settings"):
             module.backfill(None, {key: "${SHARED_PROVIDER_KEY}"})
@@ -333,7 +333,7 @@ def test_env_cutover_requires_explicit_endpoint_for_enabled_legacy_local_connect
     subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=True)
     (tmp_path / ".gitignore").write_text(".env\n")
     target = tmp_path / ".env"
-    original = "OPEN_WORK_HUB_LLM_LOCAL_API_KEY=synthetic-cutover-key\n"
+    original = "MTY_LLM_LOCAL_API_KEY=synthetic-cutover-key\n"
     target.write_text(original)
     target.chmod(0o600)
     monkeypatch.setattr(module, "ROOT", tmp_path)
@@ -350,9 +350,9 @@ def test_env_cutover_requires_explicit_endpoint_for_enabled_legacy_local_connect
         assert connection.endpoint_url == missing_endpoint
         assert connection.api_key_ciphertext is None
 
-    target.write_text(original + "OPEN_WORK_HUB_LLM_LOCAL_BASE_URL=http://127.0.0.1:8080/v1\n")
+    target.write_text(original + "MTY_LLM_LOCAL_BASE_URL=http://127.0.0.1:8080/v1\n")
     assert module.migrate(apply=True) == {
-        "OPEN_WORK_HUB_LLM_LOCAL_API_KEY", "OPEN_WORK_HUB_LLM_LOCAL_BASE_URL"
+        "MTY_LLM_LOCAL_API_KEY", "MTY_LLM_LOCAL_BASE_URL"
     }
     with get_session_factory()() as db:
         assert db.get(AiModelProviderConfig, "local").endpoint_url == "http://127.0.0.1:8080/v1"
@@ -365,8 +365,8 @@ def test_connection_migration_preserves_keys_and_forks_shared_app_overrides(post
     from alembic.autogenerate import compare_metadata
     from alembic.migration import MigrationContext
     import sqlalchemy as sa
-    from open_work_hub_api.core.db import Base
-    from open_work_hub_api.core.model_registry import import_all_models
+    from mty_api.core.db import Base
+    from mty_api.core.model_registry import import_all_models
     from test_alembic_migrations import _migration_config
 
     config = _migration_config(postgres_dsn)
@@ -438,7 +438,7 @@ def test_connection_migration_preserves_keys_and_forks_shared_app_overrides(post
             import_all_models()
             assert compare_metadata(MigrationContext.configure(connection), Base.metadata) == []
         from sqlalchemy.orm import Session
-        from open_work_hub_api.domains.ai.model_settings_service import delete_ai_model_route_override
+        from mty_api.domains.ai.model_settings_service import delete_ai_model_route_override
 
         with Session(engine) as db:
             assert db.get(AiModelRouteOverride, "legacy-null-scope").app_id is None
@@ -465,8 +465,8 @@ def test_connection_migration_preserves_keys_and_forks_shared_app_overrides(post
 def test_saved_connection_probe_releases_db_during_io_and_rejects_concurrent_edits(
     client, monkeypatch
 ):
-    from open_work_hub_api.domains.ai import model_settings_service as service
-    from open_work_hub_api.domains.ai.model_discovery import DiscoveredProviderModel
+    from mty_api.domains.ai import model_settings_service as service
+    from mty_api.domains.ai.model_discovery import DiscoveredProviderModel
 
     with get_session_factory()() as db:
         connection, model = seed(db, "probe")
@@ -514,7 +514,7 @@ def test_saved_connection_probe_releases_db_during_io_and_rejects_concurrent_edi
     ],
 )
 def test_connection_endpoint_rejects_untrusted_local_urls(endpoint):
-    from open_work_hub_api.domains.ai.model_settings_service import _validate_endpoint_url
+    from mty_api.domains.ai.model_settings_service import _validate_endpoint_url
 
     with pytest.raises(AiModelSettingsError):
         _validate_endpoint_url(endpoint, provider_id="example", route_mode="local")
@@ -551,8 +551,8 @@ def test_inherited_route_change_rejects_incompatible_model_and_rolls_back(client
 
 
 def test_new_workload_caps_inherit_registration_then_explicit_policy(client, monkeypatch):
-    from open_work_hub_api.domains.ai import model_settings_service as service
-    from open_work_hub_api.domains.ai.registry import AiCapabilityRegistry
+    from mty_api.domains.ai import model_settings_service as service
+    from mty_api.domains.ai.registry import AiCapabilityRegistry
 
     registry = AiCapabilityRegistry()
     registry.register_llm_workload(
@@ -608,10 +608,10 @@ def test_model_edits_invalidate_saved_and_inflight_connection_probes(
     client, monkeypatch, edit_during_probe
 ):
     from sqlalchemy import select
-    from open_work_hub_api.domains.auth.models import User
-    from open_work_hub_api.domains.ai import model_settings_service as service
-    from open_work_hub_api.domains.ai.model_discovery import DiscoveredProviderModel
-    from open_work_hub_api.domains.ai.model_settings_schemas import AiModelCatalogUpdateRequest
+    from mty_api.domains.auth.models import User
+    from mty_api.domains.ai import model_settings_service as service
+    from mty_api.domains.ai.model_discovery import DiscoveredProviderModel
+    from mty_api.domains.ai.model_settings_schemas import AiModelCatalogUpdateRequest
 
     admin(client)
     with get_session_factory()() as db:
@@ -669,9 +669,9 @@ def test_model_edits_invalidate_saved_and_inflight_connection_probes(
 def test_runtime_health_preserves_same_family_connections_and_workload_readiness(
     client, monkeypatch
 ):
-    from open_work_hub_api.core.llm import LlmPoolHealth
-    from open_work_hub_api.domains.ai import runtime_status, model_settings_service
-    from open_work_hub_api.domains.ai.registry import AiCapabilityRegistry
+    from mty_api.core.llm import LlmPoolHealth
+    from mty_api.domains.ai import runtime_status, model_settings_service
+    from mty_api.domains.ai.registry import AiCapabilityRegistry
 
     registry = AiCapabilityRegistry()
     for app in ("chatbot", "mail"):

@@ -10,7 +10,7 @@ from starlette.websockets import WebSocketDisconnect
 import y_py as Y
 
 from dev_accounts import content_headers
-from open_work_hub_api.domains.docs.collab import (
+from mty_api.domains.docs.collab import (
     CollabPageContext,
     DocsCollabHub,
     RedisCollabBus,
@@ -18,13 +18,13 @@ from open_work_hub_api.domains.docs.collab import (
     make_room_key,
     materialize_collab_room_state,
 )
-from open_work_hub_api.domains.collaboration import CollabConnectionLimitExceeded
-from open_work_hub_api.domains.docs.collab_codec import blocks_to_yjs_state, yjs_state_to_blocks
-from open_work_hub_api.domains.auth.security import new_id
-from open_work_hub_api.domains.media import content_access as media_content_access
-from open_work_hub_api.domains.media.models import MediaFile
-from open_work_hub_api.domains.media.object_storage import MediaObjectStorage
-from open_work_hub_api.core.db import get_session_factory
+from mty_api.domains.collaboration import CollabConnectionLimitExceeded
+from mty_api.domains.docs.collab_codec import blocks_to_yjs_state, yjs_state_to_blocks
+from mty_api.domains.auth.security import new_id
+from mty_api.domains.media import content_access as media_content_access
+from mty_api.domains.media.models import MediaFile
+from mty_api.domains.media.object_storage import MediaObjectStorage
+from mty_api.core.db import get_session_factory
 from test_docs_hub import (
     _add_task_list_member,
     _auth_headers,
@@ -430,7 +430,7 @@ def test_docs_native_page_linked_media_resolves_for_shared_user(
     member = _create_company_user(
         client,
         admin["token"],
-        email="docs-media-member@open-work-hub.local",
+        email="docs-media-member@mty.local",
         full_name="Docs Media Member",
     )
     member_token = _login(client, member["user"]["email"], member["temporary_password"])
@@ -736,7 +736,7 @@ def test_meeting_notes_collab_session_is_revoked_when_attendee_is_removed(
     attendee = _create_company_user(
         client,
         admin_token,
-        email="notes-collab-attendee@open-work-hub.local",
+        email="notes-collab-attendee@mty.local",
         full_name="Notes Collab Attendee",
     )
     attendee_token = _login(
@@ -797,7 +797,7 @@ def test_pms_target_doc_collab_session_uses_space_acl_and_page_ref(
     member = _create_company_user(
         client,
         admin_token,
-        email="space-collab-member@open-work-hub.local",
+        email="space-collab-member@mty.local",
         full_name="Space Collab Member",
     )
     _add_task_list_member(client, admin_token, task_list["id"], member["user"]["id"], "member")

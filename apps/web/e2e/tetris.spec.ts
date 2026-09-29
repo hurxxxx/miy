@@ -11,7 +11,7 @@ import {
   stubConversationsApi,
   stubShellBackend,
 } from './helpers';
-import type { ApiSchema } from '@open-work-hub/contracts';
+import type { ApiSchema } from '@mty/contracts';
 import { emptyGame, landingPiece } from '../src/app-modules/tetris/engine';
 
 function immediateDrop(body: ApiSchema<'TetrisDecisionRequest'>) {

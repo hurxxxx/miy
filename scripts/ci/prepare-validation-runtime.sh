@@ -84,12 +84,12 @@ worker_dependency_sha256="$(
   combined_sha256 "$worker_root/pyproject.toml" "$worker_root/uv.lock"
 )"
 
-node_marker="${OPEN_WORK_HUB_NODE_IMAGE_DEPENDENCY_FILE:-/opt/open-work-hub/node-runtime/dependency.sha256}"
-api_marker="${OPEN_WORK_HUB_API_IMAGE_DEPENDENCY_FILE:-/opt/open-work-hub/locks/api/dependency.sha256}"
-worker_marker="${OPEN_WORK_HUB_WORKER_IMAGE_DEPENDENCY_FILE:-/opt/open-work-hub/locks/worker/dependency.sha256}"
-node_runtime="${OPEN_WORK_HUB_NODE_IMAGE_MODULES:-/opt/open-work-hub/node-runtime/node_modules}"
-api_runtime="${OPEN_WORK_HUB_API_IMAGE_VENV:-/opt/open-work-hub/venvs/api}"
-worker_runtime="${OPEN_WORK_HUB_WORKER_IMAGE_VENV:-/opt/open-work-hub/venvs/worker}"
+node_marker="${MTY_NODE_IMAGE_DEPENDENCY_FILE:-/opt/mty/node-runtime/dependency.sha256}"
+api_marker="${MTY_API_IMAGE_DEPENDENCY_FILE:-/opt/mty/locks/api/dependency.sha256}"
+worker_marker="${MTY_WORKER_IMAGE_DEPENDENCY_FILE:-/opt/mty/locks/worker/dependency.sha256}"
+node_runtime="${MTY_NODE_IMAGE_MODULES:-/opt/mty/node-runtime/node_modules}"
+api_runtime="${MTY_API_IMAGE_VENV:-/opt/mty/venvs/api}"
+worker_runtime="${MTY_WORKER_IMAGE_VENV:-/opt/mty/venvs/worker}"
 
 verify_identity "Node" "$node_marker" "$node_dependency_sha256"
 verify_identity "API" "$api_marker" "$api_dependency_sha256"
@@ -101,15 +101,15 @@ fi
 link_runtime \
   "Node" \
   "$node_runtime" \
-  "${OPEN_WORK_HUB_NODE_CHECKOUT_MODULES_LINK:-$repo_root/node_modules}"
+  "${MTY_NODE_CHECKOUT_MODULES_LINK:-$repo_root/node_modules}"
 link_runtime \
   "API" \
   "$api_runtime" \
-  "${OPEN_WORK_HUB_API_CHECKOUT_VENV_LINK:-$repo_root/.runtime/ci-api-venv}"
+  "${MTY_API_CHECKOUT_VENV_LINK:-$repo_root/.runtime/ci-api-venv}"
 link_runtime \
   "worker" \
   "$worker_runtime" \
-  "${OPEN_WORK_HUB_WORKER_CHECKOUT_VENV_LINK:-$repo_root/.runtime/ci-worker-venv}"
+  "${MTY_WORKER_CHECKOUT_VENV_LINK:-$repo_root/.runtime/ci-worker-venv}"
 
 # Full CI invokes ordinary `uv run` too, not only the explicit ci-contracts
 # environment. Reuse the same identity-checked dependencies at uv's default

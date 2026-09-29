@@ -1,7 +1,7 @@
 import {
   buildAppHref,
   matchAppRoute,
-} from '@open-work-hub/contracts/app-routes';
+} from '@mty/contracts/app-routes';
 
 export type PmsViewRoute =
   | { kind: 'assigned' }

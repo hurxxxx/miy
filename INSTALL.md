@@ -10,7 +10,7 @@ Web·API·Worker는 저장소 소스에서 실행하고, 최초 셋업의 Postgr
 운영 배포는 [Release Domain](docs/domains/release/README.md)의 별도 절차를 따른다.
 
 README의 전체 셋업 요청에는 [Codex Console 설치](docs/apps/codex-console/README.md#설치)도 포함된다.
-현재 ChatGPT 구독 로그인을 사용하며 OWH 개발 서버와 별도 프로세스·로그인·DB로 실행한다.
+현재 ChatGPT 구독 로그인을 사용하며 MTY 개발 서버와 별도 프로세스·로그인·DB로 실행한다.
 개인 앱의 **Codex 콘솔**을 클릭하면 새 탭으로 열린다. [함께 설치하는 절차](#61-codex-콘솔-함께-설치)를 완료한다.
 
 ## 설치 계정 권한
@@ -43,7 +43,7 @@ Codex 실행 후 `/permissions`에서 **Full access**를 선택한다.
 > AGENTS.md와 INSTALL.md를 읽고 이 리눅스 서버에
 > 개발 환경을 설치해줘. 기존 설정과 데이터를 보존하고 필요한 도구만 설치해줘.
 > PostgreSQL·Redis는 Docker가 아닌 호스트에 네이티브로 설치하고 systemd 서비스로 관리해줘.
-> 개발 설정을 해당 서비스에 맞추고 OPEN_WORK_HUB_WEB_DEV_HOST=0.0.0.0으로 ./dev.sh --minimal-infra --no-infra를 실행해줘.
+> 개발 설정을 해당 서비스에 맞추고 MTY_WEB_DEV_HOST=0.0.0.0으로 ./dev.sh --minimal-infra --no-infra를 실행해줘.
 > API·개발 DB·Redis는 loopback 수신을 유지하고, 내 PC에서 서버 IP로 직접 접속해 시드 계정으로 로그인할 수 있게 해줘.
 > pnpm dev:login-smoke 명령과 agent-browser로 서버 IP 주소의 로그인과 화면을 확인해줘.
 > 조직 최초 도입이면 README 4절의 셋업 요청 범위로 GitLab·Runner·CI 변수와 개발 MR 파이프라인 성공까지 진행해줘. GitLab 도메인·DNS 설정은 제외하고 서버 IP를 사용해줘.
@@ -53,7 +53,7 @@ Codex 실행 후 `/permissions`에서 **Full access**를 선택한다.
 > 끝나면 접속 방법, 실행한 검사, 사용 가능한 기능과 추가 설정이 필요한 기능을 알려줘.
 
 에이전트는 [AGENTS.md](AGENTS.md)와
-[개발 환경 스킬](.agents/skills/owh-dev-environment/SKILL.md)을 따른다.
+[개발 환경 스킬](.agents/skills/mty-dev-environment/SKILL.md)을 따른다.
 이 문서는 설치 절차의 진입점이며 기능별 설정은 아래의 소유 문서에서 확인한다.
 로케일 복구, 플랫폼별 브라우저·CA 신뢰, 접속 검사와 GitLab·Runner 설치 후 점검은
 [설치 환경별 운영 확인](docs/domains/release/installation-operations.md)에서 관리한다.
@@ -61,7 +61,7 @@ Codex 실행 후 `/permissions`에서 **Full access**를 선택한다.
 ### 1.1. 로그인 정보 파일 관리
 
 셋업을 진행하는 프로젝트 루트에 **`.auth_info`** 파일 하나를 만들어 사용자가 서버에서 직접 열어 볼 수 있는 일반 텍스트로 관리한다.
-기본 설치 경로에서는 `open-work-hub/dev/.auth_info`이며, 개발·운영 체크아웃을 분리한 뒤에도 이 파일을 기준으로 갱신한다.
+기본 설치 경로에서는 `mty/dev/.auth_info`이며, 개발·운영 체크아웃을 분리한 뒤에도 이 파일을 기준으로 갱신한다.
 
 - GitLab 관리자·자동화 계정, 개발·운영 시드 계정, PostgreSQL 등 데이터베이스 계정과 Redis 등 인증이 필요한 서비스의 로그인 정보를 기록한다. 파일 안에서 공통(GitLab)·개발·운영을 구분한다.
 - 각 항목에는 서비스명, 접속 URL 또는 호스트·포트, 계정 아이디, 비밀번호, 해당하는 DB 이름, 최종 갱신일을 적는다. 비밀번호 대신 토큰을 사용하는 계정은 토큰과 만료일도 기록한다.
@@ -97,24 +97,26 @@ Git과 CA 인증서가 없으면 Linux 배포판의 패키지 관리자로 먼�
 
 | 원격 이름 | 대상 | 용도 |
 | --- | --- | --- |
-| `upstream` | `https://github.com/hurxxxx/open-work-hub.git` | 원본 코드와 업데이트를 가져오는 곳 |
+| `upstream` | `https://github.com/hurxxxx/mty.git` | 원본 코드와 업데이트를 가져오는 곳 |
 | `origin` | 조직 내부 GitLab 프로젝트 | 내부 변경사항, MR, CI와 배포 기준을 관리하는 곳 |
 
 원격 역할과 브랜치·게시 권한은 [저장소 정책](AGENTS.md#git-and-delivery)을 따른다.
-체크아웃은 하나의 `open-work-hub` 디렉터리 아래에서 관리한다.
-최소 첫 실행은 `open-work-hub/dev`에서 준비한다. 내부 GitLab의 `main` 등록 뒤 개발·운영 경로를 함께
-준비하는 설치에서는 2.5절에 따라 `open-work-hub/prod`를 만든다. 작업별 체크아웃은 필요할 때
-`open-work-hub/worktrees/<작업명>`에 추가한다.
+기존 설치를 MTY로 옮길 때는 새 저장소 주소로 clone하기 전에
+[MTY 이름 전환 절차](docs/domains/release/README.md#mty-naming-cutover)를 따른다.
+체크아웃은 하나의 `mty` 디렉터리 아래에서 관리한다.
+최소 첫 실행은 `mty/dev`에서 준비한다. 내부 GitLab의 `main` 등록 뒤 개발·운영 경로를 함께
+준비하는 설치에서는 2.5절에 따라 `mty/prod`를 만든다. 작업별 체크아웃은 필요할 때
+`mty/worktrees/<작업명>`에 추가한다.
 
 ### 2.1. 조직 최초 도입: GitHub 원본에서 시작
 
-원하는 작업 위치에 `open-work-hub`를 만들고 그 아래의 새 `dev` 디렉터리에 Git 이력을 포함해 내려받는다.
+원하는 작업 위치에 `mty`를 만들고 그 아래의 새 `dev` 디렉터리에 Git 이력을 포함해 내려받는다.
 이 예시는 원본 `main`의 체크아웃 시점 커밋을 최초 기준으로 사용한다.
 
 ```bash
-mkdir -p open-work-hub
-cd open-work-hub
-git clone --origin upstream --branch main https://github.com/hurxxxx/open-work-hub.git dev
+mkdir -p mty
+cd mty
+git clone --origin upstream --branch main https://github.com/hurxxxx/mty.git dev
 cd dev
 git switch --no-track -c dev
 git config remote.pushDefault origin
@@ -217,7 +219,7 @@ sudo docker exec -it '<GitLab-컨테이너>' gitlab-rake 'gitlab:password:reset[
 기준 문서: [최초 로그인](https://docs.gitlab.com/install/next_steps/),
 [사용자 생성](https://docs.gitlab.com/user/profile/account/create_accounts/),
 [비밀번호 변경·복구](https://docs.gitlab.com/security/reset_user_password/).
-GitLab의 `root`는 OS의 `root`나 Open Work Hub의 개발용 `administrator` 계정과 별개다.
+GitLab의 `root`는 OS의 `root`나 MTY의 개발용 `administrator` 계정과 별개다.
 
 #### 2.2.3. glab 설치와 내부 GitLab 인증
 
@@ -246,7 +248,7 @@ SSH 방식의 Git 접근은 에이전트가 서버 설치 계정의 SSH 공개�
 ```bash
 GITLAB_HOST='<서버-IP>'
 GITLAB_API_HOST="$GITLAB_HOST:8443" # 실제 GitLab HTTPS 포트로 변경
-GITLAB_REPO="https://$GITLAB_API_HOST/group/open-work-hub"
+GITLAB_REPO="https://$GITLAB_API_HOST/group/mty"
 glab auth login --hostname "$GITLAB_HOST" --api-host "$GITLAB_API_HOST" \
   --api-protocol https --git-protocol ssh --stdin < '<PAT만-담은-임시파일>'
 glab auth status --hostname "$GITLAB_HOST"
@@ -327,7 +329,7 @@ git ls-remote --heads origin main dev
 | 현재 실행 대상 | 필요한 준비 |
 | --- | --- |
 | 같은 프로젝트의 작업 브랜치 → `dev` MR | `codex-local` 태그의 리뷰 Runner와 설치된 Codex 리뷰 실행기 |
-| 같은 프로젝트의 `dev` → `main` 릴리스 MR | `open-work-hub-validation` 태그의 검증 Runner, 검증 이미지, 테스트 DB와 CI 변수 |
+| 같은 프로젝트의 `dev` → `main` 릴리스 MR | `mty-validation` 태그의 검증 Runner, 검증 이미지, 테스트 DB와 CI 변수 |
 | `contracts-v<버전>` 형식 중 CI 규칙에 맞는 태그 | 검증 Runner와 GitLab npm Package Registry 접근. 실제 패키지 게시이므로 설치 확인용 태그를 만들지 않는다. |
 
 일반 브랜치 push나 `glab ci run --branch dev`는 현재 workflow의 MR 조건을 만족하지 않는다.
@@ -352,20 +354,20 @@ sudo gitlab-runner verify
 등록 성공만으로 작업 실행 준비가 끝나는 것은 아니다. 검증 Runner가 사용하는 Docker 데몬에서
 **승인된 저장소 커밋**으로 다음 이미지를 준비한다.
 프로젝트 DB에 읽기 전용으로 접속해 실제 서버 메이저 버전을 확인한다. `psql --version`은 클라이언트 버전이므로 서버 버전 대신 사용하지 않는다.
-아래 예시의 `owh-dev`는 에이전트가 기존 개발 DB 설정을 바탕으로 준비한 [libpq 연결 서비스](https://www.postgresql.org/docs/current/libpq-pgservice.html) 이름이다. 비밀번호는 소유자만 읽을 수 있는 passfile로 전달하고 명령 인자에 쓰지 않는다. `psql`, Docker, Buildx와 `jq`가 필요하다.
+아래 예시의 `mty-dev`는 에이전트가 기존 개발 DB 설정을 바탕으로 준비한 [libpq 연결 서비스](https://www.postgresql.org/docs/current/libpq-pgservice.html) 이름이다. 비밀번호는 소유자만 읽을 수 있는 passfile로 전달하고 명령 인자에 쓰지 않는다. `psql`, Docker, Buildx와 `jq`가 필요하다.
 
 ```bash
-project_postgres_version_num="$(psql -XAtw 'service=owh-dev' -c 'SHOW server_version_num')"
+project_postgres_version_num="$(psql -XAtw 'service=mty-dev' -c 'SHOW server_version_num')"
 if [[ ! "$project_postgres_version_num" =~ ^[0-9]{6,}$ ]]; then
   echo '프로젝트 PostgreSQL 서버 버전을 확인하지 못했습니다.' >&2
   exit 1
 fi
 project_postgres_major="$((10#$project_postgres_version_num / 10000))"
 bash scripts/build-ci-validation-image.sh --postgres-major "$project_postgres_major"
-docker build -f ops/opensearch/Dockerfile -t open-work-hub-opensearch:3.3.2-nori .
+docker build -f ops/opensearch/Dockerfile -t mty-opensearch:3.3.2-nori .
 ```
 
-검증 이미지 이름은 현재 `open-work-hub-validation:node22-python312`다.
+검증 이미지 이름은 현재 `mty-validation:node22-python312`다.
 이미지·BuildKit 캐시의 보관 범위와 용량 설정은 [빌드·테스트 저장 공간](docs/domains/release/README.md#build-and-test-storage)을 따른다. 검증 이미지를 커밋별로 복사·백업하지 않고, 의존성이 같은 이미지를 재사용한다.
 개발 서버의 Node.js 24 설치와는 별도이며, 이름만 같은 다른 이미지로 대체하지 않는다.
 빌드 스크립트는 선택한 PostgreSQL 메이저의 공식 Bookworm 이미지 태그를 불변 digest로 확인한다. PostgreSQL 버전·digest·Docker 플랫폼·Dockerfile·의존성이 일치하면 기존 이미지를 다시 검사해 재사용하고, 다르면 빌드한다. 빌드·클라이언트 검사 실패는 설치 실패로 처리한다.
@@ -381,18 +383,18 @@ OpenSearch는 앱의 최소 첫 실행에는 선택 사항이지만 현재 릴�
 개발 사용자의 로그인이나 nvm 설정이 Runner 서비스에 자동으로 전달된다고 가정하지 말고 서비스의 PATH를 맞춘다.
 shell executor의 로그인 셸이 서비스 PATH를 초기화할 수 있으므로, Runner 작업 계정에서도 도구 탐색을 확인한다.
 필요하면 해당 Runner의 `config.toml`에 지원되는 `environment = ["PATH=<검증한-도구-경로>:<기본-PATH>"]`를 지정하고 실제 job으로 재검사한다.
-리뷰 전·후 GitLab 메타데이터 검증은 Codex와 **다른 OS 계정** `owh-review-evidence`에서 수행한다.
+리뷰 전·후 GitLab 메타데이터 검증은 Codex와 **다른 OS 계정** `mty-review-evidence`에서 수행한다.
 [리뷰 실행기 인증 계약](docs/agents/local-codex-review.md#contract)에 따라 홈 `0700`인 비로그인 서비스 계정을 준비하고,
 그 계정으로 단일 프로젝트 비관리자 GitLab 계정의 `read_api` PAT를 표준 입력으로 받아 `glab`을 인증한다.
 Runner 상세 조회에는 해당 프로젝트의 Maintainer 역할이 필요하다. 인증 파일은 `0600`으로 유지하고 Runner 홈·CI 변수에 복사하지 않는다.
 `glab`의 `--hostname`에는 호스트명, `--api-host`에는 포트를 포함한 주소를 사용하며 실제 API 접속을 확인한다.
-예를 들어 서비스 계정은 `sudo useradd --system --create-home --home-dir /var/lib/owh-review-evidence --shell /usr/sbin/nologin owh-review-evidence`로 만들고,
-기존 계정이 있으면 재생성하지 않고 소유권과 접근 범위를 검증한다. 홈에는 `sudo chmod 700 /var/lib/owh-review-evidence`를 적용한다.
-`/etc/open-work-hub/review-evidence.json`을 root 소유로 준비해 실제 값의 `{"api_url":"https://<서버-IP>:8443/api/v4","project_id":<프로젝트-ID>}`를 기록한다.
-`/etc/sudoers.d/owh-review-evidence`에는 실제 Runner 사용자 기준으로 다음 한 명령만 허용하고 `0440` 및 `visudo -cf` 검사를 적용한다.
+예를 들어 서비스 계정은 `sudo useradd --system --create-home --home-dir /var/lib/mty-review-evidence --shell /usr/sbin/nologin mty-review-evidence`로 만들고,
+기존 계정이 있으면 재생성하지 않고 소유권과 접근 범위를 검증한다. 홈에는 `sudo chmod 700 /var/lib/mty-review-evidence`를 적용한다.
+`/etc/mty/review-evidence.json`을 root 소유로 준비해 실제 값의 `{"api_url":"https://<서버-IP>:8443/api/v4","project_id":<프로젝트-ID>}`를 기록한다.
+`/etc/sudoers.d/mty-review-evidence`에는 실제 Runner 사용자 기준으로 다음 한 명령만 허용하고 `0440` 및 `visudo -cf` 검사를 적용한다.
 
 ```sudoers
-gitlab-runner ALL=(owh-review-evidence) NOPASSWD: /usr/local/libexec/open-work-hub-review-evidence ""
+gitlab-runner ALL=(mty-review-evidence) NOPASSWD: /usr/local/libexec/mty-review-evidence ""
 ```
 
 아래 설치기는 PATH에서 Node.js와 `glab`의 실제 실행 경로를 찾아 실행 파일과 상위 디렉터리가
@@ -405,7 +407,7 @@ root 소유이며 그룹·다른 사용자가 쓸 수 없는지 검사한다. �
 bash scripts/install-codex-review-runner-entrypoint.sh
 ```
 
-설치 대상은 `/usr/local/bin/open-work-hub-codex-review-ci`와 `/usr/local/libexec/open-work-hub-review-evidence`다.
+설치 대상은 `/usr/local/bin/mty-codex-review-ci`와 `/usr/local/libexec/mty-review-evidence`다.
 설치 계정에서 `bash scripts/check-review-credential-isolation.sh`를 실행해 합성 인증 파일의 Runner 접근 거부와 sudo 명령 제한을 확인한다.
 MR 소스의 스크립트를 직접 실행하도록 바꾸지 않으며, 리뷰의 읽기 전용 실행과 CI 신원·이미지 검사를 유지한다.
 상세 계약은 [Local Codex MR Review](docs/agents/local-codex-review.md),
@@ -425,7 +427,7 @@ Docker 전용 네트워크로 연결할 때는 해당 인터페이스와 CIDR에
 부팅 시 네트워크를 만드는 Docker 서비스가 DB보다 먼저 준비되도록 systemd 의존성을 설정한다.
 Debian 계열에서 클러스터 이름은 `ci`처럼 하이픈 없이 정해 systemd 인스턴스 이름의 경로 변환을 피한다.
 
-새 프로젝트에 `OPEN_WORK_HUB_CI_POSTGRES_DSN`을 아래와 같이 등록한다.
+새 프로젝트에 `MTY_CI_POSTGRES_DSN`을 아래와 같이 등록한다.
 기존 변수가 있으면 새로 만들거나 덮어쓰기 전에 환경 범위와 소유자를 확인한다.
 에이전트가 셋업한 CI DB의 값은 보호된 입력에서 표준 입력으로 전달한다. 이미 알고 있는 값을 사용자에게 다시 요청하지 않는다.
 사용자가 직접 인증 정보를 제공하는 경우에만 아래 대화형 입력을 사용한다. 비밀값을 명령 인자·대화·로그에 남기지 않는다.
@@ -434,7 +436,7 @@ Debian 계열에서 클러스터 이름은 `ci`처럼 하이픈 없이 정해 sy
 set +x
 read -r -s -p 'CI PostgreSQL DSN: ' ci_postgres_dsn
 printf '\n'
-printf '%s' "$ci_postgres_dsn" | glab variable set OPEN_WORK_HUB_CI_POSTGRES_DSN \
+printf '%s' "$ci_postgres_dsn" | glab variable set MTY_CI_POSTGRES_DSN \
   --repo "$GITLAB_REPO" --masked --protected --raw --scope ci-validation
 unset ci_postgres_dsn
 ```
@@ -484,14 +486,14 @@ GitLab 접속, 관리자 로그인·비밀번호 변경, `glab` 인증, Runner �
 ### 2.3. 기존 조직에 개발자·서버 추가
 
 내부 GitLab에 `dev` 브랜치가 준비되어 있으면 프로젝트의 Clone 메뉴에서 주소를 받아
-원하는 작업 위치의 `open-work-hub/dev`에 내려받는다.
+원하는 작업 위치의 `mty/dev`에 내려받는다.
 
 ```bash
-mkdir -p open-work-hub
-cd open-work-hub
+mkdir -p mty
+cd mty
 git clone --branch dev '<GitLab에서-받은-저장소-주소>' dev
 cd dev
-git remote add upstream https://github.com/hurxxxx/open-work-hub.git
+git remote add upstream https://github.com/hurxxxx/mty.git
 git config remote.pushDefault origin
 ```
 
@@ -565,9 +567,9 @@ docker info --format '{{.ServerVersion}}'
 
 | 상대 경로 | 브랜치·용도 | 환경설정 |
 | --- | --- | --- |
-| `open-work-hub/dev` | `dev` → `origin/dev`, 개발 실행과 통합 | 개발용 `.env` |
-| `open-work-hub/prod` | `main` → `origin/main`, 승인된 운영 작업 전용 | 운영 준비 시 별도 `.env` 구성 |
-| `open-work-hub/worktrees/<작업명>` | 요청된 기능·MR 작업 브랜치 | 해당 작업에 필요한 개발 설정 |
+| `mty/dev` | `dev` → `origin/dev`, 개발 실행과 통합 | 개발용 `.env` |
+| `mty/prod` | `main` → `origin/main`, 승인된 운영 작업 전용 | 운영 준비 시 별도 `.env` 구성 |
+| `mty/worktrees/<작업명>` | 요청된 기능·MR 작업 브랜치 | 해당 작업에 필요한 개발 설정 |
 
 `dev`에서 실행하는 아래 명령은 **`prod`가 아직 없는 경우**의 예시다.
 기존 디렉터리나 등록된 worktree가 있으면 브랜치·dirty 상태·소유자를 먼저 확인해 재사용하고 덮어쓰지 않는다.
@@ -617,30 +619,30 @@ Hermes 구조화 작업의 기본 의존성은 API와 Worker 양쪽에 설치되
 환경설정은 먼저 기존 파일 유무와 키 목록을 확인한다. 이 도구는 값을 출력하지 않는다.
 
 ```bash
-bash .agents/skills/owh-env-contracts/scripts/local-env-files.sh status --source .env.example --target .env
+bash .agents/skills/mty-env-contracts/scripts/local-env-files.sh status --source .env.example --target .env
 ```
 
 결과가 `status=missing_target`일 때만 다음 명령으로 개발용 템플릿을 설치한다.
 
 ```bash
-bash .agents/skills/owh-env-contracts/scripts/local-env-files.sh install --source .env.example --target .env
+bash .agents/skills/mty-env-contracts/scripts/local-env-files.sh install --source .env.example --target .env
 ```
 
 이미 `.env`가 있다면 유지한다. `status=different`는 사용자 설정이 있다는 뜻일 수 있으며
 템플릿으로 덮어쓸 이유가 아니다. 필요한 키만 기존 값을 보존하여 맞춘다.
-환경 파일 취급은 [환경설정 절차](.agents/skills/owh-env-contracts/references/env-files.md)를 따른다.
+환경 파일 취급은 [환경설정 절차](.agents/skills/mty-env-contracts/references/env-files.md)를 따른다.
 
 챗봇에서 PMS 등 앱의 승인 기반 쓰기를 사용하려면 [앱 도구 활성화와 실제 동작 검증](docs/domains/ai/hermes.md#app-tool-enablement-and-verification)을 따른다. 기본 설치는 읽기 전용이며, 코드 갱신만으로 쓰기 도구가 켜지지는 않는다. 기능 플래그, 프로세스의 도구 목록 갱신, PMS 편집 권한, 건별 승인을 함께 확인한다.
 
 앱 도구 등록·입력 스키마·쓰기 플래그를 변경했다면 진행 중인 개발 작업을 정리하고,
 위 절차에 따라 API·Worker와 gateway의 목록을 갱신한다. 연결 상태가 정상이어도 이전
 목록이 남을 수 있다. 새 챗봇 실행에서 도구 검색과 실제 PMS 호출을 확인하고,
-`owh.tools.catalog_refresh_required`가 나오면 갱신 완료로 처리하지 않는다.
+`mty.tools.catalog_refresh_required`가 나오면 갱신 완료로 처리하지 않는다.
 [고정 Hermes 이미지의 앱 도구 검사](docs/domains/ai/hermes.md#sandbox-execution-check)도 실행한다.
 
 DB 풀·시간제한·재시도·임베딩/리랭커 모델의 공통 권장값은 Git 추적 대상인
 [`config/runtime.json`](config/runtime.json)에서 관리한다. `defaults` 위에
-`OPEN_WORK_HUB_ENV_PROFILE`에 해당하는 `profiles` 설정이 적용되며, `.env`와 프로세스 환경변수는
+`MTY_ENV_PROFILE`에 해당하는 `profiles` 설정이 적용되며, `.env`와 프로세스 환경변수는
 이를 덮어쓸 수 있다. 비밀키·접속정보·설치별 설정은 계속 `.env`에 둔다.
 설정 범위·우선순위·운영 반영은 [공개 런타임 설정](docs/domains/release/README.md#public-runtime-configuration)을 따른다.
 
@@ -657,6 +659,8 @@ uv run --frozen --python 3.12 --directory apps/api python ../../scripts/runtime-
 pnpm check:env-contract
 pnpm check:path-hardcoding
 ```
+
+두 체크아웃이 함께 있으면 환경 계약 검사는 개발·운영 각각의 체크아웃에 선언된 설정 파일 경로와 환경 키를 기준으로 검사한다. 별도 저장소 밖에 설치한 Codex Console 설정은 [Console 배포 절차](docs/apps/codex-console/README.md#배포-완료-확인)에서 검증한다.
 
 API 키는 사용자가 서버의 편집기 또는 비밀 입력 경로로 `.env`에 넣는다.
 파일 권한은 소유자만 읽고 쓸 수 있는 `0600`으로 유지한다.
@@ -681,15 +685,15 @@ OpenSearch를 포함한 추가 서비스는 이 단계에서 필요하지 않으
    문서 앞의 **PostgreSQL·Redis 최초 설치 버전** 기준에 따라 최신 안정 버전을 확인하고,
    [PostgreSQL Ubuntu 설치 안내](https://www.postgresql.org/download/linux/ubuntu/)와
    [Redis 공식 APT 설치 안내](https://redis.io/docs/latest/operate/oss_and_stack/install/install-stack/apt/)를 따라 네이티브 패키지를 설치한다.
-   [개발 Compose](ops/compose/open-work-hub-dev.infra.yml)의 고정 메이저 버전을 네이티브 신규 설치 버전으로 대신 사용하지 않는다.
+   [개발 Compose](ops/compose/mty-dev.infra.yml)의 고정 메이저 버전을 네이티브 신규 설치 버전으로 대신 사용하지 않는다.
 2. 프로젝트용 개발 DB·사용자와 Redis 인스턴스를 준비하고 loopback 주소에서만 접근하도록 구성한다.
    기존 서비스·데이터·포트를 보존하고, 실제 PostgreSQL 클러스터와 Redis의 systemd unit을 확인해 시작·자동 시작을 설정한다.
-3. `.env`의 `OPEN_WORK_HUB_POSTGRES_DSN`, `OPEN_WORK_HUB_INFRA_POSTGRES_PORT`,
-   `OPEN_WORK_HUB_INFRA_REDIS_PORT`를 실제 네이티브 서비스에 맞춘다.
+3. `.env`의 `MTY_POSTGRES_DSN`, `MTY_INFRA_POSTGRES_PORT`,
+   `MTY_INFRA_REDIS_PORT`를 실제 네이티브 서비스에 맞춘다.
    템플릿의 포트 `55433`·`56380`을 네이티브 기본 포트와 같다고 가정하지 않는다.
    기존 개발용 Redis·Worker 연결 재정의도 [개발 환경 설정](scripts/dev-env.sh)에 따라 함께 맞추고 비밀값은 출력하지 않는다.
-   Redis 인증이 필요하면 `OPEN_WORK_HUB_DEV_REDIS_URL`과 `OPEN_WORK_HUB_DEV_REDIS_RESULT_BACKEND`를 설정한다.
-   `--minimal-infra`는 PostgreSQL DSN을 `OPEN_WORK_HUB_INFRA_POSTGRES_*`에서 구성하므로 사용자·비밀번호·DB 이름도 맞춘다.
+   Redis 인증이 필요하면 `MTY_DEV_REDIS_URL`과 `MTY_DEV_REDIS_RESULT_BACKEND`를 설정한다.
+   `--minimal-infra`는 PostgreSQL DSN을 `MTY_INFRA_POSTGRES_*`에서 구성하므로 사용자·비밀번호·DB 이름도 맞춘다.
 4. systemd 상태뿐 아니라 실제 대상에 대한 `pg_isready`, DB 사용자 인증과 쿼리,
    Redis의 인증된 `PING` 응답으로 연결을 확인한다. 기존 데이터베이스를 재생성하거나 Redis 데이터를 비우지 않는다.
 
@@ -718,21 +722,21 @@ DB 연결 설정은 [API·Worker 연결 예산](docs/domains/release/README.md#d
 풀 크기를 늘리기 전에 요청 처리 스레드의 대기와 연결 반환 시점을 구분한다.
 
 ```dotenv
-OPEN_WORK_HUB_WEB_DEV_HOST=0.0.0.0
-OPEN_WORK_HUB_WEB_DEV_PORT=4200
-OPEN_WORK_HUB_API_DEV_LOGIN_ALLOWED_HOSTS=<서버-IP>
+MTY_WEB_DEV_HOST=0.0.0.0
+MTY_WEB_DEV_PORT=4200
+MTY_API_DEV_LOGIN_ALLOWED_HOSTS=<서버-IP>
 ```
 
 DNS 또는 Tailscale 호스트명으로 접속한다면 해당 호스트명을
-`OPEN_WORK_HUB_WEB_DEV_ALLOWED_HOSTS`에 추가한다(여러 호스트는 쉼표로 구분).
-`OPEN_WORK_HUB_API_DEV_LOGIN_ALLOWED_HOSTS`에도 실제 개발 로그인 호스트를 허용하고
+`MTY_WEB_DEV_ALLOWED_HOSTS`에 추가한다(여러 호스트는 쉼표로 구분).
+`MTY_API_DEV_LOGIN_ALLOWED_HOSTS`에도 실제 개발 로그인 호스트를 허용하고
 설정을 읽는 개발 서비스를 재시작한다. `allowedHosts: true`로 전체 호스트를 허용하지 않는다.
 HTTP IP·호스트명 접속에서 로그인 후 생성된 HTML 파일의 미리보기와 소스 탭까지 확인한다.
 HTTPS 또는 localhost에서만 검사하면 보안 컨텍스트 전용 브라우저 API 의존성을 놓칠 수 있다.
 
 Web은 모든 IPv4 인터페이스에서 수신하고 API 요청을 loopback의 API로 프록시한다.
 API·개발 PostgreSQL·Redis의 수신 주소는 loopback으로 유지한다. `0.0.0.0`은 수신 설정이며 사용자에게 전달할 접속 주소는 서버 IP다.
-새 개발 DB의 시드 비밀번호는 첫 실행 전에 `OPEN_WORK_HUB_API_DEV_LOGIN_PASSWORD`에 고유한 값으로 설정하고 `.auth_info`에 기록한다.
+새 개발 DB의 시드 비밀번호는 첫 실행 전에 `MTY_API_DEV_LOGIN_PASSWORD`에 고유한 값으로 설정하고 `.auth_info`에 기록한다.
 기존 DB에서는 기존 계정·비밀번호를 보존한다. 이 환경값을 바꾸는 것만으로 기존 계정의 비밀번호가 갱신되지는 않는다.
 
 첫 실행은 터미널에서 아래 명령으로 확인한다. 최종 인계 전에는 7절의 지속 실행과 외부 로그인 확인까지 마친다.
@@ -758,7 +762,7 @@ pnpm dev:login-smoke
 
 PC에 안내할 Web 주소는 `http://<서버-IP>:4200`이며, 서버 내부 API 주소는 `http://127.0.0.1:8001`이다.
 포트를 변경한 환경에서는 실제 개발 설정을 따른다. 서버 내부의 loopback 검사 통과 후에도 5절의 외부 접속 검사를 완료해야 한다.
-개발용 로그인 아이디는 `administrator`이며 비밀번호는 `.auth_info`에서 확인한다. 템플릿의 초기 비밀번호는 `open-work-hub-dev-only`이므로 새 설치에서는 위 단계에서 바꾼 값을 사용한다.
+개발용 로그인 아이디는 `administrator`이며 비밀번호는 `.auth_info`에서 확인한다. 템플릿의 초기 비밀번호는 `mty-dev-only`이므로 새 설치에서는 위 단계에서 바꾼 값을 사용한다.
 공유·공개 운영 서비스에는 개발용 기본 계정을 사용하지 않는다.
 확인한 개발용 시드 계정과 DB·Redis 접속 정보는 [로그인 정보 파일](#11-로그인-정보-파일-관리)의 개발 항목에 기록한다.
 
@@ -783,15 +787,15 @@ Snap 등은 호스트 글꼴 설치만으로 한글이 표시된다고 가정하
 PC에서 사용할 서버 IP의 개발 주소로 로그인 화면을 열고 현재 화면의 요소를 확인한다. IP·포트는 실제 설정으로 바꾼다.
 
 ```bash
-agent-browser --session owh-setup open 'http://<서버-IP>:<개발-Web-포트>/login'
-agent-browser --session owh-setup snapshot -i
+agent-browser --session mty-setup open 'http://<서버-IP>:<개발-Web-포트>/login'
+agent-browser --session mty-setup snapshot -i
 ```
 
 1.1절의 비밀값 취급 절차를 지키며 로그인하고, 앱 목록·주요 화면의 접근과 로그아웃 후 로그인 화면 복귀까지 확인한다.
 페이지 열기나 snapshot 출력만으로 로그인 검사를 통과했다고 보고하지 않는다. 검사 결과와 미확인 항목을 구분하고, 실패한 경우에도 사용한 세션을 종료한다.
 
 ```bash
-agent-browser --session owh-setup close
+agent-browser --session mty-setup close
 ```
 
 사설 GitLab 인증서는 2.2.1절의 CA 신뢰 설정을 적용하고 TLS 검증을 유지한다.
@@ -838,7 +842,7 @@ PID·network namespace가 호스트와 분리됐는지 `/proc/<PID>/ns/`로 검�
 ## 5. 내 PC 브라우저에서 서버 접속
 
 기본 접속 방식은 **SSH 터널 없이 서버 IP로 직접 접속**하는 것이다.
-4절에서 설정한 `.env`의 `OPEN_WORK_HUB_WEB_DEV_HOST=0.0.0.0`과 실제 Web 포트를 확인한다.
+4절에서 설정한 `.env`의 `MTY_WEB_DEV_HOST=0.0.0.0`과 실제 Web 포트를 확인한다.
 개발 앱을 재시작한 뒤 `ss -ltn`으로 `0.0.0.0:<개발-Web-포트>` 수신을 확인한다.
 VM 네트워크·라우팅·방화벽에서 PC가 해당 IP와 Web 포트에 도달할 수 있게 구성한다. NAT 환경이면 필요한 포트 전달을 함께 설정한다.
 사용자에게 `http://<서버-IP>:<개발-Web-포트>/login`을 안내한다. `0.0.0.0`이나 서버의 `127.0.0.1`을 PC 접속 주소로 안내하지 않는다.
@@ -847,12 +851,12 @@ VM 네트워크·라우팅·방화벽에서 PC가 해당 IP와 Web 포트에 도
 서버에서는 실제 PC 접속 주소를 대상으로 다음 검사를 수행한다. IP·포트는 환경에 맞춘다.
 
 ```bash
-OPEN_WORK_HUB_DEV_SMOKE_API_URL='http://<서버-IP>:<개발-Web-포트>' pnpm dev:login-smoke
-agent-browser --session owh-setup open 'http://<서버-IP>:<개발-Web-포트>/login'
-agent-browser --session owh-setup snapshot -i
+MTY_DEV_SMOKE_API_URL='http://<서버-IP>:<개발-Web-포트>' pnpm dev:login-smoke
+agent-browser --session mty-setup open 'http://<서버-IP>:<개발-Web-포트>/login'
+agent-browser --session mty-setup snapshot -i
 ```
 
-4.1절에 따라 시드 계정으로 로그인·화면·로그아웃을 확인하고 `agent-browser --session owh-setup close`로 세션을 종료한다.
+4.1절에 따라 시드 계정으로 로그인·화면·로그아웃을 확인하고 `agent-browser --session mty-setup close`로 세션을 종료한다.
 **PC 또는 같은 외부 접속 경로의 브라우저에서도** 로그인 화면을 열고 `.auth_info`의 시드 계정으로 실제 로그인해 앱 화면·로그아웃까지 확인한다.
 서버에서 자기 IP로 실행한 검사만으로 PC의 접속 성공을 단정하지 않는다. PC 조작 권한이 없으면 사용자에게 이 마지막 확인만 요청하고, 그동안 GitLab·CI 등 나머지 셋업을 계속한다.
 GitLab의 별도 HTTPS 접속·인증서 설정은 2.2.1절을 따른다.
@@ -878,10 +882,10 @@ Bento 등 별도 주소를 쓰는 기능은 사용 시 해당 기능 문서의 �
 
 | 확인 대상 | 준비할 내용과 소유 문서 |
 | --- | --- |
-| PostgreSQL·Redis·파일 저장소·검색 | 네이티브 DB·Redis 연결은 유지하고 필요한 저장소·검색만 추가한다. 개발 DB, 큐, 버킷, 색인 연결이 실제 실행 대상과 일치하는지 확인한다. Docker 서비스 정의는 [개발 Compose](ops/compose/open-work-hub-dev.infra.yml), 앱 연결 설정은 [개발 환경 설정](scripts/dev-env.sh)을 따른다. |
-| 개인정보 필터 | `OPEN_WORK_HUB_OPF_SERVICE_BASE_URL`에 별도 서비스 주소가 있으면 해당 서비스를 먼저 준비한다. 아래 실행 예와 [서비스 구현](apps/api/src/open_work_hub_api/domains/ai/privacy_filter_service.py)을 따른다. |
+| PostgreSQL·Redis·파일 저장소·검색 | 네이티브 DB·Redis 연결은 유지하고 필요한 저장소·검색만 추가한다. 개발 DB, 큐, 버킷, 색인 연결이 실제 실행 대상과 일치하는지 확인한다. Docker 서비스 정의는 [개발 Compose](ops/compose/mty-dev.infra.yml), 앱 연결 설정은 [개발 환경 설정](scripts/dev-env.sh)을 따른다. |
+| 개인정보 필터 | `MTY_OPF_SERVICE_BASE_URL`에 별도 서비스 주소가 있으면 해당 서비스를 먼저 준비한다. 아래 실행 예와 [서비스 구현](apps/api/src/mty_api/domains/ai/privacy_filter_service.py)을 따른다. |
 | 판단 모델(분류·선택·점수·확률) | 먼저 DB 마이그레이션을 적용한다. 관리자에서 OpenRouter 연결·암호화 키를 저장하고 모델 목록을 갱신한 뒤 `판단` 기능 모델을 검토·활성화한다. AI 모델 기본 설정에서 `판단 모델` 종류를 선택하고 모델을 지정한다. 생성 모델 기본값과는 별도로 저장된다. `모델 목록에서 확인 (추론 없음)`으로 접근을 확인하고, 실제 유료 검증은 등록된 합성 workload로 `execute_decision`을 명시적으로 호출한다. 입력 제한·등록 예시·확인 기준은 [판단 workload 계약](docs/domains/ai/gateway.md#decision-workloads)을 따른다. Hermes 설치는 판단 API 호출의 전제 조건이 아니다. |
-| 기본 생성형 AI·챗봇 작업 파일 | 관리자 LLM 정책(전역·앱·워크로드 상속), 공급자 키 암호화 설정, Hermes 활성화, Docker 소켓 그룹·동시 실행 한도·마이그레이션은 [Hermes 설치 문서](docs/domains/ai/hermes.md#fresh-environment-setup)를 따른다. 기존 설치에서 플러그인·샌드박스 설정을 갱신할 때는 [게이트웨이 재생성 → API·Worker 갱신 절차](docs/domains/ai/hermes.md#updating-an-existing-development-installation)를 따른다. API·Worker의 프로필 정책만 바뀌는 경우는 [대화 컨텍스트 정책 적용 절차](docs/domains/ai/hermes.md#conversation-context-policy)를 따른다. 네이티브 파일 쓰기는 Docker 호스트/VM의 Landlock ABI 3+가 필요하다. 신규·기존 설치 모두 [실제 샌드박스·네이티브 코드·파일·구조화 결과 제출·챗봇 실행 검사](docs/domains/ai/hermes.md#sandbox-execution-check)로 완료를 확인하고, 실패 시 [오류별 복구 절차](docs/domains/ai/hermes.md#sandbox-startup-recovery)를 적용한다. 정적 결과물은 기본 제공 Chromium과 `owh_preview`로 검사하며 Playwright를 추가 설치하지 않는다. [오프라인 렌더링·파일 수정·실행 종료 확인](docs/domains/ai/hermes.md#static-preview-execution)도 셋업 검증에 포함한다. 공급자별 temperature 지원과 확장 제약은 해당 문서의 [런타임 계약](docs/domains/ai/hermes.md#pinned-runtime-contract)·[확장 제약](docs/domains/ai/hermes.md#pinned-upstream-gaps)을 확인한다. 로컬 모델은 OpenRouter 키 없이 시작할 수 있다. 기본 모델·앱별 모델·공급자 API 키는 관리자 LLM 설정에서 관리하며, 기존 설치의 LLM 환경변수는 [DB 설정 이관 절차](docs/domains/ai/hermes.md#db-connection-and-default-policy-cutover)로 정리한다. 기존 로컬 연결이 암묵적 기본 주소를 사용했다면 해당 절차의 명시적 주소 사전 조건을 먼저 충족한다. vLLM/Ollama 서버는 별도로 실행한 뒤 관리자 연결에 등록한다. 호스트에 Hermes를 별도 설치하지 않는다. |
+| 기본 생성형 AI·챗봇 작업 파일 | 관리자 LLM 정책(전역·앱·워크로드 상속), 공급자 키 암호화 설정, Hermes 활성화, Docker 소켓 그룹·동시 실행 한도·마이그레이션은 [Hermes 설치 문서](docs/domains/ai/hermes.md#fresh-environment-setup)를 따른다. 기존 설치에서 플러그인·샌드박스 설정을 갱신할 때는 [게이트웨이 재생성 → API·Worker 갱신 절차](docs/domains/ai/hermes.md#updating-an-existing-development-installation)를 따른다. API·Worker의 프로필 정책만 바뀌는 경우는 [대화 컨텍스트 정책 적용 절차](docs/domains/ai/hermes.md#conversation-context-policy)를 따른다. 네이티브 파일 쓰기는 Docker 호스트/VM의 Landlock ABI 3+가 필요하다. 신규·기존 설치 모두 [실제 샌드박스·네이티브 코드·파일·구조화 결과 제출·챗봇 실행 검사](docs/domains/ai/hermes.md#sandbox-execution-check)로 완료를 확인하고, 실패 시 [오류별 복구 절차](docs/domains/ai/hermes.md#sandbox-startup-recovery)를 적용한다. 정적 결과물은 기본 제공 Chromium과 `mty_preview`로 검사하며 Playwright를 추가 설치하지 않는다. [오프라인 렌더링·파일 수정·실행 종료 확인](docs/domains/ai/hermes.md#static-preview-execution)도 셋업 검증에 포함한다. 공급자별 temperature 지원과 확장 제약은 해당 문서의 [런타임 계약](docs/domains/ai/hermes.md#pinned-runtime-contract)·[확장 제약](docs/domains/ai/hermes.md#pinned-upstream-gaps)을 확인한다. 로컬 모델은 OpenRouter 키 없이 시작할 수 있다. 기본 모델·앱별 모델·공급자 API 키는 관리자 LLM 설정에서 관리하며, 기존 설치의 LLM 환경변수는 [DB 설정 이관 절차](docs/domains/ai/hermes.md#db-connection-and-default-policy-cutover)로 정리한다. 기존 로컬 연결이 암묵적 기본 주소를 사용했다면 해당 절차의 명시적 주소 사전 조건을 먼저 충족한다. vLLM/Ollama 서버는 별도로 실행한 뒤 관리자 연결에 등록한다. 호스트에 Hermes를 별도 설치하지 않는다. |
 | 예외적 단일 생성 호출 | 명시적으로 등록된 [공통 직접 호출 어댑터](docs/domains/ai/gateway.md#direct-completion-exceptions)는 Hermes 없이 실행한다. 관리자 연결·암호화 키·활성 모델·출력 상한은 동일하게 준비한다. 구조화 출력은 선택한 엔드포인트의 JSON Schema 지원을 실제 등록 워크로드로 확인한다. |
 | 문서 AI·OCR·음성 인식 | 설정한 [Inference Gateway](docs/domains/inference-gateway/README.md)와 [RAG](docs/domains/rag/README.md) 연결을 준비한다. 개발 Compose가 외부 추론 서버까지 설치하지는 않는다. |
 | 슬라이드·다이어그램 | [Bento](docs/apps/bento/README.md)와 [Diagrams](docs/apps/diagrams/README.md)의 서버 주소·브라우저 연결을 확인한다. Bento의 별도 런타임 이미지와 Web bridge 프로토콜도 함께 맞춘다. |
@@ -897,13 +901,13 @@ Bento 등 별도 주소를 쓰는 기능은 사용 시 해당 기능 문서의 �
   uv run --frozen --python 3.12 python - <<'PY'
 from urllib.parse import urlparse
 import uvicorn
-from open_work_hub_api.core.settings import get_settings
+from mty_api.core.settings import get_settings
 
 endpoint = urlparse(get_settings().opf_service_base_url)
 if endpoint.scheme != 'http' or endpoint.hostname != '127.0.0.1' or not endpoint.port:
     raise SystemExit('Check the configured development privacy-filter endpoint first.')
 uvicorn.run(
-    'open_work_hub_api.domains.ai.privacy_filter_service:app',
+    'mty_api.domains.ai.privacy_filter_service:app',
     host=endpoint.hostname,
     port=endpoint.port,
 )
@@ -925,7 +929,7 @@ pnpm dev:infra:up
 ./dev.sh --with-worker --no-infra
 ```
 
-데모 환경의 Worker는 `config/runtime.json`의 `OPEN_WORK_HUB_WORKER_CONCURRENCY=1`로
+데모 환경의 Worker는 `config/runtime.json`의 `MTY_WORKER_CONCURRENCY=1`로
 작업 실행 자식 프로세스 하나를 유지한다. 개발·운영 모두 같은 설정을 사용하며,
 운영 적용에는 해당 설정을 포함한 릴리스 이미지가 필요하다. `.env`에 비밀이 아닌
 동시 실행 수를 복제하지 않는다. 작업은 순차 처리되고 Worker 감독 프로세스와 Beat는
@@ -948,33 +952,33 @@ AI 보호 정책을 끄지 않는다. 추가 키·서버가 필요한 기능은 
 ## 6.1. Codex 콘솔 함께 설치
 
 [Codex Console 소유 문서](docs/apps/codex-console/README.md)의 설치·서비스 실행·개인 앱 연결
-절차를 수행한다. OWH 업무 DB와 별개의 전용 PostgreSQL 역할·DB를 만들고, Codex를 구독으로
+절차를 수행한다. MTY 업무 DB와 별개의 전용 PostgreSQL 역할·DB를 만들고, Codex를 구독으로
 로그인한 OS 사용자로 서비스를 실행한다. 콘솔은 기준 버전 이상의 공식 app-server를 사용하고
 시작 시 RPC 스키마 호환성을 검사하며
-Platform API 키나 OWH AI 공급자 설정을 요구하지 않는다.
+Platform API 키나 MTY AI 공급자 설정을 요구하지 않는다.
 
 - 콘솔의 `.env`와 웹 비밀번호를 준비하고 migration·정적 UI 빌드·systemd 자동 시작을 완료한다.
 - 설치 호스트의 loopback 주소와 공개 HTTPS 주소에서 각각 작업실 로그인을 확인한다.
   접속 범위와 쿠키 계약은 [Codex Console 접속](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
-- 같은 개발 사이트를 로컬·원격 주소로 함께 열면 `OPEN_WORK_HUB_CODEX_CONSOLE_LAUNCH_URL_BY_HOST`로
+- 같은 개발 사이트를 로컬·원격 주소로 함께 열면 `MTY_CODEX_CONSOLE_LAUNCH_URL_BY_HOST`로
   접속 호스트별 Console 주소를 설정한다. 키 형식과 fallback은 [Codex Console 접속](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
 - [추론 강도 허용 목록](docs/apps/codex-console/README.md#개인-cli-클라이언트와-제품-ai의-연결-경계)을
   확인한다. 기본값은 `xhigh`까지이며 새 강도는 명시적으로 허용할 때까지 표시하지 않는다.
 - [파일 첨부 설정](docs/apps/codex-console/README.md#파일-보관과-메시지별-첨부)에 따라 원본 DB
   백업·Git 저장소 밖의 읽기 사본 경로·업로드 용량과 HTTPS 프록시 제한을 준비한다.
-- 전용 HTTPS 주소에서 콘솔로 직접 연결해 OWH 개발 Web 재시작과 접속 경로를 분리한다.
+- 전용 HTTPS 주소에서 콘솔로 직접 연결해 MTY 개발 Web 재시작과 접속 경로를 분리한다.
   앞단 프록시가 다른 호스트이면 [사설망 연결 설정](docs/apps/codex-console/README.md#tls-프록시가-다른-호스트에-있을-때)을 따른다.
   기존 개발 사이트의 `/codex-console/`를 Vite로 연결하는 대안은 개발 Web 재시작 시 접속이 중단된다.
   IP 기반 최초 설치에는 [HTTPS 신뢰 등록](docs/domains/release/installation-operations.md#https-trust)을 적용한다.
   외부 HTTP origin 허용이나 Codex 인증 파일 복사로 우회하지 않는다.
-- OWH의 typed launch URL 설정과 관리자 앱 사용 설정에서 `codex-console`을 활성화한다.
+- MTY의 typed launch URL 설정과 관리자 앱 사용 설정에서 `codex-console`을 활성화한다.
   URL 미설정·비활성화 상태에서는 개인 앱에 노출되지 않는다. 자동 로그인을 사용할 때는
   [개인 앱과 HTTPS 접속 연결](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)에 따라
-  콘솔 `.env`에서 개발·운영 OWH의 정확한 origin을 각 환경의 단일 콘솔 소유자 사용자 UUID에
+  콘솔 `.env`에서 개발·운영 MTY의 정확한 origin을 각 환경의 단일 콘솔 소유자 사용자 UUID에
   연결한다. 자동 로그인을 사용하지 않거나 교환이 실패한 경우에는 별도 작업실 비밀번호로
   직접 로그인한다.
 - `개인 앱 → Codex 콘솔` 클릭 시 기존 탭은 유지되고 새 탭이 열리는지 확인한다. 자동 로그인을
-  설정했다면 소유자 OWH 세션에서 비밀번호 화면 없이 열리고 URL fragment가 즉시 제거되어야
+  설정했다면 소유자 MTY 세션에서 비밀번호 화면 없이 열리고 URL fragment가 즉시 제거되어야
   하며, 다른 사용자는 자동 로그인되지 않아야 한다. 자동 로그인을 설정하지 않았다면 작업실
   비밀번호 화면이 표시되어야 한다. 이어서 ChatGPT 구독 연결 상태, 로그아웃 후 접근 차단,
   프록시 아래의 정적 파일·API·SSE를 확인한다.
@@ -998,14 +1002,14 @@ Platform API 키나 OWH AI 공급자 설정을 요구하지 않는다.
 설정은 재설치 시 초기화하지 않는다.
 
 콘솔의 [작업 공간 설정](docs/apps/codex-console/README.md#브랜치와-작업-공간)에 따라 기준 ref,
-외부 워크트리 경로, 운영 체크아웃과 제품 DB 금지 목록을 설정한다. OWH 설치는 `origin/dev`와
+외부 워크트리 경로, 운영 체크아웃과 제품 DB 금지 목록을 설정한다. MTY 설치는 `origin/dev`와
 체크아웃 루트의 `worktrees`를 사용하고 실제 prod 경로·dev/prod DB 이름을 등록한다.
 새 작업의 계획 기본값, 질문만으로 문서 미생성, 요청한 문서의 생성·확정 변경 자동 갱신,
 직접 실행과 작업별 브랜치 탭을 확인한다.
 
 ## 6.2. 테트리스 개인 앱 사용
 
-테트리스는 OWH API·Web과 함께 설치되며 수동 플레이에는 별도 서비스나 환경 설정이 필요 없다.
+테트리스는 MTY API·Web과 함께 설치되며 수동 플레이에는 별도 서비스나 환경 설정이 필요 없다.
 새 서버에서는 [테트리스 설치·활성화](docs/apps/tetris/README.md#설치와-앱-활성화)에 따라
 플랫폼 관리자가 앱을 켜고 대상 사용자를 선택한다. 개인 앱에서 테트리스를 열고 키보드와
 화면 버튼 조작·점수 증가·일시정지·재개 및 비허용 사용자 차단을 확인한다. 게임 진행은
@@ -1019,7 +1023,7 @@ Hermes가 필요 없다. 생성 모델은 추론을 끈 실제 호출을 확인�
 추론을 끈다. 추론 필수 모델은 선택할 수 없다. 상세 계약은
 [공통 추론 끔 정책](docs/domains/ai/gateway.md#non-reasoning-workloads)을 따른다.
 양방향 즉시 공격, AI 대기 중 낙하, 오류 후 0.5초 간격 재시도, 게임 종료 시 양쪽 요청 중단을
-확인한다. 수동 혼자 플레이는 모델 설정 없이 가능하다. `OPEN_WORK_HUB_LLM_REQUIRED=true`이면
+확인한다. 수동 혼자 플레이는 모델 설정 없이 가능하다. `MTY_LLM_REQUIRED=true`이면
 전체 서버 준비 상태(`/readyz`)에 두 워크로드의 유효한 기본 연결이 모두 필요하다.
 
 ## 7. 실행 종료·재시작과 완료 확인

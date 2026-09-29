@@ -7,29 +7,29 @@ from types import SimpleNamespace
 from fastapi import HTTPException
 import pytest
 
-from open_work_hub_api.domains.search import service as search_service
-import open_work_hub_api.domains as domains_package
-from open_work_hub_api.domains.search.backend_contracts import (
+from mty_api.domains.search import service as search_service
+import mty_api.domains as domains_package
+from mty_api.domains.search.backend_contracts import (
     KeywordAclFilter,
     KeywordSearchHit,
     KeywordSearchQuery,
     KeywordSearchResult,
 )
-from open_work_hub_api.domains.search.schemas import KeywordSearchRequest
-from open_work_hub_api.domains.search.default_entity_adapters import (
+from mty_api.domains.search.schemas import KeywordSearchRequest
+from mty_api.domains.search.default_entity_adapters import (
     ensure_search_entity_adapters_registered,
 )
-from open_work_hub_api.domains.search.default_index_hook_adapters import (
+from mty_api.domains.search.default_index_hook_adapters import (
     ensure_search_index_hooks_registered,
 )
-from open_work_hub_api.domains.search.entity_adapter_registry import (
+from mty_api.domains.search.entity_adapter_registry import (
     SearchEntityAdapter,
     search_entity_adapters,
 )
-from open_work_hub_api.domains.search.hook_registry import get_search_index_hook_registration
-from open_work_hub_api.domains.search import projections as search_projections
-from open_work_hub_api.domains.search.projection_identity import SearchProjectionIdentityError
-from open_work_hub_api.domains.search.projection_registry import FunctionSearchProjectionAdapter
+from mty_api.domains.search.hook_registry import get_search_index_hook_registration
+from mty_api.domains.search import projections as search_projections
+from mty_api.domains.search.projection_identity import SearchProjectionIdentityError
+from mty_api.domains.search.projection_registry import FunctionSearchProjectionAdapter
 
 
 def _request(*, entity_types: list[str] | None = None) -> KeywordSearchRequest:
@@ -45,7 +45,7 @@ def test_app_owned_search_adapters_match_explicit_runtime_composition() -> None:
     discovered: set[tuple[str, str]] = set()
     for projection_path in sorted(domains_root.glob("*/search_projection.py")):
         module = importlib.import_module(
-            f"open_work_hub_api.domains.{projection_path.parent.name}.search_projection"
+            f"mty_api.domains.{projection_path.parent.name}.search_projection"
         )
         discovered.update(
             (value.owner_app_id, value.entity_type)
@@ -165,7 +165,7 @@ def test_company_keyword_search_rejects_query_without_active_source(
         )
 
     assert error.value.status_code == 403
-    assert error.value.headers["X-Open-Work-Hub-Error-Code"] == ("search.keyword_search_disabled")
+    assert error.value.headers["X-MTY-Error-Code"] == ("search.keyword_search_disabled")
 
 
 def test_company_keyword_search_returns_empty_for_disallowed_requested_entities(
@@ -396,7 +396,7 @@ def test_company_keyword_search_reports_missing_global_index(
         )
 
     assert error.value.status_code == 503
-    assert error.value.headers["X-Open-Work-Hub-Error-Code"] == "search.keyword_backend_unavailable"
+    assert error.value.headers["X-MTY-Error-Code"] == "search.keyword_backend_unavailable"
 
 
 def test_disabled_source_retains_indexed_documents_for_reenable(

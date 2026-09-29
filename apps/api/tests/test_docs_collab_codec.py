@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from open_work_hub_api.domains.docs.collab_codec import (
+from mty_api.domains.docs.collab_codec import (
     BlockNoteCollabCodec,
     CodecPayload,
     CodecProcessResult,
