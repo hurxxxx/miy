@@ -10,8 +10,8 @@ API_SRC = WORKSPACE_ROOT / "apps" / "api" / "src"
 if str(API_SRC) not in sys.path:
     sys.path.insert(0, str(API_SRC))
 
-from open_work_hub_api.core.settings import Settings as ApiSettings  # noqa: E402
-from open_work_hub_worker.settings import Settings as WorkerSettings  # noqa: E402
+from mty_api.core.settings import Settings as ApiSettings  # noqa: E402
+from mty_worker.settings import Settings as WorkerSettings  # noqa: E402
 
 
 SHARED_RUNTIME_SETTING_FIELDS = (

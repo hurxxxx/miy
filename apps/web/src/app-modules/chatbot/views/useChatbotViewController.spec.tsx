@@ -6,8 +6,8 @@ import { expect, it, vi } from 'vitest';
 import { streamAiChat } from '../api/chatbot-api';
 import { useChatbotViewController } from './useChatbotViewController';
 
-vi.mock('@open-work-hub/ui', async (original) => ({
-  ...(await original<typeof import('@open-work-hub/ui')>()),
+vi.mock('@mty/ui', async (original) => ({
+  ...(await original<typeof import('@mty/ui')>()),
   useConfirm: () => ({ confirm: vi.fn(), confirmDialog: null }),
 }));
 vi.mock('@/src/platform/auth/auth-provider', () => ({

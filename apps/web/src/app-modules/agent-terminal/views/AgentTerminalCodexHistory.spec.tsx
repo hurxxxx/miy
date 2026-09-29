@@ -17,8 +17,8 @@ const thread: AgentTerminalCodexThread = {
   id: '11111111-1111-1111-1111-111111111111',
   name: null,
   preview: 'Implement a clearer Codex resume history title',
-  root_key: 'open-work-hub',
-  root_path: '/home/user/projects/open-work-hub',
+  root_key: 'mty',
+  root_path: '/home/user/projects/mty',
   updated_at: '2026-08-27T02:00:00Z',
 };
 
@@ -41,7 +41,7 @@ describe('AgentTerminalCodexHistory', () => {
     expect(
       screen.getByText('Implement a clearer Codex resume history title'),
     ).toBeTruthy();
-    expect(screen.getByText(/open-work-hub/)).toBeTruthy();
+    expect(screen.getByText(/mty/)).toBeTruthy();
     fireEvent.click(
       screen.getByRole('button', {
         name: 'agentTerminal.actions.resumeThreadLabel:Implement a clearer Codex resume history title',

@@ -1,4 +1,4 @@
-import { buildAppHref } from '@open-work-hub/contracts/app-routes';
+import { buildAppHref } from '@mty/contracts/app-routes';
 
 export function buildBentoHubPath(): string {
   return buildAppHref({ routeId: 'bento.root' });

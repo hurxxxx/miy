@@ -35,7 +35,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/session/owh": {
+    "/api/session/mty": {
         parameters: {
             query?: never;
             header?: never;
@@ -44,8 +44,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Login From Open Work Hub */
-        post: operations["login_from_open_work_hub_api_session_owh_post"];
+        /** Login From Mty */
+        post: operations["login_from_mty_api_session_mty_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -575,6 +575,13 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** MTYSessionInput */
+        MTYSessionInput: {
+            /** Issuer */
+            issuer: string;
+            /** Code */
+            code: string;
+        };
         /** Message */
         Message: {
             /** Model */
@@ -652,13 +659,6 @@ export interface components {
              * @default true
              */
             ok: boolean;
-        };
-        /** OwhSessionInput */
-        OwhSessionInput: {
-            /** Issuer */
-            issuer: string;
-            /** Code */
-            code: string;
         };
         /** Recover */
         Recover: {
@@ -925,7 +925,7 @@ export interface operations {
             };
         };
     };
-    login_from_open_work_hub_api_session_owh_post: {
+    login_from_mty_api_session_mty_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -934,7 +934,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["OwhSessionInput"];
+                "application/json": components["schemas"]["MTYSessionInput"];
             };
         };
         responses: {

@@ -1,4 +1,4 @@
-import { defineCoreAdminSections } from '@open-work-hub/core-web/admin';
+import { defineCoreAdminSections } from '@mty/core-web/admin';
 
 export const ADMIN_SECTION_DEFINITIONS = defineCoreAdminSections([
   { id: 'general', path: '/admin/general', roles: ['platform_admin'] },

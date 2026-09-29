@@ -6,12 +6,12 @@ from typing import Any
 
 import pytest
 
-from open_work_hub_api.domains.rag.contracts import RagQueryRequest
-from open_work_hub_api.domains.rag.providers import RagProviderBundle
-from open_work_hub_api.domains.rag.providers.base import RagProviderConfigurationError
-from open_work_hub_api.domains.rag.providers.fake import FakeEmbeddingClient
-from open_work_hub_api.domains.rag.providers.qdrant import QdrantVectorIndexClient
-from open_work_hub_api.domains.rag.runtime import (
+from mty_api.domains.rag.contracts import RagQueryRequest
+from mty_api.domains.rag.providers import RagProviderBundle
+from mty_api.domains.rag.providers.base import RagProviderConfigurationError
+from mty_api.domains.rag.providers.fake import FakeEmbeddingClient
+from mty_api.domains.rag.providers.qdrant import QdrantVectorIndexClient
+from mty_api.domains.rag.runtime import (
     PARTITIONED_RAG_GENERATION_SCHEMA_VERSION,
     build_partitioned_rag_projection_service,
     build_partitioned_retrieval_candidate_query_service,
@@ -19,22 +19,22 @@ from open_work_hub_api.domains.rag.runtime import (
     resolve_partitioned_rag_collection_alias,
     resolve_partitioned_rag_collection_name,
 )
-from open_work_hub_api.domains.retrieval import runtime_binding
-from open_work_hub_api.domains.retrieval.models import RetrievalProjectionGeneration
-from open_work_hub_api.domains.retrieval.runtime_binding import (
+from mty_api.domains.retrieval import runtime_binding
+from mty_api.domains.retrieval.models import RetrievalProjectionGeneration
+from mty_api.domains.retrieval.runtime_binding import (
     PartitionedRetrievalRuntimeUnavailable,
     resolve_active_partitioned_generation_pair,
     resolve_partitioned_files_query_runtime,
 )
-from open_work_hub_api.domains.search.backend_contracts import KeywordSearchQuery
-from open_work_hub_api.domains.search.backend_factory import build_partitioned_keyword_search_client
-from open_work_hub_api.domains.search.index_gateway import (
+from mty_api.domains.search.backend_contracts import KeywordSearchQuery
+from mty_api.domains.search.backend_factory import build_partitioned_keyword_search_client
+from mty_api.domains.search.index_gateway import (
     RETRIEVAL_PARTITIONED_INDEX_SCHEMA_VERSION,
     keyword_search_index_alias,
     keyword_search_partitioned_index_alias,
     keyword_search_partitioned_index_name,
 )
-from open_work_hub_api.domains.search.opensearch import OpenSearchError
+from mty_api.domains.search.opensearch import OpenSearchError
 
 
 _COHORT = "release_20260723"
@@ -44,9 +44,9 @@ def _settings(**overrides: object) -> SimpleNamespace:
     values: dict[str, object] = {
         "keyword_search_backend": "opensearch",
         "opensearch_url": "http://search.internal:9200/",
-        "opensearch_index_prefix": "open-work-hub-test",
+        "opensearch_index_prefix": "mty-test",
         "rag_vector_index_provider": "qdrant",
-        "rag_qdrant_collection_prefix": "open-work-hub-test-rag",
+        "rag_qdrant_collection_prefix": "mty-test-rag",
         "rag_embedding_provider": "fake",
         "rag_local_embedding_model": "unused-for-fake",
         "rag_query_timeout_ms": 5_000,
@@ -333,7 +333,7 @@ def test_partitioned_runtime_requires_exactly_one_active_generation_per_backend(
         ({"alias_name": "wrong-keyword-alias"}, {}, "alias_identity_mismatch"),
         ({}, {"alias_name": "wrong-vector-alias"}, "alias_identity_mismatch"),
         (
-            {"physical_name": "open-work-hub-test_keyword_search_documents_v3_release_other"},
+            {"physical_name": "mty-test_keyword_search_documents_v3_release_other"},
             {},
             "physical_identity_mismatch",
         ),
@@ -447,7 +447,7 @@ def test_partitioned_rag_query_service_is_bound_to_one_physical_collection() -> 
         vector_index=QdrantVectorIndexClient(client=object()),  # type: ignore[arg-type]
         embedding=FakeEmbeddingClient(dimensions=4),
     )
-    collection = "open-work-hub-test-rag-v1-release_20260723"
+    collection = "mty-test-rag-v1-release_20260723"
     query_service = build_partitioned_retrieval_candidate_query_service(
         settings,
         collection=collection,
@@ -482,7 +482,7 @@ def test_partitioned_rag_projection_service_is_bound_to_one_physical_collection(
         vector_index=QdrantVectorIndexClient(client=object()),  # type: ignore[arg-type]
         embedding=FakeEmbeddingClient(dimensions=4),
     )
-    collection = "open-work-hub-test-rag-v1-release_20260723"
+    collection = "mty-test-rag-v1-release_20260723"
     service = build_partitioned_rag_projection_service(
         settings,
         collection=collection,

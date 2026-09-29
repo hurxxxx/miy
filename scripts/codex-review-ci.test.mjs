@@ -81,7 +81,7 @@ test('reviews in a credential-free checkout without source instructions', () => 
 
 test('keeps source instructions out of the review checkout but in its diff', () => {
   const fixtureRoot = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'open-work-hub-codex-review-test.'),
+    path.join(os.tmpdir(), 'mty-codex-review-test.'),
   );
   const remote = path.join(fixtureRoot, 'remote.git');
   const checkout = path.join(fixtureRoot, 'checkout');
@@ -228,7 +228,7 @@ test('keeps source instructions out of the review checkout but in its diff', () 
       `#!/usr/bin/env node
 const fs = require('node:fs');
 const assert = require('node:assert/strict');
-assert.deepEqual(process.argv.slice(2), ['-n', '-H', '-u', 'owh-review-evidence', '/usr/local/libexec/open-work-hub-review-evidence']);
+assert.deepEqual(process.argv.slice(2), ['-n', '-H', '-u', 'mty-review-evidence', '/usr/local/libexec/mty-review-evidence']);
 (async () => {
   const { verifyEvidence } = await import(${JSON.stringify(path.join(repoRoot, 'scripts/codex-review-evidence.mjs'))});
   const input = JSON.parse(fs.readFileSync(0, 'utf8'));
@@ -688,7 +688,7 @@ test('reads later protection pages and fails closed on missing or unbounded evid
 });
 
 test('installer embeds the resolved glab path and rejects unsafe executable paths', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'owh-evidence-install.'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mty-evidence-install.'));
   try {
     const bin = path.join(root, 'bin');
     const custom = path.join(root, 'custom tools');
@@ -718,7 +718,7 @@ elif [ "$3" = "$BAD_MODE_PATH" ]; then echo 777; else echo 755; fi
       `#!/bin/bash
 set -eu
 [[ "$1" == install ]]
-if [[ "\${@: -1}" == /usr/local/libexec/open-work-hub-review-evidence ]]; then
+if [[ "\${@: -1}" == /usr/local/libexec/mty-review-evidence ]]; then
   cp "\${@: -2:1}" "$INSTALL_FIXTURE_OUTPUT"
 fi
 `,

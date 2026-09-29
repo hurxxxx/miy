@@ -109,8 +109,8 @@ class BrowserRPC(FakeRPC):
 
 
 def main():
-    port = int(os.environ.get("OPEN_WORK_HUB_CODEX_CONSOLE_PORT", "19365"))
-    url = make_url(os.environ["OPEN_WORK_HUB_TEST_POSTGRES_TEMPLATE_DSN"])
+    port = int(os.environ.get("MTY_CODEX_CONSOLE_PORT", "19365"))
+    url = make_url(os.environ["MTY_TEST_POSTGRES_TEMPLATE_DSN"])
     name = "console_test_browser_" + uuid4().hex
     with psycopg.connect(
         url.set(drivername="postgresql").render_as_string(hide_password=False), autocommit=True
@@ -152,7 +152,7 @@ def main():
                 settings = Settings(
                     database_url=target,
                     origin=f"http://127.0.0.1:{port}",
-                    base_path=os.environ.get("OPEN_WORK_HUB_CODEX_CONSOLE_BASE_PATH", ""),
+                    base_path=os.environ.get("MTY_CODEX_CONSOLE_BASE_PATH", ""),
                     workspace=root,
                     attachment_cache=directory / "attachments",
                     web_dist=Path(__file__).resolve().parents[2] / "codex-console-web/dist",

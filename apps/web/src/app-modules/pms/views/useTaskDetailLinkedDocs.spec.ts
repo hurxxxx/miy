@@ -1,4 +1,4 @@
-import type { BlockContent } from '@open-work-hub/ui';
+import type { BlockContent } from '@mty/ui';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { createInstance } from 'i18next';
@@ -63,8 +63,8 @@ const publication = vi.hoisted(() => ({
   attachTaskDoc: vi.fn(),
   detachTaskDoc: vi.fn(),
 }));
-vi.mock('@open-work-hub/ui', async (original) => ({
-  ...(await original<typeof import('@open-work-hub/ui')>()),
+vi.mock('@mty/ui', async (original) => ({
+  ...(await original<typeof import('@mty/ui')>()),
   useConfirm: () => ({ confirm: publication.confirm, confirmDialog: null }),
 }));
 vi.mock('@/src/app-modules/docs/public-api', () => ({

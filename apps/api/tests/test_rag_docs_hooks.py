@@ -5,20 +5,20 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import select
 
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.auth.models import User
-from open_work_hub_api.domains.docs import partitioning as docs_partitioning
-from open_work_hub_api.domains.docs import rag_sync as docs_rag_sync
-from open_work_hub_api.domains.docs.models import NativeDoc
-from open_work_hub_api.domains.rag.contracts import RagSyncOperation
-from open_work_hub_api.domains.rag.models import RagSyncJob, RagVisibilityRecomputeJob
-from open_work_hub_api.domains.retrieval.models import RetrievalPartition, RetrievalProjectionEvent
-from open_work_hub_api.domains.retrieval.partitioning import (
+from mty_api.core.db import get_session_factory
+from mty_api.domains.auth.models import User
+from mty_api.domains.docs import partitioning as docs_partitioning
+from mty_api.domains.docs import rag_sync as docs_rag_sync
+from mty_api.domains.docs.models import NativeDoc
+from mty_api.domains.rag.contracts import RagSyncOperation
+from mty_api.domains.rag.models import RagSyncJob, RagVisibilityRecomputeJob
+from mty_api.domains.retrieval.models import RetrievalPartition, RetrievalProjectionEvent
+from mty_api.domains.retrieval.partitioning import (
     RetrievalPartitionConflict,
 )
-from open_work_hub_api.domains.retrieval.projection_fencing import ProjectionEventRef
-from open_work_hub_api.domains.source_access import SourceAclPolicy
-from open_work_hub_api.domains.source_access.resource_types import NATIVE_DOC_RESOURCE_TYPE
+from mty_api.domains.retrieval.projection_fencing import ProjectionEventRef
+from mty_api.domains.source_access import SourceAclPolicy
+from mty_api.domains.source_access.resource_types import NATIVE_DOC_RESOURCE_TYPE
 
 
 def _job_rows() -> list[RagSyncJob]:
@@ -351,7 +351,7 @@ def test_meeting_doc_acl_changes_enqueue_rag_visibility_recompute_jobs(
     attendee = _create_company_user(
         client,
         admin_token,
-        email="meeting-rag-reader@open-work-hub.local",
+        email="meeting-rag-reader@mty.local",
         full_name="Meeting Rag Reader",
     )
     attendee_token = _login(

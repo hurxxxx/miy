@@ -13,7 +13,7 @@ export interface PersonalWidgetTodoLike {
   sortOrder: number;
 }
 
-export const PERSONAL_WIDGET_STORAGE_KEY = 'open-work-hub.personalWidget.v1';
+export const PERSONAL_WIDGET_STORAGE_KEY = 'mty.personalWidget.v1';
 
 export function personalWidgetStorageKey(userId: string): string {
   return `${PERSONAL_WIDGET_STORAGE_KEY}.${encodeURIComponent(userId)}`;

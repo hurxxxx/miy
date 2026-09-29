@@ -6,13 +6,13 @@ import pytest
 from starlette.websockets import WebSocketDisconnect
 
 from dev_accounts import auth_headers, dev_login
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.core.realtime import InProcessAppRealtimeHub, realtime_user_topic
-from open_work_hub_api.domains.auth.models import CompanyAppControl
-from open_work_hub_api.domains.community.models import CommunityPost
-from open_work_hub_api.domains.dm.models import DmMessage
-from open_work_hub_api.domains.pms.models import Notification
-from open_work_hub_api.domains.realtime import router
+from mty_api.core.db import get_session_factory
+from mty_api.core.realtime import InProcessAppRealtimeHub, realtime_user_topic
+from mty_api.domains.auth.models import CompanyAppControl
+from mty_api.domains.community.models import CommunityPost
+from mty_api.domains.dm.models import DmMessage
+from mty_api.domains.pms.models import Notification
+from mty_api.domains.realtime import router
 from test_notifications import _create_notification
 
 

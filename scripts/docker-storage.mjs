@@ -7,21 +7,21 @@ import { pathToFileURL } from 'node:url';
 const GIB = 1024 ** 3;
 const RETENTION_MS = 48 * 60 * 60 * 1000;
 const CACHE_LABELS = [
-  'io.open-work-hub.build-cache=true',
-  'org.opencontainers.image.title=Open Work Hub',
+  'io.mty.build-cache=true',
+  'org.opencontainers.image.title=MTY',
 ];
-const CURRENT_APP_TAG = 'open-work-hub-app:prod';
-const CANONICAL_VALIDATION_TAG = 'open-work-hub-validation:node22-python312';
+const CURRENT_APP_TAG = 'mty-app:prod';
+const CANONICAL_VALIDATION_TAG = 'mty-validation:node22-python312';
 const KEEP_TAGS = [
   CURRENT_APP_TAG,
-  'open-work-hub-app:prod-previous',
-  'open-work-hub-app:candidate',
+  'mty-app:prod-previous',
+  'mty-app:candidate',
   CANONICAL_VALIDATION_TAG,
 ];
 const RELEASE_TAG =
-  /^open-work-hub-app:(?:[0-9a-f]{12}|candidate-[0-9a-f]{12})$/;
+  /^mty-app:(?:[0-9a-f]{12}|candidate-[0-9a-f]{12})$/;
 const VALIDATION_TAG =
-  /^open-work-hub-validation:(?:deps-[0-9a-f]{12}|(?:before-)?agents-[0-9a-f]{8}|redis64-impact-release)$/;
+  /^mty-validation:(?:deps-[0-9a-f]{12}|(?:before-)?agents-[0-9a-f]{8}|redis64-impact-release)$/;
 
 export function diskHeadroom(stats) {
   const available = stats.bavail * stats.bsize;
@@ -77,7 +77,7 @@ export function retirementPlan(images, containers, now = Date.now()) {
         return (
           Boolean(currentCi) &&
           /^[0-9a-f]{64}$/.test(
-            image.Config?.Labels?.['io.open-work-hub.validation.contract'] ??
+            image.Config?.Labels?.['io.mty.validation.contract'] ??
               '',
           )
         );
@@ -86,7 +86,7 @@ export function retirementPlan(images, containers, now = Date.now()) {
         return (
           Boolean(currentApp) &&
           image.Config?.Labels?.['org.opencontainers.image.title'] ===
-            'Open Work Hub'
+            'MTY'
         );
       }
       return (

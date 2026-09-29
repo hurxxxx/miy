@@ -147,19 +147,19 @@ it('retries an unavailable initial session check without a page reload', async (
   expect(screen.queryByRole('button', { name: '연결 다시 시도' })).toBeNull();
 });
 
-it('exchanges an Open Work Hub handoff before checking the existing session', async () => {
+it('exchanges an MTY handoff before checking the existing session', async () => {
   const code = `cc1_${'a'.repeat(32)}`;
   window.history.replaceState(
     null,
     '',
     `/?task=${taskId}#${new URLSearchParams({
-      owh_issuer: 'https://dev.example.test',
-      owh_code: code,
+      mty_issuer: 'https://dev.example.test',
+      mty_code: code,
     })}`,
   );
   const original = vi.mocked(api).getMockImplementation()!;
   vi.mocked(api).mockImplementation(async (path, ...args) => {
-    if (path === '/session/owh') {
+    if (path === '/session/mty') {
       expect(args[0]).toEqual({
         issuer: 'https://dev.example.test',
         code,
@@ -173,7 +173,7 @@ it('exchanges an Open Work Hub handoff before checking the existing session', as
 
   await screen.findByRole('heading', { name: 'Test task' });
   expect(window.location.hash).toBe('');
-  expect(api).toHaveBeenCalledWith('/session/owh', {
+  expect(api).toHaveBeenCalledWith('/session/mty', {
     issuer: 'https://dev.example.test',
     code,
   });
@@ -186,8 +186,8 @@ it('runs handoff initialization once when StrictMode replays effects', async () 
     null,
     '',
     `/?task=${taskId}#${new URLSearchParams({
-      owh_issuer: 'https://dev.example.test',
-      owh_code: code,
+      mty_issuer: 'https://dev.example.test',
+      mty_code: code,
     })}`,
   );
   let finishHandoff!: (value: { authenticated: boolean }) => void;
@@ -196,7 +196,7 @@ it('runs handoff initialization once when StrictMode replays effects', async () 
   });
   const original = vi.mocked(api).getMockImplementation()!;
   vi.mocked(api).mockImplementation(async (path, ...args) => {
-    if (path === '/session/owh') return handoff;
+    if (path === '/session/mty') return handoff;
     return original(path, ...args);
   });
 
@@ -208,7 +208,7 @@ it('runs handoff initialization once when StrictMode replays effects', async () 
 
   await waitFor(() =>
     expect(
-      vi.mocked(api).mock.calls.filter(([path]) => path === '/session/owh'),
+      vi.mocked(api).mock.calls.filter(([path]) => path === '/session/mty'),
     ).toHaveLength(1),
   );
   expect(api).not.toHaveBeenCalledWith('/session');

@@ -7,14 +7,14 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 import pytest
 
-from open_work_hub_api.domains.document_processing import DocumentExtractBundle, EvidenceBlock
-from open_work_hub_api.domains.files.models import (
+from mty_api.domains.document_processing import DocumentExtractBundle, EvidenceBlock
+from mty_api.domains.files.models import (
     FileManagerCorpus,
     FileManagerFile,
     FileManagerFileSourceMetadata,
 )
-from open_work_hub_api.domains.files import rag_projection, rag_sync
-from open_work_hub_api.domains.files.rag_projection import (
+from mty_api.domains.files import rag_projection, rag_sync
+from mty_api.domains.files.rag_projection import (
     FILES_MIN_STRUCTURED_TEXT_CHARS,
     FILES_OCR_POLICY_VERSION,
     MAX_FILES_RAG_SOURCE_BYTES,
@@ -25,15 +25,15 @@ from open_work_hub_api.domains.files.rag_projection import (
     read_file_content,
     validate_office_archive,
 )
-from open_work_hub_api.domains.files.retrieval_contract import (
+from mty_api.domains.files.retrieval_contract import (
     files_retrieval_active_for_environment,
 )
-from open_work_hub_api.domains.files.source_access import FileManagerSourceAccessAdapter
-from open_work_hub_api.domains.files.search_projection import build_file_search_document
-from open_work_hub_api.domains.files.service import purge_file_retrieval_artifact
-from open_work_hub_api.domains.rag.contracts import RagScopeKind, RagSyncOperation
-from open_work_hub_api.domains.retrieval.projection_fencing import ProjectionEventRef
-from open_work_hub_api.domains.search.projection_identity import ensure_search_document_identity
+from mty_api.domains.files.source_access import FileManagerSourceAccessAdapter
+from mty_api.domains.files.search_projection import build_file_search_document
+from mty_api.domains.files.service import purge_file_retrieval_artifact
+from mty_api.domains.rag.contracts import RagScopeKind, RagSyncOperation
+from mty_api.domains.retrieval.projection_fencing import ProjectionEventRef
+from mty_api.domains.search.projection_identity import ensure_search_document_identity
 
 
 _FIXED_ZIP_TIMESTAMP = (2020, 1, 1, 0, 0, 0)

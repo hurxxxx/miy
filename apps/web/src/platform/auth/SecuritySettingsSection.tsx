@@ -1,5 +1,5 @@
-import { InlineNotice } from '@open-work-hub/ui/feedback/inline-notice';
-import { Button } from '@open-work-hub/ui/primitives/button';
+import { InlineNotice } from '@mty/ui/feedback/inline-notice';
+import { Button } from '@mty/ui/primitives/button';
 import type { Dispatch, FormEvent } from 'react';
 
 import { normalizeTimeZone } from '@/src/platform/time/time-utils';

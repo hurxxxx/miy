@@ -34,7 +34,7 @@ function auditItem(overrides: Partial<AuditLogItem> = {}): AuditLogItem {
   return {
     id: 'audit-1',
     action: 'auth.login',
-    actor_name: 'Open Work Hub Admin',
+    actor_name: 'MTY Admin',
     actor_user_id: 'user-1',
     created_at: '2026-06-18T09:00:00',
     entity_id: 'session-1',
@@ -51,7 +51,7 @@ describe('admin audit log model', () => {
 
     expect(display.actionLabel).toBe('로그인');
     expect(display.groupLabel).toBe('인증');
-    expect(display.actorLabel).toBe('Open Work Hub Admin');
+    expect(display.actorLabel).toBe('MTY Admin');
     expect(display.entityLabel).toBe('auth_session / session-1');
   });
 

@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from datetime import date
 
-from open_work_hub_api.domains.ai.registry import PreviewField
-from open_work_hub_api.domains.pms.approval_preview import (
+from mty_api.domains.ai.registry import PreviewField
+from mty_api.domains.pms.approval_preview import (
     build_add_comment_preview,
     build_create_task_preview,
     build_delete_task_preview,
     build_update_task_preview,
 )
-from open_work_hub_api.domains.pms.tools import PmsCreateTaskAiInput, PmsUpdateTaskAiInput
+from mty_api.domains.pms.tools import PmsCreateTaskAiInput, PmsUpdateTaskAiInput
 
 
 def test_create_task_preview_accepts_pydantic_args_and_compacts_lists() -> None:

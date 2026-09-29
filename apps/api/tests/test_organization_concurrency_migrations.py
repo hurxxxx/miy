@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from open_work_hub_api.domains.groups.models import Group
+from mty_api.domains.groups.models import Group
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
@@ -14,10 +14,10 @@ from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import sessionmaker
 from starlette.requests import Request
 
-from open_work_hub_api.domains.auth.dependencies import AuthContext
-from open_work_hub_api.domains.auth.models import AuthSession, User
-from open_work_hub_api.domains.groups import admin_router, service
-from open_work_hub_api.domains.groups.schemas import GroupUpdateRequest
+from mty_api.domains.auth.dependencies import AuthContext
+from mty_api.domains.auth.models import AuthSession, User
+from mty_api.domains.groups import admin_router, service
+from mty_api.domains.groups.schemas import GroupUpdateRequest
 
 pytestmark = pytest.mark.migration
 

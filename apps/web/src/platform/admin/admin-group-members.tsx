@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, SearchField } from '@open-work-hub/ui';
+import { Button, SearchField } from '@mty/ui';
 import type { ApiSchema } from '@/src/platform/api/types';
 import { DirectoryPicker } from '@/src/platform/directory/DirectoryPicker';
 import { listDirectoryOptions } from '@/src/platform/directory/directory-api';

@@ -14,7 +14,7 @@ SPEC = importlib.util.spec_from_file_location(
 )
 migration = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(migration)
-KEY = "OPEN_WORK_HUB_WORKER_DB_POOL_SIZE"
+KEY = "MTY_WORKER_DB_POOL_SIZE"
 
 
 class MigrationTest(unittest.TestCase):
@@ -29,13 +29,13 @@ class MigrationTest(unittest.TestCase):
             document["profiles"]["prod"][KEY] = 2
             config.write_text(json.dumps(document))
             env = root / ".env"
-            original = f"OPEN_WORK_HUB_ENV_PROFILE=dev\n{KEY}=1\n"
+            original = f"MTY_ENV_PROFILE=dev\n{KEY}=1\n"
             env.write_text(original)
             env.chmod(0o600)
-            with patch.dict(os.environ, {"OPEN_WORK_HUB_ENV_PROFILE": "prod"}):
+            with patch.dict(os.environ, {"MTY_ENV_PROFILE": "prod"}):
                 self.assertEqual(migration.migrate(root, ".env", apply=True), ())
                 self.assertEqual(env.read_text(), original)
-            with patch.dict(os.environ, {"OPEN_WORK_HUB_ENV_PROFILE": "dev"}):
+            with patch.dict(os.environ, {"MTY_ENV_PROFILE": "dev"}):
                 self.assertEqual(migration.migrate(root, ".env", apply=False), (KEY,))
 
     def test_duplicate_keys_and_multiline_changes_are_rejected(self):
@@ -49,10 +49,10 @@ class MigrationTest(unittest.TestCase):
         self.assertEqual(migration.prune_defaults(text, {KEY: 1}), (text, ()))
 
     def test_only_equal_defaults_are_removed(self):
-        text = f"# preserve\n{KEY}=1\nOPEN_WORK_HUB_SECRET='private'\nOTHER=2\n"
+        text = f"# preserve\n{KEY}=1\nMTY_SECRET='private'\nOTHER=2\n"
         migrated, keys = migration.prune_defaults(text, {KEY: 1})
         self.assertEqual(
-            migrated, "# preserve\nOPEN_WORK_HUB_SECRET='private'\nOTHER=2\n"
+            migrated, "# preserve\nMTY_SECRET='private'\nOTHER=2\n"
         )
         self.assertEqual(keys, (KEY,))
         self.assertEqual(
@@ -66,13 +66,13 @@ class MigrationTest(unittest.TestCase):
             (root / ".gitignore").write_text(".env*\n")
             shutil.copytree(ROOT / "config", root / "config")
             env = root / ".env"
-            original = f"{KEY}=1\nOPEN_WORK_HUB_SECRET=private\n"
+            original = f"{KEY}=1\nMTY_SECRET=private\n"
             env.write_text(original)
             env.chmod(0o600)
             self.assertEqual(migration.migrate(root, ".env", apply=False), (KEY,))
             self.assertEqual(env.read_text(), original)
             self.assertEqual(migration.migrate(root, ".env", apply=True), (KEY,))
-            self.assertEqual(env.read_text(), "OPEN_WORK_HUB_SECRET=private\n")
+            self.assertEqual(env.read_text(), "MTY_SECRET=private\n")
             self.assertEqual(env.stat().st_mode & 0o777, 0o600)
             backups = list(root.glob(".env.backup-config-*"))
             self.assertEqual(len(backups), 1)

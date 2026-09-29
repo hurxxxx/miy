@@ -20,7 +20,7 @@ const git = (root, args) =>
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'owh-hooks-test-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mty-hooks-test-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   git(root, ['init', '-q']);
   fs.writeFileSync(path.join(root, '.gitignore'), '.runtime/\n.env\n');
@@ -292,7 +292,7 @@ test('native execpolicy rules allow PR operations and retain unrelated mutation 
         'docker',
         'compose',
         '-f',
-        'ops/compose/open-work-hub-prod.app.yml',
+        'ops/compose/mty-prod.app.yml',
         'up',
       ],
       true,
@@ -302,7 +302,7 @@ test('native execpolicy rules allow PR operations and retain unrelated mutation 
         'docker',
         'compose',
         '-f',
-        'ops/compose/open-work-hub-prod.app.yml',
+        'ops/compose/mty-prod.app.yml',
         'config',
       ],
       false,

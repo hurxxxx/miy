@@ -1,4 +1,4 @@
-import { useFeedback } from '@open-work-hub/ui';
+import { useFeedback } from '@mty/ui';
 import { Download, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';

@@ -1,14 +1,14 @@
-from open_work_hub_api.core.settings import get_settings
+from mty_api.core.settings import get_settings
 from fastapi.testclient import TestClient
 import pytest
 from sqlalchemy import select
 
 from dev_accounts import auth_headers, create_company_user_session, dev_login
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.auth.models import AuditLog
-from open_work_hub_api.domains.docs.app_catalog import DOCS_APP
-from open_work_hub_api.domains.groups.models import GroupMember
-from open_work_hub_api.domains.groups.service import current_group_ids
+from mty_api.core.db import get_session_factory
+from mty_api.domains.auth.models import AuditLog
+from mty_api.domains.docs.app_catalog import DOCS_APP
+from mty_api.domains.groups.models import GroupMember
+from mty_api.domains.groups.service import current_group_ids
 
 
 def _auth_headers(token):

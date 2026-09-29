@@ -6,7 +6,7 @@ import {
   SearchField,
   useConfirm,
   useFeedback,
-} from '@open-work-hub/ui';
+} from '@mty/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FORM_FIELD_CLASS } from './admin-shared';

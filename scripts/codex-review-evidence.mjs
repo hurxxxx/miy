@@ -255,7 +255,7 @@ if (
     if (process.argv.length !== 2)
       throw new Error('Evidence helper accepts stdin only');
     const config = JSON.parse(
-      fs.readFileSync('/etc/open-work-hub/review-evidence.json', 'utf8'),
+      fs.readFileSync('/etc/mty/review-evidence.json', 'utf8'),
     );
     // Read a bounded identity request, never caller-selected code, paths or API routes.
     const chunks = [];

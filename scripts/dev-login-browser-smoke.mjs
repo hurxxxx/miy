@@ -3,12 +3,12 @@
 import { chromium } from '@playwright/test';
 
 const webBaseUrl = (
-  process.env.OPEN_WORK_HUB_DEV_SMOKE_WEB_URL ??
-  `http://127.0.0.1:${process.env.OPEN_WORK_HUB_WEB_DEV_PORT ?? '4200'}`
+  process.env.MTY_DEV_SMOKE_WEB_URL ??
+  `http://127.0.0.1:${process.env.MTY_WEB_DEV_PORT ?? '4200'}`
 ).replace(/\/$/, '');
 const loginId = 'administrator';
 const password =
-  process.env.OPEN_WORK_HUB_API_DEV_LOGIN_PASSWORD ?? 'open-work-hub-dev-only';
+  process.env.MTY_API_DEV_LOGIN_PASSWORD ?? 'mty-dev-only';
 
 let browser;
 try {
@@ -49,7 +49,7 @@ try {
   await allAppsButton.waitFor({ state: 'visible', timeout: 15_000 });
 
   const bootstrapProjection = await page.evaluate(async () => {
-    const token = window.localStorage.getItem('open-work-hub.auth.token');
+    const token = window.localStorage.getItem('mty.auth.token');
     if (!token)
       throw new Error('Authenticated browser session token is missing.');
 
@@ -131,7 +131,7 @@ try {
   }
 
   const logoutStatus = await page.evaluate(async () => {
-    const key = 'open-work-hub.auth.token';
+    const key = 'mty.auth.token';
     const token = window.localStorage.getItem(key);
     if (!token) return 0;
     const response = await fetch('/api/v1/auth/logout', {

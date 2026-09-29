@@ -4,10 +4,10 @@ Draw.io runs as a separate container. API stores diagram XML and PNG previews.
 
 ## Env
 
-- Local may use `OPEN_WORK_HUB_DRAWIO_BIND_HOST=0.0.0.0` and empty `OPEN_WORK_HUB_DRAWIO_SERVER_URL`.
-- Public deployments set an absolute HTTPS `OPEN_WORK_HUB_DRAWIO_SERVER_URL` on a dedicated origin.
-- `OPEN_WORK_HUB_DRAWIO_IMAGE_TAG` pins image version.
-- `OPEN_WORK_HUB_DRAWIO_PORT` is host port.
+- Local may use `MTY_DRAWIO_BIND_HOST=0.0.0.0` and empty `MTY_DRAWIO_SERVER_URL`.
+- Public deployments set an absolute HTTPS `MTY_DRAWIO_SERVER_URL` on a dedicated origin.
+- `MTY_DRAWIO_IMAGE_TAG` pins image version.
+- `MTY_DRAWIO_PORT` is host port.
 - Do not commit real `.env`.
 
 ## Deploy

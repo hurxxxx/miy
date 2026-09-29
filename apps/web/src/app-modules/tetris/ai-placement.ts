@@ -1,4 +1,4 @@
-import type { ApiSchema } from '@open-work-hub/contracts';
+import type { ApiSchema } from '@mty/contracts';
 import { landingPiece, step, type Game } from './engine';
 
 export type Placement = ApiSchema<'TetrisPlacement'>;

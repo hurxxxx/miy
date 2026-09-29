@@ -1,8 +1,8 @@
 import {
   APP_CONTRACT_BY_ID,
   type AppId,
-} from '@open-work-hub/contracts/app-contracts';
-import { buildAppEntryHref } from '@open-work-hub/contracts/app-routes';
+} from '@mty/contracts/app-contracts';
+import { buildAppEntryHref } from '@mty/contracts/app-routes';
 import type { ComponentType } from 'react';
 
 import type { AppLaunchDestinationResolver } from '@/src/app/shell/app-launch-destination';
@@ -408,7 +408,7 @@ export function buildAppBarItemsProjection({
               translate(`shell:apps.${activeAppId}`, {
                 defaultValue:
                   appBarItemById.get(activeAppId as AppBarItem['id'])?.title ??
-                  'Open Work Hub',
+                  'MTY',
               })),
     draftItems,
     fixedItems,

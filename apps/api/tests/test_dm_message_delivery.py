@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from open_work_hub_api.domains.dm import message_delivery, message_flow
+from mty_api.domains.dm import message_delivery, message_flow
 
 
 NOW = datetime(2026, 5, 21, 12, 0, 0)

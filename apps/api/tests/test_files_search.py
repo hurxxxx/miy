@@ -9,30 +9,30 @@ from sqlalchemy import delete, event, select
 
 from dev_accounts import auth_headers, content_headers, dev_login
 
-from open_work_hub_api.core.db import get_engine, get_session_factory
-from open_work_hub_api.domains.auth.models import CompanyAppControl, User
-from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
-from open_work_hub_api.domains.files import service as files_service
-from open_work_hub_api.domains.files.models import (
+from mty_api.core.db import get_engine, get_session_factory
+from mty_api.domains.auth.models import CompanyAppControl, User
+from mty_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
+from mty_api.domains.files import service as files_service
+from mty_api.domains.files.models import (
     FileManagerFile,
     FileManagerFileSourceMetadata,
 )
-from open_work_hub_api.domains.files import search as file_search
-from open_work_hub_api.domains.files.external_projection import safe_external_source_metadata
-from open_work_hub_api.domains.files.router import require_file_search_runtime
-from open_work_hub_api.domains.files.search import FileSearchRuntime
-from open_work_hub_api.domains.files.search_projection import build_file_search_document
-from open_work_hub_api.domains.rag.contracts import RagChunk, RagProjection, RagScopeKind
-from open_work_hub_api.domains.rag.providers.fake import FakeEmbeddingClient, FakeVectorIndexClient
-from open_work_hub_api.domains.rag.query_service import RagQueryService
-from open_work_hub_api.domains.rag.service import RagService
-from open_work_hub_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOURCE_TYPE
-from open_work_hub_api.domains.search.backend_contracts import (
+from mty_api.domains.files import search as file_search
+from mty_api.domains.files.external_projection import safe_external_source_metadata
+from mty_api.domains.files.router import require_file_search_runtime
+from mty_api.domains.files.search import FileSearchRuntime
+from mty_api.domains.files.search_projection import build_file_search_document
+from mty_api.domains.rag.contracts import RagChunk, RagProjection, RagScopeKind
+from mty_api.domains.rag.providers.fake import FakeEmbeddingClient, FakeVectorIndexClient
+from mty_api.domains.rag.query_service import RagQueryService
+from mty_api.domains.rag.service import RagService
+from mty_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOURCE_TYPE
+from mty_api.domains.search.backend_contracts import (
     KeywordSearchHit,
     KeywordSearchQuery,
     KeywordSearchResult,
 )
-from open_work_hub_api.domains.retrieval.runtime_binding import (
+from mty_api.domains.retrieval.runtime_binding import (
     PartitionedRetrievalRuntimeUnavailable,
 )
 

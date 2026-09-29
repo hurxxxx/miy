@@ -14,7 +14,7 @@ from sqlalchemy import delete, func, select, text
 from sqlalchemy.exc import IntegrityError
 from starlette.requests import ClientDisconnect
 
-from . import attachments, auth, git, owh_sso, store
+from . import attachments, auth, git, mty_sso, store
 from .config import Settings
 from .errors import ConsoleError
 from .models import Event, Task, database
@@ -39,7 +39,7 @@ from .schemas import (
     ModelOut,
     NewTask,
     Ok,
-    OwhSessionInput,
+    MTYSessionInput,
     Recover,
     SessionOut,
     TaskDetail,
@@ -206,13 +206,13 @@ def create_app(settings=None, *, rpc_factory=CodexRPC):
         token, csrf = result
         return _authenticated_response(cfg, request, token, csrf)
 
-    @app.post("/api/session/owh", response_model=SessionOut)
-    def login_from_open_work_hub(body: OwhSessionInput, request: Request):
+    @app.post("/api/session/mty", response_model=SessionOut)
+    def login_from_mty(body: MTYSessionInput, request: Request):
         cfg = app.state.settings
         expected_subject = cfg.sso_subjects.get(body.issuer)
         if expected_subject is None:
             raise ConsoleError("login_failed", 401)
-        subject = owh_sso.exchange_code(issuer=body.issuer, code=body.code)
+        subject = mty_sso.exchange_code(issuer=body.issuer, code=body.code)
         if subject != str(expected_subject):
             raise ConsoleError("login_failed", 401)
         token, csrf = auth.create_session(app.state.factory, cfg.session_hours)

@@ -6,7 +6,7 @@ import {
   Select,
   useConfirm,
   useFeedback,
-} from '@open-work-hub/ui';
+} from '@mty/ui';
 import {
   CircleStop,
   GitBranch,

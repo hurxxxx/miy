@@ -6,15 +6,15 @@ await new Promise<void>((resolve) =>
   reservation.listen(0, '127.0.0.1', resolve),
 );
 const port = Number(
-  process.env.OPEN_WORK_HUB_CODEX_CONSOLE_PORT ??
+  process.env.MTY_CODEX_CONSOLE_PORT ??
     (reservation.address() as AddressInfo).port,
 );
 await new Promise<void>((resolve, reject) =>
   reservation.close((error) => (error ? reject(error) : resolve())),
 );
-const basePath = process.env.OPEN_WORK_HUB_CODEX_CONSOLE_BASE_PATH ?? '';
+const basePath = process.env.MTY_CODEX_CONSOLE_BASE_PATH ?? '';
 const baseURL = `http://127.0.0.1:${port}${basePath}/`;
-process.env.OPEN_WORK_HUB_CODEX_CONSOLE_PORT = String(port);
+process.env.MTY_CODEX_CONSOLE_PORT = String(port);
 
 export default defineConfig({
   testDir: './e2e',

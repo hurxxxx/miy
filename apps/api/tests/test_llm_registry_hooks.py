@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 import pytest
-from open_work_hub_api.domains.ai import registry as module
+from mty_api.domains.ai import registry as module
 
 
 def test_app_registration_alone_loads_and_deduplicates_ai_hooks(monkeypatch):
@@ -31,7 +31,7 @@ def test_declared_missing_ai_hook_fails_closed():
 
 @pytest.mark.anyio
 async def test_agent_status_uses_current_policy_when_cached_profile_metadata_is_stale(monkeypatch):
-    from open_work_hub_api.domains.hermes import router
+    from mty_api.domains.hermes import router
 
     binding = SimpleNamespace(
         profile_name="same-user", status="ready", provider="openai", model="B"
@@ -70,8 +70,8 @@ async def test_agent_status_uses_current_policy_when_cached_profile_metadata_is_
     ],
 )
 def test_connection_families_share_native_policy_contract(provider, route, endpoint, wire):
-    from open_work_hub_api.core.llm import LlmPoolConfig
-    from open_work_hub_api.domains.hermes.model_policy import HermesModelPolicy
+    from mty_api.core.llm import LlmPoolConfig
+    from mty_api.domains.hermes.model_policy import HermesModelPolicy
 
     config = LlmPoolConfig(
         pool=route,
@@ -87,7 +87,7 @@ def test_connection_families_share_native_policy_contract(provider, route, endpo
     policy = HermesModelPolicy.from_pool(config, model="test/model", max_tokens=8192)
     assert policy.api_mode == wire
     assert policy.connection_id == "connection-one"
-    assert policy.run_options()["owh_policy"]["model"] == "test/model"
+    assert policy.run_options()["mty_policy"]["model"] == "test/model"
     assert "synthetic-private-key" not in repr(config)
     assert "synthetic-private-key" not in repr(policy.run_options())
     if provider == "gemini":
@@ -95,7 +95,7 @@ def test_connection_families_share_native_policy_contract(provider, route, endpo
 
 
 def test_retired_web_search_routes_are_absent_and_chatbot_remains(client):
-    from open_work_hub_api.domains.auth.app_catalog import get_app_catalog_item
+    from mty_api.domains.auth.app_catalog import get_app_catalog_item
 
     assert get_app_catalog_item("web-search") is None
     assert get_app_catalog_item("chatbot") is not None

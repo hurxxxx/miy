@@ -2,27 +2,27 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 from dev_accounts import dev_login, create_company_user_session, auth_headers
-from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy
+from mty_api.domains.auth.app_access_models import AppAccessPolicy
 
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.core.settings import get_settings
-from open_work_hub_api.domains.ai.registry import reset_ai_capability_registry
-from open_work_hub_api.domains.auth.access import load_user_graph
-from open_work_hub_api.domains.docs import service as docs_service
-from open_work_hub_api.domains.rag import application as rag_application
-from open_work_hub_api.domains.rag.default_source_adapters import registered_searchable_rag_app_ids
-from open_work_hub_api.domains.rag.docs_projection import load_native_doc_projection
-from open_work_hub_api.domains.rag.providers.fake import (
+from mty_api.core.db import get_session_factory
+from mty_api.core.settings import get_settings
+from mty_api.domains.ai.registry import reset_ai_capability_registry
+from mty_api.domains.auth.access import load_user_graph
+from mty_api.domains.docs import service as docs_service
+from mty_api.domains.rag import application as rag_application
+from mty_api.domains.rag.default_source_adapters import registered_searchable_rag_app_ids
+from mty_api.domains.rag.docs_projection import load_native_doc_projection
+from mty_api.domains.rag.providers.fake import (
     FakeEmbeddingClient,
     FakeRerankClient,
     FakeVectorIndexClient,
 )
-from open_work_hub_api.domains.rag.query_service import RagQueryService
-from open_work_hub_api.domains.rag.runtime import (
+from mty_api.domains.rag.query_service import RagQueryService
+from mty_api.domains.rag.runtime import (
     reset_rag_runtime_caches,
     resolve_default_collection_name,
 )
-from open_work_hub_api.domains.rag.service import RagService
+from mty_api.domains.rag.service import RagService
 
 
 def _create_user_session(client, admin_token, *, login_id, email, full_name, role="member"):
@@ -54,7 +54,7 @@ def test_rag_query_hides_other_users_personal_docs_even_from_platform_admin(
     client: TestClient,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("OPEN_WORK_HUB_RAG_ENABLED", "1")
+    monkeypatch.setenv("MTY_RAG_ENABLED", "1")
     _reset_settings_and_registry()
     delivery_session = dev_login(client, "administrator")
     other_session = create_company_user_session(
@@ -127,7 +127,7 @@ def test_company_rag_reindex_requires_admin(
     client: TestClient,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("OPEN_WORK_HUB_RAG_ENABLED", "1")
+    monkeypatch.setenv("MTY_RAG_ENABLED", "1")
     _reset_settings_and_registry()
     admin_session = dev_login(client, "administrator")
     session = _create_user_session(
@@ -151,7 +151,7 @@ def test_company_rag_reindex_enforces_cooldown(
     client: TestClient,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("OPEN_WORK_HUB_RAG_ENABLED", "1")
+    monkeypatch.setenv("MTY_RAG_ENABLED", "1")
     _reset_settings_and_registry()
     session = dev_login(client, "administrator")
     with get_session_factory()() as db:
@@ -185,7 +185,7 @@ def test_company_rag_query_validates_payload(
     client: TestClient,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("OPEN_WORK_HUB_RAG_ENABLED", "1")
+    monkeypatch.setenv("MTY_RAG_ENABLED", "1")
     _reset_settings_and_registry()
     session = dev_login(client, "administrator")
 
@@ -219,7 +219,7 @@ def test_company_rag_query_validates_payload(
 
 
 def test_rag_query_rejects_user_without_admitted_sources(client, monkeypatch):
-    monkeypatch.setenv("OPEN_WORK_HUB_RAG_ENABLED", "1")
+    monkeypatch.setenv("MTY_RAG_ENABLED", "1")
     _reset_settings_and_registry()
     dev_login(client, "administrator")
     session = create_company_user_session(
@@ -244,7 +244,7 @@ def test_rag_ai_manifest_hides_tools_when_no_searchable_apps_enabled(
     client: TestClient,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("OPEN_WORK_HUB_RAG_ENABLED", "1")
+    monkeypatch.setenv("MTY_RAG_ENABLED", "1")
     _reset_settings_and_registry()
     session = dev_login(client, "administrator")
     for app_id in sorted(registered_searchable_rag_app_ids()):

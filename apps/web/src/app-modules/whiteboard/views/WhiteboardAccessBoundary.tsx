@@ -1,7 +1,7 @@
 import {
   createWhiteboardAccessRealtimeSubscriptionMessage,
   REALTIME_TOPIC_EVENT_TYPES,
-} from '@open-work-hub/contracts/realtime';
+} from '@mty/contracts/realtime';
 import {
   Fragment,
   useCallback,

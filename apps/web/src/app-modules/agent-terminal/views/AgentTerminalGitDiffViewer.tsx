@@ -1,4 +1,4 @@
-import { Badge, Button, Dialog, EmptyState } from '@open-work-hub/ui';
+import { Badge, Button, Dialog, EmptyState } from '@mty/ui';
 import {
   ChevronDown,
   ChevronRight,

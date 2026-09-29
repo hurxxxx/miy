@@ -5,9 +5,9 @@ import pytest
 from sqlalchemy.orm import Session
 
 from dm_query_fixture import JOINED_AT, dm_db as dm_db
-from open_work_hub_api.domains.auth.models import User
-from open_work_hub_api.domains.dm import conversation_queries
-from open_work_hub_api.domains.dm.models import DmConversationParticipant, DmMessage
+from mty_api.domains.auth.models import User
+from mty_api.domains.dm import conversation_queries
+from mty_api.domains.dm.models import DmConversationParticipant, DmMessage
 
 
 def test_require_user_conversation_loads_only_the_requested_active_membership(dm_db: Session):

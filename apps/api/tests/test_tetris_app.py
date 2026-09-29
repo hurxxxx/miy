@@ -1,11 +1,11 @@
 from fastapi.testclient import TestClient
 
 from dev_accounts import create_company_user_session, dev_login
-from open_work_hub_api.core.app_routes import app_route_pattern
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.auth.app_catalog import get_app_catalog_item
-from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy
-from open_work_hub_api.domains.auth.models import CompanyAppControl
+from mty_api.core.app_routes import app_route_pattern
+from mty_api.core.db import get_session_factory
+from mty_api.domains.auth.app_catalog import get_app_catalog_item
+from mty_api.domains.auth.app_access_models import AppAccessPolicy
+from mty_api.domains.auth.models import CompanyAppControl
 
 
 def test_tetris_catalog_contract():

@@ -22,23 +22,23 @@ from pydantic import ValidationError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from open_work_hub_api.core.app_contracts_generated import APP_CONTRACT_BY_ID
-from open_work_hub_api.core.settings import (
+from mty_api.core.app_contracts_generated import APP_CONTRACT_BY_ID
+from mty_api.core.settings import (
     HERMES_PROVIDER,
     Settings,
 )
-from open_work_hub_api.domains.hermes_terminal.legacy_policy import HERMES_MODEL, HERMES_FALLBACK_MODEL
-from open_work_hub_api.domains.auth.models import User, utcnow_naive
-from open_work_hub_api.domains.hermes.models import HermesProfileBinding
-from open_work_hub_api.domains.hermes.research_sources import DEFAULT_RESEARCH_SOURCE_POLICY
-from open_work_hub_api.domains.hermes_terminal import (
+from mty_api.domains.hermes_terminal.legacy_policy import HERMES_MODEL, HERMES_FALLBACK_MODEL
+from mty_api.domains.auth.models import User, utcnow_naive
+from mty_api.domains.hermes.models import HermesProfileBinding
+from mty_api.domains.hermes.research_sources import DEFAULT_RESEARCH_SOURCE_POLICY
+from mty_api.domains.hermes_terminal import (
     broker_app,
     lifecycle,
     maintenance,
     mcp_router,
     storage,
 )
-from open_work_hub_api.domains.hermes_terminal.broker_runtime import (
+from mty_api.domains.hermes_terminal.broker_runtime import (
     BrokerRuntimeError,
     HermesTerminalBrokerRuntime,
     RuntimeSession,
@@ -51,12 +51,12 @@ from open_work_hub_api.domains.hermes_terminal.broker_runtime import (
     build_runner_mounts,
     build_runner_ulimits,
 )
-from open_work_hub_api.domains.hermes_terminal.schemas import HermesTerminalSessionCreateRequest
-from open_work_hub_api.domains.hermes_terminal.models import HermesTerminalSession
-from open_work_hub_api.domains.hermes_terminal.mcp_socket_server import (
+from mty_api.domains.hermes_terminal.schemas import HermesTerminalSessionCreateRequest
+from mty_api.domains.hermes_terminal.models import HermesTerminalSession
+from mty_api.domains.hermes_terminal.mcp_socket_server import (
     HermesTerminalMcpSocketServer,
 )
-from open_work_hub_api.domains.hermes_terminal.security import (
+from mty_api.domains.hermes_terminal.security import (
     broker_bearer_token,
     normalize_relative_path,
     terminal_profile_name,
@@ -117,11 +117,11 @@ def test_runner_ulimits_allow_official_package_installs_without_core_dumps() -> 
 
 
 def test_broker_rejects_invalid_numeric_runtime_settings(monkeypatch) -> None:
-    monkeypatch.setenv("OWH_HERMES_TERMINAL_WORKSPACE_LIVE_MAX_BYTES", "invalid")
+    monkeypatch.setenv("MTY_HERMES_TERMINAL_WORKSPACE_LIVE_MAX_BYTES", "invalid")
 
     with pytest.raises(BrokerRuntimeError, match="runtime_setting_invalid"):
         HermesTerminalBrokerRuntime._environment_int(
-            "OWH_HERMES_TERMINAL_WORKSPACE_LIVE_MAX_BYTES",
+            "MTY_HERMES_TERMINAL_WORKSPACE_LIVE_MAX_BYTES",
             1024,
         )
 
@@ -241,7 +241,7 @@ def test_workspace_artifact_scan_reports_every_unsupported_or_duplicate_file() -
             archive.addfile(info, BytesIO(data))
 
         add_file("workspace/result.txt", b"result")
-        add_file("workspace/.owh-runtime/private", b"internal")
+        add_file("workspace/.mty-runtime/private", b"internal")
         link = tarfile.TarInfo("workspace/link.txt")
         link.type = tarfile.SYMTYPE
         link.linkname = "result.txt"
@@ -344,7 +344,7 @@ def test_profile_configuration_applies_managed_resilience_policy() -> None:
         "display.mouse_tracking",
         "off",
     ] in commands
-    assert mcp_servers["open-work-hub"]["trust"] == "full"
+    assert mcp_servers["mty"]["trust"] == "full"
     assert "google/gemini" not in serialized
     assert "rewrite" not in serialized.lower()
 
@@ -480,14 +480,14 @@ def test_broker_reconciles_only_old_namespaced_orphan_workspaces() -> None:
     old = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
 
     class FakeVolume:
-        name = "owh-hermes-terminal-dev-workspace-orphan"
+        name = "mty-hermes-terminal-dev-workspace-orphan"
         attrs = {
             "CreatedAt": old,
             "Labels": {
-                "open-work-hub.hermes-terminal.managed": "true",
-                "open-work-hub.hermes-terminal.namespace": "dev",
-                "open-work-hub.hermes-terminal.resource-kind": "workspace",
-                "open-work-hub.hermes-terminal.session-id": str(uuid4()),
+                "mty.hermes-terminal.managed": "true",
+                "mty.hermes-terminal.namespace": "dev",
+                "mty.hermes-terminal.resource-kind": "workspace",
+                "mty.hermes-terminal.session-id": str(uuid4()),
             },
         }
 
@@ -522,14 +522,14 @@ def test_broker_reconciles_old_namespaced_orphan_runner_and_workspace() -> None:
     old = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
 
     class FakeVolume:
-        name = "owh-hermes-terminal-dev-workspace-orphan-runner"
+        name = "mty-hermes-terminal-dev-workspace-orphan-runner"
         attrs = {
             "CreatedAt": old,
             "Labels": {
-                "open-work-hub.hermes-terminal.managed": "true",
-                "open-work-hub.hermes-terminal.namespace": "dev",
-                "open-work-hub.hermes-terminal.resource-kind": "workspace",
-                "open-work-hub.hermes-terminal.session-id": session_id,
+                "mty.hermes-terminal.managed": "true",
+                "mty.hermes-terminal.namespace": "dev",
+                "mty.hermes-terminal.resource-kind": "workspace",
+                "mty.hermes-terminal.session-id": session_id,
             },
         }
 
@@ -542,20 +542,20 @@ def test_broker_reconciles_old_namespaced_orphan_runner_and_workspace() -> None:
 
     class FakeContainer:
         id = "orphan-runner"
-        name = "owh-hermes-terminal-dev-orphan"
+        name = "mty-hermes-terminal-dev-orphan"
         status = "exited"
         labels = {
-            "open-work-hub.hermes-terminal.managed": "true",
-            "open-work-hub.hermes-terminal.namespace": "dev",
-            "open-work-hub.hermes-terminal.resource-kind": "runner",
-            "open-work-hub.hermes-terminal.session-id": session_id,
+            "mty.hermes-terminal.managed": "true",
+            "mty.hermes-terminal.namespace": "dev",
+            "mty.hermes-terminal.resource-kind": "runner",
+            "mty.hermes-terminal.session-id": session_id,
         }
         attrs = {
             "Created": old,
             "Mounts": [
                 {
                     "Destination": "/workspace",
-                    "Name": "owh-hermes-terminal-dev-workspace-orphan-runner",
+                    "Name": "mty-hermes-terminal-dev-workspace-orphan-runner",
                 }
             ],
         }
@@ -595,7 +595,7 @@ def test_broker_websocket_disconnect_closes_the_raw_docker_socket(
     monkeypatch,
 ) -> None:
     root_secret = "terminal-test-mcp-secret-00000000000000000001"
-    monkeypatch.setenv("OPEN_WORK_HUB_HERMES_MCP_SHARED_SECRET", root_secret)
+    monkeypatch.setenv("MTY_HERMES_MCP_SHARED_SECRET", root_secret)
 
     class FakeAttached:
         def __init__(self) -> None:
@@ -681,7 +681,7 @@ def test_profile_export_removes_only_ephemeral_session_credentials() -> None:
             "/opt/hermes/.venv/bin/hermes",
             "config",
             "unset",
-            "MCP_OPEN_WORK_HUB_API_KEY",
+            "MCP_MTY_API_KEY",
         ],
     ]
 
@@ -767,15 +767,15 @@ def test_profile_export_stages_on_the_private_volume_for_docker_copy() -> None:
     runtime._extract_single_file = (  # type: ignore[method-assign]
         lambda _archive, *, basename, max_bytes: (
             b"profile archive"
-            if basename == ".owh-terminal-profile-export.tar.gz" and max_bytes == 64 * 1024 * 1024
+            if basename == ".mty-terminal-profile-export.tar.gz" and max_bytes == 64 * 1024 * 1024
             else b"unexpected"
         )
     )
 
     assert runtime.export_profile("session-1") == b"profile archive"
-    assert archive_paths == ["/opt/data/.owh-terminal-profile-export.tar.gz"]
+    assert archive_paths == ["/opt/data/.mty-terminal-profile-export.tar.gz"]
     assert (
-        ["rm", "-f", "/opt/data/.owh-terminal-profile-export.tar.gz"],
+        ["rm", "-f", "/opt/data/.mty-terminal-profile-export.tar.gz"],
         {"user": "10000:10000"},
     ) in calls
 
@@ -814,7 +814,7 @@ def test_profile_import_stages_on_the_writable_private_volume() -> None:
     destination, docker_archive = staged[0]
     assert destination == "/opt/data"
     with tarfile.open(fileobj=BytesIO(docker_archive), mode="r:") as archive:
-        member = archive.getmember(".owh-terminal-profile-import.tar.gz")
+        member = archive.getmember(".mty-terminal-profile-import.tar.gz")
         source = archive.extractfile(member)
         assert source is not None
         assert source.read() == b"profile archive"
@@ -823,14 +823,14 @@ def test_profile_import_stages_on_the_writable_private_volume() -> None:
             "/opt/hermes/.venv/bin/hermes",
             "profile",
             "import",
-            "/opt/data/.owh-terminal-profile-import.tar.gz",
+            "/opt/data/.mty-terminal-profile-import.tar.gz",
             "--name",
             "terminal",
         ],
         {"environment": None, "user": "10000:10000"},
     ) in calls
     assert (
-        ["rm", "-f", "/opt/data/.owh-terminal-profile-import.tar.gz"],
+        ["rm", "-f", "/opt/data/.mty-terminal-profile-import.tar.gz"],
         {"user": "10000:10000"},
     ) in calls
 
@@ -886,7 +886,7 @@ def test_runner_volumes_disable_image_copy_up_and_keep_egress_read_only() -> Non
             "VolumeOptions": {"NoCopy": True},
         },
         {
-            "Target": "/run/owh-egress",
+            "Target": "/run/mty-egress",
             "Source": "egress-volume",
             "Type": "volume",
             "ReadOnly": True,
@@ -897,6 +897,7 @@ def test_runner_volumes_disable_image_copy_up_and_keep_egress_read_only() -> Non
 
 def test_private_profile_identity_and_paths_are_stable_and_contained() -> None:
     profile = terminal_profile_name("binding-1")
+    assert profile.startswith("mtyterm")
     assert profile == terminal_profile_name("binding-1")
     assert profile != terminal_profile_name("binding-2")
     assert len(profile) <= 63
@@ -972,7 +973,7 @@ def test_terminal_mcp_socket_has_one_owner_and_safe_shared_shutdown() -> None:
         assert not socket_path.exists()
 
     # pytest's test-name/worker suffix can exceed AF_UNIX's path limit on macOS.
-    with TemporaryDirectory(prefix="owh-sock-") as directory:
+    with TemporaryDirectory(prefix="mty-sock-") as directory:
         socket_path = Path(directory) / "mcp.sock"
         asyncio.run(exercise())
 
@@ -1361,7 +1362,7 @@ def test_archive_recovery_reclaims_stale_sessions_without_releasing_early(
     binding = HermesProfileBinding(
         id=str(uuid4()),
         user_id=user.id,
-        profile_name=f"owh-terminal-{suffix[:24]}",
+        profile_name=f"mty-terminal-{suffix[:24]}",
         status="active",
         provider=HERMES_PROVIDER,
         model=HERMES_MODEL,

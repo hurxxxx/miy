@@ -13,15 +13,15 @@ RUN pip install --no-cache-dir \
 
 WORKDIR /opt/broker
 
-COPY apps/api/src/open_work_hub_api/__init__.py open_work_hub_api/__init__.py
-COPY apps/api/src/open_work_hub_api/domains/__init__.py open_work_hub_api/domains/__init__.py
-COPY apps/api/src/open_work_hub_api/domains/hermes/__init__.py open_work_hub_api/domains/hermes/__init__.py
-COPY apps/api/src/open_work_hub_api/domains/hermes/research_sources.py open_work_hub_api/domains/hermes/research_sources.py
-COPY apps/api/src/open_work_hub_api/domains/hermes_terminal/__init__.py open_work_hub_api/domains/hermes_terminal/__init__.py
-COPY apps/api/src/open_work_hub_api/domains/hermes_terminal/legacy_policy.py open_work_hub_api/domains/hermes_terminal/legacy_policy.py
-COPY apps/api/src/open_work_hub_api/domains/hermes_terminal/broker_app.py open_work_hub_api/domains/hermes_terminal/broker_app.py
-COPY apps/api/src/open_work_hub_api/domains/hermes_terminal/broker_runtime.py open_work_hub_api/domains/hermes_terminal/broker_runtime.py
+COPY apps/api/src/mty_api/__init__.py mty_api/__init__.py
+COPY apps/api/src/mty_api/domains/__init__.py mty_api/domains/__init__.py
+COPY apps/api/src/mty_api/domains/hermes/__init__.py mty_api/domains/hermes/__init__.py
+COPY apps/api/src/mty_api/domains/hermes/research_sources.py mty_api/domains/hermes/research_sources.py
+COPY apps/api/src/mty_api/domains/hermes_terminal/__init__.py mty_api/domains/hermes_terminal/__init__.py
+COPY apps/api/src/mty_api/domains/hermes_terminal/legacy_policy.py mty_api/domains/hermes_terminal/legacy_policy.py
+COPY apps/api/src/mty_api/domains/hermes_terminal/broker_app.py mty_api/domains/hermes_terminal/broker_app.py
+COPY apps/api/src/mty_api/domains/hermes_terminal/broker_runtime.py mty_api/domains/hermes_terminal/broker_runtime.py
 
 EXPOSE 18765
 
-CMD ["uvicorn", "open_work_hub_api.domains.hermes_terminal.broker_app:app", "--host", "0.0.0.0", "--port", "18765", "--no-access-log"]
+CMD ["uvicorn", "mty_api.domains.hermes_terminal.broker_app:app", "--host", "0.0.0.0", "--port", "18765", "--no-access-log"]

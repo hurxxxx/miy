@@ -1,4 +1,4 @@
-import { Button, Dialog, Input } from '@open-work-hub/ui';
+import { Button, Dialog, Input } from '@mty/ui';
 import {
   ArrowUp,
   CircleStop,
@@ -19,7 +19,7 @@ import {
   api,
   apiBasePath,
   ApiError,
-  consumeOwhSessionHandoff,
+  consumeMTYSessionHandoff,
   locked,
   record,
   uploadAttachment,
@@ -180,7 +180,7 @@ export function App() {
     }
   }, [onError]);
   const initializeSession = useCallback(async () => {
-    const handoff = consumeOwhSessionHandoff();
+    const handoff = consumeMTYSessionHandoff();
     if (!handoff) {
       await checkSession();
       return;
@@ -189,7 +189,7 @@ export function App() {
     setError(null);
     try {
       const value = await api<{ authenticated: boolean }>(
-        '/session/owh',
+        '/session/mty',
         handoff,
       );
       setAuthenticated(value.authenticated);

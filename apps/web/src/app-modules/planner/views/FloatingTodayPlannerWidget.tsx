@@ -1,5 +1,5 @@
-import { buildAppHref } from '@open-work-hub/contracts/app-routes';
-import { Button, InlineNotice } from '@open-work-hub/ui';
+import { buildAppHref } from '@mty/contracts/app-routes';
+import { Button, InlineNotice } from '@mty/ui';
 import {
   CalendarDays,
   CalendarPlus,

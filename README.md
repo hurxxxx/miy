@@ -1,4 +1,4 @@
-# Open Work Hub
+# MTY
 
 ## 사전 준비
 
@@ -10,7 +10,7 @@ Ubuntu Server 26.04 LTS 권장 · CPU 4코어 이상 · 메모리 32GB 이상 ·
 
 ```bash
 sudo usermod -aG sudo user
-sudo visudo -f /etc/sudoers.d/99-open-work-hub-installer
+sudo visudo -f /etc/sudoers.d/99-mty-installer
 ```
 
 열린 편집기에 아래 규칙을 입력합니다. 여기의 `user`도 같은 설치 계정명으로 바꾸세요.
@@ -49,8 +49,8 @@ nvm install 24
 
 ## 2. 원본 코드 받기
 
-아래 예시를 그대로 실행하면 `/projects/open-work-hub/dev`에 설치됩니다.
-다른 위치를 원하면 첫 줄의 `owh_install_root`를 원하는 상위 디렉터리 경로로 바꾸세요.
+아래 예시를 그대로 실행하면 `/projects/mty/dev`에 설치됩니다.
+다른 위치를 원하면 첫 줄의 `mty_install_root`를 원하는 상위 디렉터리 경로로 바꾸세요.
 그 아래에 개발 저장소 `dev`를 만들고, 이후 같은 상위 경로에 `prod`와 `worktrees`를 추가해 관리할 수 있습니다.
 기존 체크아웃이 있다면 해당 저장소로 이동해 3절부터 진행하고 아래 명령은 건너뛰세요.
 
@@ -58,12 +58,12 @@ nvm install 24
 이미 있다면 소유권을 유지하므로, 설치 계정에 해당 디렉터리의 쓰기 권한이 있어야 합니다.
 
 ```bash
-owh_install_root=/projects/open-work-hub
-if [ ! -e "$owh_install_root" ] && [ ! -L "$owh_install_root" ]; then
-  sudo install -d -m 0755 -o "$(id -u)" -g "$(id -g)" "$owh_install_root"
+mty_install_root=/projects/mty
+if [ ! -e "$mty_install_root" ] && [ ! -L "$mty_install_root" ]; then
+  sudo install -d -m 0755 -o "$(id -u)" -g "$(id -g)" "$mty_install_root"
 fi
-cd "$owh_install_root"
-git clone --origin upstream --branch main https://github.com/hurxxxx/open-work-hub.git dev
+cd "$mty_install_root"
+git clone --origin upstream --branch main https://github.com/hurxxxx/mty.git dev
 cd dev
 git switch --no-track -c dev
 git config remote.pushDefault origin
@@ -110,7 +110,7 @@ Codex 콘솔은 현재 ChatGPT 구독을 사용하는 별도 웹 작업실입니
 AGENTS.md와 INSTALL.md를 따라 현재 체크아웃 경로에 최소 개발 환경을 설치해줘. 사용자가 선택한 설치 경로를 유지해줘.
 기존 저장소·설정·데이터를 보존하고 필요한 도구와 의존성을 준비해줘.
 PostgreSQL·Redis는 INSTALL.md의 버전 기준에 따라 설치 시점의 최신 안정 버전을 공식 패키지 저장소에서 확인해 호스트에 네이티브로 설치하고 systemd로 관리해줘.
-개발 .env의 OPEN_WORK_HUB_WEB_DEV_HOST=0.0.0.0으로 설정하고 ./dev.sh --minimal-infra --no-infra로 실행해줘. API·개발 DB·Redis는 loopback 수신을 유지해줘.
+개발 .env의 MTY_WEB_DEV_HOST=0.0.0.0으로 설정하고 ./dev.sh --minimal-infra --no-infra로 실행해줘. API·개발 DB·Redis는 loopback 수신을 유지해줘.
 VM 네트워크와 필요한 포트를 확인해 내 PC에서 http://<서버-IP>:<개발-Web-포트>/login으로 직접 접속하고 시드 계정으로 로그인할 수 있게 해줘.
 pnpm dev:login-smoke 명령과 agent-browser로 실제 서버 IP 주소의 로그인·화면·로그아웃을 검사해줘.
 docs/apps/codex-console/README.md에 따라 Codex 콘솔도 함께 설치해줘. 현재 사용자의 ChatGPT 구독 인증과 고정된 Codex 바이너리를 사용하고, 전용 PostgreSQL 역할·DB·웹 비밀번호를 준비해줘.

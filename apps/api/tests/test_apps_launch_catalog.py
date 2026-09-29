@@ -2,9 +2,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from dev_accounts import create_company_user_session, dev_login
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
-from open_work_hub_api.domains.auth.models import CompanyAppControl
+from mty_api.core.db import get_session_factory
+from mty_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
+from mty_api.domains.auth.models import CompanyAppControl
 
 
 def _headers(session):

@@ -16,7 +16,7 @@ function state(overrides: Partial<ProfilePageState> = {}): ProfilePageState {
     dateFormat: 'korean',
     displayName: 'Member',
     error: 'previous error',
-    fullName: 'Open Work Hub Member',
+    fullName: 'MTY Member',
     loadingSessions: false,
     locale: 'ko-KR',
     message: 'previous message',
@@ -121,8 +121,8 @@ describe('settings page model', () => {
   it('plans full profile detail saves with trimmed identity fields', () => {
     const plan = prepareProfileDetailsSave(
       state({
-        displayName: '  Open Work Hub  ',
-        fullName: '  Open Work Hub Member  ',
+        displayName: '  MTY  ',
+        fullName: '  MTY Member  ',
         submitting: false,
       }),
     );
@@ -134,8 +134,8 @@ describe('settings page model', () => {
     });
     expect(plan.payload).toEqual({
       date_format: 'korean',
-      display_name: 'Open Work Hub',
-      full_name: 'Open Work Hub Member',
+      display_name: 'MTY',
+      full_name: 'MTY Member',
       locale: 'ko-KR',
       theme_preference: 'system',
       time_zone: 'Asia/Seoul',

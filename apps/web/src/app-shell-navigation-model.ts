@@ -6,7 +6,7 @@ import {
   resolveCoreAppRouteAppId,
   resolveCoreGlobalRouteAppId,
   resolveCoreManifestNavItemId,
-} from '@open-work-hub/core-web/shell-navigation';
+} from '@mty/core-web/shell-navigation';
 
 import type {
   AppModuleId,
