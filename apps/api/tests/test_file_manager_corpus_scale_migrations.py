@@ -8,25 +8,25 @@ from sqlalchemy import create_engine, event, func, insert, select, text, delete
 from sqlalchemy.orm import Session
 
 from company_admission_fixture import seed_company_app_access
-from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
-from open_work_hub_api.domains.auth.models import User, UserSystemRole
-from open_work_hub_api.domains.files import service as files_service
-from open_work_hub_api.domains.files.models import (
+from mty_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
+from mty_api.domains.auth.models import User, UserSystemRole
+from mty_api.domains.files import service as files_service
+from mty_api.domains.files.models import (
     FileManagerCorpus,
     FileManagerFile,
 )
-from open_work_hub_api.domains.files.source_access import (
+from mty_api.domains.files.source_access import (
     FileManagerSourceAccessAdapter,
 )
-from open_work_hub_api.domains.rag.models import RagSyncJob
-from open_work_hub_api.domains.retrieval.models import (
+from mty_api.domains.rag.models import RagSyncJob
+from mty_api.domains.retrieval.models import (
     RetrievalPartition,
     RetrievalProjectionEvent,
     RetrievalProjectionHead,
 )
-from open_work_hub_api.domains.search.models import SearchIndexJob
-from open_work_hub_api.domains.source_access.policy import SourceAclPolicy
-from open_work_hub_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOURCE_TYPE
+from mty_api.domains.search.models import SearchIndexJob
+from mty_api.domains.source_access.policy import SourceAclPolicy
+from mty_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOURCE_TYPE
 
 
 pytestmark = pytest.mark.migration

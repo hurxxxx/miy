@@ -5,8 +5,8 @@ import pytest
 from sqlalchemy.orm import Session
 
 from dm_query_fixture import JOINED_AT, dm_db as dm_db
-from open_work_hub_api.domains.dm import read_state
-from open_work_hub_api.domains.dm.models import DmConversation, DmConversationParticipant
+from mty_api.domains.dm import read_state
+from mty_api.domains.dm.models import DmConversation, DmConversationParticipant
 
 
 @pytest.mark.parametrize("marker, expected", [(None, 3), ("message-2", 2), ("message-5", 0)])

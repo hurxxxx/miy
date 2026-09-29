@@ -1,4 +1,4 @@
-import { Badge } from '@open-work-hub/ui';
+import { Badge } from '@mty/ui';
 import {
   CheckSquare,
   ChevronDown,

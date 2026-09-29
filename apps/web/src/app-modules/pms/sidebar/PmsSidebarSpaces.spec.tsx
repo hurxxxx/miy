@@ -42,14 +42,14 @@ vi.mock('@/src/platform/auth/auth-provider', () => ({
 vi.mock('@/src/platform/apps/app-bootstrap-context', () => ({
   useAppAdmission: () => true,
 }));
-vi.mock('@open-work-hub/ui', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@open-work-hub/ui')>()),
+vi.mock('@mty/ui', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@mty/ui')>()),
   useFeedback: () => mocks.feedback,
 }));
-vi.mock('@open-work-hub/ui/feedback/confirm-dialog', () => ({
+vi.mock('@mty/ui/feedback/confirm-dialog', () => ({
   useConfirm: () => ({ confirm: mocks.confirm, confirmDialog: null }),
 }));
-vi.mock('@open-work-hub/ui/feedback/prompt-dialog', () => ({
+vi.mock('@mty/ui/feedback/prompt-dialog', () => ({
   usePrompt: () => ({ prompt: mocks.prompt, promptDialog: null }),
 }));
 vi.mock('@/src/app-modules/docs/public-api', () => ({

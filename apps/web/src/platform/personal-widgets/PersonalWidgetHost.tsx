@@ -1,5 +1,5 @@
-import { Button } from '@open-work-hub/ui/primitives/button';
-import { Input } from '@open-work-hub/ui/primitives/input';
+import { Button } from '@mty/ui/primitives/button';
+import { Input } from '@mty/ui/primitives/input';
 import {
   Check,
   CheckCircle2,

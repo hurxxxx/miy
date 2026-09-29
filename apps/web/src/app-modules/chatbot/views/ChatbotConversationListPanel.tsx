@@ -1,5 +1,5 @@
-import type { AppRouteId } from '@open-work-hub/contracts/app-contracts';
-import { buildAppHref } from '@open-work-hub/contracts/app-routes';
+import type { AppRouteId } from '@mty/contracts/app-contracts';
+import { buildAppHref } from '@mty/contracts/app-routes';
 import {
   MessageSquare,
   Pencil,
@@ -19,7 +19,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { useConfirm, useFeedback, usePrompt } from '@open-work-hub/ui';
+import { useConfirm, useFeedback, usePrompt } from '@mty/ui';
 
 import { cn } from '@/src/lib/utils';
 import { useAuth } from '@/src/platform/auth/auth-provider';

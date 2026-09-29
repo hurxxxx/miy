@@ -4,9 +4,9 @@ import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
 export const CONTRACT_EVIDENCE_MARKER =
-  '<!-- open-work-hub:vibe-app-contract:v1 -->';
+  '<!-- mty:vibe-app-contract:v1 -->';
 export const CORE_ENABLEMENT_MARKER =
-  '<!-- open-work-hub:core-enablement:v1 -->';
+  '<!-- mty:core-enablement:v1 -->';
 
 const VIBE_REQUIRED_HEADINGS = [
   'Contract Map',
@@ -95,7 +95,7 @@ const CORE_API_DOMAINS = new Set([
 
 function apiDomainForPath(filePath) {
   const match =
-    /^apps\/api\/src\/open_work_hub_api\/domains\/([^/]+)(?:\/|$)/.exec(
+    /^apps\/api\/src\/mty_api\/domains\/([^/]+)(?:\/|$)/.exec(
       filePath,
     );
   return match?.[1] ?? null;
@@ -104,7 +104,7 @@ function apiDomainForPath(filePath) {
 export function isDomainAppDeliveryPath(filePath) {
   if (/^apps\/web\/src\/app-modules\//.test(filePath)) return true;
   if (/^apps\/api\/alembic\/versions\/[^/]+\.py$/.test(filePath)) return true;
-  if (/^apps\/worker\/src\/open_work_hub_worker\/tasks\//.test(filePath)) {
+  if (/^apps\/worker\/src\/mty_worker\/tasks\//.test(filePath)) {
     return true;
   }
   const apiDomain = apiDomainForPath(filePath);
@@ -121,14 +121,14 @@ export function isProtectedCorePath(filePath) {
     /^docs\/agents\//.test(filePath) ||
     /^packages\/(?:contracts|core-web|ui)\//.test(filePath) ||
     /^apps\/web\/src\/platform\//.test(filePath) ||
-    /^apps\/api\/src\/open_work_hub_api\/api_registry\.py$/.test(filePath)
+    /^apps\/api\/src\/mty_api\/api_registry\.py$/.test(filePath)
   );
 }
 
 export function isCompanyKeywordSearchContractPath(filePath) {
   return (
-    /^apps\/api\/src\/open_work_hub_api\/domains\/search\//.test(filePath) ||
-    /^apps\/api\/src\/open_work_hub_api\/domains\/[^/]+\/search_(?:hooks|projection|registration)\.py$/.test(
+    /^apps\/api\/src\/mty_api\/domains\/search\//.test(filePath) ||
+    /^apps\/api\/src\/mty_api\/domains\/[^/]+\/search_(?:hooks|projection|registration)\.py$/.test(
       filePath,
     ) ||
     /^apps\/web\/src\/app-modules\/ai\/views\/(?:RagSearchView|RagSearchViewParts|rag-search-view-model|useRagSearchController)\.(?:ts|tsx)$/.test(
@@ -345,7 +345,7 @@ export function checkMergeRequestContractEvidence({
 
   const descriptionLines = description.split(/\r?\n/);
   for (const checkId of requiredCheckIds) {
-    const marker = `<!-- open-work-hub:check:${checkId} -->`;
+    const marker = `<!-- mty:check:${checkId} -->`;
     const matchingLines = descriptionLines.filter((line) =>
       line.includes(marker),
     );
@@ -362,7 +362,7 @@ export function checkMergeRequestContractEvidence({
 
   const fieldValues = new Map();
   for (const fieldId of requiredFieldIds) {
-    const marker = `<!-- open-work-hub:field:${fieldId} -->`;
+    const marker = `<!-- mty:field:${fieldId} -->`;
     const matchingLines = descriptionLines.filter((line) =>
       line.includes(marker),
     );

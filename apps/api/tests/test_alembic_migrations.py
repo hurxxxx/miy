@@ -7,7 +7,7 @@ from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
-from open_work_hub_api.core import db as db_module
+from mty_api.core import db as db_module
 
 
 def test_runtime_alembic_config_uses_workspace_root(
@@ -108,8 +108,8 @@ def test_fresh_baseline_owns_company_identity_and_app_local_resources(postgres_d
 
 def test_runtime_metadata_has_no_duplicate_index_declarations() -> None:
     from collections import Counter
-    from open_work_hub_api.core.db import Base
-    from open_work_hub_api.core.model_registry import import_all_models
+    from mty_api.core.db import Base
+    from mty_api.core.model_registry import import_all_models
 
     import_all_models()
     duplicated = {

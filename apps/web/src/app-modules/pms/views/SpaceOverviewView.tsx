@@ -1,5 +1,5 @@
-import { useConfirm } from '@open-work-hub/ui/feedback/confirm-dialog';
-import { usePrompt } from '@open-work-hub/ui/feedback/prompt-dialog';
+import { useConfirm } from '@mty/ui/feedback/confirm-dialog';
+import { usePrompt } from '@mty/ui/feedback/prompt-dialog';
 import {
   ArrowUpDown,
   ChevronDown,

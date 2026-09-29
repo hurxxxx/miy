@@ -1,4 +1,4 @@
-import { authRoutes } from '@open-work-hub/contracts/auth';
+import { authRoutes } from '@mty/contracts/auth';
 
 import type { ShellAppId } from '@/src/app/shell/navigation-types';
 import { apiFetchJsonWithMappedError } from '@/src/platform/api/client';

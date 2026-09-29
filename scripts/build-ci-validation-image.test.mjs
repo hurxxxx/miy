@@ -10,7 +10,7 @@ const repoRoot = fileURLToPath(new URL('../', import.meta.url));
 const digest = `postgres@sha256:${'a'.repeat(64)}`;
 
 function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'owh-validation-build-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mty-validation-build-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const write = (name, content) => {
     const target = path.join(root, name);
@@ -51,7 +51,7 @@ else if (args[0] === 'buildx') {
   const log = path.join(root, 'docker.log');
   const env = {
     PATH: `${path.dirname(docker)}:${process.env.PATH}`,
-    OPEN_WORK_HUB_VALIDATION_REPO_ROOT: root,
+    MTY_VALIDATION_REPO_ROOT: root,
     TEST_DOCKER_LOG: log,
     TEST_DOCKER_STATE: path.join(root, 'docker.state'),
   };

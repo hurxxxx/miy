@@ -56,7 +56,7 @@ test('docs/instructions use focused guidance checks without app suites', () => {
 });
 
 for (const file of [
-  '.agents/skills/owh-release/SKILL.md',
+  '.agents/skills/mty-release/SKILL.md',
   '.codex/hooks.json',
   'scripts/setup-claude-skills.mjs',
   'scripts/codex-review-ci.sh',
@@ -78,7 +78,7 @@ for (const file of [
   'apps/api/pyproject.toml',
   'apps/worker/uv.lock',
   'dev.sh',
-  'ops/compose/open-work-hub-prod.app.yml',
+  'ops/compose/mty-prod.app.yml',
   'ops/app/Dockerfile',
   '.env.example',
   'scripts/prod-app.sh',
@@ -225,7 +225,7 @@ test('failed checks or changed source/target never yield passing evidence', () =
 
 function fixture(t) {
   const root = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'owh-release-validation-'),
+    path.join(os.tmpdir(), 'mty-release-validation-'),
   );
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const git = (args) =>

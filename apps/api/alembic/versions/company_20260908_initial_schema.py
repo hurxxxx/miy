@@ -1592,7 +1592,7 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint("status IN ('active', 'revoked')", name="ck_platform_api_keys_status"),
         sa.CheckConstraint(
-            "substr(key_prefix, 1, 7) = 'owh_pk_'", name="ck_platform_api_keys_prefix"
+            "substr(key_prefix, 1, 7) = 'mty_pk_'", name="ck_platform_api_keys_prefix"
         ),
         sa.CheckConstraint("length(trim(name)) > 0", name="ck_platform_api_keys_name"),
         sa.ForeignKeyConstraint(["created_by_user_id"], ["users.id"], ondelete="SET NULL"),

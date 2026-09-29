@@ -6,9 +6,9 @@ import pytest
 from sqlalchemy import select
 
 from dev_accounts import auth_headers, content_grant_headers, content_headers, dev_login
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.auth.models import AuthSession, User
-from open_work_hub_api.domains.dm.models import DmConversationParticipant, DmMessageAttachment
+from mty_api.core.db import get_session_factory
+from mty_api.domains.auth.models import AuthSession, User
+from mty_api.domains.dm.models import DmConversationParticipant, DmMessageAttachment
 from test_dm import PNG_BYTES
 
 
@@ -53,7 +53,7 @@ def shared_attachment(client, in_memory_object_storage):
 
 
 def test_dm_attachment_content_requires_authentication(shared_attachment, client, monkeypatch):
-    from open_work_hub_api.domains.dm import attachment_storage
+    from mty_api.domains.dm import attachment_storage
 
     monkeypatch.setattr(
         attachment_storage,
@@ -120,7 +120,7 @@ def test_dm_attachment_content_rechecks_current_authority(
             db.get(
                 DmMessageAttachment, grant["attachment_id"]
             ).storage_key = "dm/replaced-content.png"
-    from open_work_hub_api.domains.dm import attachment_storage
+    from mty_api.domains.dm import attachment_storage
 
     monkeypatch.setattr(
         attachment_storage,

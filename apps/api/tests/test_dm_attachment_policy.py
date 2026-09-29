@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from open_work_hub_api.domains.dm.attachment_policy import (
+from mty_api.domains.dm.attachment_policy import (
     DEFAULT_ATTACHMENT_CONTENT_TYPE,
     DM_MAX_ATTACHMENT_SIZE,
     DmAttachmentPolicy,

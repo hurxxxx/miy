@@ -9,16 +9,16 @@
     "types": ["vite/client", "vitest"],
     "rootDir": "../..",
     "paths": {
-      "@open-work-hub/contracts": ["../../packages/contracts/src/index.ts"],
-      "@open-work-hub/contracts/openapi": [
+      "@mty/contracts": ["../../packages/contracts/src/index.ts"],
+      "@mty/contracts/openapi": [
         "../../packages/contracts/src/openapi.generated.d.ts"
       ],
-      "@open-work-hub/contracts/*": ["../../packages/contracts/src/*"],
-      "@open-work-hub/core-web": ["../../packages/core-web/src/index.ts"],
-      "@open-work-hub/core-web/*": ["../../packages/core-web/src/*"],
-      "@open-work-hub/ui": ["../../packages/ui/src/index.ts"],
-      "@open-work-hub/ui/*": ["../../packages/ui/src/lib/*"],
-      "@open-work-hub/ui/styles.css": ["../../packages/ui/styles.css"],
+      "@mty/contracts/*": ["../../packages/contracts/src/*"],
+      "@mty/core-web": ["../../packages/core-web/src/index.ts"],
+      "@mty/core-web/*": ["../../packages/core-web/src/*"],
+      "@mty/ui": ["../../packages/ui/src/index.ts"],
+      "@mty/ui/*": ["../../packages/ui/src/lib/*"],
+      "@mty/ui/styles.css": ["../../packages/ui/styles.css"],
       "@/src/*": ["./src/*"]
     }
   },

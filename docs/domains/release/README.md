@@ -2,17 +2,17 @@
 
 - First development install and setup recovery: [Development Installation](../../../INSTALL.md).
 - Environment-specific locale, browser, HTTPS, GitLab and Runner checks: [Installation operations](installation-operations.md).
-- Dev infra: `ops/compose/open-work-hub-dev.infra.yml`.
-- Prod infra: `ops/compose/open-work-hub-prod.infra.yml`.
+- Dev infra: `ops/compose/mty-dev.infra.yml`.
+- Prod infra: `ops/compose/mty-prod.infra.yml`.
 - Common entrypoint: `scripts/infra-stack.sh`.
 - Immutable production app image: `ops/app/Dockerfile`.
-- Production app runtime: `ops/compose/open-work-hub-prod.app.yml`.
+- Production app runtime: `ops/compose/mty-prod.app.yml`.
 - Guarded app entrypoint: `scripts/prod-app.sh`.
 - CI contract: `.gitlab-ci.yml` and `ops/ci/ci-first.gitlab-ci.yml`.
 - Branch, release, and deployment authorization: root `AGENTS.md`.
 - Prefer shared physical infra plus isolated data namespaces when services support it: PostgreSQL database/schema, MinIO bucket/prefix, OpenSearch index prefix, Qdrant collection prefix, Redis DB/key prefix, queue name/group.
 - Use env-named service instances only for incompatible lifecycle, security, capacity, or blast-radius requirements. `prod` checkout/branch is an operational guard, not a naming rule for every container.
-- Contract package publish: `contracts-v*` tag publishes `@open-work-hub/contracts`.
+- Contract package publish: `contracts-v*` tag publishes `@mty/contracts`.
 - Do not document server/user/systemd/internal-network-specific deployment in repo source.
 - GitLab `origin/main` is the production source; CI owns release-validation routing.
 
@@ -43,7 +43,7 @@ For an authorized release with an explicit fast request:
 3. In the authorized `dev -> main` MR, place the emitted marker on the first line of its description, then state the user's opt-in, purpose, affected checks, and remaining risks. Use the full SHAs emitted by the command:
 
    ```text
-   <!-- open-work-hub:release-validation:v1 mode=fast source=<full-dev-sha> target=<full-main-sha> -->
+   <!-- mty:release-validation:v1 mode=fast source=<full-dev-sha> target=<full-main-sha> -->
    ```
 
 4. Create a fresh MR pipeline after updating the description. Missing, malformed, duplicated, stale or truncated opt-in metadata selects full validation. Do not assume retrying an old job refreshes pipeline metadata. Only detached same-project release pipelines can select fast; other release event types keep full validation.
@@ -60,13 +60,13 @@ Selector maintenance checks: `node --test scripts/release-validation.test.mjs`, 
 - Run app commands only from a clean checkout named `prod` at `origin/main`.
 - Initial sibling `dev`/`prod` checkout creation is documented in [installation §2.5](../../../INSTALL.md). Creating the `main` worktree does not configure production credentials, promote a release, or deploy; never copy the development `.env` into it.
 - Keep `.env` aligned with `.env.example`; production preflight rejects dev login/seed flags, an unsafe attachment-signing key, an untrusted proxy wildcard, non-public or shared app/Bento origins, and host-port collisions.
-- Route each public hostname directly from the external HTTPS proxy to its declared service port. `OPEN_WORK_HUB_APP_FORWARDED_ALLOW_IPS` lists only the exact external proxy IPs. Bind Bento to loopback for a local proxy or the exact private proxy-facing IPv4 address; production rejects wildcard, public-IP, IPv6, and hostname bindings.
+- Route each public hostname directly from the external HTTPS proxy to its declared service port. `MTY_APP_FORWARDED_ALLOW_IPS` lists only the exact external proxy IPs. Bind Bento to loopback for a local proxy or the exact private proxy-facing IPv4 address; production rejects wildcard, public-IP, IPv6, and hostname bindings.
 - The app image contains the web build, API, worker, migrations, and collaboration codec at one source revision. The Compose runtime starts the privacy filter, API, worker, and scheduler with restart policies and health checks.
 - API and worker use redis-py 8.1.x. Its reentrant PubSub lock permits Celery result finalizers to unsubscribe during a subscription; the 5.3.1 lock can deadlock the scheduler. Keep both lockfiles aligned and run `apps/worker/tests/test_redis_pubsub_reentrancy.py` in both Python environments when changing Redis dependencies.
 - OpenAI 3 and Anthropic 1 use HTTPX2. Keep OS CA certificates in the app image and suppress the `httpx2` request logger alongside `httpx` and `httpcore`; request URLs can contain credentials or user queries. Numeric SDK timeouts and the registered provider execution interface remain in use. Verify `apps/api/tests/test_logging_security.py` when changing HTTP clients.
 - Ruff's explicit `E4`, `E7`, `E9`, and `F` selection preserves all pre-0.16 checks, including rules removed from the new defaults. Dependency upgrades must not silently replace the existing lint policy with a different upstream default set.
 - Beat health requires a successful broker publication within 180 seconds. The official Celery `beat_init` and `after_task_publish` signals maintain a disposable `celerybeat-heartbeat` marker in Beat's working directory. Startup discards the previous marker; API and worker publications cannot refresh it. The marker stores no task or business data. Container health detects a stalled publisher after the freshness window and two failed 30-second checks; Docker restart policies alone do not restart an unhealthy process that is still running.
-- The image build embeds the validated `OPEN_WORK_HUB_BENTO_SERVER_URL` in the static web bundle; changing that public origin requires a new app image.
+- The image build embeds the validated `MTY_BENTO_SERVER_URL` in the static web bundle; changing that public origin requires a new app image.
 - `pnpm app:prod:deploy` first rejects a terminal broker listener that is not the expected existing production container, then builds and verifies the revision image, applies migrations, replaces the app runtime, and requires direct and public health identity plus readiness, revision, bootstrap, and login-shell checks.
 - A failed migration, runtime start, or public smoke attempts to restore the previous app image and reports restoration failure explicitly. Default rollback retains the current database/configuration, so ordinary releases must keep them compatible with the previous image. Incompatible cutovers require the paired recovery procedure below.
 

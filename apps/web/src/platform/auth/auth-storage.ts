@@ -1,5 +1,5 @@
-export const AUTH_TOKEN_STORAGE_KEY = 'open-work-hub.auth.token';
-const AUTH_POST_LOGOUT_HOME_REDIRECT_STORAGE_KEY = 'open-work-hub.auth.post-logout-home';
+export const AUTH_TOKEN_STORAGE_KEY = 'mty.auth.token';
+const AUTH_POST_LOGOUT_HOME_REDIRECT_STORAGE_KEY = 'mty.auth.post-logout-home';
 
 type BrowserStorageName = 'localStorage' | 'sessionStorage';
 

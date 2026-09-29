@@ -2,7 +2,7 @@ import type {
   DmConversationParticipant,
   DmMessageAttachment,
   DmUser,
-} from '@open-work-hub/contracts/dm';
+} from '@mty/contracts/dm';
 
 const CREATED_AT = '2026-05-20T00:00:00.000Z';
 

@@ -1,10 +1,10 @@
-import { buildAppHref } from '@open-work-hub/contracts/app-routes';
+import { buildAppHref } from '@mty/contracts/app-routes';
 import {
   Button,
   DropdownMenu,
   InlineNotice,
   useConfirm,
-} from '@open-work-hub/ui';
+} from '@mty/ui';
 import {
   AlertCircle,
   AudioWaveform,

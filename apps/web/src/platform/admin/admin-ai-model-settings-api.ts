@@ -196,7 +196,7 @@ async function request<T>(
         typeof payload.detail === 'string'
           ? payload.detail
           : 'AI model settings request failed.',
-        response.headers.get('X-Open-Work-Hub-Error-Code'),
+        response.headers.get('X-MTY-Error-Code'),
       );
     }
     return payload as T;

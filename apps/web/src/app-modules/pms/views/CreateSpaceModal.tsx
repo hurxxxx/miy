@@ -8,7 +8,7 @@ import { useAppAdmission } from '@/src/platform/apps/app-bootstrap-context';
 import { useAuth } from '@/src/platform/auth/auth-provider';
 import { UserSearchMultiSelect } from '@/src/platform/users/UserSearchMultiSelect';
 import { selectUserOptionsForPicker } from '@/src/platform/users/user-option-picker-model';
-import { InlineNotice } from '@open-work-hub/ui';
+import { InlineNotice } from '@mty/ui';
 import { Layout, UserPlus } from 'lucide-react';
 import { useEffect, useMemo, useReducer } from 'react';
 import { useTranslation } from 'react-i18next';

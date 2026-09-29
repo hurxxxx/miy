@@ -10,8 +10,8 @@ import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
-NETWORK_KEY = "OWH_HERMES_TERMINAL_SANDBOX_NETWORK"
-VOLUME_KEY = "OWH_HERMES_TERMINAL_EGRESS_CLIENT_VOLUME"
+NETWORK_KEY = "MTY_HERMES_TERMINAL_SANDBOX_NETWORK"
+VOLUME_KEY = "MTY_HERMES_TERMINAL_EGRESS_CLIENT_VOLUME"
 
 
 @pytest.fixture
@@ -35,12 +35,12 @@ def sandbox(monkeypatch):
         module = ModuleType(name)
         module.__dict__.update(members)
         monkeypatch.setitem(sys.modules, name, module)
-    directory = ROOT / "ops/hermes/plugins/owh_runtime"
-    package = ModuleType("owh_sandbox_test")
+    directory = ROOT / "ops/hermes/plugins/mty_runtime"
+    package = ModuleType("mty_sandbox_test")
     package.__path__ = [str(directory)]
     monkeypatch.setitem(sys.modules, package.__name__, package)
     spec = importlib.util.spec_from_file_location(
-        "owh_sandbox_test.sandbox", directory / "sandbox.py"
+        "mty_sandbox_test.sandbox", directory / "sandbox.py"
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -79,10 +79,10 @@ def sandbox(monkeypatch):
 def test_compose_gateway_and_broker_use_the_declared_sandbox_resources(deployment):
     suffix = "infra" if deployment == "dev" else "app"
     compose = yaml.safe_load(
-        (ROOT / f"ops/compose/open-work-hub-{deployment}.{suffix}.yml").read_text()
+        (ROOT / f"ops/compose/mty-{deployment}.{suffix}.yml").read_text()
     )
-    network = compose["networks"]["open-work-hub-hermes-terminal-sandbox"]
-    volume = compose["volumes"][f"open-work-hub-{deployment}-hermes-terminal-egress-client"]
+    network = compose["networks"]["mty-hermes-terminal-sandbox"]
+    volume = compose["volumes"][f"mty-{deployment}-hermes-terminal-egress-client"]
     assert network["internal"] is True
     for service in ("hermes-gateway", "hermes-terminal-broker"):
         environment = compose["services"][service]["environment"]
@@ -98,7 +98,7 @@ def test_sandbox_uses_deployment_resources_and_checks_before_creation(sandbox):
         args = next(args for args in sandbox.calls if args[1] == "run")
         assert "--network=deployment-network" in args
         assert (
-            "type=volume,src=deployment-ca,dst=/run/owh-egress-ca.crt,volume-subpath=ca.crt,readonly"
+            "type=volume,src=deployment-ca,dst=/run/mty-egress-ca.crt,volume-subpath=ca.crt,readonly"
             in args
         )
         assert "database-namespace" not in " ".join(args)

@@ -8,35 +8,35 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from open_work_hub_api.core.db import Base
-from open_work_hub_api.core.telemetry import (
+from mty_api.core.db import Base
+from mty_api.core.telemetry import (
     bootstrap_telemetry,
     current_trace_id,
     get_tracer_provider,
     start_as_current_span,
 )
-from open_work_hub_api.domains.rag.contracts import (
+from mty_api.domains.rag.contracts import (
     RagScopeKind,
     RagSyncLane,
     RagSyncOperation,
     RagTraceContext,
 )
-from open_work_hub_api.domains.rag.models import RagSyncJob, RagVisibilityRecomputeJob
-from open_work_hub_api.domains.retrieval.models import (
+from mty_api.domains.rag.models import RagSyncJob, RagVisibilityRecomputeJob
+from mty_api.domains.retrieval.models import (
     RetrievalPartition,
     RetrievalProjectionEvent,
     RetrievalProjectionHead,
 )
-from open_work_hub_api.domains.retrieval.projection_fencing import (
+from mty_api.domains.retrieval.projection_fencing import (
     ProjectionEventRef,
     record_projection_event,
 )
-import open_work_hub_api.domains.rag.outbox as rag_outbox
-from open_work_hub_api.domains.rag.outbox import (
+import mty_api.domains.rag.outbox as rag_outbox
+from mty_api.domains.rag.outbox import (
     enqueue_rag_sync_job,
     enqueue_rag_visibility_recompute_job,
 )
-from open_work_hub_api.domains.rag.source_adapter_registry import (
+from mty_api.domains.rag.source_adapter_registry import (
     RagResourceAdapter,
     RagVisibilityScopeAdapter,
     register_rag_resource_adapter,
@@ -336,7 +336,7 @@ def test_enqueue_rag_visibility_recompute_job_rejects_unregistered_scope_type(
 
 
 def test_enqueue_rag_sync_job_captures_current_trace_context() -> None:
-    bootstrap_telemetry(service_name="open-work-hub-api-test")
+    bootstrap_telemetry(service_name="mty-api-test")
     exporter = InMemorySpanExporter()
     provider = get_tracer_provider()
     assert provider is not None
@@ -369,7 +369,7 @@ def test_enqueue_rag_sync_job_captures_current_trace_context() -> None:
 
 
 def test_enqueue_rag_sync_job_allows_explicit_empty_trace_context() -> None:
-    bootstrap_telemetry(service_name="open-work-hub-api-test")
+    bootstrap_telemetry(service_name="mty-api-test")
 
     session = _session()
     try:

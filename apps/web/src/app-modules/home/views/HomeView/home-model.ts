@@ -14,7 +14,7 @@ import {
 import {
   buildAppEntryHref,
   buildAppHref,
-} from '@open-work-hub/contracts/app-routes';
+} from '@mty/contracts/app-routes';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 

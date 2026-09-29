@@ -3,7 +3,7 @@ import {
   BlockViewer,
   CollaborativeBlockEditor,
   type BlockContent,
-} from '@open-work-hub/ui';
+} from '@mty/ui';
 import { Pencil } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';

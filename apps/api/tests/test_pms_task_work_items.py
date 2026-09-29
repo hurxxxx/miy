@@ -1,8 +1,8 @@
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.pms.models import ChecklistItem, TaskActivityLog
+from mty_api.core.db import get_session_factory
+from mty_api.domains.pms.models import ChecklistItem, TaskActivityLog
 from test_pms_issues import _auth_headers, _bootstrap_admin, _create_issue, _create_task_list
 
 

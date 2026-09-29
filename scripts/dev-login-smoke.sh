@@ -4,9 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT_DIR/scripts/dev-env.sh"
 
-API_BASE_URL="${OPEN_WORK_HUB_DEV_SMOKE_API_URL:-http://127.0.0.1:${OPEN_WORK_HUB_API_DEV_PORT:-8001}}"
+API_BASE_URL="${MTY_DEV_SMOKE_API_URL:-http://127.0.0.1:${MTY_API_DEV_PORT:-8001}}"
 LOGIN_ID="administrator"
-LOGIN_PASSWORD="${OPEN_WORK_HUB_API_DEV_LOGIN_PASSWORD:-open-work-hub-dev-only}"
+LOGIN_PASSWORD="${MTY_API_DEV_LOGIN_PASSWORD:-mty-dev-only}"
 
 SMOKE_API_BASE_URL="$API_BASE_URL" \
 SMOKE_LOGIN_ID="$LOGIN_ID" \

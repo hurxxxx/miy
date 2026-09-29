@@ -6,20 +6,20 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from dev_accounts import dev_login
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.auth.models import User
-from open_work_hub_api.domains.pms.space_models import Team, TeamMember
-from open_work_hub_api.domains.auth.security import new_id
-from open_work_hub_api.domains.docs.models import (
+from mty_api.core.db import get_session_factory
+from mty_api.domains.auth.models import User
+from mty_api.domains.pms.space_models import Team, TeamMember
+from mty_api.domains.auth.security import new_id
+from mty_api.domains.docs.models import (
     DocMeetingAccess,
     NativeDoc,
     NativeDocTarget,
     NativeDocUserShare,
 )
-from open_work_hub_api.domains.meeting.models import Meeting, MeetingAttendee
-from open_work_hub_api.domains.pms.models import Task, TaskUserAccess, TaskList
-from open_work_hub_api.domains.source_access import SourceAclPolicy
-from open_work_hub_api.domains.source_access.resource_types import (
+from mty_api.domains.meeting.models import Meeting, MeetingAttendee
+from mty_api.domains.pms.models import Task, TaskUserAccess, TaskList
+from mty_api.domains.source_access import SourceAclPolicy
+from mty_api.domains.source_access.resource_types import (
     MEETING_RESOURCE_TYPE,
     NATIVE_DOC_RESOURCE_TYPE,
     PLANNER_EVENT_RESOURCE_TYPE,
@@ -57,8 +57,8 @@ def test_source_acl_policy_blocks_inactive_resources(client: TestClient) -> None
     dev_login(client, "delivery-hub-member")
 
     with get_session_factory()() as db:
-        admin = _user(db, "delivery-hub-admin@open-work-hub.local")
-        member = _user(db, "delivery-hub-member@open-work-hub.local")
+        admin = _user(db, "delivery-hub-admin@mty.local")
+        member = _user(db, "delivery-hub-member@mty.local")
         team = _new_space(
             db,
         )
@@ -110,8 +110,8 @@ def test_source_acl_policy_matches_searchable_resource_matrix(client: TestClient
     dev_login(client, "delivery-hub-member")
 
     with get_session_factory()() as db:
-        admin = _user(db, "delivery-hub-admin@open-work-hub.local")
-        member = _user(db, "delivery-hub-member@open-work-hub.local")
+        admin = _user(db, "delivery-hub-admin@mty.local")
+        member = _user(db, "delivery-hub-member@mty.local")
         team = _new_space(
             db,
         )
@@ -342,7 +342,7 @@ def test_pms_reporter_requires_explicit_space_membership(
         reporter = User(
             id=new_id(),
             login_id="pms-source-reporter",
-            email="pms-source-reporter@open-work-hub.local",
+            email="pms-source-reporter@mty.local",
             full_name="PMS Source Reporter",
             password_hash="hash",
             status="active",

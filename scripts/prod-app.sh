@@ -2,10 +2,10 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMPOSE_FILE="$ROOT_DIR/ops/compose/open-work-hub-prod.app.yml"
+COMPOSE_FILE="$ROOT_DIR/ops/compose/mty-prod.app.yml"
 ENV_FILE="$ROOT_DIR/.env"
-COMPOSE_PROJECT_NAME="open-work-hub-prod-app"
-IMAGE_REPOSITORY="open-work-hub-app"
+COMPOSE_PROJECT_NAME="mty-prod-app"
+IMAGE_REPOSITORY="mty-app"
 CURRENT_IMAGE="$IMAGE_REPOSITORY:prod"
 PREVIOUS_IMAGE="$IMAGE_REPOSITORY:prod-previous"
 ROLLBACK_ENV_FILE=""
@@ -55,7 +55,7 @@ require_terminal_broker_port_available() {
       "$config_env" \
       --print-hermes-terminal-broker-port
   )" || return 1
-  expected_container="open-work-hub-prod-hermes-terminal-broker"
+  expected_container="mty-prod-hermes-terminal-broker"
 
   if ! command -v ss >/dev/null 2>&1; then
     echo "Production port preflight requires the ss command." >&2
@@ -89,7 +89,7 @@ compose() (
   local compose_env_name
   while IFS= read -r compose_env_name; do
     case "$compose_env_name" in
-      OPEN_WORK_HUB_*|OPENROUTER_API_KEY) unset "$compose_env_name" || return 1 ;;
+      MTY_*|OPENROUTER_API_KEY) unset "$compose_env_name" || return 1 ;;
     esac
   done < <(compgen -e)
   docker compose \
@@ -119,8 +119,8 @@ build_release_image() {
   docker build \
     --file "$ROOT_DIR/ops/app/Dockerfile" \
     --target runtime \
-    --build-arg "OPEN_WORK_HUB_BENTO_SERVER_URL=$bento_server_url" \
-    --build-arg "OPEN_WORK_HUB_BUILD_REVISION=$revision" \
+    --build-arg "MTY_BENTO_SERVER_URL=$bento_server_url" \
+    --build-arg "MTY_BUILD_REVISION=$revision" \
     --tag "$image" \
     "$ROOT_DIR" >&2 || return 1
   verify_release_image "$image" "$revision" || return 1
@@ -142,12 +142,12 @@ verify_release_image() {
     test -f scripts/blocknote-collab-codec.mjs
     node --version >/dev/null
     node scripts/blocknote-collab-codec.mjs encode </dev/null >/dev/null
-    apps/api/.venv/bin/python -c "import open_work_hub_api"
-    OPEN_WORK_HUB_POSTGRES_DSN=sqlite:///migration-config-smoke.db \
+    apps/api/.venv/bin/python -c "import mty_api"
+    MTY_POSTGRES_DSN=sqlite:///migration-config-smoke.db \
       apps/api/.venv/bin/python -c \
-      "from alembic.script import ScriptDirectory; from open_work_hub_api.core.db import _alembic_config; assert ScriptDirectory.from_config(_alembic_config()).get_current_head()"
+      "from alembic.script import ScriptDirectory; from mty_api.core.db import _alembic_config; assert ScriptDirectory.from_config(_alembic_config()).get_current_head()"
     apps/api/.venv/bin/python -c "import opf, torch"
-    apps/worker/.venv/bin/python -c "import open_work_hub_worker"
+    apps/worker/.venv/bin/python -c "import mty_worker"
   '
 }
 
@@ -178,7 +178,7 @@ start_runtime() {
 run_smoke() {
   local revision
   revision="$(image_revision "$CURRENT_IMAGE")" || return 1
-  OPEN_WORK_HUB_EXPECTED_REVISION="$revision" \
+  MTY_EXPECTED_REVISION="$revision" \
     node "$ROOT_DIR/scripts/prod-app-smoke.mjs" "$ENV_FILE"
 }
 
@@ -197,7 +197,7 @@ prepare_rollback_runtime() {
 
 rollback_compose() {
   local ENV_FILE="$ROLLBACK_BUNDLE/.env"
-  local COMPOSE_FILE="$ROLLBACK_BUNDLE/ops/compose/open-work-hub-prod.app.yml"
+  local COMPOSE_FILE="$ROLLBACK_BUNDLE/ops/compose/mty-prod.app.yml"
   compose "$@"
 }
 
@@ -214,12 +214,12 @@ restore_previous_runtime() {
     node "$ROOT_DIR/scripts/prod-app-rollback.mjs" restore-env \
       "$ROOT_DIR" "$ROLLBACK_BUNDLE" "$ROLLBACK_IMAGE" || return 1
     docker tag "$ROLLBACK_IMAGE" "$CURRENT_IMAGE" || return 1
-    local COMPOSE_FILE="$ROLLBACK_BUNDLE/ops/compose/open-work-hub-prod.app.yml"
+    local COMPOSE_FILE="$ROLLBACK_BUNDLE/ops/compose/mty-prod.app.yml"
     local ENV_FILE="$ROLLBACK_BUNDLE/.env"
     start_runtime || return 1
     local revision
     revision="$(image_revision "$ROLLBACK_IMAGE")" || return 1
-    OPEN_WORK_HUB_EXPECTED_REVISION="$revision" \
+    MTY_EXPECTED_REVISION="$revision" \
       node "$ROLLBACK_BUNDLE/scripts/prod-app-smoke.mjs" "$ENV_FILE" || return 1
     return 0
   fi

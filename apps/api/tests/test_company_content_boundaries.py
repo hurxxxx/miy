@@ -1,11 +1,11 @@
 import pytest
 from sqlalchemy import select
 
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.auth.models import AuditLog, User
-from open_work_hub_api.domains.docs.models import NativeDoc
-from open_work_hub_api.domains.whiteboard.models import Whiteboard
-from open_work_hub_api.domains.source_access.policy import SourceAclPolicy
+from mty_api.core.db import get_session_factory
+from mty_api.domains.auth.models import AuditLog, User
+from mty_api.domains.docs.models import NativeDoc
+from mty_api.domains.whiteboard.models import Whiteboard
+from mty_api.domains.source_access.policy import SourceAclPolicy
 from test_company_groups import _setup
 
 
@@ -364,7 +364,7 @@ def test_temporary_password_blocks_app_use_and_reset_revokes_existing_session(cl
     assert (
         response.status_code == 403 and response.json()["code"] == "auth.password_change_required"
     ), response.text
-    from open_work_hub_api.domains.auth.app_access import can_use_app
+    from mty_api.domains.auth.app_access import can_use_app
 
     with get_session_factory()() as db:
         assert not can_use_app(db, user_id=user_id, app_id="docs")
@@ -382,7 +382,7 @@ def test_temporary_password_blocks_app_use_and_reset_revokes_existing_session(cl
     assert response.status_code == 200, response.text
     recipients: set[str] = set()
     monkeypatch.setattr(
-        "open_work_hub_api.domains.admin.router.publish_principal_access_changed",
+        "mty_api.domains.admin.router.publish_principal_access_changed",
         lambda _hub, user_ids: recipients.update(user_ids),
     )
     response = client.post(

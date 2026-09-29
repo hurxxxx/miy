@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-SCRIPT = Path(__file__).resolve().parents[2] / '.agents/skills/owh-docs-reader/scripts/read_open_work_hub_doc.py'
+SCRIPT = Path(__file__).resolve().parents[2] / '.agents/skills/mty-docs-reader/scripts/read_mty_doc.py'
 SPEC = importlib.util.spec_from_file_location('docs_reader', SCRIPT)
 reader = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(reader)
@@ -25,15 +25,15 @@ class DocsReaderTest(unittest.TestCase):
         self.addCleanup(self.files.stop)
 
     def test_dev_defaults_and_non_dev_preflight(self):
-        self.assertEqual(reader.local_config()['pg_db'], 'open_work_hub_dev')
+        self.assertEqual(reader.local_config()['pg_db'], 'mty_dev')
         for values in [
-            {'OPEN_WORK_HUB_ENV_PROFILE': 'prod'},
-            {'OPEN_WORK_HUB_INFRA_CONTAINER_PREFIX': 'open-work-hub-prod'},
-            {'OPEN_WORK_HUB_INFRA_POSTGRES_DB': 'open_work_hub'},
-            {'OPEN_WORK_HUB_POSTGRES_DSN': 'postgresql://u:p@db.invalid:55433/open_work_hub_dev'},
-            {'OPEN_WORK_HUB_POSTGRES_DSN': 'postgresql://u:p@127.0.0.1:55432/open_work_hub_dev'},
-            {'OPEN_WORK_HUB_POSTGRES_DSN': 'postgresql://u:p@127.0.0.1:55433/open_work_hub_dev?host=remote'},
-            {'OPEN_WORK_HUB_MINIO_BUCKET': 'open-work-hub-prod'},
+            {'MTY_ENV_PROFILE': 'prod'},
+            {'MTY_INFRA_CONTAINER_PREFIX': 'mty-prod'},
+            {'MTY_INFRA_POSTGRES_DB': 'mty'},
+            {'MTY_POSTGRES_DSN': 'postgresql://u:p@db.invalid:55433/mty_dev'},
+            {'MTY_POSTGRES_DSN': 'postgresql://u:p@127.0.0.1:55432/mty_dev'},
+            {'MTY_POSTGRES_DSN': 'postgresql://u:p@127.0.0.1:55433/mty_dev?host=remote'},
+            {'MTY_MINIO_BUCKET': 'mty-prod'},
         ]:
             with self.subTest(values=list(values)), patch.dict(os.environ, values), patch.object(reader, 'run') as run:
                 with self.assertRaises(RuntimeError):
@@ -44,9 +44,9 @@ class DocsReaderTest(unittest.TestCase):
         with patch.object(reader, 'container_running', return_value=True):
             command, _, _ = reader.psql_command()
             self.assertIn('PGOPTIONS=-c default_transaction_read_only=on -c statement_timeout=20000', command)
-        with patch.object(reader.shutil, 'which', return_value='/usr/bin/docker'), patch.object(reader, 'run', return_value=subprocess.CompletedProcess([], 0, 'true|open-work-hub-prod\n', '')):
+        with patch.object(reader.shutil, 'which', return_value='/usr/bin/docker'), patch.object(reader, 'run', return_value=subprocess.CompletedProcess([], 0, 'true|mty-prod\n', '')):
             with self.assertRaisesRegex(RuntimeError, 'dev Compose identity'):
-                reader.container_running('open-work-hub-dev-postgres')
+                reader.container_running('mty-dev-postgres')
 
     def test_host_psql_is_readonly_and_uses_connect_timeout(self):
         with patch.object(reader, 'container_running', return_value=False), patch.object(reader.shutil, 'which', return_value='/usr/bin/psql'):
@@ -82,7 +82,7 @@ class DocsReaderTest(unittest.TestCase):
         def mock_run(command, **kwargs):
             commands.append(command)
             if 'mktemp' in command:
-                return subprocess.CompletedProcess(command, 0, '/tmp/owh-doc-media.ABC12345\n', '')
+                return subprocess.CompletedProcess(command, 0, '/tmp/mty-doc-media.ABC12345\n', '')
             if '/bin/sh' in command:
                 raise RuntimeError('copy failed')
             return subprocess.CompletedProcess(command, 0, '', '')
@@ -90,7 +90,7 @@ class DocsReaderTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'copy failed'):
                 reader.copy_media([{'id': MEDIA_ID, 'filename': 'x', 'storage_key': 'object', 'size_bytes': 1}], Path(output))
             self.assertEqual(list(Path(output).iterdir()), [])
-        self.assertEqual(commands[-1][-4:], ['rm', '-rf', '--', '/tmp/owh-doc-media.ABC12345'])
+        self.assertEqual(commands[-1][-4:], ['rm', '-rf', '--', '/tmp/mty-doc-media.ABC12345'])
         self.assertIn('--config-dir', commands[1][-1])
 
     def test_company_docs_routes_and_queries_have_no_global_container(self):

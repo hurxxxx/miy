@@ -1,7 +1,7 @@
 import {
   AUTH_REALTIME_EVENT_TYPES,
   isAuthAccessChangedRealtimeEvent,
-} from '@open-work-hub/contracts/auth';
+} from '@mty/contracts/auth';
 import {
   useCallback,
   useEffect,

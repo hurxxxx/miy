@@ -1,11 +1,11 @@
-const BENTO_CHANNEL = 'open-work-hub:bento';
+const BENTO_CHANNEL = 'mty:bento';
 const BENTO_PROTOCOL_VERSION = 2;
 const BENTO_DEV_DEFAULT_PORT = '18084';
 
 interface BentoBrowserEnv {
   DEV?: boolean;
-  VITE_OPEN_WORK_HUB_BENTO_PORT?: string;
-  VITE_OPEN_WORK_HUB_BENTO_URL?: string;
+  VITE_MTY_BENTO_PORT?: string;
+  VITE_MTY_BENTO_URL?: string;
 }
 
 export interface BentoEmbedConfig {
@@ -79,10 +79,10 @@ export function buildBentoEmbedConfig({
     if (env.DEV && isDevelopmentHost(location.hostname)) {
       url = devUrl(
         location,
-        env.VITE_OPEN_WORK_HUB_BENTO_PORT?.trim() || BENTO_DEV_DEFAULT_PORT,
+        env.VITE_MTY_BENTO_PORT?.trim() || BENTO_DEV_DEFAULT_PORT,
       );
     } else {
-      const configured = env.VITE_OPEN_WORK_HUB_BENTO_URL?.trim();
+      const configured = env.VITE_MTY_BENTO_URL?.trim();
       if (!configured) return null;
       url = new URL(configured, location.origin);
     }
@@ -99,7 +99,7 @@ export function buildBentoEmbedConfig({
     return null;
   }
   url.pathname = '/';
-  url.search = 'open-work-hub-embed=1';
+  url.search = 'mty-embed=1';
   url.hash = '';
   return { src: url.toString(), origin: url.origin };
 }

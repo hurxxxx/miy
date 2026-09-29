@@ -5,7 +5,7 @@
 
 **릴리스 상태:** 잔재·서버 권한 보완 `8c21d2c8`와 실제 사용자 테스트에서 찾은 추가
 UI·실시간 세션·Bento 격리 수정 `59ea8780`을 커밋·푸시했다.
-최신 전체 CI 56을 통과한 [릴리스 MR 23](https://gitlab.1punicorn.com/lumejs/open-work-hub/-/merge_requests/23)을
+최신 전체 CI 56을 통과한 [릴리스 MR 23](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/23)을
 병합하고 운영 `2f1aa0a49a99292e561eece1d8a33934e6fde384`로 배포했다.
 2026-09-08 17:23 UTC까지 운영 앱·Bento와 개발 서비스 복구 후 공개 검증을 완료했다.
 아래 실제 업무 UAT는 개발 환경의 증거이며 인증된 운영 업무 UAT를 대체하지 않는다.
@@ -99,7 +99,7 @@ Recording 정상 ASR 및 명시적/중복 Docs 게시 성공은 외부 추론 �
 
 ## 자동 검증과 환경 한계
 
-- [최신 전체 CI 56 / job 87](https://gitlab.1punicorn.com/lumejs/open-work-hub/-/jobs/87)는
+- [최신 전체 CI 56 / job 87](https://gitlab.1punicorn.com/lumejs/mty/-/jobs/87)는
   `59ea878064a2fea7bfe210415e8e0ee3c070e29b` 소스, target `2ac0f8da56eae7e74f439d164f6707d240728a3c`,
   merge tree `5648da0114c73233a956fb01a45f1d0dbf190ebe`에서 2026-09-08 17:13 UTC에 성공했다.
   maintainer 전용 `release-validation-context.md` artifact의 `Selected: full`, `Status: passed`와
@@ -107,7 +107,7 @@ Recording 정상 ASR 및 명시적/중복 Docs 게시 성공은 외부 추론 �
   `pnpm ci:all`: API 2,421 통과·기존 skip 1, Web 1,433(300 files), 계약 60, core-web 31,
   브라우저 E2E 19 통과. 환경·구조·i18n·lint·typecheck·OpenAPI·빌드도 포함하며 생략한 suite는 없다.
   기존 skip은 이 checkout에 desktop DM manifest가 없는 크기 계약 비교 1개다.
-- [전체 CI 54 / job 85](https://gitlab.1punicorn.com/lumejs/open-work-hub/-/pipelines/54)는
+- [전체 CI 54 / job 85](https://gitlab.1punicorn.com/lumejs/mty/-/pipelines/54)는
   `8c21d2c8` 소스, target `2ac0f8da`, merge tree `0fcb20d106cbaeb925f36612df03695747315cd0`에서 성공했다.
   `pnpm ci:all`: API 2,421 통과·기존 skip 1, Web 1,400, 계약 60, core-web 31, 브라우저 19,
   앱 구조·i18n·lint·typecheck·OpenAPI·환경 계약·빌드 포함. 후속 UI/bridge 수정 이전 증거다.
@@ -115,7 +115,7 @@ Recording 정상 ASR 및 명시적/중복 Docs 게시 성공은 외부 추론 �
   검사 30개, 최종 bridge/실시간/PMS 늦은 응답 검사 32개 통과. 중복 실행 수치를 합산하지 않는다.
   테스트 타입 검사도 통과했다. 최종 소스 전체 결과는 위 CI 56 증거를 기준으로 한다.
 - CI 초기 실패는 runner의 canonical validation image 부재였다. 정식 build script를 재실행해
-  `open-work-hub-validation:node22-python312` 이미지
+  `mty-validation:node22-python312` 이미지
   `sha256:e4fa4ccf8cfce4fb93947befccca1a62f33d5f6ef886f06d413e3a3a02f64041`을 복원했다.
   Playwright 1.59.1/Chromium v1217 검증이 포함된다. 첫 이미지 빌드의 Chromium SIGSEGV 원인은 미확정이며
   같은 명령의 재실행이 성공했다. CI·검사·테스트 제외를 완화하지 않았다.
@@ -128,8 +128,8 @@ Recording 정상 ASR 및 명시적/중복 Docs 게시 성공은 외부 추론 �
 
 ## 배포와 복구
 
-이전 [MR 22](https://gitlab.1punicorn.com/lumejs/open-work-hub/-/merge_requests/22),
-[CI 53](https://gitlab.1punicorn.com/lumejs/open-work-hub/-/pipelines/53)을 통해 회사 스키마 재설계가
+이전 [MR 22](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/22),
+[CI 53](https://gitlab.1punicorn.com/lumejs/mty/-/pipelines/53)을 통해 회사 스키마 재설계가
 배포됐다. 운영 활성 DB는 `company_20260908`, 제품 테이블 161개와 Alembic 테이블이다.
 이전 DB·저장소·불변 이미지·0600 환경 백업은 복구용으로 보존했고 기존 세션을 이관하지 않았다.
 이번 후속 보완은 새 DB 마이그레이션이나 환경 키 변경을 포함하지 않는다.
@@ -158,16 +158,16 @@ bridge hash를 확인해야 한다. app deploy/rollback 명령은 Bento를 자�
   `sha256:908372592dc7a4e285f8e95fceb60d23293f055bb1b945b0f178c14dd0839b85`의 revision은
   `2f1aa0a49a99292e561eece1d8a33934e6fde384`다. 로컬·공개 health/readiness/revision/bootstrap/login
   smoke를 모두 통과했다. 새 마이그레이션 없는 현재 DB에서 정식 migration gate도 실행했다.
-- 별도 infra의 `bento` 서비스만 `docker compose --env-file .env -f ops/compose/open-work-hub-prod.infra.yml
+- 별도 infra의 `bento` 서비스만 `docker compose --env-file .env -f ops/compose/mty-prod.infra.yml
   up -d --no-deps --build bento`로 갱신했다. 17:21:54 UTC 시작, healthy 및 `nginx -t` 통과.
   새 이미지 ID는 `sha256:f366ecb8631874372b009e423eea52c9ce772039d91f376f6086f2ff4451adb8`이다.
   소스·컨테이너·공개 HTTP의 bridge SHA-256이 모두
   `f24ccadafe29c1b3790ef7a20cb6a0e25c3bdda8e0de294d50a54b8b87bbcdf0`로 일치한다.
   해당 소스의 protocol은 v2이며 공개 bridge/health가 200과 `Clear-Site-Data: "storage"`를 반환했다.
 - 이전 앱 `sha256:878426eec1d3d69cc869a1e4fa4d7f93b8733cdfd6e1da595a5c62823cd6ac89`는
-  `open-work-hub-app:prod-previous`로, 이전 Bento
+  `mty-app:prod-previous`로, 이전 Bento
   `sha256:d9cc6362d348921e3b378380ab8738f4d67c3386c27c5102704d058c8cb5ba4b`는
-  `open-work-hub-bento:pre-59ea8780`로 보존했다. 복구 준비를 확인했으며 실제 rollback은 실행하지 않았다.
+  `mty-bento:pre-59ea8780`로 보존했다. 복구 준비를 확인했으며 실제 rollback은 실행하지 않았다.
 - 실제 운영 `agent-browser`에서 데스크톱 로그인 입력 요소, 개발 seed 로그인 버튼 미노출,
   PMS 직접 진입 시 로그인 경계를 확인했다. 비로그인 auth/me·admin/users·pms/spaces는 모두 401.
   390×844 로그인 화면은 가로 넘침 없음, Tab 첫 포커스는 아이디, axe WCAG A/AA 위반 0·미완결 0·

@@ -14,12 +14,12 @@ async function notifyRecordingClients() {
     includeUncontrolled: true,
   });
   await Promise.all(
-    clients.map((client) => client.postMessage({ type: 'open-work-hub-recording-sync' })),
+    clients.map((client) => client.postMessage({ type: 'mty-recording-sync' })),
   );
 }
 
 worker.addEventListener('sync', (event) => {
-  if (event.tag === 'open-work-hub-recording-upload') {
+  if (event.tag === 'mty-recording-upload') {
     event.waitUntil(notifyRecordingClients());
   }
 });

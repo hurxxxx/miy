@@ -8,18 +8,18 @@ from fastapi.testclient import TestClient
 from dev_accounts import dev_login
 from sqlalchemy import select
 
-from open_work_hub_api.core.db import get_session_factory
-from open_work_hub_api.domains.auth.access import load_user_graph
-from open_work_hub_api.domains.auth.models import AuditLog
-from open_work_hub_api.domains.auth.security import new_id
-from open_work_hub_api.domains.meeting import insights as meeting_insights
-from open_work_hub_api.domains.meeting.models import (
+from mty_api.core.db import get_session_factory
+from mty_api.domains.auth.access import load_user_graph
+from mty_api.domains.auth.models import AuditLog
+from mty_api.domains.auth.security import new_id
+from mty_api.domains.meeting import insights as meeting_insights
+from mty_api.domains.meeting.models import (
     Meeting,
     MeetingAttendee,
     MeetingInsight,
     MeetingRecording,
 )
-from open_work_hub_api.domains.planner.event_time import parse_iso_or_date
+from mty_api.domains.planner.event_time import parse_iso_or_date
 
 
 def _dev_login(client: TestClient, account_key: str) -> dict:

@@ -20,8 +20,8 @@ vi.mock('@/src/platform/apps/app-bootstrap-context', () => ({
   useAppBootstrapContext: () => ({ data: {} }),
   isBootstrapAppEnabled: () => true,
 }));
-vi.mock('@open-work-hub/ui', async (original) => ({
-  ...(await original<typeof import('@open-work-hub/ui')>()),
+vi.mock('@mty/ui', async (original) => ({
+  ...(await original<typeof import('@mty/ui')>()),
   useConfirm: () => ({ confirm: vi.fn(), confirmDialog: null }),
 }));
 vi.mock('@/src/app-modules/docs/public-api', () => ({

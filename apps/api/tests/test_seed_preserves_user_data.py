@@ -13,8 +13,8 @@ def _auth_headers(token: str) -> dict[str, str]:
 
 def _seed_dev_accounts() -> None:
     from dev_accounts import configure_company_app_access
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.auth.access import ensure_dev_login_seed_data
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.auth.access import ensure_dev_login_seed_data
 
     with get_session_factory()() as db:
         ensure_dev_login_seed_data(db)
@@ -24,10 +24,10 @@ def _seed_dev_accounts() -> None:
 def test_seeded_dev_account_supports_configured_password_login(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from open_work_hub_api.core.settings import get_settings
+    from mty_api.core.settings import get_settings
 
     password = "test-seeded-account-password"
-    monkeypatch.setenv("OPEN_WORK_HUB_API_DEV_LOGIN_PASSWORD", password)
+    monkeypatch.setenv("MTY_API_DEV_LOGIN_PASSWORD", password)
     get_settings.cache_clear()
     _seed_dev_accounts()
 
@@ -42,7 +42,7 @@ def test_seeded_dev_account_supports_configured_password_login(
     assert response.status_code == 200, response.text
     payload = response.json()
     assert payload["user"]["login_id"] == "administrator"
-    assert payload["user"]["email"] == "admin@open-work-hub.local"
+    assert payload["user"]["email"] == "admin@mty.local"
     assert "platform_admin" in payload["user"]["system_roles"]
     assert payload["token"]
     me = client.get("/api/v1/auth/me", headers=_auth_headers(payload["token"]))
@@ -56,9 +56,9 @@ def test_seeded_dev_account_supports_configured_password_login(
 
 
 def test_seed_preserves_user_created_space_membership(client: TestClient) -> None:
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.auth.access import ensure_seed_data
-    from open_work_hub_api.domains.pms.space_models import TeamMember
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.auth.access import ensure_seed_data
+    from mty_api.domains.pms.space_models import TeamMember
 
     _seed_dev_accounts()
 
@@ -131,8 +131,8 @@ def test_dev_login_is_idempotent_and_preserves_user_spaces(
     Before the guard landed, each of those requests walked every seed user's
     TeamMember rows and wiped out anything outside the default PMS space,
     destroying user-created spaces on every login."""
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.pms.space_models import TeamMember
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.pms.space_models import TeamMember
     from sqlalchemy import select
 
     _seed_dev_accounts()
@@ -196,10 +196,10 @@ def test_dev_login_is_idempotent_and_preserves_user_spaces(
 
 
 def test_seed_recreates_missing_app_as_disabled_without_granting_access(client: TestClient) -> None:
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.auth.access import ensure_dev_login_seed_data
-    from open_work_hub_api.domains.auth.models import CompanyAppControl
-    from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.auth.access import ensure_dev_login_seed_data
+    from mty_api.domains.auth.models import CompanyAppControl
+    from mty_api.domains.auth.app_access_models import AppAccessPolicy
 
     _seed_dev_accounts()
     with get_session_factory()() as db:
@@ -211,10 +211,10 @@ def test_seed_recreates_missing_app_as_disabled_without_granting_access(client: 
 
 
 def test_seed_preserves_existing_master_and_audience_policy(client: TestClient) -> None:
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.auth.access import ensure_dev_login_seed_data, ensure_seed_data
-    from open_work_hub_api.domains.auth.models import CompanyAppControl
-    from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.auth.access import ensure_dev_login_seed_data, ensure_seed_data
+    from mty_api.domains.auth.models import CompanyAppControl
+    from mty_api.domains.auth.app_access_models import AppAccessPolicy
 
     _seed_dev_accounts()
     with get_session_factory()() as db:
@@ -228,8 +228,8 @@ def test_seed_preserves_existing_master_and_audience_policy(client: TestClient) 
 
 
 def test_core_seed_does_not_create_implicit_business_spaces(client: TestClient) -> None:
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.pms.space_models import Team, TeamMember
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.pms.space_models import Team, TeamMember
 
     _seed_dev_accounts()
     with get_session_factory()() as db:
@@ -240,11 +240,11 @@ def test_core_seed_does_not_create_implicit_business_spaces(client: TestClient) 
 def test_initial_dev_seed_enables_apps_but_repeated_seed_keeps_admin_choices(
     client: TestClient,
 ) -> None:
-    from open_work_hub_api.core.db import get_session_factory
-    from open_work_hub_api.domains.auth.access import ensure_dev_login_seed_data
-    from open_work_hub_api.domains.auth.models import CompanyAppControl
-    from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy
-    from open_work_hub_api.domains.auth.app_catalog import iter_app_catalog
+    from mty_api.core.db import get_session_factory
+    from mty_api.domains.auth.access import ensure_dev_login_seed_data
+    from mty_api.domains.auth.models import CompanyAppControl
+    from mty_api.domains.auth.app_access_models import AppAccessPolicy
+    from mty_api.domains.auth.app_catalog import iter_app_catalog
 
     with get_session_factory()() as db:
         db.execute(delete(CompanyAppControl))

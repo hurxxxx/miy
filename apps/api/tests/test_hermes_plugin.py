@@ -13,9 +13,9 @@ import pytest
 @pytest.fixture
 def plugin(monkeypatch):
     run = ContextVar("native_test_run", default="run_test")
-    profile = "owh-" + "a" * 32
+    profile = "mty-" + "a" * 32
     namespace = hashlib.sha256(profile.encode()).hexdigest()[:20]
-    server = f"owh-mcp-{namespace}-internal"
+    server = f"mty-mcp-{namespace}-internal"
     transport = {"url": "http://api.test/internal", "headers": {"Authorization": "Bearer fixture"}}
     consent = []
     modules = {
@@ -36,8 +36,8 @@ def plugin(monkeypatch):
         module = ModuleType(name)
         module.__dict__.update(members)
         monkeypatch.setitem(sys.modules, name, module)
-    source = Path(__file__).resolve().parents[3] / "ops/hermes/plugins/owh_runtime/__init__.py"
-    spec = importlib.util.spec_from_file_location("owh_plugin_test", source)
+    source = Path(__file__).resolve().parents[3] / "ops/hermes/plugins/mty_runtime/__init__.py"
+    spec = importlib.util.spec_from_file_location("mty_plugin_test", source)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return SimpleNamespace(
@@ -49,7 +49,7 @@ def test_parallel_internal_calls_bind_native_run_and_exact_arguments(plugin, mon
     calls = []
 
     def rpc(server, run_id, method, params):
-        if method == "owh/context":
+        if method == "mty/context":
             return {"allow_native_tools": True}
         if method == "tools/list":
             return {"tools": [{"name": "tasks.create", "annotations": {"readOnlyHint": False}}]}
@@ -107,9 +107,9 @@ def test_workload_blocks_native_tools_but_can_correct_and_submit(plugin, monkeyp
     attempts = []
 
     def rpc(server, run, method, params):
-        if method == "owh/context":
+        if method == "mty/context":
             return {"allow_native_tools": False}
-        assert method == "owh/submit"
+        assert method == "mty/submit"
         attempts.append(params)
         return {"accepted": isinstance(params["result"].get("answer"), int)}
 
@@ -123,20 +123,20 @@ def test_workload_blocks_native_tools_but_can_correct_and_submit(plugin, monkeyp
         )
 
     assert "error" in invoke("terminal", {})
-    assert invoke("owh_submit_result", {"result": {"answer": "invalid"}}) == {"accepted": False}
-    assert invoke("owh_submit_result", {"result": {"answer": 42}}) == {"accepted": True}
+    assert invoke("mty_submit_result", {"result": {"answer": "invalid"}}) == {"accepted": False}
+    assert invoke("mty_submit_result", {"result": {"answer": 42}}) == {"accepted": True}
     assert len(attempts) == 2
 
 
 @pytest.mark.parametrize("native_run_id", ["", "cron_job_fixture", "run_forged"])
-@pytest.mark.parametrize("tool", ["web_search", "read_file", "terminal", "owh_submit_result"])
-def test_jobs_profile_intentionally_denies_tools_without_an_owh_run(
+@pytest.mark.parametrize("tool", ["web_search", "read_file", "terminal", "mty_submit_result"])
+def test_jobs_profile_intentionally_denies_tools_without_an_mty_run(
     plugin, monkeypatch, native_run_id, tool
 ):
     monkeypatch.setattr(
         sys.modules["hermes_constants"],
         "get_hermes_home",
-        lambda: Path("owh-" + "a" * 32 + "-jobs"),
+        lambda: Path("mty-" + "a" * 32 + "-jobs"),
     )
     monkeypatch.setattr(
         sys.modules["hermes_cli.config"], "load_config", lambda: {"mcp_servers": {}}
@@ -156,9 +156,9 @@ def test_registered_native_tool_requires_admission_for_every_call(plugin, monkey
     executions = []
 
     def rpc(server, run, method, params):
-        if method == "owh/context":
+        if method == "mty/context":
             return {"allow_native_tools": False, "native_tools": ["web_search"]}
-        assert method == "owh/native_admit" and params == {"tool": "web_search"}
+        assert method == "mty/native_admit" and params == {"tool": "web_search"}
         admissions.append(run)
         return {"accepted": len(admissions) == 1}
 
@@ -199,7 +199,7 @@ def test_rpc_resolves_native_profile_secret_references_and_rejects_unresolved(pl
         ),
     )
     with pytest.raises(ValueError, match="Resolved profile authentication"):
-        plugin.module._rpc(server, "run_test", "owh/context", {})
+        plugin.module._rpc(server, "run_test", "mty/context", {})
     assert seen == []
     monkeypatch.setattr(
         sys.modules["tools.mcp_tool"],
@@ -209,7 +209,7 @@ def test_rpc_resolves_native_profile_secret_references_and_rejects_unresolved(pl
             "Authorization": "Bearer active-profile-secret",
         },
     )
-    assert plugin.module._rpc(server, "run_test", "owh/context", {}) == {"accepted": True}
+    assert plugin.module._rpc(server, "run_test", "mty/context", {}) == {"accepted": True}
     assert seen == ["Bearer active-profile-secret"]
     assert server["headers"]["Authorization"] == "Bearer ${PROFILE_KEY}"
 
@@ -260,7 +260,7 @@ def test_tool_rpc_waits_for_server_completion_beyond_thirty_seconds(plugin):
         thread.join(timeout=5)
 
 
-@pytest.mark.parametrize("method", ["tools/list", "owh/context", "tools/call"])
+@pytest.mark.parametrize("method", ["tools/list", "mty/context", "tools/call"])
 def test_rpc_bounds_control_waits_and_never_retries_uncertain_calls(plugin, monkeypatch, method):
     import httpx
 
@@ -296,7 +296,7 @@ def test_sent_tool_with_no_confirmation_reports_unknown_outcome_without_retry(
     calls = []
 
     def rpc(server, run, method, params):
-        if method == "owh/context":
+        if method == "mty/context":
             return {"allow_native_tools": True}
         if method == "tools/list":
             return {"tools": [{"name": "fixture.save", "annotations": {"readOnlyHint": False}}]}
@@ -353,12 +353,12 @@ def test_revoked_app_workload_history_cannot_be_read_from_admitted_chatbot(
     from uuid import uuid4
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
-    from open_work_hub_api.domains.auth.app_access import can_use_app
-    from open_work_hub_api.domains.auth.app_access_models import AppAccessPolicy
-    from open_work_hub_api.domains.auth.models import CompanyAppControl, User
-    from open_work_hub_api.domains.hermes.models import HermesProfileBinding
-    from open_work_hub_api.domains.hermes.repository import HermesRunRepository
-    from open_work_hub_api.domains.hermes.mcp_router import _available_tools
+    from mty_api.domains.auth.app_access import can_use_app
+    from mty_api.domains.auth.app_access_models import AppAccessPolicy
+    from mty_api.domains.auth.models import CompanyAppControl, User
+    from mty_api.domains.hermes.models import HermesProfileBinding
+    from mty_api.domains.hermes.repository import HermesRunRepository
+    from mty_api.domains.hermes.mcp_router import _available_tools
 
     engine = create_engine(application_postgres_dsn)
     try:
@@ -375,7 +375,7 @@ def test_revoked_app_workload_history_cannot_be_read_from_admitted_chatbot(
             binding = HermesProfileBinding(
                 id=str(uuid4()),
                 user_id=user.id,
-                profile_name="owh-" + "a" * 32,
+                profile_name="mty-" + "a" * 32,
                 status="active",
                 provider="openai",
                 model="test",
@@ -410,7 +410,7 @@ def test_revoked_app_workload_history_cannot_be_read_from_admitted_chatbot(
             assert not can_use_app(db, user_id=user.id, app_id="mail")
 
             def rpc(_server, native_run_id, method, _params):
-                assert method == "owh/context"
+                assert method == "mty/context"
                 _, _, active = _available_tools(
                     db, binding=binding, user=user, hermes_run_id=native_run_id
                 )

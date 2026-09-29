@@ -7,19 +7,19 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from open_work_hub_api.core.db import Base
-from open_work_hub_api.domains.auth.models import User
-from open_work_hub_api.domains.groups.models import Group
-from open_work_hub_api.domains.retrieval.models import (
+from mty_api.core.db import Base
+from mty_api.domains.auth.models import User
+from mty_api.domains.groups.models import Group
+from mty_api.domains.retrieval.models import (
     RetrievalPartition,
     RetrievalPartitionCandidateScope,
 )
-from open_work_hub_api.domains.retrieval.partition_adapter_registry import (
+from mty_api.domains.retrieval.partition_adapter_registry import (
     RetrievalProjectionBinding,
     register_retrieval_partition_adapter,
     reset_retrieval_partition_adapters,
 )
-from open_work_hub_api.domains.retrieval.partitioning import (
+from mty_api.domains.retrieval.partitioning import (
     RetrievalPartitionConflict,
     RetrievalPartitionInvalidTarget,
     RetrievalPartitionUnbound,
@@ -208,7 +208,7 @@ def test_resource_read_scope_is_server_resolved_from_registered_adapter(
         )
     )
     monkeypatch.setattr(
-        "open_work_hub_api.domains.retrieval.default_partition_adapters."
+        "mty_api.domains.retrieval.default_partition_adapters."
         "ensure_retrieval_partition_adapters_registered",
         lambda: None,
     )
@@ -276,7 +276,7 @@ def test_candidate_scope_transition_preserves_partition_identity(db: Session) ->
 def test_files_source_owned_adapter_rejects_generic_candidate_scope_transition(
     db: Session,
 ) -> None:
-    from open_work_hub_api.domains.files.source_access import FileManagerSourceAccessAdapter
+    from mty_api.domains.files.source_access import FileManagerSourceAccessAdapter
 
     adapter = FileManagerSourceAccessAdapter()
     partition = create_managed_partition(

@@ -1,13 +1,13 @@
 import {
   AUTH_ACCESS_CHANGE_REASONS,
   AUTH_REALTIME_EVENT_TYPES,
-} from '@open-work-hub/contracts/auth';
+} from '@mty/contracts/auth';
 import {
   REALTIME_CLIENT_EVENT_TYPES,
   REALTIME_SERVER_EVENT_TYPES,
   type DocsPagesRealtimeSubscriptionMessage,
   type WhiteboardAccessRealtimeSubscriptionMessage,
-} from '@open-work-hub/contracts/realtime';
+} from '@mty/contracts/realtime';
 
 export type RealtimeStatus = 'connecting' | 'live' | 'offline';
 

@@ -1,5 +1,5 @@
-import { buildAppHref } from '@open-work-hub/contracts/app-routes';
-import { REALTIME_TOPIC_EVENT_TYPES } from '@open-work-hub/contracts/realtime';
+import { buildAppHref } from '@mty/contracts/app-routes';
+import { REALTIME_TOPIC_EVENT_TYPES } from '@mty/contracts/realtime';
 import { ChevronDown, ChevronRight, FileText } from 'lucide-react';
 import { AnimatePresence, LazyMotion, domAnimation, m } from 'motion/react';
 import type { ReactNode } from 'react';

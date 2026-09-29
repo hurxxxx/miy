@@ -18,6 +18,11 @@ Contract:
 - Default multi-source query may return degraded available results.
 - Every evidence/citation passes source-owned final ACL before presentation or external model input.
 
+The persisted search/vector projection uses the `open-work-hub-retrieval-v1`
+identity namespace. Keep this opaque v1 value during the MTY rename: changing
+it changes UUIDs for existing documents and vector points. A future rename of
+the namespace requires a versioned reindex, cutover and rollback plan.
+
 `generic_rag` and `keyword` are retrieval backend channels, not app or resource identities. Active
 RAG resource adapters are listed in the [RAG Source Matrix](../rag/source-matrix.md).
 

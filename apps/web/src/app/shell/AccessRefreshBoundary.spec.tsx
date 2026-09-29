@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   AUTH_ACCESS_CHANGE_REASONS,
   AUTH_REALTIME_EVENT_TYPES,
-} from '@open-work-hub/contracts/auth';
+} from '@mty/contracts/auth';
 import type { AuthUser } from '@/src/platform/auth/auth-api';
 import { AccessRefreshBoundary } from './AccessRefreshBoundary';
 import {

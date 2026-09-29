@@ -1,4 +1,4 @@
-import { buildAppHref } from '@open-work-hub/contracts/app-routes';
+import { buildAppHref } from '@mty/contracts/app-routes';
 import { Bot, FileUp, Folder } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';

@@ -2,11 +2,11 @@ import type { NavItem } from '@/src/app/shell/navigation-types';
 import {
   APP_CONTRACT_BY_ID,
   type AppId,
-} from '@open-work-hub/contracts/app-contracts';
+} from '@mty/contracts/app-contracts';
 import {
   buildAppHref,
   matchAppRoute,
-} from '@open-work-hub/contracts/app-routes';
+} from '@mty/contracts/app-routes';
 
 export type ShellAppId = string;
 

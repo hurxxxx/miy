@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useConfirm, useFeedback } from '@open-work-hub/ui';
+import { useConfirm, useFeedback } from '@mty/ui';
 import { Link2, Unlink, Users } from 'lucide-react';
 import type { PmsSpace } from '@/src/app-modules/pms/public-api';
 import {

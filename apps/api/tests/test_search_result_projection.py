@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from open_work_hub_api.domains.search.result_projection import build_search_hit
+from mty_api.domains.search.result_projection import build_search_hit
 
 
 def test_search_hit_preserves_canonical_pms_deep_link() -> None:
