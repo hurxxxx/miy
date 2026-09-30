@@ -1,4 +1,38 @@
 export interface paths {
+    "/api/monitor/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Service Status */
+        get: operations["service_status_api_monitor_services_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/overview/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Preferences */
+        patch: operations["preferences_api_overview__task_id__patch"];
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -149,6 +183,57 @@ export interface paths {
         put?: never;
         /** New Task */
         post: operations["new_task_api_tasks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tasks */
+        get: operations["tasks_api_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{task_id}/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Task Agents */
+        get: operations["task_agents_api_tasks__task_id__agents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{task_id}/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Task Skills */
+        get: operations["task_skills_api_tasks__task_id__skills_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -411,6 +496,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/overview/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Events */
+        get: operations["events_api_overview_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -429,6 +531,34 @@ export interface components {
             } | null;
             /** Error Code */
             error_code?: string | null;
+        };
+        /** AgentOut */
+        AgentOut: {
+            /** Thread Id */
+            thread_id: string;
+            /** Parent Thread Id */
+            parent_thread_id?: string | null;
+            /** Name */
+            name: string;
+            /** Role */
+            role?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Flags
+             * @default []
+             */
+            flags: string[];
+            /** Turn Id */
+            turn_id?: string | null;
+            /** Activity */
+            activity?: string | null;
+            /** Progress */
+            progress?: {
+                [key: string]: unknown;
+            } | null;
+            /** Updated At */
+            updated_at: string;
         };
         /** Answer */
         Answer: {
@@ -559,6 +689,8 @@ export interface components {
             text: string;
             /** Attachment Ids */
             attachment_ids?: string[];
+            /** Skill Names */
+            skill_names?: string[];
         };
         /** ImportThread */
         ImportThread: {
@@ -612,6 +744,8 @@ export interface components {
             stage: "plan";
             /** Attachment Ids */
             attachment_ids?: string[];
+            /** Skill Names */
+            skill_names?: string[];
         };
         /** MessageBody */
         MessageBody: {
@@ -633,6 +767,8 @@ export interface components {
             stage: "plan";
             /** Attachment Ids */
             attachment_ids?: string[];
+            /** Skill Names */
+            skill_names?: string[];
         };
         /** ModelOut */
         ModelOut: {
@@ -651,6 +787,12 @@ export interface components {
         NewTask: {
             /** Title */
             title: string;
+            context?: components["schemas"]["TaskContext"] | null;
+            /**
+             * Isolate
+             * @default false
+             */
+            isolate: boolean;
         };
         /** Ok */
         Ok: {
@@ -692,10 +834,48 @@ export interface components {
             /** Created At */
             created_at: string;
         };
+        /** ServiceOut */
+        ServiceOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Environment */
+            environment: string;
+            /** Status */
+            status: string;
+            /** Version */
+            version?: string | null;
+            /** Checked At */
+            checked_at?: string | null;
+            /**
+             * Stale
+             * @default true
+             */
+            stale: boolean;
+        };
         /** SessionOut */
         SessionOut: {
             /** Authenticated */
             authenticated: boolean;
+        };
+        /** SkillOut */
+        SkillOut: {
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+        };
+        /** TaskContext */
+        TaskContext: {
+            /**
+             * Purpose
+             * @default development
+             * @enum {string}
+             */
+            purpose: "development" | "inspection" | "deployment" | "recovery";
+            /** Service Id */
+            service_id?: string | null;
         };
         /** TaskDetail */
         TaskDetail: {
@@ -735,6 +915,25 @@ export interface components {
             progress?: {
                 [key: string]: unknown;
             } | null;
+            /** Context */
+            context?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Pinned
+             * @default false
+             */
+            pinned: boolean;
+            /**
+             * Agents
+             * @default []
+             */
+            agents: components["schemas"]["AgentOut"][];
+            /**
+             * Pending Count
+             * @default 0
+             */
+            pending_count: number;
             /** Failed Request Text */
             failed_request_text?: string | null;
             /** Revisions */
@@ -791,6 +990,30 @@ export interface components {
             progress?: {
                 [key: string]: unknown;
             } | null;
+            /** Context */
+            context?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Pinned
+             * @default false
+             */
+            pinned: boolean;
+            /**
+             * Agents
+             * @default []
+             */
+            agents: components["schemas"]["AgentOut"][];
+            /**
+             * Pending Count
+             * @default 0
+             */
+            pending_count: number;
+        };
+        /** TaskPreferences */
+        TaskPreferences: {
+            /** Pinned */
+            pinned: boolean;
         };
         /** ThreadPage */
         ThreadPage: {
@@ -832,6 +1055,61 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    service_status_api_monitor_services_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceOut"][];
+                };
+            };
+        };
+    };
+    preferences_api_overview__task_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskPreferences"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ok"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health_healthz_get: {
         parameters: {
             query?: never;
@@ -1145,6 +1423,99 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TaskDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tasks_api_overview_get: {
+        parameters: {
+            query?: {
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    task_agents_api_tasks__task_id__agents_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    task_skills_api_tasks__task_id__skills_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillOut"][];
                 };
             };
             /** @description Validation Error */
@@ -1666,8 +2037,40 @@ export interface operations {
             };
             header?: never;
             path: {
-                task_id: string;
+                task_id: string | null;
             };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    events_api_overview_events_get: {
+        parameters: {
+            query?: {
+                task_id?: string | null;
+                after?: number;
+            };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;

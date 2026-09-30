@@ -49,6 +49,8 @@ class Task(Base):
     __tablename__ = "console_tasks"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     title: Mapped[str] = mapped_column(String(200))
+    context: Mapped[dict | None] = mapped_column(JSON)
+    pinned: Mapped[bool] = mapped_column(default=False)
     thread_id: Mapped[str | None] = mapped_column(String(160), unique=True)
     stage: Mapped[str] = mapped_column(String(24), default="plan")
     status: Mapped[str] = mapped_column(String(24), default="idle")
@@ -100,6 +102,7 @@ class PendingRequest(Base):
     __tablename__ = "console_requests"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     task_id: Mapped[str] = mapped_column(ForeignKey("console_tasks.id", ondelete="CASCADE"))
+    thread_id: Mapped[str | None] = mapped_column(String(160))
     turn_id: Mapped[str] = mapped_column(String(160))
     rpc_id: Mapped[str] = mapped_column(Text)
     generation: Mapped[str] = mapped_column(String(36))
@@ -151,6 +154,43 @@ class WorkspaceLease(Base):
     id: Mapped[int] = mapped_column(primary_key=True, default=1)
     task_id: Mapped[str | None] = mapped_column(ForeignKey("console_tasks.id"))
     __table_args__ = (CheckConstraint("id = 1"),)
+
+
+class ResourceLease(Base):
+    __tablename__ = "console_resource_leases"
+    task_id: Mapped[str] = mapped_column(
+        ForeignKey("console_tasks.id", ondelete="CASCADE"), primary_key=True
+    )
+    resource: Mapped[str] = mapped_column(Text, primary_key=True)
+    exclusive: Mapped[bool] = mapped_column(default=True)
+
+
+class Agent(Base):
+    """Replaceable native thread projection, not an agent execution engine."""
+
+    __tablename__ = "console_agents"
+    thread_id: Mapped[str] = mapped_column(String(160), primary_key=True)
+    task_id: Mapped[str] = mapped_column(
+        ForeignKey("console_tasks.id", ondelete="CASCADE"), index=True
+    )
+    parent_thread_id: Mapped[str | None] = mapped_column(String(160))
+    session_id: Mapped[str | None] = mapped_column(String(160))
+    name: Mapped[str] = mapped_column(String(200), default="Codex")
+    role: Mapped[str | None] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(40), default="notLoaded")
+    flags: Mapped[list] = mapped_column(JSON, default=list)
+    turn_id: Mapped[str | None] = mapped_column(String(160))
+    activity: Mapped[str | None] = mapped_column(String(500))
+    progress: Mapped[dict | None] = mapped_column(JSON)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class ServiceObservation(Base):
+    __tablename__ = "console_service_observations"
+    service_id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    status: Mapped[str] = mapped_column(String(40))
+    version: Mapped[str | None] = mapped_column(String(160))
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
 class Event(Base):

@@ -30,7 +30,9 @@ def migrate(url):
 
 def main():
     parser = argparse.ArgumentParser(description="Private Codex console")
-    parser.add_argument("command", choices=("serve", "migrate", "set-password", "openapi"))
+    parser.add_argument(
+        "command", choices=("serve", "manage", "migrate", "set-password", "openapi")
+    )
     args = parser.parse_args()
     if args.command == "openapi":
         print(json.dumps(create_app().openapi(), ensure_ascii=False))
@@ -55,9 +57,9 @@ def main():
         print("Owner password updated; web sessions revoked. Codex login is unchanged.")
     else:
         uvicorn.run(
-            create_app(settings),
+            create_app(settings, role="management" if args.command == "manage" else "session"),
             host=settings.bind_host,
-            port=settings.port,
+            port=settings.management_port if args.command == "manage" else settings.port,
             workers=1,
             access_log=False,
             proxy_headers=False,

@@ -216,12 +216,16 @@ def prepare_workspace(
     base_ref: str,
     worktree_root: Path,
     validate_target=None,
+    force_isolated=False,
 ) -> tuple[Path, bool]:
     if previous is not None:
         if fingerprint(workspace) != previous:
             raise ConsoleError("workspace_changed")
         return workspace, False
-    if not git(workspace, "status", "--porcelain=v1", "--untracked-files=all").strip():
+    if (
+        not force_isolated
+        and not git(workspace, "status", "--porcelain=v1", "--untracked-files=all").strip()
+    ):
         return workspace, False
     target = worktree_root / f"codex-{task_id}"
     if validate_target is not None:

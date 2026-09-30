@@ -25,12 +25,18 @@
     "PermissionsRequestApprovalResponse": "08d82c17c27361f25763cb9fb117fe5779b3f38a092f4524afd5a73538d90af1",
     "PlanDeltaNotification": "5d291d7c92830d0d4c01b35abe3edfb96b124ed3c58761c662828786a255eccb",
     "ServerRequestResolvedNotification": "9bab6c9eda658824742162c9eaa3edbfa3b70fcc5348f20f5a190d7a794b3d53",
+    "SkillsListParams": "affeac96ae882a1c1c3efc2f86829d6775ece43a1888bb9c8b01359bfe211dc8",
+    "SkillsListResponse": "fe9e51e090b9c6a2ee751055d980b11a5305c7baadc0ddff6294dbd3cc372831",
+    "ThreadListParams": "6a465d79183f856336ec42a9a183433fbde964ca9a94378b5d11501418cd42b6",
+    "ThreadListResponse": "d6502ab88262a6ce2af17ae9f7578943e796b751f9038dcf48f67b22d3603897",
     "ThreadReadParams": "1c154f1db7bd63ad4514aba7ea35bf4723f6814b81e33e763f00aaa7f9f2b149",
     "ThreadReadResponse": "2ac8c05b5f95560fbc97a788baaf94b9e5701dffbab1c444152c9753f8dca6e4",
     "ThreadResumeParams": "3065dfae69296ef81ed893330f19703aa5212726a75ab025e197bb8cf6d67663",
     "ThreadResumeResponse": "77dcb4670a7a4b62c5e2765360986a6802699cf64395f9d28ad042946bf86308",
     "ThreadStartParams": "44a122637f6208314268b9d58c395b8fe7e9277f05af11f9d199b327db7d71e5",
     "ThreadStartResponse": "7c0a71925a6c5c7b808eff13f33a4546b44488eed49cc6ee0a579b26705ddc61",
+    "ThreadStartedNotification": "2e980e3499026037d09400f67ee49537bcb897320f05230449f5107e5dbfb008",
+    "ThreadStatusChangedNotification": "538acb0fee602ec811ae7c7be1d92a6ba47ce1e235ce5c2c9e0d5872f93d8df3",
     "ToolRequestUserInputParams": "b99ace3211269f77083d8d86664393deb7992c3b53ef596582915b1256668682",
     "ToolRequestUserInputResponse": "18735c465696eda1d8da032be0ff06097656ef1d1bf2cedc86b8707164aa105c",
     "TurnCompletedNotification": "6fa859722b07893cb0459c6b317b36e128f2ccf37fc2d83d15f88e0e108f1369",
@@ -39,6 +45,7 @@
     "TurnPlanUpdatedNotification": "faf449e884d5750dec6310ee9a7bda606fc795d1d28258126eefac29d5a78cf0",
     "TurnStartParams": "cfd7b3291e0e3506612117887884c7debc1e994c0aeee1fc26cc1554c928df0e",
     "TurnStartResponse": "16b6ea0408ea9b2000d34b0e925e16aa658a94771bac67cb332dcb868075bdf8",
+    "TurnStartedNotification": "6dbdb488a2e3ddfd9afcf947603e5582ed6dc1e1c7d534532573b2e7104f1ceb",
     "TurnSteerParams": "2d6e67e4b275594e5ab63f10041cf9c877cd6f8e7bf394b8738c74ad8faf1a34",
     "TurnSteerResponse": "944b951b011ca2829643b0ce703d2e3cc118eef149233a4beeed480e88523591"
   },
@@ -557,6 +564,221 @@
         "permissions"
       ],
       "title": "PermissionsRequestApprovalResponse",
+      "type": "object"
+    },
+    "SkillsListParams": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "definitions": {},
+      "properties": {
+        "cwds": {
+          "description": "When empty, defaults to the current session working directory.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "forceReload": {
+          "description": "When true, bypass the skills cache and re-scan skills from disk.",
+          "type": "boolean"
+        }
+      },
+      "title": "SkillsListParams",
+      "type": "object"
+    },
+    "ThreadListParams": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "definitions": {
+        "SortDirection": {
+          "enum": [
+            "asc",
+            "desc"
+          ],
+          "type": "string"
+        },
+        "ThreadListCwdFilter": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "ThreadSortKey": {
+          "enum": [
+            "created_at",
+            "updated_at",
+            "recency_at",
+            "section_position"
+          ],
+          "type": "string"
+        },
+        "ThreadSourceKind": {
+          "enum": [
+            "cli",
+            "vscode",
+            "exec",
+            "appServer",
+            "subAgent",
+            "subAgentReview",
+            "subAgentCompact",
+            "subAgentThreadSpawn",
+            "subAgentOther",
+            "unknown"
+          ],
+          "type": "string"
+        }
+      },
+      "properties": {
+        "ancestorThreadId": {
+          "description": "Optional ancestor thread filter. Returns spawned descendants at any depth, excluding the ancestor itself. Mutually exclusive with `parentThreadId`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "archived": {
+          "description": "Optional archived filter; when set to true, only archived threads are returned. If false or null, only non-archived threads are returned.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "cursor": {
+          "description": "Opaque pagination cursor returned by a previous call.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cwd": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ThreadListCwdFilter"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional cwd filter or filters; when set, only threads whose session cwd exactly matches one of these paths are returned."
+        },
+        "limit": {
+          "description": "Optional page size; defaults to a reasonable server-side value.",
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "modelProviders": {
+          "description": "Optional provider filter; when set, only sessions recorded under these providers are returned. When present but empty, includes all providers.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "originators": {
+          "description": "Optional originator allowlist, matching any supplied value exactly. Supported by hosted backends only; the local app-server rejects a nonempty list. Omitted or empty lists leave originators unrestricted.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "parentThreadId": {
+          "description": "Optional direct parent thread filter. Mutually exclusive with `ancestorThreadId`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "projectId": {
+          "description": "Omit to include every project, set to null for unassigned threads, or provide a project ID to return only threads in that project.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "searchTerm": {
+          "description": "Optional substring filter for the extracted thread title.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sectionId": {
+          "description": "Omit to include every section, set to `null` for unsectioned threads, or provide a section ID to return only threads in that section.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sortDirection": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SortDirection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional sort direction; defaults to descending (newest first)."
+        },
+        "sortKey": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ThreadSortKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional sort key; defaults to created_at."
+        },
+        "sourceKinds": {
+          "description": "Optional source filter; when set, only sessions from these source kinds are returned. When omitted or empty, defaults to interactive sources.",
+          "items": {
+            "$ref": "#/definitions/ThreadSourceKind"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "useStateDbOnly": {
+          "description": "If true, return from the state DB without scanning JSONL rollouts to repair thread metadata. Omitted or false preserves scan-and-repair behavior.",
+          "type": "boolean"
+        }
+      },
+      "title": "ThreadListParams",
+      "type": "object"
+    },
+    "ThreadReadParams": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "definitions": {},
+      "properties": {
+        "includeTurns": {
+          "description": "When true, include turns and their items from rollout history. Full-history hydration is deprecated for paginated threads; prefer a metadata-only read and page with `thread/turns/list` and `thread/items/list`.",
+          "type": "boolean"
+        },
+        "threadId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "threadId"
+      ],
+      "title": "ThreadReadParams",
       "type": "object"
     },
     "ThreadResumeParams": {

@@ -10,7 +10,7 @@ const apiProxyTarget = process.env.MTY_WEB_API_PROXY_TARGET ?? 'http://127.0.0.1
 const drawioProxyTarget =
   process.env.MTY_WEB_DRAWIO_PROXY_TARGET ??
   `http://127.0.0.1:${process.env.MTY_DRAWIO_PORT ?? 18082}`;
-const codexConsoleProxyTarget = 'http://127.0.0.1:19365';
+const codexConsoleProxyTarget = 'http://127.0.0.1:19367';
 const webDevPort = Number(process.env.MTY_WEB_DEV_PORT ?? 4200);
 const webDevAllowedHosts = (process.env.MTY_WEB_DEV_ALLOWED_HOSTS ?? '')
   .split(',')
@@ -49,6 +49,11 @@ export default defineConfig(() => ({
     host: process.env.MTY_WEB_DEV_HOST ?? '127.0.0.1',
     allowedHosts: webDevAllowedHosts,
     proxy: {
+      '^/codex-console/api/(tasks|codex)(/|$)': {
+        target: 'http://127.0.0.1:19365',
+        timeout: 0,
+        proxyTimeout: 0,
+      },
       '/codex-console': {
         target: codexConsoleProxyTarget,
         timeout: 0,
@@ -86,6 +91,11 @@ export default defineConfig(() => ({
     host: process.env.MTY_WEB_DEV_HOST ?? '127.0.0.1',
     allowedHosts: webDevAllowedHosts,
     proxy: {
+      '^/codex-console/api/(tasks|codex)(/|$)': {
+        target: 'http://127.0.0.1:19365',
+        timeout: 0,
+        proxyTimeout: 0,
+      },
       '/codex-console': {
         target: codexConsoleProxyTarget,
         timeout: 0,

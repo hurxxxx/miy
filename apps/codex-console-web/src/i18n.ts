@@ -1,4 +1,71 @@
 export const korean = {
+  'Session service unavailable. Showing the last reported task state.':
+    '세션 서비스에 연결할 수 없어 마지막으로 보고된 작업 상태를 표시합니다.',
+  'The selected skill is unavailable. Refresh the task and choose again.':
+    '선택한 스킬을 사용할 수 없습니다. 작업을 새로고침하고 다시 선택하세요.',
+  'Service status': '서비스 상태',
+  'Work overview': '작업 현황',
+  'Task workspace': '작업실',
+  'Approval needed': '승인 대기',
+  'Not loaded': '불러오지 않음',
+  Stopped: '중지됨',
+  Unknown: '확인 불가',
+  'Running a command': '명령 실행 중',
+  'Editing files': '파일 수정 중',
+  Searching: '검색 중',
+  'Delegating work': '하위 작업 분담 중',
+  'No agent activity yet': '아직 에이전트 활동이 없습니다',
+  'No current step reported': '현재 단계가 보고되지 않았습니다',
+  'Codex investigates and operates. This console displays status and your requests.':
+    '점검과 운영은 Codex가 수행하며, 콘솔은 상태와 요청을 표시합니다.',
+  'Monitoring is unavailable': '상태 모니터링에 연결할 수 없습니다',
+  Healthy: '응답 정상',
+  Unavailable: '응답 없음',
+  'Stale observation': '오래된 관측',
+  'Ask Codex to inspect': 'Codex에 점검 요청',
+  'Ask Codex to deploy': 'Codex에 배포 요청',
+  'Ask Codex to recover': 'Codex에 복구 요청',
+  'Prepare a deployment': '배포 준비',
+  'Investigate recovery': '복구 방안 조사',
+  'Inspect this service': '서비스 점검',
+  'Inspect the repository instructions and current state, then explain the proposed action and required approvals.':
+    '저장소 지침과 현재 상태를 확인하고, 제안하는 조치와 필요한 승인을 설명해 주세요.',
+  'Recover the Codex session service': 'Codex 세션 서비스 복구 안내',
+  'Open Codex in the source repository on the server and paste this request.':
+    '서버의 소스 저장소에서 별도의 Codex를 열고 아래 요청을 입력하세요.',
+  'Recovery request': '복구 요청문',
+  'Read AGENTS.md and the Codex Console owner documentation. Inspect the independently supervised management and session services. Diagnose the session connection failure, preserve existing conversations and running work, and propose recovery. Ask before restarting or deploying. Verify the public login, task state, and agent activity after the approved recovery.':
+    'AGENTS.md와 Codex 콘솔 운영 문서를 읽고, 별도 실행 중인 관리 화면과 세션 서비스를 점검해 주세요. 기존 대화와 진행 중인 작업을 보존하며 연결 실패 원인을 조사하고 복구 방법을 제안해 주세요. 재시작·배포 전에 승인을 받고, 승인한 복구 후 공개 주소의 로그인·작업 상태·에이전트 활동을 확인해 주세요.',
+  'Status filter': '상태 필터',
+  'Environment filter': '환경 필터',
+  'Purpose filter': '작업 목적 필터',
+  'All tasks': '전체 작업',
+  'Needs attention': '확인 필요',
+  'Not started': '시작 대기',
+  'Recent results': '최근 결과',
+  'All environments': '전체 환경',
+  'All purposes': '전체 목적',
+  Development: '개발',
+  Inspection: '점검',
+  Deployment: '배포',
+  Recovery: '복구',
+  Unpin: '고정 해제',
+  Pin: '고정',
+  'Active agents': '활동 중 에이전트',
+  'No matching tasks': '해당하는 작업이 없습니다',
+  Agents: '에이전트',
+  'Isolate this task for parallel work': '병렬 작업을 위한 별도 작업공간 사용',
+  'Request draft': '요청 초안',
+  'Task purpose': '작업 목적',
+  'The concurrency limit is reached. Retry after another task finishes.':
+    '동시 실행 한도에 도달했습니다. 다른 작업이 끝난 뒤 다시 요청하세요.',
+  'Another operation is using the shared environment. Retry after it finishes.':
+    '다른 운영 작업이 환경을 사용 중입니다. 종료 후 다시 요청하세요.',
+  'Source agent': '요청한 에이전트',
+  'Available skills': '사용 가능한 작업 절차',
+  'Use a skill': '작업 절차 사용',
+  'Show agent activity': '에이전트 활동 보기',
+
   'Finish or stop the current turn before changing its mode, model, reasoning effort, or permissions.':
     '모드·모델·추론 강도·권한을 바꾸려면 현재 실행이 끝날 때까지 기다리거나 중단한 뒤 전송하세요.',
   'Planning is read-only. Documents are updated only when requested or when agreed changes affect an existing document.':
@@ -273,6 +340,12 @@ export const translate =
     locale === 'ko-KR' ? korean[key] : key;
 
 const errors: Record<string, Copy> = {
+  skill_unavailable:
+    'The selected skill is unavailable. Refresh the task and choose again.',
+  capacity_busy:
+    'The concurrency limit is reached. Retry after another task finishes.',
+  operations_busy:
+    'Another operation is using the shared environment. Retry after it finishes.',
   planning_output_invalid:
     'The planning response could not be saved. Ask Codex to retry.',
   document_conflict:

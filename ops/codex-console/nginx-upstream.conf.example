@@ -1,7 +1,7 @@
 # Optional bridge when HTTPS terminates on another host.
 # Replace 192.0.2.10 with this server's private IP, 192.0.2.1 with the
 # trusted TLS proxy's observed source IP, and codex.example.com with its host.
-# Keep the console itself bound to 127.0.0.1:19365.
+# Keep both console processes bound to loopback (19365 sessions, 19367 management).
 worker_processes 1;
 pid /tmp/nginx.pid;
 error_log /dev/stderr warn;
@@ -34,6 +34,17 @@ http {
         client_max_body_size 50m;
         client_body_timeout 120s;
         location / {
+            proxy_pass http://127.0.0.1:19367;
+            proxy_http_version 1.1;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_set_header Connection "";
+            proxy_buffering off;
+            proxy_request_buffering off;
+            proxy_send_timeout 120s;
+            proxy_read_timeout 3600s;
+        }
+        location ~ ^/api/(tasks|codex)(/|$) {
             proxy_pass http://127.0.0.1:19365;
             proxy_http_version 1.1;
             proxy_set_header Host $http_host;

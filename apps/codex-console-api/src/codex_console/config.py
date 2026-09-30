@@ -1,14 +1,52 @@
+import ipaddress
 import re
 from pathlib import Path
 from typing import Annotated
 from urllib.parse import urlsplit
 from uuid import UUID
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
 from .errors import ConsoleError
+
+
+class MonitoredService(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,99}$")
+    name: str = Field(min_length=1, max_length=100)
+    environment: str = Field(min_length=1, max_length=40)
+    health_url: str | None = None
+    unit: str | None = Field(default=None, pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.@-]{0,127}\.service$")
+    user_unit: bool = True
+    container: str | None = Field(default=None, pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$")
+
+    @model_validator(mode="after")
+    def bounded_target(self):
+        if not (self.health_url or self.unit or self.container) or (self.unit and self.container):
+            raise ValueError("Select a health endpoint and/or one supervisor")
+        if self.health_url:
+            url = urlsplit(self.health_url)
+            try:
+                address = ipaddress.ip_address(url.hostname or "")
+                port = url.port
+            except ValueError:
+                raise ValueError("Health endpoints require a fixed IP address") from None
+            if (
+                url.scheme not in ("http", "https")
+                or url.username
+                or url.password
+                or url.query
+                or url.fragment
+                or address.is_link_local
+                or address.is_multicast
+                or address.is_unspecified
+                or not (address.is_private or address.is_loopback)
+                or (port is not None and not 1 <= port <= 65535)
+            ):
+                raise ValueError("Invalid private health endpoint")
+        return self
 
 
 class Settings(BaseSettings):
@@ -44,12 +82,32 @@ class Settings(BaseSettings):
         min_length=1,
         validation_alias="MTY_CODEX_CONSOLE_ALLOWED_REASONING_EFFORTS",
     )
-    bind_host: str = Field(
-        default="127.0.0.1", validation_alias="MTY_CODEX_CONSOLE_BIND_HOST"
+    bind_host: str = Field(default="127.0.0.1", validation_alias="MTY_CODEX_CONSOLE_BIND_HOST")
+    port: int = Field(default=19365, ge=1024, le=65535, validation_alias="MTY_CODEX_CONSOLE_PORT")
+    management_port: int = Field(
+        default=19367, ge=1024, le=65535, validation_alias="MTY_CODEX_CONSOLE_MANAGEMENT_PORT"
     )
-    port: int = Field(
-        default=19365, ge=1024, le=65535, validation_alias="MTY_CODEX_CONSOLE_PORT"
+    max_active_tasks: int = Field(
+        default=3, ge=1, le=16, validation_alias="MTY_CODEX_CONSOLE_MAX_ACTIVE_TASKS"
     )
+    monitor_services: list[MonitoredService] = Field(
+        default_factory=list, max_length=64, validation_alias="MTY_CODEX_CONSOLE_MONITOR_SERVICES"
+    )
+
+    @field_validator("monitor_services")
+    @classmethod
+    def unique_services(cls, value):
+        ids = [service.id for service in value]
+        if len(ids) != len(set(ids)) or any(i.startswith("console-") for i in ids):
+            raise ValueError("Service IDs must be unique and cannot use console- prefix")
+        return value
+
+    @model_validator(mode="after")
+    def separate_ports(self):
+        if self.port == self.management_port:
+            raise ValueError("Session and management ports must differ")
+        return self
+
     web_dist: Path = Field(
         default=Path("../codex-console-web/dist"),
         validation_alias="MTY_CODEX_CONSOLE_WEB_DIST",

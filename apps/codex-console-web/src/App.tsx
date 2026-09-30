@@ -1,3 +1,12 @@
+import {
+  AgentTree,
+  ManagementView,
+  needsAttention,
+  running,
+  useOverview,
+  type TaskDraft,
+  type Purpose,
+} from './management';
 import { Button, Dialog, Input } from '@mty/ui';
 import {
   ArrowUp,
@@ -25,6 +34,7 @@ import {
   uploadAttachment,
   type Account,
   type Model,
+  type Skill,
   type Attachment,
   type Detail,
   type DeviceLogin,
@@ -72,6 +82,15 @@ export function App() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [sessionFailed, setSessionFailed] = useState(false);
   const [password, setPassword] = useState('');
+  const [page, setPage] = useState<'services' | 'tasks' | 'workspace'>(() =>
+    new URLSearchParams(window.location.search).has('task')
+      ? 'workspace'
+      : 'services',
+  );
+  const [seed, setSeed] = useState<TaskDraft | null>(null);
+  const [purpose, setPurpose] = useState<Purpose>('development');
+  const [isolate, setIsolate] = useState(false);
+  const drafts = useRef(new Map<string, string>());
   const [tasks, setTasks] = useState<Task[]>([]);
   const [task, setTask] = useState<Detail | null>(null);
   const [documentDrafts, setDocumentDrafts] = useState<
@@ -104,6 +123,10 @@ export function App() {
   const [newOpen, setNewOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
+  const [skills, setSkills] = useState<{ name: string; description: string }[]>(
+    [],
+  );
+  const [skillNames, setSkillNames] = useState<string[]>([]);
   const [stage, setStage] = useState<'plan' | 'implement'>('plan');
   const git = useGitState(task);
   const [models, setModels] = useState<Model[]>([]);
@@ -205,7 +228,7 @@ export function App() {
   const refreshTasks = useCallback(async () => {
     const query = searchRef.current.trim();
     const rows = await api<Task[]>(
-      query ? `/tasks?search=${encodeURIComponent(query)}` : '/tasks',
+      query ? `/overview?search=${encodeURIComponent(query)}` : '/overview',
     );
     if (searchRef.current.trim() === query) setTasks(rows);
   }, []);
@@ -314,6 +337,18 @@ export function App() {
     },
     [act, attachmentIds, refreshTasks, onError],
   );
+
+  const overviewChanged = useCallback(() => {
+    void refreshTasks().catch(onError);
+  }, [refreshTasks, onError]);
+  useOverview(authenticated === true, overviewChanged);
+  const prepareDraft = (value: TaskDraft) => {
+    setSeed(value);
+    setPurpose(value.purpose);
+    setTitle(value.title);
+    setIsolate(false);
+    setNewOpen(true);
+  };
 
   const approveImplementation = (revision: Revision, text = '') => {
     if (!task) return;
@@ -451,7 +486,10 @@ export function App() {
   useEffect(() => {
     initializedTask.current = null;
     setTask(null);
-    setMessage('');
+    setMessage(selected ? (drafts.current.get(selected) ?? '') : '');
+    setSkills([]);
+    setSkillNames([]);
+    if (selected) drafts.current.delete(selected);
     uploadAbort.current?.abort();
     setUploads([]);
     setAttachmentIds([]);
@@ -463,6 +501,18 @@ export function App() {
     nearBottom.current = true;
     if (!selected || !authenticated) return;
     const controller = new AbortController();
+    void api<Skill[]>(
+      `/tasks/${selected}/skills`,
+      undefined,
+      'GET',
+      controller.signal,
+    )
+      .then((value) => {
+        if (!controller.signal.aborted) setSkills(value);
+      })
+      .catch(() => {
+        /* The model connection control already displays connection failures. */
+      });
     void refreshTask(selected, controller.signal).catch((err) => {
       if (!controller.signal.aborted) onError(err);
     });
@@ -528,6 +578,7 @@ export function App() {
     });
   };
   const choose = (id: string) => {
+    setPage('workspace');
     window.history.replaceState(null, '', `?task=${encodeURIComponent(id)}`);
     setSelected(id);
     setSidebarOpen(false);
@@ -721,7 +772,40 @@ export function App() {
         />
       )}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <Button variant="primary" onClick={() => setNewOpen(true)} fullWidth>
+        <nav className="management-navigation" aria-label={t('Work overview')}>
+          <Button
+            aria-pressed={page === 'services'}
+            onClick={() => {
+              setPage('services');
+              setSidebarOpen(false);
+            }}
+          >
+            {t('Service status')}
+          </Button>
+          <Button
+            aria-pressed={page === 'tasks'}
+            onClick={() => {
+              setPage('tasks');
+              setSidebarOpen(false);
+            }}
+          >
+            {t('Work overview')}
+          </Button>
+          <small>
+            {t('Needs attention')}: {tasks.filter(needsAttention).length} ·{' '}
+            {t('Running')}: {tasks.filter(running).length}
+          </small>
+        </nav>
+        <Button
+          variant="primary"
+          onClick={() => {
+            setSeed(null);
+            setPurpose('development');
+            setIsolate(false);
+            setNewOpen(true);
+          }}
+          fullWidth
+        >
           <Plus size={16} />
           {t('New task')}
         </Button>
@@ -844,7 +928,23 @@ export function App() {
           </Button>
         </footer>
       </aside>
-      {!task ? (
+      {page !== 'workspace' ? (
+        <ManagementView
+          newTask={() => {
+            setSeed(null);
+            setPurpose('development');
+            setIsolate(false);
+            setNewOpen(true);
+          }}
+          view={page}
+          t={t}
+          tasks={tasks}
+          openTask={choose}
+          draft={prepareDraft}
+          refresh={refreshTasks}
+          onError={onError}
+        />
+      ) : !task ? (
         <main className="welcome">
           <div className="brand-mark">
             <Code2 size={28} />
@@ -935,6 +1035,12 @@ export function App() {
           </div>
           <section className="conversation" aria-label={t('Conversation')}>
             <ExecutionStatus task={task} connected={connected} t={t} />
+            <details className="task-agents">
+              <summary>
+                {t('Show agent activity')} ({task.agents?.length ?? 0})
+              </summary>
+              <AgentTree agents={task.agents ?? []} t={t} />
+            </details>
             <div
               className="messages"
               ref={scroller}
@@ -976,15 +1082,23 @@ export function App() {
                 />
               ))}
               {task.requests.map((request) => (
-                <RequestForm
-                  key={request.id}
-                  request={request}
-                  t={t}
-                  disabled={busy}
-                  onAnswer={(id, response) =>
-                    void mutate(`requests/${id}`, response)
-                  }
-                />
+                <div key={request.id}>
+                  <p className="muted">
+                    {t('Source agent')}:{' '}
+                    {task.agents.find(
+                      (a) => a.thread_id === request.payload.threadId,
+                    )?.name ?? 'Codex'}
+                  </p>
+                  <RequestForm
+                    key={request.id}
+                    request={request}
+                    t={t}
+                    disabled={busy}
+                    onAnswer={(id, response) =>
+                      void mutate(`requests/${id}`, response)
+                    }
+                  />
+                </div>
               ))}
               <div ref={chatEnd} />
             </div>
@@ -1006,6 +1120,7 @@ export function App() {
                       : 'messages',
                   {
                     text: message,
+                    skill_names: skillNames,
                     ...(active(task)
                       ? {}
                       : {
@@ -1128,6 +1243,30 @@ export function App() {
                     onRetry={() => selected && void refreshModels(selected)}
                     t={t}
                   />
+                  {!!skills.length && (
+                    <label>
+                      <span className="sr-only">{t('Use a skill')}</span>
+                      <select
+                        aria-label={t('Use a skill')}
+                        disabled={busy || locked(task)}
+                        value={skillNames[0] ?? ''}
+                        onChange={(e) =>
+                          setSkillNames(e.target.value ? [e.target.value] : [])
+                        }
+                      >
+                        <option value="">{t('Use a skill')}</option>
+                        {skills.map((skill) => (
+                          <option
+                            key={skill.name}
+                            value={skill.name}
+                            title={skill.description}
+                          >
+                            {skill.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                 </div>
                 <div className="actions">
                   <Button
@@ -1139,7 +1278,7 @@ export function App() {
                   >
                     <Paperclip size={17} />
                   </Button>
-                  {(active(task) ||
+                  {(running(task) ||
                     (task.status === 'uncertain' && task.thread_id)) && (
                     <Button
                       variant="ghost"
@@ -1283,7 +1422,12 @@ export function App() {
           onSubmit={(event) => {
             event.preventDefault();
             void act(async () => {
-              const next = await api<Detail>('/tasks', { title });
+              const next = await api<Detail>('/tasks', {
+                title,
+                isolate,
+                context: { purpose, service_id: seed?.service_id ?? null },
+              });
+              if (seed?.text) drafts.current.set(next.id, seed.text);
               await refreshTasks();
               choose(next.id);
               setNewOpen(false);
@@ -1300,6 +1444,48 @@ export function App() {
             maxLength={200}
             autoFocus
           />
+          <label>
+            {t('Task purpose')}
+            <select
+              value={purpose}
+              onChange={(e) => setPurpose(e.target.value as Purpose)}
+            >
+              {(
+                ['development', 'inspection', 'deployment', 'recovery'] as const
+              ).map((p) => (
+                <option key={p} value={p}>
+                  {t(
+                    (
+                      {
+                        development: 'Development',
+                        inspection: 'Inspection',
+                        deployment: 'Deployment',
+                        recovery: 'Recovery',
+                      } as const
+                    )[p],
+                  )}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={isolate}
+              onChange={(e) => setIsolate(e.target.checked)}
+            />
+            {t('Isolate this task for parallel work')}
+          </label>
+          {seed && (
+            <label>
+              {t('Request draft')}
+              <textarea
+                value={seed.text}
+                onChange={(e) => setSeed({ ...seed, text: e.target.value })}
+                maxLength={32000}
+              />
+            </label>
+          )}
           <Button
             variant="primary"
             type="submit"

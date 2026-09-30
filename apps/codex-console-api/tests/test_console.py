@@ -446,9 +446,12 @@ def test_identical_native_plan_is_saved_as_a_new_authoritative_version(client):
     )
 
 
-def test_workspace_lease_prevents_parallel_turns(client):
+def test_workspace_lease_prevents_parallel_writers(client):
     first, second = new_task(client), new_task(client)
-    running = send_message(client, first).json()
+    running = client.post(
+        f"/api/tasks/{first['id']}/implement",
+        json={"text": "Implement a change", "operation_id": str(uuid4())},
+    ).json()
     assert send_message(client, second).json()["code"] == "workspace_busy"
     complete(client, running)
     assert send_message(client, second).status_code == 200

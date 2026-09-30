@@ -46,6 +46,9 @@ beforeEach(() => {
     title: 'Test task',
     stage: 'plan',
     status: 'idle',
+    pinned: false,
+    agents: [],
+    pending_count: 0,
     permissions: 'read-only',
     thread_id: 'thread',
     turn_id: null,
@@ -88,8 +91,8 @@ beforeEach(() => {
   vi.mocked(api).mockReset();
   vi.mocked(api).mockImplementation(async (path, body) => {
     if (path === '/session') return { authenticated: true };
-    if (path === '/tasks') return [detail];
-    if (path.startsWith('/tasks?search=')) return searchTasks(path);
+    if (path === '/overview') return [detail];
+    if (path.startsWith('/overview?search=')) return searchTasks(path);
     if (path.startsWith('/codex/models?task_id='))
       return [
         {
@@ -182,7 +185,7 @@ it('makes account version guidance available without a task and supports manual 
   window.history.replaceState(null, '', '/');
   const original = vi.mocked(api).getMockImplementation()!;
   vi.mocked(api).mockImplementation(async (path, ...args) => {
-    if (path === '/tasks') return [];
+    if (path === '/overview') return [];
     if (path === '/codex/account')
       return { connected: false, error_code: 'codex_version_mismatch' };
     return original(path, ...args);
@@ -309,7 +312,7 @@ it('preserves the plan draft across result tabs and tasks and warns before leavi
   };
   const original = vi.mocked(api).getMockImplementation()!;
   vi.mocked(api).mockImplementation(async (path, ...args) => {
-    if (path === '/tasks') return [detail, other];
+    if (path === '/overview') return [detail, other];
     if (path === `/tasks/${other.id}`) return other;
     return original(path, ...args);
   });

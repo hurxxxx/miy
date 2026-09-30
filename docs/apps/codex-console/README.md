@@ -1,10 +1,71 @@
 # Codex Console
 
-본인의 ChatGPT 구독으로 로그인한 Codex를 사용하는 독립 개발 작업실이다.
+본인의 ChatGPT 구독으로 로그인한 Codex를 사용하는 독립 관리 콘솔과 개발 작업실이다.
 계획과 실행 두 모드로 질문·조사·문서 정리·코딩과 결과 검토를 진행한다.
 소스는 같은 저장소에서 관리하며, MTY 개인 앱에서 새 탭으로 연다. 콘솔의 실행 프로세스·
 로그인 세션·업무 DB는 MTY와 분리되어 있다. MTY에서 허용된 관리자가 앱 링크를 열면 짧게
 유효한 일회용 코드로 별도 콘솔 세션을 만들 수 있다.
+
+## 서비스와 작업 현황
+
+콘솔은 포털보다 상위에 있는 단일 소유자 관리 화면이다. **서비스 상태**에서 환경·상태·확인 시각·
+응답이 제공하는 버전을 확인하고, 점검·배포·복구 요청을 새 Codex 작업의 초안으로 연다.
+초안은 사용자가 검토하고 전송한다. 콘솔 버튼이나 HTTP endpoint가 운영 명령을 직접 실행하지
+않으며, 조사·배포 판단·오류 대응·복구는 공식 Codex 세션이 수행한다. 계획에서 실행으로 바꾸는
+것만으로 커밋·푸시·MR·병합·운영 체크아웃 갱신·배포를 승인한 것으로 보지 않는다.
+
+**작업 현황**은 고정 작업, 주의 필요, 실행 중, 시작 전, 최근 결과 순으로 표시한다.
+환경·목적·상태·제목으로 찾고 작업을 고정할 수 있다. 최근 200개 외의 실행 중·불확실·실패·고정
+작업도 유지한다. 작업별 native agent 트리에서 역할·상태·현재 단계·마지막 갱신 시각을 확인한다.
+진행률을 임의의 백분율로 만들지 않고 Codex의 단계 상태를 사용한다. 승인·질문에는 요청한
+에이전트 이름을 표시하고 원래 RPC 요청 ID로 응답한다. 공식 `skills/list`에서 활성 skill을
+조회해 선택한 skill을 native `UserInput`으로 전달한다.
+
+두 독립 프로세스가 같은 전용 PostgreSQL을 사용한다. `codex-console manage`는 로그인·정적 UI·
+관리 projection·읽기 전용 모니터를 제공하며 Codex 프로세스를 만들지 않는다.
+`codex-console serve`는 작업 세션·공식 App Server를 담당한다. 각 역할은 DB당 한 프로세스만
+실행한다. 세션 서비스가 중단되어도 관리 서비스·DB·프록시가 살아 있으면 마지막 작업 상태와
+복구 안내를 볼 수 있다. 관리 화면의 복구 프롬프트를 서버 저장소에서 실행한 별도 Codex에
+전달해 복구한다. 자기 업데이트 중인 세션이 자신의 재시작 완료를 보장하지 않는다.
+
+| 설정 | 기본값 | 의미 |
+| --- | --- | --- |
+| `MTY_CODEX_CONSOLE_PORT` | `19365` | 세션 API의 loopback 포트 |
+| `MTY_CODEX_CONSOLE_MANAGEMENT_PORT` | `19367` | 관리 UI/API의 loopback 포트 |
+| `MTY_CODEX_CONSOLE_MAX_ACTIVE_TASKS` | `3` | 동시에 접수할 root 작업 수, 1~16 |
+| `MTY_CODEX_CONSOLE_MONITOR_SERVICES` | `[]` | 소유자가 등록하는 서비스 JSON 배열, 최대 64개 |
+
+세션 서비스 health는 기본으로 등록된다. 추가 서비스는 `id`, `name`, `environment`와
+`health_url`, `unit` 또는 `container`로 등록한다. `unit`과 `container`는 동시에 지정하지
+않는다. `user_unit` 기본값은 true다. 예:
+
+```json
+[{"id":"portal-dev","name":"Portal dev","environment":"dev","health_url":"http://127.0.0.1:8001/healthz"}]
+```
+
+브라우저는 서비스 ID만 선택하며 probe 주소나 명령을 지정하지 않는다. health URL은 자격증명·
+query·fragment 없는 사설/loopback 고정 IP의 HTTP(S)만 허용한다. DNS·redirect를 따르지 않는다.
+모니터는 10초 간격으로 최대 4개를 병렬 조회하고 30초 지난 기록은 unknown으로 표시한다.
+health 응답은 16 KiB, supervisor 출력은 4 KiB, 개별 probe는 5초로 제한한다. systemd의
+`ActiveState` 또는 Docker의 `State.Status`만 조회하며 시작·재시작·복구 명령은 없다.
+서비스의 health가 버전을 반환하지 않으면 버전을 추정하지 않는다.
+
+동일 작업공간의 계획 읽기는 병렬로 허용하고 쓰기는 배타적 DB resource lease를 사용한다.
+새 작업의 **작업공간 분리**를 선택하면 별도 detached worktree를 준비한다. 분리된 개발 작업은
+병렬 실행할 수 있다. 점검·배포·복구 목적의 실행은 공통 operations lease로 직렬화한다.
+이는 콘솔 접수 조정이며 Codex의 sandbox·서버 권한·사용자 승인을 대체하지 않는다.
+부모가 완료되어도 실행 중이거나 상태가 불확실한 하위 agent가 있으면 lease를 유지한다.
+중단은 확인된 root와 하위 thread에 공식 `turn/interrupt`를 전달한다.
+
+공식 [App Server](https://learn.chatgpt.com/docs/app-server)와
+[Subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents)의 native
+thread/turn/plan/approval을 사용한다. 0.158.0 생성 계약의 `collabAgentToolCall`,
+`parentThreadId`, `sessionId`, `thread/list`의 ancestor 필터로 연결을 확인한다.
+하위 thread 관찰은 `thread/read/list`만 사용하고 resume하지 않는다. 누락된 알림은 10초마다
+조회해 보완한다. 에이전트 생성·역할 배정·재시도 스케줄러는 콘솔에서 구현하지 않는다.
+[공식 worktree 기능](https://learn.chatgpt.com/docs/environments/git-worktrees)은 있으나
+0.158.0 App Server ClientRequest에는 worktree 생성 RPC가 없으므로 기존의 좁은 Git 준비
+helper만 유지한다. 이 helper는 서비스 운영을 실행하지 않는다.
 
 ## 실행 경계
 
@@ -174,8 +235,11 @@ uv run --frozen codex-console set-password
 uv run --frozen codex-console serve
 ```
 
+다른 터미널의 같은 API 디렉터리에서 `uv run --frozen codex-console manage`도 실행한다.
+
 `set-password`는 보호된 터미널 입력으로 비밀번호를 받으며 기존 웹 세션을 폐기한다.
-초기 계정도 이 명령으로 만든다. 웹 서버는 기본 `127.0.0.1:19365`에만 수신한다.
+초기 계정도 이 명령으로 만든다. 세션 API는 `127.0.0.1:19365`, 관리 UI/API는
+`127.0.0.1:19367`에 수신한다. 두 역할의 포트는 서로 달라야 한다.
 전용 HTTPS 주소는 `ops/codex-console/nginx.conf.example`을 참고해 기존 TLS 프록시에 연결한다.
 프록시가 원래 Host를 전달하고 SSE 응답을 버퍼링하지 않아야 한다.
 
@@ -197,7 +261,7 @@ Vite 프록시는 브라우저의 `host:port`를 전달하지만, 개발 Nginx�
 서비스로 재시작한다. 운영 MTY에 적용하는 작업은 별도 릴리스·배포 절차를 따른다.
 
 ```dotenv
-MTY_CODEX_CONSOLE_LAUNCH_URL=http://127.0.0.1:19365
+MTY_CODEX_CONSOLE_LAUNCH_URL=http://127.0.0.1:19366
 MTY_CODEX_CONSOLE_LAUNCH_URL_BY_HOST='{"100.64.0.10:4200":"https://100.64.0.10:19443"}'
 ```
 
@@ -228,14 +292,14 @@ origin에 설정된 소유자 UUID와 일치할 때만 콘솔 세션을 발급�
 | 콘솔 `.env` | `MTY_CODEX_CONSOLE_ORIGIN` | `https://codex.example.com` |
 | 콘솔 `.env` | `MTY_CODEX_CONSOLE_BASE_PATH` | 빈 값 |
 
-실제 도메인으로 바꾸고 `브라우저 → HTTPS 프록시 → 콘솔(19365)`로 연결한다. 같은 호스트에서
-TLS를 종료한다면 `ops/codex-console/nginx.conf.example`을 사용한다. 콘솔 API는 계속
-`127.0.0.1:19365`에서 수신한다. 다른 호스트의 TLS 프록시는 아래의 전용 연결 지점을 사용한다.
-설치 호스트에서 `http://127.0.0.1:19365/`로 직접 열 때도 같은 작업실 비밀번호로 로그인할 수
-있다. 콘솔은 설정된 공개 origin과 실제 loopback 바인딩 주소·포트의 origin만 쓰기 요청에
-허용하고, HTTPS 접속에는 Secure 쿠키를, loopback HTTP 접속에는 해당 호스트의 세션 쿠키를
-발급한다. 콘솔 포트를 외부에 공개하지 않는다. 다른 PC의 `127.0.0.1`은 그 PC 자신이므로
-공개 HTTPS 주소를 사용하거나 서버로 SSH 터널을 연다.
+실제 도메인으로 바꾸고 `브라우저 → HTTPS 프록시 → 관리/세션 서비스`로 연결한다.
+같은 호스트에서 TLS를 종료하면 `ops/codex-console/nginx.conf.example`을 사용한다.
+`/api/tasks`·`/api/codex`와 하위 경로는 19365, 나머지는 19367로 전달한다. 두 포트 모두
+loopback에 유지한다. 다른 호스트의 TLS 프록시는 아래의 전용 연결 지점을 사용한다.
+로컬 브라우저 검증은 콘솔 origin을 `http://127.0.0.1:19366`으로 설정하고 두 API와
+콘솔 Vite를 실행한다. 관리 포트만 직접 열면 작업 API가 연결되지 않는다. HTTPS에는
+Secure 쿠키를 사용하고 허용된 loopback HTTP에는 해당 호스트의 세션 쿠키를 발급한다.
+원격 PC에서는 공개 HTTPS 주소를 사용한다.
 
 기존 HTTPS 개발 사이트 아래의 경로를 사용하는 대안:
 
@@ -245,7 +309,8 @@ TLS를 종료한다면 `ops/codex-console/nginx.conf.example`을 사용한다. �
 | 콘솔 `.env` | `MTY_CODEX_CONSOLE_ORIGIN` | 실제 개발 사이트의 HTTPS origin |
 | 콘솔 `.env` | `MTY_CODEX_CONSOLE_BASE_PATH` | `/codex-console` |
 
-MTY Vite 개발·preview 서버에는 `/codex-console` → `127.0.0.1:19365` 프록시가 등록되어 있다.
+MTY Vite 개발·preview는 `/codex-console/api/tasks`·`/codex-console/api/codex`를
+19365로, 나머지 `/codex-console` 경로를 19367로 전달한다.
 앞단 HTTPS 프록시는 이 경로를 기존 Web으로 전달한다. 별도 프록시에서 콘솔에 직접
 연결하는 경우에는 경로를 제거하지 않는 `ops/codex-console/nginx-path.conf.example`을 참고한다.
 쿠키는 콘솔 경로에 한정되고 API·정적 파일·SSE도 같은 prefix로 동작한다.
@@ -375,7 +440,7 @@ bash scripts/build-codex-console.sh "$HOME/.local/share/mty-codex-console/releas
 mkdir -p "$HOME/.config/mty-codex-console" "$HOME/.config/systemd/user"
 install -m 600 apps/codex-console-api/.env.example "$HOME/.config/mty-codex-console/console.env"
 ln -s "$HOME/.local/share/mty-codex-console/releases/initial" "$HOME/.local/share/mty-codex-console/current"
-install -m 644 ops/codex-console/codex-console.service "$HOME/.config/systemd/user/"
+install -m 644 ops/codex-console/codex-console.service ops/codex-console/codex-console-management.service "$HOME/.config/systemd/user/"
 ```
 
 `console.env`를 서버 편집기에서 설정한다. `MTY_CODEX_CONSOLE_BINARY`는 현재 구독
@@ -392,7 +457,7 @@ cd "$HOME/.local/share/mty-codex-console/current/apps/codex-console-api"
 .venv/bin/codex-console migrate
 .venv/bin/codex-console set-password
 systemctl --user daemon-reload
-systemctl --user enable --now codex-console
+systemctl --user enable --now codex-console codex-console-management
 ```
 
 user unit의 bus에 연결할 수 없는 셸에서는 설치 계정의 `XDG_RUNTIME_DIR=/run/user/$(id -u)`를
@@ -403,13 +468,13 @@ drop-in에 명시한다. Codex 바이너리뿐 아니라 코딩 작업에서 사
 해석되어야 한다. 해당 설정은 호스트별 user unit drop-in으로 관리한다.
 
 ```bash
-systemctl --user is-active codex-console
-systemctl --user is-enabled codex-console
+systemctl --user is-active codex-console codex-console-management
+systemctl --user is-enabled codex-console codex-console-management
 systemctl --user restart codex-console
 systemctl --user stop codex-console
 ```
 
-unit의 `NoNewPrivileges=false`는 공식 app-server의 YOLO가 서비스 계정의 기존 호스트 권한을
+세션 unit의 `NoNewPrivileges=false`는 공식 app-server의 YOLO가 서비스 계정의 기존 호스트 권한을
 그대로 사용할 수 있게 하는 실행 계약이다. `true`로 바꾸면 `dangerFullAccess`를 전달해도
 `sudo` 같은 setuid 권한 상승이 차단된다. unit을 갱신한 뒤에는 `daemon-reload`와 서비스
 재시작 후 메인 PID의 `/proc/<PID>/status`에서 `NoNewPrivs: 0`을 확인하고, YOLO 턴에서
@@ -419,7 +484,11 @@ unit의 `NoNewPrivileges=false`는 공식 app-server의 YOLO가 서비스 계정
 개발 서버의 `./dev.sh`와 이 서비스는 서로 제어하지 않는다. 업데이트는 새 릴리스를 검증한 뒤
 실행 중인 작업을 완료·중단하고 전용 DB를 백업한다. 서비스를 중지한 뒤 새 릴리스의
 `codex-console migrate`를 실행하고 `current`를 전환해 별도로 재시작한다. 현재 서버는
-`console_0008` migration까지 필요하다. 0007은 저장된 계획 버전이 없는 완료 작업의 최신
+`console_0009` migration까지 필요하다. 0009는 작업 목적·고정, native agent projection,
+서비스 관찰, resource lease와 승인 출처 thread를 추가하고 기존 workspace lease와
+승인 thread를 보존한다. 최초 분리 전환은 두 서비스를 중지하고 DB를 백업한 뒤 migration·
+두 unit 설치·프록시 경로 갱신·재시작을 함께 수행한다. 이전 릴리스는 0009에서 시작하지
+않으므로 최초 전환 실패 시 이전 프록시·unit·릴리스와 전환 전 DB를 함께 복원한다. 0007은 저장된 계획 버전이 없는 완료 작업의 최신
 native `plan` item을 계획 문서로 복원한다. 이전 구조화 응답이면 계획 문서 본문을 우선하고,
 없으면 native plan item의 답변을 사용한다. 0008은 계획 문서가 여전히 없는 작업에서 접수 완료된
 구형 `plan` operation과 같은 턴의 구조화된 최종 답변만 복원한다. 계획 문서 본문이 있으면 이를
@@ -450,8 +519,8 @@ Codex Console 구현을 요청하면 로컬 변경 또는 검증만으로 범위
 
 1. 실행 중인 서비스의 실제 릴리스 경로와 적용할 소스 커밋을 확인한다. 해당 커밋에서 새
    릴리스를 빌드하고 [검증과 복구](#검증과-복구)의 관련 검사를 수행한다.
-2. 위 업데이트 절차대로 진행 중인 작업의 종료를 확인하고 전용 DB를 백업한 뒤,
-   서비스 중지·migration·`current` 전환·재시작을 수행한다. 기존 인증과 설정을 유지하고
+2. 위 업데이트 절차대로 root와 하위 agent 작업의 종료를 확인하고 전용 DB를 백업한 뒤,
+   두 서비스 중지·migration·`current` 전환·재시작과 프록시 경로 갱신을 수행한다. 기존 인증과 설정을 유지하고
    이전 릴리스와 DB 백업은 복구용으로 보존한다.
 3. 서비스가 새 릴리스를 실행하는지와 직접·공개 주소의 `/healthz`를 확인한다. 실제
    로그인 세션에서 변경된 API 응답과 브라우저 동작도 검사한다. 추론 강도 변경은
@@ -459,14 +528,17 @@ Codex Console 구현을 요청하면 로컬 변경 또는 검증만으로 범위
    각 경로에 적용한다. 쿠키·비밀번호·대화 내용은 검사 출력에 남기지 않는다.
    자동 로그인 변경은 개발·운영 MTY 각각에서 앱 링크를 열어 비밀번호 화면 없이 콘솔에
    들어가며 fragment가 주소에서 제거되는지 확인한다.
-4. 배포한 소스 커밋·릴리스 경로·서비스 상태·동작 검사 결과를 구분해 보고한다.
+4. 관리 로그인·서비스 상태·작업 현황·하위 agent 표시를 공개 브라우저에서 확인한다.
+   세션 서비스만 중지했을 때 관리 화면은 유지되고 상태가 unknown/unavailable로 갱신되는지
+   검증한 뒤 세션 서비스를 복원한다. 운영 실행 버튼이 명령 대신 Codex 요청 초안을 여는지 확인한다.
+5. 배포한 소스 커밋·릴리스 경로·서비스 상태·동작 검사 결과를 구분해 보고한다.
    빌드만 완료했거나 이전 릴리스가 실행 중이면 배포 완료로 간주하지 않는다.
 
 ## 상태와 권한
 
 - 웹 인증은 scrypt 비밀번호 해시, DB 세션, HttpOnly/SameSite 쿠키, 정확한 origin과 CSRF
-  검증을 사용한다. 로그인 실패 5회는 5분 제한한다. API는 한 프로세스만 실행한다.
-- PostgreSQL advisory lock으로 중복 서버를 차단하고 DB lease로 작업을 직렬화한다.
+  검증을 사용한다. 로그인 실패 5회는 5분 제한한다. 각 서비스 역할은 한 프로세스만 실행한다.
+- 역할별 PostgreSQL advisory lock으로 중복 서버를 차단하고 DB resource lease로 충돌을 조정한다.
   작업·계획 버전·승인·요청 중복 방지·화면 projection을 DB에 저장한다. Codex 원본 이력이
   대화의 기준이며 화면 projection을 Codex에 원본 이력으로 되돌려 보내지 않는다.
 - 계획 모드는 읽기 전용 sandbox와 승인 불허 정책을 사용한다. 저장된 계획의 실행 버튼은 최신 계획
@@ -515,6 +587,9 @@ Codex Console 구현을 요청하면 로컬 변경 또는 검증만으로 범위
   경로 이탈·외부 symlink·대형 출력에 경계를 적용한다. 웹 UI는 API 키를 입력받지 않는다.
 
 ## 검증과 복구
+
+관리 unit은 `NoNewPrivileges=true`이며 별도 `codex-console-management` 서비스로 유지한다.
+세션만 재시작할 때 관리 서비스를 함께 재시작할 필요는 없다.
 
 끊김 진단은 `journalctl --user -u codex-console`에서 `Codex transport stopped`의 안전한
 사유 코드·예외 종류·프로세스 종료 코드만 확인한다. 원본 이벤트·명령 출력·오류 본문을 로그에
@@ -571,7 +646,11 @@ uv run --frozen --directory apps/codex-console-api python scripts/generate_proto
 
 ```bash
 uv run --frozen --directory apps/codex-console-api python tests/live_smoke.py
+uv run --frozen --directory apps/codex-console-api python tests/live_management_smoke.py
 ```
+
+management smoke는 두 root 요청의 동시 접수와 두 native subagent의 완료 projection,
+읽기 전용 저장소 보존을 검증한다.
 
 E2E 대역 통과는 실제 구독 실행
 검증을 대신하지 않는다. 로그인 만료는 사용량 창의 **ChatGPT 연결**에서 공식 device-code
