@@ -289,7 +289,9 @@ def register(app, owner, runtime_for):
         request_text = render(definition.prompt)
         reference_hashes = {}
         for path in definition.references:
-            content = await asyncio.to_thread(git.read_worktree_file, source, path)
+            content = await asyncio.to_thread(
+                git.read_worktree_file, source, path, missing_ok=False
+            )
             reference_hashes[path] = hashlib.sha256(content).hexdigest()
         context = render(definition.context)
         if context:
