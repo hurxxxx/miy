@@ -81,7 +81,9 @@ worker_dependency_sha256() {
 }
 
 verify_portable_client_paths() {
-  if grep -Fq 'linux-gnu' "$repo_root/ops/ci/validation-runner/Dockerfile"; then
+  # Reject hardcoded multiarch library paths; platform-qualified download URLs
+  # are not filesystem paths. Native client discovery remains mandatory.
+  if grep -Eq '/(usr/)?lib[^[:space:]" ]*/[^[:space:]" ]*linux-gnu' "$repo_root/ops/ci/validation-runner/Dockerfile"; then
     echo "Validation image must discover architecture-specific PostgreSQL client paths." >&2
     return 2
   fi
@@ -108,6 +110,7 @@ verify_image() {
       node --version
       pnpm --version
       python --version
+      python -c "import sqlite3; v=sqlite3.sqlite_version_info; assert v >= (3,51,3) or (3,50,7) <= v < (3,51,0) or (3,44,6) <= v < (3,45,0)"
       uv --version
       tmux -V
       test "$(cat /opt/miy/locks/api/postgres-major)" = "$expected_major"

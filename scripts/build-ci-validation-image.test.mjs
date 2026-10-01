@@ -142,3 +142,15 @@ test('PostgreSQL preflight handles compatibility and redacts connection failures
   ], { cwd: repoRoot, encoding: 'utf8', timeout: 15000 });
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
 });
+
+test('rejects architecture-specific library paths while allowing pinned platform download URLs', t => {
+  const f = fixture(t);
+  assert.equal(f.run(['--print-contract']).status, 0);
+  const file = path.join(f.root, 'ops/ci/validation-runner/Dockerfile');
+  const original = fs.readFileSync(file, 'utf8');
+  for (const lib of ['/usr/lib/x86_64-linux-gnu/libpq.so.5', '/lib/aarch64-linux-gnu/libpq.so.5']) {
+    f.write('ops/ci/validation-runner/Dockerfile', original + `\nRUN cp ${lib} /usr/local/lib/libpq.so.5\n`);
+    assert.equal(f.run(['--print-contract']).status, 2);
+  }
+  assert.deepEqual(f.calls(), [], 'unsafe paths must fail before Docker');
+});
