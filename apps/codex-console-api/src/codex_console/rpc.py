@@ -163,6 +163,18 @@ class CodexRPC:
                 message = json.loads(line)
                 if not isinstance(message, dict):
                     raise TypeError("Invalid protocol envelope")
+                if "id" in message and type(message["id"]) not in (int, str):
+                    raise TypeError("Invalid protocol request ID")
+                if "method" in message:
+                    if (
+                        not isinstance(message["method"], str)
+                        or not message["method"]
+                        or "result" in message
+                        or "error" in message
+                    ):
+                        raise TypeError("Invalid protocol method envelope")
+                elif "id" not in message or ("result" in message) == ("error" in message):
+                    raise TypeError("Invalid protocol response envelope")
                 if "method" not in message and "id" in message:
                     future = self.pending.get(message["id"])
                     if future and not future.done():
@@ -173,7 +185,7 @@ class CodexRPC:
                             future.set_result(message.get("result", {}))
                 else:
                     self.events.put_nowait(message)
-        except (json.JSONDecodeError, TypeError):
+        except (json.JSONDecodeError, UnicodeDecodeError, RecursionError, TypeError):
             reason = "codex_protocol_error"
         except ValueError:
             reason = "codex_output_limit"

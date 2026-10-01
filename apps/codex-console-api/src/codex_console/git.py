@@ -75,7 +75,7 @@ def safe_path(root: Path, relative: str) -> Path:
     return candidate
 
 
-def read_worktree_file(root: Path, relative: str) -> bytes:
+def read_worktree_file(root: Path, relative: str, *, missing_ok: bool = True) -> bytes:
     safe_path(root, relative)
     # Pin each directory and reject links at open time too: an agent may replace
     # a path between the status scan and the file read.
@@ -91,6 +91,8 @@ def read_worktree_file(root: Path, relative: str) -> bytes:
             fd = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
             with os.fdopen(fd, "rb") as source:
                 metadata = os.fstat(source.fileno())
+                if metadata.st_nlink != 1:
+                    raise ConsoleError("path_denied", 403)
                 if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > MAX_BYTES:
                     raise ConsoleError("output_too_large")
                 data = source.read(MAX_BYTES + 1)
@@ -98,7 +100,9 @@ def read_worktree_file(root: Path, relative: str) -> bytes:
                     raise ConsoleError("output_too_large")
                 return data
     except FileNotFoundError:
-        return b""  # A tracked deletion has an empty worktree side.
+        if missing_ok:
+            return b""  # A tracked deletion has an empty worktree side.
+        raise ConsoleError("reference_not_found", 404) from None
     except OSError:
         raise ConsoleError("path_denied", 403) from None
 
