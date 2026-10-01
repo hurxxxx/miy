@@ -8,6 +8,8 @@ from types import ModuleType
 from typing import Any
 from uuid import uuid4
 
+import pytest
+
 from miy_api.domains.hermes.client import managed_compression_policy
 
 
@@ -75,3 +77,19 @@ def test_bootstrap_does_not_pin_unmanaged_named_profiles(monkeypatch) -> None:
 
     assert bootstrap._reconcile_runtime_config("personal") is False
     assert saved == []
+
+
+@pytest.mark.parametrize("suffix", ["", "-local", "-jobs", "-local-jobs"])
+def test_bootstrap_migrates_legacy_managed_profile_runtime_without_changing_identity(monkeypatch, suffix):
+    config = {
+        "model": {"provider": "custom:retained", "default": "retained-model"},
+        "plugins": {"enabled": ["mty_runtime", "other-plugin"], "disabled": ["miy_runtime"]},
+        "mcp_servers": {"retained": {"url": "https://api.test/mcp"}},
+    }
+    bootstrap, saved = _load_bootstrap(monkeypatch, config)
+    assert bootstrap._reconcile_runtime_config("mty-" + "a" * 32 + suffix) is True
+    assert saved[0]["model"] == config["model"]
+    assert saved[0]["mcp_servers"] == config["mcp_servers"]
+    assert saved[0]["plugins"] == {"enabled": ["miy_runtime", "other-plugin"], "disabled": []}
+    assert saved[0]["terminal"]["backend"] == "miy_sandbox"
+    assert bootstrap._apply_runtime_policy(saved[0]) is False

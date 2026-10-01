@@ -21,7 +21,7 @@ from uuid import uuid4
 from gateway.platforms import api_server_runs
 
 _LOG = logging.getLogger("miy.hermes-gateway")
-_MANAGED_INTERACTIVE_PROFILE = re.compile(r"^miy-[0-9a-f]{32}(?:-local)?$")
+_MANAGED_INTERACTIVE_PROFILE = re.compile(r"^(?:miy|mty)-[0-9a-f]{32}(?:-local)?$")
 _original_handle_runs = api_server_runs._handle_runs
 _original_http_routes = api_server_runs._http_routes
 

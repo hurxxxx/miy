@@ -23,7 +23,8 @@ from hermes_constants import (
     set_hermes_home_override,
 )
 
-_MANAGED_PROFILE_PATTERN = re.compile(r"^miy-[0-9a-f]{32}(?:-local)?(?:-jobs)?$")
+# Profile names are durable identities; existing bindings are not renamed.
+_MANAGED_PROFILE_PATTERN = re.compile(r"^(?:miy|mty)-[0-9a-f]{32}(?:-local)?(?:-jobs)?$")
 _COMPRESSION_POLICY = {
     "enabled": True,
     "threshold": 0.50,
@@ -44,8 +45,8 @@ def _apply_runtime_policy(config: dict[str, Any]) -> bool:
     """Bootstrap transport/lifecycle only; administrator DB owns model selection."""
     before = deepcopy(config)
     plugins = config.setdefault("plugins", {})
-    plugins["enabled"] = sorted(set(plugins.get("enabled", [])) | {"miy_runtime"})
-    plugins["disabled"] = [name for name in plugins.get("disabled", []) if name != "miy_runtime"]
+    plugins["enabled"] = sorted((set(plugins.get("enabled", [])) - {"mty_runtime"}) | {"miy_runtime"})
+    plugins["disabled"] = [name for name in plugins.get("disabled", []) if name not in {"miy_runtime", "mty_runtime"}]
     config.setdefault("gateway", {}).setdefault("api_server", {})["max_concurrent_runs"] = 0
     config["terminal"] = {
         "backend": "miy_sandbox",

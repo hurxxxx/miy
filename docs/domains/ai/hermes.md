@@ -527,3 +527,7 @@ MCP URLs aligned with the installation until the coordinated resource cutover in
 Compose project against empty volumes. Recreate the gateway with the matching
 `miy_runtime` plugin, mounted files and miy transport only after draining old runs;
 the pinned Hermes image, provider policy and isolation controls are unchanged.
+Existing `mty-<user-id>` profile names are durable binding identities and remain
+supported by the same authenticated admission, MCP bridge and tool policy checks.
+Bootstrap replaces their known `mty_runtime` plugin setting with `miy_runtime`
+without changing model policy, credentials, profile directories or session data.
