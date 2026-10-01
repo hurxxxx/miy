@@ -83,7 +83,7 @@ require_terminal_broker_port_available() {
       "$config_env" \
       --print-hermes-terminal-broker-port
   )" || return 1
-  expected_container="miy-prod-hermes-terminal-broker"
+  expected_container="${3:-miy-prod-hermes-terminal-broker}"
 
   if ! command -v ss >/dev/null 2>&1; then
     echo "Production port preflight requires the ss command." >&2
@@ -114,10 +114,13 @@ require_terminal_broker_port_available() {
 compose() (
   # Compose interpolation prefers exported shell values over --env-file. The
   # validated release file owns product/provider configuration in both paths.
-  local compose_env_name
+  local compose_env_name compose_product_prefix
+  compose_product_prefix="${COMPOSE_PROJECT_NAME%-prod-app}"
+  compose_product_prefix="${compose_product_prefix//-/_}"
+  compose_product_prefix="${compose_product_prefix^^}_"
   while IFS= read -r compose_env_name; do
     case "$compose_env_name" in
-      MIY_*|OPENROUTER_API_KEY) unset "$compose_env_name" || return 1 ;;
+      MIY_*|"$compose_product_prefix"*|OPENROUTER_API_KEY) unset "$compose_env_name" || return 1 ;;
     esac
   done < <(compgen -e)
   docker compose \
@@ -349,13 +352,24 @@ prepare_rollback_runtime() {
     node "$ROOT_DIR/scripts/prod-app-rollback.mjs" prepare \
       "$ROOT_DIR" "$ROLLBACK_ENV_FILE" "$ROLLBACK_IMAGE" "$expected_image"
   )" || return 1
+  local metadata
+  local -a fields
+  metadata="$(node "$ROOT_DIR/scripts/prod-app-rollback.mjs" runtime "$ROLLBACK_BUNDLE")" || return 1
+  mapfile -t fields <<<"$metadata"
+  [[ "${#fields[@]}" -eq 5 ]] || return 1
+  ROLLBACK_COMPOSE_FILE="$ROLLBACK_BUNDLE/${fields[0]}"
+  ROLLBACK_PROJECT="${fields[1]}"
+  ROLLBACK_CURRENT_IMAGE="${fields[2]}"
+  ROLLBACK_BROKER="${fields[3]}"
+  ROLLBACK_REVISION_ENV="${fields[4]}"
   require_terminal_broker_port_available \
-    "$ROLLBACK_BUNDLE/scripts/prod-app-config.mjs" "$ROLLBACK_BUNDLE/.env" || return 1
+    "$ROLLBACK_BUNDLE/scripts/prod-app-config.mjs" "$ROLLBACK_BUNDLE/.env" "$ROLLBACK_BROKER" || return 1
 }
 
 rollback_compose() {
   local ENV_FILE="$ROLLBACK_BUNDLE/.env"
-  local COMPOSE_FILE="$ROLLBACK_BUNDLE/ops/compose/miy-prod.app.yml"
+  local COMPOSE_FILE="${ROLLBACK_COMPOSE_FILE:?pinned rollback Compose is required}"
+  local COMPOSE_PROJECT_NAME="${ROLLBACK_PROJECT:?pinned rollback project is required}"
   compose "$@"
 }
 
@@ -368,17 +382,16 @@ restore_previous_runtime() {
     echo "Restoring the pinned production image, environment, and deployment definitions." >&2
     # Stop every container in this application project, including new release
     # orphans. Persistent volumes and the separate database project are retained.
-    rollback_compose down --remove-orphans || return 1
+    compose down --remove-orphans || return 1
     node "$ROOT_DIR/scripts/prod-app-rollback.mjs" restore-env \
       "$ROOT_DIR" "$ROLLBACK_BUNDLE" "$ROLLBACK_IMAGE" || return 1
     docker tag "$ROLLBACK_IMAGE" "$CURRENT_IMAGE" || return 1
-    local COMPOSE_FILE="$ROLLBACK_BUNDLE/ops/compose/miy-prod.app.yml"
-    local ENV_FILE="$ROLLBACK_BUNDLE/.env"
-    start_runtime || return 1
+    docker tag "$ROLLBACK_IMAGE" "$ROLLBACK_CURRENT_IMAGE" || return 1
+    rollback_compose up -d --remove-orphans --wait --wait-timeout 600 || return 1
     local revision
     revision="$(image_revision "$ROLLBACK_IMAGE")" || return 1
-    MIY_EXPECTED_REVISION="$revision" \
-      node "$ROLLBACK_BUNDLE/scripts/prod-app-smoke.mjs" "$ENV_FILE" || return 1
+    (export "$ROLLBACK_REVISION_ENV=$revision"
+      node "$ROLLBACK_BUNDLE/scripts/prod-app-smoke.mjs" "$ROLLBACK_BUNDLE/.env") || return 1
     return 0
   fi
   if ! docker image inspect "$PREVIOUS_IMAGE" >/dev/null 2>&1; then

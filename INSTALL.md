@@ -375,6 +375,9 @@ docker build -f ops/opensearch/Dockerfile -t miy-opensearch:3.3.2-nori .
 ```
 
 검증 이미지 이름은 현재 `miy-validation:node22-python312`다.
+Console 검사는 이미지에 digest로 고정한 공식 Python standalone 3.12.14(20260929 배포물)를
+사용한다. 빌드·재사용 검증은 포함된 SQLite의 WAL-reset 수정 버전을 확인한다.
+API·Worker의 기존 이미지 가상환경과 Node·uv base pin은 유지한다.
 이미지·BuildKit 캐시의 보관 범위와 용량 설정은 [빌드·테스트 저장 공간](docs/domains/release/README.md#build-and-test-storage)을 따른다. 검증 이미지를 커밋별로 복사·백업하지 않고, 의존성이 같은 이미지를 재사용한다.
 개발 서버의 Node.js 24 설치와는 별도이며, 이름만 같은 다른 이미지로 대체하지 않는다.
 빌드 스크립트는 선택한 PostgreSQL 메이저의 공식 Bookworm 이미지 태그를 불변 digest로 확인한다. PostgreSQL 버전·digest·Docker 플랫폼·Dockerfile·의존성이 일치하면 기존 이미지를 다시 검사해 재사용하고, 다르면 빌드한다. 빌드·클라이언트 검사 실패는 설치 실패로 처리한다.

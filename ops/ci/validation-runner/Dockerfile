@@ -158,6 +158,26 @@ RUN cd /opt/miy/node-runtime \
       'const { chromium } = require("@playwright/test"); chromium.launch({ headless: true }).then((browser) => browser.close()).catch((error) => { console.error(error); process.exit(1); })' \
     && rm -rf /var/lib/apt/lists/*
 
+# Console's durable SQLite requires the upstream WAL-reset fix. Keep the API and
+# worker image venvs intact; native uv discovery uses this Python for fresh venvs.
+ARG TARGETARCH
+RUN set -eu; \
+    case "$TARGETARCH" in \
+      amd64) archive=cpython-3.12.14%2B20260929-x86_64-unknown-linux-gnu-install_only.tar.gz; digest=06c90b93f419b63371c18f20fed0558a1a901f6518c3c24f755077e048447e7f ;; \
+      arm64) archive=cpython-3.12.14%2B20260929-aarch64-unknown-linux-gnu-install_only.tar.gz; digest=9c797cf657f6dced51d3e74eeabd7c1ca742d5bf10f66080a290e424ced8edaf ;; \
+      *) echo 'Unsupported Console Python platform' >&2; exit 1 ;; \
+    esac; \
+    curl --fail --location --retry 3 --connect-timeout 15 --max-time 180 \
+      "https://github.com/astral-sh/python-build-standalone/releases/download/20260929/$archive" \
+      --output /tmp/console-python.tar.gz; \
+    printf '%s  %s\n' "$digest" /tmp/console-python.tar.gz | sha256sum --check -; \
+    mkdir -p /opt/miy/console-python; \
+    tar -xzf /tmp/console-python.tar.gz -C /opt/miy/console-python --strip-components=1; \
+    rm /tmp/console-python.tar.gz; \
+    /opt/miy/console-python/bin/python3.12 -c \
+      "import sqlite3, sys; v=sqlite3.sqlite_version_info; assert sys.version_info[:2]==(3,12); assert v>=(3,51,3) or (3,50,7)<=v<(3,51,0) or (3,44,6)<=v<(3,45,0); print('Console Python SQLite:', sqlite3.sqlite_version)"
+ENV PATH="/opt/miy/console-python/bin:${PATH}"
+
 ENV UV_LINK_MODE=copy
 ENV MIY_API_IMAGE_DEPENDENCY_FILE=/opt/miy/locks/api/dependency.sha256
 ENV MIY_API_IMAGE_VENV=/opt/miy/venvs/api
