@@ -45,13 +45,16 @@ until a separately coordinated repository move; source branding does not rename 
    has moved. `pnpm check:env-contract` validates dev and prod against each
    checkout's own declared settings and env contract during the rolling cutover;
    it does not migrate the external Codex Console config. Validate both app and
-   worker settings. Publish the matching `@miy/contracts` package before installing
-   renamed desktop dependencies. Preparing its version in an MR does not publish
-   it: only an explicitly authorized `contracts-v*` tag starts the package publishing
-   job. The old `@mty/contracts@0.0.3` has different desktop feed exports and is not
-   a compatible npm alias for the renamed contract. When publication is deferred,
-   validate against the prepared package locally and leave desktop registry
-   installation and distribution pending.
+   worker settings. Follow the standalone desktop's
+   [dependency installation instructions](https://github.com/hurxxxx/miy-desktop#development):
+   its included, versioned `@miy/contracts` package artifact supports source
+   installation and CI without prior registry publication. Contract source remains
+   in this repository; keep the artifact's provenance and pnpm integrity intact.
+   Preparing a package version in an MR does not publish it: only an explicitly
+   authorized `contracts-v*` tag starts the package publishing job. The old
+   `@mty/contracts@0.0.3` has different desktop feed exports and is not a compatible
+   npm alias for the renamed contract. Registry publication and installer
+   distribution still require separate authorization and validation.
    Build a versioned miy Desktop release from the separate
    desktop repository ([`hurxxxx/miy-desktop`](https://github.com/hurxxxx/miy-desktop)). The renamed app ID, login protocol and feed
    do not by themselves upgrade an installed legacy desktop client: validate an
