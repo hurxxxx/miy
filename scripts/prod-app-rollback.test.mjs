@@ -650,6 +650,20 @@ test('native Compose config failure rejects preparation without restoring candid
   assert.equal(readFileSync(path.join(f.rootDir, '.env'), 'utf8'), CANDIDATE_ENV);
 });
 
+test('previous app project takes precedence over a shared infra project setting', t => {
+  const f = fixture(t, { brand: 'mty' });
+  const run = (command, args) => {
+    const result = f.run(command, args);
+    if (command !== 'docker' || args[0] !== 'compose') return result;
+    const config = JSON.parse(result);
+    const projectIndex = args.indexOf('--project-name');
+    config.name = projectIndex >= 0 ? args[projectIndex + 1] : 'mty-prod';
+    return JSON.stringify(config);
+  };
+  const bundle = prepareRollbackBundle(f.options, { run });
+  assert.equal(rollbackRuntime(bundle).project, 'mty-prod-app');
+});
+
 test('rejects mixed project/image identities and changed protected env in runtime metadata', t => {
   const f = prepared(t, { brand: 'mty' });
   assert.equal(rollbackRuntime(f.bundle).project, 'mty-prod-app');
