@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { submitNewTask } from './task-submission';
 
 async function newTask(page: Page, title: string) {
   await page
@@ -6,7 +7,7 @@ async function newTask(page: Page, title: string) {
     .first()
     .click();
   await page.getByLabel('작업 제목').fill(title);
-  await page.getByRole('button', { name: '작업 만들기' }).click();
+  await submitNewTask(page);
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
 }
 
@@ -168,9 +169,7 @@ test('many selected files scroll inside the composer without hiding its controls
         buffer: Buffer.from(`Reference ${index + 1}`),
       })),
     );
-  await expect(
-    page.getByRole('dialog').getByRole('checkbox'),
-  ).toHaveCount(20);
+  await expect(page.getByRole('dialog').getByRole('checkbox')).toHaveCount(20);
   await page.getByRole('button', { name: '선택 완료' }).click();
 
   const badges = page.locator('.composer > .attachment-badges');

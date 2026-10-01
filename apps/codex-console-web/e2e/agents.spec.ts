@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { submitNewTask } from './task-submission';
 
 test('agent menu preserves search while opening work and keeps legacy and Codex session navigation', async ({
   page,
@@ -18,7 +19,7 @@ test('agent menu preserves search while opening work and keeps legacy and Codex 
   await page.getByRole('button', { name: '새 작업', exact: true }).click();
   const title = `목록 복귀 검증 ${Date.now()}`;
   await page.getByLabel('작업 제목').fill(title);
-  await page.getByRole('button', { name: '작업 만들기' }).click();
+  await submitNewTask(page);
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
   const taskUrl = page.url();
   await navigation

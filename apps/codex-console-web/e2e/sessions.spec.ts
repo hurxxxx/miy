@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { submitNewTask } from './task-submission';
 
 test('sessions is the entry menu and restores search, scroll and drafts across workspace navigation', async ({
   page,
@@ -30,7 +31,7 @@ test('sessions is the entry menu and restores search, scroll and drafts across w
   for (const title of [first, second]) {
     await sidebar.getByRole('button', { name: '새 작업', exact: true }).click();
     await page.getByLabel('작업 제목').fill(title);
-    await page.getByRole('button', { name: '작업 만들기' }).click();
+    await submitNewTask(page);
     await expect(page.getByRole('heading', { name: title })).toBeVisible();
     if (title === first)
       await page.getByLabel('요청 내용 입력').fill('전환해도 보존할 초안');
