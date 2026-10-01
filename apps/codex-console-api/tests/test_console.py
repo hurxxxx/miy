@@ -60,7 +60,7 @@ def test_command_output_stream_accepts_native_initial_null_output(client):
     )
 
 
-def test_turn_provenance_migration_preserves_existing_documents(client):
+def test_turn_provenance_migration_preserves_existing_documents(client, legacy_database):
     from codex_console.cli import ROOT
 
     task = new_task(client)
@@ -72,7 +72,7 @@ def test_turn_provenance_migration_preserves_existing_documents(client):
     )
     migration = module_from_spec(spec)
     spec.loader.exec_module(migration)
-    engine = client.app.state.factory.kw["bind"]
+    engine = legacy_database()
     # Transactional PostgreSQL DDL keeps this upgrade probe isolated from the
     # shared test schema, even when an assertion fails.
     with engine.connect() as connection, connection.begin() as transaction:
@@ -184,10 +184,11 @@ def test_mty_handoff_creates_console_session(client, monkeypatch):
     exchange = monkeypatch.setattr(
         mty_sso,
         "exchange_code",
-        lambda **values: str(owner_subject)
-        if values
-        == {"issuer": "https://dev.example.test", "code": "cc1_" + "a" * 32}
-        else None,
+        lambda **values: (
+            str(owner_subject)
+            if values == {"issuer": "https://dev.example.test", "code": "cc1_" + "a" * 32}
+            else None
+        ),
     )
     assert exchange is None
 
@@ -446,9 +447,12 @@ def test_identical_native_plan_is_saved_as_a_new_authoritative_version(client):
     )
 
 
-def test_workspace_lease_prevents_parallel_turns(client):
+def test_workspace_lease_prevents_parallel_writers(client):
     first, second = new_task(client), new_task(client)
-    running = send_message(client, first).json()
+    running = client.post(
+        f"/api/tasks/{first['id']}/implement",
+        json={"text": "Implement a change", "operation_id": str(uuid4())},
+    ).json()
     assert send_message(client, second).json()["code"] == "workspace_busy"
     complete(client, running)
     assert send_message(client, second).status_code == 200
@@ -845,7 +849,9 @@ def test_proxy_base_path_scopes_cookies_and_api_cache_headers(client):
     )
 
 
-def test_previous_execution_migration_preserves_existing_tasks_and_documents(client):
+def test_previous_execution_migration_preserves_existing_tasks_and_documents(
+    client, legacy_database
+):
     from codex_console.cli import ROOT
 
     task = complete(client, send_message(client, new_task(client)).json())
@@ -854,7 +860,7 @@ def test_previous_execution_migration_preserves_existing_tasks_and_documents(cli
     )
     migration = module_from_spec(spec)
     spec.loader.exec_module(migration)
-    engine = client.app.state.factory.kw["bind"]
+    engine = legacy_database()
     with engine.connect() as connection, connection.begin() as transaction:
         with Operations.context(MigrationContext.configure(connection)):
             migration.downgrade()
@@ -876,7 +882,7 @@ def test_previous_execution_migration_preserves_existing_tasks_and_documents(cli
         transaction.rollback()
 
 
-def test_native_plan_migration_backfills_a_missing_structured_plan(client):
+def test_native_plan_migration_backfills_a_missing_structured_plan(client, legacy_database):
     from codex_console.cli import ROOT
 
     task = plan(client)
@@ -885,7 +891,7 @@ def test_native_plan_migration_backfills_a_missing_structured_plan(client):
     )
     migration = module_from_spec(spec)
     spec.loader.exec_module(migration)
-    engine = client.app.state.factory.kw["bind"]
+    engine = legacy_database()
     with engine.connect() as connection, connection.begin() as transaction:
         connection.execute(
             text("DELETE FROM console_revisions WHERE task_id = :id"), {"id": task["id"]}
@@ -911,8 +917,7 @@ def test_native_plan_migration_backfills_a_missing_structured_plan(client):
             migration.upgrade()
         revisions = connection.execute(
             text(
-                "SELECT kind, version, body FROM console_revisions "
-                "WHERE task_id = :id ORDER BY id"
+                "SELECT kind, version, body FROM console_revisions WHERE task_id = :id ORDER BY id"
             ),
             {"id": task["id"]},
         ).all()
@@ -920,13 +925,11 @@ def test_native_plan_migration_backfills_a_missing_structured_plan(client):
         transaction.rollback()
 
 
-def test_legacy_plan_answer_migration_requires_an_accepted_plan_operation(client):
+def test_legacy_plan_answer_migration_requires_an_accepted_plan_operation(client, legacy_database):
     from codex_console.cli import ROOT
 
     operation_id = str(uuid4())
-    task = send_message(
-        client, new_task(client), "plan", operation_id=operation_id
-    ).json()
+    task = send_message(client, new_task(client), "plan", operation_id=operation_id).json()
     turn_id = task["turn_id"]
     task = complete(
         client,
@@ -940,7 +943,7 @@ def test_legacy_plan_answer_migration_requires_an_accepted_plan_operation(client
     )
     migration = module_from_spec(spec)
     spec.loader.exec_module(migration)
-    engine = client.app.state.factory.kw["bind"]
+    engine = legacy_database()
     with engine.connect() as connection, connection.begin() as transaction:
         connection.execute(
             text(
@@ -961,8 +964,7 @@ def test_legacy_plan_answer_migration_requires_an_accepted_plan_operation(client
             migration.upgrade()
         revisions = connection.execute(
             text(
-                "SELECT kind, version, body FROM console_revisions "
-                "WHERE task_id = :id ORDER BY id"
+                "SELECT kind, version, body FROM console_revisions WHERE task_id = :id ORDER BY id"
             ),
             {"id": task["id"]},
         ).all()

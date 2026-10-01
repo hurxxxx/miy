@@ -10,20 +10,21 @@ from fastapi import Depends, FastAPI, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import delete, func, select, text
+from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from starlette.requests import ClientDisconnect
 
-from . import attachments, auth, git, mty_sso, store
+from . import agents, attachments, auth, git, host, monitor, mty_sso, routing, store, templates
 from .config import Settings
 from .errors import ConsoleError
-from .models import Event, Task, database
+from .models import Agent, Event, Task, database
 from .rpc import CodexRPC
 from .runtime import Runtime
 from .schemas import (
     DOCUMENT_CHAR_LIMIT,
     MESSAGE_CHAR_LIMIT,
     AccountOut,
+    AgentOut,
     Answer,
     AttachmentOut,
     ChangeOut,
@@ -41,9 +42,12 @@ from .schemas import (
     NewTask,
     Ok,
     Recover,
+    ServiceOut,
     SessionOut,
+    SkillOut,
     TaskDetail,
     TaskOut,
+    TaskPreferences,
     ThreadPage,
 )
 
@@ -68,7 +72,7 @@ def _authenticated_response(settings, request: Request, token: str, csrf: str) -
     return response
 
 
-def create_app(settings=None, *, rpc_factory=CodexRPC):
+def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
     @asynccontextmanager
     async def lifespan(app):
         app.state.settings = settings or Settings()
@@ -76,18 +80,50 @@ def create_app(settings=None, *, rpc_factory=CodexRPC):
         engine, factory = database(app.state.settings.database_url)
         app.state.factory = factory
         app.state.upload_slots = asyncio.Semaphore(2)
-        guard = engine.connect()
+        from .storage import SCHEMA, process_guard
+
+        guard = contextlib.ExitStack()
         runtime = None
+        template_runtime = None
+        observer = None
+        host_observer = None
         try:
-            if not guard.scalar(text("SELECT pg_try_advisory_lock(18701, 1)")):
-                raise RuntimeError("Run exactly one console API process per database")
-            revision = guard.scalar(text("SELECT version_num FROM console_alembic_version"))
-            if revision != "console_0008":
+            guard.enter_context(process_guard(app.state.settings.database_url, role))
+            with engine.connect() as connection:
+                revision = connection.scalar(
+                    text("SELECT version_num FROM console_alembic_version")
+                )
+            if revision != SCHEMA:
                 raise RuntimeError("Run codex-console migrate before starting the server")
-            store.recover_startup(factory)
-            runtime = Runtime(app.state.settings, factory, rpc_factory)
-            app.state.runtime = runtime
-            if app.state.settings.web_dist.is_dir():
+            if role != "management":
+                executor = "templates" if role == "templates" else "session"
+                runtime_settings = app.state.settings
+                if role == "templates":
+                    if not runtime_settings.template_binary:
+                        raise RuntimeError("Configure a pinned template runner binary")
+                    runtime_settings = runtime_settings.model_copy(
+                        update={"binary": str(runtime_settings.template_binary)}
+                    )
+                store.recover_startup(factory, executor)
+                runtime = Runtime(runtime_settings, factory, rpc_factory, executor=executor)
+                app.state.runtime = runtime
+            if role in ("combined", "management"):
+                observer = asyncio.create_task(monitor.observe(app.state.settings, factory))
+                host_observer = asyncio.create_task(host.observe(app.state.settings, factory))
+            if role == "combined":
+                store.recover_startup(factory, "templates")
+                template_settings = app.state.settings
+                if template_settings.template_binary:
+                    template_settings = template_settings.model_copy(
+                        update={"binary": str(template_settings.template_binary)}
+                    )
+                template_runtime = Runtime(
+                    template_settings, factory, rpc_factory, executor="templates"
+                )
+                app.state.template_runtime = template_runtime
+            if role in ("combined", "management"):
+                templates.seed(factory)
+            if role in ("combined", "management") and app.state.settings.web_dist.is_dir():
                 app.mount(
                     "/",
                     StaticFiles(directory=app.state.settings.web_dist, html=True),
@@ -95,10 +131,18 @@ def create_app(settings=None, *, rpc_factory=CodexRPC):
                 )
             yield
         finally:
+            if host_observer:
+                host_observer.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await host_observer
+            if observer:
+                observer.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await observer
             if runtime:
                 await runtime.close()
-            with contextlib.suppress(Exception):
-                guard.execute(text("SELECT pg_advisory_unlock(18701, 1)"))
+            if template_runtime:
+                await template_runtime.close()
             guard.close()
             engine.dispose()
 
@@ -164,7 +208,20 @@ def create_app(settings=None, *, rpc_factory=CodexRPC):
                     if len(body) > byte_limit:
                         return JSONResponse({"code": "input_too_large"}, status_code=413)
                 request._body = bytes(body)
-        response = await call_next(request)
+        try:
+            path = request.url.path.removeprefix(cfg.base_path)
+            if path.startswith(("/api/tasks", "/api/codex", "/api/templates")):
+                owner(request)
+            target = routing.execution_target(app.state.factory, path, request.query_params)
+            if target and role == "management":
+                owner(request)
+                response = await routing.forward(request, target)
+            elif target and role in ("session", "templates") and target != role:
+                response = JSONResponse({"code": "executor_mismatch"}, status_code=409)
+            else:
+                response = await call_next(request)
+        except ConsoleError as exc:
+            response = JSONResponse({"code": exc.code}, status_code=exc.status)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["X-Frame-Options"] = "DENY"
@@ -185,7 +242,35 @@ def create_app(settings=None, *, rpc_factory=CodexRPC):
         if not auth.authenticate(request.app.state.factory, request.cookies.get(auth.COOKIE), csrf):
             raise ConsoleError("unauthenticated", 401)
 
+    def runtime_for(task_id=None, *, executor=None):
+        if task_id:
+            with app.state.factory() as db:
+                executor = store.require_task(db, str(task_id)).executor
+        if executor == "templates" and role == "combined":
+            return app.state.template_runtime
+        runtime = app.state.runtime
+        if executor and runtime.executor != executor:
+            raise ConsoleError("executor_mismatch", 409)
+        return runtime
+
+    templates.register(app, owner, runtime_for)
     secured = [Depends(owner)]
+
+    @app.get("/api/monitor/host", dependencies=secured, response_model=host.HostOut)
+    def host_status():
+        return host.snapshot(app.state.factory)
+
+    @app.get("/api/monitor/services", dependencies=secured, response_model=list[ServiceOut])
+    def service_status():
+        return monitor.snapshot(app.state.settings, app.state.factory)
+
+    @app.patch("/api/overview/{task_id}", dependencies=secured, response_model=Ok)
+    def preferences(task_id: UUID, body: TaskPreferences):
+        with app.state.factory.begin() as db:
+            task = store.require_task(db, str(task_id), locked=True)
+            task.pinned = body.pinned
+            store.changed(db, task, "task.preferences")
+        return {"ok": True}
 
     @app.get("/healthz", response_model=Ok)
     def health():
@@ -237,7 +322,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC):
 
     @app.get("/api/codex/models", dependencies=secured, response_model=list[ModelOut])
     async def models(task_id: str | None = Query(default=None, max_length=36)):
-        return await app.state.runtime.models(task_id=task_id)
+        return await runtime_for(task_id).models(task_id=task_id)
 
     @app.post("/api/codex/login", dependencies=secured, response_model=DeviceLoginOut)
     async def codex_login():
@@ -298,8 +383,12 @@ def create_app(settings=None, *, rpc_factory=CodexRPC):
             if (thread.get("status") or {}).get("type") == "active":
                 raise ConsoleError("turn_not_finished")
             with app.state.factory.begin() as db:
+                linked = agents.task_for_thread(db, body.thread_id)
+                if linked and linked.thread_id != body.thread_id:
+                    raise ConsoleError("thread_owned", 409)
                 existing = db.scalar(select(Task).where(Task.thread_id == body.thread_id))
                 if existing:
+                    runtime.require_task(db, existing.id)
                     task_id = existing.id
                 else:
                     task = Task(
@@ -314,28 +403,98 @@ def create_app(settings=None, *, rpc_factory=CodexRPC):
                     task_id = task.id
         return store.detail(app.state.factory, task_id, app.state.settings)
 
+    @app.get("/api/overview", dependencies=secured, response_model=list[TaskOut])
     @app.get("/api/tasks", dependencies=secured, response_model=list[TaskOut])
-    def tasks(search: str = Query(default="", max_length=200)):
+    def tasks(search: str = Query(default="", max_length=200), template_id: UUID | None = None):
         with app.state.factory() as db:
             query = select(Task)
+            if template_id is not None:
+                query = query.where(
+                    Task.executor == "templates",
+                    Task.template_snapshot["template_id"].as_string() == str(template_id),
+                )
             if search.strip():
                 query = query.where(
                     func.lower(Task.title).contains(search.strip().lower(), autoescape=True)
                 )
+            recent = list(db.scalars(query.order_by(Task.updated_at.desc(), Task.id).limit(200)))
+            tracked = db.scalars(
+                query.where(
+                    or_(
+                        Task.pinned.is_(True),
+                        Task.status.in_((*store.ACTIVE, "uncertain", "failed")),
+                        Task.id.in_(
+                            select(Agent.task_id).where(
+                                Agent.parent_thread_id.is_not(None),
+                                Agent.status.not_in(
+                                    ("completed", "interrupted", "errored", "shutdown")
+                                ),
+                            )
+                        ),
+                    )
+                )
+            )
             return [
-                store.task_out(task)
-                for task in db.scalars(query.order_by(Task.updated_at.desc(), Task.id).limit(200))
+                store.task_out(task, db) for task in {t.id: t for t in [*recent, *tracked]}.values()
             ]
 
     @app.post("/api/tasks", dependencies=secured, response_model=TaskDetail)
     def new_task(body: NewTask):
+        context = body.context.model_dump() if body.context else None
+        if context and context.get("service_id"):
+            service = next(
+                (s for s in monitor.services(app.state.settings) if s.id == context["service_id"]),
+                None,
+            )
+            if not service:
+                raise ConsoleError("invalid_input", 422)
+            context.update({"environment": service.environment, "service_name": service.name})
+            context["observation"] = next(
+                s
+                for s in monitor.snapshot(app.state.settings, app.state.factory)
+                if s["id"] == service.id
+            )
         with app.state.factory.begin() as db:
-            task = Task(title=body.title, root=str(app.state.settings.workspace))
+            task = Task(title=body.title, root=str(app.state.settings.workspace), context=context)
             db.add(task)
             db.flush()
+            if body.isolate:
+                cfg = app.state.settings
+                root, isolated = git.prepare_workspace(
+                    cfg.workspace,
+                    task.id,
+                    None,
+                    base_ref=cfg.worktree_base_ref,
+                    worktree_root=cfg.worktree_root,
+                    validate_target=cfg.require_allowed_paths,
+                    force_isolated=True,
+                )
+                task.root, task.worktree_owned = str(root), isolated
             store.changed(db, task, "task.created")
             task_id = task.id
         return store.detail(app.state.factory, task_id, app.state.settings)
+
+    @app.get("/api/tasks/{task_id}/agents", dependencies=secured, response_model=list[AgentOut])
+    def task_agents(task_id: UUID):
+        with app.state.factory() as db:
+            store.require_task(db, str(task_id))
+            return store.agent_list(db, str(task_id))
+
+    @app.get("/api/tasks/{task_id}/skills", dependencies=secured, response_model=list[SkillOut])
+    async def task_skills(task_id: UUID):
+        with app.state.factory() as db:
+            task = store.require_task(db, str(task_id))
+            runtime_for(task_id).require_allowed_task(task)
+            root = task.root
+        rpc = await runtime_for(task_id).authenticated_rpc()
+        result = await rpc.call("skills/list", {"cwds": [root], "forceReload": False})
+        return [
+            {"name": s["name"], "description": s.get("description", "")[:500]}
+            for entry in result.get("data", [])
+            if entry.get("cwd") == root
+            for s in entry.get("skills", [])
+            if s.get("enabled")
+        ]
 
     @app.get("/api/tasks/{task_id}", dependencies=secured, response_model=TaskDetail)
     def task_detail(task_id: str):
@@ -419,7 +578,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC):
         "/api/tasks/{task_id}/attachments/{attachment_id}", dependencies=secured, response_model=Ok
     )
     async def delete_attachment(task_id: UUID, attachment_id: UUID):
-        async with app.state.runtime.gate:
+        async with runtime_for(task_id).gate:
             await asyncio.to_thread(
                 attachments.remove,
                 app.state.factory,
@@ -443,7 +602,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC):
 
     @app.post("/api/tasks/{task_id}/messages", dependencies=secured, response_model=TaskDetail)
     async def message(task_id: str, body: Message):
-        await app.state.runtime.submit(
+        await runtime_for(task_id).submit(
             task_id,
             body.operation_id,
             body.text,
@@ -452,12 +611,13 @@ def create_app(settings=None, *, rpc_factory=CodexRPC):
             model=body.model,
             effort=body.effort,
             permissions=body.permissions,
+            skill_names=body.skill_names,
         )
         return store.detail(app.state.factory, task_id, app.state.settings)
 
     @app.post("/api/tasks/{task_id}/implement", dependencies=secured, response_model=TaskDetail)
     async def implement(task_id: str, body: Implement):
-        await app.state.runtime.submit(
+        await runtime_for(task_id).submit(
             task_id,
             body.operation_id,
             body.text,
@@ -467,22 +627,25 @@ def create_app(settings=None, *, rpc_factory=CodexRPC):
             model=body.model,
             effort=body.effort,
             permissions=body.permissions,
+            skill_names=body.skill_names,
         )
         return store.detail(app.state.factory, task_id, app.state.settings)
 
     @app.post("/api/tasks/{task_id}/steer", dependencies=secured, response_model=TaskDetail)
     async def steer(task_id: str, body: MessageBody):
-        await app.state.runtime.steer(task_id, body.operation_id, body.text, body.attachment_ids)
+        await runtime_for(task_id).steer(
+            task_id, body.operation_id, body.text, body.attachment_ids, skill_names=body.skill_names
+        )
         return store.detail(app.state.factory, task_id, app.state.settings)
 
     @app.post("/api/tasks/{task_id}/interrupt", dependencies=secured, response_model=Ok)
     async def interrupt(task_id: str):
-        await app.state.runtime.interrupt(task_id)
+        await runtime_for(task_id).interrupt(task_id)
         return {"ok": True}
 
     @app.post("/api/tasks/{task_id}/recover", dependencies=secured, response_model=TaskDetail)
     async def recover(task_id: str, body: Recover):
-        await app.state.runtime.recover(task_id, confirm_workspace=body.confirm_workspace)
+        await runtime_for(task_id).recover(task_id, confirm_workspace=body.confirm_workspace)
         return store.detail(app.state.factory, task_id, app.state.settings)
 
     @app.post(
@@ -491,14 +654,14 @@ def create_app(settings=None, *, rpc_factory=CodexRPC):
         response_model=TaskDetail,
     )
     async def answer(task_id: str, request_id: str, body: Answer):
-        await app.state.runtime.answer(task_id, request_id, body)
+        await runtime_for(task_id).answer(task_id, request_id, body)
         return store.detail(app.state.factory, task_id, app.state.settings)
 
     @app.get("/api/tasks/{task_id}/changes", dependencies=secured, response_model=list[ChangeOut])
     def changes(task_id: str):
         with app.state.factory() as db:
             task = store.require_task(db, task_id)
-            app.state.runtime.require_allowed_task(task)
+            runtime_for(task_id).require_allowed_task(task)
             root = Path(task.root)
         return git.changes(root)
 
@@ -506,7 +669,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC):
     def git_status(task_id: str):
         with app.state.factory() as db:
             task = store.require_task(db, task_id)
-            app.state.runtime.require_allowed_task(task)
+            runtime_for(task_id).require_allowed_task(task)
             root = Path(task.root)
         return git.status(root)
 
@@ -514,14 +677,18 @@ def create_app(settings=None, *, rpc_factory=CodexRPC):
     def diff(task_id: str, path: str = Query(max_length=2048)):
         with app.state.factory() as db:
             task = store.require_task(db, task_id)
-            app.state.runtime.require_allowed_task(task)
+            runtime_for(task_id).require_allowed_task(task)
             root = Path(task.root)
         return git.diff(root, path)
 
+    @app.get("/api/overview/events", dependencies=secured)
     @app.get("/api/tasks/{task_id}/events", dependencies=secured)
-    async def events(task_id: str, request: Request, after: int = Query(default=0, ge=0)):
+    async def events(
+        request: Request, task_id: str | None = None, after: int = Query(default=0, ge=0)
+    ):
         with app.state.factory() as db:
-            store.require_task(db, task_id)
+            if task_id:
+                store.require_task(db, task_id)
         raw_cursor = request.headers.get("last-event-id", str(after))
         if not raw_cursor.isdecimal() or len(raw_cursor) > 18:
             raise ConsoleError("invalid_input", 422)
@@ -536,7 +703,12 @@ def create_app(settings=None, *, rpc_factory=CodexRPC):
                     return
                 with app.state.factory() as db:
                     latest = (
-                        db.scalar(select(func.max(Event.id)).where(Event.task_id == task_id)) or 0
+                        db.scalar(
+                            select(func.max(Event.id)).where(
+                                *([Event.task_id == task_id] if task_id else [])
+                            )
+                        )
+                        or 0
                     )
                 if latest > cursor:
                     cursor = latest
@@ -552,4 +724,13 @@ def create_app(settings=None, *, rpc_factory=CodexRPC):
             headers={"X-Accel-Buffering": "no", "Cache-Control": "no-store"},
         )
 
+    if role == "management":
+        app.router.routes = [
+            r
+            for r in app.router.routes
+            if r.path == "/healthz"
+            or r.path.startswith(
+                ("/api/session", "/api/overview", "/api/monitor", "/api/templates")
+            )
+        ]
     return app

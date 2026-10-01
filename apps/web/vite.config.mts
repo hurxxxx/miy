@@ -10,7 +10,7 @@ const apiProxyTarget = process.env.MTY_WEB_API_PROXY_TARGET ?? 'http://127.0.0.1
 const drawioProxyTarget =
   process.env.MTY_WEB_DRAWIO_PROXY_TARGET ??
   `http://127.0.0.1:${process.env.MTY_DRAWIO_PORT ?? 18082}`;
-const codexConsoleProxyTarget = 'http://127.0.0.1:19365';
+const codexConsoleProxyTarget = 'http://127.0.0.1:19367';
 const webDevPort = Number(process.env.MTY_WEB_DEV_PORT ?? 4200);
 const webDevAllowedHosts = (process.env.MTY_WEB_DEV_ALLOWED_HOSTS ?? '')
   .split(',')

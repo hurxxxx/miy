@@ -952,13 +952,17 @@ AI 보호 정책을 끄지 않는다. 추가 키·서버가 필요한 기능은 
 ## 6.1. Codex 콘솔 함께 설치
 
 [Codex Console 소유 문서](docs/apps/codex-console/README.md)의 설치·서비스 실행·개인 앱 연결
-절차를 수행한다. MTY 업무 DB와 별개의 전용 PostgreSQL 역할·DB를 만들고, Codex를 구독으로
-로그인한 OS 사용자로 서비스를 실행한다. 콘솔은 기준 버전 이상의 공식 app-server를 사용하고
-시작 시 RPC 스키마 호환성을 검사하며
+절차를 수행한다. MTY PostgreSQL에 의존하지 않는 전용 로컬 SQLite 파일을 준비하고, Codex를 구독으로
+로그인한 OS 사용자로 서비스를 실행한다. 콘솔은 [현재 기준 버전](docs/apps/codex-console/README.md#설치)
+이상의 안정 CLI를 사용한다. 서비스의 `MTY_CODEX_CONSOLE_BINARY`와 검증 명령의 CLI가
+같은지 확인한다. 시작 시 RPC 스키마 호환성을 검사하며
 Platform API 키나 MTY AI 공급자 설정을 요구하지 않는다.
 
-- 콘솔의 `.env`와 웹 비밀번호를 준비하고 migration·정적 UI 빌드·systemd 자동 시작을 완료한다.
-- 설치 호스트의 loopback 주소와 공개 HTTPS 주소에서 각각 작업실 로그인을 확인한다.
+- [독립 저장소와 백업](docs/apps/codex-console/README.md#독립-저장소와-백업)에 따라 영구 데이터 경로·0600 권한·online backup을 준비한다. Python에 포함된 SQLite의 WAL 수정 버전을 확인한다. 기존 PostgreSQL 설치는 원본을 보존하며 검증된 이전 도구로 복사한다.
+- 콘솔의 `.env`와 웹 비밀번호를 준비하고 migration·정적 UI 빌드·관리/세션/템플릿 세 systemd 서비스의
+  자동 시작을 완료한다. [서비스와 작업 현황](docs/apps/codex-console/README.md#서비스와-작업-현황)의
+  세 포트·management 단일 프록시 경로·읽기 전용 모니터·병렬 작업 제한을 설정한다. 템플릿 실행기는 별도 고정 CLI와 `template-current` 릴리스를 사용한다.
+- 설치 호스트의 콘솔 Vite와 공개 HTTPS 주소에서 각각 작업실 로그인을 확인한다.
   접속 범위와 쿠키 계약은 [Codex Console 접속](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
 - 같은 개발 사이트를 로컬·원격 주소로 함께 열면 `MTY_CODEX_CONSOLE_LAUNCH_URL_BY_HOST`로
   접속 호스트별 Console 주소를 설정한다. 키 형식과 fallback은 [Codex Console 접속](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
@@ -984,7 +988,7 @@ Platform API 키나 MTY AI 공급자 설정을 요구하지 않는다.
   프록시 아래의 정적 파일·API·SSE를 확인한다.
 - [실행 설정과 재개](docs/apps/codex-console/README.md#실행-설정과-중단-후-계속하기)에 따라
   구독 모델 목록·계획/실행 모드·승인/YOLO 선택과 탭 종료 후 백그라운드 작업 복원·중단 재개를 확인한다.
-  설치한 user unit은 `NoNewPrivileges=false`를 유지하고, 재시작 뒤 메인 PID가 `NoNewPrivs: 0`인지와
+  설치한 세션 user unit은 `NoNewPrivileges=false`를 유지하고, 재시작 뒤 메인 PID가 `NoNewPrivs: 0`인지와
   YOLO에서 설치 계정에 이미 허용된 비대화형 sudo·그룹 자원 접근이 동작하는지 확인한다. 이 설정은
   새 OS 권한을 부여하지 않으므로 필요한 sudoers·그룹 권한은 호스트에서 별도로 준비한다.
 - 파일 두 개를 보관하고 하나만 메시지에 선택해 전달한다. 전송 후 선택 해제, 첨부 기록과
@@ -995,18 +999,18 @@ Platform API 키나 MTY AI 공급자 설정을 요구하지 않는다.
   실제 릴리스 경로·health·로그인 후 API와 브라우저 동작까지 검증한다.
   `MTY_CODEX_CONSOLE_WEB_DIST`가 현재 서비스 릴리스의 웹 정적 파일을 가리키는지도 확인한다.
 - **Codex 업데이트 필요**가 표시되면 [검증과 복구](docs/apps/codex-console/README.md#검증과-복구)의
-  안내에 따라 화면의 프롬프트를 서버 터미널의 Codex CLI에 입력해 호환성을 수정·배포한다.
+  안내에서 호환성 업데이트 템플릿을 실행해 별도 Codex 세션으로 수정·검증·반영한다. 일반 UI/세션 재시작 중에도 템플릿 작업과 승인 대기가 보존되는지 확인한다.
 
 `dev.sh`는 콘솔을 시작하거나 종료하지 않는다. 콘솔은 자신을 수정하는 개발 체크아웃과
 분리된 릴리스에서 실행한다. 업데이트에는 새 릴리스 빌드·설정 연결·검증·전용 DB 백업과
-서비스 중지 중 [최신 콘솔 DB migration](docs/apps/codex-console/README.md#설치)·서비스 재시작을
-사용하며, 원본 Codex 인증과 전용 DB는 유지한다. 새 서버를 실행하기 전에 migration을 완료하고,
+스키마 변경 시 세 서비스를 중지한 상태에서 [콘솔 DB migration](docs/apps/codex-console/README.md#설치)·서비스 재시작을
+사용하며, 원본 Codex 인증과 전용 DB는 유지한다. 스키마가 같으면 템플릿 실행기는 유지한 채 일반 릴리스만 갱신한다. 새 서버를 실행하기 전에 필요한 migration을 완료하고,
 이전 서버로 되돌릴 때는 해당 릴리스의 DB 백업도 함께 복원한다. 이미 사용 중인 전용 DB·비밀번호·서비스
 설정은 재설치 시 초기화하지 않는다.
 
 콘솔의 [작업 공간 설정](docs/apps/codex-console/README.md#브랜치와-작업-공간)에 따라 기준 ref,
-외부 워크트리 경로, 운영 체크아웃과 제품 DB 금지 목록을 설정한다. MTY 설치는 `origin/dev`와
-체크아웃 루트의 `worktrees`를 사용하고 실제 prod 경로·dev/prod DB 이름을 등록한다.
+외부 워크트리 경로와 운영 체크아웃 금지 목록을 설정한다. MTY 설치는 `origin/dev`와
+체크아웃 루트의 `worktrees`를 사용하고 실제 prod 경로를 등록한다. SQLite는 소스·워크트리·릴리스 밖에 둔다.
 새 작업의 계획 기본값, 질문만으로 문서 미생성, 요청한 문서의 생성·확정 변경 자동 갱신,
 직접 실행과 작업별 브랜치 탭을 확인한다.
 

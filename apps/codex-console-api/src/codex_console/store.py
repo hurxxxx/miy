@@ -1,14 +1,16 @@
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, or_, select, update
 
 from . import planning
 from .errors import ConsoleError
 from .models import (
+    Agent,
     Attachment,
     Event,
     Item,
     MessageAttachment,
     Operation,
     PendingRequest,
+    ResourceLease,
     Revision,
     Task,
     WorkspaceLease,
@@ -82,9 +84,7 @@ def project_plan(db, task, turn_id, items):
     plans = [
         item
         for item in items
-        if item.get("type") == "plan"
-        and isinstance(item.get("text"), str)
-        and item["text"].strip()
+        if item.get("type") == "plan" and isinstance(item.get("text"), str) and item["text"].strip()
     ]
     if plans:
         body = plans[-1]["text"]
@@ -178,27 +178,65 @@ def changed(db, task, kind):
     db.add(Event(task_id=task.id, kind=kind))
 
 
-def lease(db, task_id):
+def lease(db, task_id, *, workspace, stage="implement", limit=3):
+    # This row serializes admission only; it is never held across a Codex call.
     row = db.scalar(select(WorkspaceLease).where(WorkspaceLease.id == 1).with_for_update())
-    if row is None or row.task_id is not None:
+    if row is None:
         raise ConsoleError("workspace_busy")
-    row.task_id = task_id
+    task = require_task(db, task_id)
+    leases = list(db.scalars(select(ResourceLease).where(ResourceLease.task_id != task_id)))
+    if len({item.task_id for item in leases}) >= limit:
+        raise ConsoleError("capacity_busy")
+    exclusive = stage == "implement"
+    wanted = {"workspace:" + str(workspace): exclusive}
+    if exclusive and (task.context or {}).get("purpose", "development") != "development":
+        wanted["operations"] = True
+    for item in leases:
+        if item.resource in wanted and (
+            item.exclusive
+            or wanted[item.resource]
+            or require_task(db, item.task_id).status == "uncertain"
+        ):
+            raise ConsoleError(
+                "operations_busy" if item.resource == "operations" else "workspace_busy"
+            )
+    db.execute(delete(ResourceLease).where(ResourceLease.task_id == task_id))
+    for resource, write in wanted.items():
+        db.add(ResourceLease(task_id=task_id, resource=resource, exclusive=write))
+    # Retain the legacy reference for upgrade/recovery compatibility; not an execution lock.
+    if row.task_id is None:
+        row.task_id = task_id
 
 
 def release(db, task_id):
+    from .agents import busy_descendants
+
+    if busy_descendants(db, task_id):
+        return
+    db.execute(delete(ResourceLease).where(ResourceLease.task_id == task_id))
     db.execute(update(WorkspaceLease).where(WorkspaceLease.task_id == task_id).values(task_id=None))
 
 
-def invalidate_pending(db, task_id):
+def invalidate_pending(db, task_id, *, thread_id=None):
     db.execute(
         update(PendingRequest)
-        .where(PendingRequest.task_id == task_id, PendingRequest.state.in_(("pending", "sending")))
+        .where(
+            PendingRequest.task_id == task_id,
+            PendingRequest.state.in_(("pending", "sending")),
+            *(
+                [or_(PendingRequest.thread_id == thread_id, PendingRequest.thread_id.is_(None))]
+                if thread_id
+                else []
+            ),
+        )
         .values(state="expired")
     )
 
 
 def implementation_authorized(db, task):
-    if task.stage != "implement":
+    from .agents import busy_descendants
+
+    if task.stage != "implement" and not (task.stage == "review" and busy_descendants(db, task.id)):
         return False
     if task.approved_revision:
         return True
@@ -211,10 +249,12 @@ def implementation_authorized(db, task):
     )
 
 
-def task_out(task):
+def task_out(task, db=None):
     return {
         "id": task.id,
         "title": task.title,
+        "executor": task.executor,
+        "template_snapshot": task.template_snapshot,
         "stage": task.stage,
         "status": task.status,
         "thread_id": task.thread_id,
@@ -228,7 +268,39 @@ def task_out(task):
         "effort": task.effort,
         "permissions": task.permissions,
         "progress": task.progress,
+        "context": task.context,
+        "pinned": task.pinned,
+        "agents": agent_list(db, task.id) if db else [],
+        "pending_count": db.scalar(
+            select(func.count())
+            .select_from(PendingRequest)
+            .where(PendingRequest.task_id == task.id, PendingRequest.state == "pending")
+        )
+        if db
+        else 0,
     }
+
+
+def agent_list(db, task_id):
+    return [
+        {
+            "thread_id": a.thread_id,
+            "parent_thread_id": a.parent_thread_id,
+            "name": a.name,
+            "role": a.role,
+            "status": a.status,
+            "flags": a.flags,
+            "turn_id": a.turn_id,
+            "activity": a.activity,
+            "progress": a.progress,
+            "updated_at": a.updated_at.isoformat(),
+        }
+        for a in db.scalars(
+            select(Agent)
+            .where(Agent.task_id == task_id)
+            .order_by(Agent.updated_at, Agent.thread_id)
+        )
+    ]
 
 
 def attachment_out(row):
@@ -240,7 +312,7 @@ def detail(factory, task_id, settings):
 
     with factory() as db:
         # The event cursor must describe the same snapshot as every projected row.
-        db.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+        db.connection()  # SQLite BEGIN gives every read in this transaction one snapshot.
         task = require_task(db, task_id)
         recent = list(
             db.scalars(
@@ -283,9 +355,11 @@ def detail(factory, task_id, settings):
                 item["attachments"] = references.get(operation.id, [])
         failed = db.get(Operation, task.current_operation_id) if task.current_operation_id else None
         return {
-            **task_out(task),
+            **task_out(task, db),
             "failed_request_text": failed.display_text
             if failed and failed.state == "failed" and task.status == "failed"
+            else task.template_snapshot.get("text")
+            if task.template_snapshot and not task.thread_id and task.status in ("idle", "failed")
             else None,
             "revisions": [
                 {
@@ -387,9 +461,24 @@ def reconcile_history(db, task, turns):
                 )
 
 
-def recover_startup(factory):
+def recover_startup(factory, executor="session"):
+    from .agents import TERMINAL, busy_descendants
+
     with factory.begin() as db:
-        for task in db.scalars(select(Task).where(Task.status.in_(ACTIVE))):
+        for task in db.scalars(
+            select(Task).where(
+                Task.executor == executor,
+                or_(
+                    Task.status.in_(ACTIVE),
+                    Task.id.in_(
+                        select(Agent.task_id).where(
+                            Agent.parent_thread_id.is_not(None),
+                            Agent.status.not_in(TERMINAL),
+                        )
+                    ),
+                ),
+            )
+        ):
             preparing = db.scalar(
                 select(Operation.id)
                 .where(
@@ -399,17 +488,26 @@ def recover_startup(factory):
                 )
                 .limit(1)
             )
-            if task.status == "starting" and preparing:
+            if task.status == "starting" and preparing and not busy_descendants(db, task.id):
                 task.status, task.error_code = "failed", "execution_failed"
                 release(db, task.id)
             else:
                 task.status, task.error_code = "uncertain", "runtime_restarted"
+            for agent in db.scalars(select(Agent).where(Agent.task_id == task.id)):
+                if agent.status not in TERMINAL:
+                    agent.status, agent.flags = "systemError", []
             invalidate_pending(db, task.id)
             changed(db, task, "runtime.restarted")
-        db.execute(update(Operation).where(Operation.state == "preparing").values(state="failed"))
+        owned = select(Task.id).where(Task.executor == executor)
+        db.execute(
+            update(Operation)
+            .where(Operation.task_id.in_(owned), Operation.state == "preparing")
+            .values(state="failed")
+        )
         db.execute(
             update(Operation)
             .where(
+                Operation.task_id.in_(owned),
                 Operation.state.in_(("pending", "submitting")),
             )
             .values(state="uncertain")

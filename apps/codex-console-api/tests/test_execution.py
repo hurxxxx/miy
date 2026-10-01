@@ -15,6 +15,67 @@ from codex_console.cli import ROOT
 from codex_console.rpc import CodexRPC
 
 
+@pytest.mark.parametrize("stage", ["plan", "implement"])
+def test_korean_default_is_applied_to_new_and_resumed_threads(client, stage):
+    task = new_task(client)
+    for method in ("thread/start", "thread/resume"):
+        response = client.post(
+            f"/api/tasks/{task['id']}/{'messages' if stage == 'plan' else 'implement'}",
+            json={"operation_id": str(uuid4()), "text": "Inspect the repository"},
+        )
+        assert response.status_code == 200
+        task = response.json()
+        rpc = client.app.state.runtime.rpc
+        params = [p for m, p in rpc.calls if m == method][-1]
+        assert "Respond to the user in Korean by default" in params["developerInstructions"]
+        assert (
+            "Use another language when the user explicitly requests it"
+            in params["developerInstructions"]
+        )
+        turn = [p for m, p in rpc.calls if m == "turn/start"][-1]
+        assert turn["collaborationMode"]["settings"]["developer_instructions"] is None
+        assert turn["input"][0]["text"] == "Inspect the repository"
+        complete(client, task)
+
+
+def test_new_native_subscription_kind_is_preserved(client, monkeypatch):
+    client.get("/api/codex/account")
+    rpc = client.app.state.runtime.rpc
+    original = rpc.call
+
+    async def account(method, params):
+        result = await original(method, params)
+        if method == "account/read":
+            result["account"]["planType"] = "promax"
+        return result
+
+    monkeypatch.setattr(rpc, "call", account)
+    result = client.get("/api/codex/account").json()
+    assert result["connected"] and result["auth_type"] == "chatgpt"
+    assert result["plan_type"] == "promax"
+
+
+@pytest.mark.parametrize("error_info", ["flexUnavailable", "tooManyDenials"])
+def test_native_error_finishes_as_execution_failure(client, error_info):
+    task = send_message(client, new_task(client)).json()
+    notify(
+        client,
+        task,
+        "turn/completed",
+        {
+            "turn": {
+                "id": task["turn_id"],
+                "status": "failed",
+                "error": {"codexErrorInfo": error_info},
+            }
+        },
+    )
+    result = client.get(f"/api/tasks/{task['id']}").json()
+    assert result["status"] == "failed"
+    assert result["error_code"] == "execution_failed"
+    assert result["requests"] == []
+
+
 def test_account_model_catalog_follows_native_pagination(client, monkeypatch):
     client.get("/api/codex/account")
     rpc = client.app.state.runtime.rpc
@@ -259,7 +320,9 @@ def test_transport_output_limit_has_a_distinct_diagnostic():
     asyncio.run(scenario())
 
 
-def test_execution_migration_preserves_approved_tasks_without_enabling_yolo(client):
+def test_execution_migration_preserves_approved_tasks_without_enabling_yolo(
+    client, legacy_database
+):
     task = plan(client)
     task = client.post(
         f"/api/tasks/{task['id']}/implement",
@@ -273,7 +336,7 @@ def test_execution_migration_preserves_approved_tasks_without_enabling_yolo(clie
     )
     migration = module_from_spec(spec)
     spec.loader.exec_module(migration)
-    engine = client.app.state.factory.kw["bind"]
+    engine = legacy_database()
     with engine.connect() as connection, connection.begin() as transaction:
         with Operations.context(MigrationContext.configure(connection)):
             migration.downgrade()

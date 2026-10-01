@@ -20,7 +20,9 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 19366,
     strictPort: true,
-    proxy: { '/api': 'http://127.0.0.1:19365' },
+    proxy: {
+      '/api': 'http://127.0.0.1:19367',
+    },
   },
   build: { outDir: 'dist', chunkSizeWarningLimit: 1500 },
   test: {
