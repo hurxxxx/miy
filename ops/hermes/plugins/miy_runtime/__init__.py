@@ -142,7 +142,7 @@ def runtime_transport():
     from tools.approval import get_current_session_key
 
     profile = get_hermes_home().name
-    if not re.fullmatch(r"miy-[0-9a-f]{32}(?:-local)?", profile):
+    if not re.fullmatch(r"(?:miy|mty)-[0-9a-f]{32}(?:-local)?", profile):
         raise ValueError("Managed interactive/workload profile required")
     namespace = hashlib.sha256(profile.encode()).hexdigest()[:20]
     server_name = f"miy-mcp-{namespace}-internal"
@@ -214,7 +214,7 @@ def execute_tool(*, tool_name: str, args: dict, next_call, **context):
         from tools.mcp_tool import mcp_prefixed_tool_name
 
         profile = get_hermes_home().name
-        if not re.fullmatch(r"miy-[0-9a-f]{32}(?:-local)?(?:-jobs)?", profile):
+        if not re.fullmatch(r"(?:miy|mty)-[0-9a-f]{32}(?:-local)?(?:-jobs)?", profile):
             return next_call()
         namespace = hashlib.sha256(profile.encode()).hexdigest()[:20]
         server_name = f"miy-mcp-{namespace}-internal"

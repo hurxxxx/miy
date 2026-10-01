@@ -110,6 +110,7 @@ Git과 CA 인증서가 없으면 Linux 배포판의 패키지 관리자로 먼�
 원격 역할과 브랜치·게시 권한은 [저장소 정책](AGENTS.md#git-and-delivery)을 따른다.
 기존 설치를 miy로 옮길 때는 새 저장소 주소로 clone하기 전에
 [miy 이름 전환 절차](docs/domains/release/README.md#miy-naming-cutover)를 따른다.
+기존 Hermes 프로필·세션 ID는 유지하며, 새 게이트웨이의 bootstrap이 관리 대상 프로필의 런타임 플러그인 설정만 갱신한다.
 체크아웃은 하나의 `miy` 디렉터리 아래에서 관리한다.
 최소 첫 실행은 `miy/dev`에서 준비한다. 내부 GitLab의 `main` 등록 뒤 개발·운영 경로를 함께
 준비하는 설치에서는 2.5절에 따라 `miy/prod`를 만든다. 작업별 체크아웃은 필요할 때
