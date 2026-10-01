@@ -11,6 +11,21 @@ from types import ModuleType, SimpleNamespace
 import pytest
 
 
+@pytest.mark.parametrize("suffix", ["", "-local", "-jobs"])
+def test_retained_profile_cannot_bypass_runtime_transport_policy(plugin, monkeypatch, suffix):
+    profile = "mty-" + "a" * 32 + suffix
+    monkeypatch.setattr(sys.modules["hermes_constants"], "get_hermes_home", lambda: Path(profile))
+    monkeypatch.setattr(sys.modules["hermes_cli.config"], "load_config", lambda: {"mcp_servers": {}})
+    result = plugin.module.execute_tool(
+        tool_name="terminal", args={"command": "echo test"},
+        next_call=lambda: pytest.fail("Retained managed profiles must not bypass authentication"),
+    )
+    assert "Authenticated miy transport is unavailable" in result
+    if suffix != "-jobs":
+        with pytest.raises(ValueError, match="Trusted runtime context required"):
+            plugin.module.runtime_transport()
+
+
 @pytest.fixture
 def plugin(monkeypatch):
     run = ContextVar("native_test_run", default="run_test")

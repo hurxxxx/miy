@@ -25,9 +25,15 @@ const IMAGE_ID = /^sha256:[a-f0-9]{64}$/;
 const REVISION = /^[a-f0-9]{40}$/;
 
 function invoke(command, args) {
+  const fileIndex = command === 'docker' && args[0] === 'compose' ? args.indexOf('-f') : -1;
+  const previousPrefix = fileIndex >= 0
+    ? path.basename(args[fileIndex + 1]).replace(/-prod\.app\.yml$/, '').replaceAll('-', '_').toUpperCase() + '_'
+    : null;
   return execFileSync(command, args, {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
+    env: Object.fromEntries(Object.entries(process.env).filter(([key]) =>
+      !key.startsWith('MIY_') && !(previousPrefix && key.startsWith(previousPrefix)) && key !== 'OPENROUTER_API_KEY')),
   }).trim();
 }
 
@@ -197,7 +203,6 @@ export function prepareRollbackBundle(
     rmSync(archive);
     checkSnapshotTree(bundle);
     for (const relative of [
-      'ops/compose/miy-prod.app.yml',
       'scripts/prod-app-config.mjs',
       'scripts/prod-app-smoke.mjs',
       'package.json',
@@ -205,6 +210,11 @@ export function prepareRollbackBundle(
       if (!lstatSync(path.join(bundle, relative)).isFile())
         throw new Error('Rollback deployment assets are incomplete.');
     }
+    const candidates = readdirSync(path.join(bundle, 'ops/compose'))
+      .filter(name => /^[a-z][a-z0-9-]*-prod\.app\.yml$/.test(name));
+    if (candidates.length !== 1) throw new Error('Rollback app definition is ambiguous.');
+    const composeFile = `ops/compose/${candidates[0]}`;
+    const project = candidates[0].replace(/-prod\.app\.yml$/, '-prod-app');
     writeFileSync(path.join(bundle, '.env'), contents, {
       flag: 'wx',
       mode: 0o600,
@@ -218,6 +228,18 @@ export function prepareRollbackBundle(
       ],
       'previous environment validation',
     );
+    const config = JSON.parse(checked(run, 'docker', [
+      'compose', '--project-name', project, '--env-file', path.join(bundle, '.env'),
+      '-f', path.join(bundle, composeFile), 'config', '--format', 'json',
+    ], 'previous Compose validation'));
+    const runtime = {
+      composeFile,
+      project: config.name,
+      image: config.services?.api?.image,
+      broker: config.services?.['hermes-terminal-broker']?.container_name,
+      revisionEnv: `${config.name?.replace(/-prod-app$/, '').replaceAll('-', '_').toUpperCase()}_EXPECTED_REVISION`,
+    };
+    validateRuntime(runtime);
     writeFileSync(
       path.join(bundle, 'rollback.json'),
       JSON.stringify({
@@ -225,6 +247,7 @@ export function prepareRollbackBundle(
         image,
         revision,
         envSha256: envDigest(contents),
+        runtime,
       }),
       { flag: 'wx', mode: 0o600 },
     );
@@ -233,6 +256,31 @@ export function prepareRollbackBundle(
     rmSync(bundle, { recursive: true, force: true });
     throw error;
   }
+}
+
+function validateRuntime(runtime) {
+  if (!runtime || !/^ops\/compose\/[a-z][a-z0-9-]*-prod\.app\.yml$/.test(runtime.composeFile)
+    || !/^[a-z][a-z0-9-]*-prod-app$/.test(runtime.project)
+    || !/^[a-z][a-z0-9-]*-app:prod$/.test(runtime.image)
+    || !/^[a-z][a-z0-9-]*-prod-hermes-terminal-broker$/.test(runtime.broker)
+    || !/^[A-Z][A-Z0-9_]*_EXPECTED_REVISION$/.test(runtime.revisionEnv)) {
+    throw new Error('Invalid pinned rollback runtime identity.');
+  }
+  const brand = runtime.project.slice(0, -'-prod-app'.length);
+  if (runtime.composeFile !== `ops/compose/${brand}-prod.app.yml`
+      || runtime.image !== `${brand}-app:prod`
+      || runtime.broker !== `${brand}-prod-hermes-terminal-broker`
+      || runtime.revisionEnv !== `${brand.replaceAll('-', '_').toUpperCase()}_EXPECTED_REVISION`) {
+    throw new Error('Rollback runtime identities do not match the pinned project.');
+  }
+}
+
+export function rollbackRuntime(bundle) {
+  const manifest = JSON.parse(readSecureEnv(path.join(bundle, 'rollback.json')).contents);
+  validateRuntime(manifest.runtime);
+  if (envDigest(readSecureEnv(path.join(bundle, '.env')).contents) !== manifest.envSha256)
+    throw new Error('Rollback environment snapshot has changed.');
+  return manifest.runtime;
 }
 
 export function restoreRollbackEnvironment({ rootDir, bundle, image }) {
@@ -299,6 +347,9 @@ function main(args) {
     process.stdout.write(
       `${prepareRollbackBundle({ rootDir, envFile: envOrBundle, image, expectedImage })}\n`,
     );
+  } else if (command === 'runtime' && args.length === 2) {
+    const runtime = rollbackRuntime(rootDir);
+    process.stdout.write([runtime.composeFile, runtime.project, runtime.image, runtime.broker, runtime.revisionEnv].join('\n') + '\n');
   } else if (command === 'restore-env' && args.length === 4) {
     restoreRollbackEnvironment({ rootDir, bundle: envOrBundle, image });
   } else {

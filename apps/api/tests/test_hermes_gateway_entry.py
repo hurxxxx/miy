@@ -67,9 +67,10 @@ def _install_mcp_stubs(
     return calls
 
 
-def test_gateway_discovers_and_requires_the_current_profile_bridge(monkeypatch) -> None:
+@pytest.mark.parametrize("brand", ["miy", "mty"])
+def test_gateway_discovers_and_requires_the_current_profile_bridge(monkeypatch, brand) -> None:
     gateway_entry, _runs_module = _load_gateway_entry(monkeypatch)
-    profile_name = "miy-11111111111111111111111111111111"
+    profile_name = brand + "-11111111111111111111111111111111"
     calls = _install_mcp_stubs(
         monkeypatch,
         profile_name=profile_name,
@@ -87,11 +88,12 @@ def test_gateway_discovers_and_requires_the_current_profile_bridge(monkeypatch) 
     assert calls == ["discover"]
 
 
-def test_gateway_fails_closed_when_the_profile_bridge_is_missing(monkeypatch) -> None:
+@pytest.mark.parametrize("brand", ["miy", "mty"])
+def test_gateway_fails_closed_when_the_profile_bridge_is_missing(monkeypatch, brand) -> None:
     gateway_entry, _runs_module = _load_gateway_entry(monkeypatch)
     _install_mcp_stubs(
         monkeypatch,
-        profile_name="miy-11111111111111111111111111111111",
+        profile_name=brand + "-11111111111111111111111111111111",
         status_rows=[],
     )
 
@@ -186,10 +188,12 @@ def cancellation_gateway(monkeypatch):
     )
 
 
+@pytest.mark.parametrize("brand", ["miy", "mty"])
 async def test_cancel_admission_fences_a_late_creation_and_replays_exact_requests(
-    cancellation_gateway,
+    cancellation_gateway, brand,
 ):
     state = cancellation_gateway
+    state.state.profile = brand + "-" + "a" * 32
     first = await state.handler(state.request)
     assert first.status == 202 and first.body["status"] == "cancelled"
     fingerprint = hashlib.sha256(
