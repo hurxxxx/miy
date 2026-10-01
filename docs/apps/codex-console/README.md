@@ -710,6 +710,11 @@ pnpm --dir apps/codex-console-web build
 pnpm --dir apps/codex-console-web e2e
 ```
 
+브라우저 실패 진단은 저장소 루트 `test-results/codex-console/`에 저장하며,
+릴리스 CI의 maintainer 전용 artifact에 포함한다. 진행 중 상태 검사는 테스트용 실행기의
+완료 신호를 명시적으로 제어하고 실제 요청 수락을 기다린다. 이 제어 경로는 임시 브라우저
+fixture에만 있으며 배포되는 API에는 설치하지 않는다.
+
 일반 DB/E2E 검사는 임시 SQLite 파일을 사용한다. 구버전 PostgreSQL migration과 SQLite 이전
 검사는 `MIY_TEST_POSTGRES_TEMPLATE_DSN`에 비운영 PostgreSQL 접속 정보를 지정한다. 해당 계정은
 임시 `console_test_*` DB 생성·제거 권한이 필요하며, 설정이 없으면 이 검사만 skip된다.

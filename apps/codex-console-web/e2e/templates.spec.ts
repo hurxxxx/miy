@@ -47,10 +47,16 @@ test('edits a template, runs independent sessions, and retains history after edi
     .getByRole('dialog')
     .getByLabel('질문할 내용')
     .fill('the repository');
+  const launch = page.waitForResponse(
+    (r) =>
+      r.request().method() === 'POST' &&
+      new URL(r.url()).pathname.endsWith('/run'),
+  );
   await page
     .getByRole('dialog')
     .getByRole('button', { name: '실행', exact: true })
     .click();
+  expect((await launch).status()).toBe(200);
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   await expect(page).toHaveURL(/task=[0-9a-f-]+/);
   const first = new URL(page.url()).searchParams.get('task');

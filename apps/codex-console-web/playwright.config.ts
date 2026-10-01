@@ -18,6 +18,7 @@ process.env.MIY_CODEX_CONSOLE_PORT = String(port);
 
 export default defineConfig({
   testDir: './e2e',
+  outputDir: '../../test-results/codex-console',
   fullyParallel: false,
   workers: 1,
   timeout: 45000,

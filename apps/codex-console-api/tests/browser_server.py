@@ -18,6 +18,8 @@ from codex_console.models import Owner, database
 
 
 class BrowserRPC(FakeRPC):
+    completion_gate = None
+
     def __init__(self, *args):
         super().__init__(*args)
         self.jobs = set()
@@ -25,12 +27,14 @@ class BrowserRPC(FakeRPC):
     async def call(self, method, params):
         result = await super().call(method, params)
         if method == "turn/start":
-            job = asyncio.create_task(self.finish(params, result["turn"]["id"]))
+            job = asyncio.create_task(
+                self.finish(params, result["turn"]["id"], type(self).completion_gate)
+            )
             self.jobs.add(job)
             job.add_done_callback(self.jobs.discard)
         return result
 
-    async def finish(self, params, turn_id):
+    async def finish(self, params, turn_id, completion_gate=None):
         await asyncio.sleep(0.15)
         envelope = {"threadId": params["threadId"], "turnId": turn_id}
         user = {
@@ -53,7 +57,10 @@ class BrowserRPC(FakeRPC):
                 },
             }
         )
-        await asyncio.sleep(3)
+        if completion_gate is None:
+            await asyncio.sleep(3)
+        else:
+            await completion_gate.wait()
         if params["collaborationMode"]["mode"] == "plan":
             wants_plan = "make a plan" in params["input"][0].get("text", "")
             item = (
@@ -145,8 +152,30 @@ def main():
             web_dist=Path(__file__).resolve().parents[2] / "codex-console-web/dist",
             _env_file=None,
         )
+        app = create_app(settings, rpc_factory=BrowserRPC)
+        # Only this disposable browser fixture has completion controls. Product
+        # code and the real app-server transport never install these endpoints.
+        gate_id = None
+
+        @app.post(f"{settings.base_path}/__test__/hold-completion")
+        async def hold_completion():
+            nonlocal gate_id
+            assert BrowserRPC.completion_gate is None
+            gate_id = str(uuid4())
+            BrowserRPC.completion_gate = asyncio.Event()
+            return {"id": gate_id}
+
+        @app.post(f"{settings.base_path}/__test__/release-completion")
+        async def release_completion(body: dict):
+            nonlocal gate_id
+            assert body.get("id") == gate_id and BrowserRPC.completion_gate is not None
+            BrowserRPC.completion_gate.set()
+            BrowserRPC.completion_gate = None
+            gate_id = None
+            return {"ok": True}
+
         uvicorn.run(
-            create_app(settings, rpc_factory=BrowserRPC),
+            app,
             host="127.0.0.1",
             port=port,
             access_log=False,
