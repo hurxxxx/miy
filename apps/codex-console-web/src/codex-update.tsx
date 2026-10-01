@@ -30,11 +30,13 @@ export function CodexUpdateGuide({
   onOpenChange,
   locale,
   t,
+  openTemplates,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   locale: Locale;
   t: Translate;
+  openTemplates: () => void;
 }) {
   const prompt = useRef<HTMLTextAreaElement>(null);
   const [copyStatus, setCopyStatus] = useState<'copied' | 'manual' | null>(
@@ -55,36 +57,53 @@ export function CodexUpdateGuide({
         </p>
         <p>
           {t(
-            'Administrator: open a terminal on the console server, start codex in the source repository, and paste the prompt below. After deployment, refresh this page.',
+            'Run the compatibility update template in a separate Codex session.',
           )}
         </p>
-        <textarea
-          className="codex-update-prompt"
-          aria-label={t('Update prompt for Codex CLI')}
-          ref={prompt}
-          readOnly
-          rows={10}
-          value={prompts[locale]}
-          onFocus={(event) => event.currentTarget.select()}
-        />
         <Button
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(prompts[locale]);
-              setCopyStatus('copied');
-            } catch {
-              prompt.current?.focus();
-              prompt.current?.select();
-              setCopyStatus('manual');
-            }
+          variant="primary"
+          onClick={() => {
+            onOpenChange(false);
+            openTemplates();
           }}
         >
-          {t('Copy prompt')}
+          {t('Open update templates')}
         </Button>
-        <span role="status">
-          {copyStatus === 'copied' && t('Prompt copied.')}
-          {copyStatus === 'manual' && t('Copy the selected prompt manually.')}
-        </span>
+        <details>
+          <summary>{t('Manual recovery instructions')}</summary>
+          <p>
+            {t(
+              'Administrator: open a terminal on the console server, start codex in the source repository, and paste the prompt below. After deployment, refresh this page.',
+            )}
+          </p>
+          <textarea
+            className="codex-update-prompt"
+            aria-label={t('Update prompt for Codex CLI')}
+            ref={prompt}
+            readOnly
+            rows={10}
+            value={prompts[locale]}
+            onFocus={(event) => event.currentTarget.select()}
+          />
+          <Button
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(prompts[locale]);
+                setCopyStatus('copied');
+              } catch {
+                prompt.current?.focus();
+                prompt.current?.select();
+                setCopyStatus('manual');
+              }
+            }}
+          >
+            {t('Copy prompt')}
+          </Button>
+          <span role="status">
+            {copyStatus === 'copied' && t('Prompt copied.')}
+            {copyStatus === 'manual' && t('Copy the selected prompt manually.')}
+          </span>
+        </details>
       </div>
     </Dialog>
   );

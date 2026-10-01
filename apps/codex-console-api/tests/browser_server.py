@@ -2,17 +2,13 @@
 
 import asyncio
 import os
-import signal
 import subprocess
 import tempfile
 from pathlib import Path
 from uuid import uuid4
 
-import psycopg
 import uvicorn
 from conftest import PASSWORD, FakeRPC
-from psycopg import sql
-from sqlalchemy.engine import make_url
 
 from codex_console.app import create_app
 from codex_console.auth import password_hash
@@ -110,69 +106,52 @@ class BrowserRPC(FakeRPC):
 
 def main():
     port = int(os.environ.get("MTY_CODEX_CONSOLE_PORT", "19365"))
-    url = make_url(os.environ["MTY_TEST_POSTGRES_TEMPLATE_DSN"])
-    name = "console_test_browser_" + uuid4().hex
-    with psycopg.connect(
-        url.set(drivername="postgresql").render_as_string(hide_password=False), autocommit=True
-    ) as admin:
-        admin.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
-        try:
-            target = url.set(drivername="postgresql+psycopg", database=name).render_as_string(
-                hide_password=False
-            )
-            migrate(target)
-            engine, factory = database(target)
-            with factory.begin() as db:
-                db.add(Owner(password_hash=password_hash(PASSWORD)))
-            engine.dispose()
-            with tempfile.TemporaryDirectory(prefix="codex-console-browser-") as directory:
-                # macOS temporary paths can contain the /var -> /private/var symlink.
-                # Use the canonical fixture directory for the protected attachment cache.
-                directory = Path(directory).resolve()
-                root = directory / "dev"
-                root.mkdir()
-                for args in (
-                    ("init", "-b", "dev"),
-                    ("config", "user.name", "Console Test"),
-                    ("config", "user.email", "console@test.invalid"),
-                ):
-                    subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True)
-                (root / "README.md").write_text("Browser regression fixture\n")
-                subprocess.run(["git", "-C", str(root), "add", "."], check=True)
-                subprocess.run(
-                    ["git", "-C", str(root), "commit", "-m", "fixture"],
-                    check=True,
-                    capture_output=True,
-                )
-                subprocess.run(
-                    ["git", "-C", str(root), "update-ref", "refs/remotes/origin/dev", "HEAD"],
-                    check=True,
-                    capture_output=True,
-                )
-                settings = Settings(
-                    database_url=target,
-                    origin=f"http://127.0.0.1:{port}",
-                    base_path=os.environ.get("MTY_CODEX_CONSOLE_BASE_PATH", ""),
-                    workspace=root,
-                    attachment_cache=directory / "attachments",
-                    web_dist=Path(__file__).resolve().parents[2] / "codex-console-web/dist",
-                    _env_file=None,
-                )
-                uvicorn.run(
-                    create_app(settings, rpc_factory=BrowserRPC),
-                    host="127.0.0.1",
-                    port=port,
-                    access_log=False,
-                    log_level="warning",
-                )
-        finally:
-            # The runner signals the process group and uv may forward that signal again.
-            # Complete this fixture's cleanup even if a second SIGINT arrives during DROP.
-            previous_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
-            try:
-                admin.execute(sql.SQL("DROP DATABASE {}").format(sql.Identifier(name)))
-            finally:
-                signal.signal(signal.SIGINT, previous_handler)
+    with tempfile.TemporaryDirectory(prefix="codex-console-browser-") as directory:
+        target = "sqlite+pysqlite:///" + str(Path(directory).resolve() / "console.sqlite3")
+        migrate(target)
+        engine, factory = database(target)
+        with factory.begin() as db:
+            db.add(Owner(password_hash=password_hash(PASSWORD)))
+        engine.dispose()
+        # macOS temporary paths can contain the /var -> /private/var symlink.
+        # Use the canonical fixture directory for the protected attachment cache.
+        directory = Path(directory).resolve()
+        root = directory / "dev"
+        root.mkdir()
+        for args in (
+            ("init", "-b", "dev"),
+            ("config", "user.name", "Console Test"),
+            ("config", "user.email", "console@test.invalid"),
+        ):
+            subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True)
+        (root / "README.md").write_text("Browser regression fixture\n")
+        subprocess.run(["git", "-C", str(root), "add", "."], check=True)
+        subprocess.run(
+            ["git", "-C", str(root), "commit", "-m", "fixture"],
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(root), "update-ref", "refs/remotes/origin/dev", "HEAD"],
+            check=True,
+            capture_output=True,
+        )
+        settings = Settings(
+            database_url=target,
+            origin=f"http://127.0.0.1:{port}",
+            base_path=os.environ.get("MTY_CODEX_CONSOLE_BASE_PATH", ""),
+            workspace=root,
+            attachment_cache=directory / "attachments",
+            web_dist=Path(__file__).resolve().parents[2] / "codex-console-web/dist",
+            _env_file=None,
+        )
+        uvicorn.run(
+            create_app(settings, rpc_factory=BrowserRPC),
+            host="127.0.0.1",
+            port=port,
+            access_log=False,
+            log_level="warning",
+        )
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 {
-  "codexVersion": "0.156.0",
+  "codexVersion": "0.159.2",
   "compatibilityHashes": {
     "AgentMessageDeltaNotification": "edeb843f11c658afcfaa4030f800157b72709f19e91a573aeeed325d920a90c2",
     "CommandExecutionOutputDeltaNotification": "84589759accba5fc0fc8615d0eedd804e566120af9364333339090a6a2755165",
@@ -10,9 +10,9 @@
     "FileChangeRequestApprovalParams": "14393634657c6364dc0275e14c5c277745b416a4d9d2a961fc191a2ec77631c4",
     "FileChangeRequestApprovalResponse": "f522e127a6160afd094932f6b0a58b736a171ebfb767d58b3d70c0bd7ff7ab97",
     "GetAccountParams": "841b99a3c238770911c119d7bb65db8a99080e3628c2850142d5c723752d65b9",
-    "GetAccountRateLimitsResponse": "58c173d3f5da2a956ec6b6cb18bca84f3dacffdd3bc213ebf889196981ddfec5",
-    "GetAccountResponse": "2b483dc7e945b2347c489473b69273767d2ad66e6fa35e67073901676666623d",
-    "InitializeParams": "df2c8126d3d1d95c8b7914c8f157eefd9b3c56d64e04ef12f6c941e1915d4331",
+    "GetAccountRateLimitsResponse": "cc881ac938e5149eff161bbd6b1cb667d6025c0b2aaeafa40c9c69af7e862c9b",
+    "GetAccountResponse": "e0072eea81d454a289e5740e1a093355dc2ff57863a70eec006ff9daf9bc596d",
+    "InitializeParams": "e38c4d61719f7c6b0aa3976de697b52748befcb6335dad5386da140c05f9aba2",
     "InitializeResponse": "747401b5d7d395b71e4023d3d13aaaaefb0f6ae044d611675f59838672720c3d",
     "ItemCompletedNotification": "0106e0ed8d9a771d8db681946f6e627b1bdabff0df14887f78e8ff0d6a9fac59",
     "ItemStartedNotification": "7072b099a0689ed30f7922fd5691d151fbb8913c68182774354a732f6a41582d",
@@ -25,20 +25,27 @@
     "PermissionsRequestApprovalResponse": "08d82c17c27361f25763cb9fb117fe5779b3f38a092f4524afd5a73538d90af1",
     "PlanDeltaNotification": "5d291d7c92830d0d4c01b35abe3edfb96b124ed3c58761c662828786a255eccb",
     "ServerRequestResolvedNotification": "9bab6c9eda658824742162c9eaa3edbfa3b70fcc5348f20f5a190d7a794b3d53",
+    "SkillsListParams": "affeac96ae882a1c1c3efc2f86829d6775ece43a1888bb9c8b01359bfe211dc8",
+    "SkillsListResponse": "fe9e51e090b9c6a2ee751055d980b11a5305c7baadc0ddff6294dbd3cc372831",
+    "ThreadListParams": "6a465d79183f856336ec42a9a183433fbde964ca9a94378b5d11501418cd42b6",
+    "ThreadListResponse": "5f63ef2ca27f93bd9cdad7845dfeac443b75bce6758b5881583c4be8b6035d55",
     "ThreadReadParams": "1c154f1db7bd63ad4514aba7ea35bf4723f6814b81e33e763f00aaa7f9f2b149",
-    "ThreadReadResponse": "df4eee3c8708d01fce5ea49cf466acb940a5cfdaf716af370389918ab450ca7c",
+    "ThreadReadResponse": "b0c4edd135609bfbb12da353e59cc6481f0691b36f76bcb4d64600b3e40134cc",
     "ThreadResumeParams": "3065dfae69296ef81ed893330f19703aa5212726a75ab025e197bb8cf6d67663",
-    "ThreadResumeResponse": "1133ea3940f84502e3ec2872618edd03cc9bc57fd3f1efb4e3a3542be2e8b1d4",
+    "ThreadResumeResponse": "e8e8fb99f592e67514a175ff3e370a9b1079f392d77da2a6cd5294727968ee4c",
     "ThreadStartParams": "44a122637f6208314268b9d58c395b8fe7e9277f05af11f9d199b327db7d71e5",
-    "ThreadStartResponse": "2c78fb7266c0f02f232cf1ae3d2451ea509fa9ddd58b83c7fbc02106e9938e3c",
+    "ThreadStartResponse": "0afc9860d4a1d41f2af9ac36603af033264c33e1660abc2f9790be9900ce326a",
+    "ThreadStartedNotification": "966d49f48336bbdecd812488a9d318eef56f87af27472a563a6e87b9c51ba211",
+    "ThreadStatusChangedNotification": "538acb0fee602ec811ae7c7be1d92a6ba47ce1e235ce5c2c9e0d5872f93d8df3",
     "ToolRequestUserInputParams": "b99ace3211269f77083d8d86664393deb7992c3b53ef596582915b1256668682",
     "ToolRequestUserInputResponse": "18735c465696eda1d8da032be0ff06097656ef1d1bf2cedc86b8707164aa105c",
-    "TurnCompletedNotification": "b48f9cf49a39becf928f450b6b13c1bfe75e1ebb28e88a19ba2f99b5c0e56e1a",
+    "TurnCompletedNotification": "78e6f8b0eff801649f93623eed4ec5551caa7d05dda740d36515d0d34cd82c70",
     "TurnInterruptParams": "2fbfaacab66db0e15aa2f4870fd531531f2631c9047f90adc28dcb7567ab9bca",
     "TurnInterruptResponse": "9909145e97257ee08258cdbc192c6901d7b8e0ff1dad7b9bbf353199d8f035e0",
     "TurnPlanUpdatedNotification": "faf449e884d5750dec6310ee9a7bda606fc795d1d28258126eefac29d5a78cf0",
     "TurnStartParams": "cfd7b3291e0e3506612117887884c7debc1e994c0aeee1fc26cc1554c928df0e",
-    "TurnStartResponse": "4128d607092eb3efbfd7b6843211792d5f099bdb1f93531e50e23e6b6fa0d43f",
+    "TurnStartResponse": "34265704e3467009384cd020add555cf537a5423a844fc73e68c2294d275177a",
+    "TurnStartedNotification": "47843afca69f2327e89c8f9949385819db4f977a0cf70bf83363ded8899e3093",
     "TurnSteerParams": "2d6e67e4b275594e5ab63f10041cf9c877cd6f8e7bf394b8738c74ad8faf1a34",
     "TurnSteerResponse": "944b951b011ca2829643b0ce703d2e3cc118eef149233a4beeed480e88523591"
   },
@@ -557,6 +564,221 @@
         "permissions"
       ],
       "title": "PermissionsRequestApprovalResponse",
+      "type": "object"
+    },
+    "SkillsListParams": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "definitions": {},
+      "properties": {
+        "cwds": {
+          "description": "When empty, defaults to the current session working directory.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "forceReload": {
+          "description": "When true, bypass the skills cache and re-scan skills from disk.",
+          "type": "boolean"
+        }
+      },
+      "title": "SkillsListParams",
+      "type": "object"
+    },
+    "ThreadListParams": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "definitions": {
+        "SortDirection": {
+          "enum": [
+            "asc",
+            "desc"
+          ],
+          "type": "string"
+        },
+        "ThreadListCwdFilter": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "ThreadSortKey": {
+          "enum": [
+            "created_at",
+            "updated_at",
+            "recency_at",
+            "section_position"
+          ],
+          "type": "string"
+        },
+        "ThreadSourceKind": {
+          "enum": [
+            "cli",
+            "vscode",
+            "exec",
+            "appServer",
+            "subAgent",
+            "subAgentReview",
+            "subAgentCompact",
+            "subAgentThreadSpawn",
+            "subAgentOther",
+            "unknown"
+          ],
+          "type": "string"
+        }
+      },
+      "properties": {
+        "ancestorThreadId": {
+          "description": "Optional ancestor thread filter. Returns spawned descendants at any depth, excluding the ancestor itself. Mutually exclusive with `parentThreadId`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "archived": {
+          "description": "Optional archived filter; when set to true, only archived threads are returned. If false or null, only non-archived threads are returned.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "cursor": {
+          "description": "Opaque pagination cursor returned by a previous call.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cwd": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ThreadListCwdFilter"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional cwd filter or filters; when set, only threads whose session cwd exactly matches one of these paths are returned."
+        },
+        "limit": {
+          "description": "Optional page size; defaults to a reasonable server-side value.",
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "modelProviders": {
+          "description": "Optional provider filter; when set, only sessions recorded under these providers are returned. When present but empty, includes all providers.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "originators": {
+          "description": "Optional originator allowlist, matching any supplied value exactly. Supported by hosted backends only; the local app-server rejects a nonempty list. Omitted or empty lists leave originators unrestricted.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "parentThreadId": {
+          "description": "Optional direct parent thread filter. Mutually exclusive with `ancestorThreadId`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "projectId": {
+          "description": "Omit to include every project, set to null for unassigned threads, or provide a project ID to return only threads in that project.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "searchTerm": {
+          "description": "Optional substring filter for the extracted thread title.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sectionId": {
+          "description": "Omit to include every section, set to `null` for unsectioned threads, or provide a section ID to return only threads in that section.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sortDirection": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SortDirection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional sort direction; defaults to descending (newest first)."
+        },
+        "sortKey": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ThreadSortKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional sort key; defaults to created_at."
+        },
+        "sourceKinds": {
+          "description": "Optional source filter; when set, only sessions from these source kinds are returned. When omitted or empty, defaults to interactive sources.",
+          "items": {
+            "$ref": "#/definitions/ThreadSourceKind"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "useStateDbOnly": {
+          "description": "If true, return from the state DB without scanning JSONL rollouts to repair thread metadata. Omitted or false preserves scan-and-repair behavior.",
+          "type": "boolean"
+        }
+      },
+      "title": "ThreadListParams",
+      "type": "object"
+    },
+    "ThreadReadParams": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "definitions": {},
+      "properties": {
+        "includeTurns": {
+          "description": "When true, include turns and their items from rollout history. Full-history hydration is deprecated for paginated threads; prefer a metadata-only read and page with `thread/turns/list` and `thread/items/list`.",
+          "type": "boolean"
+        },
+        "threadId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "threadId"
+      ],
+      "title": "ThreadReadParams",
       "type": "object"
     },
     "ThreadResumeParams": {

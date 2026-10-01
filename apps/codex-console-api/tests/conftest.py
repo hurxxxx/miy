@@ -7,14 +7,14 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 from psycopg import sql
-from sqlalchemy import text
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import make_url
 
 from codex_console.app import create_app
 from codex_console.auth import CSRF_COOKIE, password_hash
 from codex_console.cli import migrate
 from codex_console.config import Settings
-from codex_console.models import Owner, database
+from codex_console.models import Base, Owner, database
 from codex_console.rpc import CONTRACT, METHOD_SCHEMAS
 
 PASSWORD = "console-tests-only-password"
@@ -129,12 +129,10 @@ class FakeRPC:
 
 
 @pytest.fixture(scope="session")
-def database_url():
+def postgres_database_url():
     template = os.environ.get("MTY_TEST_POSTGRES_TEMPLATE_DSN")
     if not template:
-        pytest.skip(
-            "Set MTY_TEST_POSTGRES_TEMPLATE_DSN to a non-production PostgreSQL 18 DB"
-        )
+        pytest.skip("Set MTY_TEST_POSTGRES_TEMPLATE_DSN to a non-production PostgreSQL 18 DB")
     url = make_url(template)
     name = "console_test_" + uuid4().hex
     connection = psycopg.connect(
@@ -148,6 +146,46 @@ def database_url():
     yield target
     connection.execute(sql.SQL("DROP DATABASE {}").format(sql.Identifier(name)))
     connection.close()
+
+
+@pytest.fixture
+def database_url(tmp_path):
+    target = "sqlite+pysqlite:///" + str(tmp_path.resolve() / "console.sqlite3")
+    migrate(target)
+    return target
+
+
+@pytest.fixture
+def legacy_database(client, postgres_database_url):
+    """Run the frozen PostgreSQL migration probes against a real PostgreSQL snapshot."""
+    engine = create_engine(postgres_database_url, hide_parameters=True)
+
+    def snapshot():
+        with client.app.state.factory() as reader, engine.begin() as writer:
+            for table in reversed(Base.metadata.sorted_tables):
+                writer.execute(table.delete())
+            for table in Base.metadata.sorted_tables:
+                rows = list(reader.execute(select(table)).mappings())
+                if rows:
+                    writer.execute(table.insert(), [dict(row) for row in rows])
+                if (
+                    len(table.primary_key.columns) == 1
+                    and "id" in table.c
+                    and str(table.c.id.type) == "INTEGER"
+                ):
+                    sequence = writer.scalar(
+                        text("SELECT pg_get_serial_sequence(:table, 'id')"), {"table": table.name}
+                    )
+                    if sequence:
+                        maximum = max((row["id"] for row in rows), default=1)
+                        writer.execute(
+                            text("SELECT setval(:sequence, :value, :called)"),
+                            {"sequence": sequence, "value": maximum, "called": bool(rows)},
+                        )
+        return engine
+
+    yield snapshot
+    engine.dispose()
 
 
 @pytest.fixture
@@ -185,19 +223,16 @@ def settings(database_url, repository):
 
 
 @pytest.fixture
-def client(settings):
+def client_role(request):
+    return getattr(request, "param", "combined")
+
+
+@pytest.fixture
+def client(settings, client_role):
     engine, factory = database(settings.database_url)
-    with engine.begin() as connection:
-        connection.execute(
-            text(
-                "TRUNCATE console_owner, console_sessions, console_tasks, "
-                "console_workspace_lease RESTART IDENTITY CASCADE"
-            )
-        )
-        connection.execute(text("INSERT INTO console_workspace_lease (id) VALUES (1)"))
     with factory.begin() as db:
         db.add(Owner(password_hash=password_hash(PASSWORD)))
-    app = create_app(settings, rpc_factory=FakeRPC)
+    app = create_app(settings, rpc_factory=FakeRPC, role=client_role)
     with TestClient(app, base_url="http://localhost") as browser:
         browser.headers["origin"] = settings.origin
         result = browser.post("/api/session", json={"password": PASSWORD})

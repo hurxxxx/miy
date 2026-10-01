@@ -43,9 +43,13 @@ beforeEach(() => {
   window.history.replaceState(null, '', `?task=${taskId}`);
   detail = {
     id: taskId,
+    executor: 'session',
     title: 'Test task',
     stage: 'plan',
     status: 'idle',
+    pinned: false,
+    agents: [],
+    pending_count: 0,
     permissions: 'read-only',
     thread_id: 'thread',
     turn_id: null,
@@ -88,8 +92,9 @@ beforeEach(() => {
   vi.mocked(api).mockReset();
   vi.mocked(api).mockImplementation(async (path, body) => {
     if (path === '/session') return { authenticated: true };
-    if (path === '/tasks') return [detail];
-    if (path.startsWith('/tasks?search=')) return searchTasks(path);
+    if (path === '/overview') return [detail];
+    if (path === '/monitor/services') return [];
+    if (path.startsWith('/overview?search=')) return searchTasks(path);
     if (path.startsWith('/codex/models?task_id='))
       return [
         {
@@ -125,6 +130,47 @@ afterEach(() => {
   vi.unstubAllGlobals();
   window.history.replaceState(null, '', '/');
 });
+
+it.each([false, true])(
+  'keeps the newest overview state when an older response arrives late (latest failed: %s)',
+  async (failed) => {
+    render(<App />);
+    await screen.findByRole('button', {
+      name: /에이전트 활동.*실행 중 에이전트: 0/,
+    });
+    const original = vi.mocked(api).getMockImplementation()!;
+    const requests: {
+      resolve: (value: Detail[]) => void;
+      reject: (error: Error) => void;
+    }[] = [];
+    vi.mocked(api).mockImplementation((path, ...args) =>
+      path === '/overview'
+        ? new Promise((resolve, reject) => {
+            requests.push({ resolve, reject });
+          })
+        : original(path, ...args),
+    );
+    await act(async () => {
+      Stream.current.dispatchEvent(new Event('changed'));
+      Stream.current.dispatchEvent(new Event('changed'));
+    });
+    expect(requests).toHaveLength(2);
+    await act(async () => {
+      if (failed) requests[1].reject(new Error('offline'));
+      else requests[1].resolve([{ ...detail, status: 'running' }]);
+    });
+    await act(async () => {
+      requests[0].resolve([detail]);
+    });
+    expect(
+      screen.getByRole('button', {
+        name: failed
+          ? /에이전트 활동.*상태 갱신 지연/
+          : /에이전트 활동.*실행 중 에이전트: 1/,
+      }),
+    ).toBeTruthy();
+  },
+);
 
 async function openAndCompose() {
   render(<App />);
@@ -182,7 +228,7 @@ it('makes account version guidance available without a task and supports manual 
   window.history.replaceState(null, '', '/');
   const original = vi.mocked(api).getMockImplementation()!;
   vi.mocked(api).mockImplementation(async (path, ...args) => {
-    if (path === '/tasks') return [];
+    if (path === '/overview') return [];
     if (path === '/codex/account')
       return { connected: false, error_code: 'codex_version_mismatch' };
     return original(path, ...args);
@@ -309,7 +355,7 @@ it('preserves the plan draft across result tabs and tasks and warns before leavi
   };
   const original = vi.mocked(api).getMockImplementation()!;
   vi.mocked(api).mockImplementation(async (path, ...args) => {
-    if (path === '/tasks') return [detail, other];
+    if (path === '/overview') return [detail, other];
     if (path === `/tasks/${other.id}`) return other;
     return original(path, ...args);
   });
@@ -322,9 +368,11 @@ it('preserves the plan draft across result tabs and tasks and warns before leavi
   fireEvent.click(results.getByRole('button', { name: '파일' }));
   fireEvent.click(results.getByRole('button', { name: '계획' }));
   expect(screen.getByText('Plan draft')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: '에이전트' }));
   fireEvent.click(await screen.findByRole('button', { name: /Another task/ }));
   await screen.findByRole('heading', { name: 'Another task' });
   expect(screen.queryByText('Plan draft')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '에이전트' }));
   fireEvent.click(screen.getByRole('button', { name: /Test task/ }));
   await screen.findByText('Plan draft');
   fireEvent.click(
@@ -348,6 +396,7 @@ it('searches all tasks on the server without clearing the open draft or acceptin
         })
       : [{ ...detail, id: 'other', title: 'New search result' }];
   await openAndCompose();
+  fireEvent.click(screen.getByRole('button', { name: '에이전트' }));
   fireEvent.change(screen.getByLabelText('작업 검색'), {
     target: { value: 'old' },
   });
@@ -360,6 +409,12 @@ it('searches all tasks on the server without clearing the open draft or acceptin
     resolveOld([{ ...detail, id: 'old', title: 'Old result' }]),
   );
   expect(screen.queryByRole('button', { name: /Old result/ })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '세션' }));
+  fireEvent.click(
+    within(screen.getByRole('list', { name: '세션' })).getByRole('button', {
+      name: /Test task/,
+    }),
+  );
   expect(
     (screen.getByLabelText('요청 내용 입력') as HTMLTextAreaElement).value,
   ).toBe('Same request');
@@ -778,5 +833,156 @@ it('restores a request rejected before execution without automatically sending i
   ).toBe('An unsent ordinary question');
   expect(
     vi.mocked(api).mock.calls.some(([path]) => path.endsWith('/messages')),
+  ).toBe(false);
+});
+
+it('opens the sessions menu by pinned/recency order, preserves drafts and never starts work when switching', async () => {
+  const second = {
+    ...detail,
+    id: '00000000-0000-4000-8000-000000000002',
+    title: 'Pinned earlier session',
+    pinned: true,
+    updated_at: '2026-09-01T00:00:00Z',
+  };
+  const third = {
+    ...detail,
+    id: '00000000-0000-4000-8000-000000000003',
+    title: 'Older active session',
+    status: 'running',
+    updated_at: '2026-09-02T00:00:00Z',
+  };
+  const original = vi.mocked(api).getMockImplementation()!;
+  vi.mocked(api).mockImplementation((path, ...args) => {
+    if (path === '/overview') return Promise.resolve([third, detail, second]);
+    if (path === `/tasks/${second.id}`) return Promise.resolve(second);
+    if (path === `/tasks/${second.id}/git`) return Promise.resolve(gitState);
+    if (path === `/tasks/${second.id}/skills`) return Promise.resolve([]);
+    return original(path, ...args);
+  });
+  await openAndCompose();
+  expect(screen.queryByRole('list', { name: '최근 세션' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '세션 목록으로' }));
+  const sessions = () => within(screen.getByRole('list', { name: '세션' }));
+  expect(
+    sessions()
+      .getAllByRole('button')
+      .map((b) => b.querySelector('.session-title')?.textContent),
+  ).toEqual([
+    '고정됨Pinned earlier session',
+    'Test task',
+    'Older active session',
+  ]);
+  expect(
+    sessions()
+      .getByRole('button', { name: /Test task/ })
+      .getAttribute('aria-current'),
+  ).toBe('true');
+  fireEvent.click(
+    sessions().getByRole('button', { name: /Pinned earlier session/ }),
+  );
+  await screen.findByRole('heading', { name: second.title });
+  expect(
+    (screen.getByLabelText('요청 내용 입력') as HTMLTextAreaElement).value,
+  ).toBe('');
+  fireEvent.click(screen.getByRole('button', { name: '세션 목록으로' }));
+  fireEvent.click(sessions().getByRole('button', { name: /Test task/ }));
+  await screen.findByRole('heading', { name: detail.title });
+  expect(
+    (screen.getByLabelText('요청 내용 입력') as HTMLTextAreaElement).value,
+  ).toBe('Same request');
+  expect(
+    vi
+      .mocked(api)
+      .mock.calls.filter(
+        ([path, body]) => body || /\/(plan|implement|import)$/.test(path),
+      ),
+  ).toHaveLength(0);
+});
+
+it('searches older sessions, rejects stale responses and keeps search when returning from work', async () => {
+  let resolveOld!: (rows: Detail[]) => void;
+  let fail = true;
+  searchTasks = async (query) => {
+    if (query.endsWith('old'))
+      return new Promise((resolve) => {
+        resolveOld = resolve;
+      });
+    if (fail) throw new Error('offline');
+    return [detail];
+  };
+  await openAndCompose();
+  fireEvent.click(screen.getByRole('button', { name: '세션 목록으로' }));
+  fireEvent.change(screen.getByLabelText('세션 검색'), {
+    target: { value: 'old' },
+  });
+  await waitFor(() => expect(resolveOld).toBeTypeOf('function'));
+  fireEvent.change(screen.getByLabelText('세션 검색'), {
+    target: { value: 'matching' },
+  });
+  await screen.findByText(
+    '세션 목록을 갱신하지 못했습니다. 마지막으로 받은 목록을 표시합니다.',
+  );
+  expect(screen.queryByText('검색한 세션이 없습니다')).toBeNull();
+  fail = false;
+  fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
+  await screen.findByRole('button', { name: /Test task/ });
+  await act(async () => resolveOld([{ ...detail, title: 'Stale result' }]));
+  expect(screen.queryByRole('button', { name: /Stale result/ })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: /Test task/ }));
+  expect(
+    (screen.getByLabelText('요청 내용 입력') as HTMLTextAreaElement).value,
+  ).toBe('Same request');
+  fireEvent.click(screen.getByRole('button', { name: '세션 목록으로' }));
+  expect((screen.getByLabelText('세션 검색') as HTMLInputElement).value).toBe(
+    'matching',
+  );
+});
+
+it.each(['', '?view=sessions', '?view=workspace&tab=sessions'])(
+  'opens the session list as the entry point at %s',
+  async (route) => {
+    window.history.replaceState(null, '', route || '/');
+    render(<App />);
+    await screen.findByRole('heading', { name: '세션' });
+    expect(
+      within(screen.getByRole('navigation', { name: '콘솔 메뉴' }))
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['세션', '작업 템플릿', '에이전트', '모니터링']);
+    expect(screen.queryByRole('list', { name: '최근 세션' })).toBeNull();
+  },
+);
+
+it('keeps legacy native-session links under workspace and retains explicit import confirmation', async () => {
+  window.history.replaceState(null, '', '?view=agents&tab=codex');
+  const original = vi.mocked(api).getMockImplementation()!;
+  vi.mocked(api).mockImplementation((path, ...args) =>
+    path.startsWith('/codex/threads')
+      ? Promise.resolve({
+          items: [
+            { id: 'native-thread', title: 'CLI conversation', updated_at: 1 },
+          ],
+          cursor: null,
+        })
+      : original(path, ...args),
+  );
+  render(<App />);
+  await screen.findByRole('heading', { name: 'Codex 세션 불러오기' });
+  expect(
+    within(screen.getByRole('navigation', { name: '콘솔 메뉴' }))
+      .getByRole('button', { name: '세션' })
+      .getAttribute('aria-current'),
+  ).toBe('page');
+  fireEvent.click(
+    await screen.findByRole('button', { name: /CLI conversation/ }),
+  );
+  const dialog = within(screen.getByRole('dialog'));
+  expect(
+    dialog
+      .getByRole('button', { name: '대화 이어가기' })
+      .hasAttribute('disabled'),
+  ).toBe(true);
+  expect(
+    vi.mocked(api).mock.calls.some(([path]) => path === '/tasks/import'),
   ).toBe(false);
 });

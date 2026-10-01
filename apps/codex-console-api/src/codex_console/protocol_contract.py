@@ -4,6 +4,9 @@ from hashlib import sha256
 from pathlib import Path
 
 VALIDATED_SCHEMA_NAMES = (
+    "ThreadListParams",
+    "ThreadReadParams",
+    "SkillsListParams",
     "ThreadStartParams",
     "ThreadResumeParams",
     "TurnStartParams",
@@ -16,6 +19,13 @@ VALIDATED_SCHEMA_NAMES = (
     "PermissionsRequestApprovalResponse",
 )
 COMPATIBILITY_SCHEMA_NAMES = (
+    "ThreadListParams",
+    "ThreadListResponse",
+    "ThreadStartedNotification",
+    "ThreadStatusChangedNotification",
+    "TurnStartedNotification",
+    "SkillsListParams",
+    "SkillsListResponse",
     "InitializeParams",
     "InitializeResponse",
     "GetAccountParams",
