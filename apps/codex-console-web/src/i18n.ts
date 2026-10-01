@@ -476,6 +476,14 @@ export const korean = {
   'This file or output is too large to display.':
     '표시할 수 있는 파일·출력 크기를 초과했습니다.',
   'Check the entered values.': '입력 내용을 확인해 주세요.',
+  'The request body is too large. Reduce the input and retry.':
+    '요청 크기가 너무 큽니다. 입력을 줄이고 다시 시도해 주세요.',
+  'The request upload timed out. Check the task state before retrying.':
+    '요청 전송 시간이 초과됐습니다. 작업 상태를 확인한 뒤 다시 시도해 주세요.',
+  'The request upload was cancelled. Check the task state before retrying.':
+    '요청 전송이 취소됐습니다. 작업 상태를 확인한 뒤 다시 시도해 주세요.',
+  'A template reference file is missing. Check its path before running.':
+    '템플릿 참조 파일이 없습니다. 경로를 확인한 뒤 실행해 주세요.',
   'A compatible Codex version is required.':
     '호환되는 Codex 버전이 필요합니다.',
   'The request may have started. Recover its state before retrying.':
@@ -567,6 +575,13 @@ const errors: Record<string, Copy> = {
   path_denied: 'This path is not available in the console.',
   output_too_large: 'This file or output is too large to display.',
   invalid_input: 'Check the entered values.',
+  input_too_large: 'The request body is too large. Reduce the input and retry.',
+  input_timeout:
+    'The request upload timed out. Check the task state before retrying.',
+  input_cancelled:
+    'The request upload was cancelled. Check the task state before retrying.',
+  reference_not_found:
+    'A template reference file is missing. Check its path before running.',
   invalid_answer: 'Check the entered values.',
   codex_version_mismatch:
     'The Codex version does not match this console. A compatibility update is required.',

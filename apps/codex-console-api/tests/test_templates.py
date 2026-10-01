@@ -231,6 +231,36 @@ def test_missing_skill_or_required_value_does_not_create_a_task(client):
     assert client.get("/api/overview").json() == []
 
 
+def test_missing_reference_is_rejected_before_creating_a_native_task(client):
+    row = template(client, references=["missing.txt"])
+    response = launch(client, row)
+    assert response.status_code == 404
+    assert response.json() == {"code": "reference_not_found"}
+    assert client.get("/api/overview").json() == []
+    assert client.app.state.template_runtime.rpc is None
+
+
+def test_empty_reference_is_a_valid_file(client, repository):
+    (repository / "empty.txt").touch()
+    row = template(client, references=["empty.txt"])
+    response = launch(client, row)
+    assert response.status_code == 200
+    assert response.json()["status"] == "running"
+
+
+def test_hard_link_reference_cannot_be_sent_to_a_native_task(client, repository, tmp_path):
+    import os
+
+    private = tmp_path / "private.txt"
+    private.write_text("SYNTHETIC_PRIVATE_VALUE")
+    os.link(private, repository / "reference.txt")
+    response = launch(client, template(client, references=["reference.txt"]))
+    assert response.status_code == 403
+    assert response.json() == {"code": "path_denied"}
+    assert client.get("/api/overview").json() == []
+    assert client.app.state.template_runtime.rpc is None
+
+
 def test_session_restart_and_disconnect_leave_template_execution_and_approval_intact(client):
     row = template(client)
     task = launch(client, row).json()
