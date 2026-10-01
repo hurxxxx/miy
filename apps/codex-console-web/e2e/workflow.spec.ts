@@ -267,6 +267,7 @@ test('late status, guidance, and recovery surfaces do not reflow the workspace',
 
   const idle = await layout();
   await page.getByLabel('요청 내용 입력').fill('Explain the workspace.');
+  const completion = await holdCompletion(page);
   await accepted(page, '/messages', () =>
     page.getByRole('button', { name: '보내기', exact: true }).click(),
   );
@@ -278,6 +279,7 @@ test('late status, guidance, and recovery surfaces do not reflow the workspace',
   await expect(page.locator('.execution-progress')).toHaveAttribute('open', '');
   expectStable(running, await layout());
 
+  await releaseCompletion(page, completion);
   await expect(page.getByLabel('현재 실행 상태')).toContainText('준비됨');
   const footerBefore = await box('.document-footer');
   await page.getByRole('button', { name: '문서 편집' }).click();
@@ -349,11 +351,13 @@ test('execution controls stay separated on a narrow desktop workspace', async ({
 
   await expectSeparated();
   await page.getByLabel('요청 내용 입력').fill('좁은 화면 실행 상태 확인');
+  const completion = await holdCompletion(page);
   await accepted(page, '/messages', () =>
     page.getByRole('button', { name: '보내기', exact: true }).click(),
   );
   await expect(page.getByRole('button', { name: '중단' })).toBeVisible();
   await expectSeparated();
+  await releaseCompletion(page, completion);
   await expect(page.getByLabel('현재 실행 상태')).toContainText('준비됨');
 });
 
