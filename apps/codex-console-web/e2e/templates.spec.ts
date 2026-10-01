@@ -77,7 +77,13 @@ test('edits a template, runs independent sessions, and retains history after edi
   const updatedRow = page
     .locator('.template-row')
     .filter({ has: page.getByRole('heading', { name: renamed, exact: true }) });
+  const secondLaunch = page.waitForResponse(
+    (r) =>
+      r.request().method() === 'POST' &&
+      new URL(r.url()).pathname.endsWith('/run'),
+  );
   await updatedRow.getByRole('button', { name: '실행', exact: true }).click();
+  expect((await secondLaunch).status()).toBe(200);
   await expect(
     page.getByRole('heading', { name: renamed, exact: true }),
   ).toBeVisible();

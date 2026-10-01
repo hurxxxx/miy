@@ -57,21 +57,34 @@ export function Templates({
   const [values, setValues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const launch = useRef<{ id: string; key: string } | null>(null);
+  const archivedRef = useRef(archived);
+  archivedRef.current = archived;
+  const listRequest = useRef(0);
   const load = useCallback(async () => {
+    const request = ++listRequest.current;
+    const showArchived = archivedRef.current;
+    const current = () =>
+      request === listRequest.current && showArchived === archivedRef.current;
     setLoading(true);
     try {
-      setRows(await api<Template[]>(`/templates?archived=${archived}`));
+      const rows = await api<Template[]>(`/templates?archived=${showArchived}`);
+      if (!current()) return;
+      setRows(rows);
       setFailed(false);
     } catch (e) {
+      if (!current()) return;
       setFailed(true);
       onError(e);
     } finally {
-      setLoading(false);
+      if (current()) setLoading(false);
     }
-  }, [archived, onError]);
+  }, [onError]);
   useEffect(() => {
     void load();
-  }, [load]);
+    return () => {
+      listRequest.current += 1;
+    };
+  }, [archived, load]);
   useEffect(() => {
     if (!editing) return;
     const controller = new AbortController();

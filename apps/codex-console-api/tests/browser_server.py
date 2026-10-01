@@ -57,9 +57,7 @@ class BrowserRPC(FakeRPC):
                 },
             }
         )
-        if completion_gate is None:
-            await asyncio.sleep(3)
-        else:
+        if completion_gate is not None:
             await completion_gate.wait()
         if params["collaborationMode"]["mode"] == "plan":
             wants_plan = "make a plan" in params["input"][0].get("text", "")
