@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { submitNewTask } from './task-submission';
 
 test('monitoring links to templates without running commands and task history stays usable on mobile', async ({
   page,
@@ -24,7 +25,7 @@ test('monitoring links to templates without running commands and task history st
   );
   await page.getByRole('button', { name: '새 작업', exact: true }).click();
   await page.getByLabel('작업 제목').fill('모니터링 후 작업');
-  await page.getByRole('button', { name: '작업 만들기' }).click();
+  await submitNewTask(page);
   await expect(page.getByLabel('실행 모드')).toHaveValue('plan');
   await expect(page.getByLabel('현재 실행 상태')).toContainText('준비됨');
   const taskId = new URL(page.url()).searchParams.get('task');
