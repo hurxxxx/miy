@@ -64,3 +64,16 @@ def test_worktree_read_bounds_growth_and_rejects_special_files(repository, monke
         git.read_worktree_file(repository, "pipe")
     assert error.value.code == "output_too_large"
     assert git.read_worktree_file(repository, "deleted.txt") == b""
+
+
+def test_diff_cannot_read_a_hard_link_to_a_private_file(client, repository, tmp_path):
+    private = tmp_path / "private.txt"
+    private.write_text("SYNTHETIC_PRIVATE_VALUE")
+    private.chmod(0o600)
+    os.link(private, repository / "ordinary.txt")
+    task = new_task(client)
+    response = client.get(f"/api/tasks/{task['id']}/diff", params={"path": "ordinary.txt"})
+    assert response.status_code == 403
+    assert response.json() == {"code": "path_denied"}
+    assert "SYNTHETIC_PRIVATE_VALUE" not in response.text
+    assert private.read_text() == "SYNTHETIC_PRIVATE_VALUE"

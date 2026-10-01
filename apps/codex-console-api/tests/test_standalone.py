@@ -4,21 +4,21 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from conftest import new_task, send_message
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from codex_console import auth, store
 from codex_console.errors import ConsoleError
-from codex_console.models import Attachment, Task, database
+from codex_console.models import Attachment, ResourceLease, Task, database
 from codex_console.storage import database_path, process_guard
 from codex_console.transfer import backup, import_postgres
 
 
-def _claim(url, task_id, start, result):
+def _claim(url, task_id, start, result, *, limit=1, stage="implement"):
     engine, factory = database(url)
     start.wait(10)
     try:
         with factory.begin() as db:
-            store.lease(db, task_id, workspace=db.get(Task, task_id).root, limit=1)
+            store.lease(db, task_id, workspace=db.get(Task, task_id).root, limit=limit, stage=stage)
         result.put("accepted")
     except ConsoleError as exc:
         result.put(exc.code)
@@ -68,6 +68,78 @@ def test_read_snapshot_does_not_block_a_writer_and_is_consistent(client):
             executor.submit(update).result(timeout=3)
         assert reader.scalar(select(Task.title).where(Task.id == task["id"])) == task["title"]
     assert client.get(f"/api/tasks/{task['id']}").json()["title"] == "Updated"
+
+
+def test_eight_processes_cannot_overbook_parallel_readers(client):
+    tasks = [new_task(client, str(i)) for i in range(8)]
+    ctx = multiprocessing.get_context("spawn")
+    start, result = ctx.Event(), ctx.Queue()
+    processes = [
+        ctx.Process(
+            target=_claim,
+            args=(client.app.state.settings.database_url, task["id"], start, result),
+            kwargs={"limit": 3, "stage": "plan"},
+        )
+        for task in tasks
+    ]
+    for process in processes:
+        process.start()
+    try:
+        start.set()
+        responses = [result.get(timeout=30) for _ in tasks]
+        assert responses.count("accepted") == 3
+        assert responses.count("capacity_busy") == 5
+        for process in processes:
+            process.join(timeout=10)
+            assert process.exitcode == 0
+        with client.app.state.factory() as db:
+            leases = list(db.scalars(select(ResourceLease)))
+            assert len(leases) == 3 and not any(row.exclusive for row in leases)
+    finally:
+        for process in processes:
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=5)
+
+
+def _crash_writer(url, task_id):
+    _, factory = database(url)
+    with process_guard(url, "session"), factory.begin() as db:
+        db.get(Task, task_id).title = "Uncommitted change"
+        db.flush()
+        os._exit(17)
+
+
+def test_killed_writer_rolls_back_and_releases_its_service_guard(client):
+    task = new_task(client)
+    url = client.app.state.settings.database_url
+    # Crash against an independently backed-up DB; the fixture owns the original's roles.
+    path = database_path(url).with_name("crash.sqlite3")
+    backup(url, path)
+    crash_url = "sqlite+pysqlite:///" + str(path)
+    process = multiprocessing.get_context("spawn").Process(
+        target=_crash_writer, args=(crash_url, task["id"])
+    )
+    process.start()
+    try:
+        process.join(timeout=15)
+        assert process.exitcode == 17
+        with process_guard(crash_url, "session"):
+            engine, factory = database(crash_url)
+            try:
+                with factory() as db:
+                    assert db.get(Task, task["id"]).title == task["title"]
+                    assert db.scalar(text("PRAGMA integrity_check")) == "ok"
+                with factory.begin() as db:
+                    db.get(Task, task["id"]).title = "Recovered writer"
+                with factory() as db:
+                    assert db.get(Task, task["id"]).title == "Recovered writer"
+            finally:
+                engine.dispose()
+    finally:
+        if process.is_alive():
+            process.terminate()
+            process.join(timeout=5)
 
 
 def test_backup_restores_owner_session_task_and_binary_attachment(client, tmp_path):
