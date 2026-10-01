@@ -8,34 +8,97 @@
 
 ## 서비스와 작업 현황
 
-콘솔은 포털보다 상위에 있는 단일 소유자 관리 화면이다. **서비스 상태**에서 환경·상태·확인 시각·
-응답이 제공하는 버전을 확인하고, 점검·배포·복구 요청을 새 Codex 작업의 초안으로 연다.
-초안은 사용자가 검토하고 전송한다. 콘솔 버튼이나 HTTP endpoint가 운영 명령을 직접 실행하지
-않으며, 조사·배포 판단·오류 대응·복구는 공식 Codex 세션이 수행한다. 계획에서 실행으로 바꾸는
-것만으로 커밋·푸시·MR·병합·운영 체크아웃 갱신·배포를 승인한 것으로 보지 않는다.
+콘솔은 공식 Codex CLI의 접근성을 높이는 단일 소유자 작업실이다. 좌측 메뉴는
+**세션 · 작업 템플릿 · 에이전트 · 모니터링**이다. GitLab/upstream/서비스 조작을
+콘솔이 별도 운영 엔진으로 구현하지 않는다. 조사·배포 판단·오류 대응·복구는 Codex가 수행한다.
 
-**작업 현황**은 고정 작업, 주의 필요, 실행 중, 시작 전, 최근 결과 순으로 표시한다.
-환경·목적·상태·제목으로 찾고 작업을 고정할 수 있다. 최근 200개 외의 실행 중·불확실·실패·고정
-작업도 유지한다. 작업별 native agent 트리에서 역할·상태·현재 단계·마지막 갱신 시각을 확인한다.
-진행률을 임의의 백분율로 만들지 않고 Codex의 단계 상태를 사용한다. 승인·질문에는 요청한
-에이전트 이름을 표시하고 원래 RPC 요청 ID로 응답한다. 공식 `skills/list`에서 활성 skill을
-조회해 선택한 skill을 native `UserInput`으로 전달한다.
+템플릿·에이전트·Codex 세션·모니터링 조회 화면은 공통 제목·주요 동작·본문 배치를 사용한다.
+조회 본문은 최대 1,180px로 제한하며 카드 타일 대신 열을 맞춘 행과 구분선을 사용한다.
+템플릿은 이름·설명으로 검색하고, 행에서 실행·이력을 열며 더보기 메뉴에서 편집·복제·보관한다.
+에이전트 목록은 상태·작업명·갱신 시각·동작을 정렬하고, 하위 에이전트와 실행 설정은 펼쳐 확인한다.
+상태 필터와 모니터링 요약은 간결한 한 줄로 표시하며 서버 자원은 표로 비교한다. 작은 화면에서는
+행의 보조 정보와 동작을 줄바꿈한다. 실행 이력이 없는 상태와 검색 결과가
+없는 상태를 구분해 템플릿 이동 또는 필터 초기화를 제공한다. 작업실은 대화·결과 영역의 독립
+스크롤과 입력창 위치를 유지한다.
 
-두 독립 프로세스가 같은 전용 PostgreSQL을 사용한다. `codex-console manage`는 로그인·정적 UI·
-관리 projection·읽기 전용 모니터를 제공하며 Codex 프로세스를 만들지 않는다.
-`codex-console serve`는 작업 세션·공식 App Server를 담당한다. 각 역할은 DB당 한 프로세스만
-실행한다. 세션 서비스가 중단되어도 관리 서비스·DB·프록시가 살아 있으면 마지막 작업 상태와
-복구 안내를 볼 수 있다. 관리 화면의 복구 프롬프트를 서버 저장소에서 실행한 별도 Codex에
-전달해 복구한다. 자기 업데이트 중인 세션이 자신의 재시작 완료를 보장하지 않는다.
+**세션**(`?view=sessions`)은 로그인 후 기본 화면이며 고정 우선·최근 갱신 순으로 작업 목록을
+표시한다. 사이드바는 기능 메뉴만 표시하고, 세션 검색·선택은 본문에서 수행한다. 제목·작업 경로·
+날짜·상태를 확인한 뒤 선택하면 작업실에서 해당 대화·결과를 연다. 일반 작업과 템플릿 실행은
+기존 작업 ID를 사용하며 목록 조회·선택만으로 실행을 시작하지 않는다. 목록 상단과 사이드바의
+**새 작업**으로 만든 작업도 같은 작업실에서 열린다. 작업실 상단 **세션 목록으로**, 세션 메뉴, 브라우저 뒤로 가기로
+돌아올 때 해당 페이지 내의 검색어·스크롤 위치를 유지한다. 작성 중인 메시지도 페이지 내에서
+세션별로 보존한다. 제목 검색은 서버의 저장된 작업을 조회하므로 최근 목록 밖의 이력도 찾을 수
+있다. 목록은 최근 200개와 추적 대상 작업을 제공하며 더 오래된 이력은 검색으로 좁힌다.
+조회 실패는 빈 결과와 구분하고 재시도를 제공한다. 모바일도 같은 목록 화면을 사용한다.
+**Codex 세션 불러오기**(`?view=sessions&tab=codex`)는 세션 화면에서 접근한다. 원본 CLI 대화의
+실행 종료 확인 후 기존 import 절차로 연다. 이전 `?view=workspace&tab=sessions`와
+`?view=workspace&tab=codex` 링크도 같은 세션 화면으로 연결한다.
+
+템플릿에는 작업 경로·참고 파일·추가 맥락·공식 skill·프롬프트·입력값·실행 설정을 저장한다.
+이름·설명·변수 기본값을 편집하고 복제·보관·복원할 수 있다. 필수 값이 없으면 입력창을 열고,
+준비된 템플릿은 클릭 한 번으로 **새 native thread**에서 실행한다. 동일 launch ID 재시도는
+기존 작업을 반환한다. 실행 당시 템플릿 버전·입력값·요청·참고 파일 해시·skill·실행 경로를
+작업에 보존하여 템플릿 수정이 과거 실행 조건을 바꾸지 않는다. 참조 파일은 실제 실행 시점의
+내용을 사용하며, 해시는 파일 자체의 백업을 대신하지 않는다. 기본 템플릿은 최초 생성 후
+사용자의 편집을 덮어쓰지 않는다.
+
+각 템플릿의 **실행 이력**은 `?view=agents&template=<템플릿 UUID>`에서 조회한다.
+서버는 저장된 템플릿 ID로 먼저 범위를 제한한 뒤 최근 200개 및 추적 대상 작업을 반환하며,
+제목 검색으로 더 오래된 실행을 찾을 수 있다. 같은 이름의 템플릿이나 복제본 이력은 섞이지 않고,
+이름 변경·보관 뒤에도 모든 버전의 이력이 연결된다. 선택한 템플릿과 보관 여부를 표시하며
+상태 필터·대화·결과·실행 당시 설정을 함께 확인한다. 새로고침과 뒤로 가기에도 템플릿 범위를
+유지하고 **전체 에이전트 보기**로 해제한다.
+
+**에이전트** 메뉴(`?view=agents`)는 전체 작업의 실행 상태·승인 대기·하위 에이전트를 확인한다.
+기존 `?view=history`는 에이전트 화면을, `tab=codex` 링크는 세션 불러오기를 연다.
+작업 목록은 고정 작업, 주의 필요,
+실행 중, 시작 전, 최근 결과 순으로 표시한다. 전체·진행 중·확인 필요·종료 필터와 제목 검색,
+일반/템플릿 유형 필터를 제공한다. 실패로 종료된 작업은 확인 필요와 종료 양쪽에서 찾을 수 있다.
+작업 경로·현재 단계·갱신 시각과 root·하위 에이전트 트리를 표시하고, 대화·결과 또는 승인·질문
+확인으로 이동한다. 작업을 열었다가 메뉴로 돌아와도 검색·필터를 유지한다. 기존 템플릿 실행
+당시 설정과 고정 기능도 유지하며 최근 200개 밖의 실행 중·불확실·실패·고정 작업도 포함한다.
+목록 조회 실패나 선택한 작업 유형의 실행 서비스 장애·오래된 관측이 있으면 마지막 보고
+상태임을 표시한다. 검색 실패는 빈 검색 결과와 구분하고 재시도할 수 있다.
+native agent 트리에서 역할·상태·현재 단계·갱신 시각을 확인한다. 진행률은 임의의 백분율로
+만들지 않는다. 승인·질문은 원래 RPC 요청 ID로 응답하고, skill은 공식 `skills/list`와
+`UserInput`을 사용한다. 서버 메모리·스왑·디스크·부하·서비스 관측은 읽기 전용이다.
+
+상단 **에이전트 활동**은 모든 메뉴에서 접근할 수 있는 비모달 패널이다. 실제 실행 중인
+root·하위 에이전트 수와 확인 필요 작업 수를 표시한다. 작업은 확인 필요·실행 중·상태 확인
+대기·최근 종료 순으로 표시하고, 현재 단계와 펼칠 수 있는 native agent 트리에서 병렬 작업을
+확인한다. 최근 종료 5개에서 원래 작업으로 돌아가거나 에이전트 전용 메뉴를 열 수 있다.
+`idle/notLoaded` 하위 에이전트를 실행 중이나 완료로 추정하지 않고, 종료된 에이전트에 남은
+과거 승인 flag는 무시한다. 목록은 기존 overview SSE와 10초 조회로 갱신하며 실패하면 마지막
+수신 상태임을 명시한다. 이 패널은 작업 제어·lease 판단을 변경하지 않는다.
+
+일반·템플릿 작업의 새 세션과 이어서 실행하는 턴에는 공식 `developerInstructions`로
+한국어 기본 응답 지침을 전달한다. 진행 설명·질문·계획·최종 답변을 한국어로 요청하되 사용자가
+명시적으로 다른 언어를 요청하면 따른다. 코드·명령·경로·식별자·인용문 원문은 유지한다.
+화면 언어 선택은 UI 번역만 바꾼다. 이미 실행 중인 턴과 과거 답변은 소급 변경하지 않는다.
+
+세 프로세스가 같은 로컬 SQLite를 사용한다. `codex-console manage`는 인증·UI·모니터링·
+템플릿 편집과 인증된 요청 라우팅을 담당하고 Codex를 만들지 않는다. `serve`는 일반 작업,
+`templates`는 별도 템플릿 작업을 실행한다. 각 역할은 DB당 한 프로세스만 허용한다.
+프록시는 모든 요청을 management로 전달하고, management가 저장된 executor에 따라
+고정 loopback 포트로 전달한다. 일반 세션의 복구·종료는 템플릿 작업을 변경하지 않는다.
+
+**Codex CLI 호환성 업데이트** 템플릿은 현재 설치 CLI에 맞춰 콘솔 코드·계약·검사·문서를
+수정·검증하고, 템플릿의 명시적 권한과 저장소 정책 범위에서 반영한다. 범용 자기개선이나
+시스템 CLI 자동 업그레이드는 수행하지 않는다. 실행기는 `template-current`의 별도 콘솔
+릴리스와 `MTY_CODEX_CONSOLE_TEMPLATE_BINARY`의 검증된 CLI를 사용한다. 일반 `current`
+전환·management/session 재시작 중에는 이 실행기를 재시작하지 않는다. 호환성 확인 또는
+템플릿 실행기 자체가 실패하면 오류를 표시하고 수동 복구 안내를 제공한다.
 
 | 설정 | 기본값 | 의미 |
 | --- | --- | --- |
 | `MTY_CODEX_CONSOLE_PORT` | `19365` | 세션 API의 loopback 포트 |
 | `MTY_CODEX_CONSOLE_MANAGEMENT_PORT` | `19367` | 관리 UI/API의 loopback 포트 |
+| `MTY_CODEX_CONSOLE_TEMPLATE_PORT` | `19368` | 독립 템플릿 실행 API |
+| `MTY_CODEX_CONSOLE_TEMPLATE_BINARY` | 미설정 | 버전별 디렉터리에 설치한 호환 CLI의 절대 파일 경로. `templates` 역할에 필수 |
 | `MTY_CODEX_CONSOLE_MAX_ACTIVE_TASKS` | `3` | 동시에 접수할 root 작업 수, 1~16 |
 | `MTY_CODEX_CONSOLE_MONITOR_SERVICES` | `[]` | 소유자가 등록하는 서비스 JSON 배열, 최대 64개 |
 
-세션 서비스 health는 기본으로 등록된다. 추가 서비스는 `id`, `name`, `environment`와
+일반 세션과 템플릿 실행기 health는 기본으로 등록된다. 추가 서비스는 `id`, `name`, `environment`와
 `health_url`, `unit` 또는 `container`로 등록한다. `unit`과 `container`는 동시에 지정하지
 않는다. `user_unit` 기본값은 true다. 예:
 
@@ -51,26 +114,28 @@ health 응답은 16 KiB, supervisor 출력은 4 KiB, 개별 probe는 5초로 제
 서비스의 health가 버전을 반환하지 않으면 버전을 추정하지 않는다.
 
 동일 작업공간의 계획 읽기는 병렬로 허용하고 쓰기는 배타적 DB resource lease를 사용한다.
+작업 경로가 하위 폴더여도 같은 Git 작업 트리는 하나의 배타 자원으로 취급한다. 분리 시
+선택한 하위 경로를 유지하고 변경 파일·diff·fingerprint는 저장소 루트를 기준으로 확인한다.
 새 작업의 **작업공간 분리**를 선택하면 별도 detached worktree를 준비한다. 분리된 개발 작업은
-병렬 실행할 수 있다. 점검·배포·복구 목적의 실행은 공통 operations lease로 직렬화한다.
+병렬 실행할 수 있다. 템플릿의 공용 자원 직렬화 설정을 켠 실행은 공통 operations lease로 직렬화한다.
 이는 콘솔 접수 조정이며 Codex의 sandbox·서버 권한·사용자 승인을 대체하지 않는다.
 부모가 완료되어도 실행 중이거나 상태가 불확실한 하위 agent가 있으면 lease를 유지한다.
 중단은 확인된 root와 하위 thread에 공식 `turn/interrupt`를 전달한다.
 
 공식 [App Server](https://learn.chatgpt.com/docs/app-server)와
 [Subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents)의 native
-thread/turn/plan/approval을 사용한다. 0.158.0 생성 계약의 `collabAgentToolCall`,
+thread/turn/plan/approval을 사용한다. 0.159.2 생성 계약의 `collabAgentToolCall`,
 `parentThreadId`, `sessionId`, `thread/list`의 ancestor 필터로 연결을 확인한다.
 하위 thread 관찰은 `thread/read/list`만 사용하고 resume하지 않는다. 누락된 알림은 10초마다
 조회해 보완한다. 에이전트 생성·역할 배정·재시도 스케줄러는 콘솔에서 구현하지 않는다.
 [공식 worktree 기능](https://learn.chatgpt.com/docs/environments/git-worktrees)은 있으나
-0.158.0 App Server ClientRequest에는 worktree 생성 RPC가 없으므로 기존의 좁은 Git 준비
+0.159.2 App Server ClientRequest에는 worktree 생성 RPC가 없으므로 기존의 좁은 Git 준비
 helper만 유지한다. 이 helper는 서비스 운영을 실행하지 않는다.
 
 ## 실행 경계
 
 - 소유자 한 명, 설정한 Git 개발 체크아웃 하나를 대상으로 한다. 공개 가입이나 팀 공유는 없다.
-- 공식 `codex app-server`의 stdio 프로토콜을 사용한다. 기준 계약은 **0.158.0**이며,
+- 공식 `codex app-server`의 stdio 프로토콜을 사용한다. 기준 계약은 **0.159.2**이며,
   그 이상의 안정 CLI는 콘솔이 사용하는 요청·응답·알림 RPC 스키마가 기준 계약과 같을 때
   자동으로 허용한다.
   더 오래된 버전·시험판·스키마가 달라진 버전은 실행 전에 차단한다. Codex가 구독 인증,
@@ -196,7 +261,6 @@ Git 작업을 직접 요청하면 Codex가 해당 저장소 지침에 따라 수
 | `MTY_CODEX_CONSOLE_WORKTREE_BASE_REF` | `HEAD` | 격리 작업의 기준 ref. 실제 커밋으로 검증한다. |
 | `MTY_CODEX_CONSOLE_WORKTREE_ROOT` | `~/.local/share/mty-codex-console/worktrees` | 설정한 체크아웃 밖의 절대 경로. |
 | `MTY_CODEX_CONSOLE_PROTECTED_WORKSPACES` | `[]` | 접근 금지할 운영 체크아웃의 절대 경로 JSON 배열. |
-| `MTY_CODEX_CONSOLE_FORBIDDEN_DATABASE_NAMES` | `[]` | 재사용 금지할 제품 DB 이름 JSON 배열. |
 
 MTY 서버에서는 기준 ref를 `origin/dev`, 워크트리 경로를 체크아웃 루트의 `worktrees`로 설정하고
 실제 `prod` 경로와 dev/prod 제품 DB 이름을 금지 목록에 넣는다. 다른 저장소는 그 저장소의
@@ -205,24 +269,24 @@ MTY 서버에서는 기준 ref를 `origin/dev`, 워크트리 경로를 체크아
 ## 설치
 
 사전 준비는 [INSTALL.md](../../../INSTALL.md)를 따른다. Node·pnpm과 Python·uv 버전은
-저장소의 package.json 및 각 앱의 pyproject.toml/lock을 사용한다. PostgreSQL 18과
-현재 사용자로 `codex login status`가 성공하는 Codex 0.158.0 이상의 안정 버전이 필요하다.
-서비스는 Codex 프로세스를 연결할 때 설치된 CLI가 기준 RPC 계약과 호환되는지 검사한다.
+저장소의 package.json 및 각 앱의 pyproject.toml/lock을 사용한다. Python 3.12에 포함된
+SQLite는 **3.51.3 이상**을 권장한다(공식 수정 백포트 3.50.7/3.44.6도 허용).
+[WAL-reset 수정](https://www.sqlite.org/wal.html#walreset)이 없는 런타임은 시작 전에 차단한다.
+Python 버전만으로 SQLite 버전을 추정하지 말고 `python3 -c 'import sqlite3; print(sqlite3.sqlite_version)'`로
+확인한다. 필요하면 [공식 Python 배포물](https://github.com/astral-sh/python-build-standalone/releases)의
+수정된 SQLite 포함 Python 3.12를 별도 영구 디렉터리에 설치하고 release digest를 검증한다.
+기존 서버의 공용 Python을 교체하지 않는다. `uv sync --python /absolute/path/to/python3`와
+릴리스 빌드의 두 번째 인자로 그 인터프리터를 지정한다.
 
-1. PostgreSQL에 **전용 역할과 전용 DB** `codex_console`을 준비한다. MTY 업무 DB와 그
-   migration을 재사용하지 않는다. DB 관리자는 전용 DB에만 소유권을 부여한다.
-   호스트 PostgreSQL의 초기 생성 예는 아래와 같다. 기존 역할·DB가 있으면 재생성하지 말고
-   소유권·접속 정보를 확인한다. PostgreSQL이 여러 인스턴스이면 대상 포트도 명시한다.
+현재 사용자로 `codex login status`가 성공하는 Codex 0.159.2 이상의 안정 버전이 필요하다.
+서비스는 연결 전에 설치된 CLI가 기준 RPC 계약과 호환되는지 검사한다.
 
-   ```bash
-   sudo -u postgres createuser --pwprompt codex_console
-   sudo -u postgres createdb --owner=codex_console codex_console
-   sudo -u postgres psql -d postgres -c 'REVOKE ALL ON DATABASE codex_console FROM PUBLIC;'
-   ```
-
-2. `apps/codex-console-api/.env.example`을 같은 디렉터리의 무시되는 `.env`로 복사하고
-   소유자만 읽을 수 있게 한다. 서버 편집기에서 DB 접속 정보, HTTPS origin, 실제 Git 작업 경로,
-   Codex 실행 파일 경로와 위 작업 공간 설정·운영 경로/제품 DB 금지 목록을 설정한다. 비밀값을 명령 인자나 공유 문서에 넣지 않는다.
+1. 소스·워크트리·릴리스 밖의 로컬 영구 디렉터리를 준비한다. SQLite 파일은 0600,
+   디렉터리는 0700을 권장한다. NFS/SMB 공유 파일시스템을 사용하지 않는다.
+2. `apps/codex-console-api/.env.example`을 무시되는 `.env`로 복사하고 0600으로 보호한다.
+   `MTY_CODEX_CONSOLE_DATABASE_URL=sqlite+pysqlite:////absolute/path/to/console.sqlite3`와
+   HTTPS origin, 실제 Git 작업 경로, 일반·템플릿 Codex 경로를 설정한다. PostgreSQL URL과
+   메모리 DB·상대 경로·심볼릭 링크 DB는 거부한다. 기존 설치는 아래 이전 절차를 먼저 따른다.
 3. 저장소 루트에서 아래 명령을 실행한다.
 
 ```bash
@@ -235,11 +299,11 @@ uv run --frozen codex-console set-password
 uv run --frozen codex-console serve
 ```
 
-다른 터미널의 같은 API 디렉터리에서 `uv run --frozen codex-console manage`도 실행한다.
+다른 터미널에서 `uv run --frozen codex-console manage`와 `uv run --frozen codex-console templates`도 실행한다. 지속 서비스는 아래의 별도 릴리스 구성을 사용한다.
 
 `set-password`는 보호된 터미널 입력으로 비밀번호를 받으며 기존 웹 세션을 폐기한다.
 초기 계정도 이 명령으로 만든다. 세션 API는 `127.0.0.1:19365`, 관리 UI/API는
-`127.0.0.1:19367`에 수신한다. 두 역할의 포트는 서로 달라야 한다.
+`127.0.0.1:19367`, 템플릿 실행기는 `127.0.0.1:19368`에 수신한다. 세 포트는 달라야 한다.
 전용 HTTPS 주소는 `ops/codex-console/nginx.conf.example`을 참고해 기존 TLS 프록시에 연결한다.
 프록시가 원래 Host를 전달하고 SSE 응답을 버퍼링하지 않아야 한다.
 
@@ -294,9 +358,9 @@ origin에 설정된 소유자 UUID와 일치할 때만 콘솔 세션을 발급�
 
 실제 도메인으로 바꾸고 `브라우저 → HTTPS 프록시 → 관리/세션 서비스`로 연결한다.
 같은 호스트에서 TLS를 종료하면 `ops/codex-console/nginx.conf.example`을 사용한다.
-`/api/tasks`·`/api/codex`와 하위 경로는 19365, 나머지는 19367로 전달한다. 두 포트 모두
+모든 UI·API 경로는 19367로 전달한다. 내부 실행기 포트는
 loopback에 유지한다. 다른 호스트의 TLS 프록시는 아래의 전용 연결 지점을 사용한다.
-로컬 브라우저 검증은 콘솔 origin을 `http://127.0.0.1:19366`으로 설정하고 두 API와
+로컬 브라우저 검증은 콘솔 origin을 `http://127.0.0.1:19366`으로 설정하고 세 API와
 콘솔 Vite를 실행한다. 관리 포트만 직접 열면 작업 API가 연결되지 않는다. HTTPS에는
 Secure 쿠키를 사용하고 허용된 loopback HTTP에는 해당 호스트의 세션 쿠키를 발급한다.
 원격 PC에서는 공개 HTTPS 주소를 사용한다.
@@ -310,7 +374,7 @@ Secure 쿠키를 사용하고 허용된 loopback HTTP에는 해당 호스트의 
 | 콘솔 `.env` | `MTY_CODEX_CONSOLE_BASE_PATH` | `/codex-console` |
 
 MTY Vite 개발·preview는 `/codex-console/api/tasks`·`/codex-console/api/codex`를
-19365로, 나머지 `/codex-console` 경로를 19367로 전달한다.
+포함 모든 `/codex-console` 경로를 19367로 전달한다.
 앞단 HTTPS 프록시는 이 경로를 기존 Web으로 전달한다. 별도 프록시에서 콘솔에 직접
 연결하는 경우에는 경로를 제거하지 않는 `ops/codex-console/nginx-path.conf.example`을 참고한다.
 쿠키는 콘솔 경로에 한정되고 API·정적 파일·SSE도 같은 prefix로 동작한다.
@@ -383,8 +447,7 @@ HTTPS `/healthz`와 로그인, 첨부 업로드를 확인한다. 허용하지 �
 `docker stop codex-console-upstream`, `docker restart codex-console-upstream`을 사용한다.
 
 이 연결 지점과 콘솔은 MTY Web·API 재시작에 종속되지 않는다. Docker로 실행하면 Docker
-재시작에는 영향을 받는다. 콘솔 전용 DB를 MTY와 같은 PostgreSQL 서버에 만들었다면 그 DB
-서버의 재시작도 영향을 준다. 전용 DB는 PostgreSQL 인스턴스 자체의 분리를 의미하지 않는다.
+재시작에는 영향을 받는다. 콘솔 저장소는 MTY PostgreSQL과 독립적이다. 같은 호스트의 전원·디스크 장애까지 분리하지는 않는다.
 
 ## 파일 보관과 메시지별 첨부
 
@@ -401,7 +464,7 @@ HTTPS `/healthz`와 로그인, 첨부 업로드를 확인한다. 허용하지 �
 - Codex가 서버의 기존 도구로 원본을 직접 읽는다. 콘솔은 파일 형식별 변환·OCR·자동 실행·
   압축 해제를 하지 않는다. 실제 읽기 가능 여부는 파일 형식과 서버 도구에 따라 Codex가 설명한다.
 
-원본은 콘솔 전용 PostgreSQL `console_attachments`에, 메시지별 참조는
+원본은 콘솔 전용 SQLite `console_attachments`에, 메시지별 참조는
 `console_message_attachments`에 저장한다. 선택해 전송한 원본의 읽기용 사본만 Git 저장소
 밖에 만들며 파일 권한은 `0400`, 디렉터리는 `0700`이다. 작업 디렉터리 전환과 서버 재시작 후
 DB에서 사본을 복원한다. 원본을 삭제하면 DB 바이너리와 읽기용 사본을 제거하고 기록용 이름·
@@ -436,15 +499,22 @@ DB에서 사본을 복원한다. 원본을 삭제하면 DB 바이너리와 읽�
 다음은 사용자의 홈 디렉터리에 설치하는 예다. 이미 존재하는 릴리스는 덮어쓰지 않는다.
 
 ```bash
-bash scripts/build-codex-console.sh "$HOME/.local/share/mty-codex-console/releases/initial"
+bash scripts/build-codex-console.sh "$HOME/.local/share/mty-codex-console/releases/initial" /absolute/path/to/verified-python3
 mkdir -p "$HOME/.config/mty-codex-console" "$HOME/.config/systemd/user"
 install -m 600 apps/codex-console-api/.env.example "$HOME/.config/mty-codex-console/console.env"
 ln -s "$HOME/.local/share/mty-codex-console/releases/initial" "$HOME/.local/share/mty-codex-console/current"
-install -m 644 ops/codex-console/codex-console.service ops/codex-console/codex-console-management.service "$HOME/.config/systemd/user/"
+ln -s "$HOME/.local/share/mty-codex-console/releases/initial" "$HOME/.local/share/mty-codex-console/template-current"
+install -m 644 ops/codex-console/codex-console.service ops/codex-console/codex-console-management.service ops/codex-console/codex-console-templates.service "$HOME/.config/systemd/user/"
 ```
 
 `console.env`를 서버 편집기에서 설정한다. `MTY_CODEX_CONSOLE_BINARY`는 현재 구독
 로그인 사용자가 실행하는 Codex의 절대 경로로 지정한다. 서비스 설치 계정도 동일하게 유지한다.
+템플릿용 CLI는 검증한 정확한 버전을 별도 디렉터리에 설치한다. 예를 들어
+`npm install --prefix /absolute/private/codex-0.159.2 --no-save @openai/codex@0.159.2`로
+설치한 뒤 `MTY_CODEX_CONSOLE_TEMPLATE_BINARY`를 그 디렉터리의
+`node_modules/@openai/codex/bin/codex.js`로 지정한다. 이 버전도 현재 생성 계약과 실제 구독
+smoke를 통과해야 한다. 해당 디렉터리를 일반 CLI 업데이트에 재사용하지 않는다. `.bin/codex`
+심볼릭 링크 대신 실제 실행 파일 경로를 지정하며, 패키지의 native 자원 전체를 보존한다.
 `MTY_CODEX_CONSOLE_WEB_DIST`는 예시의 상대 경로 `../codex-console-web/dist`를 유지해
 서비스 작업 경로의 릴리스를 따라가게 한다. 특정 릴리스의 절대 경로로 고정하면 서비스 전환 후에도
 이전 화면을 제공하므로 업데이트 때 API와 웹 정적 파일이 같은 릴리스인지 확인한다.
@@ -457,7 +527,7 @@ cd "$HOME/.local/share/mty-codex-console/current/apps/codex-console-api"
 .venv/bin/codex-console migrate
 .venv/bin/codex-console set-password
 systemctl --user daemon-reload
-systemctl --user enable --now codex-console codex-console-management
+systemctl --user enable --now codex-console codex-console-management codex-console-templates
 ```
 
 user unit의 bus에 연결할 수 없는 셸에서는 설치 계정의 `XDG_RUNTIME_DIR=/run/user/$(id -u)`를
@@ -468,8 +538,8 @@ drop-in에 명시한다. Codex 바이너리뿐 아니라 코딩 작업에서 사
 해석되어야 한다. 해당 설정은 호스트별 user unit drop-in으로 관리한다.
 
 ```bash
-systemctl --user is-active codex-console codex-console-management
-systemctl --user is-enabled codex-console codex-console-management
+systemctl --user is-active codex-console codex-console-management codex-console-templates
+systemctl --user is-enabled codex-console codex-console-management codex-console-templates
 systemctl --user restart codex-console
 systemctl --user stop codex-console
 ```
@@ -481,29 +551,49 @@ systemctl --user stop codex-console
 설치 계정에 허용된 비대화형 sudo와 필요한 그룹 자원 접근을 검사한다. 계획/승인 실행의
 샌드박스 계약은 Codex app-server가 계속 적용한다.
 
-개발 서버의 `./dev.sh`와 이 서비스는 서로 제어하지 않는다. 업데이트는 새 릴리스를 검증한 뒤
-실행 중인 작업을 완료·중단하고 전용 DB를 백업한다. 서비스를 중지한 뒤 새 릴리스의
-`codex-console migrate`를 실행하고 `current`를 전환해 별도로 재시작한다. 현재 서버는
-`console_0009` migration까지 필요하다. 0009는 작업 목적·고정, native agent projection,
-서비스 관찰, resource lease와 승인 출처 thread를 추가하고 기존 workspace lease와
-승인 thread를 보존한다. 최초 분리 전환은 두 서비스를 중지하고 DB를 백업한 뒤 migration·
-두 unit 설치·프록시 경로 갱신·재시작을 함께 수행한다. 이전 릴리스는 0009에서 시작하지
-않으므로 최초 전환 실패 시 이전 프록시·unit·릴리스와 전환 전 DB를 함께 복원한다. 0007은 저장된 계획 버전이 없는 완료 작업의 최신
-native `plan` item을 계획 문서로 복원한다. 이전 구조화 응답이면 계획 문서 본문을 우선하고,
-없으면 native plan item의 답변을 사용한다. 0008은 계획 문서가 여전히 없는 작업에서 접수 완료된
-구형 `plan` operation과 같은 턴의 구조화된 최종 답변만 복원한다. 계획 문서 본문이 있으면 이를
-사용하고 문서 배열이 비어 있으면 화면에 표시됐던 답변을 사용한다. 다른 문서 종류나 일반 답변은
-계획으로 추정하지 않는다. 기존 요구사항 이력은 삭제하지 않지만 현재 API와 화면에는 투영하지
-않는다. 0004에서 업그레이드할 때 기존 계획 operation에는
-`legacy_plan` 형식 표식을 남겨 완료 알림을 놓친 Markdown 문서만 원래 종류로 복구한다.
-이미 초기 0005를 적용한 중간 설치본은 이 표식이 없으므로, 교체 전에 보존한 0004 백업의
-operation ID·task ID·kind·digest와 일치하는 구형 계획만 운영자가 표식으로 보정한다.
-새 JSON 요청이나 형식을 입증할 수 없는 응답은 Markdown으로 추정하지 않는다. 계획 응답의
-실행 출처와 이전 실행 경로, 권한 전환 제출 직전 확인된 sandbox를 저장하며 기존
-작업·로그인·계획 기록을 보존한다. 이전 서버는
-새 schema에서 시작하지 않으므로 롤백에는 변경 전 DB와 이전 릴리스가 함께 필요하다.
-서비스 배포·재시작은
-설치 운영자의 명시적인 작업이며 소스 빌드가 자동으로 수행하지 않는다.
+개발 서버의 `./dev.sh`와 콘솔은 서로 제어하지 않는다. 일반 UI/session 업데이트는 검증한
+새 릴리스로 `current`만 전환한다. `template-current`와 그 CLI 설치 경로는 유지한다.
+템플릿 실행기 업데이트는 그 실행기의 모든 root/하위 작업이 끝난 뒤 별도로 검증·전환한다.
+현재 SQLite 스키마는 `console_sqlite_0001`이다. 스키마 변경이 필요한 배포는 세 역할의
+작업을 모두 종료하고 백업·세 서비스 중지·migration을 수행한다. 실행 중인 자기 업데이트에서
+스키마까지 바뀌면 자동 진행하지 말고 작업을 완료한 뒤 별도 유지보수로 반영한다.
+
+## 독립 저장소와 백업
+
+SQLite는 인증·승인·작업·템플릿·첨부 원본과 관측을 보관한다. WAL, `synchronous=FULL`,
+외래키 검사, 5초 busy timeout을 사용한다. 읽기는 같은 스냅샷을 유지하고 쓰기는
+`BEGIN IMMEDIATE`로 짧게 직렬화한다. DB 잠금을 잡은 상태로 Codex 응답을 기다리지 않는다.
+역할별 OS 파일 잠금은 중복 서비스를 막는다. 다른 호스트의 공유 DB로 확장하는 구성은 지원하지 않는다.
+
+실행 중인 SQLite 본체만 복사하면 WAL의 최신 내용이 빠질 수 있다. 공식 online backup API를
+사용하는 다음 명령으로 새로운 파일에 백업한다. 명령은 무결성을 검사하고 기존 파일을 덮어쓰지 않는다.
+백업에는 인증·첨부·작업 내용이 있으므로 접근을 제한하고 다른 저장소에도 보관한다.
+
+```bash
+.venv/bin/codex-console backup --destination /absolute/private/backups/console-before-update.sqlite3
+```
+
+기존 PostgreSQL `console_0009`/`console_0010` 설치를 이전할 때:
+
+1. 진행 중인 root/하위 작업을 종료하고 기존 두 서비스를 중지한다. 기존 env·릴리스와 PostgreSQL
+   백업을 보존한다. 원본 DB에 앱을 계속 쓰게 한 채 이중 운영하지 않는다.
+2. 기존 0600 env를 `console-postgres.env`로 보존하고, 새 env의 DB URL을 **아직 없는 SQLite 파일**로
+   지정한다. 새 릴리스의 CLI에서 다음 명령을 실행한다. 이 경우 `migrate`를 먼저 실행하지 않는다.
+
+   ```bash
+   .venv/bin/codex-console import-postgres --source-env /absolute/private/console-postgres.env
+   ```
+
+3. 이전 도구는 원본을 읽기 전용 repeatable-read로 읽으며 구버전 서비스의 advisory lock을 확인한다.
+   모든 테이블의 행 수·내용 해시·외래키·무결성을 검사한 뒤 새 SQLite 파일을 원자적으로 공개한다.
+   웹 비밀번호 해시·세션·작업 ID·첨부를 보존한다. 이전 실패는 기존 원본을 변경하지 않는다.
+4. 검증된 새 릴리스·세 unit·management 단일 경로 프록시로 시작하고 로그인·기존 대화·첨부·템플릿을
+   확인한다. PostgreSQL 원본과 이전 env는 전환 검증이 끝날 때까지 보존한다.
+
+SQLite 복원은 세 서비스를 모두 중지하고, 기존 파일과 `-wal`/`-shm`을 **함께 격리**한 뒤
+검증된 백업을 원래 경로에 0600으로 설치한다. 같은 스키마를 지원하는 릴리스로 재시작한다.
+전환 직후 PostgreSQL 롤백은 이전 env·두 unit·프록시·릴리스를 함께 복원한다. 전환 후 SQLite에
+새로 기록된 작업은 PostgreSQL에 자동 반영되지 않으므로 이후에는 SQLite 백업을 복원한다.
 
 ### 배포 완료 확인
 
@@ -520,7 +610,7 @@ Codex Console 구현을 요청하면 로컬 변경 또는 검증만으로 범위
 1. 실행 중인 서비스의 실제 릴리스 경로와 적용할 소스 커밋을 확인한다. 해당 커밋에서 새
    릴리스를 빌드하고 [검증과 복구](#검증과-복구)의 관련 검사를 수행한다.
 2. 위 업데이트 절차대로 root와 하위 agent 작업의 종료를 확인하고 전용 DB를 백업한 뒤,
-   두 서비스 중지·migration·`current` 전환·재시작과 프록시 경로 갱신을 수행한다. 기존 인증과 설정을 유지하고
+   스키마 변경 유무에 맞게 서비스 중지·migration·`current` 전환·재시작과 프록시 갱신을 수행한다. 기존 인증과 설정을 유지하고
    이전 릴리스와 DB 백업은 복구용으로 보존한다.
 3. 서비스가 새 릴리스를 실행하는지와 직접·공개 주소의 `/healthz`를 확인한다. 실제
    로그인 세션에서 변경된 API 응답과 브라우저 동작도 검사한다. 추론 강도 변경은
@@ -530,7 +620,7 @@ Codex Console 구현을 요청하면 로컬 변경 또는 검증만으로 범위
    들어가며 fragment가 주소에서 제거되는지 확인한다.
 4. 관리 로그인·서비스 상태·작업 현황·하위 agent 표시를 공개 브라우저에서 확인한다.
    세션 서비스만 중지했을 때 관리 화면은 유지되고 상태가 unknown/unavailable로 갱신되는지
-   검증한 뒤 세션 서비스를 복원한다. 운영 실행 버튼이 명령 대신 Codex 요청 초안을 여는지 확인한다.
+   검증한 뒤 세션 서비스를 복원한다. 템플릿 편집·입력·새 세션 실행·이력과 서버 자원을 확인한다. 일반 CLI 불일치 상태에서도 고정 CLI로 템플릿을 실행하고, management/session 재시작 후 같은 작업과 승인 상태가 유지되는지 확인한다.
 5. 배포한 소스 커밋·릴리스 경로·서비스 상태·동작 검사 결과를 구분해 보고한다.
    빌드만 완료했거나 이전 릴리스가 실행 중이면 배포 완료로 간주하지 않는다.
 
@@ -538,7 +628,7 @@ Codex Console 구현을 요청하면 로컬 변경 또는 검증만으로 범위
 
 - 웹 인증은 scrypt 비밀번호 해시, DB 세션, HttpOnly/SameSite 쿠키, 정확한 origin과 CSRF
   검증을 사용한다. 로그인 실패 5회는 5분 제한한다. 각 서비스 역할은 한 프로세스만 실행한다.
-- 역할별 PostgreSQL advisory lock으로 중복 서버를 차단하고 DB resource lease로 충돌을 조정한다.
+- 역할별 OS 파일 잠금으로 중복 서버를 차단하고 DB resource lease로 충돌을 조정한다.
   작업·계획 버전·승인·요청 중복 방지·화면 projection을 DB에 저장한다. Codex 원본 이력이
   대화의 기준이며 화면 projection을 Codex에 원본 이력으로 되돌려 보내지 않는다.
 - 계획 모드는 읽기 전용 sandbox와 승인 불허 정책을 사용한다. 저장된 계획의 실행 버튼은 최신 계획
@@ -611,10 +701,11 @@ pnpm --dir apps/codex-console-web build
 pnpm --dir apps/codex-console-web e2e
 ```
 
-DB/E2E 검사는 `MTY_TEST_POSTGRES_TEMPLATE_DSN`에 비운영 PostgreSQL 18 접속 정보를
-설정한다. 테스트 계정은 임시 `console_test_*` DB를 생성·제거할 권한이 필요하다. 없으면 DB
-pytest가 skip되며 전체 검증 통과로 취급하면 안 된다. E2E는 실제 HTTP·DB와 테스트 전용
-공식 프로토콜 대역을 사용한다. production 앱에는 mock 실행 모드가 없다.
+일반 DB/E2E 검사는 임시 SQLite 파일을 사용한다. 구버전 PostgreSQL migration과 SQLite 이전
+검사는 `MTY_TEST_POSTGRES_TEMPLATE_DSN`에 비운영 PostgreSQL 접속 정보를 지정한다. 해당 계정은
+임시 `console_test_*` DB 생성·제거 권한이 필요하며, 설정이 없으면 이 검사만 skip된다.
+이전 도구 변경을 skip 상태로 전체 통과라고 보고하지 않는다. E2E는 실제 HTTP·SQLite와 테스트
+전용 프로토콜 대역을 사용한다. production 앱에는 mock 실행 모드가 없다.
 
 메시지 첨부의 실제 파일 읽기·미선택 파일 제외·공식 메시지 ID 연결은 아래의 별도 구독 smoke로
 확인한다. 임시 DB·저장소를 사용하고 원본 대화는 완료 후 archive한다. 파일 내용·대화 본문을
@@ -628,11 +719,10 @@ Codex 업그레이드 계약은 설치된 안정 CLI가 최소 버전 이상이�
 검사한다. 스키마가 같으면 소스 변경 없이 새 CLI를 사용할 수 있다. 스키마가 다르면 이 검사가
 실패하며, 기준 버전과 생성 계약을 함께 검토·갱신해야 한다.
 
-0.158.0 기준은 공식 CLI의 `--experimental` 스키마로 생성한다. 0.156.0 대비 사용 중인
-RPC에는 `InitializeCapabilities.explicitGatewayOauth`, 구독 종류 `promax`, 오류 종류
-`flexUnavailable`이 추가됐다. 콘솔은 새 OAuth 기능을 요청하지 않으며 구독 종류는 그대로
-표시하고 새 실행 오류는 기존 일반 실패 경로로 처리한다. 실행·승인·샌드박스 요청 계약은
-동일하다. 호환성 해시에는 이 추가 필드와 enum도 포함하므로 이후 드리프트 역시 차단한다.
+0.159.2 기준은 공식 CLI의 `--experimental` 스키마로 생성한다. 이전 0.158.0 대비
+`CodexErrorInfo`에 `tooManyDenials`가 추가되고, turn의 오류 설명은 중단된 turn도 포함하도록
+변경됐다. 요청·승인·샌드박스 스키마는 동일하다. 추가 오류 종류는 기존 일반 실패 경로로 처리하고
+중단된 turn은 기존 중단 상태로 표시한다. 호환성 해시는 이 변경도 포함하며 드리프트 차단을 유지한다.
 검사·재생성에는 서비스의 `MTY_CODEX_CONSOLE_BINARY`와 같은 CLI가 `PATH`에서 선택되는지
 확인한다. 재생성은 `scripts/generate_protocol.py`의 기준 버전과 정확히 같은 CLI에서만 허용한다.
 
@@ -640,7 +730,7 @@ RPC에는 `InitializeCapabilities.explicitGatewayOauth`, 구독 종류 `promax`,
 uv run --frozen --directory apps/codex-console-api python scripts/generate_protocol.py --check
 ```
 
-실제 구독을 사용하는 선택적 smoke는 위 테스트 DB 설정 후 아래 명령으로 실행한다.
+실제 구독을 사용하는 선택적 smoke는 별도 DB 설정 없이 아래 명령으로 실행한다.
 임시 Git 저장소에서 계획 단계의 읽기 전용 동작과 승인 후 실제 구현·테스트를
 확인하며, 종료 시 이 테스트가 만든 Codex 대화만 보관 처리한다. 구독 사용량을 소비한다.
 
@@ -652,6 +742,17 @@ uv run --frozen --directory apps/codex-console-api python tests/live_management_
 management smoke는 두 root 요청의 동시 접수와 두 native subagent의 완료 projection,
 읽기 전용 저장소 보존을 검증한다.
 
+템플릿의 별도 실행기는 아래 smoke로 검증한다. `MTY_CODEX_CONSOLE_TEMPLATE_BINARY`는
+검증된 고정 CLI의 실행 파일 경로를 지정한다. 임시 저장소와 SQLite, 서로 다른 세 HTTP
+프로세스를 만들고 일반 CLI를 의도적으로 비호환 상태로 둔다. 고정 CLI의 native 작업을 시작한
+뒤 관리·세션 프로세스만 재시작해 로그인·thread ID·결과 보존을 확인한다. 실행 중 승인 보존과
+다중 프로세스 자원 제한은 `test_templates.py`·`test_standalone.py`에서 별도로 검증한다.
+
+```bash
+MTY_CODEX_CONSOLE_TEMPLATE_BINARY=/absolute/private/codex-0.159.2/node_modules/@openai/codex/bin/codex.js \
+  uv run --frozen --directory apps/codex-console-api python tests/live_template_smoke.py
+```
+
 E2E 대역 통과는 실제 구독 실행
 검증을 대신하지 않는다. 로그인 만료는 사용량 창의 **ChatGPT 연결**에서 공식 device-code
 로그인을 진행한다. 계정에서 device-code가 허용되지 않으면 서버에서 `codex login`을 완료한다.
@@ -661,8 +762,8 @@ E2E 대역 통과는 실제 구독 실행
 테이블 재생성으로 우회하지 않는다. Codex 호환성 오류는 안정 버전과 생성된 RPC 스키마를
 확인하고, 스키마가 바뀐 경우 기준 계약을 검토해 갱신한다.
 버전 불일치가 발생하면 화면 상단과 모델 선택에 **Codex 업데이트 필요**가 표시된다.
-**업데이트 안내**에서 프롬프트를 복사하고, 관리자가 서버 터미널의 소스 저장소에서 `codex`를
-실행해 입력한다. 프롬프트는 호환성 수정·검증, 관련 변경의 커밋·GitLab origin 푸시,
-콘솔 전용 배포·재시작과 공개 브라우저 확인을 요청한다. 복사만으로 명령이 실행되지는 않는다.
-배포가 끝나면 페이지를 새로고침해 모델 목록을 확인한다.
+**업데이트 안내 → 업데이트 템플릿 열기**로 이동해 호환성 업데이트 템플릿을 실행한다.
+고정 CLI·실행기 릴리스가 일반 CLI 오류와 management/session 재시작으로부터 작업을 분리한다.
+실행기 자체가 사용할 수 없을 때에만 접힌 수동 복구 안내의 프롬프트를 서버 Codex에 입력한다.
+배포가 끝나면 페이지를 새로고침해 모델 목록과 실행 결과를 확인한다.
 사용량 제한에는 API fallback을 두지 않는다. 비밀번호 분실은 서버의 `set-password`로 복구한다.

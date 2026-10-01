@@ -49,11 +49,6 @@ export default defineConfig(() => ({
     host: process.env.MTY_WEB_DEV_HOST ?? '127.0.0.1',
     allowedHosts: webDevAllowedHosts,
     proxy: {
-      '^/codex-console/api/(tasks|codex)(/|$)': {
-        target: 'http://127.0.0.1:19365',
-        timeout: 0,
-        proxyTimeout: 0,
-      },
       '/codex-console': {
         target: codexConsoleProxyTarget,
         timeout: 0,
@@ -91,11 +86,6 @@ export default defineConfig(() => ({
     host: process.env.MTY_WEB_DEV_HOST ?? '127.0.0.1',
     allowedHosts: webDevAllowedHosts,
     proxy: {
-      '^/codex-console/api/(tasks|codex)(/|$)': {
-        target: 'http://127.0.0.1:19365',
-        timeout: 0,
-        proxyTimeout: 0,
-      },
       '/codex-console': {
         target: codexConsoleProxyTarget,
         timeout: 0,

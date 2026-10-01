@@ -4,7 +4,6 @@ from uuid import uuid4
 from sqlalchemy import (
     JSON,
     CheckConstraint,
-    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -12,9 +11,10 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
-    create_engine,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from .storage import UTCDateTime, database  # noqa: F401 -- public persistence entry point
 
 
 def now() -> datetime:
@@ -35,20 +35,23 @@ class Owner(Base):
     id: Mapped[int] = mapped_column(primary_key=True, default=1)
     password_hash: Mapped[str] = mapped_column(Text)
     failed_logins: Mapped[int] = mapped_column(default=0)
-    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    locked_until: Mapped[datetime | None] = mapped_column(UTCDateTime())
 
 
 class WebSession(Base):
     __tablename__ = "console_sessions"
     token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
     csrf_hash: Mapped[str] = mapped_column(String(64))
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
 
 
 class Task(Base):
     __tablename__ = "console_tasks"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     title: Mapped[str] = mapped_column(String(200))
+    executor: Mapped[str] = mapped_column(String(24), default="session", server_default="session")
+    template_snapshot: Mapped[dict | None] = mapped_column(JSON)
+    launch_id: Mapped[str | None] = mapped_column(String(36), unique=True)
     context: Mapped[dict | None] = mapped_column(JSON)
     pinned: Mapped[bool] = mapped_column(default=False)
     thread_id: Mapped[str | None] = mapped_column(String(160), unique=True)
@@ -69,8 +72,8 @@ class Task(Base):
     current_operation_id: Mapped[str | None] = mapped_column(String(36))
     approved_revision: Mapped[int | None] = mapped_column(Integer)
     error_code: Mapped[str | None] = mapped_column(String(80))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
 
 
 class Revision(Base):
@@ -85,7 +88,7 @@ class Revision(Base):
     version: Mapped[int] = mapped_column(Integer)
     body: Mapped[str] = mapped_column(Text)
     source_turn_id: Mapped[str | None] = mapped_column(String(160))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
 
 
 class Item(Base):
@@ -110,7 +113,7 @@ class PendingRequest(Base):
     payload: Mapped[dict] = mapped_column(JSON)
     state: Mapped[str] = mapped_column(String(24), default="pending")
     answer: Mapped[dict | None] = mapped_column(JSON)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
 
 
 class Operation(Base):
@@ -121,7 +124,7 @@ class Operation(Base):
     state: Mapped[str] = mapped_column(String(24), default="pending")
     digest: Mapped[str] = mapped_column(String(64))
     display_text: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
 
 
 class Attachment(Base):
@@ -134,8 +137,8 @@ class Attachment(Base):
     size: Mapped[int] = mapped_column(Integer)
     sha256: Mapped[str] = mapped_column(String(64))
     content: Mapped[bytes | None] = mapped_column(LargeBinary, deferred=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+    deleted_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
 
 
 class MessageAttachment(Base):
@@ -182,7 +185,7 @@ class Agent(Base):
     turn_id: Mapped[str | None] = mapped_column(String(160))
     activity: Mapped[str | None] = mapped_column(String(500))
     progress: Mapped[dict | None] = mapped_column(JSON)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
 
 
 class ServiceObservation(Base):
@@ -190,7 +193,23 @@ class ServiceObservation(Base):
     service_id: Mapped[str] = mapped_column(String(100), primary_key=True)
     status: Mapped[str] = mapped_column(String(40))
     version: Mapped[str | None] = mapped_column(String(160))
-    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    checked_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+
+
+class TaskTemplate(Base):
+    __tablename__ = "console_templates"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    version: Mapped[int] = mapped_column(default=1)
+    definition: Mapped[dict] = mapped_column(JSON)
+    archived: Mapped[bool] = mapped_column(default=False)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+
+
+class HostObservation(Base):
+    __tablename__ = "console_host_observations"
+    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    payload: Mapped[dict] = mapped_column(JSON)
+    checked_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
 
 
 class Event(Base):
@@ -198,10 +217,8 @@ class Event(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     task_id: Mapped[str] = mapped_column(ForeignKey("console_tasks.id", ondelete="CASCADE"))
     kind: Mapped[str] = mapped_column(String(80))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-    __table_args__ = (Index("ix_console_events_task_id_id", "task_id", "id"),)
-
-
-def database(url: str):
-    engine = create_engine(url, pool_pre_ping=True, hide_parameters=True)
-    return engine, sessionmaker(engine, expire_on_commit=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+    __table_args__ = (
+        Index("ix_console_events_task_id_id", "task_id", "id"),
+        {"sqlite_autoincrement": True},
+    )

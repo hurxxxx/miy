@@ -13,6 +13,7 @@ vi.mock('@pierre/diffs/react', () => ({ MultiFileDiff: () => <div /> }));
 const t = translate('en-US');
 const task: Detail = {
   id: 'task',
+  executor: 'session',
   title: 'Useful change',
   stage: 'plan',
   status: 'idle',

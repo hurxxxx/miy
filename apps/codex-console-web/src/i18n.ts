@@ -1,4 +1,163 @@
 export const korean = {
+  'Back to sessions': '세션 목록으로',
+  Pinned: '고정됨',
+  Sessions: '세션',
+  'All sessions': '전체 세션',
+  'Session views': '세션 보기',
+  'Search sessions': '세션 검색',
+  'Import Codex session': 'Codex 세션 불러오기',
+  'Find a conversation and continue in your workspace.':
+    '지난 대화를 찾아 작업실에서 이어가세요.',
+  'No matching sessions': '검색한 세션이 없습니다',
+  'No sessions yet': '아직 세션이 없습니다',
+  'Session list could not be refreshed. Showing the last received state.':
+    '세션 목록을 갱신하지 못했습니다. 마지막으로 받은 목록을 표시합니다.',
+  'Template actions': '템플릿 더보기',
+  Actions: '동작',
+  Status: '상태',
+  Task: '작업',
+  Resource: '항목',
+  Details: '상세',
+  'Execution settings': '실행 설정',
+  'Search templates': '템플릿 검색',
+  'Search templates by name or description': '템플릿 이름이나 설명으로 검색',
+  'Templates shown': '표시된 템플릿',
+  'No matching templates': '검색한 템플릿이 없습니다',
+  'Clear filters': '필터 초기화',
+  'No runs from this template yet': '아직 실행 이력이 없습니다',
+  'Run this template to see agent status and results here.':
+    '템플릿을 실행하면 이곳에서 에이전트 상태와 대화·결과를 확인할 수 있습니다.',
+  'Browse native Codex sessions and open them in your workspace.':
+    'Codex 원본 세션을 찾아 작업실에서 이어서 확인하세요.',
+  'An execution service is unavailable. Showing the last reported agent state.':
+    '일부 실행 서비스의 상태를 확인할 수 없습니다. 마지막으로 보고된 에이전트 상태를 표시합니다.',
+  Workspace: '작업 경로',
+  'Current step': '현재 단계',
+  'Agent views': '에이전트 보기',
+  'Agent runs': '작업 에이전트',
+  'Codex sessions': 'Codex 세션',
+  'View all agents': '전체 에이전트 보기',
+  'Follow running work, respond to requests, and revisit results.':
+    '작업별 에이전트 진행 상황을 확인하고, 요청에 응답하거나 결과를 다시 살펴보세요.',
+  Finished: '종료',
+  'Search tasks by title': '작업 제목으로 검색',
+  'Task source': '작업 유형',
+  'All sources': '모든 작업 유형',
+  'Matching tasks': '표시된 작업',
+  'Recent work is shown here. Search by title to find older runs.':
+    '최근 작업과 추적 중인 작업을 표시합니다. 이전 이력은 제목으로 검색하세요.',
+  'Choose another filter, or start a task from a template.':
+    '다른 조건을 선택하거나 템플릿으로 새 작업을 시작하세요.',
+  'Pending requests': '대기 중인 요청',
+  'Respond to requests': '요청 확인',
+  'Open conversation and results': '대화·결과 열기',
+  'Agent activity': '에이전트 활동',
+  'Close agent activity': '에이전트 활동 닫기',
+  'Running agents': '실행 중 에이전트',
+  'Recently finished': '최근 종료',
+  'Awaiting confirmation': '상태 확인 대기',
+  'Result ready': '결과 확인 가능',
+  'Loading agent activity': '에이전트 활동 불러오는 중',
+  'Updates delayed': '상태 갱신 지연',
+  'Updates delayed. Showing the last received state.':
+    '상태를 갱신하지 못했습니다. 마지막으로 받은 상태를 표시합니다.',
+  'Follow parallel work and return to its results.':
+    '병렬로 실행 중인 작업과 종료된 결과를 한곳에서 확인합니다.',
+  'Start a task or template. Its agents will appear here.':
+    '작업이나 템플릿을 실행하면 이곳에 에이전트 상태가 표시됩니다.',
+  'Agent details': '에이전트 상세',
+  'List refreshed': '목록 갱신',
+  'View all runs': '전체 실행 이력',
+  Updated: '갱신',
+  Copy: '사본',
+  Edit: '편집',
+  Implement: '실행',
+  'Task templates': '작업 템플릿',
+  'Task template': '작업 템플릿',
+  'Template run history': '템플릿 실행 이력',
+  'Selected template': '선택한 템플릿',
+  'Archived template': '보관된 템플릿',
+  'Runs from every version of this template. Each run keeps its original settings.':
+    '이 템플릿의 모든 버전에서 실행한 작업입니다. 각 작업에는 실행 당시 설정이 보존됩니다.',
+  'Template details are unavailable. The history filter is still applied.':
+    '템플릿 정보를 불러오지 못했습니다. 이력은 선택한 템플릿으로 계속 제한됩니다.',
+  'Run history': '실행 이력',
+  Monitoring: '모니터링',
+  'Your Codex workspace': 'Codex 작업 공간',
+  'Console navigation': '콘솔 메뉴',
+  'Open navigation': '메뉴 열기',
+  'Save the context once. Start each run in a new Codex session.':
+    '작업 맥락을 미리 저장하고, 실행할 때마다 새 Codex 세션에서 작업합니다.',
+  'Create template': '템플릿 만들기',
+  'Selected service': '선택한 서비스',
+  'Show archived templates': '보관한 템플릿 표시',
+  'Loading templates': '템플릿 불러오는 중',
+  'No templates yet': '아직 저장한 템플릿이 없습니다',
+  'Isolated workspace': '별도 작업 공간',
+  'Shared workspace': '공유 작업 공간',
+  'Request details': '요청 내용',
+  'Run template': '실행',
+  Duplicate: '복제',
+  'Restore template': '템플릿 복원',
+  'Archive template': '템플릿 보관',
+  'Edit template': '템플릿 편집',
+  'Template name': '템플릿 이름',
+  Description: '설명',
+  'Working directory relative to project': '프로젝트 기준 작업 경로',
+  Prompt: '프롬프트',
+  'Run inputs': '실행 시 입력값',
+  'Use {{name}} in the prompt or context. Values are inserted as text.':
+    '프롬프트나 맥락에 {{name}}을 넣으면 실행 시 입력한 값으로 바뀝니다.',
+  'Input name': '입력값 이름',
+  'Input label': '화면에 표시할 이름',
+  'Default value': '기본값',
+  Required: '필수',
+  'Remove input': '입력값 삭제',
+  'Add input': '입력값 추가',
+  'Additional context': '추가 맥락',
+  'Reference paths, one per line': '참고 파일 경로 (한 줄에 하나)',
+  'Template runner is unavailable. Saved templates can still be edited.':
+    '템플릿 실행 서비스에 연결할 수 없습니다. 저장한 템플릿은 계속 편집할 수 있습니다.',
+  'Codex default': 'Codex 기본 설정',
+  'Serialize changes to shared server resources':
+    '서버 공용 자원을 사용하는 다른 작업과 동시에 실행하지 않기',
+  'Save template': '템플릿 저장',
+  'Server observations and native Codex agent activity.':
+    '서버 상태와 Codex 에이전트의 활동을 확인합니다.',
+  'Each template run keeps its own conversation and execution settings.':
+    '각 실행의 대화와 당시 실행 설정을 별도로 보관합니다.',
+  'Server resources': '서버 자원',
+  Memory: '메모리',
+  Swap: '스왑',
+  Disk: '디스크',
+  'Cgroup limit applied': '적용된 메모리 한도',
+  'CPU load': 'CPU 부하',
+  'Load averages: 1, 5, 15 minutes': '최근 1분 · 5분 · 15분 평균 부하',
+  Available: '사용 가능',
+  'Use a task template': '템플릿으로 작업 요청',
+  'Codex compatibility': 'Codex 호환성',
+  'Installed CLI': '설치된 CLI',
+  'Template runner CLI': '템플릿 실행용 CLI',
+  'Console contract baseline': '콘솔 검증 기준 버전',
+  'Version differences require protocol verification. Run the compatibility template when needed.':
+    '버전이 다르면 프로토콜 호환성 확인이 필요합니다. 필요할 때 호환성 업데이트 템플릿을 실행하세요.',
+  'Open update templates': '업데이트 템플릿 열기',
+  'No active tasks': '진행 중인 작업이 없습니다',
+  'Template runs': '템플릿 실행',
+  'Template run': '템플릿 작업',
+  'Run settings': '실행 당시 설정',
+  'Saved request': '실행한 요청',
+  'Template version': '템플릿 버전',
+  'The template changed. Reload it before saving or running.':
+    '템플릿이 변경되었습니다. 다시 불러온 뒤 저장하거나 실행하세요.',
+  'The template is unavailable or archived.':
+    '템플릿을 찾을 수 없거나 보관된 상태입니다.',
+  'Check the required template inputs.': '템플릿의 필수 입력값을 확인하세요.',
+  'The request identifier was already used with different inputs.':
+    '다른 입력값에 사용된 요청 번호입니다. 템플릿을 다시 열어 실행하세요.',
+  'Run the compatibility update template in a separate Codex session.':
+    '별도 Codex 세션에서 호환성 업데이트 템플릿을 실행하세요.',
+  'Manual recovery instructions': '수동 복구 안내',
   'Session service unavailable. Showing the last reported task state.':
     '세션 서비스에 연결할 수 없어 마지막으로 보고된 작업 상태를 표시합니다.',
   'The selected skill is unavailable. Refresh the task and choose again.':
@@ -340,6 +499,13 @@ export const translate =
     locale === 'ko-KR' ? korean[key] : key;
 
 const errors: Record<string, Copy> = {
+  stale_template: 'The template changed. Reload it before saving or running.',
+  template_not_found: 'The template is unavailable or archived.',
+  template_runner_unavailable:
+    'Template runner is unavailable. Saved templates can still be edited.',
+  template_inputs_invalid: 'Check the required template inputs.',
+  duplicate_request:
+    'The request identifier was already used with different inputs.',
   skill_unavailable:
     'The selected skill is unavailable. Refresh the task and choose again.',
   capacity_busy:

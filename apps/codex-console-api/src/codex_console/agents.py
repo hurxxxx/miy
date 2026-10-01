@@ -24,15 +24,18 @@ def busy_descendants(db, task_id):
     )
 
 
-def task_for_thread(db, thread_id):
+def task_for_thread(db, thread_id, *, executor=None):
+    if not isinstance(thread_id, str) or not thread_id:
+        return None
     task = db.scalar(select(Task).where(Task.thread_id == thread_id))
     if task:
-        return task
+        return task if executor is None or task.executor == executor else None
     agent = db.get(Agent, thread_id) if thread_id else None
-    return db.get(Task, agent.task_id) if agent else None
+    task = db.get(Task, agent.task_id) if agent else None
+    return task if task and (executor is None or task.executor == executor) else None
 
 
-def register(db, thread):
+def register(db, thread, *, executor=None, task_id=None):
     thread_id = thread.get("id")
     if not isinstance(thread_id, str) or len(thread_id) > 160:
         return None
@@ -41,7 +44,12 @@ def register(db, thread):
     if parent == thread_id:
         return None
     if not task and parent:
-        task = task_for_thread(db, parent)
+        task = task_for_thread(db, parent, executor=executor)
+    if task and (
+        (executor is not None and task.executor != executor)
+        or (task_id is not None and task.id != task_id)
+    ):
+        return None
     if not task or (thread.get("cwd") and thread["cwd"] != task.root):
         return None
     root = db.get(Agent, task.thread_id)
@@ -85,6 +93,8 @@ def project(db, task, thread_id, method, params):
     from . import store
 
     row = db.get(Agent, thread_id)
+    if row and row.task_id != task.id:
+        return
     if not row:
         row = Agent(
             thread_id=thread_id,

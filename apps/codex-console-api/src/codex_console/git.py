@@ -103,7 +103,12 @@ def read_worktree_file(root: Path, relative: str) -> bytes:
         raise ConsoleError("path_denied", 403) from None
 
 
+def repository_root(root: Path) -> Path:
+    return Path(os.fsdecode(git(root, "rev-parse", "--show-toplevel")).strip())
+
+
 def changes(root: Path) -> list[dict]:
+    root = repository_root(root)
     records = git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all").split(b"\0")
     result, i = [], 0
     while i < len(records):
@@ -127,6 +132,7 @@ def changes(root: Path) -> list[dict]:
 
 
 def fingerprint(root: Path) -> str:
+    root = repository_root(root)
     result = hashlib.sha256(git(root, "rev-parse", "HEAD"))
     result.update(git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all"))
     # Include bytes so edits to already-dirty files cannot masquerade as our own previous diff.
@@ -140,6 +146,7 @@ def fingerprint(root: Path) -> str:
 
 def status(root: Path) -> dict:
     """Read local Git state only; remote counts describe cached refs, never a fetch."""
+    root = repository_root(root)
     raw = git(root, "status", "--porcelain=v2", "--branch", "-z", "--untracked-files=all")
     result = dict(
         branch=None,
@@ -233,12 +240,23 @@ def prepare_workspace(
     if target.exists():
         raise ConsoleError("worktree_exists")
     base = git(workspace, "rev-parse", "--verify", "--end-of-options", f"{base_ref}^{{commit}}")
+    relative = workspace.relative_to(repository_root(workspace))
+    if relative != Path("."):
+        # Preserve a selected cwd when dirty work requires an isolated checkout.
+        if (
+            git(
+                workspace, "cat-file", "-t", f"{base.decode().strip()}:{relative.as_posix()}"
+            ).strip()
+            != b"tree"
+        ):
+            raise ConsoleError("workspace_unavailable")
     worktree_root.mkdir(parents=True, exist_ok=True)
     git(workspace, "worktree", "add", "--detach", str(target), base.decode().strip())
-    return target, True
+    return target / relative, True
 
 
 def diff(root: Path, relative: str) -> dict:
+    root = repository_root(root)
     candidates = {item["path"]: item for item in changes(root)}
     if relative not in candidates:
         raise ConsoleError("file_not_changed", 404)

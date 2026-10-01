@@ -1,18 +1,16 @@
-import {
-  AgentTree,
-  ManagementView,
-  needsAttention,
-  running,
-  useOverview,
-  type TaskDraft,
-  type Purpose,
-} from './management';
+import { AgentTree, ManagementView, useOverview } from './management';
+import { PageLayout } from './page-layout';
+import { SessionList, sortSessions } from './sessions';
+import { useTaskSearch } from './task-search';
 import { Button, Dialog, Input } from '@mty/ui';
 import {
+  Activity,
   ArrowUp,
+  ArrowLeft,
+  MessagesSquare,
   CircleStop,
   Code2,
-  History,
+  Bot,
   ListTodo,
   LogOut,
   Menu,
@@ -22,7 +20,14 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   active,
   api,
@@ -60,6 +65,10 @@ import {
 } from './views';
 import { AttachmentBadges, FileLibrary } from './attachments';
 import { CodexUpdateGuide } from './codex-update';
+import { Templates } from './templates';
+import { AgentActivity } from './agent-activity';
+import { AgentsView, type AgentFilters } from './agents';
+import { needsAttention, executing, running } from './agent-state';
 import { GitWorkspace, GitSummary, useGitState } from './git';
 import {
   ExecutionSettings,
@@ -76,22 +85,67 @@ const tabs: { id: Tab; label: Copy }[] = [
   { id: 'files', label: 'Files' },
 ];
 
+type SessionTab = 'sessions' | 'codex' | null;
+type ConsolePage =
+  | 'sessions'
+  | 'workspace'
+  | 'templates'
+  | 'agents'
+  | 'monitoring';
+function readRoute(): {
+  page: ConsolePage;
+  task: string | null;
+  sessionTab: SessionTab;
+  template: string | null;
+} {
+  const params = new URLSearchParams(window.location.search);
+  const raw = params.get('task');
+  const task = raw && /^[0-9a-f-]{36}$/.test(raw) ? raw : null;
+  const view = params.get('view');
+  const tab = params.get('tab');
+  const page: ConsolePage = task
+    ? 'workspace'
+    : tab === 'codex'
+      ? 'sessions'
+      : view === 'history'
+        ? 'agents'
+        : view === 'templates' || view === 'agents' || view === 'monitoring'
+          ? view
+          : 'sessions';
+  const template = params.get('template');
+  return {
+    page,
+    task,
+    sessionTab:
+      page === 'sessions' ? (tab === 'codex' ? 'codex' : 'sessions') : null,
+    template:
+      page === 'agents' &&
+      template &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        template,
+      )
+        ? template.toLowerCase()
+        : null,
+  };
+}
+
 export function App() {
   const [locale, setLocale] = useState<Locale>('ko-KR');
   const t = useMemo(() => translate(locale), [locale]);
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [sessionFailed, setSessionFailed] = useState(false);
   const [password, setPassword] = useState('');
-  const [page, setPage] = useState<'services' | 'tasks' | 'workspace'>(() =>
-    new URLSearchParams(window.location.search).has('task')
-      ? 'workspace'
-      : 'services',
-  );
-  const [seed, setSeed] = useState<TaskDraft | null>(null);
-  const [purpose, setPurpose] = useState<Purpose>('development');
+  const [page, setPage] = useState<ConsolePage>(() => readRoute().page);
   const [isolate, setIsolate] = useState(false);
   const drafts = useRef(new Map<string, string>());
+  const workspaceHeading = useRef<HTMLHeadingElement>(null);
+  const focusSession = useRef(false);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [overviewCheckedAt, setOverviewCheckedAt] = useState<number | null>(
+    null,
+  );
+  const [overviewFailed, setOverviewFailed] = useState(false);
+  const overviewRequest = useRef(0);
   const [task, setTask] = useState<Detail | null>(null);
   const [documentDrafts, setDocumentDrafts] = useState<
     Record<string, DocumentDraft>
@@ -111,12 +165,58 @@ export function App() {
     'conversation',
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
+  const sidebar = useRef<HTMLElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const [agentFilters, setAgentFilters] = useState<AgentFilters>({
+    status: 'all',
+    source: 'all',
+    query: '',
+  });
+  const [sessionTab, setSessionTab] = useState<SessionTab>(
+    () => readRoute().sessionTab,
+  );
+  const [sessionQuery, setSessionQuery] = useState('');
+  const [sessionRetry, setSessionRetry] = useState(0);
+  const sessionViewport = useRef<HTMLElement>(null);
+  const sessionScroll = useRef(0);
+  const restoreSessionScroll = useRef(true);
+  const sessionSearch = useTaskSearch(
+    tasks,
+    sessionQuery.trim(),
+    null,
+    sessionRetry,
+    authenticated === true && page === 'sessions' && sessionTab === 'sessions',
+  );
+  const sessionRows = sortSessions(
+    sessionSearch.remote
+      ? sessionSearch.search.key === sessionSearch.key
+        ? sessionSearch.search.rows
+        : []
+      : tasks,
+  );
+  const sessionsLoading = sessionSearch.remote
+    ? sessionSearch.search.key !== sessionSearch.key ||
+      sessionSearch.search.loading
+    : !overviewCheckedAt && !overviewFailed;
+  const sessionsFailed = sessionSearch.remote
+    ? sessionSearch.search.key === sessionSearch.key &&
+      sessionSearch.search.failed
+    : overviewFailed;
+  useLayoutEffect(() => {
+    if (
+      page !== 'sessions' ||
+      sessionTab !== 'sessions' ||
+      sessionsLoading ||
+      !restoreSessionScroll.current ||
+      !sessionViewport.current
+    )
+      return;
+    sessionViewport.current.scrollTop = sessionScroll.current;
+    restoreSessionScroll.current = false;
+  }, [page, sessionTab, sessionQuery, sessionsLoading, sessionRows.length]);
+  const [templateId, setTemplateId] = useState(() => readRoute().template);
   const [history, setHistory] = useState<Thread[]>([]);
   const [historyCursor, setHistoryCursor] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const searchRef = useRef(search);
-  searchRef.current = search;
   const [historySearch, setHistorySearch] = useState('');
   const [importThread, setImportThread] = useState<Thread | null>(null);
   const [confirmInactive, setConfirmInactive] = useState(false);
@@ -226,11 +326,18 @@ export function App() {
     }
   }, [checkSession]);
   const refreshTasks = useCallback(async () => {
-    const query = searchRef.current.trim();
-    const rows = await api<Task[]>(
-      query ? `/overview?search=${encodeURIComponent(query)}` : '/overview',
-    );
-    if (searchRef.current.trim() === query) setTasks(rows);
+    const request = ++overviewRequest.current;
+    try {
+      const rows = await api<Task[]>('/overview');
+      if (request !== overviewRequest.current) return;
+      setTasks(rows);
+      setOverviewCheckedAt(Date.now());
+      setOverviewFailed(false);
+    } catch (error) {
+      if (request !== overviewRequest.current) return;
+      setOverviewFailed(true);
+      throw error;
+    }
   }, []);
   const refreshAccount = useCallback(async () => {
     const value = await api<Account>('/codex/account');
@@ -342,14 +449,6 @@ export function App() {
     void refreshTasks().catch(onError);
   }, [refreshTasks, onError]);
   useOverview(authenticated === true, overviewChanged);
-  const prepareDraft = (value: TaskDraft) => {
-    setSeed(value);
-    setPurpose(value.purpose);
-    setTitle(value.title);
-    setIsolate(false);
-    setNewOpen(true);
-  };
-
   const approveImplementation = (revision: Revision, text = '') => {
     if (!task) return;
     setApprovalFiles(
@@ -434,6 +533,32 @@ export function App() {
     document.documentElement.lang = locale;
   }, [locale]);
   useEffect(() => {
+    if (!sidebarOpen) return;
+    const buttons = () =>
+      Array.from(
+        sidebar.current?.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href]',
+        ) ?? [],
+      );
+    buttons()[0]?.focus();
+    const key = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSidebarOpen(false);
+        menuButton.current?.focus();
+      } else if (event.key === 'Tab') {
+        const controls = buttons();
+        const target = event.shiftKey ? controls.at(-1) : controls[0];
+        const edge = event.shiftKey ? controls[0] : controls.at(-1);
+        if (document.activeElement === edge && target) {
+          event.preventDefault();
+          target.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', key);
+    return () => document.removeEventListener('keydown', key);
+  }, [sidebarOpen]);
+  useEffect(() => {
     if (
       !Object.values(documentDrafts).some(
         (draft) => draft.body !== (draft.base?.body ?? ''),
@@ -461,6 +586,7 @@ export function App() {
   }, [initializeSession]);
   useEffect(() => {
     if (!authenticated) return;
+    void refreshTasks().catch(onError);
     void refreshAccount().catch(onError);
     const timer = window.setInterval(
       () => void refreshAccount().catch(onError),
@@ -475,14 +601,6 @@ export function App() {
     void refreshModels(selected, controller.signal);
     return () => controller.abort();
   }, [authenticated, selected, refreshModels]);
-  useEffect(() => {
-    if (!authenticated) return;
-    const timer = window.setTimeout(
-      () => void refreshTasks().catch(onError),
-      200,
-    );
-    return () => window.clearTimeout(timer);
-  }, [search, authenticated, refreshTasks, onError]);
   useEffect(() => {
     initializedTask.current = null;
     setTask(null);
@@ -578,13 +696,150 @@ export function App() {
     });
   };
   const choose = (id: string) => {
+    focusSession.current = true;
+    if (selected) drafts.current.set(selected, message);
     setPage('workspace');
-    window.history.replaceState(null, '', `?task=${encodeURIComponent(id)}`);
+    setSessionTab(null);
+    window.history.pushState(null, '', `?task=${encodeURIComponent(id)}`);
     setSelected(id);
     setSidebarOpen(false);
     setError(null);
     setMobileView('conversation');
   };
+  useEffect(() => {
+    if (
+      focusSession.current &&
+      page === 'workspace' &&
+      !sessionTab &&
+      !sidebarOpen &&
+      task?.id === selected &&
+      workspaceHeading.current
+    ) {
+      workspaceHeading.current.focus({ preventScroll: true });
+      focusSession.current = false;
+    }
+  }, [page, sessionTab, sidebarOpen, task?.id, selected]);
+  const navigate = (
+    next: ConsolePage,
+    tab: SessionTab = null,
+    template: string | null = null,
+  ) => {
+    if (selected) drafts.current.set(selected, message);
+    setPage(next);
+    setSessionTab(next === 'sessions' ? (tab ?? 'sessions') : null);
+    if (
+      next === 'sessions' &&
+      (page !== 'sessions' || sessionTab !== (tab ?? 'sessions'))
+    )
+      restoreSessionScroll.current = true;
+    setTemplateId(template);
+    setSidebarOpen(false);
+    window.history.pushState(
+      null,
+      '',
+      next === 'workspace' && !tab && selected
+        ? `?task=${encodeURIComponent(selected)}`
+        : `?view=${next}${tab === 'codex' ? '&tab=codex' : ''}${template ? `&template=${encodeURIComponent(template)}` : ''}`,
+    );
+  };
+  useEffect(() => {
+    if (!authenticated || page !== 'sessions' || sessionTab !== 'codex') return;
+    const controller = new AbortController();
+    void api<ThreadPage>(
+      '/codex/threads?search=',
+      undefined,
+      'GET',
+      controller.signal,
+    )
+      .then((result) => {
+        setHistory(result.items);
+        setHistoryCursor(result.cursor ?? null);
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted) onError(e);
+      });
+    return () => controller.abort();
+  }, [authenticated, page, sessionTab, onError]);
+  useEffect(() => {
+    const pop = () => {
+      if (selected) drafts.current.set(selected, message);
+      const route = readRoute();
+      setPage(route.page);
+      setSidebarOpen(false);
+      setSessionTab(route.sessionTab);
+      if (
+        route.page === 'sessions' &&
+        (page !== 'sessions' || sessionTab !== route.sessionTab)
+      )
+        restoreSessionScroll.current = true;
+      setTemplateId(route.template);
+      if (route.task) setSelected(route.task);
+    };
+    window.addEventListener('popstate', pop);
+    return () => window.removeEventListener('popstate', pop);
+  }, [selected, message, page, sessionTab]);
+  const sessionNavigation = (
+    <div className="history-tabs" role="group" aria-label={t('Session views')}>
+      <button
+        aria-pressed={sessionTab === 'sessions'}
+        onClick={() => navigate('sessions')}
+      >
+        {t('All sessions')}
+      </button>
+      <button
+        aria-pressed={sessionTab === 'codex'}
+        onClick={() => navigate('sessions', 'codex')}
+      >
+        {t('Import Codex session')}
+      </button>
+    </div>
+  );
+  const sessionSearchInput = (id: string) => (
+    <Input
+      type="search"
+      id={id}
+      aria-label={t('Search sessions')}
+      placeholder={t('Search sessions')}
+      maxLength={200}
+      value={sessionQuery}
+      onChange={(event) => {
+        sessionScroll.current = 0;
+        restoreSessionScroll.current = true;
+        setSessionQuery(event.target.value);
+      }}
+    />
+  );
+  const sessionFeedback = (
+    <>
+      {sessionsFailed ? (
+        <div className="session-notice" role="status">
+          <p>
+            {t(
+              'Session list could not be refreshed. Showing the last received state.',
+            )}
+          </p>
+          <Button
+            variant="ghost"
+            onClick={() =>
+              sessionSearch.remote
+                ? setSessionRetry((value) => value + 1)
+                : void refreshTasks().catch(onError)
+            }
+          >
+            {t('Retry')}
+          </Button>
+        </div>
+      ) : sessionsLoading ? (
+        <p className="session-notice" role="status">
+          {t('Searching')}
+        </p>
+      ) : !sessionRows.length ? (
+        <p className="session-notice" role="status">
+          {t(sessionQuery.trim() ? 'No matching sessions' : 'No sessions yet')}
+        </p>
+      ) : null}
+    </>
+  );
   const uploadStatus = uploads.map((upload, index) => (
     <div className="upload-status" key={index} role="status">
       <span>{upload.file.name}</span>
@@ -717,16 +972,27 @@ export function App() {
           className="mobile-only"
           size="icon"
           variant="ghost"
-          aria-label={t('Open tasks')}
+          aria-label={t('Open navigation')}
+          aria-expanded={sidebarOpen}
+          aria-controls="console-sidebar"
+          ref={menuButton}
           onClick={() => setSidebarOpen(true)}
         >
           <Menu size={18} />
         </Button>
         <div className="brand">
           <Code2 size={21} />
-          <strong>{t('Codex workspace')}</strong>
+          <strong>Codex Console</strong>
         </div>
         <div className="topbar-actions">
+          <AgentActivity
+            tasks={tasks}
+            checkedAt={overviewCheckedAt}
+            failed={overviewFailed}
+            t={t}
+            openTask={choose}
+            openAgents={() => navigate('agents')}
+          />
           <button
             className="account-badge"
             onClick={() =>
@@ -771,145 +1037,62 @@ export function App() {
           onClick={() => setSidebarOpen(false)}
         />
       )}
-      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <nav className="management-navigation" aria-label={t('Work overview')}>
-          <Button
-            aria-pressed={page === 'services'}
-            onClick={() => {
-              setPage('services');
-              setSidebarOpen(false);
-            }}
-          >
-            {t('Service status')}
-          </Button>
-          <Button
-            aria-pressed={page === 'tasks'}
-            onClick={() => {
-              setPage('tasks');
-              setSidebarOpen(false);
-            }}
-          >
-            {t('Work overview')}
-          </Button>
-          <small>
-            {t('Needs attention')}: {tasks.filter(needsAttention).length} ·{' '}
-            {t('Running')}: {tasks.filter(running).length}
-          </small>
-        </nav>
+      <aside
+        id="console-sidebar"
+        ref={sidebar}
+        className={`sidebar ${sidebarOpen ? 'open' : ''}`}
+      >
+        <div className="sidebar-heading">
+          <span>{t('Your Codex workspace')}</span>
+        </div>
         <Button
           variant="primary"
-          onClick={() => {
-            setSeed(null);
-            setPurpose('development');
-            setIsolate(false);
-            setNewOpen(true);
-          }}
+          size="comfortable"
+          onClick={() => setNewOpen(true)}
           fullWidth
         >
           <Plus size={16} />
           {t('New task')}
         </Button>
-        <div className="sidebar-tabs">
-          <button
-            aria-pressed={!showHistory}
-            onClick={() => setShowHistory(false)}
-          >
-            <ListTodo size={15} />
-            {t('Tasks')}
-          </button>
-          <button
-            aria-pressed={showHistory}
-            onClick={() => {
-              setShowHistory(true);
-              void loadHistory();
-            }}
-          >
-            <History size={15} />
-            {t('History')}
-          </button>
-        </div>
-        {showHistory ? (
-          <>
-            <form
-              className="search"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void loadHistory();
-              }}
+        <nav
+          className="console-navigation"
+          aria-label={t('Console navigation')}
+        >
+          {(
+            [
+              ['sessions', 'Sessions', MessagesSquare],
+              ['templates', 'Task templates', ListTodo],
+              ['agents', 'Agents', Bot],
+              ['monitoring', 'Monitoring', Activity],
+            ] as const
+          ).map(([id, label, Icon]) => (
+            <button
+              key={id}
+              aria-current={
+                page === id || (id === 'sessions' && page === 'workspace')
+                  ? 'page'
+                  : undefined
+              }
+              onClick={() => navigate(id)}
             >
-              <Input
-                aria-label={t('Search Codex history')}
-                placeholder={t('Search Codex history')}
-                value={historySearch}
-                onChange={(event) => setHistorySearch(event.target.value)}
-              />
-              <Button
-                type="submit"
-                variant="ghost"
-                size="icon"
-                aria-label={t('Search Codex history')}
-              >
-                <Search size={15} />
-              </Button>
-            </form>
-            <div className="task-list">
-              {history.map((row) => (
-                <button
-                  key={row.id}
-                  className="task-row"
-                  onClick={() => {
-                    setImportThread(row);
-                    setConfirmInactive(false);
-                  }}
-                >
-                  <strong>{row.title}</strong>
-                  <small>
-                    {new Date(row.updated_at * 1000).toLocaleDateString(locale)}
-                  </small>
-                </button>
-              ))}
-            </div>
-            {historyCursor && (
-              <Button
-                disabled={busy}
-                onClick={() => void loadHistory(historyCursor)}
-              >
-                {t('Load more')}
-              </Button>
-            )}
-          </>
-        ) : (
-          <>
-            <Input
-              aria-label={t('Search tasks')}
-              placeholder={t('Search tasks')}
-              value={search}
-              maxLength={200}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-            <nav className="task-list" aria-label={t('Tasks')}>
-              {tasks.map((row) => (
-                <button
-                  className={`task-row ${selected === row.id ? 'selected' : ''}`}
-                  key={row.id}
-                  aria-current={selected === row.id ? 'page' : undefined}
-                  onClick={() => choose(row.id)}
-                >
-                  <strong>{row.title}</strong>
-                  <small>
-                    <span
-                      className={`dot ${active(row) ? 'online pulse' : ''}`}
-                    />
-                    {t(statusCopy(row.status))}
-                  </small>
-                </button>
-              ))}
-              {!tasks.length && (
-                <p className="muted sidebar-empty">{t('No tasks yet')}</p>
+              <Icon size={17} />
+              <span>{t(label)}</span>
+              {id === 'agents' && tasks.some(needsAttention) && (
+                <span className="nav-count">
+                  {tasks.filter(needsAttention).length}
+                </span>
               )}
-            </nav>
-          </>
-        )}
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-summary">
+          <small>
+            {t('Running')}: {tasks.filter(executing).length}
+          </small>
+          <small>
+            {t('Needs attention')}: {tasks.filter(needsAttention).length}
+          </small>
+        </div>
         <footer className="sidebar-footer">
           <span className="muted">Codex · ChatGPT</span>
           <Button
@@ -928,22 +1111,131 @@ export function App() {
           </Button>
         </footer>
       </aside>
-      {page !== 'workspace' ? (
-        <ManagementView
-          newTask={() => {
-            setSeed(null);
-            setPurpose('development');
-            setIsolate(false);
-            setNewOpen(true);
+      {page === 'templates' ? (
+        <Templates
+          t={t}
+          openTask={choose}
+          onError={onError}
+          openHistory={(id) => {
+            setAgentFilters({ status: 'all', source: 'all', query: '' });
+            navigate('agents', null, id);
           }}
-          view={page}
+        />
+      ) : page === 'monitoring' ? (
+        <ManagementView
           t={t}
           tasks={tasks}
           openTask={choose}
-          draft={prepareDraft}
+          openTemplates={() => navigate('templates')}
+        />
+      ) : page === 'agents' ? (
+        <AgentsView
+          templateId={templateId}
+          clearTemplate={() => navigate('agents')}
+          checkedAt={overviewCheckedAt}
+          failed={overviewFailed}
+          filters={agentFilters}
+          onFilters={setAgentFilters}
+          t={t}
+          tasks={tasks}
+          openTask={choose}
+          openTemplates={() => navigate('templates')}
           refresh={refreshTasks}
           onError={onError}
         />
+      ) : sessionTab === 'codex' ? (
+        <PageLayout
+          className="native-history-view"
+          navigation={sessionNavigation}
+          title={t('Import Codex session')}
+          description={t(
+            'Browse native Codex sessions and open them in your workspace.',
+          )}
+        >
+          <form
+            className="search list-controls"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void loadHistory();
+            }}
+          >
+            <Input
+              aria-label={t('Search Codex history')}
+              placeholder={t('Search Codex history')}
+              value={historySearch}
+              onChange={(e) => setHistorySearch(e.target.value)}
+            />
+            <Button
+              size="comfortable"
+              type="submit"
+              aria-label={t('Search Codex history')}
+            >
+              <Search size={15} />
+            </Button>
+          </form>
+          <div className="task-list">
+            {history.map((row) => (
+              <button
+                key={row.id}
+                className="task-row"
+                onClick={() => {
+                  setImportThread(row);
+                  setConfirmInactive(false);
+                }}
+              >
+                <strong>{row.title}</strong>
+                <small>
+                  {new Date(row.updated_at * 1000).toLocaleDateString(locale)}
+                </small>
+              </button>
+            ))}
+          </div>
+          {historyCursor && (
+            <Button
+              disabled={busy}
+              onClick={() => void loadHistory(historyCursor)}
+            >
+              {t('Load more')}
+            </Button>
+          )}
+        </PageLayout>
+      ) : sessionTab === 'sessions' ? (
+        <PageLayout
+          className="sessions-view"
+          scrollRef={sessionViewport}
+          onScroll={(event) => {
+            if (!restoreSessionScroll.current)
+              sessionScroll.current = event.currentTarget.scrollTop;
+          }}
+          title={t('Sessions')}
+          description={t('Find a conversation and continue in your workspace.')}
+          actions={
+            <Button variant="primary" onClick={() => setNewOpen(true)}>
+              <Plus size={16} aria-hidden="true" />
+              {t('New task')}
+            </Button>
+          }
+          navigation={sessionNavigation}
+        >
+          <div className="list-toolbar">
+            {sessionSearchInput('all-session-search')}
+          </div>
+          {sessionFeedback}
+          <div aria-busy={sessionsLoading}>
+            <SessionList
+              tasks={sessionRows}
+              selected={selected}
+              locale={locale}
+              t={t}
+              openTask={choose}
+            />
+          </div>
+          <p className="page-footnote muted">
+            {t(
+              'Recent work is shown here. Search by title to find older runs.',
+            )}
+          </p>
+        </PageLayout>
       ) : !task ? (
         <main className="welcome">
           <div className="brand-mark">
@@ -968,7 +1260,17 @@ export function App() {
         <main className="workspace">
           <div className="task-header">
             <div>
-              <h1>{task.title}</h1>
+              <Button
+                className="workspace-back"
+                variant="ghost"
+                onClick={() => navigate('sessions')}
+              >
+                <ArrowLeft size={14} aria-hidden="true" />
+                {t('Back to sessions')}
+              </Button>
+              <h1 ref={workspaceHeading} tabIndex={-1}>
+                {task.title}
+              </h1>
               <div className="task-meta">
                 <span>{t(statusCopy(task.status))}</span>
                 <span>·</span>
@@ -981,7 +1283,9 @@ export function App() {
                   {t(connected ? 'Connected' : 'Reconnecting')}
                 </span>
               </div>
-              <GitSummary state={git.state} t={t} />
+              <div className="task-git-summary">
+                <GitSummary state={git.state} t={t} />
+              </div>
             </div>
             {(task.error_code || task.status === 'uncertain') && (
               <div className="runtime-notice" role="status">
@@ -1425,9 +1729,7 @@ export function App() {
               const next = await api<Detail>('/tasks', {
                 title,
                 isolate,
-                context: { purpose, service_id: seed?.service_id ?? null },
               });
-              if (seed?.text) drafts.current.set(next.id, seed.text);
               await refreshTasks();
               choose(next.id);
               setNewOpen(false);
@@ -1445,30 +1747,6 @@ export function App() {
             autoFocus
           />
           <label>
-            {t('Task purpose')}
-            <select
-              value={purpose}
-              onChange={(e) => setPurpose(e.target.value as Purpose)}
-            >
-              {(
-                ['development', 'inspection', 'deployment', 'recovery'] as const
-              ).map((p) => (
-                <option key={p} value={p}>
-                  {t(
-                    (
-                      {
-                        development: 'Development',
-                        inspection: 'Inspection',
-                        deployment: 'Deployment',
-                        recovery: 'Recovery',
-                      } as const
-                    )[p],
-                  )}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
             <input
               type="checkbox"
               checked={isolate}
@@ -1476,16 +1754,6 @@ export function App() {
             />
             {t('Isolate this task for parallel work')}
           </label>
-          {seed && (
-            <label>
-              {t('Request draft')}
-              <textarea
-                value={seed.text}
-                onChange={(e) => setSeed({ ...seed, text: e.target.value })}
-                maxLength={32000}
-              />
-            </label>
-          )}
           <Button
             variant="primary"
             type="submit"
@@ -1644,6 +1912,7 @@ export function App() {
         onOpenChange={setUpdateGuideOpen}
         locale={locale}
         t={t}
+        openTemplates={() => navigate('templates')}
       />
       <Dialog
         open={usageOpen}

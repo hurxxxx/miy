@@ -244,7 +244,7 @@ def test_restart_before_thread_creation_can_release_workspace(client, state):
                 id=key, task_id=saved.id, kind="requirements", digest="before-send", state=state
             )
         )
-        store.lease(db, saved.id)
+        store.lease(db, saved.id, workspace=saved.root)
     store.recover_startup(client.app.state.factory)
     if state == "pending":
         # Older installations did not persist the submission boundary.
@@ -348,7 +348,7 @@ def test_disconnect_waits_for_completion_without_blocking_event_loop(client, mon
 
     def limit_locks(connection):
         # Make a regression fail within a bounded time instead of hanging pytest.
-        connection.exec_driver_sql("SET LOCAL lock_timeout = '500ms'")
+        connection.exec_driver_sql("PRAGMA busy_timeout=500")
 
     monkeypatch.setattr(git, "fingerprint", slow_fingerprint)
     engine = runtime.factory.kw["bind"]

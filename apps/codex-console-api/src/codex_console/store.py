@@ -178,7 +178,7 @@ def changed(db, task, kind):
     db.add(Event(task_id=task.id, kind=kind))
 
 
-def lease(db, task_id, *, stage="implement", limit=3):
+def lease(db, task_id, *, workspace, stage="implement", limit=3):
     # This row serializes admission only; it is never held across a Codex call.
     row = db.scalar(select(WorkspaceLease).where(WorkspaceLease.id == 1).with_for_update())
     if row is None:
@@ -188,7 +188,7 @@ def lease(db, task_id, *, stage="implement", limit=3):
     if len({item.task_id for item in leases}) >= limit:
         raise ConsoleError("capacity_busy")
     exclusive = stage == "implement"
-    wanted = {"workspace:" + task.root: exclusive}
+    wanted = {"workspace:" + str(workspace): exclusive}
     if exclusive and (task.context or {}).get("purpose", "development") != "development":
         wanted["operations"] = True
     for item in leases:
@@ -253,6 +253,8 @@ def task_out(task, db=None):
     return {
         "id": task.id,
         "title": task.title,
+        "executor": task.executor,
+        "template_snapshot": task.template_snapshot,
         "stage": task.stage,
         "status": task.status,
         "thread_id": task.thread_id,
@@ -310,7 +312,7 @@ def detail(factory, task_id, settings):
 
     with factory() as db:
         # The event cursor must describe the same snapshot as every projected row.
-        db.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+        db.connection()  # SQLite BEGIN gives every read in this transaction one snapshot.
         task = require_task(db, task_id)
         recent = list(
             db.scalars(
@@ -356,6 +358,8 @@ def detail(factory, task_id, settings):
             **task_out(task, db),
             "failed_request_text": failed.display_text
             if failed and failed.state == "failed" and task.status == "failed"
+            else task.template_snapshot.get("text")
+            if task.template_snapshot and not task.thread_id and task.status in ("idle", "failed")
             else None,
             "revisions": [
                 {
@@ -457,12 +461,13 @@ def reconcile_history(db, task, turns):
                 )
 
 
-def recover_startup(factory):
+def recover_startup(factory, executor="session"):
     from .agents import TERMINAL, busy_descendants
 
     with factory.begin() as db:
         for task in db.scalars(
             select(Task).where(
+                Task.executor == executor,
                 or_(
                     Task.status.in_(ACTIVE),
                     Task.id.in_(
@@ -471,7 +476,7 @@ def recover_startup(factory):
                             Agent.status.not_in(TERMINAL),
                         )
                     ),
-                )
+                ),
             )
         ):
             preparing = db.scalar(
@@ -493,10 +498,16 @@ def recover_startup(factory):
                     agent.status, agent.flags = "systemError", []
             invalidate_pending(db, task.id)
             changed(db, task, "runtime.restarted")
-        db.execute(update(Operation).where(Operation.state == "preparing").values(state="failed"))
+        owned = select(Task.id).where(Task.executor == executor)
+        db.execute(
+            update(Operation)
+            .where(Operation.task_id.in_(owned), Operation.state == "preparing")
+            .values(state="failed")
+        )
         db.execute(
             update(Operation)
             .where(
+                Operation.task_id.in_(owned),
                 Operation.state.in_(("pending", "submitting")),
             )
             .values(state="uncertain")

@@ -169,7 +169,20 @@ def test_reconcile_discovers_descendants_without_resuming_them(client, monkeypat
     assert not any(m == "thread/resume" for m, _ in rpc.calls[before:])
 
 
-def test_management_survives_session_disconnect_without_creating_runtime(client, settings):
+@pytest.mark.parametrize("client_role", ["session"], indirect=True)
+def test_management_survives_session_disconnect_without_creating_runtime(
+    client, settings, monkeypatch
+):
+    original = httpx.AsyncClient
+
+    def unavailable(request):
+        raise httpx.ConnectError("Test session listener is stopped", request=request)
+
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(unavailable), **kwargs),
+    )
     task = send_message(client, new_task(client)).json()
     management = create_app(settings, role="management")
     with TestClient(management, base_url=settings.origin) as browser:
@@ -179,7 +192,7 @@ def test_management_survives_session_disconnect_without_creating_runtime(client,
         assert browser.get("/healthz").status_code == 200
         assert browser.get("/api/overview").json()[0]["status"] == "uncertain"
         assert browser.get("/api/monitor/services").status_code == 200
-        assert browser.get(f"/api/tasks/{task['id']}").status_code == 404
+        assert browser.get(f"/api/tasks/{task['id']}").status_code == 503
         assert not hasattr(management.state, "runtime")
 
 
@@ -291,7 +304,7 @@ def test_child_approval_after_parent_completion_preserves_execution_authority(cl
     )
 
 
-def test_management_migration_preserves_tasks_approvals_and_active_lease(client):
+def test_management_migration_preserves_tasks_approvals_and_active_lease(client, legacy_database):
     from importlib.util import module_from_spec, spec_from_file_location
 
     from alembic.migration import MigrationContext
@@ -306,7 +319,7 @@ def test_management_migration_preserves_tasks_approvals_and_active_lease(client)
     )
     migration = module_from_spec(spec)
     spec.loader.exec_module(migration)
-    engine = client.app.state.factory.kw["bind"]
+    engine = legacy_database()
     with engine.connect() as connection, connection.begin() as transaction:
         connection.execute(
             text("DROP TABLE console_agents, console_service_observations, console_resource_leases")

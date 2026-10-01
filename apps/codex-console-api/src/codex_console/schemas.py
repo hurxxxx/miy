@@ -171,6 +171,8 @@ class TaskOut(BaseModel):
     pinned: bool = False
     agents: list[AgentOut] = []
     pending_count: int = 0
+    executor: Literal["session", "templates"] = "session"
+    template_snapshot: dict[str, Any] | None = None
 
 
 class ModelOut(BaseModel):

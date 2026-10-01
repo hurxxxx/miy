@@ -70,10 +70,6 @@ class Settings(BaseSettings):
         default_factory=list,
         validation_alias="MTY_CODEX_CONSOLE_PROTECTED_WORKSPACES",
     )
-    forbidden_database_names: list[str] = Field(
-        default_factory=list,
-        validation_alias="MTY_CODEX_CONSOLE_FORBIDDEN_DATABASE_NAMES",
-    )
     binary: str = Field(default="codex", validation_alias="MTY_CODEX_CONSOLE_BINARY")
     allowed_reasoning_efforts: list[
         Annotated[str, Field(min_length=1, max_length=40, pattern=r"^\S+$")]
@@ -87,6 +83,20 @@ class Settings(BaseSettings):
     management_port: int = Field(
         default=19367, ge=1024, le=65535, validation_alias="MTY_CODEX_CONSOLE_MANAGEMENT_PORT"
     )
+    template_port: int = Field(
+        default=19368, ge=1024, le=65535, validation_alias="MTY_CODEX_CONSOLE_TEMPLATE_PORT"
+    )
+    template_binary: Path | None = Field(
+        default=None, validation_alias="MTY_CODEX_CONSOLE_TEMPLATE_BINARY"
+    )
+
+    @field_validator("template_binary")
+    @classmethod
+    def immutable_binary(cls, value):
+        if value is not None and (not value.is_absolute() or value.resolve() != value):
+            raise ValueError("Template Codex requires an absolute, version-pinned binary")
+        return value
+
     max_active_tasks: int = Field(
         default=3, ge=1, le=16, validation_alias="MTY_CODEX_CONSOLE_MAX_ACTIVE_TASKS"
     )
@@ -104,8 +114,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def separate_ports(self):
-        if self.port == self.management_port:
-            raise ValueError("Session and management ports must differ")
+        if len({self.port, self.management_port, self.template_port}) != 3:
+            raise ValueError("Session, management and template ports must differ")
         return self
 
     web_dist: Path = Field(
@@ -146,10 +156,10 @@ class Settings(BaseSettings):
 
     @field_validator("database_url")
     @classmethod
-    def postgres_only(cls, value: str) -> str:
-        url = make_url(value)
-        if url.drivername != "postgresql+psycopg" or not url.database:
-            raise ValueError("A dedicated PostgreSQL database with psycopg is required")
+    def standalone_database(cls, value: str) -> str:
+        from .storage import database_path
+
+        database_path(value)
         return value
 
     @field_validator("origin")
@@ -209,8 +219,9 @@ class Settings(BaseSettings):
                 protected
             ):
                 raise ValueError("A protected workspace cannot be used by the console")
-        if make_url(self.database_url).database in self.forbidden_database_names:
-            raise ValueError("The console requires its dedicated database")
+        storage = Path(make_url(self.database_url).database)
+        if storage.is_relative_to(self.workspace) or storage.is_relative_to(self.worktree_root):
+            raise ValueError("Console storage must be outside source and execution workspaces")
         return self
 
     def require_allowed_paths(self, *paths):

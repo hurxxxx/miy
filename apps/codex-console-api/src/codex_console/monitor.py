@@ -19,6 +19,12 @@ def services(settings):
             environment="console",
             health_url=f"http://127.0.0.1:{settings.port}/healthz",
         ),
+        MonitoredService(
+            id="console-templates",
+            name="Codex template sessions",
+            environment="console",
+            health_url=f"http://127.0.0.1:{settings.template_port}/healthz",
+        ),
         *settings.monitor_services,
     ]
 

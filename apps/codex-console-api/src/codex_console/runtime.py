@@ -21,6 +21,9 @@ APPROVALS = {
 }
 QUESTION = "item/tool/requestUserInput"
 WORKFLOW = """This is the owner's private Codex client. Follow applicable repository instructions.
+Respond to the user in Korean by default, including progress updates, questions, plans and final
+answers. Use another language when the user explicitly requests it. Preserve code, commands,
+paths, identifiers and quoted source text in their original form.
 Planning turns inspect and discuss without changing repository files. Execution turns perform
 the user's explicit request or the approved plan. Do not assume a branch name, hosting service,
 development workflow, build tool or deployment command; inspect the repository instructions.
@@ -34,7 +37,8 @@ working directory during a turn; finish the work first and perform cleanup from 
 
 
 class Runtime:
-    def __init__(self, settings, factory, rpc_factory=CodexRPC):
+    def __init__(self, settings, factory, rpc_factory=CodexRPC, *, executor="session"):
+        self.executor = executor
         self.settings, self.factory = settings, factory
         self.rpc_factory = rpc_factory
         self.rpc = None
@@ -51,7 +55,19 @@ class Runtime:
             self.task_gates[task_id] = gate
         return gate
 
+    def require_task(self, db, task_id, *, locked=False):
+        task = (
+            store.require_task(db, task_id, locked=True)
+            if locked
+            else store.require_task(db, task_id)
+        )
+        if getattr(task, "executor", "session") != self.executor:
+            raise ConsoleError("executor_mismatch", 409)
+        return task
+
     def require_allowed_task(self, task):
+        if task.executor != self.executor:
+            raise ConsoleError("executor_mismatch", 409)
         self.settings.require_allowed_paths(
             task.root,
             task.last_execution_root,
@@ -148,7 +164,7 @@ class Runtime:
                 if task_id is None:
                     return rows
                 with self.factory() as db:
-                    task = store.require_task(db, task_id)
+                    task = self.require_task(db, task_id)
                     self.require_allowed_task(task)
                     root = task.root
                 config = (await rpc.call("config/read", {"cwd": root, "includeLayers": False}))[
@@ -197,7 +213,7 @@ class Runtime:
 
     async def ensure_thread(self, task_id, rpc):
         with self.factory() as db:
-            task = store.require_task(db, task_id)
+            task = self.require_task(db, task_id)
             self.require_allowed_task(task)
             thread_id, root, prior_permissions = task.thread_id, task.root, task.permissions
             prior_root = task.last_execution_root or root
@@ -249,10 +265,10 @@ class Runtime:
         if thread_id and result["thread"]["id"] != thread_id:
             raise ConsoleError("codex_thread_mismatch")
         with self.factory.begin() as db:
-            task = store.require_task(db, task_id, locked=True)
+            task = self.require_task(db, task_id, locked=True)
             task.thread_id, task.model = result["thread"]["id"], result["model"]
             db.flush()
-            agents.register(db, {**result["thread"], "cwd": task.root})
+            agents.register(db, {**result["thread"], "cwd": task.root}, executor=self.executor)
         return result
 
     @staticmethod
@@ -277,6 +293,7 @@ class Runtime:
 
     def accepted_start(self, task_id, operation_id, operation_digest):
         with self.factory() as db:
+            self.require_task(db, task_id)
             operation = db.get(Operation, str(operation_id))
             if operation:
                 if operation.task_id != task_id or operation.digest != operation_digest:
@@ -375,15 +392,50 @@ class Runtime:
         )
         context = {"workflow": {"kind": "application", "value": f"Workflow stage: {stage}."}}
         with self.factory() as db:
-            task_context = store.require_task(db, task_id).context
+            task_context = self.require_task(db, task_id).context
             if task_context:
                 context["task_target"] = {"kind": "application", "value": json.dumps(task_context)}
         async with self.task_gate(task_id):
             rpc = await self.authenticated_rpc()
+            with self.factory() as db:
+                selected = self.require_task(db, task_id)
+                self.require_allowed_task(selected)
+                root = Path(selected.root)
+                force_isolated = bool(
+                    (selected.template_snapshot or {}).get("definition", {}).get("isolate")
+                    and not selected.worktree_owned
+                )
+            workspace = (
+                self.settings.worktree_root / f"codex-{task_id}"
+                if force_isolated
+                else await asyncio.to_thread(git.repository_root, root)
+            )
             with self.factory.begin() as db:
-                task = store.require_task(db, task_id, locked=True)
+                task = self.require_task(db, task_id, locked=True)
                 self.require_allowed_task(task)
                 previous = db.get(Operation, operation_id)
+                initial_launch = bool(
+                    task.launch_id == operation_id
+                    and task.executor == "templates"
+                    and task.status == "starting"
+                    and not task.current_operation_id
+                )
+                if initial_launch:
+                    saved = task.template_snapshot
+                    definition = saved["definition"]
+                    expected_digest = self.start_digest(
+                        task_id,
+                        saved["text"],
+                        definition["stage"],
+                        None,
+                        (),
+                        definition["model"],
+                        definition["effort"],
+                        definition["permissions"],
+                        definition["skills"],
+                    )
+                    if operation_digest != expected_digest:
+                        raise ConsoleError("duplicate_request")
                 if previous:
                     if previous.task_id != task_id or previous.digest != operation_digest:
                         raise ConsoleError("duplicate_request")
@@ -391,9 +443,9 @@ class Runtime:
                         return
                     if previous.state != "failed":
                         raise ConsoleError("codex_request_uncertain")
-                if task.status in (*store.ACTIVE, "uncertain") or agents.busy_descendants(
-                    db, task.id
-                ):
+                if (
+                    task.status in (*store.ACTIVE, "uncertain") and not initial_launch
+                ) or agents.busy_descendants(db, task.id):
                     raise ConsoleError("task_busy")
                 if stage == "implement" and revision_id is not None:
                     plan = store.latest_revision(db, task_id, "plan")
@@ -422,7 +474,13 @@ class Runtime:
                                 ensure_ascii=False,
                             ),
                         }
-                store.lease(db, task_id, stage=stage, limit=self.settings.max_active_tasks)
+                store.lease(
+                    db,
+                    task_id,
+                    workspace=workspace,
+                    stage=stage,
+                    limit=self.settings.max_active_tasks,
+                )
                 task.status, task.stage, task.error_code = "starting", stage, None
                 task.turn_id = None
                 task.progress = None
@@ -453,9 +511,9 @@ class Runtime:
                 store.changed(db, task, "turn.submitting")
             submitted = False
             try:
-                if stage == "implement":
+                if stage == "implement" or force_isolated:
                     with self.factory() as db:
-                        task = store.require_task(db, task_id)
+                        task = self.require_task(db, task_id)
                         self.require_allowed_task(task)
                         root, previous, owned = (
                             Path(task.root),
@@ -471,23 +529,31 @@ class Runtime:
                             base_ref=self.settings.worktree_base_ref,
                             worktree_root=self.settings.worktree_root,
                             validate_target=self.settings.require_allowed_paths,
+                            force_isolated=force_isolated,
                         )
                         with self.factory.begin() as db:
-                            task = store.require_task(db, task_id, locked=True)
+                            task = self.require_task(db, task_id, locked=True)
                             task.root, task.worktree_owned = str(root), isolated
                     elif previous and await asyncio.to_thread(git.fingerprint, root) != previous:
                         raise ConsoleError("workspace_changed")
                     baseline = await asyncio.to_thread(git.fingerprint, root)
+                    workspace = await asyncio.to_thread(git.repository_root, root)
                     with self.factory.begin() as db:
-                        prepared = store.require_task(db, task_id, locked=True)
+                        prepared = self.require_task(db, task_id, locked=True)
                         prepared.fingerprint = baseline
-                        store.lease(db, task_id, stage=stage, limit=self.settings.max_active_tasks)
+                        store.lease(
+                            db,
+                            task_id,
+                            workspace=workspace,
+                            stage=stage,
+                            limit=self.settings.max_active_tasks,
+                        )
                 result = await self.ensure_thread(task_id, rpc)
                 thread_id = result["thread"]["id"]
                 session_model = result["model"]
                 with self.factory() as db:
                     # Loaded thread/resume can also report the previous cwd.
-                    root = store.require_task(db, task_id).root
+                    root = self.require_task(db, task_id).root
                 chosen_model = model or session_model
                 catalog = await self.models(rpc)
                 available = next(
@@ -551,12 +617,31 @@ class Runtime:
                     "model": chosen_model,
                     "effort": effort,
                 }
-                params["input"].extend(await self.skill_inputs(rpc, root, skill_names))
+                selected_skills = await self.skill_inputs(rpc, root, skill_names)
+                params["input"].extend(selected_skills)
+                reference_hashes = None
+                with self.factory() as db:
+                    snapshot = self.require_task(db, task_id).template_snapshot
+                if snapshot and operation_id == str(snapshot.get("launch_id", operation_id)):
+                    import hashlib
+
+                    reference_hashes = {}
+                    for path in snapshot["definition"]["references"]:
+                        contents = await asyncio.to_thread(git.read_worktree_file, Path(root), path)
+                        reference_hashes[path] = hashlib.sha256(contents).hexdigest()
                 # Commit the submission boundary before any turn can reach app-server.
                 with self.factory.begin() as db:
-                    task = store.require_task(db, task_id, locked=True)
+                    task = self.require_task(db, task_id, locked=True)
                     self.require_allowed_task(task)
                     task.model, task.effort = chosen_model, effort
+                    if reference_hashes is not None:
+                        task.template_snapshot = {
+                            **task.template_snapshot,
+                            "reference_hashes": reference_hashes,
+                            "skills": selected_skills,
+                            "execution_root": root,
+                            "launch_id": operation_id,
+                        }
                     task.previous_execution_root = result["cwd"]
                     task.previous_permissions = {
                         "readOnly": "read-only",
@@ -570,7 +655,7 @@ class Runtime:
                 submitted = True
                 response = await rpc.call("turn/start", params)
                 with self.factory.begin() as db:
-                    task = store.require_task(db, task_id, locked=True)
+                    task = self.require_task(db, task_id, locked=True)
                     task.turn_id, task.status = response["turn"]["id"], "running"
                     native = db.get(Agent, task.thread_id)
                     if native:
@@ -580,7 +665,7 @@ class Runtime:
                     store.changed(db, task, "turn.accepted")
             except Exception as exc:
                 with self.factory.begin() as db:
-                    task = store.require_task(db, task_id, locked=True)
+                    task = self.require_task(db, task_id, locked=True)
                     task.status = "uncertain" if submitted else "failed"
                     task.error_code = (
                         exc.code if isinstance(exc, ConsoleError) else "execution_failed"
@@ -615,7 +700,7 @@ class Runtime:
                 )
             )
             with self.factory.begin() as db:
-                task = store.require_task(db, task_id, locked=True)
+                task = self.require_task(db, task_id, locked=True)
                 self.require_allowed_task(task)
                 if expected_turn_id is not None and task.turn_id != expected_turn_id:
                     raise ConsoleError("turn_not_active")
@@ -658,7 +743,7 @@ class Runtime:
                     self.factory, self.settings, task_id, key, text
                 )
                 with self.factory() as db:
-                    root = store.require_task(db, task_id).root
+                    root = self.require_task(db, task_id).root
                 params["input"].extend(await self.skill_inputs(rpc, root, skill_names))
                 with self.factory.begin() as db:
                     db.get(Operation, key).state = "submitting"
@@ -677,7 +762,7 @@ class Runtime:
         async with self.task_gate(task_id):
             rpc = await self.authenticated_rpc()
             with self.factory() as db:
-                task = store.require_task(db, task_id)
+                task = self.require_task(db, task_id)
                 uncertain = task.status == "uncertain"
                 if (
                     not uncertain
@@ -705,7 +790,7 @@ class Runtime:
                 else:
                     params["turnId"] = turns[0]["id"]
                 with self.factory.begin() as db:
-                    task = store.require_task(db, task_id, locked=True)
+                    task = self.require_task(db, task_id, locked=True)
                     task.turn_id = params["turnId"]
                     store.changed(db, task, "turn.interrupt_requested")
                 # Retain uncertainty and the lease until completion or explicit recovery.
@@ -719,7 +804,7 @@ class Runtime:
                         )
                     )
                 )
-                root_active = store.require_task(db, task_id).status in (*store.ACTIVE, "uncertain")
+                root_active = self.require_task(db, task_id).status in (*store.ACTIVE, "uncertain")
             if root_active and params.get("turnId"):
                 await rpc.call("turn/interrupt", params)
             for child_id in child_ids:
@@ -746,8 +831,22 @@ class Runtime:
             return False
         if not self.settings.workspace.is_dir():
             raise ConsoleError("workspace_unavailable")
-        git.remove_missing_worktree(self.settings.workspace, Path(task.root))
-        task.root = str(self.settings.workspace)
+        target = Path(task.root)
+        relative = Path(".")
+        if task.template_snapshot:
+            relative = Path(task.template_snapshot["definition"]["directory"])
+            expected = self.settings.worktree_root / f"codex-{task.id}"
+            if target == expected / relative:
+                target = expected
+                if target.exists():
+                    # The checkout still exists; only the selected cwd was removed.
+                    raise ConsoleError("workspace_unavailable")
+        git.remove_missing_worktree(self.settings.workspace, target)
+        restored = self.settings.workspace / relative
+        self.settings.require_allowed_paths(restored)
+        if not restored.is_dir():
+            raise ConsoleError("workspace_unavailable")
+        task.root = str(restored)
         task.worktree_owned = False
         task.fingerprint = None
         task.approved_revision = None
@@ -792,7 +891,7 @@ class Runtime:
     ):
         """Reconcile uncertain delivery before accepting a new, explicit user message."""
         with self.factory() as db:
-            task = store.require_task(db, task_id)
+            task = self.require_task(db, task_id)
             self.require_allowed_task(task)
             uncertain = task.status == "uncertain"
             missing = task.worktree_owned and not Path(task.root).exists()
@@ -817,7 +916,7 @@ class Runtime:
                     raise ConsoleError("turn_not_finished")
                 async with self.task_gate(task_id):
                     with self.factory.begin() as db:
-                        task = store.require_task(db, task_id, locked=True)
+                        task = self.require_task(db, task_id, locked=True)
                         self.require_allowed_task(task)
                         if self.submission_state(db, task) != expected or self.rpc is not rpc:
                             raise ConsoleError("task_busy")
@@ -858,7 +957,7 @@ class Runtime:
     ):
         async with self.task_gate(task_id):
             with self.factory.begin() as db:
-                task = store.require_task(db, task_id, locked=True)
+                task = self.require_task(db, task_id, locked=True)
                 self.require_allowed_task(task)
                 if expected_submission is not None:
                     if self.submission_state(db, task) != expected_submission:
@@ -912,7 +1011,7 @@ class Runtime:
                 else None
             )
             with self.factory.begin() as db:
-                task = store.require_task(db, task_id, locked=True)
+                task = self.require_task(db, task_id, locked=True)
                 task.error_code = None
                 store.recover_document(db, task, thread.get("turns", []))
                 task.status, task.turn_id = "interrupted", None
@@ -934,7 +1033,7 @@ class Runtime:
         async with self.task_gate(task_id):
             rpc = await self.connect()
             with self.factory.begin() as db:
-                task = store.require_task(db, task_id, locked=True)
+                task = self.require_task(db, task_id, locked=True)
                 self.require_allowed_task(task)
                 request = db.get(PendingRequest, request_id)
                 if (
@@ -997,7 +1096,7 @@ class Runtime:
                 await rpc.call("turn/interrupt", turn_params)
             with self.factory.begin() as db:
                 db.get(PendingRequest, request_id).state = "answered"
-                task = store.require_task(db, task_id, locked=True)
+                task = self.require_task(db, task_id, locked=True)
                 if task.status == "waiting":
                     task.status = "running"
                 native = db.get(Agent, request.thread_id or task.thread_id)
@@ -1011,14 +1110,14 @@ class Runtime:
         with self.factory() as db:
             ids = [
                 t.id
-                for t in db.scalars(select(Task))
+                for t in db.scalars(select(Task).where(Task.executor == self.executor))
                 if (not generation or t.runtime_generation == generation)
                 and (t.status in store.ACTIVE or agents.busy_descendants(db, t.id))
             ]
         for task_id in ids:
             async with self.task_gate(task_id):
                 with self.factory.begin() as db:
-                    task = store.require_task(db, task_id, locked=True)
+                    task = self.require_task(db, task_id, locked=True)
                     if generation and task.runtime_generation != generation:
                         continue
                     if task.status not in store.ACTIVE and not agents.busy_descendants(db, task_id):
@@ -1044,8 +1143,8 @@ class Runtime:
         if not thread_id:
             return
         with self.factory() as db:
-            found = agents.task_for_thread(db, thread_id)
-            task_id = found.id if found else None
+            found = agents.task_for_thread(db, thread_id, executor=self.executor)
+            task_id = found.id if found and found.executor == self.executor else None
         if not task_id and self.rpc:
             try:
                 result = await self.rpc.call(
@@ -1061,8 +1160,35 @@ class Runtime:
         async with self.task_gate(task_id):
             if generation and (not self.rpc or generation != self.rpc.generation):
                 return
+            with self.factory() as db:
+                current = self.require_task(db, task_id)
+                child = thread_id != current.thread_id
+                completed_turn = params.get("turnId") or (params.get("turn") or {}).get("id")
+                if (
+                    not child
+                    and completed_turn
+                    and current.turn_id
+                    and completed_turn != current.turn_id
+                ):
+                    return
+                fingerprint_needed = (
+                    not child and method == "turn/completed" and current.stage == "implement"
+                )
+            if child:
+                with self.factory.begin() as db:
+                    current = self.require_task(db, task_id, locked=True)
+                    agents.project(db, current, thread_id, method, params)
+                await self.finish_descendants(task_id)
+                return
+            fingerprint, fingerprint_error = None, None
+            if fingerprint_needed:
+                try:
+                    self.require_allowed_task(current)
+                    fingerprint = await asyncio.to_thread(git.fingerprint, Path(current.root))
+                except ConsoleError as exc:
+                    fingerprint_error = exc
             with self.factory.begin() as db:
-                task = store.require_task(db, task_id, locked=True)
+                task = self.require_task(db, task_id, locked=True)
                 turn_id = params.get("turnId") or (params.get("turn") or {}).get("id")
                 if (
                     thread_id == task.thread_id
@@ -1072,11 +1198,6 @@ class Runtime:
                 ):
                     return
                 agents.project(db, task, thread_id, method, params)
-                if thread_id != task.thread_id:
-                    await self.finish_descendants(db, task)
-                    if task.status not in (*store.ACTIVE, "uncertain"):
-                        store.release(db, task.id)
-                    return
                 turn_id = params.get("turnId") or (params.get("turn") or {}).get("id")
                 if turn_id and task.turn_id and turn_id != task.turn_id:
                     return
@@ -1153,9 +1274,9 @@ class Runtime:
                     if task.stage == "implement":
                         try:
                             self.require_allowed_task(task)
-                            task.fingerprint = await asyncio.to_thread(
-                                git.fingerprint, Path(task.root)
-                            )
+                            if fingerprint_error:
+                                raise fingerprint_error
+                            task.fingerprint = fingerprint
                         except ConsoleError as exc:
                             if exc.code == "path_denied":
                                 task.status, task.error_code = "interrupted", "path_denied"
@@ -1177,7 +1298,7 @@ class Runtime:
         if generation and (not self.rpc or generation != self.rpc.generation):
             return
         with self.factory() as db:
-            linked = agents.task_for_thread(db, params.get("threadId"))
+            linked = agents.task_for_thread(db, params.get("threadId"), executor=self.executor)
             task_id = linked.id if linked else None
             native = db.get(Agent, params.get("threadId")) if task_id else None
             needs_read = not task_id or not native or native.turn_id != params.get("turnId")
@@ -1198,7 +1319,7 @@ class Runtime:
             if generation and (not self.rpc or generation != self.rpc.generation):
                 return
             with self.factory.begin() as db:
-                task = store.require_task(db, task_id, locked=True) if task_id else None
+                task = self.require_task(db, task_id, locked=True) if task_id else None
                 native = db.get(Agent, params.get("threadId")) if task else None
                 if (
                     task
@@ -1247,34 +1368,56 @@ class Runtime:
                     }
                 )
 
-    async def finish_descendants(self, db, task):
-        if task.status != "idle" or task.stage != "review" or agents.busy_descendants(db, task.id):
-            return
-        try:
-            self.require_allowed_task(task)
-            task.fingerprint = await asyncio.to_thread(git.fingerprint, Path(task.root))
-        except ConsoleError:
-            task.status, task.error_code = "uncertain", "workspace_changed"
+    async def finish_descendants(self, task_id):
+        # Caller holds task_gate, but never a database write lock across filesystem work.
+        with self.factory() as db:
+            task = self.require_task(db, task_id)
+            if task.status in (*store.ACTIVE, "uncertain") or agents.busy_descendants(db, task.id):
+                return
+        fingerprint, failed = None, False
+        if task.status == "idle" and task.stage == "review":
+            try:
+                self.require_allowed_task(task)
+                fingerprint = await asyncio.to_thread(git.fingerprint, Path(task.root))
+            except ConsoleError:
+                failed = True
+        with self.factory.begin() as db:
+            current = self.require_task(db, task_id, locked=True)
+            if (
+                current.status != task.status
+                or current.root != task.root
+                or agents.busy_descendants(db, task_id)
+            ):
+                return
+            if failed:
+                current.status, current.error_code = "uncertain", "workspace_changed"
+            else:
+                if fingerprint is not None:
+                    current.fingerprint = fingerprint
+                store.release(db, task_id)
+            store.changed(db, current, "agents.settled")
 
     async def register_thread(self, thread, *, generation=None):
         with self.factory() as db:
-            task = agents.task_for_thread(db, thread.get("id"))
+            task = agents.task_for_thread(db, thread.get("id"), executor=self.executor)
             if not task:
-                task = agents.task_for_thread(db, thread.get("parentThreadId"))
-            task_id = task.id if task else None
+                task = agents.task_for_thread(
+                    db, thread.get("parentThreadId"), executor=self.executor
+                )
+            task_id = task.id if task and task.executor == self.executor else None
         if not task_id:
             return None
         async with self.task_gate(task_id):
             if generation and (not self.rpc or generation != self.rpc.generation):
                 return None
             with self.factory.begin() as db:
-                row = agents.register(db, thread)
+                row = agents.register(db, thread, executor=self.executor)
                 if not row:
                     return None
                 for turn in thread.get("turns", [])[-1:]:
                     if turn.get("status") == "inProgress":
                         row.turn_id, row.status = turn["id"], "active"
-                store.changed(db, store.require_task(db, row.task_id), "agent.discovered")
+                store.changed(db, self.require_task(db, row.task_id), "agent.discovered")
                 return row.task_id
 
     async def skill_inputs(self, rpc, root, names):
@@ -1303,7 +1446,7 @@ class Runtime:
             if not rpc or not rpc.connected:
                 return
             with self.factory() as db:
-                task = store.require_task(db, task_id)
+                task = self.require_task(db, task_id)
                 self.require_allowed_task(task)
                 root_id = task.thread_id
             if not root_id:
@@ -1330,7 +1473,11 @@ class Runtime:
             with self.factory.begin() as db:
                 remaining = discovered
                 for _ in range(32):
-                    pending = [t for t in remaining if agents.register(db, t) is None]
+                    pending = [
+                        t
+                        for t in remaining
+                        if agents.register(db, t, executor=self.executor, task_id=task_id) is None
+                    ]
                     if len(pending) == len(remaining):
                         break
                     remaining = pending
@@ -1349,8 +1496,8 @@ class Runtime:
                 if thread.get("id") != child_id:
                     raise ConsoleError("thread_unavailable")
                 with self.factory.begin() as db:
-                    task = store.require_task(db, task_id, locked=True)
-                    row = agents.register(db, thread)
+                    task = self.require_task(db, task_id, locked=True)
+                    row = agents.register(db, thread, executor=self.executor)
                     if not row or row.task_id != task_id:
                         raise ConsoleError("thread_unavailable")
                     for turn in thread.get("turns", [])[-1:]:
@@ -1360,11 +1507,7 @@ class Runtime:
                         else:
                             row.status = "active"
                     store.changed(db, task, "agents.refreshed")
-            with self.factory.begin() as db:
-                task = store.require_task(db, task_id, locked=True)
-                await self.finish_descendants(db, task)
-                if task.status not in (*store.ACTIVE, "uncertain"):
-                    store.release(db, task_id)
+            await self.finish_descendants(task_id)
 
     async def observe_agents(self):
         while True:
@@ -1373,6 +1516,7 @@ class Runtime:
                 ids = list(
                     db.scalars(
                         select(Task.id).where(
+                            Task.executor == self.executor,
                             Task.thread_id.is_not(None),
                             or_(
                                 Task.status.in_(store.ACTIVE),

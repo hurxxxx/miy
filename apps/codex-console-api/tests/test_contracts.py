@@ -18,8 +18,8 @@ from codex_console.rpc import CONTRACT
 
 
 def test_generated_protocol_schemas_are_valid():
-    assert CONTRACT["codexVersion"] == "0.158.0"
-    assert supports_contract_version("codex-cli 0.158.0", CONTRACT["codexVersion"])
+    assert CONTRACT["codexVersion"] == "0.159.2"
+    assert supports_contract_version("codex-cli 0.159.2", CONTRACT["codexVersion"])
     for schema in CONTRACT["schemas"].values():
         Draft7Validator.check_schema(schema)
 
@@ -30,8 +30,10 @@ def test_generated_protocol_schemas_are_valid():
         ("codex-cli 0.155.1", False),
         ("codex-cli 0.156.0", False),
         ("codex-cli 0.157.0", False),
-        ("codex-cli 0.158.0", True),
-        ("codex-cli 0.159.0", True),
+        ("codex-cli 0.158.0", False),
+        ("codex-cli 0.159.0", False),
+        ("codex-cli 0.159.2", True),
+        ("codex-cli 0.160.0", True),
         ("codex-cli 1.0.0", True),
         ("codex-cli 0.158.0-alpha.1", False),
         ("codex-cli 0.159.0-alpha.1", False),
@@ -76,7 +78,7 @@ def test_example_covers_exact_typed_env_contract():
 
 def test_remote_http_and_product_database_are_rejected(repository):
     data = {
-        "database_url": "postgresql+psycopg://test@localhost/console_test",
+        "database_url": "sqlite+pysqlite:///" + str(repository.parent / "console.sqlite3"),
         "workspace": repository,
         "origin": "http://example.com",
         "_env_file": None,
@@ -86,7 +88,6 @@ def test_remote_http_and_product_database_are_rejected(repository):
     data.update(
         origin="https://example.com",
         database_url="postgresql+psycopg://test@localhost/product_db",
-        forbidden_database_names=["product_db"],
     )
     with pytest.raises(ValidationError):
         Settings(**data)
@@ -94,7 +95,7 @@ def test_remote_http_and_product_database_are_rejected(repository):
 
 def test_reasoning_policy_is_configurable_and_rejects_empty_efforts(repository, monkeypatch):
     data = {
-        "database_url": "postgresql+psycopg://test@localhost/console_test",
+        "database_url": "sqlite+pysqlite:///" + str(repository.parent / "console.sqlite3"),
         "workspace": repository,
         "origin": "http://localhost",
         "_env_file": None,
@@ -110,7 +111,7 @@ def test_reasoning_policy_is_configurable_and_rejects_empty_efforts(repository, 
 
 def test_sso_subjects_bind_exact_secure_origins_to_owner_ids(repository):
     data = {
-        "database_url": "postgresql+psycopg://test@localhost/console_test",
+        "database_url": "sqlite+pysqlite:///" + str(repository.parent / "console.sqlite3"),
         "workspace": repository,
         "origin": "http://localhost",
         "_env_file": None,
@@ -142,7 +143,7 @@ def test_sso_subjects_bind_exact_secure_origins_to_owner_ids(repository):
 
 def test_protected_workspace_and_storage_paths_are_rejected(repository):
     data = {
-        "database_url": "postgresql+psycopg://test@localhost/console_test",
+        "database_url": "sqlite+pysqlite:///" + str(repository.parent / "console.sqlite3"),
         "workspace": repository,
         "origin": "http://localhost",
         "_env_file": None,
@@ -152,3 +153,21 @@ def test_protected_workspace_and_storage_paths_are_rejected(repository):
     with pytest.raises(ValidationError):
         Settings(**data, worktree_root=repository / "sessions")
     assert Settings(**data).worktree_base_ref == "HEAD"
+
+
+def test_template_binary_cannot_follow_a_mutable_parent_symlink(repository, tmp_path):
+    release = tmp_path / "codex-version"
+    release.mkdir()
+    binary = release / "codex"
+    binary.touch()
+    current = tmp_path / "current"
+    current.symlink_to(release, target_is_directory=True)
+    data = {
+        "database_url": "sqlite+pysqlite:///" + str(tmp_path / "console.sqlite3"),
+        "workspace": repository,
+        "origin": "http://localhost",
+        "_env_file": None,
+    }
+    assert Settings(**data, template_binary=binary).template_binary == binary
+    with pytest.raises(ValidationError):
+        Settings(**data, template_binary=current / "codex")

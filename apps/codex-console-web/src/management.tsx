@@ -1,48 +1,49 @@
-import { Button, Input } from '@mty/ui';
+import { Button } from '@mty/ui';
 import { useEffect, useState } from 'react';
 import { api, apiBasePath, type Task } from './api';
 import type { components } from './api.generated';
-import { statusCopy, type Copy, type Translate } from './i18n';
+import { type Copy, type Translate } from './i18n';
+import { PageLayout } from './page-layout';
 
-type Agent = components['schemas']['AgentOut'];
+import {
+  activity,
+  agentStatus,
+  agentWorking,
+  executing,
+  needsAttention,
+  sortTasks,
+  type Agent,
+} from './agent-state';
 export type Service = components['schemas']['ServiceOut'];
-export type Purpose = 'development' | 'inspection' | 'deployment' | 'recovery';
-export type TaskDraft = {
-  purpose: Purpose;
-  service_id?: string;
-  title: string;
-  text: string;
-};
-const terminal = new Set(['completed', 'interrupted', 'errored', 'shutdown']);
 
-export function needsAttention(task: Task) {
-  return (
-    !!task.pending_count ||
-    ['waiting', 'failed', 'uncertain'].includes(task.status) ||
-    task.agents?.some(
-      (a) =>
-        !!a.flags?.length ||
-        ['errored', 'systemError', 'notFound'].includes(a.status),
-    )
-  );
-}
-export function running(task: Task) {
-  return (
-    ['starting', 'running', 'waiting'].includes(task.status) ||
-    task.agents?.some((a) => a.parent_thread_id && !terminal.has(a.status))
-  );
-}
-export function taskRank(task: Task) {
-  return needsAttention(task) ? 0 : running(task) ? 1 : !task.thread_id ? 2 : 3;
-}
-export function sortTasks(tasks: Task[]) {
-  return [...tasks].sort(
-    (a, b) =>
-      Number(!!b.pinned) - Number(!!a.pinned) ||
-      taskRank(a) - taskRank(b) ||
-      b.updated_at.localeCompare(a.updated_at) ||
-      a.id.localeCompare(b.id),
-  );
+export function useServices() {
+  const [services, setServices] = useState<Service[]>([]);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = () => {
+      void api<Service[]>(
+        '/monitor/services',
+        undefined,
+        'GET',
+        controller.signal,
+      )
+        .then((value) => {
+          setServices(value);
+          setFailed(false);
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setFailed(true);
+        });
+    };
+    load();
+    const timer = window.setInterval(load, 10000);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+    };
+  }, []);
+  return { services, failed };
 }
 
 export function useOverview(enabled: boolean, changed: () => void) {
@@ -63,38 +64,6 @@ export function useOverview(enabled: boolean, changed: () => void) {
       document.removeEventListener('visibilitychange', visible);
     };
   }, [enabled, changed]);
-}
-
-function agentStatus(agent: Agent): Copy {
-  if (agent.flags?.includes('waitingOnApproval')) return 'Approval needed';
-  if (agent.flags?.includes('waitingOnUserInput'))
-    return 'Waiting for your response';
-  return (
-    (
-      {
-        active: 'Running',
-        running: 'Running',
-        pendingInit: 'Starting',
-        idle: 'Ready',
-        notLoaded: 'Not loaded',
-        completed: 'Completed',
-        interrupted: 'Interrupted',
-        errored: 'Failed',
-        systemError: 'Needs recovery',
-        shutdown: 'Stopped',
-        notFound: 'Unknown',
-      } as Record<string, Copy>
-    )[agent.status] ?? 'Unknown'
-  );
-}
-function activity(value: string | null | undefined, t: Translate) {
-  const labels: Record<string, Copy> = {
-    command: 'Running a command',
-    files: 'Editing files',
-    search: 'Searching',
-    delegating: 'Delegating work',
-  };
-  return value ? (labels[value] ? t(labels[value]) : value) : '';
 }
 
 export function AgentTree({ agents, t }: { agents: Agent[]; t: Translate }) {
@@ -147,99 +116,214 @@ export function AgentTree({ agents, t }: { agents: Agent[]; t: Translate }) {
 }
 
 export function ManagementView({
-  view,
   t,
   tasks,
   openTask,
-  draft,
-  refresh,
-  onError,
-  newTask,
+  openTemplates,
 }: {
-  view: 'services' | 'tasks';
   t: Translate;
   tasks: Task[];
   openTask: (id: string) => void;
-  draft: (value: TaskDraft) => void;
-  refresh: () => Promise<void>;
-  onError: (e: unknown) => void;
-  newTask: () => void;
+  openTemplates: (request?: string) => void;
 }) {
-  const [services, setServices] = useState<Service[]>([]);
-  const [failed, setFailed] = useState(false);
-  const [filter, setFilter] = useState('all');
-  const [environment, setEnvironment] = useState('all');
-  const [purpose, setPurpose] = useState('all');
-  const [query, setQuery] = useState('');
+  const { services, failed } = useServices();
+  const [host, setHost] = useState<components['schemas']['HostOut'] | null>(
+    null,
+  );
+  const [hostFailed, setHostFailed] = useState(false);
   useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const result = await api<Service[]>('/monitor/services');
-        if (!cancelled) {
-          setServices(result);
-          setFailed(false);
-        }
-      } catch {
-        if (!cancelled) setFailed(true);
-      }
+    const controller = new AbortController();
+    const load = () => {
+      void api<components['schemas']['HostOut']>(
+        '/monitor/host',
+        undefined,
+        'GET',
+        controller.signal,
+      )
+        .then((value) => {
+          setHost(value);
+          setHostFailed(false);
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setHostFailed(true);
+        });
     };
-    void load();
-    const timer = window.setInterval(() => void load(), 10000);
+    load();
+    const timer = window.setInterval(load, 10000);
     return () => {
-      cancelled = true;
+      controller.abort();
       window.clearInterval(timer);
     };
   }, []);
-  const request = (service: Service, purpose: Purpose) => {
-    const goal = t(
-      purpose === 'deployment'
-        ? 'Prepare a deployment'
-        : purpose === 'recovery'
-          ? 'Investigate recovery'
-          : 'Inspect this service',
+  const memory = host?.memory;
+  const bytes = (n: number) =>
+    `${(n / 1024 ** 3).toLocaleString(undefined, { maximumFractionDigits: 1 })} GiB`;
+  const memoryTotal =
+    memory?.cgroup_limit && memory.cgroup_limit < memory.total
+      ? memory.cgroup_limit
+      : memory?.total;
+  const memoryUsed =
+    memory?.cgroup_limit && memory.cgroup_limit < memory.total
+      ? memory.cgroup_used
+      : memory?.used;
+  const unavailable =
+    failed ||
+    services.some(
+      (s) =>
+        s.id === 'console-session' &&
+        (s.stale || !['healthy', 'running'].includes(s.status)),
     );
-    draft({
-      purpose,
-      service_id: service.id,
-      title: `${service.name} · ${goal}`,
-      text: `${service.name} (${service.environment}): ${goal}. ${t('Inspect the repository instructions and current state, then explain the proposed action and required approvals.')}`,
-    });
-  };
-  const environments = [
-    ...new Set(
-      tasks.map((x) => String(x.context?.environment ?? '')).filter(Boolean),
-    ),
-  ];
-  const visible = sortTasks(
-    tasks.filter(
-      (task) =>
-        (!query ||
-          task.title.toLocaleLowerCase().includes(query.toLocaleLowerCase())) &&
-        (filter === 'all' || taskRank(task) === Number(filter)) &&
-        (environment === 'all' || task.context?.environment === environment) &&
-        (purpose === 'all' ||
-          (task.context?.purpose ?? 'development') === purpose),
-    ),
-  );
   return (
-    <main className="management-view">
-      <h1>{t(view === 'services' ? 'Service status' : 'Work overview')}</h1>
-      <Button onClick={newTask}>{t('New task')}</Button>
-      <p className="muted">
-        {t(
-          'Codex investigates and operates. This console displays status and your requests.',
-        )}
-      </p>
-      {view === 'services' ? (
-        <>
+    <PageLayout
+      className="monitoring-view"
+      title={t('Monitoring')}
+      description={t('Server observations and native Codex agent activity.')}
+      actions={
+        <Button size="comfortable" onClick={() => openTemplates()}>
+          {t('Task templates')}
+        </Button>
+      }
+    >
+      <div className="monitor-summary">
+        <div>
+          <span>{t('Needs attention')}</span>
+          <strong>{tasks.filter(needsAttention).length}</strong>
+        </div>
+        <div>
+          <span>{t('Running')}</span>
+          <strong>{tasks.filter(executing).length}</strong>
+        </div>
+        <div>
+          <span>{t('Active agents')}</span>
+          <strong>
+            {
+              new Set(
+                tasks.flatMap((task) =>
+                  (task.agents ?? [])
+                    .filter(agentWorking)
+                    .map((a) => a.thread_id),
+                ),
+              ).size
+            }
+          </strong>
+        </div>
+      </div>
+      {unavailable && (
+        <p className="monitor-notice" role="status">
+          {t(
+            'Session service unavailable. Showing the last reported task state.',
+          )}
+        </p>
+      )}
+
+      <>
+        <section className="page-section">
+          <h2>{t('Server resources')}</h2>
+          {(hostFailed || host?.stale) && (
+            <p role="status">{t('Stale observation')}</p>
+          )}
+          <table className="resource-table">
+            <caption className="sr-only">{t('Server resources')}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{t('Resource')}</th>
+                <th scope="col">{t('Usage')}</th>
+                <th scope="col">{t('Details')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">{t('Memory')}</th>
+                <td>
+                  {memory && memoryUsed != null && memoryTotal
+                    ? `${bytes(memoryUsed)} / ${bytes(memoryTotal)}`
+                    : t('Unknown')}
+                </td>
+                <td>
+                  {memoryUsed != null && memoryTotal ? (
+                    <meter
+                      min={0}
+                      max={memoryTotal}
+                      high={memoryTotal * 0.85}
+                      value={memoryUsed}
+                      aria-label={t('Memory')}
+                    />
+                  ) : null}
+                  {memory?.cgroup_limit && (
+                    <small>
+                      {t('Cgroup limit applied')}: {bytes(memory.cgroup_limit)}
+                    </small>
+                  )}
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">{t('Swap')}</th>
+                <td>
+                  {memory
+                    ? `${bytes(memory.swap_used)} / ${bytes(memory.swap_total)}`
+                    : t('Unknown')}
+                </td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <th scope="row">{t('CPU load')}</th>
+                <td>
+                  {host?.load?.length
+                    ? host.load.map((n) => n.toFixed(2)).join(' / ')
+                    : t('Unknown')}
+                </td>
+                <td>
+                  <small>{t('Load averages: 1, 5, 15 minutes')}</small>
+                </td>
+              </tr>
+              {host?.disks?.map((d) => (
+                <tr key={d.path}>
+                  <th scope="row">
+                    {t('Disk')} · {d.path}
+                  </th>
+                  <td>
+                    {bytes(d.used)} / {bytes(d.total)}
+                  </td>
+                  <td>
+                    <meter
+                      min={0}
+                      max={d.total}
+                      high={d.total * 0.8}
+                      value={d.used}
+                      aria-label={`${t('Disk')} ${d.path}`}
+                    />
+                    <small>
+                      {t('Available')}: {bytes(d.available)}
+                    </small>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <small>
+            {t('Checked')}:{' '}
+            {host?.checked_at
+              ? new Date(host.checked_at).toLocaleString()
+              : t('Unknown')}
+          </small>
+        </section>
+        <section className="page-section">
+          <h2>{t('Service status')}</h2>
           {failed && <p role="alert">{t('Monitoring is unavailable')}</p>}
-          <div className="service-grid">
+          <div className="service-table">
+            <div className="service-columns list-columns" aria-hidden="true">
+              <span>{t('Service status')}</span>
+              <span>{t('Status')}</span>
+              <span>{t('Checked')}</span>
+              <span>{t('Actions')}</span>
+            </div>
             {services.map((service) => (
-              <article className="service-card" key={service.id}>
-                <h2>{service.name}</h2>
-                <small>{service.environment}</small>
-                <p className="status-badge">
+              <article key={service.id} className="service-line">
+                <div>
+                  <strong>{service.name}</strong>
+                  <small>{service.environment}</small>
+                </div>
+                <span className="status-badge">
                   {t(
                     (
                       {
@@ -249,178 +333,65 @@ export function ManagementView({
                         unavailable: 'Unavailable',
                         unknown: 'Unknown',
                       } as Record<string, Copy>
-                    )[failed ? 'unknown' : service.status] ?? 'Unknown',
+                    )[failed || service.stale ? 'unknown' : service.status] ??
+                      'Unknown',
                   )}
-                </p>
-                {service.version && (
-                  <p>
-                    {t('Version')}: {service.version}
-                  </p>
-                )}
-                <p>
-                  {t('Checked')}:{' '}
+                </span>
+                <small className="service-checked">
                   {service.checked_at
                     ? new Date(service.checked_at).toLocaleString()
                     : t('Unknown')}
                   {service.stale || failed
                     ? ` · ${t('Stale observation')}`
                     : ''}
-                </p>
-                <div className="management-actions">
-                  <Button onClick={() => request(service, 'inspection')}>
-                    {t('Ask Codex to inspect')}
-                  </Button>
-                  <Button onClick={() => request(service, 'deployment')}>
-                    {t('Ask Codex to deploy')}
-                  </Button>
-                  <Button onClick={() => request(service, 'recovery')}>
-                    {t('Ask Codex to recover')}
-                  </Button>
-                </div>
+                </small>
+                <Button onClick={() => openTemplates()}>
+                  {t('Use a task template')}
+                </Button>
               </article>
             ))}
           </div>
-          <details className="recovery-guide">
-            <summary>{t('Recover the Codex session service')}</summary>
-            <p>
-              {t(
-                'Open Codex in the source repository on the server and paste this request.',
-              )}
-            </p>
-            <textarea
-              readOnly
-              aria-label={t('Recovery request')}
-              value={t(
-                'Read AGENTS.md and the Codex Console owner documentation. Inspect the independently supervised management and session services. Diagnose the session connection failure, preserve existing conversations and running work, and propose recovery. Ask before restarting or deploying. Verify the public login, task state, and agent activity after the approved recovery.',
-              )}
-            />
-          </details>
-        </>
-      ) : (
-        <>
-          {(failed ||
-            services.some(
-              (s) =>
-                s.id === 'console-session' &&
-                (s.stale || !['healthy', 'running'].includes(s.status)),
-            )) && (
-            <p role="status">
-              {t(
-                'Session service unavailable. Showing the last reported task state.',
-              )}
-            </p>
-          )}
-          <div className="management-filters">
-            <Input
-              aria-label={t('Search tasks')}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t('Search tasks')}
-            />
-            <select
-              aria-label={t('Status filter')}
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            >
-              {(
-                [
-                  'All tasks',
-                  'Needs attention',
-                  'Running',
-                  'Not started',
-                  'Recent results',
-                ] as Copy[]
-              ).map((label, i) => (
-                <option key={label} value={i ? String(i - 1) : 'all'}>
-                  {t(label)}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label={t('Environment filter')}
-              value={environment}
-              onChange={(e) => setEnvironment(e.target.value)}
-            >
-              <option value="all">{t('All environments')}</option>
-              {environments.map((x) => (
-                <option key={x}>{x}</option>
-              ))}
-            </select>
-            <select
-              aria-label={t('Purpose filter')}
-              value={purpose}
-              onChange={(e) => setPurpose(e.target.value)}
-            >
-              <option value="all">{t('All purposes')}</option>
-              {(
-                ['development', 'inspection', 'deployment', 'recovery'] as const
-              ).map((x) => (
-                <option key={x} value={x}>
-                  {t(
-                    (
-                      {
-                        development: 'Development',
-                        inspection: 'Inspection',
-                        deployment: 'Deployment',
-                        recovery: 'Recovery',
-                      } as const
-                    )[x],
-                  )}
-                </option>
-              ))}
-            </select>
-          </div>
-          {visible.map((task) => (
-            <article key={task.id} className="overview-task">
-              <div className="management-actions">
-                <h2>
+        </section>
+        <section className="page-section">
+          <h2>{t('Codex compatibility')}</h2>
+          <dl className="version-list">
+            <dt>{t('Installed CLI')}</dt>
+            <dd>{host?.installed_cli ?? t('Unknown')}</dd>
+            <dt>{t('Template runner CLI')}</dt>
+            <dd>{host?.template_cli ?? t('Unknown')}</dd>
+            <dt>{t('Console contract baseline')}</dt>
+            <dd>{host?.contract_cli ?? t('Unknown')}</dd>
+          </dl>
+          <p className="muted">
+            {t(
+              'Version differences require protocol verification. Run the compatibility template when needed.',
+            )}
+          </p>
+          <Button onClick={() => openTemplates()}>
+            {t('Open update templates')}
+          </Button>
+        </section>
+        <section className="page-section">
+          <h2>{t('Agents')}</h2>
+          {sortTasks(
+            tasks.filter((task) => executing(task) || needsAttention(task)),
+          )
+            .slice(0, 10)
+            .map((task) => (
+              <article className="overview-task" key={task.id}>
+                <h3>
                   <button onClick={() => openTask(task.id)}>
                     {task.title}
                   </button>
-                </h2>
-                <Button
-                  aria-pressed={!!task.pinned}
-                  onClick={() =>
-                    void api(
-                      `/overview/${task.id}`,
-                      { pinned: !task.pinned },
-                      'PATCH',
-                    )
-                      .then(refresh)
-                      .catch(onError)
-                  }
-                >
-                  {t(task.pinned ? 'Unpin' : 'Pin')}
-                </Button>
-              </div>
-              <p>
-                {String(task.context?.environment ?? '')} ·{' '}
-                {task.pending_count
-                  ? `${t('Needs attention')} (${task.pending_count})`
-                  : t(running(task) ? 'Running' : statusCopy(task.status))}{' '}
-                · {t('Active agents')}:{' '}
-                {
-                  (task.agents ?? []).filter((a) =>
-                    ['active', 'running', 'pendingInit'].includes(a.status),
-                  ).length
-                }
-              </p>
-              <small>
-                {t('Checked')}: {new Date(task.updated_at).toLocaleString()}
-              </small>
-              <p>
-                {Array.isArray(task.progress?.steps)
-                  ? (
-                      task.progress.steps as { step: string; status: string }[]
-                    ).find((s) => s.status === 'inProgress')?.step
-                  : ''}
-              </p>
-              <AgentTree agents={task.agents ?? []} t={t} />
-            </article>
-          ))}
-          {!visible.length && <p>{t('No matching tasks')}</p>}
-        </>
-      )}
-    </main>
+                </h3>
+                <AgentTree agents={task.agents ?? []} t={t} />
+              </article>
+            ))}
+          {!tasks.some((task) => executing(task) || needsAttention(task)) && (
+            <p className="muted">{t('No active tasks')}</p>
+          )}
+        </section>
+      </>
+    </PageLayout>
   );
 }

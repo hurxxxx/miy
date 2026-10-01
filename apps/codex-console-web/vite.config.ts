@@ -21,7 +21,6 @@ export default defineConfig({
     port: 19366,
     strictPort: true,
     proxy: {
-      '^/api/(tasks|codex)(/|$)': 'http://127.0.0.1:19365',
       '/api': 'http://127.0.0.1:19367',
     },
   },
