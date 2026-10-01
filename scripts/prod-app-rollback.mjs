@@ -214,6 +214,7 @@ export function prepareRollbackBundle(
       .filter(name => /^[a-z][a-z0-9-]*-prod\.app\.yml$/.test(name));
     if (candidates.length !== 1) throw new Error('Rollback app definition is ambiguous.');
     const composeFile = `ops/compose/${candidates[0]}`;
+    const project = candidates[0].replace(/-prod\.app\.yml$/, '-prod-app');
     writeFileSync(path.join(bundle, '.env'), contents, {
       flag: 'wx',
       mode: 0o600,
@@ -228,7 +229,7 @@ export function prepareRollbackBundle(
       'previous environment validation',
     );
     const config = JSON.parse(checked(run, 'docker', [
-      'compose', '--env-file', path.join(bundle, '.env'),
+      'compose', '--project-name', project, '--env-file', path.join(bundle, '.env'),
       '-f', path.join(bundle, composeFile), 'config', '--format', 'json',
     ], 'previous Compose validation'));
     const runtime = {
