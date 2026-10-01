@@ -1,14 +1,14 @@
-from mty_api.core.settings import get_settings
+from miy_api.core.settings import get_settings
 from fastapi.testclient import TestClient
 import pytest
 from sqlalchemy import select
 
 from dev_accounts import auth_headers, create_company_user_session, dev_login
-from mty_api.core.db import get_session_factory
-from mty_api.domains.auth.models import AuditLog
-from mty_api.domains.docs.app_catalog import DOCS_APP
-from mty_api.domains.groups.models import GroupMember
-from mty_api.domains.groups.service import current_group_ids
+from miy_api.core.db import get_session_factory
+from miy_api.domains.auth.models import AuditLog
+from miy_api.domains.docs.app_catalog import DOCS_APP
+from miy_api.domains.groups.models import GroupMember
+from miy_api.domains.groups.service import current_group_ids
 
 
 def _auth_headers(token):

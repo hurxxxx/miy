@@ -1,4 +1,4 @@
-import { buildAppHref } from '@mty/contracts/app-routes';
+import { buildAppHref } from '@miy/contracts/app-routes';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 

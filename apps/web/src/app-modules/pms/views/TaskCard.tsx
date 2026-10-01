@@ -1,4 +1,4 @@
-import { Badge } from '@mty/ui';
+import { Badge } from '@miy/ui';
 import {
   CheckSquare,
   ChevronDown,

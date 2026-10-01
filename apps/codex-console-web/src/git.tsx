@@ -1,4 +1,4 @@
-import { Button } from '@mty/ui';
+import { Button } from '@miy/ui';
 import { GitBranch, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, type Detail, type GitState } from './api';

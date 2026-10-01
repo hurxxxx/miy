@@ -1,4 +1,4 @@
-import { getAppRoutePattern } from '@mty/contracts/app-routes';
+import { getAppRoutePattern } from '@miy/contracts/app-routes';
 import { SquareTerminal } from 'lucide-react';
 
 import type { AppModuleManifest } from '@/src/app/shell/navigation-types';

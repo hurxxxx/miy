@@ -49,7 +49,7 @@ type StoredRecordingChunkState = Omit<RecordingChunkState, 'blob'> & {
   blob?: Blob | null;
 };
 
-const DB_NAME = 'mty-personal-recording';
+const DB_NAME = 'miy-personal-recording';
 const DB_VERSION = 1;
 const SESSION_STORE = 'sessions';
 const CHUNK_STORE = 'chunks';

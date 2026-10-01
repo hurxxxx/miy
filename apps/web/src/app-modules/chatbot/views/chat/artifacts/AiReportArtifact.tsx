@@ -1,4 +1,4 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@mty/ui';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@miy/ui';
 import { Download } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';

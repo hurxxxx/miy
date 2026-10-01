@@ -12,14 +12,14 @@ def test_dev_status_excludes_production_and_sibling_workers(tmp_path) -> None:
     (tmp_path / "pgrep").write_text(
         "#!/bin/sh\n"
         "cat <<'PROCESSES'\n"
-        "101 /opt/mty/apps/worker/.venv/bin/python "
-        "apps/worker/.venv/bin/celery -A mty_worker.celery_app:celery_app worker\n"
+        "101 /opt/miy/apps/worker/.venv/bin/python "
+        "apps/worker/.venv/bin/celery -A miy_worker.celery_app:celery_app worker\n"
         f"102 {ROOT}-sibling/apps/worker/.venv/bin/python "
-        "apps/worker/.venv/bin/celery -A mty_worker.celery_app:celery_app worker\n"
+        "apps/worker/.venv/bin/celery -A miy_worker.celery_app:celery_app worker\n"
         "PROCESSES\n"
     )
     (tmp_path / "pgrep").chmod(0o755)
-    env = {**os.environ, "MTY_SKIP_DOTENV": "1", "PATH": f"{tmp_path}:{os.environ['PATH']}"}
+    env = {**os.environ, "MIY_SKIP_DOTENV": "1", "PATH": f"{tmp_path}:{os.environ['PATH']}"}
     result = subprocess.run(
         ["bash", str(ROOT / "dev.sh"), "--with-worker", "--status"],
         env=env, capture_output=True, text=True, check=True,
@@ -31,7 +31,7 @@ def test_dev_status_excludes_production_and_sibling_workers(tmp_path) -> None:
     with (tmp_path / "pgrep").open("a") as script:
         script.write(
             f"printf '%s\\n' '103 {ROOT}/apps/worker/.venv/bin/python "
-            "apps/worker/.venv/bin/celery -A mty_worker.celery_app:celery_app worker'\n"
+            "apps/worker/.venv/bin/celery -A miy_worker.celery_app:celery_app worker'\n"
         )
     result = subprocess.run(
         ["bash", str(ROOT / "dev.sh"), "--with-worker", "--status"],

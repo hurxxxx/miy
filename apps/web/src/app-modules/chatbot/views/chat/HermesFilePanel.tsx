@@ -1,4 +1,4 @@
-import { useFeedback } from '@mty/ui';
+import { useFeedback } from '@miy/ui';
 import { Download, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';

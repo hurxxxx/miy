@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from mty_api.domains.realtime import realtime_event_types
-from mty_api.domains.auth.realtime import (
+from miy_api.domains.realtime import realtime_event_types
+from miy_api.domains.auth.realtime import (
     AUTH_ACCESS_CHANGED,
     build_app_availability_access_changed_event,
     build_principal_access_changed_event,

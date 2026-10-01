@@ -1,4 +1,4 @@
-import { Button, useConfirm } from '@mty/ui';
+import { Button, useConfirm } from '@miy/ui';
 import {
   AlertCircle,
   ArrowLeft,

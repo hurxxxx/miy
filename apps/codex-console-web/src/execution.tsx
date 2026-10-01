@@ -1,4 +1,4 @@
-import { Button } from '@mty/ui';
+import { Button } from '@miy/ui';
 import {
   Check,
   ChevronDown,
@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { active, record, string, type Detail, type Model } from './api';
-import { statusCopy, type Translate } from './i18n';
+import { errorCopy, statusCopy, type Translate } from './i18n';
 
 export type Execution = {
   model: string | null;
@@ -42,7 +42,8 @@ export function ExecutionSettings({
   onChange,
   disabled,
   implementation,
-  failed,
+  error,
+  onUpdateGuide,
   onRetry,
   t,
 }: {
@@ -51,11 +52,19 @@ export function ExecutionSettings({
   onChange: (value: Execution) => void;
   disabled: boolean;
   implementation: boolean;
-  failed: boolean;
+  error: string | null;
+  onUpdateGuide: () => void;
   onRetry: () => void;
   t: Translate;
 }) {
   const model = models.find((row) => row.model === value.model);
+  const catalogLabel = error
+    ? t(
+        error === 'codex_version_mismatch'
+          ? 'Codex update required'
+          : 'Could not load models.',
+      )
+    : (model?.name ?? value.model ?? t('Loading model catalog…'));
   const [expanded, setExpanded] = useState(false);
   const controlsId = useId();
   const root = useRef<HTMLFieldSetElement>(null);
@@ -91,8 +100,8 @@ export function ExecutionSettings({
           onClick={() => setExpanded((current) => !current)}
         >
           <span>
-            {model?.name ?? value.model ?? t('Loading model catalog…')}
-            {value.effort ? ` · ${value.effort}` : ''}
+            {catalogLabel}
+            {!error && value.effort ? ` · ${value.effort}` : ''}
           </span>
           <ChevronDown size={14} aria-hidden="true" />
         </Button>
@@ -119,9 +128,7 @@ export function ExecutionSettings({
                     });
                   }}
                 >
-                  {!models.length && (
-                    <option value="">{t('Loading model catalog…')}</option>
-                  )}
+                  {!models.length && <option value="">{catalogLabel}</option>}
                   {value.model && !model && (
                     <option value={value.model}>{value.model}</option>
                   )}
@@ -152,7 +159,13 @@ export function ExecutionSettings({
                 </select>
               </label>
             </div>
-            {failed && (
+            {error && <p role="alert">{t(errorCopy(error))}</p>}
+            {error === 'codex_version_mismatch' && (
+              <Button variant="ghost" onClick={onUpdateGuide}>
+                {t('Update instructions')}
+              </Button>
+            )}
+            {error && (
               <Button
                 className="execution-model-retry"
                 variant="ghost"

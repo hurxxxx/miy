@@ -1,7 +1,7 @@
 import {
   AUTH_REALTIME_EVENT_TYPES,
   isAuthAccessChangedRealtimeEvent,
-} from '@mty/contracts/auth';
+} from '@miy/contracts/auth';
 import {
   useCallback,
   useEffect,

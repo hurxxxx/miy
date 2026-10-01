@@ -15,9 +15,11 @@ from codex_console.models import Operation, Revision, Task
 
 @pytest.mark.parametrize("kind", ["requirements", "plan", "chat"])
 @pytest.mark.parametrize("proof", ["turn_id", "client_id", "unrelated"])
-def test_pre_structured_migration_recovers_only_original_completed_document(client, kind, proof):
+def test_pre_structured_migration_recovers_only_original_completed_document(
+    client, legacy_database, kind, proof
+):
     task = send_message(client, new_task(client)).json()
-    engine = client.app.state.factory.kw["bind"]
+    engine = legacy_database()
     spec = spec_from_file_location(
         "planning_migration", ROOT / "migrations/versions/0005_planning.py"
     )

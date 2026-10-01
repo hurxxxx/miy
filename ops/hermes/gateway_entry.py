@@ -2,7 +2,7 @@
 
 Hermes v2026.8.31 keeps MCP connections and registration process-global. Its
 registration is safely idempotent by server name, but multiplex mode normally
-discovers only the launch profile. MTY gives every managed profile
+discovers only the launch profile. miy gives every managed profile
 globally unique MCP server names, so discovering the request profile before
 admitting `/v1/runs` safely fills the shared registry without replacing another
 profile's connection or changing Hermes' autonomous execution loop.
@@ -20,8 +20,8 @@ from uuid import uuid4
 
 from gateway.platforms import api_server_runs
 
-_LOG = logging.getLogger("mty.hermes-gateway")
-_MANAGED_INTERACTIVE_PROFILE = re.compile(r"^mty-[0-9a-f]{32}(?:-local)?$")
+_LOG = logging.getLogger("miy.hermes-gateway")
+_MANAGED_INTERACTIVE_PROFILE = re.compile(r"^(?:miy|mty)-[0-9a-f]{32}(?:-local)?$")
 _original_handle_runs = api_server_runs._handle_runs
 _original_http_routes = api_server_runs._http_routes
 
@@ -59,7 +59,7 @@ async def _cancel_run_admission(self, request, *, _api_server):
         body = await request.json()
     except Exception:
         return error("Invalid JSON.", "invalid_request", 400)
-    # Only the native request shape emitted by the MTY client is supported;
+    # Only the native request shape emitted by the miy client is supported;
     # hosted-room normalization has a separate identity/fingerprint contract.
     if (
         not isinstance(body, dict)
@@ -137,7 +137,7 @@ def _http_routes_with_cancellation(self):
 
     return [
         *_original_http_routes(self),
-        ("POST", "/v1/mty/runs/cancel-admission", cancel),
+        ("POST", "/v1/miy/runs/cancel-admission", cancel),
     ]
 
 
@@ -151,12 +151,12 @@ def _discover_request_profile_mcp() -> None:
     if not _MANAGED_INTERACTIVE_PROFILE.fullmatch(profile_name):
         return
     if not any(
-        item.get("name") == "mty_runtime" and item.get("enabled") and not item.get("error")
+        item.get("name") == "miy_runtime" and item.get("enabled") and not item.get("error")
         for item in get_plugin_manager().list_plugins()
     ):
-        raise RuntimeError("The MTY runtime plugin is not loaded.")
+        raise RuntimeError("The miy runtime plugin is not loaded.")
     namespace = hashlib.sha256(profile_name.encode()).hexdigest()[:20]
-    expected_internal_name = f"mty-mcp-{namespace}-internal"
+    expected_internal_name = f"miy-mcp-{namespace}-internal"
     internal_server = next(
         (
             row
@@ -170,7 +170,7 @@ def _discover_request_profile_mcp() -> None:
         or bool(internal_server.get("disabled"))
         or internal_server.get("status") != "connected"
     ):
-        raise RuntimeError("The MTY MCP bridge is not connected.")
+        raise RuntimeError("The miy MCP bridge is not connected.")
 
 
 async def _handle_runs_with_profile_mcp(self, request, *, _api_server):

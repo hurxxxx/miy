@@ -5,8 +5,8 @@ import type { ArtifactBuffer } from '../../api/agent-events';
 import { ArtifactPanel } from './ArtifactPanel';
 
 const feedback = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
-vi.mock('@mty/ui', async (original) => ({
-  ...(await original<typeof import('@mty/ui')>()),
+vi.mock('@miy/ui', async (original) => ({
+  ...(await original<typeof import('@miy/ui')>()),
   useFeedback: () => feedback,
 }));
 

@@ -1,6 +1,6 @@
 import { DEFAULT_TIME_ZONE, normalizeTimeZone } from './zoned-date-formatter';
 
-export const TIME_ZONE_STORAGE_KEY = 'mty:time-zone';
+export const TIME_ZONE_STORAGE_KEY = 'miy:time-zone';
 
 export function readStoredTimeZonePreference(): string {
   if (typeof window === 'undefined') return DEFAULT_TIME_ZONE;

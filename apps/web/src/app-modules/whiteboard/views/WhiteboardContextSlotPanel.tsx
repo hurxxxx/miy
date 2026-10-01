@@ -3,7 +3,7 @@ import {
   InlineNotice,
   useConfirm,
   useFeedback,
-} from '@mty/ui';
+} from '@miy/ui';
 import { Loader2, PencilRuler, Plus, Search } from 'lucide-react';
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { useTranslation } from 'react-i18next';

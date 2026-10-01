@@ -15,24 +15,24 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 API_SRC = WORKSPACE_ROOT / "apps" / "api" / "src"
 if str(API_SRC) not in sys.path:
     sys.path.insert(0, str(API_SRC))
-from mty_api.core.db import Base
-from mty_api.domains.docs.app_catalog import DOCS_APP
-from mty_api.domains.search.entity_adapter_registry import (
+from miy_api.core.db import Base
+from miy_api.domains.docs.app_catalog import DOCS_APP
+from miy_api.domains.search.entity_adapter_registry import (
     SearchEntityAdapter,
     register_search_entity_adapter,
     reset_search_entity_adapters,
 )
-from mty_api.domains.search.entity_registry import reset_search_entity_descriptors
-from mty_api.domains.search.models import SearchIndexJob
-from mty_api.domains.retrieval.models import (
+from miy_api.domains.search.entity_registry import reset_search_entity_descriptors
+from miy_api.domains.search.models import SearchIndexJob
+from miy_api.domains.retrieval.models import (
     RetrievalPartition,
     RetrievalProjectionEvent,
     RetrievalProjectionHead,
 )
-from mty_api.domains.retrieval.projection_fencing import record_projection_event
+from miy_api.domains.retrieval.projection_fencing import record_projection_event
 
 _PROJECTION_PARTITION_ID = "e1ada2fd-9ba0-4426-bd09-61e1a6c18e80"
-from mty_api.domains.search.projection_registry import reset_search_projection_adapters
+from miy_api.domains.search.projection_registry import reset_search_projection_adapters
 
 
 def _worker_dsn(db_path: Path) -> str:
@@ -41,10 +41,10 @@ def _worker_dsn(db_path: Path) -> str:
 
 def _reload_worker_module(module_name: str):
     for cached_name in list(sys.modules):
-        if cached_name == "mty_worker" or cached_name.startswith("mty_worker."):
+        if cached_name == "miy_worker" or cached_name.startswith("miy_worker."):
             sys.modules.pop(cached_name, None)
     module = importlib.import_module(module_name)
-    if module_name == "mty_worker.tasks.search_index":
+    if module_name == "miy_worker.tasks.search_index":
         module._search_job_app_enabled = lambda *_args, **_kwargs: True
         module.load_app_availability_snapshot = lambda *_args, **_kwargs: object()
     return module
@@ -75,7 +75,7 @@ def _seed_llm_routing_control_plane(db_path: Path) -> None:
 
 
 def test_search_worker_routes_files_only_to_the_active_partitioned_index(monkeypatch) -> None:
-    tasks_module = _reload_worker_module("mty_worker.tasks.search_index")
+    tasks_module = _reload_worker_module("miy_worker.tasks.search_index")
     settings = SimpleNamespace(files_retrieval_enabled=True)
     pair = SimpleNamespace(opensearch_physical_name="files-v3-release")
     expected_client = object()
@@ -120,7 +120,7 @@ def test_search_worker_routes_files_only_to_the_active_partitioned_index(monkeyp
 
 
 def test_search_worker_keeps_non_file_jobs_on_the_legacy_index(monkeypatch) -> None:
-    tasks_module = _reload_worker_module("mty_worker.tasks.search_index")
+    tasks_module = _reload_worker_module("miy_worker.tasks.search_index")
     expected_client = object()
     monkeypatch.setattr(tasks_module, "_search_client", lambda: expected_client)
     monkeypatch.setattr(
@@ -135,7 +135,7 @@ def test_search_worker_keeps_non_file_jobs_on_the_legacy_index(monkeypatch) -> N
 
 
 def test_search_worker_pauses_disabled_company_app_before_provider_io(monkeypatch) -> None:
-    tasks_module = _reload_worker_module("mty_worker.tasks.search_index")
+    tasks_module = _reload_worker_module("miy_worker.tasks.search_index")
     job = SimpleNamespace(
         id="job-disabled-app",
         status="pending",
@@ -180,7 +180,7 @@ def test_search_worker_pauses_disabled_company_app_before_provider_io(monkeypatc
 
 
 def test_search_worker_fails_closed_when_files_operator_gate_is_disabled(monkeypatch) -> None:
-    tasks_module = _reload_worker_module("mty_worker.tasks.search_index")
+    tasks_module = _reload_worker_module("miy_worker.tasks.search_index")
     monkeypatch.setattr(
         tasks_module, "get_settings", lambda: SimpleNamespace(files_retrieval_enabled=False)
     )
@@ -242,10 +242,10 @@ def test_search_worker_pauses_files_job_without_consuming_retry_budget_when_gate
             )
         )
         session.commit()
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
-    monkeypatch.setenv("MTY_FILES_RETRIEVAL_ENABLED", "0")
-    monkeypatch.setenv("MTY_RAG_JOB_MAX_ATTEMPTS", "3")
-    tasks_module = _reload_worker_module("mty_worker.tasks.search_index")
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
+    monkeypatch.setenv("MIY_FILES_RETRIEVAL_ENABLED", "0")
+    monkeypatch.setenv("MIY_RAG_JOB_MAX_ATTEMPTS", "3")
+    tasks_module = _reload_worker_module("miy_worker.tasks.search_index")
     monkeypatch.setattr(
         tasks_module.index_resource,
         "retry",
@@ -263,7 +263,7 @@ def test_search_worker_pauses_files_job_without_consuming_retry_budget_when_gate
 
 
 def test_search_worker_rejects_unfenced_file_job_before_backend_resolution(monkeypatch) -> None:
-    tasks_module = _reload_worker_module("mty_worker.tasks.search_index")
+    tasks_module = _reload_worker_module("miy_worker.tasks.search_index")
     monkeypatch.setattr(
         tasks_module, "get_settings", lambda: SimpleNamespace(files_retrieval_enabled=True)
     )
@@ -308,10 +308,10 @@ def test_search_worker_fails_unsupported_entity_without_retry(monkeypatch, tmp_p
             )
         )
         session.commit()
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
     _reset_search_registries()
     try:
-        tasks_module = _reload_worker_module("mty_worker.tasks.search_index")
+        tasks_module = _reload_worker_module("miy_worker.tasks.search_index")
         monkeypatch.setattr(
             tasks_module.index_resource,
             "retry",
@@ -403,8 +403,8 @@ def test_search_worker_cancels_stale_versioned_job_before_backend_mutation(
             del entity_type, entity_id
             raise AssertionError("stale versioned job must not delete")
 
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
-    tasks_module = _reload_worker_module("mty_worker.tasks.search_index")
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
+    tasks_module = _reload_worker_module("miy_worker.tasks.search_index")
     monkeypatch.setattr(tasks_module, "_search_client", lambda: _FailingSearchClient())
     result = tasks_module.index_resource.run("job-stale-versioned")
     assert result == "superseded"
@@ -477,8 +477,8 @@ def test_search_worker_processes_fenced_non_file_job_with_legacy_mutation(
             del kwargs
             raise AssertionError("fenced non-Files jobs must keep the legacy mutation path")
 
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
-    tasks_module = _reload_worker_module("mty_worker.tasks.search_index")
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
+    tasks_module = _reload_worker_module("miy_worker.tasks.search_index")
     monkeypatch.setattr(
         tasks_module, "_search_client", lambda: _LegacySearchClientWithPartitionedMethods()
     )
@@ -511,10 +511,10 @@ def test_search_worker_fails_projection_identity_mismatch_without_retry(
             )
         )
         session.commit()
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
     _reset_search_registries()
     try:
-        tasks_module = _reload_worker_module("mty_worker.tasks.search_index")
+        tasks_module = _reload_worker_module("miy_worker.tasks.search_index")
         register_search_entity_adapter(
             SearchEntityAdapter(
                 owner_app=DOCS_APP,
@@ -587,8 +587,8 @@ def test_search_worker_cancels_superseded_processing_job_before_mutation(
             ]
         )
         session.commit()
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
-    tasks_module = _reload_worker_module("mty_worker.tasks.search_index")
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
+    tasks_module = _reload_worker_module("miy_worker.tasks.search_index")
 
     class _FailingSearchClient:
         def upsert_document(self, document):
@@ -648,8 +648,8 @@ def test_search_worker_does_not_treat_older_pending_job_as_superseding(
             ]
         )
         session.commit()
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
-    tasks_module = _reload_worker_module("mty_worker.tasks.search_index")
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
+    tasks_module = _reload_worker_module("miy_worker.tasks.search_index")
     with Session(engine) as session:
         older = session.get(SearchIndexJob, "job-older-pending")
         current = session.get(SearchIndexJob, "job-current-processing")
@@ -694,8 +694,8 @@ def test_search_worker_cancels_older_pending_job_before_retry(monkeypatch, tmp_p
             ]
         )
         session.commit()
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
-    tasks_module = _reload_worker_module("mty_worker.tasks.search_index")
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
+    tasks_module = _reload_worker_module("miy_worker.tasks.search_index")
     with Session(engine) as session:
         current = session.get(SearchIndexJob, "job-current-processing")
         assert current is not None
@@ -767,8 +767,8 @@ def test_search_republisher_publishes_due_pending_jobs(monkeypatch, tmp_path) ->
             assert immutable is True
             return _FakeSignature(task_name, args)
 
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
-    tasks_module = _reload_worker_module("mty_worker.tasks.search_index")
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
+    tasks_module = _reload_worker_module("miy_worker.tasks.search_index")
     monkeypatch.setattr(tasks_module, "celery_app", _FakeCeleryApp())
     assert tasks_module.republish_pending_index_jobs.run(limit=10) == 1
     assert published == [("search.index_resource", ["job-due"], "search_index_realtime")]

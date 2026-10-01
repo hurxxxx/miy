@@ -1,8 +1,8 @@
 import pytest
 from fastapi import HTTPException
 
-from mty_api.domains.docs.collab import make_page_ref
-from mty_api.domains.docs.router import _require_collab_edit_access
+from miy_api.domains.docs.collab import make_page_ref
+from miy_api.domains.docs.router import _require_collab_edit_access
 from test_company_content_boundaries import _enable, _group, _user
 from test_company_groups import _setup
 

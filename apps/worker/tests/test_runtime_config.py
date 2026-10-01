@@ -6,13 +6,13 @@ import shutil
 from pydantic import TypeAdapter
 import pytest
 
-from mty_worker import settings
-from mty_worker.runtime import ensure_api_src_on_path
+from miy_worker import settings
+from miy_worker.runtime import ensure_api_src_on_path
 
 
 @pytest.mark.parametrize("key, field", [
-    ("MTY_WORKER_DB_POOL_SIZE", "db_pool_size"),
-    ("MTY_WORKER_CONCURRENCY", "concurrency"),
+    ("MIY_WORKER_DB_POOL_SIZE", "db_pool_size"),
+    ("MIY_WORKER_CONCURRENCY", "concurrency"),
 ])
 def test_worker_uses_profile_defaults_and_preserves_env_overrides(tmp_path, monkeypatch, key, field):
     shutil.copytree(settings.WORKSPACE_ROOT / "config", tmp_path / "config")
@@ -22,11 +22,11 @@ def test_worker_uses_profile_defaults_and_preserves_env_overrides(tmp_path, monk
     path.write_text(json.dumps(document))
     monkeypatch.setattr(settings, "WORKSPACE_ROOT", tmp_path)
     monkeypatch.delenv(key, raising=False)
-    monkeypatch.delenv("MTY_ENV_PROFILE", raising=False)
+    monkeypatch.delenv("MIY_ENV_PROFILE", raising=False)
     env = tmp_path / ".env"
-    env.write_text("MTY_ENV_PROFILE=test\n")
+    env.write_text("MIY_ENV_PROFILE=test\n")
     assert getattr(settings.Settings(_env_file=env), field) == 2
-    env.write_text(f"MTY_ENV_PROFILE=test\n{key}=3\n")
+    env.write_text(f"MIY_ENV_PROFILE=test\n{key}=3\n")
     assert getattr(settings.Settings(_env_file=env), field) == 3
     monkeypatch.setenv(key, "4")
     assert getattr(settings.Settings(_env_file=env), field) == 4
@@ -35,7 +35,7 @@ def test_worker_uses_profile_defaults_and_preserves_env_overrides(tmp_path, monk
 
 def test_runtime_schema_matches_typed_api_and_worker_constraints():
     ensure_api_src_on_path()
-    from mty_api.core.settings import Settings as ApiSettings
+    from miy_api.core.settings import Settings as ApiSettings
 
     schema = json.loads((settings.WORKSPACE_ROOT / "config/runtime.schema.json").read_text())
     properties = schema["$defs"]["settings"]["properties"]

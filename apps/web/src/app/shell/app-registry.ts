@@ -1,10 +1,10 @@
-import { APP_CONTRACTS } from '@mty/contracts/app-contracts';
+import { APP_CONTRACTS } from '@miy/contracts/app-contracts';
 import {
   createCoreAppModuleRegistry,
   createCoreAppModuleRegistryApi,
   type CoreAppModuleRegistration,
   type CoreAppModuleRegistry,
-} from '@mty/core-web/app-registry';
+} from '@miy/core-web/app-registry';
 import type { ComponentType, ReactNode } from 'react';
 
 import type { BackgroundWorkSource } from '@/src/platform/background-work/background-work-session';

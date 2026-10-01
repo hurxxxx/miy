@@ -42,11 +42,11 @@ Test collection supplies synthetic required settings before importing registries
 need an ignored env file or live application credentials. Database execution still requires the
 explicitly verified test infrastructure below.
 
-Before database tests, configure `MTY_TEST_POSTGRES_TEMPLATE_DSN` for a dedicated
+Before database tests, configure `MIY_TEST_POSTGRES_TEMPLATE_DSN` for a dedicated
 non-production PostgreSQL instance with pgvector available and a role allowed to create/drop test
 databases and enable the extension. Use compatible `pg_dump`/`pg_restore` clients. The fixture also
 accepts the verified development DSN from ignored env files, but never resets that database: each
-worker creates its own `mty_test_*` database, migrates it, and restores the seeded data
+worker creates its own `miy_test_*` database, migrates it, and restores the seeded data
 between tests. A setup failure also removes the database created by that attempt. Keep production
 identity/profile checks enabled. API clients also use a unique test instance ID so terminal sockets
 cannot attach to another test run or a running development API. External-service settings and CI preparation are owned by the
@@ -88,7 +88,7 @@ uv run --python 3.12 --group dev python -m pytest \
 - Local runtime contract: [AI Gateway](../../docs/domains/ai/gateway.md).
 - vLLM/mlx endpoints must stay private; they do not provide app auth.
 - External provider API keys are stored encrypted through Admin, not ordinary env variables.
-- Env stores only `MTY_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY` for credential encryption.
+- Env stores only `MIY_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY` for credential encryption.
 - Personal mlx-lm helper:
 
 ```bash
@@ -114,7 +114,7 @@ Rules:
 - Autogenerate only against intended dev DB from typed env.
 - Review generated migration manually.
 - Root `./dev.sh` upgrades the development DB to `head` before starting API processes by default,
-  then disables per-process auto-migration. Set `MTY_DEV_API_MIGRATION_PREFLIGHT=0` only
+  then disables per-process auto-migration. Set `MIY_DEV_API_MIGRATION_PREFLIGHT=0` only
   when the caller explicitly owns migration ordering.
 - Standalone `scripts/dev-api.sh` enables auto-migration only for the primary `8001` instance by
   default; secondary instances never race schema changes.

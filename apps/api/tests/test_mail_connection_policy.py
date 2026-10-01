@@ -5,9 +5,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from mty_api.domains.mail import connection_policy
-from mty_api.domains.mail.clients import MailConnectionSettings
-from mty_api.domains.mail.connection_policy import (
+from miy_api.domains.mail import connection_policy
+from miy_api.domains.mail.clients import MailConnectionSettings
+from miy_api.domains.mail.connection_policy import (
     MailConnectionPolicyError,
     validate_connection_settings,
 )

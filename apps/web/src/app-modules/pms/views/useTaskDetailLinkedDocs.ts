@@ -1,5 +1,5 @@
-import { buildAppHref } from '@mty/contracts/app-routes';
-import { useConfirm, type BlockContent } from '@mty/ui';
+import { buildAppHref } from '@miy/contracts/app-routes';
+import { useConfirm, type BlockContent } from '@miy/ui';
 import type { TFunction } from 'i18next';
 import {
   useCallback,

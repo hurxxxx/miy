@@ -34,7 +34,7 @@ def _load_terminal_egress(monkeypatch):
     monkeypatch.setitem(sys.modules, "agent.proxy_sources.iron_proxy", iron_proxy)
 
     source = Path(__file__).resolve().parents[3] / "ops/hermes/terminal_egress.py"
-    module_name = f"mty_hermes_terminal_egress_test_{uuid4().hex}"
+    module_name = f"miy_hermes_terminal_egress_test_{uuid4().hex}"
     spec = importlib.util.spec_from_file_location(module_name, source)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)

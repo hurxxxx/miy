@@ -1,4 +1,4 @@
-import type { BlockContent } from '@mty/ui';
+import type { BlockContent } from '@miy/ui';
 
 import type {
   createTaskListTask,

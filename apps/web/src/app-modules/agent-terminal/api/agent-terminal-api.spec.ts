@@ -79,7 +79,7 @@ describe('agent terminal API protocol', () => {
 
     await listAgentTerminalCodexThreads('test-token');
     await createAgentTerminalSession('test-token', {
-      root_key: 'mty',
+      root_key: 'miy',
       codex_thread_id: '11111111-1111-1111-1111-111111111111',
       cols: 120,
       rows: 36,
@@ -95,7 +95,7 @@ describe('agent terminal API protocol', () => {
       '/api/v1/agent-terminal/sessions',
       expect.objectContaining({
         body: JSON.stringify({
-          root_key: 'mty',
+          root_key: 'miy',
           codex_thread_id: '11111111-1111-1111-1111-111111111111',
           cols: 120,
           rows: 36,

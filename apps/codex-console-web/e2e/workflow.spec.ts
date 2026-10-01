@@ -1,4 +1,45 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+import { submitNewTask } from './task-submission';
+
+let completionId: string | null = null;
+let completionOrigin = '';
+
+test.afterEach(async ({ page }) => {
+  if (completionId) await releaseCompletion(page, completionId);
+});
+
+async function accepted(
+  page: Page,
+  suffix: string,
+  action: () => Promise<unknown>,
+) {
+  const response = page.waitForResponse(
+    (r) =>
+      r.request().method() === 'POST' &&
+      new URL(r.url()).pathname.endsWith(suffix),
+  );
+  await action();
+  expect((await response).status()).toBe(200);
+}
+
+async function holdCompletion(page: Page) {
+  completionOrigin = new URL(page.url()).origin;
+  const response = await page.request.post('__test__/hold-completion', {
+    headers: { Origin: completionOrigin },
+  });
+  expect(response.ok()).toBe(true);
+  completionId = (await response.json()).id as string;
+  return completionId;
+}
+
+async function releaseCompletion(page: Page, id: string) {
+  const response = await page.request.post('__test__/release-completion', {
+    data: { id },
+    headers: { Origin: completionOrigin },
+  });
+  expect(response.ok()).toBe(true);
+  completionId = null;
+}
 
 test('native plan, implementation, diff and refresh recovery', async ({
   page,
@@ -15,7 +56,7 @@ test('native plan, implementation, diff and refresh recovery', async ({
     .first()
     .click();
   await page.getByLabel('작업 제목').fill('인사말 기능 개발');
-  await page.getByRole('button', { name: '작업 만들기' }).click();
+  await submitNewTask(page);
   await expect(page.getByLabel('실행 모드')).toHaveValue('plan');
   await expect(
     page
@@ -25,7 +66,9 @@ test('native plan, implementation, diff and refresh recovery', async ({
   await page
     .getByLabel('요청 내용 입력')
     .fill('Inspect the project and make a plan.');
-  await page.getByRole('button', { name: '보내기', exact: true }).click();
+  await accepted(page, '/messages', () =>
+    page.getByRole('button', { name: '보내기', exact: true }).click(),
+  );
   await page
     .getByRole('navigation', { name: '결과물' })
     .getByRole('button', { name: '계획', exact: true })
@@ -44,10 +87,15 @@ test('native plan, implementation, diff and refresh recovery', async ({
   await page
     .getByRole('button', { name: '이 계획으로 실행', exact: true })
     .click();
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: '이 계획으로 실행' })
-    .click();
+  const implementation = await holdCompletion(page);
+  await accepted(page, '/implement', () =>
+    page
+      .getByRole('dialog')
+      .getByRole('button', { name: '이 계획으로 실행' })
+      .click(),
+  );
+  await expect(page.getByLabel('현재 실행 상태')).toContainText('진행 중');
+  await releaseCompletion(page, implementation);
   await expect(
     page.getByText('Implemented the greeting.', { exact: false }),
   ).toBeVisible();
@@ -103,7 +151,7 @@ test('server work survives closing the browser tab and restores progress and exe
     .first()
     .click();
   await page.getByLabel('작업 제목').fill('백그라운드 작업 확인');
-  await page.getByRole('button', { name: '작업 만들기' }).click();
+  await submitNewTask(page);
   await page.getByRole('button', { name: '설정 변경' }).click();
   await expect(page.getByLabel('모델')).toContainText('another-model');
   await page.getByLabel('모델').selectOption('another-model');
@@ -112,7 +160,10 @@ test('server work survives closing the browser tab and restores progress and exe
   await page
     .getByLabel('요청 내용 입력')
     .fill('Inspect the project and make a plan.');
-  await page.getByRole('button', { name: '보내기', exact: true }).click();
+  const plan = await holdCompletion(page);
+  await accepted(page, '/messages', () =>
+    page.getByRole('button', { name: '보내기', exact: true }).click(),
+  );
   await expect(page.getByLabel('현재 실행 상태')).toContainText('진행 중');
   const taskUrl = page.url();
   await page.goto('about:blank');
@@ -125,6 +176,8 @@ test('server work survives closing the browser tab and restores progress and exe
   await expect(returned.getByLabel('현재 실행 상태')).toContainText(
     'another-model · high',
   );
+  await expect(returned.getByLabel('현재 실행 상태')).toContainText('진행 중');
+  await releaseCompletion(returned, plan);
   await expect(returned.getByLabel('현재 실행 상태')).toContainText('준비됨');
   await returned
     .getByRole('navigation', { name: '결과물' })
@@ -136,8 +189,13 @@ test('server work survives closing the browser tab and restores progress and exe
   await returned.getByLabel('실행 모드').selectOption('implement');
   await returned.getByLabel('실행 권한').selectOption('yolo');
   await returned.getByLabel('요청 내용 입력').fill('Implement the plan.');
-  await returned.getByRole('button', { name: '보내기', exact: true }).click();
+  const implementation = await holdCompletion(returned);
+  await accepted(returned, '/implement', () =>
+    returned.getByRole('button', { name: '보내기', exact: true }).click(),
+  );
   await expect(returned.getByLabel('현재 실행 상태')).toContainText('YOLO');
+  await expect(returned.getByLabel('현재 실행 상태')).toContainText('진행 중');
+  await releaseCompletion(returned, implementation);
   await expect(
     returned.getByText('Implemented the greeting.', { exact: false }),
   ).toBeVisible();
@@ -184,7 +242,7 @@ test('late status, guidance, and recovery surfaces do not reflow the workspace',
     .first()
     .click();
   await page.getByLabel('작업 제목').fill('레이아웃 안정성 확인');
-  await page.getByRole('button', { name: '작업 만들기' }).click();
+  await submitNewTask(page);
   // Measure the loaded workspace, after the initial Git summary occupies its row.
   await expect(page.locator('.task-header .git-summary')).toBeVisible();
 
@@ -210,7 +268,10 @@ test('late status, guidance, and recovery surfaces do not reflow the workspace',
 
   const idle = await layout();
   await page.getByLabel('요청 내용 입력').fill('Explain the workspace.');
-  await page.getByRole('button', { name: '보내기', exact: true }).click();
+  const completion = await holdCompletion(page);
+  await accepted(page, '/messages', () =>
+    page.getByRole('button', { name: '보내기', exact: true }).click(),
+  );
   await expect(page.locator('.execution-progress')).toBeVisible();
   const running = await layout();
   expectStable(idle, running);
@@ -219,6 +280,7 @@ test('late status, guidance, and recovery surfaces do not reflow the workspace',
   await expect(page.locator('.execution-progress')).toHaveAttribute('open', '');
   expectStable(running, await layout());
 
+  await releaseCompletion(page, completion);
   await expect(page.getByLabel('현재 실행 상태')).toContainText('준비됨');
   const footerBefore = await box('.document-footer');
   await page.getByRole('button', { name: '문서 편집' }).click();
@@ -264,7 +326,7 @@ test('execution controls stay separated on a narrow desktop workspace', async ({
     .first()
     .click();
   await page.getByLabel('작업 제목').fill('좁은 화면 컨트롤 확인');
-  await page.getByRole('button', { name: '작업 만들기' }).click();
+  await submitNewTask(page);
 
   const expectSeparated = async () => {
     const composer = await page.locator('.composer').boundingBox();
@@ -278,9 +340,7 @@ test('execution controls stay separated on a narrow desktop workspace', async ({
     const permissions = await page.getByLabel('실행 권한').boundingBox();
     for (const box of [composer, controls, actions, model, permissions])
       expect(box).not.toBeNull();
-    expect(model!.x + model!.width).toBeLessThanOrEqual(
-      permissions!.x + 1,
-    );
+    expect(model!.x + model!.width).toBeLessThanOrEqual(permissions!.x + 1);
     expect(controls!.y + controls!.height).toBeLessThanOrEqual(actions!.y + 1);
     expect(actions!.x + actions!.width).toBeLessThanOrEqual(
       composer!.x + composer!.width + 1,
@@ -292,9 +352,13 @@ test('execution controls stay separated on a narrow desktop workspace', async ({
 
   await expectSeparated();
   await page.getByLabel('요청 내용 입력').fill('좁은 화면 실행 상태 확인');
-  await page.getByRole('button', { name: '보내기', exact: true }).click();
+  const completion = await holdCompletion(page);
+  await accepted(page, '/messages', () =>
+    page.getByRole('button', { name: '보내기', exact: true }).click(),
+  );
   await expect(page.getByRole('button', { name: '중단' })).toBeVisible();
   await expectSeparated();
+  await releaseCompletion(page, completion);
   await expect(page.getByLabel('현재 실행 상태')).toContainText('준비됨');
 });
 
@@ -311,13 +375,15 @@ test('planning answers ordinary questions without creating documents and shows a
     .first()
     .click();
   await page.getByLabel('작업 제목').fill('일반 대화와 브랜치 표시 확인');
-  await page.getByRole('button', { name: '작업 만들기' }).click();
+  await submitNewTask(page);
   await expect(page.getByLabel('실행 모드')).toHaveValue('plan');
   await expect(page.locator('.git-summary')).toContainText('dev');
   await page
     .getByLabel('요청 내용 입력')
     .fill('Explain the current workspace.');
-  await page.getByRole('button', { name: '보내기', exact: true }).click();
+  await accepted(page, '/messages', () =>
+    page.getByRole('button', { name: '보내기', exact: true }).click(),
+  );
   await expect(
     page.getByText('This is a general answer; saved plan is unchanged.'),
   ).toBeVisible();
@@ -384,7 +450,7 @@ for (const viewport of [
     await page
       .getByLabel('작업 제목')
       .fill(`Branch scrolling ${viewport.width}`);
-    await page.getByRole('button', { name: '작업 만들기' }).click();
+    await submitNewTask(page);
     if (viewport.width < 960)
       await page.getByRole('button', { name: '결과물', exact: true }).click();
     await page.getByRole('button', { name: '브랜치', exact: true }).click();
@@ -458,7 +524,7 @@ test('Git refresh updates files and the selected diff without a task state chang
     .first()
     .click();
   await page.getByLabel('작업 제목').fill('Refresh files and diff');
-  await page.getByRole('button', { name: '작업 만들기' }).click();
+  await submitNewTask(page);
   await page.getByRole('button', { name: '브랜치', exact: true }).click();
   const panel = page.locator('.git-workspace');
   const selected = panel.getByRole('button', { name: /selected.txt/ });

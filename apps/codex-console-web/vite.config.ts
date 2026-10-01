@@ -8,10 +8,10 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      '@mty/ui/styles.css': fileURLToPath(
+      '@miy/ui/styles.css': fileURLToPath(
         new URL('../../packages/ui/styles.css', import.meta.url),
       ),
-      '@mty/ui': fileURLToPath(
+      '@miy/ui': fileURLToPath(
         new URL('../../packages/ui/src/index.ts', import.meta.url),
       ),
     },
@@ -20,7 +20,9 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 19366,
     strictPort: true,
-    proxy: { '/api': 'http://127.0.0.1:19365' },
+    proxy: {
+      '/api': 'http://127.0.0.1:19367',
+    },
   },
   build: { outDir: 'dist', chunkSizeWarningLimit: 1500 },
   test: {

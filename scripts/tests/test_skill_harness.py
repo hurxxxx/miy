@@ -296,7 +296,7 @@ class SkillHarnessScannerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             write_text(
-                root / ".agents" / "skills" / "mty-desktop-release" / "REFERENCE.md",
+                root / ".agents" / "skills" / "miy-desktop-release" / "REFERENCE.md",
                 "retired content\n",
             )
             write_text(
@@ -312,7 +312,7 @@ class SkillHarnessScannerTest(unittest.TestCase):
         self.assertIn("retired_skill_present", self.codes(report))
         self.assertIn("retired_skill_reference", self.codes(report))
         self.assertIn(
-            "retired project skill directories must be removed: mty-desktop-release",
+            "retired project skill directories must be removed: miy-desktop-release",
             self.messages(report),
         )
 
@@ -379,7 +379,7 @@ class SkillHarnessScannerTest(unittest.TestCase):
                 valid_skill_text("clean"),
             )
             write_text(
-                root / ".agents" / "skills" / "mty-issues" / "GUIDE.md",
+                root / ".agents" / "skills" / "miy-issues" / "GUIDE.md",
                 "Move incomplete work to needs-info, then ready-for-human.\n",
             )
             write_text(
@@ -391,7 +391,7 @@ class SkillHarnessScannerTest(unittest.TestCase):
 
         messages = self.messages(report)
         self.assertIn("retired_triage_contract", self.codes(report))
-        self.assertIn(".agents/skills/mty-issues/GUIDE.md", messages)
+        self.assertIn(".agents/skills/miy-issues/GUIDE.md", messages)
         self.assertNotIn("docs/archive/history.md", messages)
 
     def test_allows_current_gitlab_triage_labels(self) -> None:

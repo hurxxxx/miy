@@ -2,31 +2,31 @@ from types import SimpleNamespace
 
 import pytest
 
-from mty_api.core import llm, llm_execution_adapters, llm_official_providers
-from mty_api.core.settings import get_settings
+from miy_api.core import llm, llm_execution_adapters, llm_official_providers
+from miy_api.core.settings import get_settings
 
 
 LLM_ENV_KEYS = (
-    "MTY_LLM_LOCAL_PROVIDER",
-    "MTY_LLM_LOCAL_BASE_URL",
-    "MTY_LLM_LOCAL_API_KEY",
-    "MTY_LLM_LOCAL_DEFAULT_MODEL",
-    "MTY_LLM_LOCAL_CANONICAL_MODEL",
-    "MTY_LLM_LOCAL_LONG_GENERATION_TIMEOUT_SECONDS",
-    "MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS",
-    "MTY_LLM_EXTERNAL_LONG_GENERATION_TIMEOUT_SECONDS",
-    "MTY_LLM_OPENAI_BASE_URL",
-    "MTY_LLM_OPENAI_DEFAULT_MODEL",
-    "MTY_LLM_OPENAI_CANONICAL_MODEL",
-    "MTY_LLM_ANTHROPIC_BASE_URL",
-    "MTY_LLM_ANTHROPIC_DEFAULT_MODEL",
-    "MTY_LLM_ANTHROPIC_CANONICAL_MODEL",
-    "MTY_LLM_GEMINI_BASE_URL",
-    "MTY_LLM_GEMINI_DEFAULT_MODEL",
-    "MTY_LLM_GEMINI_CANONICAL_MODEL",
-    "MTY_LLM_REQUEST_TIMEOUT_SECONDS",
-    "MTY_LLM_HEALTHCHECK_ON_STARTUP",
-    "MTY_LLM_REQUIRED",
+    "MIY_LLM_LOCAL_PROVIDER",
+    "MIY_LLM_LOCAL_BASE_URL",
+    "MIY_LLM_LOCAL_API_KEY",
+    "MIY_LLM_LOCAL_DEFAULT_MODEL",
+    "MIY_LLM_LOCAL_CANONICAL_MODEL",
+    "MIY_LLM_LOCAL_LONG_GENERATION_TIMEOUT_SECONDS",
+    "MIY_LLM_EXTERNAL_ALLOWED_PROVIDERS",
+    "MIY_LLM_EXTERNAL_LONG_GENERATION_TIMEOUT_SECONDS",
+    "MIY_LLM_OPENAI_BASE_URL",
+    "MIY_LLM_OPENAI_DEFAULT_MODEL",
+    "MIY_LLM_OPENAI_CANONICAL_MODEL",
+    "MIY_LLM_ANTHROPIC_BASE_URL",
+    "MIY_LLM_ANTHROPIC_DEFAULT_MODEL",
+    "MIY_LLM_ANTHROPIC_CANONICAL_MODEL",
+    "MIY_LLM_GEMINI_BASE_URL",
+    "MIY_LLM_GEMINI_DEFAULT_MODEL",
+    "MIY_LLM_GEMINI_CANONICAL_MODEL",
+    "MIY_LLM_REQUEST_TIMEOUT_SECONDS",
+    "MIY_LLM_HEALTHCHECK_ON_STARTUP",
+    "MIY_LLM_REQUIRED",
 )
 
 
@@ -90,8 +90,8 @@ def clear_settings_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     for key in LLM_ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv(
-        "MTY_POSTGRES_DSN",
-        "postgresql+psycopg://mty_test:mty_test@127.0.0.1:5432/mty_test",
+        "MIY_POSTGRES_DSN",
+        "postgresql+psycopg://miy_test:miy_test@127.0.0.1:5432/miy_test",
     )
     get_settings.cache_clear()
     _clear_pool_client_cache()
@@ -147,9 +147,9 @@ def test_pool_config_accepts_header_credentials_without_api_key() -> None:
 def test_local_pool_environment_cannot_select_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("MTY_LLM_LOCAL_API_KEY", "")
-    monkeypatch.setenv("MTY_LLM_LOCAL_DEFAULT_MODEL", "local/current-moe-test-model")
-    monkeypatch.setenv("MTY_LLM_LOCAL_CANONICAL_MODEL", "local/current-moe-test-model")
+    monkeypatch.setenv("MIY_LLM_LOCAL_API_KEY", "")
+    monkeypatch.setenv("MIY_LLM_LOCAL_DEFAULT_MODEL", "local/current-moe-test-model")
+    monkeypatch.setenv("MIY_LLM_LOCAL_CANONICAL_MODEL", "local/current-moe-test-model")
     get_settings.cache_clear()
 
     config = llm.get_pool_config("local")
@@ -163,7 +163,7 @@ def test_local_pool_environment_cannot_select_model(
 def test_external_allowed_provider_allowlist_does_not_fallback_to_all(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS", "typo-provider")
+    monkeypatch.setenv("MIY_LLM_EXTERNAL_ALLOWED_PROVIDERS", "typo-provider")
     get_settings.cache_clear()
 
     assert llm.get_allowed_external_llm_providers() == ()
@@ -175,7 +175,7 @@ def test_legacy_external_api_key_envs_are_not_runtime_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     for provider in ("OPENAI", "ANTHROPIC", "GEMINI"):
-        monkeypatch.setenv(f"MTY_LLM_{provider}_API_KEY", "legacy-secret")
+        monkeypatch.setenv(f"MIY_LLM_{provider}_API_KEY", "legacy-secret")
     get_settings.cache_clear()
 
     settings = get_settings()
@@ -204,8 +204,8 @@ def test_resolved_pool_health_reports_missing_admin_model() -> None:
 def test_legacy_external_pool_health_fails_closed_without_db_credential(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS", "anthropic")
-    monkeypatch.setenv("MTY_LLM_REQUEST_TIMEOUT_SECONDS", "7.5")
+    monkeypatch.setenv("MIY_LLM_EXTERNAL_ALLOWED_PROVIDERS", "anthropic")
+    monkeypatch.setenv("MIY_LLM_REQUEST_TIMEOUT_SECONDS", "7.5")
     get_settings.cache_clear()
 
     calls: list[tuple[str, str, float]] = []
@@ -258,8 +258,8 @@ def test_official_provider_health_maps_model_not_found(
 def test_legacy_pool_health_does_not_accept_environment_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("MTY_LLM_LOCAL_DEFAULT_MODEL", "local/current-moe-test-model")
-    monkeypatch.setenv("MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS", "openai")
+    monkeypatch.setenv("MIY_LLM_LOCAL_DEFAULT_MODEL", "local/current-moe-test-model")
+    monkeypatch.setenv("MIY_LLM_EXTERNAL_ALLOWED_PROVIDERS", "openai")
 
     monkeypatch.setattr(
         llm,
@@ -281,8 +281,8 @@ def test_legacy_pool_health_does_not_accept_environment_model(
 def test_configured_health_does_not_probe_provider(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("MTY_LLM_LOCAL_DEFAULT_MODEL", "local/current-moe-test-model")
-    monkeypatch.setenv("MTY_LLM_LOCAL_CANONICAL_MODEL", "local/current-moe-test-model")
+    monkeypatch.setenv("MIY_LLM_LOCAL_DEFAULT_MODEL", "local/current-moe-test-model")
+    monkeypatch.setenv("MIY_LLM_LOCAL_CANONICAL_MODEL", "local/current-moe-test-model")
     monkeypatch.setattr(
         llm,
         "get_pool_client",
@@ -301,7 +301,7 @@ def test_configured_health_does_not_probe_provider(
 def test_choose_pool_defaults_to_local_only_without_policy_row(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from mty_api.core.llm import LlmTaskContext, choose_pool
+    from miy_api.core.llm import LlmTaskContext, choose_pool
 
     class _FakeDb:
         def execute(self, *_args, **_kwargs):
@@ -328,7 +328,7 @@ def test_choose_pool_defaults_to_local_only_without_policy_row(
 
 
 def test_llm_task_context_requires_app_id() -> None:
-    from mty_api.core.llm import LlmTaskContext
+    from miy_api.core.llm import LlmTaskContext
 
     with pytest.raises(ValueError, match="LLM app_id is required"):
         LlmTaskContext(
@@ -340,7 +340,7 @@ def test_llm_task_context_requires_app_id() -> None:
 
 
 def test_choose_pool_local_hint_forces_local_even_on_external_policy() -> None:
-    from mty_api.core.llm import LlmTaskContext, choose_pool
+    from miy_api.core.llm import LlmTaskContext, choose_pool
 
     class _FakeDb:
         def execute(self, *_args, **_kwargs):
@@ -372,7 +372,7 @@ def test_choose_pool_local_hint_forces_local_even_on_external_policy() -> None:
 
 
 def test_choose_pool_does_not_apply_payload_security_in_core_transport() -> None:
-    from mty_api.core.llm import LlmTaskContext, choose_pool
+    from miy_api.core.llm import LlmTaskContext, choose_pool
 
     class _FakeDb:
         def execute(self, *_args, **_kwargs):
@@ -405,7 +405,7 @@ def test_choose_pool_does_not_apply_payload_security_in_core_transport() -> None
 
 
 def test_choose_pool_does_not_rescan_security_documents_in_core_transport() -> None:
-    from mty_api.core.llm import LlmTaskContext, choose_pool
+    from miy_api.core.llm import LlmTaskContext, choose_pool
 
     class _FakeDb:
         def execute(self, *_args, **_kwargs):
@@ -437,7 +437,7 @@ def test_choose_pool_does_not_rescan_security_documents_in_core_transport() -> N
 
 
 def test_choose_pool_uses_external_when_policy_external_and_no_pii() -> None:
-    from mty_api.core.llm import LlmTaskContext, choose_pool
+    from miy_api.core.llm import LlmTaskContext, choose_pool
 
     class _FakeDb:
         def execute(self, *_args, **_kwargs):
@@ -469,7 +469,7 @@ def test_choose_pool_uses_external_when_policy_external_and_no_pii() -> None:
 
 
 def test_scan_pii_matches_space_separated_kr_rrn_and_phone() -> None:
-    from mty_api.core.pii import scan_pii
+    from miy_api.core.pii import scan_pii
 
     hits = scan_pii(
         [
@@ -482,7 +482,7 @@ def test_scan_pii_matches_space_separated_kr_rrn_and_phone() -> None:
 
 
 def test_scan_pii_matches_overlong_kr_rrn_suffix() -> None:
-    from mty_api.core.pii import scan_pii
+    from miy_api.core.pii import scan_pii
 
     hits = scan_pii(["주민번호형 식별자는 851212-10456712 입니다."])
 
@@ -490,7 +490,7 @@ def test_scan_pii_matches_overlong_kr_rrn_suffix() -> None:
 
 
 def test_scan_pii_matches_separatorless_kr_phone() -> None:
-    from mty_api.core.pii import scan_pii
+    from miy_api.core.pii import scan_pii
 
     hits = scan_pii(["연락처는 01012345678 입니다."])
 

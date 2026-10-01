@@ -2,10 +2,10 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMPOSE_FILE="$ROOT_DIR/ops/compose/mty-prod.app.yml"
+COMPOSE_FILE="$ROOT_DIR/ops/compose/miy-prod.app.yml"
 ENV_FILE="$ROOT_DIR/.env"
-COMPOSE_PROJECT_NAME="mty-prod-app"
-IMAGE_REPOSITORY="mty-app"
+COMPOSE_PROJECT_NAME="miy-prod-app"
+IMAGE_REPOSITORY="miy-app"
 CURRENT_IMAGE="$IMAGE_REPOSITORY:prod"
 PREVIOUS_IMAGE="$IMAGE_REPOSITORY:prod-previous"
 CANDIDATE_IMAGE="$IMAGE_REPOSITORY:candidate"
@@ -83,7 +83,7 @@ require_terminal_broker_port_available() {
       "$config_env" \
       --print-hermes-terminal-broker-port
   )" || return 1
-  expected_container="mty-prod-hermes-terminal-broker"
+  expected_container="${3:-miy-prod-hermes-terminal-broker}"
 
   if ! command -v ss >/dev/null 2>&1; then
     echo "Production port preflight requires the ss command." >&2
@@ -114,10 +114,13 @@ require_terminal_broker_port_available() {
 compose() (
   # Compose interpolation prefers exported shell values over --env-file. The
   # validated release file owns product/provider configuration in both paths.
-  local compose_env_name
+  local compose_env_name compose_product_prefix
+  compose_product_prefix="${COMPOSE_PROJECT_NAME%-prod-app}"
+  compose_product_prefix="${compose_product_prefix//-/_}"
+  compose_product_prefix="${compose_product_prefix^^}_"
   while IFS= read -r compose_env_name; do
     case "$compose_env_name" in
-      MTY_*|OPENROUTER_API_KEY) unset "$compose_env_name" || return 1 ;;
+      MIY_*|"$compose_product_prefix"*|OPENROUTER_API_KEY) unset "$compose_env_name" || return 1 ;;
     esac
   done < <(compgen -e)
   docker compose \
@@ -174,7 +177,7 @@ load_release_contract() {
   )" || return 1
   RELEASE_CONTRACT="$(
     printf '%s\n' \
-      'mty-production-release-v1' \
+      'miy-production-release-v1' \
       "$RELEASE_REVISION" \
       "$RELEASE_SOURCE_REVISION" \
       "$RELEASE_TREE" \
@@ -186,7 +189,7 @@ load_release_contract() {
 
 candidate_matches_contract() {
   local image="${1:?image is required}"
-  [[ "$(image_label "$image" 'io.mty.release.contract')" == "$RELEASE_CONTRACT" ]]
+  [[ "$(image_label "$image" 'io.miy.release.contract')" == "$RELEASE_CONTRACT" ]]
 }
 
 verify_release_image() {
@@ -204,12 +207,12 @@ verify_release_image() {
     test -f scripts/blocknote-collab-codec.mjs
     node --version >/dev/null
     node scripts/blocknote-collab-codec.mjs encode </dev/null >/dev/null
-    apps/api/.venv/bin/python -c "import mty_api"
-    MTY_POSTGRES_DSN=sqlite:///migration-config-smoke.db \
+    apps/api/.venv/bin/python -c "import miy_api"
+    MIY_POSTGRES_DSN=sqlite:///migration-config-smoke.db \
       apps/api/.venv/bin/python -c \
-      "from alembic.script import ScriptDirectory; from mty_api.core.db import _alembic_config; assert ScriptDirectory.from_config(_alembic_config()).get_current_head()"
+      "from alembic.script import ScriptDirectory; from miy_api.core.db import _alembic_config; assert ScriptDirectory.from_config(_alembic_config()).get_current_head()"
     apps/api/.venv/bin/python -c "import opf, torch"
-    apps/worker/.venv/bin/python -c "import mty_worker"
+    apps/worker/.venv/bin/python -c "import miy_worker"
   '
 }
 
@@ -229,16 +232,16 @@ verify_candidate_image() {
       return 1
     fi
   done <<EOF
-io.mty.release.contract	$RELEASE_CONTRACT
-io.mty.release.source-revision	$RELEASE_SOURCE_REVISION
-io.mty.release.tree	$RELEASE_TREE
-io.mty.release.platform	$RELEASE_PLATFORM
-io.mty.release.bento-url-sha256	$RELEASE_BENTO_URL_SHA256
-io.mty.release.merge-request	$RELEASE_MR
+io.miy.release.contract	$RELEASE_CONTRACT
+io.miy.release.source-revision	$RELEASE_SOURCE_REVISION
+io.miy.release.tree	$RELEASE_TREE
+io.miy.release.platform	$RELEASE_PLATFORM
+io.miy.release.bento-url-sha256	$RELEASE_BENTO_URL_SHA256
+io.miy.release.merge-request	$RELEASE_MR
 EOF
   local recorded_pipeline
   recorded_pipeline="$(
-    image_label "$image" 'io.mty.release.pipeline'
+    image_label "$image" 'io.miy.release.pipeline'
   )" || return 1
   if [[ ! "$recorded_pipeline" =~ ^[1-9][0-9]*$ ]]; then
     echo "Release candidate does not record valid build-time pipeline evidence." >&2
@@ -272,15 +275,15 @@ prepare_candidate_image() {
     --file ops/app/Dockerfile \
     --target runtime \
     --platform "$RELEASE_PLATFORM" \
-    --build-arg "MTY_BENTO_SERVER_URL=$bento_server_url" \
-    --build-arg "MTY_BUILD_REVISION=$RELEASE_REVISION" \
-    --build-arg "MTY_RELEASE_CONTRACT=$RELEASE_CONTRACT" \
-    --build-arg "MTY_RELEASE_SOURCE_REVISION=$RELEASE_SOURCE_REVISION" \
-    --build-arg "MTY_RELEASE_TREE=$RELEASE_TREE" \
-    --build-arg "MTY_RELEASE_PLATFORM=$RELEASE_PLATFORM" \
-    --build-arg "MTY_RELEASE_BENTO_URL_SHA256=$RELEASE_BENTO_URL_SHA256" \
-    --build-arg "MTY_RELEASE_MR=$RELEASE_MR" \
-    --build-arg "MTY_RELEASE_PIPELINE=$RELEASE_PIPELINE" \
+    --build-arg "MIY_BENTO_SERVER_URL=$bento_server_url" \
+    --build-arg "MIY_BUILD_REVISION=$RELEASE_REVISION" \
+    --build-arg "MIY_RELEASE_CONTRACT=$RELEASE_CONTRACT" \
+    --build-arg "MIY_RELEASE_SOURCE_REVISION=$RELEASE_SOURCE_REVISION" \
+    --build-arg "MIY_RELEASE_TREE=$RELEASE_TREE" \
+    --build-arg "MIY_RELEASE_PLATFORM=$RELEASE_PLATFORM" \
+    --build-arg "MIY_RELEASE_BENTO_URL_SHA256=$RELEASE_BENTO_URL_SHA256" \
+    --build-arg "MIY_RELEASE_MR=$RELEASE_MR" \
+    --build-arg "MIY_RELEASE_PIPELINE=$RELEASE_PIPELINE" \
     --tag "$build_image" \
     - >&2 || return 1
   verify_candidate_image "$build_image" || return 1
@@ -336,7 +339,7 @@ start_runtime() {
 run_smoke() {
   local revision
   revision="$(image_revision "$CURRENT_IMAGE")" || return 1
-  MTY_EXPECTED_REVISION="$revision" \
+  MIY_EXPECTED_REVISION="$revision" \
     node "$ROOT_DIR/scripts/prod-app-smoke.mjs" "$ENV_FILE"
 }
 
@@ -349,13 +352,24 @@ prepare_rollback_runtime() {
     node "$ROOT_DIR/scripts/prod-app-rollback.mjs" prepare \
       "$ROOT_DIR" "$ROLLBACK_ENV_FILE" "$ROLLBACK_IMAGE" "$expected_image"
   )" || return 1
+  local metadata
+  local -a fields
+  metadata="$(node "$ROOT_DIR/scripts/prod-app-rollback.mjs" runtime "$ROLLBACK_BUNDLE")" || return 1
+  mapfile -t fields <<<"$metadata"
+  [[ "${#fields[@]}" -eq 5 ]] || return 1
+  ROLLBACK_COMPOSE_FILE="$ROLLBACK_BUNDLE/${fields[0]}"
+  ROLLBACK_PROJECT="${fields[1]}"
+  ROLLBACK_CURRENT_IMAGE="${fields[2]}"
+  ROLLBACK_BROKER="${fields[3]}"
+  ROLLBACK_REVISION_ENV="${fields[4]}"
   require_terminal_broker_port_available \
-    "$ROLLBACK_BUNDLE/scripts/prod-app-config.mjs" "$ROLLBACK_BUNDLE/.env" || return 1
+    "$ROLLBACK_BUNDLE/scripts/prod-app-config.mjs" "$ROLLBACK_BUNDLE/.env" "$ROLLBACK_BROKER" || return 1
 }
 
 rollback_compose() {
   local ENV_FILE="$ROLLBACK_BUNDLE/.env"
-  local COMPOSE_FILE="$ROLLBACK_BUNDLE/ops/compose/mty-prod.app.yml"
+  local COMPOSE_FILE="${ROLLBACK_COMPOSE_FILE:?pinned rollback Compose is required}"
+  local COMPOSE_PROJECT_NAME="${ROLLBACK_PROJECT:?pinned rollback project is required}"
   compose "$@"
 }
 
@@ -368,17 +382,16 @@ restore_previous_runtime() {
     echo "Restoring the pinned production image, environment, and deployment definitions." >&2
     # Stop every container in this application project, including new release
     # orphans. Persistent volumes and the separate database project are retained.
-    rollback_compose down --remove-orphans || return 1
+    compose down --remove-orphans || return 1
     node "$ROOT_DIR/scripts/prod-app-rollback.mjs" restore-env \
       "$ROOT_DIR" "$ROLLBACK_BUNDLE" "$ROLLBACK_IMAGE" || return 1
     docker tag "$ROLLBACK_IMAGE" "$CURRENT_IMAGE" || return 1
-    local COMPOSE_FILE="$ROLLBACK_BUNDLE/ops/compose/mty-prod.app.yml"
-    local ENV_FILE="$ROLLBACK_BUNDLE/.env"
-    start_runtime || return 1
+    docker tag "$ROLLBACK_IMAGE" "$ROLLBACK_CURRENT_IMAGE" || return 1
+    rollback_compose up -d --remove-orphans --wait --wait-timeout 600 || return 1
     local revision
     revision="$(image_revision "$ROLLBACK_IMAGE")" || return 1
-    MTY_EXPECTED_REVISION="$revision" \
-      node "$ROLLBACK_BUNDLE/scripts/prod-app-smoke.mjs" "$ENV_FILE" || return 1
+    (export "$ROLLBACK_REVISION_ENV=$revision"
+      node "$ROLLBACK_BUNDLE/scripts/prod-app-smoke.mjs" "$ROLLBACK_BUNDLE/.env") || return 1
     return 0
   fi
   if ! docker image inspect "$PREVIOUS_IMAGE" >/dev/null 2>&1; then

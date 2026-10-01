@@ -3,12 +3,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
-from mty_api.domains.meeting.availability_projection import (
+from miy_api.domains.meeting.availability_projection import (
     build_availability_response,
     build_meeting_busy_blocks,
     project_planner_event_busy_block,
 )
-from mty_api.domains.meeting.schemas import MeetingAvailabilityBlock
+from miy_api.domains.meeting.schemas import MeetingAvailabilityBlock
 
 
 def _dt(day: int, hour: int) -> datetime:

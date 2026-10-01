@@ -58,7 +58,7 @@ test('contract rejects extra or weakened jobs', () => {
     source.replace('prepare-validation-runtime.sh --postgres', 'prepare-validation-runtime.sh'),
     source.replace('source scripts/ci/normalize-validation-postgres-dsn.sh', 'true'),
     source.replace('      - test-results/\n', ''),
-    source.replace("    MTY_API_PYTEST_WORKERS: '2'\n", ''),
+    source.replace("    MIY_API_PYTEST_WORKERS: '2'\n", ''),
     source.replace("    NODE_OPTIONS: '--max-old-space-size=3072'\n", ''),
     source.replace("    VITEST_MAX_WORKERS: '1'", "    VITEST_MAX_WORKERS: '8'"),
     source.replace("    PLAYWRIGHT_WORKERS: '1'", "    PLAYWRIGHT_WORKERS: '8'"),

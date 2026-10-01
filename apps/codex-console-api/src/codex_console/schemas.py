@@ -16,13 +16,52 @@ class LoginInput(Input):
     password: str = Field(min_length=1, max_length=1024)
 
 
-class MTYSessionInput(Input):
+class MIYSessionInput(Input):
     issuer: str = Field(min_length=8, max_length=2048)
     code: str = Field(min_length=20, max_length=256, pattern=r"^cc1_[A-Za-z0-9_-]+$")
 
 
+class TaskContext(Input):
+    purpose: Literal["development", "inspection", "deployment", "recovery"] = "development"
+    service_id: str | None = Field(default=None, max_length=100)
+
+
 class NewTask(Input):
     title: str = Field(min_length=1, max_length=200)
+    context: TaskContext | None = None
+    isolate: bool = False
+
+
+class TaskPreferences(Input):
+    pinned: bool
+
+
+class AgentOut(BaseModel):
+    thread_id: str
+    parent_thread_id: str | None = None
+    name: str
+    role: str | None = None
+    status: str
+    flags: list[str] = []
+    turn_id: str | None = None
+    activity: str | None = None
+    progress: dict[str, Any] | None = None
+    updated_at: str
+
+
+class ServiceOut(BaseModel):
+    id: str
+    name: str
+    environment: str
+    status: str
+    version: str | None = None
+    checked_at: str | None = None
+    stale: bool = True
+
+
+class SkillOut(BaseModel):
+    name: str
+    description: str
 
 
 class ImportThread(Input):
@@ -41,6 +80,7 @@ class MessageBody(Input):
     text: str = Field(default="", max_length=MESSAGE_CHAR_LIMIT)
     stage: Literal["plan"] = "plan"
     attachment_ids: list[UUID] = Field(default_factory=list, max_length=20)
+    skill_names: list[str] = Field(default_factory=list, max_length=5)
 
     @model_validator(mode="after")
     def nonempty(self):
@@ -58,6 +98,7 @@ class Implement(ExecutionOptions):
     revision_id: int | None = Field(default=None, gt=0)
     text: str = Field(default="", max_length=MESSAGE_CHAR_LIMIT)
     attachment_ids: list[UUID] = Field(default_factory=list, max_length=20)
+    skill_names: list[str] = Field(default_factory=list, max_length=5)
 
     @model_validator(mode="after")
     def authorization(self):
@@ -126,6 +167,12 @@ class TaskOut(BaseModel):
     effort: str | None = None
     permissions: Literal["read-only", "ask", "yolo"] = "read-only"
     progress: dict[str, Any] | None = None
+    context: dict[str, Any] | None = None
+    pinned: bool = False
+    agents: list[AgentOut] = []
+    pending_count: int = 0
+    executor: Literal["session", "templates"] = "session"
+    template_snapshot: dict[str, Any] | None = None
 
 
 class ModelOut(BaseModel):

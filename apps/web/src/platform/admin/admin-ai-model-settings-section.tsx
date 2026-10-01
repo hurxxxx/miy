@@ -2,7 +2,7 @@ import { ChevronRight, Plus, RefreshCw, Save } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button, useFeedback } from '@mty/ui';
+import { Button, useFeedback } from '@miy/ui';
 
 import {
   AdminAiModelSettingsApiError,

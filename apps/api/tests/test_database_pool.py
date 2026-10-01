@@ -6,8 +6,8 @@ import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.pool import QueuePool
 
-from mty_api.core import db
-from mty_api.core.settings import Settings
+from miy_api.core import db
+from miy_api.core.settings import Settings
 
 
 def test_api_burst_returns_to_small_idle_pool(tmp_path, monkeypatch) -> None:

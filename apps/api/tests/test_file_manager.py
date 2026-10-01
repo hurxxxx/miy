@@ -17,38 +17,38 @@ from dev_accounts import (
     dev_login,
 )
 
-from mty_api.core.db import get_session_factory
-from mty_api.core.settings import get_settings
-from mty_api.core.storage import get_minio_client
-from mty_api.domains.auth.models import User
-from mty_api.domains.auth.app_access_models import AppAccessPolicy
-from mty_api.domains.files import (
+from miy_api.core.db import get_session_factory
+from miy_api.core.settings import get_settings
+from miy_api.core.storage import get_minio_client
+from miy_api.domains.auth.models import User
+from miy_api.domains.auth.app_access_models import AppAccessPolicy
+from miy_api.domains.files import (
     rag_projection,
     rag_status,
     rag_sync,
     search_hooks,
     service as files_service,
 )
-from mty_api.domains.files.models import FileManagerFile, FileManagerStorageCleanupJob
-from mty_api.domains.files.rag_projection import FileExtractionArtifact
-from mty_api.domains.rag.models import RagSyncJob
-from mty_api.domains.rag.runtime import (
+from miy_api.domains.files.models import FileManagerFile, FileManagerStorageCleanupJob
+from miy_api.domains.files.rag_projection import FileExtractionArtifact
+from miy_api.domains.rag.models import RagSyncJob
+from miy_api.domains.rag.runtime import (
     PARTITIONED_RAG_GENERATION_SCHEMA_VERSION,
     resolve_partitioned_rag_collection_alias,
     resolve_partitioned_rag_collection_name,
 )
-from mty_api.domains.retrieval.models import (
+from miy_api.domains.retrieval.models import (
     RetrievalProjectionEvent,
     RetrievalProjectionGeneration,
 )
-from mty_api.domains.retrieval.projection_fencing import record_projection_event
-from mty_api.domains.search.models import SearchIndexJob
-from mty_api.domains.search.index_gateway import (
+from miy_api.domains.retrieval.projection_fencing import record_projection_event
+from miy_api.domains.search.models import SearchIndexJob
+from miy_api.domains.search.index_gateway import (
     RETRIEVAL_PARTITIONED_INDEX_SCHEMA_VERSION,
     keyword_search_partitioned_index_alias,
     keyword_search_partitioned_index_name,
 )
-from mty_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOURCE_TYPE
+from miy_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOURCE_TYPE
 
 
 def _auth_headers(token: str) -> dict[str, str]:
@@ -59,7 +59,7 @@ def _administrator_member_session(client: TestClient, login_id: str) -> dict:
     return create_company_user_session(
         client,
         login_id=login_id,
-        email=f"{login_id}@mty.local",
+        email=f"{login_id}@miy.local",
         full_name="Company Member",
     )
 

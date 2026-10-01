@@ -1,6 +1,6 @@
 # Bento Slides
 
-MTY embeds official `bento/slides` single-HTML runtime in a separate-origin iframe. Hub owns document list/auth/storage; Bento owns editing and `.bento.html` serialization.
+miy embeds official `bento/slides` single-HTML runtime in a separate-origin iframe. Hub owns document list/auth/storage; Bento owns editing and `.bento.html` serialization.
 
 ## Pinned Runtime
 
@@ -19,13 +19,13 @@ protocol unit coverage but no dedicated Bento browser harness.
 
 ```bash
 ./scripts/dev-infra.sh up
-docker compose --env-file .env.example -f ops/compose/mty-dev.infra.yml up -d --build bento
+docker compose --env-file .env.example -f ops/compose/miy-dev.infra.yml up -d --build bento
 ```
 
 - Local URL: `http://127.0.0.1:18084/`
 - Health: `/healthz`
-- Public env: `MTY_BENTO_SERVER_URL`
-- The external HTTPS proxy connects the dedicated Bento hostname directly to `MTY_BENTO_BIND_HOST:MTY_BENTO_PORT`. Keep the default loopback binding for a local proxy; otherwise use only the exact private proxy-facing IPv4 address. Wildcard, public-IP, IPv6, and hostname bindings are forbidden in production.
+- Public env: `MIY_BENTO_SERVER_URL`
+- The external HTTPS proxy connects the dedicated Bento hostname directly to `MIY_BENTO_BIND_HOST:MIY_BENTO_PORT`. Keep the default loopback binding for a local proxy; otherwise use only the exact private proxy-facing IPv4 address. Wildcard, public-IP, IPv6, and hostname bindings are forbidden in production.
 - Do not serve Bento below the Hub origin; iframe must not access Hub storage/tokens.
 
 ## Data/Auth

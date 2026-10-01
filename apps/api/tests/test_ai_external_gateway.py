@@ -4,9 +4,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from mty_api.core.settings import Settings
-from mty_api.domains.ai import external_gateway
-from mty_api.domains.ai.external_gateway import (
+from miy_api.core.settings import Settings
+from miy_api.domains.ai import external_gateway
+from miy_api.domains.ai.external_gateway import (
     AiExternalCapabilityPolicyViolation,
     AiExternalCapabilityRequest,
     execute_external_capability,

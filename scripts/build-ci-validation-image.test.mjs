@@ -19,12 +19,12 @@ test('validation source metadata follows every installed dependency layer', () =
   assert.ok(metadata > source.lastIndexOf('COPY '));
   assert.match(
     source.slice(metadata),
-    /io.mty.validation.contract="\$\{VALIDATION_CONTRACT_SHA256\}"/,
+    /io.miy.validation.contract="\$\{VALIDATION_CONTRACT_SHA256\}"/,
   );
 });
 
 function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mty-validation-build-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'miy-validation-build-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const write = (name, content) => {
     const target = path.join(root, name);
@@ -65,7 +65,7 @@ else if (args[0] === 'buildx') {
   const log = path.join(root, 'docker.log');
   const env = {
     PATH: `${path.dirname(docker)}:${process.env.PATH}`,
-    MTY_VALIDATION_REPO_ROOT: root,
+    MIY_VALIDATION_REPO_ROOT: root,
     TEST_DOCKER_LOG: log,
     TEST_DOCKER_STATE: path.join(root, 'docker.state'),
   };
@@ -141,4 +141,16 @@ test('PostgreSQL preflight handles compatibility and redacts connection failures
     '-m', 'unittest', 'discover', '-s', 'scripts/tests', '-p', 'test_validation_postgres.py',
   ], { cwd: repoRoot, encoding: 'utf8', timeout: 15000 });
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+});
+
+test('rejects architecture-specific library paths while allowing pinned platform download URLs', t => {
+  const f = fixture(t);
+  assert.equal(f.run(['--print-contract']).status, 0);
+  const file = path.join(f.root, 'ops/ci/validation-runner/Dockerfile');
+  const original = fs.readFileSync(file, 'utf8');
+  for (const lib of ['/usr/lib/x86_64-linux-gnu/libpq.so.5', '/lib/aarch64-linux-gnu/libpq.so.5']) {
+    f.write('ops/ci/validation-runner/Dockerfile', original + `\nRUN cp ${lib} /usr/local/lib/libpq.so.5\n`);
+    assert.equal(f.run(['--print-contract']).status, 2);
+  }
+  assert.deepEqual(f.calls(), [], 'unsafe paths must fail before Docker');
 });

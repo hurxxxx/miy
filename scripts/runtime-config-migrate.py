@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps/api/src"))
 
 from dotenv import dotenv_values
-from mty_api.core.runtime_config import runtime_defaults
+from miy_api.core.runtime_config import runtime_defaults
 
 
 def prune_defaults(
@@ -70,8 +70,8 @@ def migrate(root: Path, filename: str, *, apply: bool) -> tuple[str, ...]:
         raise ValueError("Env file must be ignored and untracked.")
     original = target.read_text(encoding="utf-8")
     profile = os.environ.get(
-        "MTY_ENV_PROFILE",
-        dotenv_values(target, interpolate=False).get("MTY_ENV_PROFILE", ""),
+        "MIY_ENV_PROFILE",
+        dotenv_values(target, interpolate=False).get("MIY_ENV_PROFILE", ""),
     )
     updated, removed = prune_defaults(original, runtime_defaults(root, profile or ""))
     if apply and removed:

@@ -10,10 +10,10 @@ function readEnv(env, name) {
 export function evaluateMrTargetPolicy(env = process.env) {
   const pipelineSource = readEnv(env, 'CI_PIPELINE_SOURCE');
   const developmentBranch =
-    readEnv(env, 'MTY_DEVELOPMENT_BRANCH') ||
+    readEnv(env, 'MIY_DEVELOPMENT_BRANCH') ||
     DEFAULT_DEVELOPMENT_BRANCH;
   const productionBranch =
-    readEnv(env, 'MTY_PRODUCTION_BRANCH') ||
+    readEnv(env, 'MIY_PRODUCTION_BRANCH') ||
     DEFAULT_PRODUCTION_BRANCH;
 
   if (pipelineSource !== 'merge_request_event') {

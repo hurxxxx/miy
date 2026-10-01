@@ -1,4 +1,4 @@
-import { colorForCollaborativeUser } from '@mty/ui';
+import { colorForCollaborativeUser } from '@miy/ui';
 
 export type SaveStatus = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 export type CollabStatus =

@@ -1,4 +1,4 @@
-import { Tooltip } from '@mty/ui';
+import { Tooltip } from '@miy/ui';
 import 'highlight.js/styles/github.css';
 import 'katex/dist/katex.min.css';
 import { Check, Copy } from 'lucide-react';

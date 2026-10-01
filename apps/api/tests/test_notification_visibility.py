@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from mty_api.domains.notifications import visibility
+from miy_api.domains.notifications import visibility
 
 
 def _notification(

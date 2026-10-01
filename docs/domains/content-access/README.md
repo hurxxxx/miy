@@ -9,7 +9,7 @@ only validates the capability, binds it to the caller, and dispatches to an expl
 - Source APIs return a short-lived `/api/v1/content#grant=...` URL only after normal app and source
   authorization succeeds.
 - The browser accepts exactly that path and one `grant` fragment value. It sends the current access
-  token plus `X-MTY-Content-Grant`; the fragment never enters the request target or referrer.
+  token plus `X-MIY-Content-Grant`; the fragment never enters the request target or referrer.
 - A grant binds the exact user and session, owning app, personal/company execution context,
   source identity, object identity and version, disposition, and expiry. TTL cannot exceed 15 minutes.
 - `/api/v1/content` authenticates the current session, requires an exact issuer match, then rechecks
@@ -56,7 +56,7 @@ account with a completed password change and current conversation participation.
 sent attachments follow the message's join-time history boundary. Leaving and rejoining does not
 restore access to pre-join messages. The old unauthenticated DM signed-URL endpoint is removed.
 
-All grants use the dedicated typed `MTY_CONTENT_GRANT_SIGNING_KEY`; object-storage
+All grants use the dedicated typed `MIY_CONTENT_GRANT_SIGNING_KEY`; object-storage
 credentials are not signing keys. Preview/production require a cryptographically random secret of at
 least 32 characters; API startup and production configuration checks reject short keys and development
 or placeholder prefixes. Length validation cannot prove entropy; provision the key through the deployment

@@ -1,7 +1,7 @@
-const DEFAULT_MATOMO_URL = 'https://matomo.mty.example/';
+const DEFAULT_MATOMO_URL = 'https://matomo.miy.example/';
 const DEFAULT_MATOMO_SITE_ID = '1';
-const DEFAULT_ALLOWED_HOSTS = ['mty.example', 'www.mty.example', 'ext.mty.example'];
-const MATOMO_SCRIPT_ID = 'mty-matomo-tracker';
+const DEFAULT_ALLOWED_HOSTS = ['miy.example', 'www.miy.example', 'ext.miy.example'];
+const MATOMO_SCRIPT_ID = 'miy-matomo-tracker';
 const USER_NAME_DIMENSION_ID = 1;
 const APP_ID_DIMENSION_ID = 2;
 const APP_ROUTE_DIMENSION_ID = 3;
@@ -13,21 +13,21 @@ type MatomoCommand = [string, ...MatomoCommandValue[]];
 
 declare global {
   interface Window {
-    __mtyMatomoLastTrackedUrl?: string;
-    __mtyMatomoLastTrackedPageKey?: string;
-    __mtyMatomoTrackingInstalled?: boolean;
-    __mtyMatomoUserId?: string;
-    __mtyMatomoUserLoginId?: string;
-    __mtyMatomoUserName?: string;
+    __miyMatomoLastTrackedUrl?: string;
+    __miyMatomoLastTrackedPageKey?: string;
+    __miyMatomoTrackingInstalled?: boolean;
+    __miyMatomoUserId?: string;
+    __miyMatomoUserLoginId?: string;
+    __miyMatomoUserName?: string;
     _paq?: MatomoCommand[];
   }
 }
 
 export type MatomoEnv = {
-  readonly VITE_MTY_MATOMO_ALLOWED_HOSTS?: string;
-  readonly VITE_MTY_MATOMO_ENABLED?: string;
-  readonly VITE_MTY_MATOMO_SITE_ID?: string;
-  readonly VITE_MTY_MATOMO_URL?: string;
+  readonly VITE_MIY_MATOMO_ALLOWED_HOSTS?: string;
+  readonly VITE_MIY_MATOMO_ENABLED?: string;
+  readonly VITE_MIY_MATOMO_SITE_ID?: string;
+  readonly VITE_MIY_MATOMO_URL?: string;
 };
 
 type MatomoWindow = Window &
@@ -60,17 +60,17 @@ export function resolveMatomoTrackingConfig(
   env: MatomoEnv,
   location: Pick<Location, 'hostname'>,
 ): MatomoTrackingConfig | null {
-  if (!isEnabled(env.VITE_MTY_MATOMO_ENABLED)) {
+  if (!isEnabled(env.VITE_MIY_MATOMO_ENABLED)) {
     return null;
   }
 
   const trackerBaseUrl = normalizeMatomoUrl(
-    env.VITE_MTY_MATOMO_URL ?? DEFAULT_MATOMO_URL,
+    env.VITE_MIY_MATOMO_URL ?? DEFAULT_MATOMO_URL,
   );
   const siteId = normalizeSiteId(
-    env.VITE_MTY_MATOMO_SITE_ID ?? DEFAULT_MATOMO_SITE_ID,
+    env.VITE_MIY_MATOMO_SITE_ID ?? DEFAULT_MATOMO_SITE_ID,
   );
-  const allowedHosts = parseAllowedHosts(env.VITE_MTY_MATOMO_ALLOWED_HOSTS);
+  const allowedHosts = parseAllowedHosts(env.VITE_MIY_MATOMO_ALLOWED_HOSTS);
 
   if (
     !trackerBaseUrl ||
@@ -91,7 +91,7 @@ export function installMatomoTracking(
   env: MatomoEnv = import.meta.env as MatomoEnv,
   win: MatomoWindow = window as MatomoWindow,
 ): InstalledMatomoTracking | null {
-  if (win.__mtyMatomoTrackingInstalled) {
+  if (win.__miyMatomoTrackingInstalled) {
     return null;
   }
 
@@ -101,7 +101,7 @@ export function installMatomoTracking(
   }
 
   const queue = getMatomoQueue(win);
-  win.__mtyMatomoTrackingInstalled = true;
+  win.__miyMatomoTrackingInstalled = true;
 
   queue.push(['setTrackerUrl', `${config.trackerBaseUrl}matomo.php`]);
   queue.push(['setSiteId', config.siteId]);
@@ -111,12 +111,12 @@ export function installMatomoTracking(
 
   return {
     cleanup: () => {
-      delete win.__mtyMatomoTrackingInstalled;
-      delete win.__mtyMatomoLastTrackedUrl;
-      delete win.__mtyMatomoLastTrackedPageKey;
-      delete win.__mtyMatomoUserId;
-      delete win.__mtyMatomoUserLoginId;
-      delete win.__mtyMatomoUserName;
+      delete win.__miyMatomoTrackingInstalled;
+      delete win.__miyMatomoLastTrackedUrl;
+      delete win.__miyMatomoLastTrackedPageKey;
+      delete win.__miyMatomoUserId;
+      delete win.__miyMatomoUserLoginId;
+      delete win.__miyMatomoUserName;
     },
   };
 }
@@ -140,17 +140,17 @@ export function identifyMatomoUser(
     return;
   }
 
-  if (win.__mtyMatomoUserId !== userId) {
+  if (win.__miyMatomoUserId !== userId) {
     queue.push(['setUserId', userId]);
-    win.__mtyMatomoUserId = userId;
+    win.__miyMatomoUserId = userId;
   }
-  if (userLoginId && win.__mtyMatomoUserLoginId !== userLoginId) {
+  if (userLoginId && win.__miyMatomoUserLoginId !== userLoginId) {
     queue.push(['setCustomDimension', USER_LOGIN_ID_DIMENSION_ID, userLoginId]);
-    win.__mtyMatomoUserLoginId = userLoginId;
+    win.__miyMatomoUserLoginId = userLoginId;
   }
-  if (userName && win.__mtyMatomoUserName !== userName) {
+  if (userName && win.__miyMatomoUserName !== userName) {
     queue.push(['setCustomDimension', USER_NAME_DIMENSION_ID, userName]);
-    win.__mtyMatomoUserName = userName;
+    win.__miyMatomoUserName = userName;
   }
 }
 
@@ -165,9 +165,9 @@ export function clearMatomoUser(
   queue.push(['resetUserId']);
   queue.push(['deleteCustomDimension', USER_NAME_DIMENSION_ID]);
   queue.push(['deleteCustomDimension', USER_LOGIN_ID_DIMENSION_ID]);
-  delete win.__mtyMatomoUserId;
-  delete win.__mtyMatomoUserLoginId;
-  delete win.__mtyMatomoUserName;
+  delete win.__miyMatomoUserId;
+  delete win.__miyMatomoUserLoginId;
+  delete win.__miyMatomoUserName;
 }
 
 export function trackMatomoPageView(
@@ -183,12 +183,12 @@ export function trackMatomoPageView(
   const appId = normalizeDimensionValue(context.appId ?? '');
   const appRoute = normalizeDimensionValue(context.appRoute ?? '');
   const pageKey = [currentUrl, win.document.title, appId, appRoute].join('|');
-  if (win.__mtyMatomoLastTrackedPageKey === pageKey) {
+  if (win.__miyMatomoLastTrackedPageKey === pageKey) {
     return;
   }
 
-  win.__mtyMatomoLastTrackedUrl = currentUrl;
-  win.__mtyMatomoLastTrackedPageKey = pageKey;
+  win.__miyMatomoLastTrackedUrl = currentUrl;
+  win.__miyMatomoLastTrackedPageKey = pageKey;
   queue.push(['setCustomUrl', currentUrl]);
   queue.push(['setDocumentTitle', win.document.title]);
 
@@ -270,7 +270,7 @@ function getMatomoQueue(win: MatomoWindow): MatomoCommand[] {
 }
 
 function getActiveMatomoQueue(win: MatomoWindow): MatomoCommand[] | null {
-  if (!win.__mtyMatomoTrackingInstalled) {
+  if (!win.__miyMatomoTrackingInstalled) {
     return null;
   }
   return getMatomoQueue(win);

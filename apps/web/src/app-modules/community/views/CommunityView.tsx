@@ -1,7 +1,7 @@
 import {
   NOTIFICATION_REALTIME_EVENT_TYPES,
   normalizeNotificationRealtimeEvent,
-} from '@mty/contracts/notifications';
+} from '@miy/contracts/notifications';
 import {
   Button,
   IconButton,
@@ -9,7 +9,7 @@ import {
   Input,
   Select,
   useConfirm,
-} from '@mty/ui';
+} from '@miy/ui';
 import {
   ArrowLeft,
   ChevronLeft,

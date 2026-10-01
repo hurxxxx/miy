@@ -17,8 +17,8 @@ vi.mock('@/src/platform/auth/auth-provider', () => ({
 }));
 const feedbackError = vi.hoisted(() => vi.fn());
 const feedback = { error: feedbackError };
-vi.mock('@mty/ui', async (original) => ({
-  ...(await original<typeof import('@mty/ui')>()),
+vi.mock('@miy/ui', async (original) => ({
+  ...(await original<typeof import('@miy/ui')>()),
   useFeedback: () => feedback,
 }));
 vi.mock('./ai-api', () => ({

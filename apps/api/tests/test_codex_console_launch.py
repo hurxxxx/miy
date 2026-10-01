@@ -2,7 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from dev_accounts import create_company_user_session, dev_login
-from mty_api.core.settings import Settings, get_settings
+from miy_api.core.settings import Settings, get_settings
 
 
 def _catalog(client, session, *, host=None):
@@ -120,16 +120,16 @@ def test_console_launch_with_host_mapping_only_hides_unmapped_hosts(client, monk
 @pytest.mark.parametrize(
     "mapping",
     [
-        {"https://mty.example.test": "https://console.example.test/"},
-        {"mty.example.test/path": "https://console.example.test/"},
-        {"user@mty.example.test": "https://console.example.test/"},
-        {"mty.example.test": "http://console.example.test/"},
-        {"mty.example.test": "https://u:p@console.example.test/"},
-        {"mty.example.test": ""},
-        {"mty.example.test": "https://console.example.test:99999/"},
+        {"https://miy.example.test": "https://console.example.test/"},
+        {"miy.example.test/path": "https://console.example.test/"},
+        {"user@miy.example.test": "https://console.example.test/"},
+        {"miy.example.test": "http://console.example.test/"},
+        {"miy.example.test": "https://u:p@console.example.test/"},
+        {"miy.example.test": ""},
+        {"miy.example.test": "https://console.example.test:99999/"},
         {
-            "MTY.EXAMPLE.TEST": "https://first.example.test/",
-            "mty.example.test": "https://second.example.test/",
+            "miy.EXAMPLE.TEST": "https://first.example.test/",
+            "miy.example.test": "https://second.example.test/",
         },
     ],
 )

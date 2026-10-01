@@ -5,10 +5,10 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from mty_api.core.db import Base
-from mty_api.domains.rag import queue_health
-from mty_api.domains.rag.contracts import RagJobStatus, RagSyncLane, RagSyncOperation
-from mty_api.domains.rag.models import RagSyncJob, RagVisibilityRecomputeJob
+from miy_api.core.db import Base
+from miy_api.domains.rag import queue_health
+from miy_api.domains.rag.contracts import RagJobStatus, RagSyncLane, RagSyncOperation
+from miy_api.domains.rag.models import RagSyncJob, RagVisibilityRecomputeJob
 
 
 def _engine():

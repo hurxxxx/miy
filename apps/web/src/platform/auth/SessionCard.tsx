@@ -1,5 +1,5 @@
 import { formatDateTime } from '@/src/platform/time/time-utils';
-import { Button } from '@mty/ui/primitives/button';
+import { Button } from '@miy/ui/primitives/button';
 
 import type { AuthSessionItem } from './auth-api';
 import type { SettingsTranslator } from './settings-page-model';

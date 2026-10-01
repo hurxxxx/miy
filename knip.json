@@ -35,19 +35,19 @@
         "@/src/*": [
           "apps/web/src/*"
         ],
-        "@mty/ui": [
+        "@miy/ui": [
           "packages/ui/src/index.ts"
         ],
-        "@mty/ui/styles.css": [
+        "@miy/ui/styles.css": [
           "packages/ui/styles.css"
         ],
-        "@mty/web-shell": [
+        "@miy/web-shell": [
           "apps/web/src/app/shell/AppContent.tsx"
         ],
-        "@mty/web/styles.css": [
+        "@miy/web/styles.css": [
           "apps/web/src/index.css"
         ],
-        "@mty/web/fullcalendar-theme.css": [
+        "@miy/web/fullcalendar-theme.css": [
           "apps/web/src/styles/fullcalendar-theme.css"
         ]
       },
@@ -75,19 +75,19 @@
         "@/src/*": [
           "src/*"
         ],
-        "@mty/ui": [
+        "@miy/ui": [
           "../../packages/ui/src/index.ts"
         ],
-        "@mty/ui/styles.css": [
+        "@miy/ui/styles.css": [
           "../../packages/ui/styles.css"
         ],
-        "@mty/web-shell": [
+        "@miy/web-shell": [
           "../web/src/app/shell/AppContent.tsx"
         ],
-        "@mty/web/styles.css": [
+        "@miy/web/styles.css": [
           "../web/src/index.css"
         ],
-        "@mty/web/fullcalendar-theme.css": [
+        "@miy/web/fullcalendar-theme.css": [
           "../web/src/styles/fullcalendar-theme.css"
         ]
       },

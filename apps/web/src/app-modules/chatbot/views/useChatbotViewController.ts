@@ -1,4 +1,4 @@
-import { useConfirm } from '@mty/ui';
+import { useConfirm } from '@miy/ui';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';

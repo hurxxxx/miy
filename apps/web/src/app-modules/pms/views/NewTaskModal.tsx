@@ -1,7 +1,7 @@
 import { DateInput } from '@/src/components/date/DateInput';
 import { useAuth } from '@/src/platform/auth/auth-provider';
 import { useMediaUpload } from '@/src/platform/media/use-media-upload';
-import { BlockEditor, Button, Dialog, InlineNotice } from '@mty/ui';
+import { BlockEditor, Button, Dialog, InlineNotice } from '@miy/ui';
 import {
   Bell,
   ChevronDown,

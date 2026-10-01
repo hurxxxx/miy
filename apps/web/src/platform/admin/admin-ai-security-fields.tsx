@@ -11,7 +11,7 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Tooltip } from '@mty/ui';
+import { Tooltip } from '@miy/ui';
 
 import type { AuthUser } from '@/src/platform/auth/auth-api';
 import { UserSearchMultiSelect } from '@/src/platform/users/UserSearchMultiSelect';

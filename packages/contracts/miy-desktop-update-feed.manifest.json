@@ -1,0 +1,85 @@
+{
+  "feedPathPrefix": "/api/v1/miy-desktop/updates",
+  "updateBaseUrlEnv": "MIY_DESKTOP_UPDATE_BASE_URL",
+  "trustedUpdateOriginsEnv": "MIY_DESKTOP_TRUSTED_UPDATE_ORIGINS",
+  "servedArtifactContentTypes": {
+    ".deb": "application/vnd.debian.binary-package",
+    ".dmg": "application/x-apple-diskimage",
+    ".exe": "application/octet-stream",
+    ".zip": "application/zip"
+  },
+  "platformOrder": ["win", "mac", "linux"],
+  "platforms": {
+    "win": {
+      "packageName": "miy-desktop-win",
+      "installerUrlEnv": "VITE_MIY_DESKTOP_INSTALLER_URL_WIN",
+      "installerStableCopy": "MIY-Desktop-Setup-latest.exe",
+      "updateDirEnv": "MIY_DESKTOP_UPDATE_WIN_DIR",
+      "defaultDir": ".miy-desktop-updates/win",
+      "updateFile": "latest.yml",
+      "servedArtifactSuffixes": [".exe", ".blockmap"],
+      "packagedArtifacts": [
+        {
+          "template": "miy Desktop Setup ${version}.exe"
+        },
+        {
+          "template": "miy Desktop Setup ${version}.exe.blockmap"
+        }
+      ],
+      "stableCopies": [
+        {
+          "template": "miy Desktop Setup ${version}.exe",
+          "to": "MIY-Desktop-Setup-latest.exe"
+        }
+      ]
+    },
+    "mac": {
+      "packageName": "miy-desktop-mac",
+      "installerUrlEnv": "VITE_MIY_DESKTOP_INSTALLER_URL_MAC",
+      "installerStableCopy": "MIY-Desktop-latest.dmg",
+      "updateDirEnv": "MIY_DESKTOP_UPDATE_MAC_DIR",
+      "defaultDir": ".miy-desktop-updates/mac",
+      "updateFile": "latest-mac.yml",
+      "servedArtifactSuffixes": [".dmg", ".zip", ".blockmap"],
+      "packagedArtifacts": [
+        {
+          "prefixTemplate": "MIY-Desktop-${version}-mac-"
+        }
+      ],
+      "stableCopies": [
+        {
+          "prefixTemplate": "MIY-Desktop-${version}-mac-",
+          "suffix": ".dmg",
+          "to": "MIY-Desktop-latest.dmg"
+        },
+        {
+          "prefixTemplate": "MIY-Desktop-${version}-mac-",
+          "suffix": ".zip",
+          "to": "MIY-Desktop-latest-mac.zip"
+        }
+      ]
+    },
+    "linux": {
+      "packageName": "miy-desktop-linux",
+      "installerUrlEnv": "VITE_MIY_DESKTOP_INSTALLER_URL_LINUX",
+      "installerStableCopy": "MIY-Desktop-latest.deb",
+      "updateDirEnv": "MIY_DESKTOP_UPDATE_LINUX_DIR",
+      "defaultDir": ".miy-desktop-updates/linux",
+      "updateFile": "latest-linux.yml",
+      "servedArtifactSuffixes": [".deb", ".blockmap"],
+      "packagedArtifacts": [
+        {
+          "prefixTemplate": "MIY-Desktop-${version}-linux-",
+          "suffix": ".deb"
+        }
+      ],
+      "stableCopies": [
+        {
+          "prefixTemplate": "MIY-Desktop-${version}-linux-",
+          "suffix": ".deb",
+          "to": "MIY-Desktop-latest.deb"
+        }
+      ]
+    }
+  }
+}

@@ -16,7 +16,7 @@ vi.mock('@/src/platform/auth/auth-provider', () => ({
   }),
 }));
 
-vi.mock('@mty/ui', async () => {
+vi.mock('@miy/ui', async () => {
   const React = await import('react');
   type ConfirmRequest = {
     cancelLabel: string;

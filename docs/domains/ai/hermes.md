@@ -1,6 +1,6 @@
 # Hermes Setup and Runtime Contract
 
-Hermes is the default shared generative engine for the chatbot and registered generative application workloads. Explicitly registered [direct completion exceptions](gateway.md#direct-completion-exceptions) run a single response through the common gateway without a Hermes session; they are never a fallback for Hermes failures. Native [decision workloads](gateway.md#decision-workloads) use a separate non-generative adapter; their model family/defaults cannot overwrite the generation connection default. MTY owns identity, current admission/ACL, model policy, durable dispatch, approvals and result validation. Hermes owns model calls, reasoning, tool iterations, delegation and conversation execution. Durable application graphs still own their business stages and checkpoints; their LLM nodes use the same Hermes gateway.
+Hermes is the default shared generative engine for the chatbot and registered generative application workloads. Explicitly registered [direct completion exceptions](gateway.md#direct-completion-exceptions) run a single response through the common gateway without a Hermes session; they are never a fallback for Hermes failures. Native [decision workloads](gateway.md#decision-workloads) use a separate non-generative adapter; their model family/defaults cannot overwrite the generation connection default. miy owns identity, current admission/ACL, model policy, durable dispatch, approvals and result validation. Hermes owns model calls, reasoning, tool iterations, delegation and conversation execution. Durable application graphs still own their business stages and checkpoints; their LLM nodes use the same Hermes gateway.
 
 ## Ownership and maintenance rule
 
@@ -11,13 +11,13 @@ This is the single owner for Hermes installation, image/configuration, profiles,
 - Image: `nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524`.
 - One multiplex gateway process serves independent native runs and conversations. A user has private profiles partitioned by `local`/`external`; a profile is not a terminal process or a concurrency slot.
 - Administrator PostgreSQL model configuration selects provider, endpoint, model, route and output cap per workload. There is no fixed Hermes model and no local/external fallback. Interactive chat, the displayed runtime model and administrator model reapplication use the registered `chatbot` workload policy. Reapplication refuses a profile from another route partition.
-- Before admission, the management API installs an immutable named custom provider and a profile-local credential env key. The opaque provider key changes on policy or credential rotation. Each MTY run snapshots this selection, including non-secret display metadata. Native `/v1/runs` receives only its documented provider/model/model-options overrides.
+- Before admission, the management API installs an immutable named custom provider and a profile-local credential env key. The opaque provider key changes on policy or credential rotation. Each miy run snapshots this selection, including non-secret display metadata. Native `/v1/runs` receives only its documented provider/model/model-options overrides.
 - OpenAI-compatible local/external providers (including the registered OpenRouter provider), Anthropic Messages and Gemini's official `/v1beta/openai` compatibility endpoint are supported. Custom headers use native provider `extra_headers`. Unsupported transports fail closed.
 - Native auxiliary tasks explicitly follow `main`, with empty fallback chains; delegation inherits the admitted main model. The root profile is never a credential fallback for a managed profile. `model.max_tokens` is unset so the immutable provider entry supplies the output cap. Bootstrap never rewrites administrator provider/model policy.
 - Bootstrap and profile model-policy synchronization apply the same [conversation context policy](#conversation-context-policy), including profiles created after gateway startup. Native retries use the pinned supported configuration; no application output-repair loop calls a second provider.
 - OpenAI-wire workload temperatures, including zero, are preserved through the named provider's supported `extra_body` request overrides. The provider identity and run snapshot include the requested value so concurrent workloads cannot overwrite each other's sampling settings. The pinned Anthropic Messages request builder drops these overrides; an explicit temperature therefore fails with the common `LlmProviderError` before profile provisioning or run staging. Anthropic calls that omit temperature retain native defaults. Native `model_options` supports reasoning/service tier, not temperature. The public request middleware does not expose the immutable run's request overrides; do not infer sampling from a mutable profile default or silently change routes.
 - Gateway/dashboard and legacy broker use fixed loopback host ports. Hermes runtime UID/GID is `10000`; named volumes retain that ownership.
-- The official image supplies Hermes, Python, Node/npm, Chromium assets, `rg`, FFmpeg and build tools. Tool registration alone does not provision optional search/media services. The image does **not** supply Python or Node Playwright; static-result verification uses `mty_preview` and the installed headless shell without another browser SDK or model call.
+- The official image supplies Hermes, Python, Node/npm, Chromium assets, `rg`, FFmpeg and build tools. Tool registration alone does not provision optional search/media services. The image does **not** supply Python or Node Playwright; static-result verification uses `miy_preview` and the installed headless shell without another browser SDK or model call.
 
 ## Configuration ownership map
 
@@ -28,13 +28,13 @@ This is the single owner for Hermes installation, image/configuration, profiles,
 | PostgreSQL dispatch, reconciliation, approvals, file metadata | `domains/hermes/models.py`, `repository.py`, `execution.py`, `maintenance.py`, `mcp_router.py`, `files.py`, `file_router.py` |
 | Native config/bootstrap and compression policy                | `ops/hermes/bootstrap.py`, `domains/hermes/client.py`, `domains/hermes/model_policy.py`                                      |
 | Multiplex discovery and native admission cancellation         | `ops/hermes/gateway_entry.py`, `domains/hermes/client.py`                                                                    |
-| Run-bound tool transport and isolated execution               | `ops/hermes/plugins/mty_runtime/`                                                                                            |
+| Run-bound tool transport and isolated execution               | `ops/hermes/plugins/miy_runtime/`                                                                                            |
 | Controlled public egress                                      | `ops/hermes/terminal_egress.py`                                                                                              |
 | Retired PTY drain/archive/recovery                            | `domains/hermes_terminal/`                                                                                                   |
 | Runtime settings, limits and topology                         | API/worker settings, `.env.example`, both Compose files, `scripts/prod-app-config.mjs`                                       |
 | Chat controls/files/reconnection                              | `apps/web/src/app-modules/chatbot/`                                                                                          |
 
-Paths under `domains/` are relative to `apps/api/src/mty_api/`. Keep the pin in API constants, Compose, bootstrap and legacy broker aligned. Generate API/app contracts through repository commands.
+Paths under `domains/` are relative to `apps/api/src/miy_api/`. Keep the pin in API constants, Compose, bootstrap and legacy broker aligned. Generate API/app contracts through repository commands.
 
 ## Conversation context policy
 
@@ -50,9 +50,9 @@ For a development update limited to this API/worker profile policy, load the upd
 
 Follow [Development Installation](../../../INSTALL.md). Docker Engine/Compose must support named volumes, internal networks and `volume-subpath` mounts. On Docker Desktop, enable Settings → Resources → Network → **Enable host networking**, then Apply & Restart, as described in [Docker's host-network documentation](https://docs.docker.com/engine/network/drivers/host/). Verify the management health URL from the host: container-internal health alone does not prove that the API can connect. Do not install Hermes on the host.
 
-The trusted gateway now needs the Docker socket to create execution sandboxes. Set `MTY_HERMES_DOCKER_GID` to the socket's numeric group (default `0`); on Linux inspect it with `stat -c '%g' /var/run/docker.sock`. Never make the socket world-writable. The gateway uses the image's Python entrypoint directly because the stock entrypoint resets supplemental groups; the official environment provider still owns sandbox lifecycle.
+The trusted gateway now needs the Docker socket to create execution sandboxes. Set `MIY_HERMES_DOCKER_GID` to the socket's numeric group (default `0`); on Linux inspect it with `stat -c '%g' /var/run/docker.sock`. Never make the socket world-writable. The gateway uses the image's Python entrypoint directly because the stock entrypoint resets supplemental groups; the official environment provider still owns sandbox lifecycle.
 
-Compose owns the physical sandbox network and public egress CA volume. Its `x-hermes-sandbox-resources` anchors supply the existing service-internal `MTY_HERMES_TERMINAL_SANDBOX_NETWORK` and `MTY_HERMES_TERMINAL_EGRESS_CLIENT_VOLUME` values to both the gateway and retained broker, and name the actual Docker resources. These are deployment wiring, not additional user `.env` settings. `MTY_HERMES_TERMINAL_RESOURCE_NAMESPACE` identifies database/legacy-runner ownership; never derive physical egress resource names from it. Custom deployments must provide both internal resource values to the gateway and retain an internal network plus the CA file-only mount.
+Compose owns the physical sandbox network and public egress CA volume. Its `x-hermes-sandbox-resources` anchors supply the existing service-internal `MIY_HERMES_TERMINAL_SANDBOX_NETWORK` and `MIY_HERMES_TERMINAL_EGRESS_CLIENT_VOLUME` values to both the gateway and retained broker, and name the actual Docker resources. These are deployment wiring, not additional user `.env` settings. `MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE` identifies database/legacy-runner ownership; never derive physical egress resource names from it. Custom deployments must provide both internal resource values to the gateway and retain an internal network plus the CA file-only mount.
 
 Native file writes additionally require a Linux Docker host/VM with [Landlock ABI 3 or newer](https://docs.kernel.org/userspace-api/landlock.html) enabled (x86_64 or aarch64, with its syscalls permitted by the container security profile). The native-tool smoke below checks enforcement inside the actual sandbox. Both gateway Compose definitions set the upstream `HERMES_WRITE_SAFE_ROOT=/workspace`; custom deployments must retain this fixed value. No additional user `.env` setting or global unattended approval is required.
 
@@ -76,12 +76,12 @@ For a local development installation, use the pinned service and persistent volu
 )
 ```
 
-Match `MTY_MINIO_ENDPOINT`, `MTY_MINIO_ACCESS_KEY`,
-`MTY_MINIO_SECRET_KEY` and `MTY_MINIO_BUCKET` in the actual
+Match `MIY_MINIO_ENDPOINT`, `MIY_MINIO_ACCESS_KEY`,
+`MIY_MINIO_SECRET_KEY` and `MIY_MINIO_BUCKET` in the actual
 API/worker environment to the service. For local Compose, the credentials must
-match `MTY_INFRA_MINIO_ROOT_USER` and
-`MTY_INFRA_MINIO_ROOT_PASSWORD`, and the endpoint port must match
-`MTY_INFRA_MINIO_PORT`. Preserve existing credentials and storage;
+match `MIY_INFRA_MINIO_ROOT_USER` and
+`MIY_INFRA_MINIO_ROOT_PASSWORD`, and the endpoint port must match
+`MIY_INFRA_MINIO_PORT`. Preserve existing credentials and storage;
 record installed credentials in `.auth_info` under the installation guide's rules.
 
 Verify authenticated bucket access and a synthetic object write/read/delete using
@@ -95,7 +95,7 @@ missing storage service or recover bytes that were never saved.
 
 ### DB connection and default-policy cutover
 
-Connection credentials/endpoints and model selection are DB-owned. The typed API/worker settings no longer read `MTY_LLM_LOCAL_API_KEY`, `MTY_LLM_LOCAL_BASE_URL`, `MTY_LLM_LOCAL_PROVIDER` or `MTY_AI_DEFAULT_EXTERNAL_LLM_PROVIDER`. Timeouts, embedding/reranker configuration, infrastructure secrets, external egress allowlists and the credential-encryption master key remain outside this control plane.
+Connection credentials/endpoints and model selection are DB-owned. The typed API/worker settings no longer read `MIY_LLM_LOCAL_API_KEY`, `MIY_LLM_LOCAL_BASE_URL`, `MIY_LLM_LOCAL_PROVIDER` or `MIY_AI_DEFAULT_EXTERNAL_LLM_PROVIDER`. Timeouts, embedding/reranker configuration, infrastructure secrets, external egress allowlists and the credential-encryption master key remain outside this control plane.
 
 For an existing installation, stop admission/API/worker processes before the cutover; preserve the DB, private env, and encryption master key together. From the intended checkout with its own environment loaded:
 
@@ -106,9 +106,9 @@ uv run --directory apps/api --python 3.12 python ../../scripts/migrate-llm-setti
 pnpm check:env-contract
 ```
 
-The first helper invocation is a dry run. Resolve `${...}` references in retired LLM settings before running it; the helper refuses these values before any database mutation instead of encrypting a literal placeholder. Apply fills only missing DB values, verifies existing ciphertext decrypts, commits the DB first, and atomically removes retired keys from the ignored mode-0600 `.env`, preserving a private recovery copy. Repeating it preserves stored keys. Before running it, add `MTY_LLM_LOCAL_ALLOWED_HOSTS` from `.env.example`, including the existing local inference hostname if different; the helper rejects endpoints outside this deployment allowlist. Active legacy Terminal sessions block removing `OPENROUTER_API_KEY`; drain them first. Native sessions already use DB keys. The optional legacy egress credential path remains only for old sessions. Do not remove deployment secrets or keys from another checkout as part of a dev cutover.
+The first helper invocation is a dry run. Resolve `${...}` references in retired LLM settings before running it; the helper refuses these values before any database mutation instead of encrypting a literal placeholder. Apply fills only missing DB values, verifies existing ciphertext decrypts, commits the DB first, and atomically removes retired keys from the ignored mode-0600 `.env`, preserving a private recovery copy. Repeating it preserves stored keys. Before running it, add `MIY_LLM_LOCAL_ALLOWED_HOSTS` from `.env.example`, including the existing local inference hostname if different; the helper rejects endpoints outside this deployment allowlist. Active legacy Terminal sessions block removing `OPENROUTER_API_KEY`; drain them first. Native sessions already use DB keys. The optional legacy egress credential path remains only for old sessions. Do not remove deployment secrets or keys from another checkout as part of a dev cutover.
 
-An enabled legacy local connection must have an explicit DB endpoint or `MTY_LLM_LOCAL_BASE_URL` before running the helper. If it previously relied on the old typed default, first set that key to the actual existing endpoint. Missing endpoints abort the transaction and leave `.env` unchanged; the helper does not guess a new address. Disabled, unconfigured connections can remain unavailable.
+An enabled legacy local connection must have an explicit DB endpoint or `MIY_LLM_LOCAL_BASE_URL` before running the helper. If it previously relied on the old typed default, first set that key to the actual existing endpoint. Missing endpoints abort the transaction and leave `.env` unchanged; the helper does not guess a new address. Disabled, unconfigured connections can remain unavailable.
 
 For development, rebuild the retained Terminal broker from the matching checkout before restarting it after key removal. Its image must include `legacy_policy.py` and the health check that permits a drained legacy credential. Recreate egress so it discards the retired token, then the broker; gateway/plugin updates follow the [development update procedure](#updating-an-existing-development-installation):
 
@@ -137,9 +137,9 @@ uv sync --frozen --python 3.12 --directory apps/worker
 ```
 
 1. Preserve existing ignored `.env`; add missing keys from `.env.example` without replacing credentials.
-2. Set `MTY_HERMES_ENABLED=true` explicitly. Generation fails unavailable when Hermes is disabled; it does not silently use the old SDK. Dev enablement is explicit and is never inferred from a provider key.
+2. Set `MIY_HERMES_ENABLED=true` explicitly. Generation fails unavailable when Hermes is disabled; it does not silently use the old SDK. Dev enablement is explicit and is never inferred from a provider key.
 3. Configure distinct runtime, management and MCP control secrets. Keep declared URL/port pairs aligned.
-4. Set `MTY_HERMES_MAX_CONCURRENT_RUNS=10` unless capacity planning requires a different positive value. It is a global MTY dispatch ceiling, not a per-user limit or a requirement to start ten workers. The [shared worker setting](../release/README.md#persistent-development-runtime) defaults to one child for a demo deployment, so queued interactive runs execute sequentially. Size both limits against available memory and the intended throughput.
+4. Set `MIY_HERMES_MAX_CONCURRENT_RUNS=10` unless capacity planning requires a different positive value. It is a global miy dispatch ceiling, not a per-user limit or a requirement to start ten workers. The [shared worker setting](../release/README.md#persistent-development-runtime) defaults to one child for a demo deployment, so queued interactive runs execute sequentially. Size both limits against available memory and the intended throughput.
 5. Start infrastructure, migrate through the normal API startup path, and start API/web/worker:
 
 ```bash
@@ -152,13 +152,13 @@ bash scripts/dev-infra.sh status
 
 7. Complete the [sandbox execution check](#sandbox-execution-check), including the terminal call in a new chatbot conversation. Gateway health and a completed conversation alone do not prove that a tool executed successfully.
 
-Before saving any provider credential, configure a private `MTY_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY` for API and worker, preserving an existing key. For OpenRouter, include `openrouter` in the configured external provider allowlists, enable its administrator provider entry at `https://openrouter.ai/api/v1`, save the credential in that entry, discover and approve the selected model's capabilities, then select it for the external workload route. A legacy `OPENROUTER_API_KEY` alone does not configure the administrator model policy. Model selection is stored in PostgreSQL and is never a source-code default.
+Before saving any provider credential, configure a private `MIY_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY` for API and worker, preserving an existing key. For OpenRouter, include `openrouter` in the configured external provider allowlists, enable its administrator provider entry at `https://openrouter.ai/api/v1`, save the credential in that entry, discover and approve the selected model's capabilities, then select it for the external workload route. A legacy `OPENROUTER_API_KEY` alone does not configure the administrator model policy. Model selection is stored in PostgreSQL and is never a source-code default.
 
 Development ports: runtime `18642`, dashboard `19119`, legacy broker `18765`. Production: `8642`, `9119`, `8765`. The broker container always listens on `18765`. Never select an arbitrary fallback port when a declared port is occupied.
 
 ### Updating an existing development installation
 
-Run these commands from the development checkout root after updating the gateway plugin or Compose sandbox resource wiring. Preserve the current configuration according to [resource ownership](#prerequisites). This routine update requires no new user `.env` keys; the MTY naming cutover changes keys and persistent Compose resources and follows the [release cutover](../release/README.md#mty-naming-cutover) first.
+Run these commands from the development checkout root after updating the gateway plugin or Compose sandbox resource wiring. Preserve the current configuration according to [resource ownership](#prerequisites). This routine update requires no new user `.env` keys; the miy naming cutover changes keys and persistent Compose resources and follows the [release cutover](../release/README.md#miy-naming-cutover) first.
 
 1. Finish or stop active development chatbot runs. Confirm that bootstrap has completed successfully and egress is healthy using the [development health checks](#operations-and-change-checklist). If the infrastructure is missing, first use `bash scripts/dev-infra.sh up` from the fresh-install procedure; the targeted command below intentionally does not start dependencies.
 2. Recreate the gateway to load both the updated plugin and Compose-provided resource values. `--force-recreate` also covers plugin-only updates, whose bind-mounted source change does not change the container configuration. A Docker restart cannot add new container environment values.
@@ -184,7 +184,7 @@ Keep chatbot traffic paused between gateway recreation and application restart w
 
 ### Production checkout
 
-Production remains governed by the [Release Domain](../release/README.md); this implementation does not authorize deployment. Provide enabled Hermes, distinct non-placeholder control secrets, aligned loopback runtime/management/broker URLs and ports, the API MCP URL, broker relay/socket paths, an explicit non-development resource namespace, queue capacity and Docker socket group. Keep `MTY_HERMES_PROFILE_CLONE_SOURCE=default` for the retained legacy bootstrap contract; new user route partitions are created fresh through the native profile API.
+Production remains governed by the [Release Domain](../release/README.md); this implementation does not authorize deployment. Provide enabled Hermes, distinct non-placeholder control secrets, aligned loopback runtime/management/broker URLs and ports, the API MCP URL, broker relay/socket paths, an explicit non-development resource namespace, queue capacity and Docker socket group. Keep `MIY_HERMES_PROFILE_CLONE_SOURCE=default` for the retained legacy bootstrap contract; new user route partitions are created fresh through the native profile API.
 
 ```bash
 node scripts/prod-app-config.mjs .env
@@ -214,11 +214,11 @@ Argument fingerprints also separate native coalescing keys so different writes
 cannot share a denial/approval wait. The adapter does not alter unattended
 terminal/code approval policy; see [the pinned gap](#pinned-upstream-gaps).
 
-Globally unique physical MCP names prevent Hermes' process-global connection registry from mixing profiles. Research source enablement remains an audited platform policy at `/admin/ai-tools`; profile reconciliation applies it. General browser, image, voice, cron tools and other integrations without an MTY execution policy are not exposed in interactive API toolsets. The separately registered `mty_preview` only renders saved conversation HTML in an offline container under the current authenticated interactive run; it cannot navigate public URLs or invoke app writes. Interactive tools advertise terminal/file/code execution, web, skills, memory, todo, delegation and entitled MCP tools, subject to native approval and file guards. Unattended `api_server` calls can use `execute_code` only after authenticated MTY admission and verification of the actual isolated MTY environment. Global unattended approval remains denied; the exception changes only the whole-script guard for that call. Native `session_search` is excluded from official API toolsets and denied by middleware, including direct session reads and stale profile configurations. The pinned history search reads shared profile workload transcripts without a trusted MTY app/resource ACL filter; source labels or model-supplied filters cannot provide authorization. Re-enable it only through a source-authorized MTY contract or an upstream trusted filtering capability. Optional web services still need their official credentials.
+Globally unique physical MCP names prevent Hermes' process-global connection registry from mixing profiles. Research source enablement remains an audited platform policy at `/admin/ai-tools`; profile reconciliation applies it. General browser, image, voice, cron tools and other integrations without an miy execution policy are not exposed in interactive API toolsets. The separately registered `miy_preview` only renders saved conversation HTML in an offline container under the current authenticated interactive run; it cannot navigate public URLs or invoke app writes. Interactive tools advertise terminal/file/code execution, web, skills, memory, todo, delegation and entitled MCP tools, subject to native approval and file guards. Unattended `api_server` calls can use `execute_code` only after authenticated miy admission and verification of the actual isolated miy environment. Global unattended approval remains denied; the exception changes only the whole-script guard for that call. Native `session_search` is excluded from official API toolsets and denied by middleware, including direct session reads and stale profile configurations. The pinned history search reads shared profile workload transcripts without a trusted miy app/resource ACL filter; source labels or model-supplied filters cannot provide authorization. Re-enable it only through a source-authorized miy contract or an upstream trusted filtering capability. Optional web services still need their official credentials.
 
-Structured application workloads use `mty_submit_result`. JSON Schema and registered semantic validators return bounded errors to the same Hermes loop; an invalid result never becomes successful text fallback. Terminal completion without a required accepted object becomes `invalid_output`. Common results carry text, structured output and usage; app code consumes that contract rather than raw SDK tool calls. Authoritative text and structured results are bounded to 2 MB separately from the smaller retained event payloads; oversize text fails explicitly. Bento plan/document/edit and RAG/query rewrite use schemas. Mail/meeting/recording and graph LLM nodes use the same registered gateway. Execution owner is explicit for system tasks while the original audit actor is retained.
+Structured application workloads use `miy_submit_result`. JSON Schema and registered semantic validators return bounded errors to the same Hermes loop; an invalid result never becomes successful text fallback. Terminal completion without a required accepted object becomes `invalid_output`. Common results carry text, structured output and usage; app code consumes that contract rather than raw SDK tool calls. Authoritative text and structured results are bounded to 2 MB separately from the smaller retained event payloads; oversize text fails explicitly. Bento plan/document/edit and RAG/query rewrite use schemas. Mail/meeting/recording and graph LLM nodes use the same registered gateway. Execution owner is explicit for system tasks while the original audit actor is retained.
 
-Retained application tool/approval steps (including `/chatbot/chat/stream` and graph agent nodes) request a typed next-action object through the same `mty_submit_result` path. The pinned native run API has no raw provider-turn response, so `tool_decisions.py` translates only this existing application contract: eligible tool names, argument schemas, required/named/disabled choice and parallel limits constrain the result. Prior tool exchanges remain role-labelled conversation data. The existing application dispatcher retains ACL, write consent, checkpoints and budgets; the translator never executes a tool. Missing or invalid results fail closed. Remove this translation when those callers adopt native interactive runs and approval events. Native `/agent` chat continues to use Hermes' own tool loop directly.
+Retained application tool/approval steps (including `/chatbot/chat/stream` and graph agent nodes) request a typed next-action object through the same `miy_submit_result` path. The pinned native run API has no raw provider-turn response, so `tool_decisions.py` translates only this existing application contract: eligible tool names, argument schemas, required/named/disabled choice and parallel limits constrain the result. Prior tool exchanges remain role-labelled conversation data. The existing application dispatcher retains ACL, write consent, checkpoints and budgets; the translator never executes a tool. Missing or invalid results fail closed. Remove this translation when those callers adopt native interactive runs and approval events. Native `/agent` chat continues to use Hermes' own tool loop directly.
 
 Session pagination orders local activity by accepted user run admission, with a stable ID tie-breaker. Listing sessions and replaying an idempotent request do not advance activity timestamps.
 
@@ -230,7 +230,7 @@ tools; restricted scopes and current app admission narrow discovery. Native
 tools retain their execution policy and external MCP tools must belong to a
 configured, enabled server in the current profile. No shared registry is changed
 for an individual run. Every execution still rechecks admission and source ACL.
-For application workloads, discovery contains only `mty_submit_result` and
+For application workloads, discovery contains only `miy_submit_result` and
 server-admitted native tools. The pinned Tool Search defers plugin tools, so
 denying all discovery would also prevent schema-driven result submission.
 Native `tool_call` unwraps its target and executes through middleware, schema
@@ -246,15 +246,15 @@ Valid calls must enter under their native-unwrapped target name and retain the
 normal approval and execution checks.
 
 Discovery compares admitted tool **names**, not counts, against the current
-native assembly. Missing names return `mty.tools.catalog_refresh_required` with
+native assembly. Missing names return `miy.tools.catalog_refresh_required` with
 only admitted missing names/count; transport/import/policy failures return
-`mty.tools.discovery_unavailable`. Neither falls back to unscoped discovery.
+`miy.tools.discovery_unavailable`. Neither falls back to unscoped discovery.
 Revoked or out-of-scope cached tools are filtered rather than treated as refresh
 requirements. These checks do not claim to compare input-schema contents under
 unchanged names; schema updates require the standard restart and contract/call
 verification. Discovery remains diagnostic, not an authorization cache.
 
-Native cron controls remain available through a separate `-jobs` profile with all MCP servers removed. They use administrator policy at profile reconciliation. Jobs do not receive an MTY interactive run or sandbox identity; the managed middleware denies tool execution without that identity. Native cron scheduling is separate from the MTY run queue and is not a route to app writes.
+Native cron controls remain available through a separate `-jobs` profile with all MCP servers removed. They use administrator policy at profile reconciliation. Jobs do not receive an miy interactive run or sandbox identity; the managed middleware denies tool execution without that identity. Native cron scheduling is separate from the miy run queue and is not a route to app writes.
 
 ### App tool enablement and verification
 
@@ -265,7 +265,7 @@ disables app tools. Code installation alone does not enable writes.
 For a development installation that should support approved app writes:
 
 1. Preserve the existing development `.env` and set only
-   `MTY_AI_WRITE_TOOLS_ENABLED=true`. This enables **all explicitly
+   `MIY_AI_WRITE_TOOLS_ENABLED=true`. This enables **all explicitly
    registered write tools** whose app policies admit the user, not only PMS.
    The shipped default remains `false`; every write still requires its existing
    approval and resource authorization.
@@ -274,7 +274,7 @@ For a development installation that should support approved app writes:
    After app-tool registration, schema or write-flag changes, recreate the gateway
    using the [existing-installation procedure](#updating-an-existing-development-installation).
    Native discovery is idempotent for connected servers and does not refresh
-   their catalog; MTY advertises `listChanged: false`. Do not interpret a healthy
+   their catalog; miy advertises `listChanged: false`. Do not interpret a healthy
    connection as proof of an updated catalog or reconnect during pending writes.
    Keep traffic paused until the matching processes are ready, then start a new
    run. Existing runs retain their recorded scope.
@@ -284,7 +284,7 @@ For a development installation that should support approved app writes:
    and verify the actual task in PMS. Verify update/comment and archive as needed.
    Platform administrator status alone does not grant PMS write membership.
 4. Confirm the actual run performs `tool_search`/`tool_describe` successfully with
-   the newly available app tools; `mty.tools.catalog_refresh_required` is a failed
+   the newly available app tools; `miy.tools.catalog_refresh_required` is a failed
    update check. Apply step 2 and verify again instead of bypassing tools with
    terminal/API calls. Run the native app-tool check below after gateway updates.
    Check persisted run scope, tool audit outcome and resource IDs. A final model
@@ -303,7 +303,7 @@ also isolates authentication checkout waits from the request threads needed to
 finish other requests. Verify these boundaries with the database concurrency
 regression and Hermes runtime stream/admission tests.
 
-PostgreSQL owns user/profile/session/run bindings, inputs, sanitized events, exact approvals, execution leases and the dispatch outbox. Publication is at least once; native run creation uses the durable MTY run ID as its idempotency key. Client keys are bound to request digests. Active leases fence duplicate consumers.
+PostgreSQL owns user/profile/session/run bindings, inputs, sanitized events, exact approvals, execution leases and the dispatch outbox. Publication is at least once; native run creation uses the durable miy run ID as its idempotency key. Client keys are bound to request digests. Active leases fence duplicate consumers.
 
 Admission atomically enforces the global queue capacity (default ten) and oldest-first execution within a conversation. Different conversations from the same user can run concurrently. Capacity/session waits defer the outbox without consuming retry attempts. Nested generation from a server-bound MCP tool retains its parent run ID. It can use a free slot, but when admission finds the global limit full it atomically fails with `hermes.nested_capacity` instead of waiting behind the parent. This includes meeting insight refresh tools: the caller receives the common LLM failure immediately, and outbox recovery cannot generate a late result. Top-level workloads retain normal capacity waiting. Application callers can drive their staged workload through the same durable dispatcher; lost callers are recovered through the outbox. Specialized graph checkpoints remain owned by LangGraph.
 
@@ -313,7 +313,7 @@ Generation and native decisions share `domains/ai/workload_access.py` for active
 
 Provisioning and execution transport failures use the common `LlmProviderError` contract so application callers retain localized failure responses and LLM error audit records. Synchronous application generation runs in worker threads; calling it directly on the ASGI event loop fails before staging, so Hermes callbacks can still reach the API. MCP callbacks use AnyIO’s explicit thread limiters: eight control/result operations and sixteen potentially long file/tool operations per event loop, separate from the default ASGI pool. Their async database dependency closes its session through control capacity. Synchronous public callers and nested MCP generation can wait without consuming the capacity needed to submit their results. Synchronous conversation preparation uses the default ASGI thread pool. The [RAG tool contract](../rag/README.md) returns evidence to the calling agent and avoids a nested generation that would wait behind its own occupied queue slot.
 
-MTY stop intent commits before native stop. Cancelling an application caller returns its execution lease and persists stop intent; a confirmed native terminal response frees capacity immediately, while a control outage retains the stop for normal outbox recovery. A claimed run with no returned native ID remains `stopping`, retains its original input and continues to occupy capacity. Recovery sends the original request/key to the runtime-key-authenticated, profile-scoped `/v1/mty/runs/cancel-admission` adapter. It atomically uses Hermes' durable idempotency reservation: an existing admission returns its native ID for stopping; an absent admission gets a cancelled reservation so a delayed creation request cannot start an agent. It never replays ordinary creation to find an ID. Unsupported gateways, unavailable durable storage and exhausted worker/publication retries leave cancellation recoverable with backoff. Cleanup remains permitted after profile/app revocation; new generation does not. Never-claimed runs cancel locally.
+miy stop intent commits before native stop. Cancelling an application caller returns its execution lease and persists stop intent; a confirmed native terminal response frees capacity immediately, while a control outage retains the stop for normal outbox recovery. A claimed run with no returned native ID remains `stopping`, retains its original input and continues to occupy capacity. Recovery sends the original request/key to the runtime-key-authenticated, profile-scoped `/v1/miy/runs/cancel-admission` adapter. It atomically uses Hermes' durable idempotency reservation: an existing admission returns its native ID for stopping; an absent admission gets a cancelled reservation so a delayed creation request cannot start an agent. It never replays ordinary creation to find an ID. Unsupported gateways, unavailable durable storage and exhausted worker/publication retries leave cancellation recoverable with backoff. Cleanup remains permitted after profile/app revocation; new generation does not. Never-claimed runs cancel locally.
 
 Terminal admission/stop responses identify the run but do not carry its full result. The dispatcher polls the native durable status before finalizing completion, usage or failure details; a status outage retains the attached native ID and stop intent for recovery.
 
@@ -321,7 +321,7 @@ The dispatcher polls durable native status every five seconds even while SSE rem
 
 The dispatcher rechecks current owning-app access after claim and during event consumption; revocation triggers native stop. Maintenance expires approvals, revokes jobs, cleans retained events/files and recovers stale dispatches under fenced database leases. Shared Beat health matters even when the API/gateway are healthy.
 
-Run lists filter by current owning-app admission before counting and pagination; individual reads and controls require that admission as well as ownership. SSE replay rechecks both Chatbot and owning-app admission before each event batch and closes immediately on revocation. Bounded native-status reconciliation rotates both reachable and failed lookups, so an unavailable old run cannot starve later completion recovery; lookup failures retain run status and execution claims. A failed auxiliary status poll never cancels a healthy SSE subscription or drops its dequeued event; polling resumes after the normal five-second interval. Terminal polling freezes the SSE producer and retains dequeued/buffered nonterminal events before publishing completion. The web adapter reconciles partial deltas with the durable final text (or the completion event if the final lookup is unavailable), independently of later conversation refresh. The browser consumes MTY's replayable SSE projection. Changing conversations or closing a stream detaches the observer; explicit stop cancels the run. Returning to an active conversation reconnects without creating another run. Reconnects back off from one to thirty seconds within the one-hour bound; a closed event log resolves the durable run projection. Application-stage streaming currently emits completed stage output; interactive progress/tool/approval/text events stream live.
+Run lists filter by current owning-app admission before counting and pagination; individual reads and controls require that admission as well as ownership. SSE replay rechecks both Chatbot and owning-app admission before each event batch and closes immediately on revocation. Bounded native-status reconciliation rotates both reachable and failed lookups, so an unavailable old run cannot starve later completion recovery; lookup failures retain run status and execution claims. A failed auxiliary status poll never cancels a healthy SSE subscription or drops its dequeued event; polling resumes after the normal five-second interval. Terminal polling freezes the SSE producer and retains dequeued/buffered nonterminal events before publishing completion. The web adapter reconciles partial deltas with the durable final text (or the completion event if the final lookup is unavailable), independently of later conversation refresh. The browser consumes miy's replayable SSE projection. Changing conversations or closing a stream detaches the observer; explicit stop cancels the run. Returning to an active conversation reconnects without creating another run. Reconnects back off from one to thirty seconds within the one-hour bound; a closed event log resolves the durable run projection. Application-stage streaming currently emits completed stage output; interactive progress/tool/approval/text events stream live.
 
 ## Execution workspace and files
 
@@ -329,7 +329,7 @@ The shared gateway routes admitted terminal/native file/code operations through 
 
 Native `write_file`/`patch` use `/workspace` as their safe root. Their subprocesses also receive a Landlock write rule for `/workspace` (plus output to `/dev/null`), so final symlink targets, renames and deletes are checked inside the sandbox, including concurrent path changes. Unsupported kernels fail closed. The upstream patch engine and credential-file guards remain active. Arbitrary code and terminal commands retain disposable scratch space inside their isolated container; this file-tool rule is not a filesystem promise for arbitrary Python. Code tool RPC re-enters the same middleware and current-run admission. Business MCP writes still require explicit per-call consent; uncertain writes are never replayed.
 
-Timeout/interruption disposes the owned sandbox, including detached descendants. The next admitted tool call retires a closed environment through native cache cleanup and restores already persisted workspace files in a fresh sandbox; concurrent recovery calls share an instance lock and recheck the cached object before removal. Unsaved changes and Python memory may be lost. A generated-script exception followed by a corrected call is Hermes tool-loop iteration, not an MTY transport retry or proof that a denied action was permitted.
+Timeout/interruption disposes the owned sandbox, including detached descendants. The next admitted tool call retires a closed environment through native cache cleanup and restores already persisted workspace files in a fresh sandbox; concurrent recovery calls share an instance lock and recheck the cached object before removal. Unsaved changes and Python memory may be lost. A generated-script exception followed by a corrected call is Hermes tool-loop iteration, not an miy transport retry or proof that a denied action was permitted.
 
 Before container creation the provider verifies the deployment's network and CA volume, so a typo cannot silently create an empty volume. Invalid configuration, unavailable resources, missing CA files and startup failures use native `EnvironmentConnectionError` with a bounded, sanitized reason and administrator recovery hint. Hermes returns its structured degraded tool result and evicts the failed backend for a later retry. Raw Docker arguments, stderr and host paths are not returned. Recovery requires restoring the configured resources/CA or gateway Docker access; do not change the database namespace or create an unrestricted fallback network. A tool failure can be followed by an assistant explanation and a completed run; inspect the actual tool result when validating execution.
 
@@ -337,7 +337,7 @@ Only the public egress CA file is mounted through a volume subpath, not the adja
 
 User uploads are authenticated bounded binary bodies (`application/octet-stream`, percent-encoded `X-File-Name`), at most 64 MiB and sixty seconds. Same-conversation run admission serializes with uploads; uploads during an active run are rejected. Downloads recheck owner/session/admission and send attachment, no-store and nosniff headers. Public uploads recheck admission after receiving the body. Public uploads and internal MCP file transfers run their database work, object I/O, conversions and response serialization in the thread pool; slow storage does not block the API event loop or other run controls. Deferred file/tool operations recheck current run, owner/profile, session and app authority after thread admission. Reads recheck after object I/O; native saves lock and recheck their active run before publishing catalog metadata, and public uploads recheck app admission there. Rejected late uploads retain their durable object reservation for cleanup and preserve previously saved content. Tool approval consumption occurs after queue waiting and current tool admission.
 
-Successful terminal operations save regular `/workspace` files to object storage before their tool result returns; later environments restore the latest saved paths. PostgreSQL owns path/hash/size/retention metadata and durable object upload reservations/deletion intent. Failed object deletion is retried without losing its intent. Per-session bounds are 256 MiB and 10,000 unexpired file revisions, including previous versions; path traversal, symlinks/special files and internal runtime paths are rejected. Retention uses the existing thirty-day artifact setting. Session-locked saves reject ancestor/descendant file-path collisions so every current catalog can be restored to a fresh filesystem, including concurrent uploads. Replacing a saved path publishes a new immutable revision and preserves previous bytes until their own expiry; identical live content is normally a no-op. Every workspace save invokes the run-bound, idempotent `mty/files/checkpoint`; server timestamps identify unchanged HTML entries that predate dependency changes and refresh them through the same bounded object/revision pipeline. No sandbox-local pending flag owns recovery state. All entries in a checkpoint share the saved batch's dependency cutoff timestamp; retrying a partially saved batch does not create another version for entries already covered. This allows a JS/CSS-only edit to publish a new preview version. A failed checkpoint is recovered by the next save, including after sandbox or gateway recreation; concurrent entry changes are rejected rather than overwritten. Checkpoints count against the same revision and byte limits. Deleting a path inside the transient sandbox preserves the last saved file for recovery.
+Successful terminal operations save regular `/workspace` files to object storage before their tool result returns; later environments restore the latest saved paths. PostgreSQL owns path/hash/size/retention metadata and durable object upload reservations/deletion intent. Failed object deletion is retried without losing its intent. Per-session bounds are 256 MiB and 10,000 unexpired file revisions, including previous versions; path traversal, symlinks/special files and internal runtime paths are rejected. Retention uses the existing thirty-day artifact setting. Session-locked saves reject ancestor/descendant file-path collisions so every current catalog can be restored to a fresh filesystem, including concurrent uploads. Replacing a saved path publishes a new immutable revision and preserves previous bytes until their own expiry; identical live content is normally a no-op. Every workspace save invokes the run-bound, idempotent `miy/files/checkpoint`; server timestamps identify unchanged HTML entries that predate dependency changes and refresh them through the same bounded object/revision pipeline. No sandbox-local pending flag owns recovery state. All entries in a checkpoint share the saved batch's dependency cutoff timestamp; retrying a partially saved batch does not create another version for entries already covered. This allows a JS/CSS-only edit to publish a new preview version. A failed checkpoint is recovered by the next save, including after sandbox or gateway recreation; concurrent entry changes are rejected rather than overwritten. Checkpoints count against the same revision and byte limits. Deleting a path inside the transient sandbox preserves the last saved file for recovery.
 
 `hermes_file_revisions` records the owned session, logical file ID, immutable object/hash/size and the trusted generating run when saved by that execution. The initial legacy-file backfill uses one coherent per-session snapshot cutoff; the repair migration aligns only backfill revisions, retaining catalog modification times and later immutable revisions. Its row and latest-file pointer commit together after object persistence and the final active-run check. Uploads and migration snapshots have no generating run. The pinned `/v1/runs` API does not provide a reliable native message ID for this association: the UI links versions to the generating task, never guesses an answer from its text or filename. Revision metadata and downloads recheck session ownership, expiry and generating-app admission; downloads use attachment/no-store/nosniff headers. Preview limits and route behavior belong to the [chatbot UI contract](../../apps/chatbot/hermes-desktop/README.md).
 
@@ -347,13 +347,13 @@ A sandbox/process is disposable. Native lifecycle cleanup removes it and a one-h
 
 ## Static preview execution
 
-`ops/hermes/plugins/mty_runtime/preview.py` registers `mty_preview` through the native plugin toolset. It accepts only a saved workspace `.html` or `.htm` path. `preview.mjs` uses Chromium's public DevTools pipe to serve only bounded local files through request interception, collect console/resource errors, capture a 1024×768 JPEG, and verify the actual renderer's namespace, `Seccomp: 2` and `NoNewPrivs: 1` state. Successful vision-capable native runs receive the screenshot in Hermes' multimodal result format; other models receive the bounded diagnostics. Rendering failures return JSON errors so the pinned native detector marks the tool event as failed; it treats multimodal envelopes as successes. A rendered page is evidence, not an assertion that it satisfies the user's task.
+`ops/hermes/plugins/miy_runtime/preview.py` registers `miy_preview` through the native plugin toolset. It accepts only a saved workspace `.html` or `.htm` path. `preview.mjs` uses Chromium's public DevTools pipe to serve only bounded local files through request interception, collect console/resource errors, capture a 1024×768 JPEG, and verify the actual renderer's namespace, `Seccomp: 2` and `NoNewPrivs: 1` state. Successful vision-capable native runs receive the screenshot in Hermes' multimodal result format; other models receive the bounded diagnostics. Rendering failures return JSON errors so the pinned native detector marks the tool event as failed; it treats multimodal envelopes as successes. A rendered page is evidence, not an assertion that it satisfies the user's task.
 
 Each check creates a separate disposable container with `--network=none`, no published ports, no credentials or host mounts, the normal read-only root/UID/capability/resource restrictions, and the saved conversation files. The helper permits at most 100 dependencies, 2 MiB per file and 10 MiB total, caps console output and screenshots, and stops browser execution after 25 seconds (35-second transport bound). Its container is removed in `finally`, including timeout/error paths. Temporary browser files are never published as conversation results. This can temporarily add one sandbox per previewing run; account for that alongside the configured dispatch capacity.
 
-The browser container additionally uses `chromium-seccomp.json`, derived from the [Moby default profile at commit 61eaf32614c7c71b60bd8927d3e6a4ffc8ff1f31](https://github.com/moby/profiles/blob/61eaf32614c7c71b60bd8927d3e6a4ffc8ff1f31/seccomp/default.json), retaining its default-deny policy and license. As in [Playwright's Chromium sandbox guidance](https://playwright.dev/docs/docker#crawling-and-scraping), it permits `clone`, `setns` and `unshare`; `chroot` is also required because MTY drops **all** capabilities. These calls create Chromium's inner sandbox, without granting host capabilities. The regular terminal/code container retains Docker's standard profile. Do not use `--no-sandbox`, `seccomp=unconfined`, host IPC, `SYS_ADMIN`, or a global AppArmor/user-namespace bypass. Unsupported Docker/kernel/AppArmor configurations must fail the actual preview check below.
+The browser container additionally uses `chromium-seccomp.json`, derived from the [Moby default profile at commit 61eaf32614c7c71b60bd8927d3e6a4ffc8ff1f31](https://github.com/moby/profiles/blob/61eaf32614c7c71b60bd8927d3e6a4ffc8ff1f31/seccomp/default.json), retaining its default-deny policy and license. As in [Playwright's Chromium sandbox guidance](https://playwright.dev/docs/docker#crawling-and-scraping), it permits `clone`, `setns` and `unshare`; `chroot` is also required because miy drops **all** capabilities. These calls create Chromium's inner sandbox, without granting host capabilities. The regular terminal/code container retains Docker's standard profile. Do not use `--no-sandbox`, `seccomp=unconfined`, host IPC, `SYS_ADMIN`, or a global AppArmor/user-namespace bypass. Unsupported Docker/kernel/AppArmor configurations must fail the actual preview check below.
 
-Interactive admission supplies this environment contract through the native instructions field: save deliverables and dependencies under `/workspace`, inspect actual tool results, use `mty_preview` after visual changes, and stop repeating unchanged infrastructure failures. It does not select a model, inject a task-specific answer, or implement another agent retry loop. Missing files, invalid imports and script errors remain actionable tool failures for Hermes to correct in its own loop.
+Interactive admission supplies this environment contract through the native instructions field: save deliverables and dependencies under `/workspace`, inspect actual tool results, use `miy_preview` after visual changes, and stop repeating unchanged infrastructure failures. It does not select a model, inject a task-specific answer, or implement another agent retry loop. Missing files, invalid imports and script errors remain actionable tool failures for Hermes to correct in its own loop.
 
 The web preview builds one document-wide module graph using pinned `esbuild-wasm 0.28.1` and its official ESM/code-splitting output. An import map maps generated module identifiers to embedded data URLs, preserving top-level await, cycles and shared module instances across entry scripts. Responsive image candidates use pinned [`@prettier/parse-srcset 3.1.0`](https://github.com/prettier/parse-srcset) and the same snapshot loader, preserving density/width descriptors and picture media selection. Classic scripts also use embedded URLs so the browser retains native parsing/defer/async and global-variable semantics. Both native and web previews support saved PNG/JPEG/GIF/WebP/SVG images. Stylesheets, inline-style URL assets and images are embedded through the same bounded saved-file loader; stylesheet media conditions remain browser-controlled. A trusted outer opaque-origin iframe owns `frame-src 'none'` and embeds the guest via `srcdoc`; the separately sandboxed guest cannot navigate itself to an external URL, alter the outer policy or access the authenticated page. Both documents restrict inline/data scripts, resources, fetch, forms and workers through CSP. A source/channel-checked bridge forwards errors only. This uses the browser's [CSP frame navigation checks](https://www.w3.org/TR/CSP/#directive-frame-src), not guest-script interception. The real-browser regressions in `pnpm nx e2e-shell web` cover execution semantics and the network/parent boundary. It fetches no remote dependency. The API resolves assets within the entry revision's owned session at or before its snapshot timestamp, rejects expired/unauthorized assets without falling back, and rechecks access after storage I/O. External scripts/imports, fetch, live servers and unsupported runtime asset loading remain unavailable. The browser reports missing dependencies and runtime/CSP failures visibly; downloading the original file remains available. Exact UI bounds and behavior belong to the [chatbot owner](../../apps/chatbot/hermes-desktop/README.md).
 
@@ -363,20 +363,20 @@ New raw Terminal session creation returns `410`; PTY attachment is closed. The c
 
 Retain the legacy broker/egress services and their namespaced resources while old sessions drain and archives remain. Terminal maintenance stops revoked sessions, archives files/profile state, retries interrupted archives with fenced claims and quarantines genuinely failed/missing workspaces for recovery. Do not remove broker resources merely because the launcher is gone. Legacy archive limits/timeouts retain their existing typed settings. No process, installed package or mutable container filesystem is migrated into the new sandbox.
 
-Replacing the database requires a fresh explicit `MTY_HERMES_TERMINAL_RESOURCE_NAMESPACE`. Stop exact old-namespace active runners before cutover and retain the matching env/resources for rollback. Brokers must never clean or adopt another namespace. Never run global Docker prune or delete profile/workspace volumes as a setup fix.
+Replacing the database requires a fresh explicit `MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE`. Stop exact old-namespace active runners before cutover and retain the matching env/resources for rollback. Brokers must never clean or adopt another namespace. Never run global Docker prune or delete profile/workspace volumes as a setup fix.
 
 ## Pinned upstream gaps
 
 Use official public surfaces first. The remaining adapters are version-bound to the image above:
 
 - `gateway_entry.py`: multiplex API startup discovers only the launch profile's MCP servers. It invokes native idempotent discovery for the authenticated profile and rejects admission when discovery or the required plugin fails. Remove it when an official profile-discovery lifecycle hook covers this requirement.
-- `gateway_entry.py` cancellation route: native `/v1/runs` can resolve an idempotency key only by creating on a miss. The adapter reuses `RunIdempotencyStore.reserve`, native auth/profile scope and the pinned body/session-header fingerprint to atomically cancel missing admissions without an agent task. It requires durable storage and rejects unsupported request shapes. Pinned-image checks must cover both orderings of admission/cancellation, later native replay, conflicting inputs, profile isolation and unauthenticated requests. Remove this adapter when the public native API supports atomic cancellation by idempotency key. Deploy the updated gateway entry before API/worker changes; an older gateway returns 404 and leaves the MTY run stopping for recovery.
-- `mty_runtime` tool middleware: native HTTP MCP headers are profile-static. A separate request adds native run identity without mutating shared connections. Native middleware exceptions fall through, so this callback catches policy/import/transport failures and returns an error. Remove the forwarding adapter when official per-call authenticated headers support trusted run context.
-- `mty_runtime._interactive_definitions`: the pinned API server uses private `_get_platform_tools` to resolve enabled/composite/default toolsets and has no public equivalent. Reuse that exact resolver and public `get_tool_definitions` before applying run scope; do not duplicate its selection rules. `check_app_tools.py` exercises the real native executor and assembly. Remove the private import when Hermes publishes the platform resolver.
-- `mty_runtime._request_write_consent`: in the pinned image, public `request_elicitation_consent` excludes `api_server` even though `/v1/runs` registers an approval notifier. The same failure is documented in [upstream issue 111526](https://github.com/NousResearch/hermes-agent/issues/111526). Neither the public helper nor configuration can route that consent. After authenticated internal-tool admission, the adapter reads the exact run notifier under the native lock and calls native `_await_gateway_decision`, preserving its queue, cancellation, timeout, hooks and cleanup. No process-global guard is patched and no approval lifecycle is copied. Only `once` succeeds. Verify these pinned private seams with `check_mcp_approvals.py`; remove the adapter when the adopted public helper supports API run notifiers.
-- `mty_runtime/native_execution.py`: the pinned whole-script guard ignores the documented custom-provider guard capability. A source-fingerprinted adapter shares a per-call ContextVar across plugin loads and admits only a verified MTY sandbox, retaining native dispatch. It does not alter the shared terminal guard or `approvals.unattended_mode`. Unknown source versions fail plugin startup/admission. Remove it when the official whole-script guard supports custom sandbox providers.
-- `mty_runtime/file_write_boundary.py`: native safe-root canonicalization runs on the gateway, while native shell file mutations resolve symlinks in the remote environment. The public environment transport applies a Linux Landlock restriction to file-tool subprocesses without copying the patch engine. Remove this boundary adapter when native remote file guards enforce final filesystem operations within the configured root.
-- `mty_runtime/sandbox.py`: native `DockerEnvironment` unconditionally mounts host credentials/skills/cache and has no supported off switch. The adapter implements the public `BaseEnvironment` transport/provider contract and `EnvironmentConnectionError` failure contract with safe Docker arguments; Hermes retains wrapping, timeout/interrupt and environment lifecycle. Compose supplies its physical resources independently of database namespaces. Deploy/recreate the updated gateway with both resource values before deploying the API context change that removes inferred network/volume names; the updated provider ignores those obsolete fields from older APIs. Replace it when native Docker configuration can guarantee no host mounts plus file snapshot hooks.
+- `gateway_entry.py` cancellation route: native `/v1/runs` can resolve an idempotency key only by creating on a miss. The adapter reuses `RunIdempotencyStore.reserve`, native auth/profile scope and the pinned body/session-header fingerprint to atomically cancel missing admissions without an agent task. It requires durable storage and rejects unsupported request shapes. Pinned-image checks must cover both orderings of admission/cancellation, later native replay, conflicting inputs, profile isolation and unauthenticated requests. Remove this adapter when the public native API supports atomic cancellation by idempotency key. Deploy the updated gateway entry before API/worker changes; an older gateway returns 404 and leaves the miy run stopping for recovery.
+- `miy_runtime` tool middleware: native HTTP MCP headers are profile-static. A separate request adds native run identity without mutating shared connections. Native middleware exceptions fall through, so this callback catches policy/import/transport failures and returns an error. Remove the forwarding adapter when official per-call authenticated headers support trusted run context.
+- `miy_runtime._interactive_definitions`: the pinned API server uses private `_get_platform_tools` to resolve enabled/composite/default toolsets and has no public equivalent. Reuse that exact resolver and public `get_tool_definitions` before applying run scope; do not duplicate its selection rules. `check_app_tools.py` exercises the real native executor and assembly. Remove the private import when Hermes publishes the platform resolver.
+- `miy_runtime._request_write_consent`: in the pinned image, public `request_elicitation_consent` excludes `api_server` even though `/v1/runs` registers an approval notifier. The same failure is documented in [upstream issue 111526](https://github.com/NousResearch/hermes-agent/issues/111526). Neither the public helper nor configuration can route that consent. After authenticated internal-tool admission, the adapter reads the exact run notifier under the native lock and calls native `_await_gateway_decision`, preserving its queue, cancellation, timeout, hooks and cleanup. No process-global guard is patched and no approval lifecycle is copied. Only `once` succeeds. Verify these pinned private seams with `check_mcp_approvals.py`; remove the adapter when the adopted public helper supports API run notifiers.
+- `miy_runtime/native_execution.py`: the pinned whole-script guard ignores the documented custom-provider guard capability. A source-fingerprinted adapter shares a per-call ContextVar across plugin loads and admits only a verified miy sandbox, retaining native dispatch. It does not alter the shared terminal guard or `approvals.unattended_mode`. Unknown source versions fail plugin startup/admission. Remove it when the official whole-script guard supports custom sandbox providers.
+- `miy_runtime/file_write_boundary.py`: native safe-root canonicalization runs on the gateway, while native shell file mutations resolve symlinks in the remote environment. The public environment transport applies a Linux Landlock restriction to file-tool subprocesses without copying the patch engine. Remove this boundary adapter when native remote file guards enforce final filesystem operations within the configured root.
+- `miy_runtime/sandbox.py`: native `DockerEnvironment` unconditionally mounts host credentials/skills/cache and has no supported off switch. The adapter implements the public `BaseEnvironment` transport/provider contract and `EnvironmentConnectionError` failure contract with safe Docker arguments; Hermes retains wrapping, timeout/interrupt and environment lifecycle. Compose supplies its physical resources independently of database namespaces. Deploy/recreate the updated gateway with both resource values before deploying the API context change that removes inferred network/volume names; the updated provider ignores those obsolete fields from older APIs. Replace it when native Docker configuration can guarantee no host mounts plus file snapshot hooks.
 - `terminal_egress.py`: the public egress setup CLI is interactive and cannot express these container listeners and deny policy. The adapter uses exported iron-proxy functions; replace it when the CLI exposes the needed unattended configuration.
 
 ## Operations and change checklist
@@ -389,9 +389,9 @@ Non-inference development checks:
 bash scripts/dev-infra.sh status
 curl --fail http://127.0.0.1:18765/healthz
 curl --fail http://127.0.0.1:19119/api/health
-docker inspect --format '{{.State.Status}} {{.State.ExitCode}}' mty-dev-hermes-bootstrap
-docker inspect --format '{{.State.Health.Status}}' mty-dev-hermes-gateway
-docker inspect --format '{{.State.Health.Status}}' mty-dev-hermes-terminal-egress
+docker inspect --format '{{.State.Status}} {{.State.ExitCode}}' miy-dev-hermes-bootstrap
+docker inspect --format '{{.State.Health.Status}}' miy-dev-hermes-gateway
+docker inspect --format '{{.State.Health.Status}}' miy-dev-hermes-terminal-egress
 ```
 
 Bootstrap must report `exited 0`; the gateway and egress must report `healthy`.
@@ -403,8 +403,8 @@ Do not print container envs, profile config/credentials, prompts or sensitive ru
 Run this check after fresh installation or gateway recreation, from the development checkout root. It exercises the actual pinned provider without inference: it creates and removes two isolated sandboxes plus a replacement, verifies security limits and CA readability, and saves/restores a synthetic file through the real workspace transport. Only the file RPC uses test fixtures in the short-lived check process; this does not replace the PostgreSQL/object-storage tests or a chatbot end-to-end check.
 
 ```bash
-docker exec -i mty-dev-hermes-gateway python - \
-  "$(docker inspect --format '{{.Image}}' mty-dev-hermes-gateway)" \
+docker exec -i miy-dev-hermes-gateway python - \
+  "$(docker inspect --format '{{.Image}}' miy-dev-hermes-gateway)" \
   < ops/hermes/check_sandbox.py
 ```
 
@@ -413,8 +413,8 @@ The command must exit with code `0` and print `PASS: two isolated sandboxes, sec
 Also run the native-tool check. It keeps native dispatch, middleware, approvals, file tools and code execution, with synthetic profile/context/file RPC fixtures and disposable containers:
 
 ```bash
-docker exec -i mty-dev-hermes-gateway python - \
-  "$(docker inspect --format '{{.Image}}' mty-dev-hermes-gateway)" \
+docker exec -i miy-dev-hermes-gateway python - \
+  "$(docker inspect --format '{{.Image}}' miy-dev-hermes-gateway)" \
   < ops/hermes/check_native_tools.py
 ```
 
@@ -423,7 +423,7 @@ Require exit `0` and all PASS lines for unattended code execution, concurrent co
 Check workload result discovery against the same pinned registry and Tool Search bridge, with synthetic authenticated RPC and no model call:
 
 ```bash
-docker exec -i mty-dev-hermes-gateway python - < ops/hermes/check_workload_tools.py
+docker exec -i miy-dev-hermes-gateway python - < ops/hermes/check_workload_tools.py
 ```
 
 Require exit `0` and the PASS line for scoped discovery, native result submission/correction, and denial of unrelated tools and missing run context.
@@ -432,7 +432,7 @@ Check interactive app discovery through the actual native agent executor, with
 synthetic RPC and network access forbidden (no model call or business writes):
 
 ```bash
-docker exec -i mty-dev-hermes-gateway python - < ops/hermes/check_app_tools.py
+docker exec -i miy-dev-hermes-gateway python - < ops/hermes/check_app_tools.py
 ```
 
 Require exit `0` and the PASS line for empty/restricted/full scope, live revocation,
@@ -444,19 +444,19 @@ above; it does not inspect another process's registry or refresh a live gateway.
 Run the offline preview check as well; it needs neither Playwright installation nor inference:
 
 ```bash
-docker exec -i mty-dev-hermes-gateway python - \
-  "$(docker inspect --format '{{.Image}}' mty-dev-hermes-gateway)" \
+docker exec -i miy-dev-hermes-gateway python - \
+  "$(docker inspect --format '{{.Image}}' miy-dev-hermes-gateway)" \
   < ops/hermes/check_preview.py
 ```
 
-Require all PASS lines for local module rendering with verified browser isolation, observable JavaScript/console errors, vision/non-vision output and native failure classification, and missing/external dependency rejection. Then verify a normal chatbot task creates HTML plus a local dependency, calls `mty_preview`, corrects a rendering error, and produces a visible saved result. Change only its dependency in a follow-up and verify a new preview version; reopen the previous version and verify its previous dependency. After stop/reconnection and worker recovery, compare the displayed terminal state with native durable status. Do not declare installation complete from a healthy gateway or successful text response alone.
+Require all PASS lines for local module rendering with verified browser isolation, observable JavaScript/console errors, vision/non-vision output and native failure classification, and missing/external dependency rejection. Then verify a normal chatbot task creates HTML plus a local dependency, calls `miy_preview`, corrects a rendering error, and produces a visible saved result. Change only its dependency in a follow-up and verify a new preview version; reopen the previous version and verify its previous dependency. After stop/reconnection and worker recovery, compare the displayed terminal state with native durable status. Do not declare installation complete from a healthy gateway or successful text response alone.
 
-Then open a new chatbot conversation, request `execute_code` to create a small file under `/workspace`, and request native `patch` to modify it. Verify successful native tool results and the saved file revision/content. Also request a single terminal invocation of `printf MTY_SANDBOX_OK`. Verify that the actual tool result contains `MTY_SANDBOX_OK` and `exit_code: 0`. The assistant's explanation and the conversation's `completed` state are not sufficient acceptance evidence. This final check uses the configured chatbot workload and its normal model usage.
+Then open a new chatbot conversation, request `execute_code` to create a small file under `/workspace`, and request native `patch` to modify it. Verify successful native tool results and the saved file revision/content. Also request a single terminal invocation of `printf MIY_SANDBOX_OK`. Verify that the actual tool result contains `MIY_SANDBOX_OK` and `exit_code: 0`. The assistant's explanation and the conversation's `completed` state are not sufficient acceptance evidence. This final check uses the configured chatbot workload and its normal model usage.
 
 Verify the API MCP approval queue without inference or business mutations:
 
 ```bash
-docker exec -i mty-dev-hermes-gateway python - < ops/hermes/check_mcp_approvals.py
+docker exec -i miy-dev-hermes-gateway python - < ops/hermes/check_mcp_approvals.py
 ```
 
 Require the PASS line for consent/denial, timeout, one-time choice, replay and
@@ -505,7 +505,7 @@ Check the native admission/cancellation contract with actual pinned handlers and
 
 ```bash
 docker run --rm -i --network none --entrypoint python \
-  --mount "type=bind,src=$PWD/ops/hermes/gateway_entry.py,dst=/opt/mty_gateway_entry.py,readonly" \
+  --mount "type=bind,src=$PWD/ops/hermes/gateway_entry.py,dst=/opt/miy_gateway_entry.py,readonly" \
   nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524 \
   - < ops/hermes/check_native_cancellation.py
 ```
@@ -514,8 +514,20 @@ Use the repository's explicit non-production PostgreSQL test configuration for i
 
 ## Official references
 
-- [Open WebUI integration](https://hermes-agent.nousresearch.com/docs/user-guide/messaging/open-webui): OpenAI-compatible UI integration; MTY uses native runs for durable controls.
+- [Open WebUI integration](https://hermes-agent.nousresearch.com/docs/user-guide/messaging/open-webui): OpenAI-compatible UI integration; miy uses native runs for durable controls.
 - [esbuild code splitting](https://esbuild.github.io/api/#splitting) and [HTML import maps](https://html.spec.whatwg.org/multipage/webappapis.html#import-maps): shared browser module execution from embedded bytes.
 - [Native API server](https://hermes-agent.nousresearch.com/docs/user-guide/features/api-server): runs, sessions, SSE and lifecycle controls.
 - [Pinned implementation](https://github.com/NousResearch/hermes-agent/tree/v2026.8.31): inspect matching profile config, plugins/middleware, terminal environment provider, approval context and iron-proxy implementation before an upgrade.
 - [Gemini OpenAI compatibility](https://ai.google.dev/gemini-api/docs/openai).
+
+The miy naming cutover changes plugin/module paths and typed keys only in source.
+Keep configured profile/workspace/CA volumes, network names, runner namespace and
+MCP URLs aligned with the installation until the coordinated resource cutover in
+[Release Domain](../release/README.md#miy-naming-cutover). Do not start a renamed
+Compose project against empty volumes. Recreate the gateway with the matching
+`miy_runtime` plugin, mounted files and miy transport only after draining old runs;
+the pinned Hermes image, provider policy and isolation controls are unchanged.
+Existing `mty-<user-id>` profile names are durable binding identities and remain
+supported by the same authenticated admission, MCP bridge and tool policy checks.
+Bootstrap replaces their known `mty_runtime` plugin setting with `miy_runtime`
+without changing model policy, credentials, profile directories or session data.

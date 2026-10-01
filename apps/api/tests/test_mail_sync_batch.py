@@ -5,21 +5,21 @@ from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from mty_api.core.db import Base
-from mty_api.domains.auth.models import User
-from mty_api.domains.mail.clients import (
+from miy_api.core.db import Base
+from miy_api.domains.auth.models import User
+from miy_api.domains.mail.clients import (
     FetchedAttachment,
     FetchedMessage,
     MailboxSyncBatch,
 )
-from mty_api.domains.mail.models import (
+from miy_api.domains.mail.models import (
     MailAccount,
     MailAttachment,
     MailMailbox,
     MailMessage,
     MailMessageBody,
 )
-from mty_api.domains.mail.sync_batch import apply_sync_batch, cursor_for_mailbox_sync
+from miy_api.domains.mail.sync_batch import apply_sync_batch, cursor_for_mailbox_sync
 
 
 def _session() -> Session:
@@ -42,7 +42,7 @@ def _user() -> User:
     return User(
         id="user-1",
         login_id="user-1",
-        email="user-1@mty.local",
+        email="user-1@miy.local",
         full_name="User One",
         password_hash="hash",
         status="active",

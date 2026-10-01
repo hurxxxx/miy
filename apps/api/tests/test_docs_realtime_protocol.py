@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from mty_api.domains.docs import realtime_protocol
+from miy_api.domains.docs import realtime_protocol
 
 
 def test_docs_realtime_protocol_constants_match_client_contract() -> None:

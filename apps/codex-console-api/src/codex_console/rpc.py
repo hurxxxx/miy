@@ -22,6 +22,9 @@ MAX_MESSAGE_BYTES = 4 * 1024 * 1024
 
 CONTRACT = json.loads(Path(__file__).with_name("protocol.json").read_text())
 METHOD_SCHEMAS = {
+    "thread/list": "ThreadListParams",
+    "thread/read": "ThreadReadParams",
+    "skills/list": "SkillsListParams",
     "thread/start": "ThreadStartParams",
     "thread/resume": "ThreadResumeParams",
     "turn/start": "TurnStartParams",
@@ -118,7 +121,7 @@ class CodexRPC:
         await self.call(
             "initialize",
             {
-                "clientInfo": {"name": "mty_codex_console", "version": "0.1.0"},
+                "clientInfo": {"name": "miy_codex_console", "version": "0.1.0"},
                 "capabilities": {"experimentalApi": True},
             },
         )

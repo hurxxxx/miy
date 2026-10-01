@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import pytest
 
-from mty_api.domains.hermes.service import internal_mcp_server_name
+from miy_api.domains.hermes.service import internal_mcp_server_name
 
 
 pytestmark = pytest.mark.anyio
@@ -34,7 +34,7 @@ def _load_gateway_entry(monkeypatch):
     monkeypatch.setitem(sys.modules, "gateway.platforms.api_server_runs", runs_module)
 
     source = Path(__file__).resolve().parents[3] / "ops/hermes/gateway_entry.py"
-    module_name = f"mty_hermes_gateway_test_{uuid4().hex}"
+    module_name = f"miy_hermes_gateway_test_{uuid4().hex}"
     spec = importlib.util.spec_from_file_location(module_name, source)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -52,7 +52,7 @@ def _install_mcp_stubs(
     constants_module = ModuleType("hermes_constants")
     plugins_module = ModuleType("hermes_cli.plugins")
     plugins_module.get_plugin_manager = lambda: SimpleNamespace(  # type: ignore[attr-defined]
-        list_plugins=lambda: [{"name": "mty_runtime", "enabled": True}]
+        list_plugins=lambda: [{"name": "miy_runtime", "enabled": True}]
     )
     monkeypatch.setitem(sys.modules, "hermes_cli.plugins", plugins_module)
     constants_module.get_hermes_home = lambda: Path("/profiles") / profile_name  # type: ignore[attr-defined]
@@ -67,9 +67,10 @@ def _install_mcp_stubs(
     return calls
 
 
-def test_gateway_discovers_and_requires_the_current_profile_bridge(monkeypatch) -> None:
+@pytest.mark.parametrize("brand", ["miy", "mty"])
+def test_gateway_discovers_and_requires_the_current_profile_bridge(monkeypatch, brand) -> None:
     gateway_entry, _runs_module = _load_gateway_entry(monkeypatch)
-    profile_name = "mty-11111111111111111111111111111111"
+    profile_name = brand + "-11111111111111111111111111111111"
     calls = _install_mcp_stubs(
         monkeypatch,
         profile_name=profile_name,
@@ -87,11 +88,12 @@ def test_gateway_discovers_and_requires_the_current_profile_bridge(monkeypatch) 
     assert calls == ["discover"]
 
 
-def test_gateway_fails_closed_when_the_profile_bridge_is_missing(monkeypatch) -> None:
+@pytest.mark.parametrize("brand", ["miy", "mty"])
+def test_gateway_fails_closed_when_the_profile_bridge_is_missing(monkeypatch, brand) -> None:
     gateway_entry, _runs_module = _load_gateway_entry(monkeypatch)
     _install_mcp_stubs(
         monkeypatch,
-        profile_name="mty-11111111111111111111111111111111",
+        profile_name=brand + "-11111111111111111111111111111111",
         status_rows=[],
     )
 
@@ -126,7 +128,7 @@ async def test_gateway_discovers_before_delegating_run_admission(monkeypatch) ->
 def cancellation_gateway(monkeypatch):
     entry, runs = _load_gateway_entry(monkeypatch)
     records = {}
-    state = SimpleNamespace(profile="mty-" + "a" * 32)
+    state = SimpleNamespace(profile="miy-" + "a" * 32)
 
     class Store:
         durable = True
@@ -169,11 +171,11 @@ def cancellation_gateway(monkeypatch):
         return body
 
     request = SimpleNamespace(
-        headers={"Idempotency-Key": "mty-run", "X-Hermes-Session-Key": "conversation"},
+        headers={"Idempotency-Key": "miy-run", "X-Hermes-Session-Key": "conversation"},
         json=request_json,
     )
     route = next(
-        row for row in runs._http_routes(adapter) if row[1] == "/v1/mty/runs/cancel-admission"
+        row for row in runs._http_routes(adapter) if row[1] == "/v1/miy/runs/cancel-admission"
     )
     assert route[0] == "POST"
     return SimpleNamespace(
@@ -186,10 +188,12 @@ def cancellation_gateway(monkeypatch):
     )
 
 
+@pytest.mark.parametrize("brand", ["miy", "mty"])
 async def test_cancel_admission_fences_a_late_creation_and_replays_exact_requests(
-    cancellation_gateway,
+    cancellation_gateway, brand,
 ):
     state = cancellation_gateway
+    state.state.profile = brand + "-" + "a" * 32
     first = await state.handler(state.request)
     assert first.status == 202 and first.body["status"] == "cancelled"
     fingerprint = hashlib.sha256(
@@ -203,7 +207,7 @@ async def test_cancel_admission_fences_a_late_creation_and_replays_exact_request
     # Native admission uses this same store/fingerprint. Its late reserve must
     # replay cancellation, so native _handle_runs never starts its background task.
     outcome, record = state.adapter._run_idempotency_store.reserve(
-        state.state.profile, "mty-run", fingerprint, "late-native-id", {"status": "queued"}
+        state.state.profile, "miy-run", fingerprint, "late-native-id", {"status": "queued"}
     )
     assert outcome == "reused" and record["run_id"] == first.body["run_id"]
     assert record["status"]["status"] == "cancelled"
@@ -227,11 +231,11 @@ async def test_cancel_admission_recovers_existing_native_identity_in_its_profile
         ).encode()
     ).hexdigest()
     state.adapter._run_idempotency_store.reserve(
-        state.state.profile, "mty-run", fingerprint, "run_existing", {"status": "running"}
+        state.state.profile, "miy-run", fingerprint, "run_existing", {"status": "running"}
     )
     response = await state.handler(state.request)
     assert response.body == {"run_id": "run_existing", "status": "running", "replayed": True}
-    state.state.profile = "mty-" + "b" * 32
+    state.state.profile = "miy-" + "b" * 32
     other = await state.handler(state.request)
     assert other.body["status"] == "cancelled" and other.body["run_id"] != "run_existing"
 

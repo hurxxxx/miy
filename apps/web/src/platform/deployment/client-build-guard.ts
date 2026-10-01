@@ -4,13 +4,13 @@ import {
   type StaleAssetReloadRuntime,
 } from './stale-asset-reload';
 
-export const CLIENT_BUILD_HEADER = 'X-MTY-Web-Build';
-export const CLIENT_RELOAD_REQUIRED_HEADER = 'X-MTY-Reload-Required';
-export const CLIENT_BUILD_WEBSOCKET_QUERY_PARAM = '__mty_build';
+export const CLIENT_BUILD_HEADER = 'X-MIY-Web-Build';
+export const CLIENT_RELOAD_REQUIRED_HEADER = 'X-MIY-Reload-Required';
+export const CLIENT_BUILD_WEBSOCKET_QUERY_PARAM = '__miy_build';
 export const CLIENT_BUILD_WEBSOCKET_CLOSE_CODE = 4409;
 
 export const WEB_BUILD_ID =
-  (import.meta.env.VITE_MTY_BUILD_ID as string | undefined)?.trim() ??
+  (import.meta.env.VITE_MIY_BUILD_ID as string | undefined)?.trim() ??
   '';
 
 interface ClientBuildFetchRuntime extends StaleAssetReloadRuntime {

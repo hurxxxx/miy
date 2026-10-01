@@ -4,14 +4,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from mty_api.core.llm_provider_registry import (
+from miy_api.core.llm_provider_registry import (
     ExternalLlmProviderDescriptor,
     ensure_default_external_llm_providers_registered,
     register_external_llm_provider,
     reset_external_llm_providers,
 )
-from mty_api.domains.ai import model_discovery
-from mty_api.domains.ai.model_discovery import (
+from miy_api.domains.ai import model_discovery
+from miy_api.domains.ai.model_discovery import (
     ProviderModelDiscoveryError,
     discover_provider_models,
 )

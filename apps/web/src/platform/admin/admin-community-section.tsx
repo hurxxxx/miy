@@ -2,7 +2,7 @@ import { Hash, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@mty/ui';
+import { Button } from '@miy/ui';
 
 import { CommunityMarkdownEditor } from '@/src/platform/community/CommunityMarkdownEditor';
 

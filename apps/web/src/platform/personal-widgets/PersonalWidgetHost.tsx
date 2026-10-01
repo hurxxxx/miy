@@ -1,5 +1,5 @@
-import { Button } from '@mty/ui/primitives/button';
-import { Input } from '@mty/ui/primitives/input';
+import { Button } from '@miy/ui/primitives/button';
+import { Input } from '@miy/ui/primitives/input';
 import {
   Check,
   CheckCircle2,

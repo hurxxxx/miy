@@ -35,7 +35,7 @@ for raw_line in path.read_text(encoding="utf-8").splitlines():
         continue
     key, value = line.split("=", 1)
     key = key.strip()
-    if key == "MTY_ENV_PROFILE" and key in os.environ:
+    if key == "MIY_ENV_PROFILE" and key in os.environ:
         continue
     value = value.strip()
     if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
@@ -45,7 +45,7 @@ PY
   )"
 }
 
-dev_export_mty_desktop_installer_defaults() {
+dev_export_miy_desktop_installer_defaults() {
   local python_bin
   python_bin="$(dev_python_bin)"
 
@@ -58,7 +58,7 @@ import shlex
 
 root = pathlib.Path(os.environ["ROOT_DIR"])
 manifest = json.loads(
-    (root / "packages" / "contracts" / "mty-desktop-update-feed.manifest.json").read_text(
+    (root / "packages" / "contracts" / "miy-desktop-update-feed.manifest.json").read_text(
         encoding="utf-8"
     )
 )
@@ -79,8 +79,8 @@ for platform in manifest["platformOrder"]:
 fallback_url = os.environ.get(str(win_env_name)) if win_env_name else win_default_url
 if not fallback_url:
     fallback_url = win_default_url
-if fallback_url and not os.environ.get("VITE_MTY_DESKTOP_INSTALLER_URL"):
-    print(f"export VITE_MTY_DESKTOP_INSTALLER_URL={shlex.quote(fallback_url)}")
+if fallback_url and not os.environ.get("VITE_MIY_DESKTOP_INSTALLER_URL"):
+    print(f"export VITE_MIY_DESKTOP_INSTALLER_URL={shlex.quote(fallback_url)}")
 PY
   )"
 }
@@ -89,91 +89,91 @@ dev_lower() {
   printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]'
 }
 
-if [[ "${MTY_SKIP_DOTENV:-0}" != "1" ]]; then
+if [[ "${MIY_SKIP_DOTENV:-0}" != "1" ]]; then
   dev_load_dotenv "$ROOT_DIR/.env"
 fi
 
-export MTY_DEV_API_COUNT="${MTY_DEV_API_COUNT:-1}"
-export MTY_DEV_API_HOST="${MTY_DEV_API_HOST:-127.0.0.1}"
-export MTY_WEB_DEV_HOST="${MTY_WEB_DEV_HOST:-127.0.0.1}"
-export MTY_INFRA_CONTAINER_PREFIX="${MTY_INFRA_CONTAINER_PREFIX:-mty-dev}"
-export MTY_INFRA_BIND_HOST="${MTY_INFRA_BIND_HOST:-127.0.0.1}"
-export MTY_INFRA_NGINX_PORT="${MTY_INFRA_NGINX_PORT:-14200}"
-export MTY_INFRA_REDIS_PORT="${MTY_INFRA_REDIS_PORT:-56380}"
-export MTY_INFRA_POSTGRES_DB="${MTY_INFRA_POSTGRES_DB:-mty_dev}"
-export MTY_INFRA_POSTGRES_PASSWORD="${MTY_INFRA_POSTGRES_PASSWORD:-mty_dev}"
-export MTY_INFRA_POSTGRES_PORT="${MTY_INFRA_POSTGRES_PORT:-55433}"
-export MTY_INFRA_POSTGRES_USER="${MTY_INFRA_POSTGRES_USER:-mty_dev}"
-export MTY_INFRA_USE_LOCAL_POSTGRES="${MTY_INFRA_USE_LOCAL_POSTGRES:-auto}"
-export MTY_DEV_REDIS_URL="${MTY_DEV_REDIS_URL:-redis://127.0.0.1:${MTY_INFRA_REDIS_PORT}/0}"
-export MTY_DEV_REDIS_RESULT_BACKEND="${MTY_DEV_REDIS_RESULT_BACKEND:-redis://127.0.0.1:${MTY_INFRA_REDIS_PORT}/1}"
-export MTY_DEV_COLLAB_REDIS_URL="${MTY_DEV_COLLAB_REDIS_URL:-$MTY_DEV_REDIS_URL}"
-export MTY_DEV_REALTIME_REDIS_URL="${MTY_DEV_REALTIME_REDIS_URL:-$MTY_DEV_REDIS_URL}"
-export MTY_DEV_WORKER_BROKER_URL="${MTY_DEV_WORKER_BROKER_URL:-$MTY_DEV_REDIS_URL}"
-export MTY_DEV_WORKER_RESULT_BACKEND="${MTY_DEV_WORKER_RESULT_BACKEND:-$MTY_DEV_REDIS_RESULT_BACKEND}"
-export MTY_INFRA_MINIO_PORT="${MTY_INFRA_MINIO_PORT:-59010}"
-export MTY_INFRA_MINIO_CONSOLE_PORT="${MTY_INFRA_MINIO_CONSOLE_PORT:-59011}"
-export MTY_INFRA_OPENSEARCH_PORT="${MTY_INFRA_OPENSEARCH_PORT:-59210}"
-export MTY_INFRA_OPENSEARCH_PERF_PORT="${MTY_INFRA_OPENSEARCH_PERF_PORT:-59610}"
-export MTY_INFRA_QDRANT_PORT="${MTY_INFRA_QDRANT_PORT:-16333}"
-export MTY_INFRA_QDRANT_GRPC_PORT="${MTY_INFRA_QDRANT_GRPC_PORT:-16334}"
-export MTY_BENTO_BIND_HOST="${MTY_BENTO_BIND_HOST:-127.0.0.1}"
-export MTY_BENTO_IMAGE_TAG="${MTY_BENTO_IMAGE_TAG:-1.0.17}"
-export MTY_BENTO_PORT="${MTY_BENTO_PORT:-18084}"
-export MTY_BENTO_SERVER_URL="${MTY_BENTO_SERVER_URL:-http://127.0.0.1:${MTY_BENTO_PORT}/}"
-export MTY_HERMES_ENABLED="${MTY_HERMES_ENABLED:-false}"
-export MTY_HERMES_RUNTIME_PORT="${MTY_HERMES_RUNTIME_PORT:-18642}"
-export MTY_HERMES_MANAGEMENT_PORT="${MTY_HERMES_MANAGEMENT_PORT:-19119}"
-export MTY_HERMES_RUNTIME_BASE_URL="${MTY_HERMES_RUNTIME_BASE_URL:-http://127.0.0.1:${MTY_HERMES_RUNTIME_PORT}}"
-export MTY_HERMES_MANAGEMENT_BASE_URL="${MTY_HERMES_MANAGEMENT_BASE_URL:-http://127.0.0.1:${MTY_HERMES_MANAGEMENT_PORT}}"
-export MTY_HERMES_API_KEY="${MTY_HERMES_API_KEY:-mty-dev-hermes-runtime-key-0001}"
-export MTY_HERMES_MANAGEMENT_TOKEN="${MTY_HERMES_MANAGEMENT_TOKEN:-mty-dev-hermes-management-token-0001}"
-export MTY_HERMES_MCP_SHARED_SECRET="${MTY_HERMES_MCP_SHARED_SECRET:-mty-dev-hermes-mcp-shared-secret-0000000000000001}"
-export MTY_HERMES_MCP_SERVER_URL="${MTY_HERMES_MCP_SERVER_URL:-http://127.0.0.1:${MTY_API_DEV_PORT:-8001}/api/v1/internal/hermes/mcp}"
-export MTY_HERMES_PROFILE_CLONE_SOURCE="${MTY_HERMES_PROFILE_CLONE_SOURCE:-default}"
-export MTY_HERMES_REQUEST_TIMEOUT_SECONDS="${MTY_HERMES_REQUEST_TIMEOUT_SECONDS:-30}"
-export MTY_HERMES_RUN_TIMEOUT_SECONDS="${MTY_HERMES_RUN_TIMEOUT_SECONDS:-3600}"
-export MTY_HERMES_DISPATCH_LEASE_SECONDS="${MTY_HERMES_DISPATCH_LEASE_SECONDS:-300}"
-export MTY_LIVEKIT_PORT="${MTY_LIVEKIT_PORT:-7880}"
-export MTY_LIVEKIT_RTC_TCP_PORT="${MTY_LIVEKIT_RTC_TCP_PORT:-7881}"
-export MTY_LIVEKIT_RTC_PORT_RANGE_START="${MTY_LIVEKIT_RTC_PORT_RANGE_START:-52000}"
-export MTY_LIVEKIT_RTC_PORT_RANGE_END="${MTY_LIVEKIT_RTC_PORT_RANGE_END:-52100}"
-export MTY_INFRA_USE_LOCAL_MINIO="${MTY_INFRA_USE_LOCAL_MINIO:-auto}"
-export MTY_DEV_BASE_URL="${MTY_DEV_BASE_URL:-http://127.0.0.1:${MTY_INFRA_NGINX_PORT}}"
-export MTY_DEV_RUNTIME_DIR="${MTY_DEV_RUNTIME_DIR:-$ROOT_DIR/.dev}"
-export MTY_DEV_PID_DIR="${MTY_DEV_PID_DIR:-$MTY_DEV_RUNTIME_DIR/pids}"
-export MTY_DEV_LOG_DIR="${MTY_DEV_LOG_DIR:-$MTY_DEV_RUNTIME_DIR/logs}"
-export MTY_DEV_NGINX_CONF_TEMPLATE_PATH="${MTY_DEV_NGINX_CONF_TEMPLATE_PATH:-$ROOT_DIR/ops/dev/nginx.conf.template}"
-export MTY_DEV_NGINX_CONF_PATH="${MTY_DEV_NGINX_CONF_PATH:-$MTY_DEV_RUNTIME_DIR/nginx.conf}"
-export MTY_ENV_PROFILE="${MTY_ENV_PROFILE:-dev}"
+export MIY_DEV_API_COUNT="${MIY_DEV_API_COUNT:-1}"
+export MIY_DEV_API_HOST="${MIY_DEV_API_HOST:-127.0.0.1}"
+export MIY_WEB_DEV_HOST="${MIY_WEB_DEV_HOST:-127.0.0.1}"
+export MIY_INFRA_CONTAINER_PREFIX="${MIY_INFRA_CONTAINER_PREFIX:-miy-dev}"
+export MIY_INFRA_BIND_HOST="${MIY_INFRA_BIND_HOST:-127.0.0.1}"
+export MIY_INFRA_NGINX_PORT="${MIY_INFRA_NGINX_PORT:-14200}"
+export MIY_INFRA_REDIS_PORT="${MIY_INFRA_REDIS_PORT:-56380}"
+export MIY_INFRA_POSTGRES_DB="${MIY_INFRA_POSTGRES_DB:-miy_dev}"
+export MIY_INFRA_POSTGRES_PASSWORD="${MIY_INFRA_POSTGRES_PASSWORD:-miy_dev}"
+export MIY_INFRA_POSTGRES_PORT="${MIY_INFRA_POSTGRES_PORT:-55433}"
+export MIY_INFRA_POSTGRES_USER="${MIY_INFRA_POSTGRES_USER:-miy_dev}"
+export MIY_INFRA_USE_LOCAL_POSTGRES="${MIY_INFRA_USE_LOCAL_POSTGRES:-auto}"
+export MIY_DEV_REDIS_URL="${MIY_DEV_REDIS_URL:-redis://127.0.0.1:${MIY_INFRA_REDIS_PORT}/0}"
+export MIY_DEV_REDIS_RESULT_BACKEND="${MIY_DEV_REDIS_RESULT_BACKEND:-redis://127.0.0.1:${MIY_INFRA_REDIS_PORT}/1}"
+export MIY_DEV_COLLAB_REDIS_URL="${MIY_DEV_COLLAB_REDIS_URL:-$MIY_DEV_REDIS_URL}"
+export MIY_DEV_REALTIME_REDIS_URL="${MIY_DEV_REALTIME_REDIS_URL:-$MIY_DEV_REDIS_URL}"
+export MIY_DEV_WORKER_BROKER_URL="${MIY_DEV_WORKER_BROKER_URL:-$MIY_DEV_REDIS_URL}"
+export MIY_DEV_WORKER_RESULT_BACKEND="${MIY_DEV_WORKER_RESULT_BACKEND:-$MIY_DEV_REDIS_RESULT_BACKEND}"
+export MIY_INFRA_MINIO_PORT="${MIY_INFRA_MINIO_PORT:-59010}"
+export MIY_INFRA_MINIO_CONSOLE_PORT="${MIY_INFRA_MINIO_CONSOLE_PORT:-59011}"
+export MIY_INFRA_OPENSEARCH_PORT="${MIY_INFRA_OPENSEARCH_PORT:-59210}"
+export MIY_INFRA_OPENSEARCH_PERF_PORT="${MIY_INFRA_OPENSEARCH_PERF_PORT:-59610}"
+export MIY_INFRA_QDRANT_PORT="${MIY_INFRA_QDRANT_PORT:-16333}"
+export MIY_INFRA_QDRANT_GRPC_PORT="${MIY_INFRA_QDRANT_GRPC_PORT:-16334}"
+export MIY_BENTO_BIND_HOST="${MIY_BENTO_BIND_HOST:-127.0.0.1}"
+export MIY_BENTO_IMAGE_TAG="${MIY_BENTO_IMAGE_TAG:-1.0.17}"
+export MIY_BENTO_PORT="${MIY_BENTO_PORT:-18084}"
+export MIY_BENTO_SERVER_URL="${MIY_BENTO_SERVER_URL:-http://127.0.0.1:${MIY_BENTO_PORT}/}"
+export MIY_HERMES_ENABLED="${MIY_HERMES_ENABLED:-false}"
+export MIY_HERMES_RUNTIME_PORT="${MIY_HERMES_RUNTIME_PORT:-18642}"
+export MIY_HERMES_MANAGEMENT_PORT="${MIY_HERMES_MANAGEMENT_PORT:-19119}"
+export MIY_HERMES_RUNTIME_BASE_URL="${MIY_HERMES_RUNTIME_BASE_URL:-http://127.0.0.1:${MIY_HERMES_RUNTIME_PORT}}"
+export MIY_HERMES_MANAGEMENT_BASE_URL="${MIY_HERMES_MANAGEMENT_BASE_URL:-http://127.0.0.1:${MIY_HERMES_MANAGEMENT_PORT}}"
+export MIY_HERMES_API_KEY="${MIY_HERMES_API_KEY:-miy-dev-hermes-runtime-key-0001}"
+export MIY_HERMES_MANAGEMENT_TOKEN="${MIY_HERMES_MANAGEMENT_TOKEN:-miy-dev-hermes-management-token-0001}"
+export MIY_HERMES_MCP_SHARED_SECRET="${MIY_HERMES_MCP_SHARED_SECRET:-miy-dev-hermes-mcp-shared-secret-0000000000000001}"
+export MIY_HERMES_MCP_SERVER_URL="${MIY_HERMES_MCP_SERVER_URL:-http://127.0.0.1:${MIY_API_DEV_PORT:-8001}/api/v1/internal/hermes/mcp}"
+export MIY_HERMES_PROFILE_CLONE_SOURCE="${MIY_HERMES_PROFILE_CLONE_SOURCE:-default}"
+export MIY_HERMES_REQUEST_TIMEOUT_SECONDS="${MIY_HERMES_REQUEST_TIMEOUT_SECONDS:-30}"
+export MIY_HERMES_RUN_TIMEOUT_SECONDS="${MIY_HERMES_RUN_TIMEOUT_SECONDS:-3600}"
+export MIY_HERMES_DISPATCH_LEASE_SECONDS="${MIY_HERMES_DISPATCH_LEASE_SECONDS:-300}"
+export MIY_LIVEKIT_PORT="${MIY_LIVEKIT_PORT:-7880}"
+export MIY_LIVEKIT_RTC_TCP_PORT="${MIY_LIVEKIT_RTC_TCP_PORT:-7881}"
+export MIY_LIVEKIT_RTC_PORT_RANGE_START="${MIY_LIVEKIT_RTC_PORT_RANGE_START:-52000}"
+export MIY_LIVEKIT_RTC_PORT_RANGE_END="${MIY_LIVEKIT_RTC_PORT_RANGE_END:-52100}"
+export MIY_INFRA_USE_LOCAL_MINIO="${MIY_INFRA_USE_LOCAL_MINIO:-auto}"
+export MIY_DEV_BASE_URL="${MIY_DEV_BASE_URL:-http://127.0.0.1:${MIY_INFRA_NGINX_PORT}}"
+export MIY_DEV_RUNTIME_DIR="${MIY_DEV_RUNTIME_DIR:-$ROOT_DIR/.dev}"
+export MIY_DEV_PID_DIR="${MIY_DEV_PID_DIR:-$MIY_DEV_RUNTIME_DIR/pids}"
+export MIY_DEV_LOG_DIR="${MIY_DEV_LOG_DIR:-$MIY_DEV_RUNTIME_DIR/logs}"
+export MIY_DEV_NGINX_CONF_TEMPLATE_PATH="${MIY_DEV_NGINX_CONF_TEMPLATE_PATH:-$ROOT_DIR/ops/dev/nginx.conf.template}"
+export MIY_DEV_NGINX_CONF_PATH="${MIY_DEV_NGINX_CONF_PATH:-$MIY_DEV_RUNTIME_DIR/nginx.conf}"
+export MIY_ENV_PROFILE="${MIY_ENV_PROFILE:-dev}"
 
-export MTY_POSTGRES_DSN="${MTY_POSTGRES_DSN:-postgresql+psycopg://${MTY_INFRA_POSTGRES_USER}:${MTY_INFRA_POSTGRES_PASSWORD}@127.0.0.1:${MTY_INFRA_POSTGRES_PORT}/${MTY_INFRA_POSTGRES_DB}}"
-export MTY_API_COLLAB_REDIS_URL="$MTY_DEV_COLLAB_REDIS_URL"
-export MTY_API_REALTIME_REDIS_URL="$MTY_DEV_REALTIME_REDIS_URL"
-export MTY_WORKER_BROKER_URL="$MTY_DEV_WORKER_BROKER_URL"
-export MTY_WORKER_RESULT_BACKEND="$MTY_DEV_WORKER_RESULT_BACKEND"
-export MTY_MINIO_ENDPOINT="${MTY_MINIO_ENDPOINT:-http://127.0.0.1:${MTY_INFRA_MINIO_PORT}}"
-export MTY_MINIO_ACCESS_KEY="${MTY_MINIO_ACCESS_KEY:-mty_dev_minio}"
-export MTY_MINIO_SECRET_KEY="${MTY_MINIO_SECRET_KEY:-mty_dev_minio}"
-export MTY_MINIO_BUCKET="${MTY_MINIO_BUCKET:-mty-dev}"
-export MTY_OPENSEARCH_URL="${MTY_OPENSEARCH_URL:-http://127.0.0.1:${MTY_INFRA_OPENSEARCH_PORT}}"
-export MTY_OPENSEARCH_INDEX_PREFIX="${MTY_OPENSEARCH_INDEX_PREFIX:-mty-dev}"
-export MTY_RAG_QDRANT_URL="${MTY_RAG_QDRANT_URL:-http://127.0.0.1:${MTY_INFRA_QDRANT_PORT}}"
-export MTY_RAG_QDRANT_API_KEY="${MTY_RAG_QDRANT_API_KEY:-mty_dev_qdrant}"
-export MTY_RAG_QDRANT_COLLECTION_PREFIX="${MTY_RAG_QDRANT_COLLECTION_PREFIX:-mty-dev-rag}"
-export MTY_LIVEKIT_URL="${MTY_LIVEKIT_URL:-ws://127.0.0.1:${MTY_LIVEKIT_PORT}}"
-export MTY_LIVEKIT_PUBLIC_URL="${MTY_LIVEKIT_PUBLIC_URL:-}"
-export MTY_LIVEKIT_API_KEY="${MTY_LIVEKIT_API_KEY:-devkey}"
-export MTY_LIVEKIT_API_SECRET="${MTY_LIVEKIT_API_SECRET:-devsecret-devsecret-devsecret-0001}"
-export MTY_LLM_HEALTHCHECK_ON_STARTUP="${MTY_LLM_HEALTHCHECK_ON_STARTUP:-0}"
-export MTY_LLM_REQUIRED="${MTY_LLM_REQUIRED:-0}"
-export MTY_API_ALLOW_DEV_ADMIN_LOGIN="${MTY_API_ALLOW_DEV_ADMIN_LOGIN:-1}"
-export MTY_API_OBJECT_STORAGE_REQUIRED="${MTY_API_OBJECT_STORAGE_REQUIRED:-1}"
-export MTY_API_SEED_DEV_LOGIN_ACCOUNT="${MTY_API_SEED_DEV_LOGIN_ACCOUNT:-1}"
-dev_export_mty_desktop_installer_defaults
+export MIY_POSTGRES_DSN="${MIY_POSTGRES_DSN:-postgresql+psycopg://${MIY_INFRA_POSTGRES_USER}:${MIY_INFRA_POSTGRES_PASSWORD}@127.0.0.1:${MIY_INFRA_POSTGRES_PORT}/${MIY_INFRA_POSTGRES_DB}}"
+export MIY_API_COLLAB_REDIS_URL="$MIY_DEV_COLLAB_REDIS_URL"
+export MIY_API_REALTIME_REDIS_URL="$MIY_DEV_REALTIME_REDIS_URL"
+export MIY_WORKER_BROKER_URL="$MIY_DEV_WORKER_BROKER_URL"
+export MIY_WORKER_RESULT_BACKEND="$MIY_DEV_WORKER_RESULT_BACKEND"
+export MIY_MINIO_ENDPOINT="${MIY_MINIO_ENDPOINT:-http://127.0.0.1:${MIY_INFRA_MINIO_PORT}}"
+export MIY_MINIO_ACCESS_KEY="${MIY_MINIO_ACCESS_KEY:-miy_dev_minio}"
+export MIY_MINIO_SECRET_KEY="${MIY_MINIO_SECRET_KEY:-miy_dev_minio}"
+export MIY_MINIO_BUCKET="${MIY_MINIO_BUCKET:-miy-dev}"
+export MIY_OPENSEARCH_URL="${MIY_OPENSEARCH_URL:-http://127.0.0.1:${MIY_INFRA_OPENSEARCH_PORT}}"
+export MIY_OPENSEARCH_INDEX_PREFIX="${MIY_OPENSEARCH_INDEX_PREFIX:-miy-dev}"
+export MIY_RAG_QDRANT_URL="${MIY_RAG_QDRANT_URL:-http://127.0.0.1:${MIY_INFRA_QDRANT_PORT}}"
+export MIY_RAG_QDRANT_API_KEY="${MIY_RAG_QDRANT_API_KEY:-miy_dev_qdrant}"
+export MIY_RAG_QDRANT_COLLECTION_PREFIX="${MIY_RAG_QDRANT_COLLECTION_PREFIX:-miy-dev-rag}"
+export MIY_LIVEKIT_URL="${MIY_LIVEKIT_URL:-ws://127.0.0.1:${MIY_LIVEKIT_PORT}}"
+export MIY_LIVEKIT_PUBLIC_URL="${MIY_LIVEKIT_PUBLIC_URL:-}"
+export MIY_LIVEKIT_API_KEY="${MIY_LIVEKIT_API_KEY:-devkey}"
+export MIY_LIVEKIT_API_SECRET="${MIY_LIVEKIT_API_SECRET:-devsecret-devsecret-devsecret-0001}"
+export MIY_LLM_HEALTHCHECK_ON_STARTUP="${MIY_LLM_HEALTHCHECK_ON_STARTUP:-0}"
+export MIY_LLM_REQUIRED="${MIY_LLM_REQUIRED:-0}"
+export MIY_API_ALLOW_DEV_ADMIN_LOGIN="${MIY_API_ALLOW_DEV_ADMIN_LOGIN:-1}"
+export MIY_API_OBJECT_STORAGE_REQUIRED="${MIY_API_OBJECT_STORAGE_REQUIRED:-1}"
+export MIY_API_SEED_DEV_LOGIN_ACCOUNT="${MIY_API_SEED_DEV_LOGIN_ACCOUNT:-1}"
+dev_export_miy_desktop_installer_defaults
 
 dev_docker() {
-  case "$MTY_ENV_PROFILE" in
+  case "$MIY_ENV_PROFILE" in
     local|dev|"")
       if docker info >/dev/null 2>&1; then
         docker "$@"
@@ -184,11 +184,11 @@ dev_docker() {
       fi
       ;;
     prod|production)
-      echo "[dev] MTY_ENV_PROFILE=$MTY_ENV_PROFILE is not supported for dev docker commands" >&2
+      echo "[dev] MIY_ENV_PROFILE=$MIY_ENV_PROFILE is not supported for dev docker commands" >&2
       return 1
       ;;
     *)
-      echo "[dev] invalid MTY_ENV_PROFILE: $MTY_ENV_PROFILE (expected local, dev, prod)" >&2
+      echo "[dev] invalid MIY_ENV_PROFILE: $MIY_ENV_PROFILE (expected local, dev, prod)" >&2
       return 1
       ;;
   esac
@@ -199,16 +199,16 @@ dev_docker_available() {
 }
 
 dev_compose_file() {
-  case "$MTY_ENV_PROFILE" in
+  case "$MIY_ENV_PROFILE" in
     local|dev|"")
-      printf '%s/ops/compose/mty-dev.infra.yml\n' "$ROOT_DIR"
+      printf '%s/ops/compose/miy-dev.infra.yml\n' "$ROOT_DIR"
       ;;
     prod|production)
-      echo "[dev] MTY_ENV_PROFILE=$MTY_ENV_PROFILE is not supported for dev compose commands" >&2
+      echo "[dev] MIY_ENV_PROFILE=$MIY_ENV_PROFILE is not supported for dev compose commands" >&2
       return 1
       ;;
     *)
-      echo "[dev] invalid MTY_ENV_PROFILE: $MTY_ENV_PROFILE (expected local, dev, prod)" >&2
+      echo "[dev] invalid MIY_ENV_PROFILE: $MIY_ENV_PROFILE (expected local, dev, prod)" >&2
       return 1
       ;;
   esac
@@ -233,7 +233,7 @@ dev_api_name() {
 }
 
 dev_ensure_runtime_dirs() {
-  mkdir -p "$MTY_DEV_RUNTIME_DIR" "$MTY_DEV_PID_DIR" "$MTY_DEV_LOG_DIR"
+  mkdir -p "$MIY_DEV_RUNTIME_DIR" "$MIY_DEV_PID_DIR" "$MIY_DEV_LOG_DIR"
 }
 
 dev_detect_api_upstream_host() {
@@ -252,8 +252,8 @@ dev_render_nginx_conf() {
     return 1
   fi
 
-  DEV_NGINX_TEMPLATE="$MTY_DEV_NGINX_CONF_TEMPLATE_PATH" \
-  DEV_NGINX_OUTPUT="$MTY_DEV_NGINX_CONF_PATH" \
+  DEV_NGINX_TEMPLATE="$MIY_DEV_NGINX_CONF_TEMPLATE_PATH" \
+  DEV_NGINX_OUTPUT="$MIY_DEV_NGINX_CONF_PATH" \
   DEV_API_UPSTREAM_HOST="$upstream_host" \
   DEV_NGINX_LISTEN_PORT="$listen_port" \
   python3 - <<'PY'
@@ -263,15 +263,15 @@ from pathlib import Path
 template = Path(os.environ["DEV_NGINX_TEMPLATE"]).read_text(encoding="utf-8")
 rendered = (
     template
-    .replace("__MTY_DEV_API_UPSTREAM_HOST__", os.environ["DEV_API_UPSTREAM_HOST"])
-    .replace("__MTY_DEV_NGINX_LISTEN_PORT__", os.environ["DEV_NGINX_LISTEN_PORT"])
+    .replace("__MIY_DEV_API_UPSTREAM_HOST__", os.environ["DEV_API_UPSTREAM_HOST"])
+    .replace("__MIY_DEV_NGINX_LISTEN_PORT__", os.environ["DEV_NGINX_LISTEN_PORT"])
 )
 Path(os.environ["DEV_NGINX_OUTPUT"]).write_text(rendered, encoding="utf-8")
 PY
 }
 
 dev_use_local_minio() {
-  case "$(dev_lower "$MTY_INFRA_USE_LOCAL_MINIO")" in
+  case "$(dev_lower "$MIY_INFRA_USE_LOCAL_MINIO")" in
     1|true|yes|on)
       return 0
       ;;
@@ -279,21 +279,21 @@ dev_use_local_minio() {
       return 1
       ;;
     auto)
-      if [[ "$MTY_MINIO_ENDPOINT" == *"127.0.0.1:${MTY_INFRA_MINIO_PORT}"* ]] || \
-         [[ "$MTY_MINIO_ENDPOINT" == *"localhost:${MTY_INFRA_MINIO_PORT}"* ]]; then
+      if [[ "$MIY_MINIO_ENDPOINT" == *"127.0.0.1:${MIY_INFRA_MINIO_PORT}"* ]] || \
+         [[ "$MIY_MINIO_ENDPOINT" == *"localhost:${MIY_INFRA_MINIO_PORT}"* ]]; then
         return 0
       fi
       return 1
       ;;
     *)
-      echo "[dev] invalid MTY_INFRA_USE_LOCAL_MINIO: $MTY_INFRA_USE_LOCAL_MINIO" >&2
+      echo "[dev] invalid MIY_INFRA_USE_LOCAL_MINIO: $MIY_INFRA_USE_LOCAL_MINIO" >&2
       return 1
       ;;
   esac
 }
 
 dev_use_local_postgres() {
-  case "$(dev_lower "$MTY_INFRA_USE_LOCAL_POSTGRES")" in
+  case "$(dev_lower "$MIY_INFRA_USE_LOCAL_POSTGRES")" in
     1|true|yes|on)
       return 0
       ;;
@@ -301,14 +301,14 @@ dev_use_local_postgres() {
       return 1
       ;;
     auto)
-      if [[ "$MTY_POSTGRES_DSN" == *"127.0.0.1:${MTY_INFRA_POSTGRES_PORT}"* ]] || \
-         [[ "$MTY_POSTGRES_DSN" == *"localhost:${MTY_INFRA_POSTGRES_PORT}"* ]]; then
+      if [[ "$MIY_POSTGRES_DSN" == *"127.0.0.1:${MIY_INFRA_POSTGRES_PORT}"* ]] || \
+         [[ "$MIY_POSTGRES_DSN" == *"localhost:${MIY_INFRA_POSTGRES_PORT}"* ]]; then
         return 0
       fi
       return 1
       ;;
     *)
-      echo "[dev] invalid MTY_INFRA_USE_LOCAL_POSTGRES: $MTY_INFRA_USE_LOCAL_POSTGRES" >&2
+      echo "[dev] invalid MIY_INFRA_USE_LOCAL_POSTGRES: $MIY_INFRA_USE_LOCAL_POSTGRES" >&2
       return 1
       ;;
   esac

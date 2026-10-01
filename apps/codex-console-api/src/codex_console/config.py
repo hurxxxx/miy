@@ -1,81 +1,149 @@
+import ipaddress
 import re
 from pathlib import Path
 from typing import Annotated
 from urllib.parse import urlsplit
 from uuid import UUID
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
 from .errors import ConsoleError
 
 
+class MonitoredService(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,99}$")
+    name: str = Field(min_length=1, max_length=100)
+    environment: str = Field(min_length=1, max_length=40)
+    health_url: str | None = None
+    unit: str | None = Field(default=None, pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.@-]{0,127}\.service$")
+    user_unit: bool = True
+    container: str | None = Field(default=None, pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$")
+
+    @model_validator(mode="after")
+    def bounded_target(self):
+        if not (self.health_url or self.unit or self.container) or (self.unit and self.container):
+            raise ValueError("Select a health endpoint and/or one supervisor")
+        if self.health_url:
+            url = urlsplit(self.health_url)
+            try:
+                address = ipaddress.ip_address(url.hostname or "")
+                port = url.port
+            except ValueError:
+                raise ValueError("Health endpoints require a fixed IP address") from None
+            if (
+                url.scheme not in ("http", "https")
+                or url.username
+                or url.password
+                or url.query
+                or url.fragment
+                or address.is_link_local
+                or address.is_multicast
+                or address.is_unspecified
+                or not (address.is_private or address.is_loopback)
+                or (port is not None and not 1 <= port <= 65535)
+            ):
+                raise ValueError("Invalid private health endpoint")
+        return self
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
-    database_url: str = Field(validation_alias="MTY_CODEX_CONSOLE_DATABASE_URL")
-    origin: str = Field(validation_alias="MTY_CODEX_CONSOLE_ORIGIN")
-    base_path: str = Field(default="", validation_alias="MTY_CODEX_CONSOLE_BASE_PATH")
-    workspace: Path = Field(validation_alias="MTY_CODEX_CONSOLE_WORKSPACE")
+    database_url: str = Field(validation_alias="MIY_CODEX_CONSOLE_DATABASE_URL")
+    origin: str = Field(validation_alias="MIY_CODEX_CONSOLE_ORIGIN")
+    base_path: str = Field(default="", validation_alias="MIY_CODEX_CONSOLE_BASE_PATH")
+    workspace: Path = Field(validation_alias="MIY_CODEX_CONSOLE_WORKSPACE")
     worktree_base_ref: str = Field(
         default="HEAD",
         min_length=1,
         max_length=1024,
-        validation_alias="MTY_CODEX_CONSOLE_WORKTREE_BASE_REF",
+        validation_alias="MIY_CODEX_CONSOLE_WORKTREE_BASE_REF",
     )
     worktree_root: Path = Field(
-        default_factory=lambda: Path.home() / ".local/share/mty-codex-console/worktrees",
-        validation_alias="MTY_CODEX_CONSOLE_WORKTREE_ROOT",
+        default_factory=lambda: Path.home() / ".local/share/miy-codex-console/worktrees",
+        validation_alias="MIY_CODEX_CONSOLE_WORKTREE_ROOT",
     )
     protected_workspaces: list[Path] = Field(
         default_factory=list,
-        validation_alias="MTY_CODEX_CONSOLE_PROTECTED_WORKSPACES",
+        validation_alias="MIY_CODEX_CONSOLE_PROTECTED_WORKSPACES",
     )
-    forbidden_database_names: list[str] = Field(
-        default_factory=list,
-        validation_alias="MTY_CODEX_CONSOLE_FORBIDDEN_DATABASE_NAMES",
-    )
-    binary: str = Field(default="codex", validation_alias="MTY_CODEX_CONSOLE_BINARY")
+    binary: str = Field(default="codex", validation_alias="MIY_CODEX_CONSOLE_BINARY")
     allowed_reasoning_efforts: list[
         Annotated[str, Field(min_length=1, max_length=40, pattern=r"^\S+$")]
     ] = Field(
         default_factory=lambda: ["none", "minimal", "low", "medium", "high", "xhigh"],
         min_length=1,
-        validation_alias="MTY_CODEX_CONSOLE_ALLOWED_REASONING_EFFORTS",
+        validation_alias="MIY_CODEX_CONSOLE_ALLOWED_REASONING_EFFORTS",
     )
-    bind_host: str = Field(
-        default="127.0.0.1", validation_alias="MTY_CODEX_CONSOLE_BIND_HOST"
+    bind_host: str = Field(default="127.0.0.1", validation_alias="MIY_CODEX_CONSOLE_BIND_HOST")
+    port: int = Field(default=19365, ge=1024, le=65535, validation_alias="MIY_CODEX_CONSOLE_PORT")
+    management_port: int = Field(
+        default=19367, ge=1024, le=65535, validation_alias="MIY_CODEX_CONSOLE_MANAGEMENT_PORT"
     )
-    port: int = Field(
-        default=19365, ge=1024, le=65535, validation_alias="MTY_CODEX_CONSOLE_PORT"
+    template_port: int = Field(
+        default=19368, ge=1024, le=65535, validation_alias="MIY_CODEX_CONSOLE_TEMPLATE_PORT"
     )
+    template_binary: Path | None = Field(
+        default=None, validation_alias="MIY_CODEX_CONSOLE_TEMPLATE_BINARY"
+    )
+
+    @field_validator("template_binary")
+    @classmethod
+    def immutable_binary(cls, value):
+        if value is not None and (not value.is_absolute() or value.resolve() != value):
+            raise ValueError("Template Codex requires an absolute, version-pinned binary")
+        return value
+
+    max_active_tasks: int = Field(
+        default=3, ge=1, le=16, validation_alias="MIY_CODEX_CONSOLE_MAX_ACTIVE_TASKS"
+    )
+    monitor_services: list[MonitoredService] = Field(
+        default_factory=list, max_length=64, validation_alias="MIY_CODEX_CONSOLE_MONITOR_SERVICES"
+    )
+
+    @field_validator("monitor_services")
+    @classmethod
+    def unique_services(cls, value):
+        ids = [service.id for service in value]
+        if len(ids) != len(set(ids)) or any(i.startswith("console-") for i in ids):
+            raise ValueError("Service IDs must be unique and cannot use console- prefix")
+        return value
+
+    @model_validator(mode="after")
+    def separate_ports(self):
+        if len({self.port, self.management_port, self.template_port}) != 3:
+            raise ValueError("Session, management and template ports must differ")
+        return self
+
     web_dist: Path = Field(
         default=Path("../codex-console-web/dist"),
-        validation_alias="MTY_CODEX_CONSOLE_WEB_DIST",
+        validation_alias="MIY_CODEX_CONSOLE_WEB_DIST",
     )
     session_hours: int = Field(
-        default=12, ge=1, le=24, validation_alias="MTY_CODEX_CONSOLE_SESSION_HOURS"
+        default=12, ge=1, le=24, validation_alias="MIY_CODEX_CONSOLE_SESSION_HOURS"
     )
     sso_subjects: dict[str, UUID] = Field(
         default_factory=dict,
-        validation_alias="MTY_CODEX_CONSOLE_SSO_SUBJECTS",
+        validation_alias="MIY_CODEX_CONSOLE_SSO_SUBJECTS",
     )
     attachment_cache: Path = Field(
-        default_factory=lambda: Path.home() / ".local/share/mty-codex-console/attachments",
-        validation_alias="MTY_CODEX_CONSOLE_ATTACHMENT_CACHE",
+        default_factory=lambda: Path.home() / ".local/share/miy-codex-console/attachments",
+        validation_alias="MIY_CODEX_CONSOLE_ATTACHMENT_CACHE",
     )
     attachment_max_bytes: int = Field(
         default=50 * 1024 * 1024,
         ge=1,
         le=100 * 1024 * 1024,
-        validation_alias="MTY_CODEX_CONSOLE_ATTACHMENT_MAX_BYTES",
+        validation_alias="MIY_CODEX_CONSOLE_ATTACHMENT_MAX_BYTES",
     )
     attachment_task_max_bytes: int = Field(
         default=500 * 1024 * 1024,
         ge=1,
         le=10 * 1024 * 1024 * 1024,
-        validation_alias="MTY_CODEX_CONSOLE_ATTACHMENT_TASK_MAX_BYTES",
+        validation_alias="MIY_CODEX_CONSOLE_ATTACHMENT_TASK_MAX_BYTES",
     )
 
     @field_validator("attachment_cache")
@@ -88,10 +156,10 @@ class Settings(BaseSettings):
 
     @field_validator("database_url")
     @classmethod
-    def postgres_only(cls, value: str) -> str:
-        url = make_url(value)
-        if url.drivername != "postgresql+psycopg" or not url.database:
-            raise ValueError("A dedicated PostgreSQL database with psycopg is required")
+    def standalone_database(cls, value: str) -> str:
+        from .storage import database_path
+
+        database_path(value)
         return value
 
     @field_validator("origin")
@@ -151,8 +219,9 @@ class Settings(BaseSettings):
                 protected
             ):
                 raise ValueError("A protected workspace cannot be used by the console")
-        if make_url(self.database_url).database in self.forbidden_database_names:
-            raise ValueError("The console requires its dedicated database")
+        storage = Path(make_url(self.database_url).database)
+        if storage.is_relative_to(self.workspace) or storage.is_relative_to(self.worktree_root):
+            raise ValueError("Console storage must be outside source and execution workspaces")
         return self
 
     def require_allowed_paths(self, *paths):

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import type { ApiSchema } from '@mty/contracts/api';
+import type { ApiSchema } from '@miy/contracts/api';
 
 import { FAKE_PLATFORM_ADMIN_USER, stubShellBackend } from './helpers';
 

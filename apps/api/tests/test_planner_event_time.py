@@ -3,7 +3,7 @@ from datetime import datetime
 import pytest
 from fastapi import HTTPException
 
-from mty_api.domains.planner.event_time import (
+from miy_api.domains.planner.event_time import (
     local_date_string,
     parse_event_bounds,
     parse_iso_or_date,

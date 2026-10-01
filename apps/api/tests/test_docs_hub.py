@@ -1,8 +1,8 @@
 from fastapi.testclient import TestClient
 
 from dev_accounts import dev_login
-from mty_api.core.db import get_session_factory
-from mty_api.domains.auth.models import CompanyAppControl
+from miy_api.core.db import get_session_factory
+from miy_api.domains.auth.models import CompanyAppControl
 
 
 def _dev_login(client: TestClient, account_key: str) -> dict:
@@ -13,7 +13,7 @@ def test_docs_native_docs_and_direct_user_share_grant_docs_access(client: TestCl
     admin = _bootstrap_admin_session(client)
 
     owner = _create_user(
-        client, admin["token"], email="docs-owner@mty.local", full_name="Docs Owner"
+        client, admin["token"], email="docs-owner@miy.local", full_name="Docs Owner"
     )
     owner_token = _login(client, owner["user"]["email"], owner["temporary_password"])
 
@@ -48,7 +48,7 @@ def test_docs_native_docs_and_direct_user_share_grant_docs_access(client: TestCl
     shared_user = _create_user(
         client,
         admin["token"],
-        email="docs-shared@mty.local",
+        email="docs-shared@miy.local",
         full_name="Docs Shared User",
     )
     shared_user_id = shared_user["user"]["id"]
@@ -100,7 +100,7 @@ def test_docs_hub_reuses_pms_acl_and_blocks_resharing_of_source_docs(client: Tes
     )
 
     viewer = _create_user(
-        client, admin["token"], email="docs-viewer@mty.local", full_name="Docs Viewer"
+        client, admin["token"], email="docs-viewer@miy.local", full_name="Docs Viewer"
     )
     _add_task_list_member(client, admin["token"], task_list["id"], viewer["user"]["id"], "viewer")
     viewer_token = _login(client, viewer["user"]["email"], viewer["temporary_password"])
@@ -137,7 +137,7 @@ def test_docs_hub_reuses_pms_acl_and_blocks_resharing_of_source_docs(client: Tes
     assert viewer_share_response.status_code == 403
 
     member = _create_user(
-        client, admin["token"], email="docs-user@mty.local", full_name="Docs User"
+        client, admin["token"], email="docs-user@miy.local", full_name="Docs User"
     )
     _add_task_list_member(client, admin["token"], task_list["id"], member["user"]["id"], "member")
     member_token = _login(client, member["user"]["email"], member["temporary_password"])
@@ -237,7 +237,7 @@ def test_space_docs_filter_includes_readable_task_linked_docs(client: TestClient
     viewer = _create_user(
         client,
         admin["token"],
-        email="task-linked-doc-viewer@mty.local",
+        email="task-linked-doc-viewer@miy.local",
         full_name="Task Linked Doc Viewer",
     )
     viewer_token = _login(client, viewer["user"]["email"], viewer["temporary_password"])
@@ -266,14 +266,14 @@ def test_internal_shared_links_require_auth_and_honor_read_vs_edit(client: TestC
     admin = _bootstrap_admin_session(client)
 
     owner = _create_user(
-        client, admin["token"], email="share-owner@mty.local", full_name="Share Owner"
+        client, admin["token"], email="share-owner@miy.local", full_name="Share Owner"
     )
     owner_token = _login(client, owner["user"]["email"], owner["temporary_password"])
 
     recipient = _create_user(
         client,
         admin["token"],
-        email="share-recipient@mty.local",
+        email="share-recipient@miy.local",
         full_name="Share Recipient",
     )
     recipient_token = _login(client, recipient["user"]["email"], recipient["temporary_password"])
@@ -366,7 +366,7 @@ def test_docs_shareable_users_lists_company_colleagues(
     member = _create_user(
         client,
         admin["token"],
-        email="administrator-docs-member@mty.local",
+        email="administrator-docs-member@miy.local",
         full_name="Administrator Docs Member",
     )
     member_token = _login(client, member["user"]["email"], member["temporary_password"])
@@ -374,13 +374,13 @@ def test_docs_shareable_users_lists_company_colleagues(
     colleague = _create_user(
         client,
         admin["token"],
-        email="another-department-admin@mty.local",
+        email="another-department-admin@miy.local",
         full_name="Another Department Admin",
     )
     blocked = _create_user(
         client,
         admin["token"],
-        email="blocked-admin@mty.local",
+        email="blocked-admin@miy.local",
         full_name="Blocked Admin",
     )
     blocked_response = client.patch(
@@ -397,7 +397,7 @@ def test_docs_shareable_users_lists_company_colleagues(
     )
     assert response.status_code == 200
     emails = {item["email"] for item in response.json()}
-    assert "admin@mty.local" in emails
+    assert "admin@miy.local" in emails
     assert colleague["user"]["email"] in emails
     assert member["user"]["email"] not in emails
     assert blocked["user"]["email"] not in emails
@@ -406,7 +406,7 @@ def test_docs_shareable_users_lists_company_colleagues(
 def test_native_doc_page_patch_rejects_cycle(client: TestClient) -> None:
     admin = _bootstrap_admin_session(client)
     owner = _create_user(
-        client, admin["token"], email="cycle-owner@mty.local", full_name="Cycle Owner"
+        client, admin["token"], email="cycle-owner@miy.local", full_name="Cycle Owner"
     )
     owner_token = _login(client, owner["user"]["email"], owner["temporary_password"])
 
@@ -453,14 +453,14 @@ def test_duplicate_doc_via_read_share_creates_private_copy_for_recipient(
     admin = _bootstrap_admin_session(client)
 
     owner = _create_user(
-        client, admin["token"], email="dup-share-owner@mty.local", full_name="Owner"
+        client, admin["token"], email="dup-share-owner@miy.local", full_name="Owner"
     )
     owner_token = _login(client, owner["user"]["email"], owner["temporary_password"])
 
     recipient = _create_user(
         client,
         admin["token"],
-        email="dup-share-recipient@mty.local",
+        email="dup-share-recipient@miy.local",
         full_name="Recipient",
     )
     recipient_token = _login(client, recipient["user"]["email"], recipient["temporary_password"])
@@ -495,15 +495,15 @@ def _bootstrap_admin_session(client: TestClient) -> dict:
     response = client.post(
         "/api/v1/auth/setup",
         json={
-            "full_name": "MTY Admin",
-            "email": "admin@mty.local",
+            "full_name": "miy Admin",
+            "email": "admin@miy.local",
             "password": "supersecret123",
         },
     )
     assert response.status_code == 201
     session = response.json()
     from dev_accounts import configure_company_app_access
-    from mty_api.core.db import get_session_factory
+    from miy_api.core.db import get_session_factory
 
     with get_session_factory()() as db:
         configure_company_app_access(db)

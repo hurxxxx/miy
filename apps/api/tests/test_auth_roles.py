@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from mty_api.domains.auth.roles import (
+from miy_api.domains.auth.roles import (
     SYSTEM_PLATFORM_ADMIN,
     _sorted_system_roles,
     normalize_system_role,
 )
-from mty_api.domains.pms.roles import _higher_team_role, team_role_allows
+from miy_api.domains.pms.roles import _higher_team_role, team_role_allows
 
 
 def test_unknown_current_role_returns_false() -> None:

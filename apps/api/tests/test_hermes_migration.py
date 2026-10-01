@@ -5,30 +5,30 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
-from mty_api.core.db import Base
-from mty_api.core.model_registry import import_all_models
-from mty_api.domains.auth.models import CompanyAppControl, User
-from mty_api.domains.auth.app_access_models import (
+from miy_api.core.db import Base
+from miy_api.core.model_registry import import_all_models
+from miy_api.domains.auth.models import CompanyAppControl, User
+from miy_api.domains.auth.app_access_models import (
     AppAccessPolicy,
     AppUserGrant,
     AppGroupGrant,
 )
-from mty_api.domains.groups.models import Group
+from miy_api.domains.groups.models import Group
 from test_alembic_migrations import _migration_config
 
 
 @pytest.mark.migration
 def test_file_revision_migration_preserves_current_bytes_without_inventing_a_run(postgres_dsn, monkeypatch):
     from datetime import timedelta
-    from mty_api.domains.auth.models import utcnow_naive
-    from mty_api.domains.hermes.models import (
+    from miy_api.domains.auth.models import utcnow_naive
+    from miy_api.domains.hermes.models import (
         HermesFileObject,
         HermesFileRevision,
         HermesSessionFile,
     )
     from test_hermes_runtime import seed, session_for
     from test_hermes_runtime import admit_runtime_apps
-    from mty_api.domains.hermes import file_router
+    from miy_api.domains.hermes import file_router
 
     config = _migration_config(postgres_dsn)
     command.upgrade(config, "hermes_runtime_20260912")

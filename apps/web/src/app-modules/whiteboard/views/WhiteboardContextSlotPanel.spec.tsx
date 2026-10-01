@@ -20,8 +20,8 @@ const mocks = vi.hoisted(() => ({
   attachWhiteboardContextSlot: vi.fn(),
   listWhiteboardHub: vi.fn(),
 }));
-vi.mock('@mty/ui', async (original) => ({
-  ...(await original<typeof import('@mty/ui')>()),
+vi.mock('@miy/ui', async (original) => ({
+  ...(await original<typeof import('@miy/ui')>()),
   useConfirm: () => ({ confirm: mocks.confirm, confirmDialog: null }),
   useFeedback: () => ({ error: mocks.error }),
 }));

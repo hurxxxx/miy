@@ -12,21 +12,21 @@ import pytest
 
 @pytest.fixture
 def native(monkeypatch):
-    root = Path(__file__).resolve().parents[3] / "ops/hermes/plugins/mty_runtime"
-    package = ModuleType("mty_native_test")
+    root = Path(__file__).resolve().parents[3] / "ops/hermes/plugins/miy_runtime"
+    package = ModuleType("miy_native_test")
     package.__path__ = [str(root)]
     current = ContextVar("test_native_run", default="run_first")
     server = {"profile": "first"}
     package.runtime_transport = lambda: (server, current.get())
     monkeypatch.setitem(sys.modules, package.__name__, package)
     spec = importlib.util.spec_from_file_location(
-        "mty_native_test.native_execution", root / "native_execution.py"
+        "miy_native_test.native_execution", root / "native_execution.py"
     )
     bridge = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(bridge)
 
     class WorkspaceEnvironment:
-        _hermes_backend_name = "mty_sandbox"
+        _hermes_backend_name = "miy_sandbox"
         _container = "isolated"
         _closed = False
         _server = server
@@ -39,11 +39,11 @@ def native(monkeypatch):
             self._container = None
             self._closed = True
 
-    class MTYSandbox:
+    class MIYSandbox:
         pass
 
     environment = WorkspaceEnvironment()
-    state = SimpleNamespace(environment=environment, backend="mty_sandbox")
+    state = SimpleNamespace(environment=environment, backend="miy_sandbox")
     denied = {"approved": False, "outcome": "blocked"}
 
     def guard(code, env_type, has_host_access=False):
@@ -57,14 +57,14 @@ def native(monkeypatch):
         "tools.code_execution_tool": {"_get_or_create_env": get_environment},
         "tools.terminal_tool": {
             "_get_env_config": lambda: {"env_type": state.backend},
-            "_get_plugin_env_provider": lambda _: MTYSandbox(),
+            "_get_plugin_env_provider": lambda _: MIYSandbox(),
             "get_active_env": lambda _: state.environment,
             "cleanup_vm": lambda _: pytest.fail("Unexpected cache cleanup"),
         },
         "tools.file_tools": {"_get_file_ops": lambda _: SimpleNamespace(env=state.environment)},
-        "mty_native_test.sandbox": {
+        "miy_native_test.sandbox": {
             "WorkspaceEnvironment": WorkspaceEnvironment,
-            "MTYSandbox": MTYSandbox,
+            "MIYSandbox": MIYSandbox,
         },
     }
     tools = ModuleType("tools")
@@ -94,16 +94,16 @@ def invoke(native, tool, callback, run="run_first"):
 
 def test_only_verified_code_call_can_skip_whole_script_guard(native):
     guard = native.approval.check_execute_code_guard
-    assert not guard("pass", "mty_sandbox")["approved"]
+    assert not guard("pass", "miy_sandbox")["approved"]
 
     def dispatch():
-        assert guard("pass", "mty_sandbox")["approved"]
+        assert guard("pass", "miy_sandbox")["approved"]
         assert not guard("pass", "local")["approved"]
-        assert not guard("pass", "mty_sandbox", has_host_access=True)["approved"]
+        assert not guard("pass", "miy_sandbox", has_host_access=True)["approved"]
         return '{"status":"success"}'
 
     assert json.loads(invoke(native, "execute_code", dispatch))["status"] == "success"
-    assert not guard("pass", "mty_sandbox")["approved"]
+    assert not guard("pass", "miy_sandbox")["approved"]
 
 
 @pytest.mark.parametrize("failure", ["backend", "object", "stamp", "profile", "run"])
@@ -127,18 +127,18 @@ def test_context_is_reset_after_failure_and_not_shared_between_threads(native):
 
     def dispatch():
         with ThreadPoolExecutor(max_workers=1) as pool:
-            assert not pool.submit(guard, "pass", "mty_sandbox").result()["approved"]
+            assert not pool.submit(guard, "pass", "miy_sandbox").result()["approved"]
         raise RuntimeError("synthetic failure")
 
     with pytest.raises(RuntimeError):
         invoke(native, "execute_code", dispatch)
-    assert not guard("pass", "mty_sandbox")["approved"]
+    assert not guard("pass", "miy_sandbox")["approved"]
 
 
 def test_file_boundary_is_scoped_to_actual_environment(native):
     def dispatch():
         assert native.bridge.file_write_environment.get() is native.environment
-        assert not native.approval.check_execute_code_guard("pass", "mty_sandbox")["approved"]
+        assert not native.approval.check_execute_code_guard("pass", "miy_sandbox")["approved"]
         return "saved"
 
     assert invoke(native, "patch", dispatch) == "saved"
@@ -162,18 +162,18 @@ def test_unknown_native_contract_fails_plugin_startup(native, monkeypatch):
 
 def test_separate_plugin_module_loads_use_the_installed_guard_context(native):
     spec = importlib.util.spec_from_file_location(
-        "mty_native_test.second", native.bridge.__file__
+        "miy_native_test.second", native.bridge.__file__
     )
     second = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(second)
     second.install_code_guard()
     result = second.execute_native(
         "execute_code",
-        lambda: {"approved": native.approval.check_execute_code_guard("pass", "mty_sandbox")["approved"]},
+        lambda: {"approved": native.approval.check_execute_code_guard("pass", "miy_sandbox")["approved"]},
         task_id="conversation", server=native.server, run_id="run_first",
     )
     assert result == {"approved": True}
-    assert not native.approval.check_execute_code_guard("pass", "mty_sandbox")["approved"]
+    assert not native.approval.check_execute_code_guard("pass", "miy_sandbox")["approved"]
 
 
 def test_parallel_recovery_never_retires_the_replacement(native, monkeypatch):
@@ -197,7 +197,7 @@ def test_parallel_recovery_never_retires_the_replacement(native, monkeypatch):
     def create(task_id):
         if native.state.environment is None:
             native.state.environment = type(previous)()
-        return native.state.environment, "mty_sandbox"
+        return native.state.environment, "miy_sandbox"
 
     terminal = sys.modules["tools.terminal_tool"]
     monkeypatch.setattr(terminal, "get_active_env", get_active)

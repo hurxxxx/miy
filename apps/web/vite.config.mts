@@ -6,23 +6,23 @@ import tailwindcss from '@tailwindcss/vite';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
 
-const apiProxyTarget = process.env.MTY_WEB_API_PROXY_TARGET ?? 'http://127.0.0.1:8001';
+const apiProxyTarget = process.env.MIY_WEB_API_PROXY_TARGET ?? 'http://127.0.0.1:8001';
 const drawioProxyTarget =
-  process.env.MTY_WEB_DRAWIO_PROXY_TARGET ??
-  `http://127.0.0.1:${process.env.MTY_DRAWIO_PORT ?? 18082}`;
-const codexConsoleProxyTarget = 'http://127.0.0.1:19365';
-const webDevPort = Number(process.env.MTY_WEB_DEV_PORT ?? 4200);
-const webDevAllowedHosts = (process.env.MTY_WEB_DEV_ALLOWED_HOSTS ?? '')
+  process.env.MIY_WEB_DRAWIO_PROXY_TARGET ??
+  `http://127.0.0.1:${process.env.MIY_DRAWIO_PORT ?? 18082}`;
+const codexConsoleProxyTarget = 'http://127.0.0.1:19367';
+const webDevPort = Number(process.env.MIY_WEB_DEV_PORT ?? 4200);
+const webDevAllowedHosts = (process.env.MIY_WEB_DEV_ALLOWED_HOSTS ?? '')
   .split(',')
   .map((host) => host.trim())
   .filter(Boolean);
 const webBuildOutDir = '../../dist/apps/web';
 const drawioBrowserUrl =
-  process.env.VITE_MTY_DRAWIO_URL ?? process.env.MTY_DRAWIO_SERVER_URL ?? '';
-const drawioBrowserPort = String(process.env.MTY_DRAWIO_PORT ?? 18082);
+  process.env.VITE_MIY_DRAWIO_URL ?? process.env.MIY_DRAWIO_SERVER_URL ?? '';
+const drawioBrowserPort = String(process.env.MIY_DRAWIO_PORT ?? 18082);
 const bentoBrowserUrl =
-  process.env.VITE_MTY_BENTO_URL ?? process.env.MTY_BENTO_SERVER_URL ?? '';
-const bentoBrowserPort = String(process.env.MTY_BENTO_PORT ?? 18084);
+  process.env.VITE_MIY_BENTO_URL ?? process.env.MIY_BENTO_SERVER_URL ?? '';
+const bentoBrowserPort = String(process.env.MIY_BENTO_PORT ?? 18084);
 const apiProxyTimeoutMs = 0;
 const drawioProxyTimeoutMs = 0;
 const drawioProxyHeaders = {
@@ -38,15 +38,15 @@ export default defineConfig(() => ({
     __VUE_OPTIONS_API__: true,
     __VUE_PROD_DEVTOOLS__: false,
     __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
-    'import.meta.env.VITE_MTY_DRAWIO_PORT': JSON.stringify(drawioBrowserPort),
-    'import.meta.env.VITE_MTY_DRAWIO_URL': JSON.stringify(drawioBrowserUrl),
-    'import.meta.env.VITE_MTY_BENTO_PORT': JSON.stringify(bentoBrowserPort),
-    'import.meta.env.VITE_MTY_BENTO_URL': JSON.stringify(bentoBrowserUrl),
+    'import.meta.env.VITE_MIY_DRAWIO_PORT': JSON.stringify(drawioBrowserPort),
+    'import.meta.env.VITE_MIY_DRAWIO_URL': JSON.stringify(drawioBrowserUrl),
+    'import.meta.env.VITE_MIY_BENTO_PORT': JSON.stringify(bentoBrowserPort),
+    'import.meta.env.VITE_MIY_BENTO_URL': JSON.stringify(bentoBrowserUrl),
   },
   server: {
     port: webDevPort,
     strictPort: true,
-    host: process.env.MTY_WEB_DEV_HOST ?? '127.0.0.1',
+    host: process.env.MIY_WEB_DEV_HOST ?? '127.0.0.1',
     allowedHosts: webDevAllowedHosts,
     proxy: {
       '/codex-console': {
@@ -83,7 +83,7 @@ export default defineConfig(() => ({
   preview: {
     port: webDevPort,
     strictPort: true,
-    host: process.env.MTY_WEB_DEV_HOST ?? '127.0.0.1',
+    host: process.env.MIY_WEB_DEV_HOST ?? '127.0.0.1',
     allowedHosts: webDevAllowedHosts,
     proxy: {
       '/codex-console': {
@@ -119,7 +119,7 @@ export default defineConfig(() => ({
   },
   resolve: {
     alias: {
-      '@mty/ui/styles.css': path.resolve(import.meta.dirname, '../../packages/ui/styles.css'),
+      '@miy/ui/styles.css': path.resolve(import.meta.dirname, '../../packages/ui/styles.css'),
       '@/src': path.resolve(import.meta.dirname, 'src'),
     },
   },

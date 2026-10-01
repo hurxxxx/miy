@@ -1,6 +1,6 @@
 # Issue Tracker
 
-- Canonical tracker: GitLab `gitlab.1punicorn.com/lumejs/mty`.
+- Canonical tracker: GitLab `gitlab.1punicorn.com/lumejs/miy`.
 - GitHub is source upstream, not site tracker.
 - Use `glab` for live issue reads/writes.
 - Read-only issue commands are allowed when requested.

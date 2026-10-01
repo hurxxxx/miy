@@ -1,8 +1,8 @@
-import { buildAppHref } from '@mty/contracts/app-routes';
+import { buildAppHref } from '@miy/contracts/app-routes';
 import {
   REALTIME_TOPIC_EVENT_TYPES,
   createDocsPagesRealtimeSubscriptionMessage,
-} from '@mty/contracts/realtime';
+} from '@miy/contracts/realtime';
 import {
   Button,
   Dialog,
@@ -10,7 +10,7 @@ import {
   markdownToBlockContent,
   useConfirm,
   type BlockContent,
-} from '@mty/ui';
+} from '@miy/ui';
 import {
   AlertCircle,
   ChevronDown,
