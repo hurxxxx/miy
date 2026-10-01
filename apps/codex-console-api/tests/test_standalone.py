@@ -110,7 +110,7 @@ def test_service_role_locks_exclude_duplicates_and_combined_mode(database_url):
         pass
 
 
-@pytest.mark.parametrize("revision", ["console_0009", "console_0010"])
+@pytest.mark.parametrize("revision", ["console_0009", "console_0010", "console_0011"])
 def test_postgres_import_preserves_data_and_refuses_overwrite(
     client, legacy_database, tmp_path, revision
 ):
@@ -131,6 +131,15 @@ def test_postgres_import_preserves_data_and_refuses_overwrite(
     path = tmp_path / "imported.sqlite3"
     url = "sqlite+pysqlite:///" + str(path)
     source = engine.url.render_as_string(hide_password=False)
+    if revision == "console_0010":
+        from alembic import command
+        from alembic.config import Config
+
+        from codex_console.cli import ROOT
+
+        config = Config(str(ROOT / "alembic.ini"))
+        config.attributes["database_url"] = source
+        command.downgrade(config, revision)
     try:
         counts = import_postgres(source, url)
         assert counts["console_tasks"] == 1
@@ -147,7 +156,7 @@ def test_postgres_import_preserves_data_and_refuses_overwrite(
         finally:
             imported.dispose()
     finally:
-        if revision == "console_0009":
+        if revision != "console_0011":
             from codex_console.cli import migrate
 
             migrate(source)

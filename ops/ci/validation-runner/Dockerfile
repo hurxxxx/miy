@@ -5,7 +5,7 @@ ARG POSTGRES_CLIENT_IMAGE
 FROM ${NODE_IMAGE} AS node_toolchain
 
 FROM node_toolchain AS validation_node_runtime
-LABEL io.mty.build-cache="true"
+LABEL io.miy.build-cache="true"
 
 RUN npm install --global --force corepack@0.34.0 \
     && corepack enable \
@@ -13,7 +13,7 @@ RUN npm install --global --force corepack@0.34.0 \
 
 ARG NODE_DEPENDENCY_SHA256
 
-WORKDIR /opt/mty/node-runtime
+WORKDIR /opt/miy/node-runtime
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/contracts/package.json packages/contracts/package.json
@@ -38,7 +38,7 @@ RUN test -n "${NODE_DEPENDENCY_SHA256}" \
     && pnpm exec openapi-typescript --version
 
 FROM ${POSTGRES_CLIENT_IMAGE} AS postgres_client
-LABEL io.mty.build-cache="true"
+LABEL io.miy.build-cache="true"
 
 RUN set -eux; \
     client_bin_dir="$(pg_config --bindir)"; \
@@ -89,86 +89,86 @@ RUN apt-get update \
     && pg_dump --version | grep -Eq "^pg_dump \(PostgreSQL\) ${POSTGRES_MAJOR}\." \
     && pg_restore --version | grep -Eq "^pg_restore \(PostgreSQL\) ${POSTGRES_MAJOR}\." \
     && psql --version | grep -Eq "^psql \(PostgreSQL\) ${POSTGRES_MAJOR}\." \
-    && mkdir -p /opt/mty/locks/api \
-    && printf '%s\n' "${POSTGRES_MAJOR}" > /opt/mty/locks/api/postgres-major
+    && mkdir -p /opt/miy/locks/api \
+    && printf '%s\n' "${POSTGRES_MAJOR}" > /opt/miy/locks/api/postgres-major
 
 ARG API_DEPENDENCY_SHA256
 
-COPY apps/api/pyproject.toml apps/api/uv.lock /opt/mty/locks/api/
+COPY apps/api/pyproject.toml apps/api/uv.lock /opt/miy/locks/api/
 
 RUN test -n "${API_DEPENDENCY_SHA256}" \
     && actual_api_dependency_sha256="$( \
       { \
-        sha256sum /opt/mty/locks/api/pyproject.toml | awk '{print $1}'; \
-        sha256sum /opt/mty/locks/api/uv.lock | awk '{print $1}'; \
+        sha256sum /opt/miy/locks/api/pyproject.toml | awk '{print $1}'; \
+        sha256sum /opt/miy/locks/api/uv.lock | awk '{print $1}'; \
       } | sha256sum | awk '{print $1}' \
     )" \
     && test "${actual_api_dependency_sha256}" = "${API_DEPENDENCY_SHA256}" \
     && UV_COMPILE_BYTECODE=1 \
-      UV_PROJECT_ENVIRONMENT=/opt/mty/venvs/api \
+      UV_PROJECT_ENVIRONMENT=/opt/miy/venvs/api \
       uv sync \
-        --directory /opt/mty/locks/api \
+        --directory /opt/miy/locks/api \
         --frozen \
         --python 3.12 \
         --group dev \
         --no-cache \
         --no-install-project \
     && printf '%s\n' "${API_DEPENDENCY_SHA256}" \
-      > /opt/mty/locks/api/dependency.sha256 \
-    && UV_OFFLINE=1 /opt/mty/venvs/api/bin/python -I -c \
+      > /opt/miy/locks/api/dependency.sha256 \
+    && UV_OFFLINE=1 /opt/miy/venvs/api/bin/python -I -c \
       'import pytest, xdist; assert pytest.version_tuple[0] == 9' \
     && rm -rf /root/.cache/uv
 
 ARG WORKER_DEPENDENCY_SHA256
 
-COPY apps/worker/pyproject.toml apps/worker/uv.lock /opt/mty/locks/worker/
+COPY apps/worker/pyproject.toml apps/worker/uv.lock /opt/miy/locks/worker/
 
 RUN test -n "${WORKER_DEPENDENCY_SHA256}" \
     && actual_worker_dependency_sha256="$( \
       { \
-        sha256sum /opt/mty/locks/worker/pyproject.toml | awk '{print $1}'; \
-        sha256sum /opt/mty/locks/worker/uv.lock | awk '{print $1}'; \
+        sha256sum /opt/miy/locks/worker/pyproject.toml | awk '{print $1}'; \
+        sha256sum /opt/miy/locks/worker/uv.lock | awk '{print $1}'; \
       } | sha256sum | awk '{print $1}' \
     )" \
     && test "${actual_worker_dependency_sha256}" = "${WORKER_DEPENDENCY_SHA256}" \
     && UV_COMPILE_BYTECODE=1 \
-      UV_PROJECT_ENVIRONMENT=/opt/mty/venvs/worker \
+      UV_PROJECT_ENVIRONMENT=/opt/miy/venvs/worker \
       uv sync \
-        --directory /opt/mty/locks/worker \
+        --directory /opt/miy/locks/worker \
         --frozen \
         --python 3.12 \
         --group dev \
         --no-cache \
         --no-install-project \
     && printf '%s\n' "${WORKER_DEPENDENCY_SHA256}" \
-      > /opt/mty/locks/worker/dependency.sha256 \
-    && UV_OFFLINE=1 /opt/mty/venvs/worker/bin/python -I -c \
+      > /opt/miy/locks/worker/dependency.sha256 \
+    && UV_OFFLINE=1 /opt/miy/venvs/worker/bin/python -I -c \
       'import pytest; assert pytest.version_tuple[0] == 9' \
     && rm -rf /root/.cache/uv
 
 COPY --from=validation_node_runtime \
-  /opt/mty/node-runtime \
-  /opt/mty/node-runtime
+  /opt/miy/node-runtime \
+  /opt/miy/node-runtime
 
-ENV PLAYWRIGHT_BROWSERS_PATH=/opt/mty/playwright-browsers
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/miy/playwright-browsers
 
-RUN cd /opt/mty/node-runtime \
+RUN cd /opt/miy/node-runtime \
     && pnpm exec playwright install --with-deps --only-shell chromium \
     && node -e \
       'const { chromium } = require("@playwright/test"); chromium.launch({ headless: true }).then((browser) => browser.close()).catch((error) => { console.error(error); process.exit(1); })' \
     && rm -rf /var/lib/apt/lists/*
 
 ENV UV_LINK_MODE=copy
-ENV MTY_API_IMAGE_DEPENDENCY_FILE=/opt/mty/locks/api/dependency.sha256
-ENV MTY_API_IMAGE_VENV=/opt/mty/venvs/api
-ENV MTY_NODE_IMAGE_DEPENDENCY_FILE=/opt/mty/node-runtime/dependency.sha256
-ENV MTY_NODE_IMAGE_MODULES=/opt/mty/node-runtime/node_modules
-ENV MTY_WORKER_IMAGE_DEPENDENCY_FILE=/opt/mty/locks/worker/dependency.sha256
-ENV MTY_WORKER_IMAGE_VENV=/opt/mty/venvs/worker
+ENV MIY_API_IMAGE_DEPENDENCY_FILE=/opt/miy/locks/api/dependency.sha256
+ENV MIY_API_IMAGE_VENV=/opt/miy/venvs/api
+ENV MIY_NODE_IMAGE_DEPENDENCY_FILE=/opt/miy/node-runtime/dependency.sha256
+ENV MIY_NODE_IMAGE_MODULES=/opt/miy/node-runtime/node_modules
+ENV MIY_WORKER_IMAGE_DEPENDENCY_FILE=/opt/miy/locks/worker/dependency.sha256
+ENV MIY_WORKER_IMAGE_VENV=/opt/miy/venvs/worker
 WORKDIR /builds
 
 # Build-script/source identity must not invalidate the installed dependencies.
 ARG VALIDATION_CONTRACT_SHA256
-LABEL io.mty.validation.contract="${VALIDATION_CONTRACT_SHA256}" \
-      io.mty.validation.postgres-major="${POSTGRES_MAJOR}" \
-      io.mty.validation.postgres-client-image="${POSTGRES_CLIENT_IMAGE}"
+LABEL io.miy.validation.contract="${VALIDATION_CONTRACT_SHA256}" \
+      io.miy.validation.postgres-major="${POSTGRES_MAJOR}" \
+      io.miy.validation.postgres-client-image="${POSTGRES_CLIENT_IMAGE}"

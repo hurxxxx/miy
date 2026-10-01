@@ -27,18 +27,18 @@ const checks = [
     label: 'worker package version',
   },
   {
-    file: 'apps/api/src/mty_api/version.py',
+    file: 'apps/api/src/miy_api/version.py',
     pattern: /^VERSION = "([^"]+)"/m,
     label: 'API runtime version',
   },
   {
     file: 'apps/api/uv.lock',
-    pattern: /name = "mty-api"\nversion = "([^"]+)"/,
+    pattern: /name = "miy-api"\nversion = "([^"]+)"/,
     label: 'API lockfile version',
   },
   {
     file: 'apps/worker/uv.lock',
-    pattern: /name = "mty-worker"\nversion = "([^"]+)"/,
+    pattern: /name = "miy-worker"\nversion = "([^"]+)"/,
     label: 'worker lockfile version',
   },
 ];

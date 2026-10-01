@@ -3,16 +3,16 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from mty_api.core.settings import DEFAULT_CONTENT_GRANT_SIGNING_KEY, Settings
+from miy_api.core.settings import DEFAULT_CONTENT_GRANT_SIGNING_KEY, Settings
 
 POSTGRES_DSN = "postgresql+psycopg://test:test@127.0.0.1:5432/test"
 
 
 @pytest.fixture(autouse=True)
 def isolated_shared_signing_setting(monkeypatch):
-    monkeypatch.delenv("MTY_CONTENT_GRANT_SIGNING_KEY", raising=False)
-    monkeypatch.setenv("MTY_API_SEED_DEV_LOGIN_ACCOUNT", "0")
-    monkeypatch.setenv("MTY_API_OBJECT_STORAGE_REQUIRED", "1")
+    monkeypatch.delenv("MIY_CONTENT_GRANT_SIGNING_KEY", raising=False)
+    monkeypatch.setenv("MIY_API_SEED_DEV_LOGIN_ACCOUNT", "0")
+    monkeypatch.setenv("MIY_API_OBJECT_STORAGE_REQUIRED", "1")
 
 
 def test_dm_content_uses_shared_grants_without_a_dedicated_public_signing_setting():
@@ -27,7 +27,7 @@ def test_shared_content_signing_key_uses_its_typed_environment_alias():
     settings = Settings(
         _env_file=None,
         postgres_dsn=POSTGRES_DSN,
-        MTY_CONTENT_GRANT_SIGNING_KEY="unit-test-content-signing-key",
+        MIY_CONTENT_GRANT_SIGNING_KEY="unit-test-content-signing-key",
     )
     assert settings.content_grant_signing_key == "unit-test-content-signing-key"
 
@@ -50,7 +50,7 @@ def test_shared_content_grants_reject_missing_or_default_signing_key_in_producti
     environment, key
 ):
     extra = {} if key is None else {"content_grant_signing_key": key}
-    with pytest.raises(ValidationError, match="MTY_CONTENT_GRANT_SIGNING_KEY"):
+    with pytest.raises(ValidationError, match="MIY_CONTENT_GRANT_SIGNING_KEY"):
         Settings(_env_file=None, postgres_dsn=POSTGRES_DSN, environment=environment, **extra)
 
 

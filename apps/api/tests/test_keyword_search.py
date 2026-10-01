@@ -10,11 +10,11 @@ from sqlalchemy import select
 
 from conftest import _build_client, _teardown_client_state
 from dev_accounts import create_company_user_session, dev_login
-from mty_api.core.db import get_session_factory
-from mty_api.domains.docs import service as docs_service
-from mty_api.domains.pms.access_grants import grant_task_access, revoke_task_access
-from mty_api.domains.search.indexing import process_search_index_job
-from mty_api.domains.search.models import SearchIndexJob
+from miy_api.core.db import get_session_factory
+from miy_api.domains.docs import service as docs_service
+from miy_api.domains.pms.access_grants import grant_task_access, revoke_task_access
+from miy_api.domains.search.indexing import process_search_index_job
+from miy_api.domains.search.models import SearchIndexJob
 
 
 pytestmark = pytest.mark.external_integration("opensearch")
@@ -35,8 +35,8 @@ def search_client(
     integration_infra: _IntegrationInfra,
 ) -> Iterator[TestClient]:
     index_prefix = integration_infra.new_opensearch_index_prefix()
-    monkeypatch.setenv("MTY_OPENSEARCH_URL", integration_infra.opensearch_url)
-    monkeypatch.setenv("MTY_OPENSEARCH_INDEX_PREFIX", index_prefix)
+    monkeypatch.setenv("MIY_OPENSEARCH_URL", integration_infra.opensearch_url)
+    monkeypatch.setenv("MIY_OPENSEARCH_INDEX_PREFIX", index_prefix)
     try:
         test_client = _build_client(
             monkeypatch,
@@ -214,7 +214,7 @@ def test_keyword_search_filters_private_docs_by_acl(search_client: TestClient) -
     viewer_session = create_company_user_session(
         search_client,
         login_id="searchviewer",
-        email="search-viewer@mty.local",
+        email="search-viewer@miy.local",
         full_name="Search Viewer",
     )
     owner_token = owner_session["token"]

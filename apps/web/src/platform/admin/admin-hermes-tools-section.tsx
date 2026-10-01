@@ -2,7 +2,7 @@ import { RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button, InlineNotice, useFeedback } from '@mty/ui';
+import { Button, InlineNotice, useFeedback } from '@miy/ui';
 
 import {
   AdminHermesToolsApiError,

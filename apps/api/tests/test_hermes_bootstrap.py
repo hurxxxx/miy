@@ -8,7 +8,7 @@ from types import ModuleType
 from typing import Any
 from uuid import uuid4
 
-from mty_api.domains.hermes.client import managed_compression_policy
+from miy_api.domains.hermes.client import managed_compression_policy
 
 
 def _load_bootstrap(monkeypatch, config: dict[str, Any]):
@@ -33,7 +33,7 @@ def _load_bootstrap(monkeypatch, config: dict[str, Any]):
     monkeypatch.setitem(sys.modules, "hermes_constants", constants_module)
 
     source = Path(__file__).resolve().parents[3] / "ops/hermes/bootstrap.py"
-    module_name = f"mty_hermes_bootstrap_test_{uuid4().hex}"
+    module_name = f"miy_hermes_bootstrap_test_{uuid4().hex}"
     spec = importlib.util.spec_from_file_location(module_name, source)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -47,7 +47,7 @@ def test_bootstrap_preserves_db_model_policy_and_configures_native_runtime(monke
         "providers": {"db-policy": {"key_env": "SCOPED_TEST_KEY"}},
         "fallback_providers": [],
         "auxiliary": {"compression": {"provider": "main"}},
-        "plugins": {"enabled": ["other-plugin"], "disabled": ["mty_runtime"]},
+        "plugins": {"enabled": ["other-plugin"], "disabled": ["miy_runtime"]},
         "agent": {"environment_probe": False},
     }
     bootstrap, saved = _load_bootstrap(monkeypatch, config)
@@ -55,10 +55,10 @@ def test_bootstrap_preserves_db_model_policy_and_configures_native_runtime(monke
     reconciled = saved[0]
     for key in ("model", "providers", "fallback_providers", "auxiliary"):
         assert reconciled[key] == config[key]
-    assert reconciled["plugins"] == {"enabled": ["mty_runtime", "other-plugin"], "disabled": []}
+    assert reconciled["plugins"] == {"enabled": ["miy_runtime", "other-plugin"], "disabled": []}
     assert reconciled["gateway"]["api_server"]["max_concurrent_runs"] == 0
     assert reconciled["terminal"] == {
-        "backend": "mty_sandbox",
+        "backend": "miy_sandbox",
         "container_persistent": False,
         "cwd": "/workspace",
     }

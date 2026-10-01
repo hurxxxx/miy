@@ -28,7 +28,7 @@ from urllib.parse import parse_qs, quote, urljoin, urlparse
 
 import httpx
 
-from mty_api.core.settings import is_production_like_environment
+from miy_api.core.settings import is_production_like_environment
 
 
 EXECUTION_ACK = "live-e2e-development"
@@ -69,7 +69,7 @@ def _sha256_bytes(value: bytes) -> str:
 
 def _load_readonly_harness():
     path = Path(__file__).with_name("files_rag_readonly_harness.py")
-    module_name = "mty_files_rag_readonly_harness_for_live_e2e"
+    module_name = "miy_files_rag_readonly_harness_for_live_e2e"
     existing = sys.modules.get(module_name)
     if existing is not None:
         return existing
@@ -135,7 +135,7 @@ def select_live_canaries(
             sorted(
                 strata[key],
                 key=lambda item: _sha256_bytes(
-                    b"mty-files-live-canary-v1\0"
+                    b"miy-files-live-canary-v1\0"
                     + item.candidate.source_id.encode("ascii")
                     + item.content_sha256.encode("ascii")
                 ),
@@ -143,7 +143,7 @@ def select_live_canaries(
         )
 
     nonce = run_nonce if run_nonce is not None else secrets.token_bytes(32)
-    run_tag = _sha256_bytes(b"mty-files-live-run-tag-v1\0" + nonce)[:16]
+    run_tag = _sha256_bytes(b"miy-files-live-run-tag-v1\0" + nonce)[:16]
     selected: list[LiveCanary] = []
     total_bytes = 0
     round_index = 0
@@ -157,7 +157,7 @@ def select_live_canaries(
             if total_bytes + candidate.size_bytes > max_total_bytes:
                 continue
             item_digest = _sha256_bytes(
-                b"mty-files-live-upload-name-v1\0"
+                b"miy-files-live-upload-name-v1\0"
                 + nonce
                 + candidate.source_id.encode("ascii")
                 + inspection.content_sha256.encode("ascii")
@@ -491,7 +491,7 @@ class HttpFilesApi:
         )
         if not isinstance(browse, dict) or not isinstance(browse.get("files"), list):
             raise LiveE2EContractError("files_app_preflight_failed")
-        query = _sha256_bytes(b"mty-files-live-preflight-v1\0" + secrets.token_bytes(16))[
+        query = _sha256_bytes(b"miy-files-live-preflight-v1\0" + secrets.token_bytes(16))[
             :16
         ]
         search = self._json_request(
@@ -663,7 +663,7 @@ class HttpFilesApi:
             with self._client.stream(
                 "GET",
                 url,
-                headers={"X-MTY-Content-Grant": grant},
+                headers={"X-MIY-Content-Grant": grant},
             ) as response:
                 if response.status_code != 200:
                     raise LiveE2EContractError("fresh_download_failed")
@@ -686,7 +686,7 @@ class HttpFilesApi:
             with self._client.stream(
                 "GET",
                 validated,
-                headers={"X-MTY-Content-Grant": grant},
+                headers={"X-MIY-Content-Grant": grant},
             ) as response:
                 if response.status_code not in {403, 404}:
                     raise LiveE2EContractError("stale_download_still_valid")
@@ -727,8 +727,8 @@ class DevelopmentProjectionInspector:
     def __init__(self, settings: object) -> None:
         from qdrant_client import QdrantClient
 
-        from mty_api.core.db import get_session_factory
-        from mty_api.core.storage import get_minio_client
+        from miy_api.core.db import get_session_factory
+        from miy_api.core.storage import get_minio_client
 
         self._settings = settings
         self._session_factory = get_session_factory()
@@ -751,7 +751,7 @@ class DevelopmentProjectionInspector:
     def _active_physical_names(self, db: Any) -> tuple[str, str]:
         from sqlalchemy import select
 
-        from mty_api.domains.retrieval.models import RetrievalProjectionGeneration
+        from miy_api.domains.retrieval.models import RetrievalProjectionGeneration
 
         rows = tuple(
             db.scalars(
@@ -776,10 +776,10 @@ class DevelopmentProjectionInspector:
         return names["opensearch"], names["qdrant"]
 
     def _opensearch_records(self, physical_name: str, file_ids: Sequence[str]) -> list[Any]:
-        from mty_api.domains.retrieval.projection_identity import (
+        from miy_api.domains.retrieval.projection_identity import (
             canonical_search_document_id,
         )
-        from mty_api.domains.source_access.resource_types import (
+        from miy_api.domains.source_access.resource_types import (
             FILE_MANAGER_FILE_RESOURCE_TYPE,
         )
 
@@ -822,7 +822,7 @@ class DevelopmentProjectionInspector:
     def _qdrant_records(self, physical_name: str, file_ids: Sequence[str]) -> list[Any]:
         from qdrant_client import models
 
-        from mty_api.domains.source_access.resource_types import (
+        from miy_api.domains.source_access.resource_types import (
             FILE_MANAGER_FILE_RESOURCE_TYPE,
         )
 
@@ -868,14 +868,14 @@ class DevelopmentProjectionInspector:
     def _state(self, *, corpus_id: str, file_ids: Sequence[str]) -> dict[str, object]:
         from sqlalchemy import select
 
-        from mty_api.domains.files.models import FileManagerCorpus, FileManagerFile
-        from mty_api.domains.rag.models import RagSyncJob
-        from mty_api.domains.retrieval.models import (
+        from miy_api.domains.files.models import FileManagerCorpus, FileManagerFile
+        from miy_api.domains.rag.models import RagSyncJob
+        from miy_api.domains.retrieval.models import (
             RetrievalProjectionEvent,
             RetrievalProjectionHead,
         )
-        from mty_api.domains.search.models import SearchIndexJob
-        from mty_api.domains.source_access.resource_types import (
+        from miy_api.domains.search.models import SearchIndexJob
+        from miy_api.domains.source_access.resource_types import (
             FILE_MANAGER_FILE_RESOURCE_TYPE,
         )
 
@@ -1058,7 +1058,7 @@ class DevelopmentProjectionInspector:
     def content_probe(self, *, file_ids: Sequence[str]) -> tuple[str, str]:
         from sqlalchemy import select
 
-        from mty_api.domains.files.models import FileManagerFile
+        from miy_api.domains.files.models import FileManagerFile
 
         expected_ids = tuple(dict.fromkeys(file_ids))
         with self._session_factory() as db:
@@ -1081,7 +1081,7 @@ class DevelopmentProjectionInspector:
 
     def cleanup_target(self, *, corpus_id: str) -> tuple[str, ...]:
         from sqlalchemy import select
-        from mty_api.domains.files.models import FileManagerCorpus, FileManagerFile
+        from miy_api.domains.files.models import FileManagerCorpus, FileManagerFile
 
         with self._session_factory() as db:
             corpus = db.get(FileManagerCorpus, corpus_id)
@@ -1118,11 +1118,11 @@ class DevelopmentProjectionInspector:
         from minio.error import S3Error
         from sqlalchemy import select
 
-        from mty_api.domains.files.models import FileManagerFile
-        from mty_api.domains.rag.models import RagSyncJob
-        from mty_api.domains.retrieval.models import RetrievalProjectionHead
-        from mty_api.domains.search.models import SearchIndexJob
-        from mty_api.domains.source_access.resource_types import (
+        from miy_api.domains.files.models import FileManagerFile
+        from miy_api.domains.rag.models import RagSyncJob
+        from miy_api.domains.retrieval.models import RetrievalProjectionHead
+        from miy_api.domains.search.models import SearchIndexJob
+        from miy_api.domains.source_access.resource_types import (
             FILE_MANAGER_FILE_RESOURCE_TYPE,
         )
 
@@ -1432,7 +1432,7 @@ def run_live_e2e(
     observer_a_api.assert_app_denied()
     observer_b_api.assert_app_denied()
     query = canaries[0].upload_name.split(".", 1)[0][:16]
-    query_id = _sha256_bytes(b"mty-files-live-query-v1\0" + query.encode("ascii"))
+    query_id = _sha256_bytes(b"miy-files-live-query-v1\0" + query.encode("ascii"))
     corpus = actor_api.create_corpus(f"rag-e2e-{_sha256_bytes(query.encode('ascii'))[:16]}")
     corpus_id = str(corpus.get("id") or "")
     partition_id = str(corpus.get("retrieval_partition_id") or "")
@@ -1473,7 +1473,7 @@ def run_live_e2e(
         if content_target_file_id not in expected_file_ids:
             raise LiveE2EContractError("content_probe_unavailable")
         content_query_id = _sha256_bytes(
-            b"mty-files-live-content-query-v1\0" + content_query.encode("utf-8")
+            b"miy-files-live-content-query-v1\0" + content_query.encode("utf-8")
         )
         search_metrics = {}
         for label, probe in (("", query), ("content_", content_query)):
@@ -1541,10 +1541,10 @@ def run_live_e2e(
         observer_b_api.assert_app_denied()
         cleanup_complete = True
         return {
-            "schema_version": "mty.files-rag-live-e2e.v2",
+            "schema_version": "miy.files-rag-live-e2e.v2",
             "status": "passed",
             "source_root_id": _sha256_bytes(
-                b"mty-files-live-source-root-v1\0"
+                b"miy-files-live-source-root-v1\0"
                 + os.fsencode(str(_resolve_source_root(source)))
             ),
             "query_id": query_id,
@@ -1626,16 +1626,16 @@ def assert_development_data_plane(settings: object) -> None:
         database_url = make_url(str(getattr(settings, "postgres_dsn", "") or ""))
     except Exception as error:
         raise LiveE2EContractError("development_data_plane_required") from error
-    if database_url.database != "mty_dev":
+    if database_url.database != "miy_dev":
         raise LiveE2EContractError("development_data_plane_required")
     require_loopback(database_url.host)
     require_loopback(getattr(settings, "opensearch_url", ""))
     require_loopback(getattr(settings, "rag_qdrant_url", ""))
     require_loopback(getattr(settings, "minio_endpoint", ""))
     expected_names = {
-        "minio_bucket": "mty-dev",
-        "opensearch_index_prefix": "mty-dev",
-        "rag_qdrant_collection_prefix": "mty-dev-rag",
+        "minio_bucket": "miy-dev",
+        "opensearch_index_prefix": "miy-dev",
+        "rag_qdrant_collection_prefix": "miy-dev-rag",
     }
     if any(
         str(getattr(settings, attribute, "") or "").strip() != expected
@@ -1649,10 +1649,10 @@ def assert_development_data_plane(settings: object) -> None:
         return
     values = dotenv_values(production_env)
     bindings = (
-        ("MTY_POSTGRES_DSN", "postgres_dsn"),
-        ("MTY_OPENSEARCH_URL", "opensearch_url"),
-        ("MTY_RAG_QDRANT_URL", "rag_qdrant_url"),
-        ("MTY_MINIO_ENDPOINT", "minio_endpoint"),
+        ("MIY_POSTGRES_DSN", "postgres_dsn"),
+        ("MIY_OPENSEARCH_URL", "opensearch_url"),
+        ("MIY_RAG_QDRANT_URL", "rag_qdrant_url"),
+        ("MIY_MINIO_ENDPOINT", "minio_endpoint"),
     )
     for environment_key, attribute in bindings:
         production_value = str(values.get(environment_key) or "").rstrip("/")
@@ -1692,7 +1692,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         # Authorization-bearing request metadata in an operator terminal.
         logging.getLogger("httpx").disabled = True
         logging.getLogger("httpcore").disabled = True
-        from mty_api.core.settings import get_settings
+        from miy_api.core.settings import get_settings
 
         settings = get_settings()
         assert_development_runtime(settings)
@@ -1763,7 +1763,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     source=args.source,
                     output=args.report_out,
                     report={
-                        "schema_version": "mty.files-rag-live-e2e.v2",
+                        "schema_version": "miy.files-rag-live-e2e.v2",
                         "status": "failed",
                         "code": error.code,
                     },
@@ -1779,7 +1779,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     source=args.source,
                     output=args.report_out,
                     report={
-                        "schema_version": "mty.files-rag-live-e2e.v2",
+                        "schema_version": "miy.files-rag-live-e2e.v2",
                         "status": "failed",
                         "code": "unexpected_error",
                     },

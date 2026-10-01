@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { Button } from '@mty/ui';
+import { Button } from '@miy/ui';
 import {
   Activity,
   ArrowUpRight,

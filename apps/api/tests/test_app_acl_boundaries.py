@@ -8,31 +8,31 @@ from fastapi.testclient import TestClient
 from sqlalchemy import update
 
 from dev_accounts import auth_headers, dev_login
-from mty_api.core.db import get_session_factory
-from mty_api.domains.auth.access import load_user_graph
-from mty_api.domains.pms.access import resolve_pms_space_role
-from mty_api.domains.auth.app_access_models import AppAccessPolicy
-from mty_api.domains.auth.models import CompanyAppControl, User, UserSystemRole
-from mty_api.domains.pms.space_models import Team, TeamMember
-from mty_api.domains.auth.app_gate import can_use_app
-from mty_api.domains.auth.security import new_id
-from mty_api.domains.docs.access_context import ensure_docs_app_access
-from mty_api.domains.docs.models import (
+from miy_api.core.db import get_session_factory
+from miy_api.domains.auth.access import load_user_graph
+from miy_api.domains.pms.access import resolve_pms_space_role
+from miy_api.domains.auth.app_access_models import AppAccessPolicy
+from miy_api.domains.auth.models import CompanyAppControl, User, UserSystemRole
+from miy_api.domains.pms.space_models import Team, TeamMember
+from miy_api.domains.auth.app_gate import can_use_app
+from miy_api.domains.auth.security import new_id
+from miy_api.domains.docs.access_context import ensure_docs_app_access
+from miy_api.domains.docs.models import (
     NativeDoc,
     NativeDocLinkShare,
     NativeDocPage,
     NativeDocUserShare,
 )
-from mty_api.domains.media.models import MediaFile
-from mty_api.domains.media.resource_access import (
+from miy_api.domains.media.models import MediaFile
+from miy_api.domains.media.resource_access import (
     can_resolve_media,
     ensure_media_link_resource_access,
 )
-from mty_api.domains.meeting.models import Meeting
-from mty_api.domains.pms.models import Task, TaskList, TaskUserAccess
-from mty_api.domains.source_access import SourceAclPolicy
-from mty_api.domains.whiteboard.access import ensure_whiteboard_app_access
-from mty_api.domains.whiteboard.models import Whiteboard, WhiteboardLinkShare
+from miy_api.domains.meeting.models import Meeting
+from miy_api.domains.pms.models import Task, TaskList, TaskUserAccess
+from miy_api.domains.source_access import SourceAclPolicy
+from miy_api.domains.whiteboard.access import ensure_whiteboard_app_access
+from miy_api.domains.whiteboard.models import Whiteboard, WhiteboardLinkShare
 
 
 def _context(client):

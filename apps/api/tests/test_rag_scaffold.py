@@ -5,11 +5,11 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
-from mty_api.core.settings import Settings, get_settings
-from mty_api.domains.rag import application as rag_application
-from mty_api.domains.rag import access_filter as rag_access_filter
-from mty_api.domains.rag import provider_factory, runtime as rag_runtime
-from mty_api.domains.rag.contracts import (
+from miy_api.core.settings import Settings, get_settings
+from miy_api.domains.rag import application as rag_application
+from miy_api.domains.rag import access_filter as rag_access_filter
+from miy_api.domains.rag import provider_factory, runtime as rag_runtime
+from miy_api.domains.rag.contracts import (
     RagAnswerMode,
     RagProjection,
     RagQueryRequest,
@@ -18,17 +18,17 @@ from mty_api.domains.rag.contracts import (
     RagSyncLane,
     RagVectorSearchHit,
 )
-from mty_api.domains.rag.providers.fake import (
+from miy_api.domains.rag.providers.fake import (
     FakeEmbeddingClient,
     FakeRerankClient,
     FakeVectorIndexClient,
 )
-from mty_api.domains.rag.filters import RagQueryFilters
-from mty_api.domains.rag.provider_factory import RagProviderFactory
-from mty_api.domains.rag.provider_registry import RagProviderDescriptor
-from mty_api.domains.rag.providers.base import RagProviderConfigurationError
-from mty_api.domains.rag.query_service import RagQueryService
-from mty_api.domains.rag.service import RagService
+from miy_api.domains.rag.filters import RagQueryFilters
+from miy_api.domains.rag.provider_factory import RagProviderFactory
+from miy_api.domains.rag.provider_registry import RagProviderDescriptor
+from miy_api.domains.rag.providers.base import RagProviderConfigurationError
+from miy_api.domains.rag.query_service import RagQueryService
+from miy_api.domains.rag.service import RagService
 
 
 def _reset_settings() -> None:
@@ -114,8 +114,8 @@ def test_rag_query_service_forwards_explicit_partition_candidate_scope() -> None
 def test_ensure_rag_enabled_raises_domain_error(monkeypatch) -> None:
     settings = Settings(
         _env_file=None,
-        MTY_POSTGRES_DSN="postgresql+psycopg://test:test@127.0.0.1:5432/test",
-        MTY_RAG_ENABLED=False,
+        MIY_POSTGRES_DSN="postgresql+psycopg://test:test@127.0.0.1:5432/test",
+        MIY_RAG_ENABLED=False,
     )
 
     with pytest.raises(rag_application.RagUnavailableError) as exc_info:
@@ -738,7 +738,7 @@ def test_provider_factory_rejects_qdrant_without_url() -> None:
         )
     )
 
-    with pytest.raises(RagProviderConfigurationError, match="MTY_RAG_QDRANT_URL"):
+    with pytest.raises(RagProviderConfigurationError, match="MIY_RAG_QDRANT_URL"):
         factory.build_vector_index()
 
 

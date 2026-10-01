@@ -10,7 +10,7 @@ from uuid import uuid4
 sys.path.insert(0, "/opt/hermes/plugins")
 from gateway.session_context import clear_session_vars, set_session_vars
 from tools import approval
-from mty_runtime import _request_write_consent
+from miy_runtime import _request_write_consent
 
 logging.disable(logging.CRITICAL)
 

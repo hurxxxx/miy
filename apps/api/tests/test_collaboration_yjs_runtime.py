@@ -7,7 +7,7 @@ from fastapi import HTTPException
 import pytest
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
-from mty_api.domains.collaboration import FastAPIYjsWebsocket
+from miy_api.domains.collaboration import FastAPIYjsWebsocket
 
 
 class _ConcurrentSendProbeWebSocket:

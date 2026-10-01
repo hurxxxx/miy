@@ -7,14 +7,14 @@ import shutil
 import pytest
 from pydantic import ValidationError
 
-from mty_api.core import settings
-from mty_api.core.runtime_config import (
+from miy_api.core import settings
+from miy_api.core.runtime_config import (
     RuntimeConfigError,
     load_runtime_document,
     runtime_defaults,
 )
 
-POOL_KEY = "MTY_API_DB_POOL_SIZE"
+POOL_KEY = "MIY_API_DB_POOL_SIZE"
 
 
 @pytest.fixture
@@ -34,7 +34,7 @@ def update_config(root: Path, change) -> None:
 
 def test_profile_dotenv_environment_and_explicit_setting_priority(config_root, monkeypatch):
     update_config(config_root, lambda doc: doc["profiles"]["dev"].update({POOL_KEY: 3}))
-    monkeypatch.setenv("MTY_ENV_PROFILE", "dev")
+    monkeypatch.setenv("MIY_ENV_PROFILE", "dev")
     monkeypatch.delenv(POOL_KEY, raising=False)
     env = config_root / ".env"
     env.write_text("# no override\n")
@@ -54,16 +54,16 @@ def test_profile_dotenv_environment_and_explicit_setting_priority(config_root, m
 def test_default_profiles_cover_pool_and_model_tuning(config_root, profile):
     values = runtime_defaults(config_root, profile)
     assert values[POOL_KEY] == 5
-    assert values["MTY_WORKER_DB_POOL_SIZE"] == 1
-    assert values["MTY_RAG_EMBEDDING_MODEL"]
-    assert "MTY_POSTGRES_DSN" not in values
-    assert "MTY_HERMES_API_KEY" not in values
+    assert values["MIY_WORKER_DB_POOL_SIZE"] == 1
+    assert values["MIY_RAG_EMBEDDING_MODEL"]
+    assert "MIY_POSTGRES_DSN" not in values
+    assert "MIY_HERMES_API_KEY" not in values
 
 
 @pytest.mark.parametrize(
     "change",
     [
-        lambda doc: doc["defaults"].update({"MTY_HERMES_API_KEY": "synthetic-secret"}),
+        lambda doc: doc["defaults"].update({"MIY_HERMES_API_KEY": "synthetic-secret"}),
         lambda doc: doc["profiles"]["prod"].update({POOL_KEY: 0}),
         lambda doc: doc["defaults"].pop(POOL_KEY),
         lambda doc: doc["profiles"].pop("prod"),

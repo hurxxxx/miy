@@ -1,4 +1,4 @@
-import { Button, Dialog, Input } from '@mty/ui';
+import { Button, Dialog, Input } from '@miy/ui';
 import { MultiFileDiff } from '@pierre/diffs/react';
 import {
   Check,

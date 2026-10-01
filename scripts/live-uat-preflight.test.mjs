@@ -26,18 +26,18 @@ test('browser login smoke loads the checkout env contract', async () => {
 
 test('accepts only credential-free HTTPS public origins', () => {
   assert.equal(
-    normalizePublicBaseUrl('https://mty.example.com').href,
-    'https://mty.example.com/',
+    normalizePublicBaseUrl('https://miy.example.com').href,
+    'https://miy.example.com/',
   );
   for (const value of [
     '',
-    'http://mty.example.com',
+    'http://miy.example.com',
     'https://localhost:4200',
     'https://127.0.0.1',
-    'https://mty',
-    'https://user:password@mty.example.com',
-    'https://mty.example.com/app',
-    'https://mty.example.com/?token=secret',
+    'https://miy',
+    'https://user:password@miy.example.com',
+    'https://miy.example.com/app',
+    'https://miy.example.com/?token=secret',
   ]) {
     assert.throws(() => normalizePublicBaseUrl(value));
   }
@@ -98,7 +98,7 @@ test('validates health JSON and the login HTML shell', async (context) => {
     });
   await assertJsonEndpoint(
     'ready',
-    new URL('https://mty.example.com/readyz'),
+    new URL('https://miy.example.com/readyz'),
     'ok',
   );
   await assertOkEndpoint(
@@ -107,7 +107,7 @@ test('validates health JSON and the login HTML shell', async (context) => {
   );
   await assertJsonObjectEndpoint(
     'bootstrap',
-    new URL('https://mty.example.com/api/v1/auth/bootstrap-status'),
+    new URL('https://miy.example.com/api/v1/auth/bootstrap-status'),
   );
 
   globalThis.fetch = async () =>
@@ -117,14 +117,14 @@ test('validates health JSON and the login HTML shell', async (context) => {
         headers: { 'content-type': 'text/html; charset=utf-8' },
       },
     );
-  await assertLoginPage('login', new URL('https://mty.example.com/login'));
+  await assertLoginPage('login', new URL('https://miy.example.com/login'));
 
   globalThis.fetch = async () =>
     new Response('<html><body>Service unavailable</body></html>', {
       headers: { 'content-type': 'text/html' },
     });
   await assert.rejects(
-    assertLoginPage('login', new URL('https://mty.example.com/login')),
+    assertLoginPage('login', new URL('https://miy.example.com/login')),
     /rendered web shell/,
   );
 });
@@ -163,9 +163,9 @@ test('public dev smoke covers the local runtime and public ingress', async (cont
 
   await runPublicDevSmoke({
     env: {
-      MTY_API_DEV_PORT: '8002',
-      MTY_UAT_BASE_URL: 'https://mty.example.com',
-      MTY_WEB_DEV_PORT: '4200',
+      MIY_API_DEV_PORT: '8002',
+      MIY_UAT_BASE_URL: 'https://miy.example.com',
+      MIY_WEB_DEV_PORT: '4200',
     },
     statusOutput: 'web running\napi running\n',
     report: false,
@@ -173,15 +173,15 @@ test('public dev smoke covers the local runtime and public ingress', async (cont
 
   assert.deepEqual(requested, [
     'http://127.0.0.1:8002/healthz',
-    'https://mty.example.com/healthz',
+    'https://miy.example.com/healthz',
     'http://127.0.0.1:8002/readyz',
-    'https://mty.example.com/readyz',
+    'https://miy.example.com/readyz',
     'http://127.0.0.1:8002/api/v1/auth/bootstrap-status',
-    'https://mty.example.com/api/v1/auth/bootstrap-status',
+    'https://miy.example.com/api/v1/auth/bootstrap-status',
     'http://127.0.0.1:4200/',
     'http://127.0.0.1:4200/login',
-    'https://mty.example.com/',
-    'https://mty.example.com/login',
+    'https://miy.example.com/',
+    'https://miy.example.com/login',
   ]);
 });
 
@@ -192,7 +192,7 @@ test('public dev smoke fails closed on a public bad gateway', async (context) =>
   });
   globalThis.fetch = async (url) => {
     const parsed = new URL(url);
-    if (parsed.origin === 'https://mty.example.com') {
+    if (parsed.origin === 'https://miy.example.com') {
       return new Response('Bad Gateway', {
         status: 502,
         headers: { 'content-type': 'text/plain' },
@@ -213,9 +213,9 @@ test('public dev smoke fails closed on a public bad gateway', async (context) =>
   await assert.rejects(
     runPublicDevSmoke({
       env: {
-        MTY_API_DEV_PORT: '8002',
-        MTY_UAT_BASE_URL: 'https://mty.example.com',
-        MTY_WEB_DEV_PORT: '4200',
+        MIY_API_DEV_PORT: '8002',
+        MIY_UAT_BASE_URL: 'https://miy.example.com',
+        MIY_WEB_DEV_PORT: '4200',
       },
       statusOutput: 'web running\napi running\n',
       report: false,

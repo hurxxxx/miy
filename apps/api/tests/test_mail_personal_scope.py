@@ -8,22 +8,22 @@ import pytest
 from sqlalchemy import create_engine, select, update
 from sqlalchemy.orm import Session
 
-from mty_api.core.db import Base
-from mty_api.domains.auth.app_access_models import (
+from miy_api.core.db import Base
+from miy_api.domains.auth.app_access_models import (
     AppAccessPolicy,
     AppGroupGrant,
     AppUserGrant,
 )
-from mty_api.domains.auth.models import CompanyAppControl, User
-from mty_api.domains.groups.models import Group, GroupMember
-from mty_api.domains.mail import service
-from mty_api.domains.mail.clients import (
+from miy_api.domains.auth.models import CompanyAppControl, User
+from miy_api.domains.groups.models import Group, GroupMember
+from miy_api.domains.mail import service
+from miy_api.domains.mail.clients import (
     FetchedMessage,
     MailboxInfo,
     MailboxSyncBatch,
     MailConnectionSettings,
 )
-from mty_api.domains.mail.models import (
+from miy_api.domains.mail.models import (
     MailAccount,
     MailAttachment,
     MailMailbox,
@@ -32,7 +32,7 @@ from mty_api.domains.mail.models import (
     MailSyncJob,
     MailSyncState,
 )
-from mty_api.domains.mail.sync_policy import MailSyncAccessRevoked
+from miy_api.domains.mail.sync_policy import MailSyncAccessRevoked
 
 
 def _user(user_id: str) -> User:

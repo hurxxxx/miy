@@ -2,7 +2,7 @@ import { Search } from 'lucide-react';
 import { useEffect, useReducer } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button, InlineNotice } from '@mty/ui';
+import { Button, InlineNotice } from '@miy/ui';
 
 import { useAuth } from '@/src/platform/auth/auth-provider';
 import { normalizeTimeZone } from '@/src/platform/time/time-utils';

@@ -3,23 +3,23 @@ from __future__ import annotations
 import json
 from types import SimpleNamespace
 import pytest
-from mty_api.domains.ai.agent_runtime import (
+from miy_api.domains.ai.agent_runtime import (
     AgentRuntimeRequest,
     agent_runtime_adapter_ids,
     reset_agent_runtime_adapters,
 )
-from mty_api.domains.bento import agent_runtime as bento_agent_runtime
-from mty_api.domains.bento.agent_runtime import (
+from miy_api.domains.bento import agent_runtime as bento_agent_runtime
+from miy_api.domains.bento.agent_runtime import (
     AgentRuntimeCancelled,
     HermesBentoPipelineAdapter,
     ensure_bento_agent_runtime_adapters_registered,
 )
-from mty_api.domains.bento.agent_tools import (
+from miy_api.domains.bento.agent_tools import (
     inspect_document,
     render_document,
     validate_document,
 )
-from mty_api.domains.bento.generation import _normalize_generated_document
+from miy_api.domains.bento.generation import _normalize_generated_document
 
 
 def test_bento_has_one_hermes_adapter_for_both_routes():

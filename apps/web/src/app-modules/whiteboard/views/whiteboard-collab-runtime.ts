@@ -1,4 +1,4 @@
-import { createAuthenticatedCollabProvider } from '@mty/ui';
+import { createAuthenticatedCollabProvider } from '@miy/ui';
 import type { WebsocketProvider } from 'y-websocket';
 import * as Y from 'yjs';
 

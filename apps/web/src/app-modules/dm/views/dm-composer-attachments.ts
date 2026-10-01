@@ -3,7 +3,7 @@ import {
   isDmImageMimeType,
   readyDmPendingAttachmentIds,
   uploadingDmPendingAttachmentCount,
-} from '@mty/contracts/dm';
+} from '@miy/contracts/dm';
 
 import type { DmMessageAttachment } from '../api/dm-api';
 

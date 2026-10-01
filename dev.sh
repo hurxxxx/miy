@@ -13,9 +13,9 @@ if [[ -n "${HOME:-}" && -d "$HOME/.local/bin" ]]; then
   esac
 fi
 
-if [[ "$(basename "$ROOT_DIR")" == "prod" && "${MTY_ALLOW_PROD_DEV_SH:-0}" != "1" ]]; then
+if [[ "$(basename "$ROOT_DIR")" == "prod" && "${MIY_ALLOW_PROD_DEV_SH:-0}" != "1" ]]; then
   echo "Refusing to run dev.sh from the production checkout." >&2
-  echo "Use ./prod.sh for production, or set MTY_ALLOW_PROD_DEV_SH=1 explicitly for one-off diagnostics." >&2
+  echo "Use ./prod.sh for production, or set MIY_ALLOW_PROD_DEV_SH=1 explicitly for one-off diagnostics." >&2
   exit 1
 fi
 
@@ -24,10 +24,10 @@ export NX_DAEMON=false
 # dev-env.sh already loads the checkout .env. Letting Nx load .env.local again
 # can make the API process disagree with scripts/dev-smoke.sh.
 export NX_LOAD_DOT_ENV_FILES=false
-WEB_DEV_PORT="${MTY_WEB_DEV_PORT:-4200}"
-API_DEV_PORT="${MTY_API_DEV_PORT:-8001}"
-export MTY_WEB_DEV_PORT="$WEB_DEV_PORT"
-export MTY_WEB_API_PROXY_TARGET="${MTY_WEB_API_PROXY_TARGET:-http://127.0.0.1:${API_DEV_PORT}}"
+WEB_DEV_PORT="${MIY_WEB_DEV_PORT:-4200}"
+API_DEV_PORT="${MIY_API_DEV_PORT:-8001}"
+export MIY_WEB_DEV_PORT="$WEB_DEV_PORT"
+export MIY_WEB_API_PROXY_TARGET="${MIY_WEB_API_PROXY_TARGET:-http://127.0.0.1:${API_DEV_PORT}}"
 
 usage() {
   cat <<'EOF'
@@ -49,7 +49,7 @@ Options:
 
 Defaults:
   - Starts `web` and `api`
-  - Boots the dev docker infra (redis/search/vector; postgres/minio when MTY_INFRA_USE_LOCAL_* is on)
+  - Boots the dev docker infra (redis/search/vector; postgres/minio when MIY_INFRA_USE_LOCAL_* is on)
     so features like the docs collab relay can reach redis at 127.0.0.1:56380
   - `--minimal-infra` is intended for authentication and core UI smoke tests;
     storage, AI, search, video, and RAG-dependent features remain unavailable
@@ -116,21 +116,21 @@ while [[ $# -gt 0 ]]; do
 done
 
 if (( minimal_infra )); then
-  export MTY_INFRA_USE_LOCAL_POSTGRES=1
-  export MTY_INFRA_USE_LOCAL_MINIO=0
-  export MTY_POSTGRES_DSN="postgresql+psycopg://${MTY_INFRA_POSTGRES_USER}:${MTY_INFRA_POSTGRES_PASSWORD}@127.0.0.1:${MTY_INFRA_POSTGRES_PORT}/${MTY_INFRA_POSTGRES_DB}"
-  export MTY_API_OBJECT_STORAGE_REQUIRED=0
-  export MTY_API_SEED_DEV_LOGIN_ACCOUNT=1
-  export MTY_API_VIDEO_CHAT_ENABLED=false
-  export MTY_LLM_HEALTHCHECK_ON_STARTUP=false
-  export MTY_LLM_REQUIRED=false
-  export MTY_OPF_ENABLED=false
-  export MTY_OPF_HEALTHCHECK_ON_STARTUP=false
-  export MTY_OPF_REQUIRED=false
-  export MTY_RAG_ENABLED=false
-  export MTY_RAG_PRELOAD_ON_STARTUP=false
-  export MTY_HERMES_ENABLED=false
-  export MTY_API_RECORDING_SPOOL_DIR="$MTY_DEV_RUNTIME_DIR/recording-spool"
+  export MIY_INFRA_USE_LOCAL_POSTGRES=1
+  export MIY_INFRA_USE_LOCAL_MINIO=0
+  export MIY_POSTGRES_DSN="postgresql+psycopg://${MIY_INFRA_POSTGRES_USER}:${MIY_INFRA_POSTGRES_PASSWORD}@127.0.0.1:${MIY_INFRA_POSTGRES_PORT}/${MIY_INFRA_POSTGRES_DB}"
+  export MIY_API_OBJECT_STORAGE_REQUIRED=0
+  export MIY_API_SEED_DEV_LOGIN_ACCOUNT=1
+  export MIY_API_VIDEO_CHAT_ENABLED=false
+  export MIY_LLM_HEALTHCHECK_ON_STARTUP=false
+  export MIY_LLM_REQUIRED=false
+  export MIY_OPF_ENABLED=false
+  export MIY_OPF_HEALTHCHECK_ON_STARTUP=false
+  export MIY_OPF_REQUIRED=false
+  export MIY_RAG_ENABLED=false
+  export MIY_RAG_PRELOAD_ON_STARTUP=false
+  export MIY_HERMES_ENABLED=false
+  export MIY_API_RECORDING_SPOOL_DIR="$MIY_DEV_RUNTIME_DIR/recording-spool"
 fi
 
 if (( with_worker )); then
@@ -202,7 +202,7 @@ find_worker_processes() {
        { [[ -z "$role" ]] || [[ "$args" == *"celery_app $role"* ]]; }; then
       printf '%s %s\n' "$pid" "$args"
     fi
-  done < <(pgrep -af "celery -A mty_worker.celery_app:celery_app" || true)
+  done < <(pgrep -af "celery -A miy_worker.celery_app:celery_app" || true)
 }
 
 require_free_port() {
@@ -222,12 +222,12 @@ require_free_port() {
 }
 
 run_api_migration_preflight() {
-  if [[ "${MTY_DEV_API_MIGRATION_PREFLIGHT:-1}" == "0" ]]; then
+  if [[ "${MIY_DEV_API_MIGRATION_PREFLIGHT:-1}" == "0" ]]; then
     return 0
   fi
 
   local auto_migrate
-  auto_migrate="$(printf '%s' "${MTY_API_AUTO_MIGRATE:-1}" | tr '[:upper:]' '[:lower:]')"
+  auto_migrate="$(printf '%s' "${MIY_API_AUTO_MIGRATE:-1}" | tr '[:upper:]' '[:lower:]')"
   case "$auto_migrate" in
     1|true|yes) ;;
     *) return 0 ;;
@@ -236,9 +236,9 @@ run_api_migration_preflight() {
   echo "Checking API migrations before starting dev server..."
   (
     cd "$ROOT_DIR/apps/api"
-    MTY_API_AUTO_MIGRATE=0 uv run --python 3.12 alembic upgrade head
+    MIY_API_AUTO_MIGRATE=0 uv run --python 3.12 alembic upgrade head
   )
-  export MTY_API_AUTO_MIGRATE=0
+  export MIY_API_AUTO_MIGRATE=0
 }
 
 kill_if_running() {
@@ -263,10 +263,10 @@ start_dev_infra() {
     desired=(postgres redis)
   else
     desired=(redis opensearch qdrant)
-    if [[ "$(printf '%s' "${MTY_API_VIDEO_CHAT_ENABLED:-true}" | tr '[:upper:]' '[:lower:]')" != "false" ]]; then
+    if [[ "$(printf '%s' "${MIY_API_VIDEO_CHAT_ENABLED:-true}" | tr '[:upper:]' '[:lower:]')" != "false" ]]; then
       desired+=(livekit)
     fi
-    if [[ "$(dev_lower "${MTY_HERMES_ENABLED:-false}")" == "true" ]]; then
+    if [[ "$(dev_lower "${MIY_HERMES_ENABLED:-false}")" == "true" ]]; then
       desired+=(
         hermes-bootstrap
         hermes-gateway
@@ -284,8 +284,8 @@ start_dev_infra() {
   fi
 
   # Stop dev-nginx only when it is configured to collide with the web dev server.
-  local dev_nginx_container="${MTY_INFRA_CONTAINER_PREFIX:-mty-dev}-nginx"
-  local dev_nginx_port="${MTY_INFRA_NGINX_PORT:-14200}"
+  local dev_nginx_container="${MIY_INFRA_CONTAINER_PREFIX:-miy-dev}-nginx"
+  local dev_nginx_port="${MIY_INFRA_NGINX_PORT:-14200}"
   local web_in_projects=0
   local project
   for project in "${projects[@]}"; do
@@ -305,15 +305,15 @@ start_dev_infra() {
   # If a service's host port is already bound (e.g., a sibling repo's compose
   # project started redis under the same fixed container name), reuse it
   # instead of colliding on `docker compose up`.
-  local redis_port="${MTY_INFRA_REDIS_PORT:-56380}"
-  local postgres_port="${MTY_INFRA_POSTGRES_PORT:-55433}"
-  local minio_port="${MTY_INFRA_MINIO_PORT:-59010}"
-  local opensearch_port="${MTY_INFRA_OPENSEARCH_PORT:-59210}"
-  local qdrant_port="${MTY_INFRA_QDRANT_PORT:-16333}"
-  local livekit_port="${MTY_LIVEKIT_PORT:-7880}"
-  local hermes_runtime_port="${MTY_HERMES_RUNTIME_PORT:-18642}"
-  local hermes_management_port="${MTY_HERMES_MANAGEMENT_PORT:-19119}"
-  local hermes_terminal_broker_port="${MTY_HERMES_TERMINAL_BROKER_PORT:-18765}"
+  local redis_port="${MIY_INFRA_REDIS_PORT:-56380}"
+  local postgres_port="${MIY_INFRA_POSTGRES_PORT:-55433}"
+  local minio_port="${MIY_INFRA_MINIO_PORT:-59010}"
+  local opensearch_port="${MIY_INFRA_OPENSEARCH_PORT:-59210}"
+  local qdrant_port="${MIY_INFRA_QDRANT_PORT:-16333}"
+  local livekit_port="${MIY_LIVEKIT_PORT:-7880}"
+  local hermes_runtime_port="${MIY_HERMES_RUNTIME_PORT:-18642}"
+  local hermes_management_port="${MIY_HERMES_MANAGEMENT_PORT:-19119}"
+  local hermes_terminal_broker_port="${MIY_HERMES_TERMINAL_BROKER_PORT:-18765}"
   local services=()
   local skipped=()
   local svc
@@ -332,7 +332,7 @@ start_dev_infra() {
     esac
     if [[ -n "$port" && -n "$(find_listener "$port")" ]]; then
       if [[ "$svc" == "hermes-terminal-broker" ]]; then
-        local broker_container="mty-dev-hermes-terminal-broker"
+        local broker_container="miy-dev-hermes-terminal-broker"
         local broker_running
         local broker_binding
         broker_running="$(dev_docker inspect -f '{{.State.Running}}' "$broker_container" 2>/dev/null || true)"
@@ -396,7 +396,7 @@ start_dev_infra() {
     local attempts=0
     while (( attempts < 60 )); do
       if dev_docker compose --env-file "$compose_env_file" -f "$compose_file" exec -T postgres \
-        pg_isready -U "$MTY_INFRA_POSTGRES_USER" -d "$MTY_INFRA_POSTGRES_DB" >/dev/null 2>&1; then
+        pg_isready -U "$MIY_INFRA_POSTGRES_USER" -d "$MIY_INFRA_POSTGRES_DB" >/dev/null 2>&1; then
         break
       fi
       attempts=$((attempts + 1))
@@ -467,7 +467,7 @@ if (( stop_only )); then
 fi
 
 if (( status_only )); then
-  echo "MTY dev server status"
+  echo "miy dev server status"
   echo "  projects : ${project_csv}"
   echo
   for project in "${projects[@]}"; do
@@ -501,7 +501,7 @@ if project_selected api; then
 fi
 
 cat <<EOF
-Starting MTY development servers
+Starting miy development servers
   projects : ${project_csv}
   web      : http://localhost:${WEB_DEV_PORT}
   api      : http://127.0.0.1:${API_DEV_PORT}/docs

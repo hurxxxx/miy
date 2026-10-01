@@ -1,7 +1,7 @@
 [project]
-name = "mty-worker"
+name = "miy-worker"
 version = "0.1.1"
-description = "Celery worker for MTY."
+description = "Celery worker for miy."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
@@ -69,4 +69,4 @@ pythonpath = ["src"]
 select = ["E4", "E7", "E9", "F"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/mty_worker"]
+packages = ["src/miy_worker"]

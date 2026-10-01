@@ -1,4 +1,4 @@
-import { Button, Dialog, DropdownMenu, Input } from '@mty/ui';
+import { Button, Dialog, DropdownMenu, Input } from '@miy/ui';
 import {
   Folder,
   History,

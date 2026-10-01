@@ -1,12 +1,12 @@
 import type { Page, Route } from '@playwright/test';
-import { APP_CONTRACTS } from '@mty/contracts/app-contracts';
+import { APP_CONTRACTS } from '@miy/contracts/app-contracts';
 import {
   REALTIME_CLIENT_EVENT_TYPES,
   REALTIME_SERVER_EVENT_TYPES,
-} from '@mty/contracts/realtime';
+} from '@miy/contracts/realtime';
 
 const FAKE_TOKEN = 'e2e-test-token';
-const AUTH_TOKEN_STORAGE_KEY = 'mty.auth.token';
+const AUTH_TOKEN_STORAGE_KEY = 'miy.auth.token';
 
 type E2EUser = {
   id: string;
@@ -65,7 +65,7 @@ type AppBootstrapKeywordSearchEntityTypeFixture = {
 // provider treats the seeded token as a live session.
 export const FAKE_COMPANY_USER: E2EUser = {
   id: 'user-e2e',
-  email: 'e2e@mty.local',
+  email: 'e2e@miy.local',
   full_name: 'E2E Tester',
   display_name: 'E2E Tester',
   status: 'active',
@@ -82,7 +82,7 @@ export const FAKE_COMPANY_USER: E2EUser = {
 
 export const FAKE_PLATFORM_ADMIN_USER: E2EUser = {
   ...FAKE_COMPANY_USER,
-  email: 'platform-admin@mty.local',
+  email: 'platform-admin@miy.local',
   full_name: 'Platform Admin',
   display_name: 'Platform Admin',
   system_roles: ['platform_admin'],

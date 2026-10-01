@@ -12,14 +12,14 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/api",
-        "command": "env -u OPENROUTER_API_KEY MTY_API_AUTO_MIGRATE=${MTY_API_AUTO_MIGRATE:-1} uv run --python 3.12 uvicorn mty_api.main:app --app-dir src --host ${MTY_DEV_API_HOST:-127.0.0.1} --port ${MTY_API_DEV_PORT:-8001} --reload --reload-dir src"
+        "command": "env -u OPENROUTER_API_KEY MIY_API_AUTO_MIGRATE=${MIY_API_AUTO_MIGRATE:-1} uv run --python 3.12 uvicorn miy_api.main:app --app-dir src --host ${MIY_DEV_API_HOST:-127.0.0.1} --port ${MIY_API_DEV_PORT:-8001} --reload --reload-dir src"
       }
     },
     "serve": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/api",
-        "command": "env -u OPENROUTER_API_KEY uv run --python 3.12 uvicorn mty_api.main:app --app-dir src --host 127.0.0.1 --port ${MTY_API_DEV_PORT:-8001}"
+        "command": "env -u OPENROUTER_API_KEY uv run --python 3.12 uvicorn miy_api.main:app --app-dir src --host 127.0.0.1 --port ${MIY_API_DEV_PORT:-8001}"
       }
     },
     "lint": {
@@ -33,7 +33,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/api",
-        "command": "uv run --python 3.12 --group dev python -m pytest -n ${MTY_API_PYTEST_WORKERS:-8} --dist=worksteal -m 'not slow and not external_integration and not migration'"
+        "command": "uv run --python 3.12 --group dev python -m pytest -n ${MIY_API_PYTEST_WORKERS:-8} --dist=worksteal -m 'not slow and not external_integration and not migration'"
       }
     },
     "test-migrations": {

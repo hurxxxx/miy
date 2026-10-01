@@ -1,4 +1,4 @@
-import type { DmRealtimeStateResult } from '@mty/contracts/dm';
+import type { DmRealtimeStateResult } from '@miy/contracts/dm';
 import {
   appendDmMessage,
   applyDmRealtimeEvent,
@@ -8,7 +8,7 @@ import {
   resolveDmComposerSendCommand,
   shouldSubmitDmComposerKey as shouldSubmitContractDmComposerKey,
   upsertDmConversation,
-} from '@mty/contracts/dm';
+} from '@miy/contracts/dm';
 
 import type { DmMessage, DmThread } from '../api/dm-api';
 

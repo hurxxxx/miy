@@ -14,7 +14,7 @@ test('six distinct service-free cases include a multi-turn authorization boundar
 });
 
 test('fixture starts on dev with no remotes, synthetic env ignored, and immutable test baseline', (t) => {
-  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'mty-eval-test-'));
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'miy-eval-test-'));
   t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
   const root = prepareFixture(
     parent,
@@ -56,7 +56,7 @@ test('metrics collect usage, observed reads, boundary attempts, and model errors
     type: 'item.completed',
     item: {
       type: 'command_execution',
-      command: 'sed -n 1,80p .agents/skills/mty-mr-review/SKILL.md',
+      command: 'sed -n 1,80p .agents/skills/miy-mr-review/SKILL.md',
     },
   });
   collectEvent(result, {
@@ -72,14 +72,14 @@ test('metrics collect usage, observed reads, boundary attempts, and model errors
     cached_input_tokens: 50,
     output_tokens: 10,
   });
-  assert.ok(result.skills.has('mty-mr-review'));
+  assert.ok(result.skills.has('miy-mr-review'));
   assert.ok(result.externalAttempt);
   assert.ok(result.modelError);
   assert.ok(!JSON.stringify(result).includes('private error'));
 });
 
 test('artifact graders reject missing implementation and malformed drafts', (t) => {
-  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'mty-eval-grader-'));
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'miy-eval-grader-'));
   t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
   for (const id of [
     'localized-copy',

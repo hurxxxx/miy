@@ -5,20 +5,20 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import select
 
-from mty_api.core.db import get_session_factory
-from mty_api.domains.auth.models import User
-from mty_api.domains.docs import partitioning as docs_partitioning
-from mty_api.domains.docs import rag_sync as docs_rag_sync
-from mty_api.domains.docs.models import NativeDoc
-from mty_api.domains.rag.contracts import RagSyncOperation
-from mty_api.domains.rag.models import RagSyncJob, RagVisibilityRecomputeJob
-from mty_api.domains.retrieval.models import RetrievalPartition, RetrievalProjectionEvent
-from mty_api.domains.retrieval.partitioning import (
+from miy_api.core.db import get_session_factory
+from miy_api.domains.auth.models import User
+from miy_api.domains.docs import partitioning as docs_partitioning
+from miy_api.domains.docs import rag_sync as docs_rag_sync
+from miy_api.domains.docs.models import NativeDoc
+from miy_api.domains.rag.contracts import RagSyncOperation
+from miy_api.domains.rag.models import RagSyncJob, RagVisibilityRecomputeJob
+from miy_api.domains.retrieval.models import RetrievalPartition, RetrievalProjectionEvent
+from miy_api.domains.retrieval.partitioning import (
     RetrievalPartitionConflict,
 )
-from mty_api.domains.retrieval.projection_fencing import ProjectionEventRef
-from mty_api.domains.source_access import SourceAclPolicy
-from mty_api.domains.source_access.resource_types import NATIVE_DOC_RESOURCE_TYPE
+from miy_api.domains.retrieval.projection_fencing import ProjectionEventRef
+from miy_api.domains.source_access import SourceAclPolicy
+from miy_api.domains.source_access.resource_types import NATIVE_DOC_RESOURCE_TYPE
 
 
 def _job_rows() -> list[RagSyncJob]:
@@ -351,7 +351,7 @@ def test_meeting_doc_acl_changes_enqueue_rag_visibility_recompute_jobs(
     attendee = _create_company_user(
         client,
         admin_token,
-        email="meeting-rag-reader@mty.local",
+        email="meeting-rag-reader@miy.local",
         full_name="Meeting Rag Reader",
     )
     attendee_token = _login(

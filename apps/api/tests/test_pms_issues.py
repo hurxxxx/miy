@@ -6,10 +6,10 @@ from fastapi.testclient import TestClient
 import pytest
 from sqlalchemy import select
 
-from mty_api.core.db import get_session_factory
-from mty_api.domains.pms.models import CustomFieldValue, TaskActivityLog
-from mty_api.domains.pms import service as pms_service
-from mty_api.domains.search import outbox as search_outbox
+from miy_api.core.db import get_session_factory
+from miy_api.domains.pms.models import CustomFieldValue, TaskActivityLog
+from miy_api.domains.pms import service as pms_service
+from miy_api.domains.search import outbox as search_outbox
 from dev_accounts import create_company_user_session, dev_login
 from test_docs_hub import _create_doc_page, _create_space_doc, _list_doc_pages, _list_space_docs
 
@@ -155,7 +155,7 @@ def test_bulk_update_assigns_and_updates_labels_with_activity(client: TestClient
     teammate = _create_user(
         client,
         token,
-        email="bulk-assignee@mty.local",
+        email="bulk-assignee@miy.local",
         full_name="Bulk Assignee",
     )
     _add_task_list_member(client, token, task_list["id"], teammate["user"]["id"], "member")
@@ -254,7 +254,7 @@ def test_task_update_logs_more_than_six_assignees(client: TestClient) -> None:
         teammate = _create_user(
             client,
             token,
-            email=f"many-assignees-{index}@mty.local",
+            email=f"many-assignees-{index}@miy.local",
             full_name=f"Many Assignees {index}",
         )
         assignee_id = teammate["user"]["id"]
@@ -290,7 +290,7 @@ def test_concurrent_assignee_updates_are_idempotent(
     teammate = _create_user(
         client,
         token,
-        email="concurrent-assignee@mty.local",
+        email="concurrent-assignee@miy.local",
         full_name="Concurrent Assignee",
     )
     assignee_id = teammate["user"]["id"]
@@ -663,7 +663,7 @@ def test_viewer_cannot_modify_issue_comment_or_folder(client: TestClient) -> Non
     issue = _create_issue(client, admin_session["token"], task_list["id"], title="Protected issue")
 
     viewer = _create_user(
-        client, admin_session["token"], email="viewer@mty.local", full_name="Viewer User"
+        client, admin_session["token"], email="viewer@miy.local", full_name="Viewer User"
     )
     _add_task_list_member(
         client, admin_session["token"], task_list["id"], viewer["user"]["id"], "viewer"
@@ -720,7 +720,7 @@ def test_task_comment_mention_notification_identifies_task(client: TestClient) -
     mentioned = _create_user(
         client,
         admin_session["token"],
-        email="mentioned-pms-member@mty.local",
+        email="mentioned-pms-member@miy.local",
         full_name="Mentioned Member",
     )
     _add_task_list_member(
@@ -776,7 +776,7 @@ def test_task_comment_notification_identifies_task_by_title(client: TestClient) 
     assignee = _create_user(
         client,
         admin_session["token"],
-        email="comment-notification-member@mty.local",
+        email="comment-notification-member@miy.local",
         full_name="Comment Notification Member",
     )
     _add_task_list_member(
@@ -816,7 +816,7 @@ def test_task_assignment_notification_identifies_task_by_title(client: TestClien
     assignee = _create_user(
         client,
         admin_session["token"],
-        email="assignment-notification-member@mty.local",
+        email="assignment-notification-member@miy.local",
         full_name="Assignment Notification Member",
     )
     _add_task_list_member(
@@ -845,7 +845,7 @@ def test_task_assignment_notification_identifies_task_by_title(client: TestClien
     assert notification["type"] == "assigned"
     assert notification["title"] == "AI 서버 근크림 그리기 assigned to you"
     assert issue["reference"] not in notification["title"]
-    assert notification["body"].startswith("MTY Admin assigned AI 서버 근크림 그리기")
+    assert notification["body"].startswith("miy Admin assigned AI 서버 근크림 그리기")
     assert notification["source_type"] == "pms_task"
     assert notification["source_id"] == issue["id"]
     assert notification["origin_app_id"] == "pms"
@@ -891,7 +891,7 @@ def test_issue_assignees_reject_non_members(client: TestClient) -> None:
     outsider = _create_user(
         client,
         admin_session["token"],
-        email="outsider@mty.local",
+        email="outsider@miy.local",
         full_name="Outsider User",
     )
 
@@ -911,19 +911,19 @@ def test_issue_user_roles_support_assignees_and_followers(client: TestClient) ->
     teammate = _create_user(
         client,
         admin_session["token"],
-        email="role-assignee@mty.local",
+        email="role-assignee@miy.local",
         full_name="Role Assignee",
     )
     follower = _create_user(
         client,
         admin_session["token"],
-        email="role-follower@mty.local",
+        email="role-follower@miy.local",
         full_name="Role Follower",
     )
     outsider = _create_user(
         client,
         admin_session["token"],
-        email="role-outsider@mty.local",
+        email="role-outsider@miy.local",
         full_name="Role Outsider",
     )
     _add_task_list_member(
@@ -999,13 +999,13 @@ def test_pms_user_directory_returns_company_users(client: TestClient) -> None:
     teammate = _create_user(
         client,
         admin_session["token"],
-        email="pms-scope-member@mty.local",
+        email="pms-scope-member@miy.local",
         full_name="PMS Colleague",
     )
     outsider = create_company_user_session(
         client,
         login_id="pmsotherscope",
-        email="pms-other-scope@mty.local",
+        email="pms-other-scope@miy.local",
         full_name="Another Company Colleague",
     )
 
@@ -1041,7 +1041,7 @@ def test_ordinary_user_needs_direct_pms_space_membership(
     ordinary_user = _create_ordinary_user(
         client,
         admin_session["token"],
-        email="administrator-pms-admin@mty.local",
+        email="administrator-pms-admin@miy.local",
         full_name="Administrator PMS Admin",
     )
     ordinary_user_token = _login(
@@ -1052,7 +1052,7 @@ def test_ordinary_user_needs_direct_pms_space_membership(
     colleague = _create_user(
         client,
         admin_session["token"],
-        email="administrator-pms-member@mty.local",
+        email="administrator-pms-member@miy.local",
         full_name="Administrator PMS Member",
     )
 
@@ -1212,7 +1212,7 @@ def test_task_list_member_cannot_delete_task_list(client: TestClient) -> None:
     member = _create_user(
         client,
         token,
-        email="list-delete-member@mty.local",
+        email="list-delete-member@miy.local",
         full_name="List Delete Member",
     )
     _add_task_list_member(client, token, task_list["id"], member["user"]["id"], "member")
@@ -1262,7 +1262,7 @@ def test_space_docs_collection_permissions_and_soft_delete(client: TestClient) -
     outsider = _create_user(
         client,
         admin_session["token"],
-        email="space-outsider@mty.local",
+        email="space-outsider@miy.local",
         full_name="Space Outsider",
     )
     outsider_token = _login(client, outsider["user"]["email"], outsider["temporary_password"])
@@ -1290,7 +1290,7 @@ def test_space_docs_collection_permissions_and_soft_delete(client: TestClient) -
     task_list_editor = _create_user(
         client,
         admin_session["token"],
-        email="space-editor@mty.local",
+        email="space-editor@miy.local",
         full_name="Task List Editor",
     )
     _add_task_list_member(
@@ -1395,7 +1395,7 @@ def test_task_list_member_api_grants_space_scope_for_task_list_resources(
     task_list_member = _create_user(
         client,
         admin_session["token"],
-        email="task-list-member@mty.local",
+        email="task-list-member@miy.local",
         full_name="Task List Member",
     )
     _add_task_list_member(
@@ -1465,7 +1465,7 @@ def test_media_linking_follows_parent_resource_acl(client: TestClient) -> None:
     project_member = _create_user(
         client,
         admin_session["token"],
-        email="media-task-list-member@mty.local",
+        email="media-task-list-member@miy.local",
         full_name="Media Task List Member",
     )
     _add_task_list_member(
@@ -1516,7 +1516,7 @@ def test_media_linking_follows_parent_resource_acl(client: TestClient) -> None:
     space_member = _create_user(
         client,
         admin_session["token"],
-        email="media-space-member@mty.local",
+        email="media-space-member@miy.local",
         full_name="Media Space Member",
     )
     _add_team_member(client, admin_session["token"], space_id, space_member["user"]["id"])
@@ -1561,8 +1561,8 @@ def test_space_soft_delete_hides_business_data_without_implicit_resurrection(
     )
     assert response.status_code == 404, response.text
     with get_session_factory()() as db:
-        from mty_api.domains.pms.space_models import Team
-        from mty_api.domains.pms.models import Task
+        from miy_api.domains.pms.space_models import Team
+        from miy_api.domains.pms.models import Task
 
         assert db.get(Team, space_id).trashed_at is not None
         assert db.get(Task, task["id"]) is not None
@@ -1577,7 +1577,7 @@ def test_assigned_issues_returns_only_current_users_open_issues(client: TestClie
     task_list = _create_task_list(client, admin["token"], key="ASGN", name="Assigned List")
 
     teammate = _create_user(
-        client, admin["token"], email="assigned-teammate@mty.local", full_name="Teammate"
+        client, admin["token"], email="assigned-teammate@miy.local", full_name="Teammate"
     )
     _add_task_list_member(client, admin["token"], task_list["id"], teammate["user"]["id"], "member")
 
@@ -1752,7 +1752,7 @@ def test_today_overdue_tasks_return_only_current_users_due_open_tasks(
     teammate = _create_user(
         client,
         admin["token"],
-        email="today-overdue-teammate@mty.local",
+        email="today-overdue-teammate@miy.local",
         full_name="Today Overdue Teammate",
     )
     _add_task_list_member(client, admin["token"], task_list["id"], teammate["user"]["id"], "member")
@@ -1863,7 +1863,7 @@ def test_assigned_issues_rechecks_app_admission(client: TestClient) -> None:
     ordinary_user = _create_ordinary_user(
         client,
         admin_session["token"],
-        email="administrator-assigned-admin@mty.local",
+        email="administrator-assigned-admin@miy.local",
         full_name="Administrator Assigned Admin",
     )
     ordinary_user_token = _login(
@@ -1895,7 +1895,7 @@ def test_assigned_issues_rechecks_app_admission(client: TestClient) -> None:
         "Administrator scoped assigned issue"
     ]
 
-    from mty_api.domains.auth.app_access_models import AppAccessPolicy
+    from miy_api.domains.auth.app_access_models import AppAccessPolicy
 
     with get_session_factory()() as db:
         db.get(AppAccessPolicy, "pms").audience = "selected"
@@ -1993,15 +1993,15 @@ def _bootstrap_admin_session(client: TestClient) -> dict:
     response = client.post(
         "/api/v1/auth/setup",
         json={
-            "full_name": "MTY Admin",
-            "email": "admin@mty.local",
+            "full_name": "miy Admin",
+            "email": "admin@miy.local",
             "password": "supersecret123",
         },
     )
     assert response.status_code == 201
     session = response.json()
     from dev_accounts import configure_company_app_access
-    from mty_api.core.db import get_session_factory
+    from miy_api.core.db import get_session_factory
 
     with get_session_factory()() as db:
         configure_company_app_access(db)
@@ -2137,9 +2137,9 @@ def _add_team_member(client: TestClient, token: str, team_id: str, user_id: str)
 
 
 def _create_unlinked_media(uploaded_by_id: str) -> dict[str, str]:
-    from mty_api.core.db import get_session_factory
-    from mty_api.domains.media.models import MediaFile
-    from mty_api.domains.auth.security import new_id
+    from miy_api.core.db import get_session_factory
+    from miy_api.domains.media.models import MediaFile
+    from miy_api.domains.auth.security import new_id
 
     media_id = new_id()
     db = get_session_factory()()

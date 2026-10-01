@@ -8,14 +8,14 @@
 // onDeleted callbacks back to the host so it can refetch its own data.
 import { useAppAdmission } from '@/src/platform/apps/app-bootstrap-context';
 import { isParticipant } from '../../api/meeting-permissions';
-import { buildAppHref } from '@mty/contracts/app-routes';
+import { buildAppHref } from '@miy/contracts/app-routes';
 import {
   BlockViewer,
   Button,
   CollaborativeBlockEditor,
   DetailDrawer,
   InlineNotice,
-} from '@mty/ui';
+} from '@miy/ui';
 import {
   ArrowLeft,
   ExternalLink,

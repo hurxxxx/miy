@@ -1,5 +1,5 @@
 import { maybeReloadForStaleAssetLoadError } from '@/src/platform/deployment/stale-asset-reload';
-import { Button } from '@mty/ui';
+import { Button } from '@miy/ui';
 import {
   Component,
   Suspense,

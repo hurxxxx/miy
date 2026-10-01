@@ -1,4 +1,4 @@
-import { buildAppHref } from '@mty/contracts/app-routes';
+import { buildAppHref } from '@miy/contracts/app-routes';
 import { Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';

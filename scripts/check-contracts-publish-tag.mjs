@@ -9,12 +9,12 @@ const expectedTag = `contracts-v${packageJson.version}`;
 
 if (!tag) {
   throw new Error(
-    'CI_COMMIT_TAG is required to publish @mty/contracts.',
+    'CI_COMMIT_TAG is required to publish @miy/contracts.',
   );
 }
 
 if (tag !== expectedTag) {
   throw new Error(
-    `Contract package tag mismatch. Expected ${expectedTag} for @mty/contracts ${packageJson.version}, got ${tag}.`,
+    `Contract package tag mismatch. Expected ${expectedTag} for @miy/contracts ${packageJson.version}, got ${tag}.`,
   );
 }

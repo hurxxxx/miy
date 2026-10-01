@@ -46,9 +46,9 @@ describe('docs-html-frame-srcdoc', () => {
       enableWheelBridge: true,
     });
 
-    expect(srcDoc).toContain('data-mty-html-zoom');
+    expect(srcDoc).toContain('data-miy-html-zoom');
     expect(srcDoc).toContain('zoom:1.50');
-    expect(srcDoc).toContain('data-mty-wheel-bridge');
+    expect(srcDoc).toContain('data-miy-wheel-bridge');
   });
 
   it('returns content unchanged when no inserts are needed', () => {

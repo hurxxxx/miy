@@ -4,8 +4,8 @@ from urllib.parse import parse_qs, urlsplit
 
 from fastapi.testclient import TestClient
 
-from mty_api.core.db import get_session_factory
-from mty_api.domains.auth.access import (
+from miy_api.core.db import get_session_factory
+from miy_api.domains.auth.access import (
     ensure_dev_login_seed_data,
     are_dev_login_accounts_seeded,
 )
@@ -16,17 +16,17 @@ TEST_USER_PASSWORD = "supersecret123"
 _NAMED_USERS = {
     "delivery-hub-admin": {
         "login_id": "deliveryhubadmin",
-        "email": "delivery-hub-admin@mty.local",
+        "email": "delivery-hub-admin@miy.local",
         "full_name": "Delivery Hub Admin",
     },
     "delivery-hub-member": {
         "login_id": "deliveryhubmember",
-        "email": "delivery-hub-member@mty.local",
+        "email": "delivery-hub-member@miy.local",
         "full_name": "Delivery Hub Member",
     },
     "knowledge-base-admin": {
         "login_id": "knowledgebaseadmin",
-        "email": "knowledge-base-admin@mty.local",
+        "email": "knowledge-base-admin@miy.local",
         "full_name": "Knowledge Base Admin",
     },
 }
@@ -43,7 +43,7 @@ def content_grant_headers(content_url: str) -> dict[str, str]:
     assert not parsed.scheme and not parsed.netloc
     assert parsed.path == "/api/v1/content" and not parsed.query
     assert set(fragment) == {"grant"} and len(grants) == 1 and grants[0]
-    return {"X-MTY-Content-Grant": grants[0]}
+    return {"X-MIY-Content-Grant": grants[0]}
 
 
 def content_headers(token: str, content_url: str) -> dict[str, str]:
@@ -147,9 +147,9 @@ def _ensure_user(
 
 def configure_company_app_access(db, app_ids=None):
     """Explicit admission fixture for business behavior tests; never a runtime bypass."""
-    from mty_api.domains.auth.app_catalog import iter_app_catalog
-    from mty_api.domains.auth.app_access_models import AppAccessPolicy
-    from mty_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.auth.app_catalog import iter_app_catalog
+    from miy_api.domains.auth.app_access_models import AppAccessPolicy
+    from miy_api.domains.auth.models import CompanyAppControl
 
     for app_id in app_ids if app_ids is not None else [a.app_id for a in iter_app_catalog()]:
         db.get(CompanyAppControl, app_id).enabled = True

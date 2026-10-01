@@ -1,5 +1,5 @@
-import type { AppRouteId } from '@mty/contracts/app-contracts';
-import { buildAppHref } from '@mty/contracts/app-routes';
+import type { AppRouteId } from '@miy/contracts/app-contracts';
+import { buildAppHref } from '@miy/contracts/app-routes';
 import {
   MessageSquare,
   MoreHorizontal,
@@ -24,7 +24,7 @@ import {
   useConfirm,
   useFeedback,
   usePrompt,
-} from '@mty/ui';
+} from '@miy/ui';
 
 import { cn } from '@/src/lib/utils';
 import { updateHermesSession } from '../api/hermes-agent-api';

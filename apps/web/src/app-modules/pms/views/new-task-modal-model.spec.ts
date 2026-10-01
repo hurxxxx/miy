@@ -1,4 +1,4 @@
-import type { BlockContent } from '@mty/ui';
+import type { BlockContent } from '@miy/ui';
 import { describe, expect, it } from 'vitest';
 
 import type { PmsTaskListStatus, PmsTaskTemplate } from '../api/pms-api';

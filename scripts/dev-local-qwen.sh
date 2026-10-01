@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-MODEL_REF="${MTY_DEV_QWEN_MODEL_REF:-ai/qwen3.6:35B-A3B-UD-Q4_K_M}"
+MODEL_REF="${MIY_DEV_QWEN_MODEL_REF:-ai/qwen3.6:35B-A3B-UD-Q4_K_M}"
 OPENAI_BASE_URL="http://127.0.0.1:12434/engines/v1"
 COMMAND="${1:-status}"
 

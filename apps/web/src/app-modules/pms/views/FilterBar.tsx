@@ -1,7 +1,7 @@
 import { DateInput } from '@/src/components/date/DateInput';
 import { UserOptionRow } from '@/src/platform/users/UserSearchMultiSelect';
 import { selectUserOptionsForPicker } from '@/src/platform/users/user-option-picker-model';
-import { DetailDrawer } from '@mty/ui';
+import { DetailDrawer } from '@miy/ui';
 import {
   BookmarkCheck,
   ChevronDown,

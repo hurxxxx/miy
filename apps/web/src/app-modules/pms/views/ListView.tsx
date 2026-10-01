@@ -8,7 +8,7 @@ import {
   userOptionDisplayName,
   type UserOptionLike,
 } from '@/src/platform/users/user-option-picker-model';
-import { Button } from '@mty/ui';
+import { Button } from '@miy/ui';
 import {
   Activity,
   ArrowDown,

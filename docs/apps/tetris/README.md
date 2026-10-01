@@ -1,6 +1,6 @@
 # 테트리스
 
-개인 앱 `/apps/tetris`에서 실행하는 단독·2인 대결 게임이다. 기존 MTY Web/API와 함께
+개인 앱 `/apps/tetris`에서 실행하는 단독·2인 대결 게임이다. 기존 miy Web/API와 함께
 설치한다. 수동 플레이에는 AI 연결이 필요 없으며, AI는 공통 판단·생성 워크로드를 사용한다.
 
 ## 설치와 앱 활성화
@@ -17,7 +17,7 @@ AI를 사용하려면 관리자가 [공통 모델 설정](../../domains/ai/gatew
 `tetris.play.generation`은 `chat` 기능과 JSON Schema 응답을 지원하는 생성 모델을 사용한다.
 생성 호출은 [공통 직접 호출 어댑터](../../domains/ai/gateway.md#direct-completion-exceptions)의
 명시적 예외로 등록되어 Hermes 설치 없이 실행한다. 모델·키·경로는 공통 관리자 설정에서 가져온다.
-`MTY_LLM_REQUIRED=true`일 때 `/readyz`는 두 등록 워크로드 모두의 기본 라우팅을
+`MIY_LLM_REQUIRED=true`일 때 `/readyz`는 두 등록 워크로드 모두의 기본 라우팅을
 검사하므로 생성·판단 계열을 각각 설정한다. 게임 전용 프로세스·포트·DB 마이그레이션은 없다.
 
 ## 플레이와 대결 규칙

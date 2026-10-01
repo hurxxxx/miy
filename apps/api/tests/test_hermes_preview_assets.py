@@ -6,9 +6,9 @@ from fastapi import HTTPException
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from mty_api.domains.hermes import files, file_router
-from mty_api.domains.hermes.models import HermesFileRevision
-from mty_api.domains.hermes.repository import utcnow_naive
+from miy_api.domains.hermes import files, file_router
+from miy_api.domains.hermes.models import HermesFileRevision
+from miy_api.domains.hermes.repository import utcnow_naive
 from test_hermes_runtime import seed, session_for, stage, admit_runtime_apps
 
 
@@ -90,7 +90,7 @@ def test_preview_assets_use_owned_immutable_snapshot_without_fallback(
                 == b"new dependency"
             )
             assert files.checkpoint_previews(db, session=session, run_id=run.id) == 0
-            for path in ["../app.js", "/etc/passwd", "demo/missing.js", ".mty-runtime/state"]:
+            for path in ["../app.js", "/etc/passwd", "demo/missing.js", ".miy-runtime/state"]:
                 with pytest.raises(HTTPException) as error:
                     file_router.preview_file_asset(anchor.id, path=path, db=db, user=user)
                 assert error.value.status_code == 404

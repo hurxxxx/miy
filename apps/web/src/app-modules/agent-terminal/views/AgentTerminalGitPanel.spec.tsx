@@ -25,8 +25,8 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-vi.mock('@mty/ui', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@mty/ui')>()),
+vi.mock('@miy/ui', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@miy/ui')>()),
   useFeedback: () => feedbackApi,
 }));
 

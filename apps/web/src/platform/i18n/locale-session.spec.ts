@@ -14,7 +14,7 @@ type TestLocale = 'ko-KR' | 'en-US';
 const config = {
   defaultLocale: 'ko-KR',
   supportedLocales: ['ko-KR', 'en-US'],
-  storageKey: 'mty:locale',
+  storageKey: 'miy:locale',
 } satisfies LocaleSessionConfig<TestLocale>;
 
 function createStore(initial: Record<string, string> = {}): {

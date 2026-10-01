@@ -164,8 +164,10 @@ def import_postgres(source_url, destination_url):
                 .scalars()
                 .all()
             )
-            if len(versions) != 1 or versions[0] not in ("console_0009", "console_0010"):
-                raise ValueError("Import supports PostgreSQL console_0009 or console_0010")
+            if len(versions) != 1 or versions[0] not in (
+                "console_0009", "console_0010", "console_0011"
+            ):
+                raise ValueError("Import supports PostgreSQL console_0009 through console_0011")
             revision = versions[0]
             names = set(inspect(reader).get_table_names()) - {"console_alembic_version"}
             expected = set(Base.metadata.tables)
@@ -183,7 +185,8 @@ def import_postgres(source_url, destination_url):
                     expected_columns -= {"executor", "template_snapshot", "launch_id"}
                 if set(legacy.tables[name].c.keys()) != expected_columns:
                     raise ValueError("Unexpected source columns")
-            migrate(staging_url)
+            # Verify an unchanged copy first, then apply local data migrations.
+            migrate(staging_url, revision="console_sqlite_0001")
             target, _ = database(staging_url)
             counts = {}
             with (
@@ -198,6 +201,10 @@ def import_postgres(source_url, destination_url):
                             reader, writer, legacy.tables[table.name], table
                         )
                 verify_references(writer)
+            target.dispose()
+            target = None
+            migrate(staging_url)
+            target, _ = database(staging_url)
             # Explicit checkpoint before publishing the main file without its WAL.
             with target.connect() as checkpointer:
                 busy, remaining, copied = checkpointer.exec_driver_sql(

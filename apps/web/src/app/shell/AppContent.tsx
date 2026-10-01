@@ -1,4 +1,4 @@
-import { DetailDrawer } from '@mty/ui';
+import { DetailDrawer } from '@miy/ui';
 import { Check, LayoutGrid, X } from 'lucide-react';
 import {
   AnimatePresence,

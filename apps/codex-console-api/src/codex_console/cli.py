@@ -18,7 +18,7 @@ from .models import Owner, WebSession, database
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def migrate(url):
+def migrate(url, revision="head"):
     if make_url(url).get_backend_name() == "sqlite":
         from .storage import process_guard
 
@@ -34,7 +34,7 @@ def migrate(url):
             config = Config(str(ROOT / "alembic.ini"))
             config.set_main_option("script_location", str(ROOT / "sqlite_migrations"))
             config.attributes["database_url"] = url
-            command.upgrade(config, "head")
+            command.upgrade(config, revision)
         return
     engine = create_engine(url)
     try:
@@ -44,7 +44,7 @@ def migrate(url):
         engine.dispose()
     config = Config(str(ROOT / "alembic.ini"))
     config.attributes["database_url"] = url
-    command.upgrade(config, "head")
+    command.upgrade(config, revision)
 
 
 def main():
@@ -93,9 +93,9 @@ def main():
             or stat.S_IMODE(source.stat().st_mode) & 0o077
         ):
             parser.error("import-postgres requires a private 0600 --source-env file")
-        url = dotenv_values(source, interpolate=False).get("MTY_CODEX_CONSOLE_DATABASE_URL")
+        url = dotenv_values(source, interpolate=False).get("MIY_CODEX_CONSOLE_DATABASE_URL")
         if not url:
-            parser.error("The source file must contain MTY_CODEX_CONSOLE_DATABASE_URL")
+            parser.error("The source file must contain MIY_CODEX_CONSOLE_DATABASE_URL")
         try:
             counts = import_postgres(url, settings.database_url)
         except Exception:

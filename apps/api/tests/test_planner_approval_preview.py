@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from mty_api.domains.ai.registry import PreviewField
-from mty_api.domains.planner.approval_preview import (
+from miy_api.domains.ai.registry import PreviewField
+from miy_api.domains.planner.approval_preview import (
     build_create_event_preview,
     build_delete_event_preview,
     build_update_event_preview,
 )
-from mty_api.domains.planner.tools import CreateEventArgs, UpdateEventArgs
+from miy_api.domains.planner.tools import CreateEventArgs, UpdateEventArgs
 
 
 def test_create_event_preview_is_personal_and_company_scoped() -> None:

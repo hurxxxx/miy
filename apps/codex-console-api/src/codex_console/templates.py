@@ -105,7 +105,7 @@ def seed(factory):
             "mr",
             "MR 번호 또는 URL",
             "Review {{mr}}. Report findings here; do not publish comments or merge.",
-            ["mty-mr-review"],
+            ["miy-mr-review"],
         ),
         (
             "MR 개선·병합",
@@ -170,6 +170,7 @@ def seed(factory):
     ]
     with factory.begin() as db:
         for name, description, key, label, prompt, skills in choices:
+            # Stable seed IDs retain existing templates and their execution history.
             ident = str(uuid5(NAMESPACE_URL, "mty-codex-template:" + name))
             if db.get(TaskTemplate, ident):
                 continue

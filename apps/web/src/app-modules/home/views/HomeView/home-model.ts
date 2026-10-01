@@ -14,7 +14,7 @@ import {
 import {
   buildAppEntryHref,
   buildAppHref,
-} from '@mty/contracts/app-routes';
+} from '@miy/contracts/app-routes';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 

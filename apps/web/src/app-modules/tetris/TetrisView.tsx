@@ -1,4 +1,4 @@
-import { Button, useFeedback } from '@mty/ui';
+import { Button, useFeedback } from '@miy/ui';
 import { ChevronDown, Keyboard, RefreshCw, Swords } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';

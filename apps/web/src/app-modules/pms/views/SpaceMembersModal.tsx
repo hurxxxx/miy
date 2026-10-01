@@ -1,5 +1,5 @@
 import { SpaceGroupBindings } from './SpaceGroupBindings';
-import { Button, Dialog, useConfirm } from '@mty/ui';
+import { Button, Dialog, useConfirm } from '@miy/ui';
 import {
   Check,
   Crown,

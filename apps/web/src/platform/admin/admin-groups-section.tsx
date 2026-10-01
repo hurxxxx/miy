@@ -6,7 +6,7 @@ import {
   SearchField,
   useConfirm,
   useFeedback,
-} from '@mty/ui';
+} from '@miy/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FORM_FIELD_CLASS } from './admin-shared';

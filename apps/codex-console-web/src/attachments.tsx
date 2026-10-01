@@ -1,4 +1,4 @@
-import { Button } from '@mty/ui';
+import { Button } from '@miy/ui';
 import { Download, File, Trash2, Upload, X } from 'lucide-react';
 import { useRef } from 'react';
 import {

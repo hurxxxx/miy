@@ -25,7 +25,7 @@ test('isReadableRepoFile skips tracked symlinks that resolve to directories', ()
   );
 });
 
-const legacyBase = '/projects/mty-';
+const legacyBase = '/projects/miy-';
 const legacyPath = (suffix) => `${legacyBase}${suffix}`;
 
 test('buildLegacyPathPattern detects legacy prod and dev checkouts only at path boundaries', () => {

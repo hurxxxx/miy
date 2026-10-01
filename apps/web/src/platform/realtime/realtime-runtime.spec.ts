@@ -1,14 +1,14 @@
 import {
   AUTH_REALTIME_EVENT_TYPES,
   AUTH_ACCESS_CHANGE_REASONS,
-} from '@mty/contracts/auth';
+} from '@miy/contracts/auth';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   REALTIME_CLIENT_EVENT_TYPES,
   REALTIME_SERVER_EVENT_TYPES,
   createDocsPagesRealtimeSubscriptionMessage,
   createWhiteboardAccessRealtimeSubscriptionMessage,
-} from '@mty/contracts/realtime';
+} from '@miy/contracts/realtime';
 
 import {
   createRealtimeRuntime,

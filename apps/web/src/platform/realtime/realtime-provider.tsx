@@ -13,7 +13,7 @@ import {
   isDocsPagesRealtimeSubscriptionMessage,
   isWhiteboardAccessRealtimeSubscriptionMessage,
   resolveRealtimeWebSocketUrl,
-} from '@mty/contracts/realtime';
+} from '@miy/contracts/realtime';
 
 import {
   createRealtimeRuntime,

@@ -17,7 +17,7 @@ import type {
   ExcalidrawProps,
   LibraryItems,
 } from '@excalidraw/excalidraw/types';
-import { Button, Dialog, DropdownMenu } from '@mty/ui';
+import { Button, Dialog, DropdownMenu } from '@miy/ui';
 import {
   ArchiveRestore,
   Download,

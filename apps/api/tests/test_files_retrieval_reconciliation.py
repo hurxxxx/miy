@@ -7,32 +7,32 @@ import pytest
 from sqlalchemy import create_engine, event, select, update
 from sqlalchemy.orm import Session
 
-from mty_api.core.db import Base
-from mty_api.domains.auth.models import User
-from mty_api.domains.groups.models import Group
-from mty_api.domains.files.rag_sync import (
+from miy_api.core.db import Base
+from miy_api.domains.auth.models import User
+from miy_api.domains.groups.models import Group
+from miy_api.domains.files.rag_sync import (
     adopt_legacy_file_retrieval_heads,
     capture_file_retrieval_event_watermark,
     inspect_file_retrieval_reconciliation,
     stage_file_retrieval_reconciliation,
 )
-from mty_api.domains.files import rag_sync as files_rag_sync
-from mty_api.domains.files.models import (
+from miy_api.domains.files import rag_sync as files_rag_sync
+from miy_api.domains.files.models import (
     FileManagerCorpus,
     FileManagerFile,
     FileManagerFolder,
 )
-from mty_api.domains.rag.models import RagSyncJob
-from mty_api.domains.rag.contracts import RagSyncOperation
-from mty_api.domains.retrieval.models import (
+from miy_api.domains.rag.models import RagSyncJob
+from miy_api.domains.rag.contracts import RagSyncOperation
+from miy_api.domains.retrieval.models import (
     RetrievalPartition,
     RetrievalProjectionEvent,
     RetrievalProjectionHead,
 )
-from mty_api.domains.retrieval.projection_fencing import record_projection_event
-from mty_api.domains.retrieval.projection_fencing import ProjectionEventRef
-from mty_api.domains.search.models import SearchIndexJob
-from mty_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOURCE_TYPE
+from miy_api.domains.retrieval.projection_fencing import record_projection_event
+from miy_api.domains.retrieval.projection_fencing import ProjectionEventRef
+from miy_api.domains.search.models import SearchIndexJob
+from miy_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOURCE_TYPE
 
 
 _PARTITION_ID = "6fa05b2e-8f30-4388-af56-c229636fa6c9"

@@ -1,5 +1,5 @@
-import { buildAppHref } from '@mty/contracts/app-routes';
-import { Button, InlineNotice } from '@mty/ui';
+import { buildAppHref } from '@miy/contracts/app-routes';
+import { Button, InlineNotice } from '@miy/ui';
 import {
   CalendarDays,
   CalendarPlus,

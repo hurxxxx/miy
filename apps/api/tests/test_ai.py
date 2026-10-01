@@ -9,18 +9,18 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from mty_api.core import llm as llm_core
-from mty_api.core.db import get_engine
-from mty_api.core.settings import get_settings
-from mty_api.domains.ai.model_credentials import encrypt_api_key
-from mty_api.domains.ai.model_settings_models import (
+from miy_api.core import llm as llm_core
+from miy_api.core.db import get_engine
+from miy_api.core.settings import get_settings
+from miy_api.domains.ai.model_credentials import encrypt_api_key
+from miy_api.domains.ai.model_settings_models import (
     AiModelCatalogEntry,
     AiModelProviderConfig,
     AiModelPolicyDefault,
 )
-from mty_api.domains.ai.registry import get_ai_capability_registry
-from mty_api.domains.auth.models import AuditLog
-from mty_api.domains.meeting import conversation_scope as meeting_conversation_scope
+from miy_api.domains.ai.registry import get_ai_capability_registry
+from miy_api.domains.auth.models import AuditLog
+from miy_api.domains.meeting import conversation_scope as meeting_conversation_scope
 from test_meeting import _auth_headers, _bootstrap_admin_session, _create_meeting, _dev_login
 from hermes_route_stub import hermes_route_stub  # noqa: F401
 
@@ -517,7 +517,7 @@ def test_readyz_uses_configured_readiness_while_ai_health_stays_live(
     assert missing_tasks["tetris.play"]["ready"] is False
     assert missing_tasks["tetris.play.generation"]["ready"] is False
 
-    from mty_api.domains.ai import model_discovery
+    from miy_api.domains.ai import model_discovery
 
     settings = get_settings()
     monkeypatch.setattr(settings, "llm_external_allowed_providers", "openai,anthropic,openrouter")
@@ -569,7 +569,7 @@ def test_readyz_uses_configured_readiness_while_ai_health_stays_live(
     monkeypatch.setattr(llm_core, "_new_pool_client", fake_pool_client)
     health_response = client.get(
         _ai_path("/health"),
-        headers={**_auth_headers(auth["token"]), "x-mty-locale": "en-US"},
+        headers={**_auth_headers(auth["token"]), "x-miy-locale": "en-US"},
     )
     assert health_response.status_code == 200, health_response.text
     health_payload = health_response.json()

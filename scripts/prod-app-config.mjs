@@ -10,22 +10,22 @@ const ENV_KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 const FALSE_VALUES = new Set(['0', 'false', 'no', 'off']);
 const TRUE_VALUES = new Set(['1', 'true', 'yes', 'on']);
 const PORT_KEYS = [
-  'MTY_API_DEV_PORT',
-  'MTY_BENTO_PORT',
-  'MTY_DRAWIO_PORT',
-  'MTY_HERMES_MANAGEMENT_PORT',
-  'MTY_HERMES_RUNTIME_PORT',
-  'MTY_HERMES_TERMINAL_BROKER_PORT',
-  'MTY_INFRA_MINIO_CONSOLE_PORT',
-  'MTY_INFRA_MINIO_PORT',
-  'MTY_INFRA_NGINX_PORT',
-  'MTY_INFRA_OPENSEARCH_PERF_PORT',
-  'MTY_INFRA_OPENSEARCH_PORT',
-  'MTY_INFRA_POSTGRES_PORT',
-  'MTY_INFRA_QDRANT_GRPC_PORT',
-  'MTY_INFRA_QDRANT_PORT',
-  'MTY_INFRA_REDIS_PORT',
-  'MTY_WEB_DEV_PORT',
+  'MIY_API_DEV_PORT',
+  'MIY_BENTO_PORT',
+  'MIY_DRAWIO_PORT',
+  'MIY_HERMES_MANAGEMENT_PORT',
+  'MIY_HERMES_RUNTIME_PORT',
+  'MIY_HERMES_TERMINAL_BROKER_PORT',
+  'MIY_INFRA_MINIO_CONSOLE_PORT',
+  'MIY_INFRA_MINIO_PORT',
+  'MIY_INFRA_NGINX_PORT',
+  'MIY_INFRA_OPENSEARCH_PERF_PORT',
+  'MIY_INFRA_OPENSEARCH_PORT',
+  'MIY_INFRA_POSTGRES_PORT',
+  'MIY_INFRA_QDRANT_GRPC_PORT',
+  'MIY_INFRA_QDRANT_PORT',
+  'MIY_INFRA_REDIS_PORT',
+  'MIY_WEB_DEV_PORT',
 ];
 
 function unquoteEnvValue(rawValue) {
@@ -147,24 +147,24 @@ function isPrivateOrLoopbackIpv4(value) {
 }
 
 export function assertProductionAppEnv(values) {
-  requireExact(values, 'MTY_ENV_PROFILE', 'prod');
-  requireExact(values, 'MTY_API_ENVIRONMENT', 'production');
-  requireBoolean(values, 'MTY_API_ALLOW_DEV_ADMIN_LOGIN', false);
-  requireBoolean(values, 'MTY_API_SEED_DEV_LOGIN_ACCOUNT', false);
-  requireBoolean(values, 'MTY_API_OBJECT_STORAGE_REQUIRED', true);
-  requireBoolean(values, 'MTY_OPF_ENABLED', true);
-  requireBoolean(values, 'MTY_OPF_REQUIRED', true);
-  requireBoolean(values, 'MTY_HERMES_ENABLED', true);
+  requireExact(values, 'MIY_ENV_PROFILE', 'prod');
+  requireExact(values, 'MIY_API_ENVIRONMENT', 'production');
+  requireBoolean(values, 'MIY_API_ALLOW_DEV_ADMIN_LOGIN', false);
+  requireBoolean(values, 'MIY_API_SEED_DEV_LOGIN_ACCOUNT', false);
+  requireBoolean(values, 'MIY_API_OBJECT_STORAGE_REQUIRED', true);
+  requireBoolean(values, 'MIY_OPF_ENABLED', true);
+  requireBoolean(values, 'MIY_OPF_REQUIRED', true);
+  requireBoolean(values, 'MIY_HERMES_ENABLED', true);
 
-  const bindHost = (values.get('MTY_APP_BIND_HOST') ?? '').trim();
+  const bindHost = (values.get('MIY_APP_BIND_HOST') ?? '').trim();
   if (!['0.0.0.0', '127.0.0.1'].includes(bindHost)) {
-    throw new Error('MTY_APP_BIND_HOST must be 0.0.0.0 or 127.0.0.1');
+    throw new Error('MIY_APP_BIND_HOST must be 0.0.0.0 or 127.0.0.1');
   }
   const forwardedAllowIps = (
-    values.get('MTY_APP_FORWARDED_ALLOW_IPS') ?? ''
+    values.get('MIY_APP_FORWARDED_ALLOW_IPS') ?? ''
   ).trim();
   if (!forwardedAllowIps) {
-    throw new Error('MTY_APP_FORWARDED_ALLOW_IPS is required');
+    throw new Error('MIY_APP_FORWARDED_ALLOW_IPS is required');
   }
   const trustedProxyIps = forwardedAllowIps
     .split(',')
@@ -175,53 +175,53 @@ export function assertProductionAppEnv(values) {
     trustedProxyIps.some((value) => isIP(value) === 0)
   ) {
     throw new Error(
-      'MTY_APP_FORWARDED_ALLOW_IPS must list exact proxy IP addresses',
+      'MIY_APP_FORWARDED_ALLOW_IPS must list exact proxy IP addresses',
     );
   }
 
-  requireSecret(values, 'MTY_CONTENT_GRANT_SIGNING_KEY');
+  requireSecret(values, 'MIY_CONTENT_GRANT_SIGNING_KEY');
 
-  const appPort = parsePort(values, 'MTY_APP_PORT', {
+  const appPort = parsePort(values, 'MIY_APP_PORT', {
     required: true,
   });
   for (const key of PORT_KEYS) {
     const port = parsePort(values, key);
     if (port === appPort) {
-      throw new Error(`MTY_APP_PORT must not collide with ${key}`);
+      throw new Error(`MIY_APP_PORT must not collide with ${key}`);
     }
   }
 
   const publicBaseUrl = normalizePublicBaseUrl(
-    values.get('MTY_APP_PUBLIC_URL'),
-    'MTY_APP_PUBLIC_URL',
+    values.get('MIY_APP_PUBLIC_URL'),
+    'MIY_APP_PUBLIC_URL',
   );
   const bentoServerUrl = normalizePublicBaseUrl(
-    values.get('MTY_BENTO_SERVER_URL'),
-    'MTY_BENTO_SERVER_URL',
+    values.get('MIY_BENTO_SERVER_URL'),
+    'MIY_BENTO_SERVER_URL',
   );
   if (bentoServerUrl.origin === publicBaseUrl.origin) {
     throw new Error(
-      'MTY_BENTO_SERVER_URL must use a dedicated origin',
+      'MIY_BENTO_SERVER_URL must use a dedicated origin',
     );
   }
 
   const bentoBindHost = (
-    values.get('MTY_BENTO_BIND_HOST') ?? ''
+    values.get('MIY_BENTO_BIND_HOST') ?? ''
   ).trim();
   if (!isPrivateOrLoopbackIpv4(bentoBindHost)) {
     throw new Error(
-      'MTY_BENTO_BIND_HOST must be an exact private or loopback IPv4 address; wildcard, public, IPv6, and hostname bindings are forbidden',
+      'MIY_BENTO_BIND_HOST must be an exact private or loopback IPv4 address; wildcard, public, IPv6, and hostname bindings are forbidden',
     );
   }
 
   const opfServiceUrlValue = (
-    values.get('MTY_OPF_SERVICE_BASE_URL') ?? ''
+    values.get('MIY_OPF_SERVICE_BASE_URL') ?? ''
   ).trim();
   let opfServiceBaseUrl;
   try {
     opfServiceBaseUrl = new URL(opfServiceUrlValue);
   } catch {
-    throw new Error('MTY_OPF_SERVICE_BASE_URL must be a valid URL');
+    throw new Error('MIY_OPF_SERVICE_BASE_URL must be a valid URL');
   }
   if (
     opfServiceBaseUrl.protocol !== 'http:' ||
@@ -234,28 +234,28 @@ export function assertProductionAppEnv(values) {
     opfServiceBaseUrl.hash
   ) {
     throw new Error(
-      'MTY_OPF_SERVICE_BASE_URL must be a loopback HTTP origin with an explicit port',
+      'MIY_OPF_SERVICE_BASE_URL must be a loopback HTTP origin with an explicit port',
     );
   }
   if (Number(opfServiceBaseUrl.port) === appPort) {
     throw new Error(
-      'MTY_OPF_SERVICE_BASE_URL must not collide with MTY_APP_PORT',
+      'MIY_OPF_SERVICE_BASE_URL must not collide with MIY_APP_PORT',
     );
   }
 
   const hermesRuntimePort = parsePort(
     values,
-    'MTY_HERMES_RUNTIME_PORT',
+    'MIY_HERMES_RUNTIME_PORT',
     { required: true },
   );
   const hermesManagementPort = parsePort(
     values,
-    'MTY_HERMES_MANAGEMENT_PORT',
+    'MIY_HERMES_MANAGEMENT_PORT',
     { required: true },
   );
   const hermesTerminalBrokerPort = parsePort(
     values,
-    'MTY_HERMES_TERMINAL_BROKER_PORT',
+    'MIY_HERMES_TERMINAL_BROKER_PORT',
     { required: true },
   );
   const reservedPorts = new Set([
@@ -273,46 +273,46 @@ export function assertProductionAppEnv(values) {
 
   const hermesRuntimeBaseUrl = requireLoopbackHttpUrl(
     values,
-    'MTY_HERMES_RUNTIME_BASE_URL',
+    'MIY_HERMES_RUNTIME_BASE_URL',
   );
   if (
     hermesRuntimeBaseUrl.pathname !== '/' ||
     Number(hermesRuntimeBaseUrl.port) !== hermesRuntimePort
   ) {
     throw new Error(
-      'MTY_HERMES_RUNTIME_BASE_URL must match the configured Hermes runtime port',
+      'MIY_HERMES_RUNTIME_BASE_URL must match the configured Hermes runtime port',
     );
   }
   const hermesManagementBaseUrl = requireLoopbackHttpUrl(
     values,
-    'MTY_HERMES_MANAGEMENT_BASE_URL',
+    'MIY_HERMES_MANAGEMENT_BASE_URL',
   );
   if (
     hermesManagementBaseUrl.pathname !== '/' ||
     Number(hermesManagementBaseUrl.port) !== hermesManagementPort
   ) {
     throw new Error(
-      'MTY_HERMES_MANAGEMENT_BASE_URL must match the configured Hermes management port',
+      'MIY_HERMES_MANAGEMENT_BASE_URL must match the configured Hermes management port',
     );
   }
   const hermesTerminalBrokerBaseUrl = requireLoopbackHttpUrl(
     values,
-    'MTY_HERMES_TERMINAL_BROKER_BASE_URL',
+    'MIY_HERMES_TERMINAL_BROKER_BASE_URL',
   );
   if (
     hermesTerminalBrokerBaseUrl.pathname !== '/' ||
     Number(hermesTerminalBrokerBaseUrl.port) !== hermesTerminalBrokerPort
   ) {
     throw new Error(
-      'MTY_HERMES_TERMINAL_BROKER_BASE_URL must match the configured Hermes Terminal broker port',
+      'MIY_HERMES_TERMINAL_BROKER_BASE_URL must match the configured Hermes Terminal broker port',
     );
   }
   const hermesMcpServerUrl = requireLoopbackHttpUrl(
     values,
-    'MTY_HERMES_MCP_SERVER_URL',
+    'MIY_HERMES_MCP_SERVER_URL',
   );
   const terminalNamespace = (
-    values.get('MTY_HERMES_TERMINAL_RESOURCE_NAMESPACE') ?? ''
+    values.get('MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE') ?? ''
   ).trim();
   if (
     !/^[a-z0-9][a-z0-9-]{0,31}$/.test(terminalNamespace) ||
@@ -320,7 +320,7 @@ export function assertProductionAppEnv(values) {
     terminalNamespace === 'local'
   ) {
     throw new Error(
-      'MTY_HERMES_TERMINAL_RESOURCE_NAMESPACE must be an explicit 1-32 character lowercase resource namespace, starting with a letter or digit; dev/local are not allowed in production',
+      'MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE must be an explicit 1-32 character lowercase resource namespace, starting with a letter or digit; dev/local are not allowed in production',
     );
   }
   if (
@@ -328,7 +328,7 @@ export function assertProductionAppEnv(values) {
     hermesMcpServerUrl.pathname !== '/api/v1/internal/hermes/mcp'
   ) {
     throw new Error(
-      'MTY_HERMES_MCP_SERVER_URL must target the production API internal Hermes MCP endpoint',
+      'MIY_HERMES_MCP_SERVER_URL must target the production API internal Hermes MCP endpoint',
     );
   }
 
@@ -337,16 +337,16 @@ export function assertProductionAppEnv(values) {
     requireSecret(values, 'OPENROUTER_API_KEY', { minLength: 16 });
   }
   const hermesSecrets = [
-    requireSecret(values, 'MTY_HERMES_API_KEY'),
-    requireSecret(values, 'MTY_HERMES_MANAGEMENT_TOKEN'),
-    requireSecret(values, 'MTY_HERMES_MCP_SHARED_SECRET'),
+    requireSecret(values, 'MIY_HERMES_API_KEY'),
+    requireSecret(values, 'MIY_HERMES_MANAGEMENT_TOKEN'),
+    requireSecret(values, 'MIY_HERMES_MCP_SHARED_SECRET'),
   ];
   if (new Set(hermesSecrets).size !== hermesSecrets.length) {
     throw new Error(
       'Hermes runtime, management, and MCP secrets must be distinct',
     );
   }
-  requireExact(values, 'MTY_HERMES_PROFILE_CLONE_SOURCE', 'default');
+  requireExact(values, 'MIY_HERMES_PROFILE_CLONE_SOURCE', 'default');
   return {
     appPort,
     bentoBindHost,

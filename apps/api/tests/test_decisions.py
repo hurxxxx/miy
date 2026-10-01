@@ -9,30 +9,30 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from dev_accounts import dev_login, auth_headers
-from mty_api.core.db import get_session_factory
-from mty_api.core.llm import LlmPoolConfig
-from mty_api.core.llm_errors import LlmProviderError
-from mty_api.domains.ai import decisions, decision_adapters, gateway, model_discovery
-from mty_api.domains.ai.decision_contracts import (
+from miy_api.core.db import get_session_factory
+from miy_api.core.llm import LlmPoolConfig
+from miy_api.core.llm_errors import LlmProviderError
+from miy_api.domains.ai import decisions, decision_adapters, gateway, model_discovery
+from miy_api.domains.ai.decision_contracts import (
     ChoiceQuestion,
     ScoreQuestion,
     ProbabilityQuestion,
     DecisionInput,
     DecisionError,
 )
-from mty_api.domains.ai.gateway import LlmWorkloadContext, execute_llm
-from mty_api.domains.ai.registry import get_ai_capability_registry
-from mty_api.domains.ai.model_settings_models import (
+from miy_api.domains.ai.gateway import LlmWorkloadContext, execute_llm
+from miy_api.domains.ai.registry import get_ai_capability_registry
+from miy_api.domains.ai.model_settings_models import (
     AiModelCatalogEntry,
     AiModelProviderConfig,
     AiModelPolicyDefault,
 )
-from mty_api.domains.ai.model_settings_service import (
+from miy_api.domains.ai.model_settings_service import (
     ai_model_registry_digest,
     resolve_ai_model_workload_route,
     AiModelSettingsError,
 )
-from mty_api.domains.auth.models import User, CompanyAppControl
+from miy_api.domains.auth.models import User, CompanyAppControl
 
 
 def request():
@@ -188,10 +188,10 @@ def test_timeout_no_retry(monkeypatch):
 
 @pytest.fixture
 def decision_setup(client, monkeypatch):
-    from mty_api.core.settings import get_settings
+    from miy_api.core.settings import get_settings
 
-    monkeypatch.setenv("MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS", "openrouter")
-    monkeypatch.setenv("MTY_AI_ALLOWED_EXTERNAL_PROVIDERS", "openrouter")
+    monkeypatch.setenv("MIY_LLM_EXTERNAL_ALLOWED_PROVIDERS", "openrouter")
+    monkeypatch.setenv("MIY_AI_ALLOWED_EXTERNAL_PROVIDERS", "openrouter")
     get_settings.cache_clear()
     session = dev_login(client)
     registry = get_ai_capability_registry()
@@ -209,7 +209,7 @@ def decision_setup(client, monkeypatch):
         allowed_runtime_adapters=("decision",),
     )
     with get_session_factory()() as db:
-        user_id = db.scalar(select(User.id).where(User.email == "admin@mty.local"))
+        user_id = db.scalar(select(User.id).where(User.email == "admin@miy.local"))
         db.add(
             AiModelProviderConfig(
                 provider_id="decision-test",
@@ -374,7 +374,7 @@ def test_discovery_only_proposes_non_reasoning_with_explicit_support(monkeypatch
 def test_security_block_scans_state_and_question_without_provider_call(
     client, decision_setup, monkeypatch
 ):
-    from mty_api.domains.ai.security_policy import AiSecurityPolicyDecision
+    from miy_api.domains.ai.security_policy import AiSecurityPolicyDecision
 
     context, _ = decision_setup
     scans, audit, calls = [], [], []
@@ -397,8 +397,8 @@ def test_security_block_scans_state_and_question_without_provider_call(
 def test_security_masking_preserves_payload_or_fails_closed(
     client, decision_setup, monkeypatch, invalid
 ):
-    from mty_api.domains.ai.security_policy import AiSecurityPolicyDecision
-    from mty_api.domains.ai.masking import ExternalPayloadMaskingResult
+    from miy_api.domains.ai.security_policy import AiSecurityPolicyDecision
+    from miy_api.domains.ai.masking import ExternalPayloadMaskingResult
 
     context, _ = decision_setup
     monkeypatch.setattr(gateway, "ai_security_enforcement_enabled", lambda db: True)
@@ -472,7 +472,7 @@ def test_decision_probe_checks_inventory_without_inference(client, decision_setu
 
 
 def test_registered_test_adapter_receives_structured_input(client, decision_setup, monkeypatch):
-    from mty_api.domains.ai.decision_contracts import DecisionResponse
+    from miy_api.domains.ai.decision_contracts import DecisionResponse
 
     context, _ = decision_setup
     seen = []
@@ -519,7 +519,7 @@ def test_decision_cannot_send_to_custom_host(monkeypatch):
 
 
 def test_registry_rejects_decision_tool_runtime_and_capability_mismatch():
-    from mty_api.domains.ai.registry import AiCapabilityRegistry
+    from miy_api.domains.ai.registry import AiCapabilityRegistry
 
     for extra in (
         {"required_capabilities": ("chat",)},

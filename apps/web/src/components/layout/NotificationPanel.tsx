@@ -10,7 +10,7 @@ import {
   formatRelativeTime,
   normalizeTimeZone,
 } from '@/src/platform/time/time-utils';
-import { Button } from '@mty/ui/primitives/button';
+import { Button } from '@miy/ui/primitives/button';
 import { Check, CheckCheck, Loader2, X } from 'lucide-react';
 import { LazyMotion, domAnimation, m } from 'motion/react';
 import {

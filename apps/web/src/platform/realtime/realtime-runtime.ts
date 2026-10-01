@@ -1,13 +1,13 @@
 import {
   AUTH_ACCESS_CHANGE_REASONS,
   AUTH_REALTIME_EVENT_TYPES,
-} from '@mty/contracts/auth';
+} from '@miy/contracts/auth';
 import {
   REALTIME_CLIENT_EVENT_TYPES,
   REALTIME_SERVER_EVENT_TYPES,
   type DocsPagesRealtimeSubscriptionMessage,
   type WhiteboardAccessRealtimeSubscriptionMessage,
-} from '@mty/contracts/realtime';
+} from '@miy/contracts/realtime';
 
 export type RealtimeStatus = 'connecting' | 'live' | 'offline';
 

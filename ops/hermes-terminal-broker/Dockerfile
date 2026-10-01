@@ -13,15 +13,15 @@ RUN pip install --no-cache-dir \
 
 WORKDIR /opt/broker
 
-COPY apps/api/src/mty_api/__init__.py mty_api/__init__.py
-COPY apps/api/src/mty_api/domains/__init__.py mty_api/domains/__init__.py
-COPY apps/api/src/mty_api/domains/hermes/__init__.py mty_api/domains/hermes/__init__.py
-COPY apps/api/src/mty_api/domains/hermes/research_sources.py mty_api/domains/hermes/research_sources.py
-COPY apps/api/src/mty_api/domains/hermes_terminal/__init__.py mty_api/domains/hermes_terminal/__init__.py
-COPY apps/api/src/mty_api/domains/hermes_terminal/legacy_policy.py mty_api/domains/hermes_terminal/legacy_policy.py
-COPY apps/api/src/mty_api/domains/hermes_terminal/broker_app.py mty_api/domains/hermes_terminal/broker_app.py
-COPY apps/api/src/mty_api/domains/hermes_terminal/broker_runtime.py mty_api/domains/hermes_terminal/broker_runtime.py
+COPY apps/api/src/miy_api/__init__.py miy_api/__init__.py
+COPY apps/api/src/miy_api/domains/__init__.py miy_api/domains/__init__.py
+COPY apps/api/src/miy_api/domains/hermes/__init__.py miy_api/domains/hermes/__init__.py
+COPY apps/api/src/miy_api/domains/hermes/research_sources.py miy_api/domains/hermes/research_sources.py
+COPY apps/api/src/miy_api/domains/hermes_terminal/__init__.py miy_api/domains/hermes_terminal/__init__.py
+COPY apps/api/src/miy_api/domains/hermes_terminal/legacy_policy.py miy_api/domains/hermes_terminal/legacy_policy.py
+COPY apps/api/src/miy_api/domains/hermes_terminal/broker_app.py miy_api/domains/hermes_terminal/broker_app.py
+COPY apps/api/src/miy_api/domains/hermes_terminal/broker_runtime.py miy_api/domains/hermes_terminal/broker_runtime.py
 
 EXPOSE 18765
 
-CMD ["uvicorn", "mty_api.domains.hermes_terminal.broker_app:app", "--host", "0.0.0.0", "--port", "18765", "--no-access-log"]
+CMD ["uvicorn", "miy_api.domains.hermes_terminal.broker_app:app", "--host", "0.0.0.0", "--port", "18765", "--no-access-log"]

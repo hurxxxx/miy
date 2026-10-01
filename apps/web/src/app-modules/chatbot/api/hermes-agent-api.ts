@@ -33,7 +33,7 @@ export function hermesApprovalToolName(
   const command = payload.command;
   if (typeof command !== 'string') return 'tool';
   const match = command.match(
-    /^MCP tool '([^']+)' on UNTRUSTED server 'mty-mcp-[0-9a-f]{20}-internal' wants to run\./,
+    /^MCP tool '([^']+)' on UNTRUSTED server 'miy-mcp-[0-9a-f]{20}-internal' wants to run\./,
   );
   return match?.[1]?.trim() || 'tool';
 }

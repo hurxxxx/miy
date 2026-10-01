@@ -14,9 +14,9 @@ import pytest
 @pytest.fixture
 def plugin(monkeypatch):
     run = ContextVar("native_test_run", default="run_test")
-    profile = "mty-" + "a" * 32
+    profile = "miy-" + "a" * 32
     namespace = hashlib.sha256(profile.encode()).hexdigest()[:20]
-    server = f"mty-mcp-{namespace}-internal"
+    server = f"miy-mcp-{namespace}-internal"
     transport = {"url": "http://api.test/internal", "headers": {"Authorization": "Bearer fixture"}}
     consent = []
     modules = {
@@ -41,8 +41,8 @@ def plugin(monkeypatch):
     tools_package = ModuleType("tools")
     tools_package.approval = sys.modules["tools.approval"]
     monkeypatch.setitem(sys.modules, "tools", tools_package)
-    source = Path(__file__).resolve().parents[3] / "ops/hermes/plugins/mty_runtime/__init__.py"
-    spec = importlib.util.spec_from_file_location("mty_plugin_test", source)
+    source = Path(__file__).resolve().parents[3] / "ops/hermes/plugins/miy_runtime/__init__.py"
+    spec = importlib.util.spec_from_file_location("miy_plugin_test", source)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return SimpleNamespace(
@@ -54,7 +54,7 @@ def test_parallel_internal_calls_bind_native_run_and_exact_arguments(plugin, mon
     calls = []
 
     def rpc(server, run_id, method, params):
-        if method == "mty/context":
+        if method == "miy/context":
             return {"allow_native_tools": True}
         if method == "tools/list":
             return {"tools": [{"name": "tasks.create", "annotations": {"readOnlyHint": False}}]}
@@ -168,7 +168,7 @@ def test_api_write_consent_failure_never_dispatches_write(plugin, monkeypatch, n
     approval._await_gateway_decision = failed_wait
 
     def rpc(server, run_id, method, params):
-        if method == "mty/context":
+        if method == "miy/context":
             return {"allow_native_tools": True}
         assert method == "tools/list", "Unapproved mutation dispatched"
         return {"tools": [{"name": "tasks.create", "annotations": {"readOnlyHint": False}}]}
@@ -186,9 +186,9 @@ def test_workload_blocks_native_tools_but_can_correct_and_submit(plugin, monkeyp
     attempts = []
 
     def rpc(server, run, method, params):
-        if method == "mty/context":
+        if method == "miy/context":
             return {"allow_native_tools": False}
-        assert method == "mty/submit"
+        assert method == "miy/submit"
         attempts.append(params)
         return {"accepted": isinstance(params["result"].get("answer"), int)}
 
@@ -202,19 +202,19 @@ def test_workload_blocks_native_tools_but_can_correct_and_submit(plugin, monkeyp
         )
 
     assert "error" in invoke("terminal", {})
-    assert "error" in invoke("mty_preview", {"path": "index.html"})
-    assert invoke("mty_submit_result", {"result": {"answer": "invalid"}}) == {"accepted": False}
-    assert invoke("mty_submit_result", {"result": {"answer": 42}}) == {"accepted": True}
+    assert "error" in invoke("miy_preview", {"path": "index.html"})
+    assert invoke("miy_submit_result", {"result": {"answer": "invalid"}}) == {"accepted": False}
+    assert invoke("miy_submit_result", {"result": {"answer": 42}}) == {"accepted": True}
     assert len(attempts) == 2
 
 
 @pytest.mark.parametrize("tool", ["tool_search", "tool_describe"])
 def test_workload_discovery_only_receives_server_admitted_definitions(plugin, monkeypatch, tool):
-    definitions = [{"type": "function", "function": {"name": "mty_submit_result"}}]
+    definitions = [{"type": "function", "function": {"name": "miy_submit_result"}}]
     calls = []
 
     def get_definitions(names, quiet):
-        assert names == {"mty_submit_result", "web_search"} and quiet
+        assert names == {"miy_submit_result", "web_search"} and quiet
         return definitions
 
     def dispatch(args, *, current_tool_defs):
@@ -234,7 +234,7 @@ def test_workload_discovery_only_receives_server_admitted_definitions(plugin, mo
         "_rpc",
         lambda *args: {"allow_native_tools": False, "native_tools": ["web_search"]},
     )
-    args = {"names": ["terminal", "mty_submit_result"], "queries": ["tools"]}
+    args = {"names": ["terminal", "miy_submit_result"], "queries": ["tools"]}
     assert json.loads(
         plugin.module.execute_tool(
             tool_name=tool, args=args, next_call=lambda: pytest.fail("Unscoped discovery denied")
@@ -249,7 +249,7 @@ def test_workload_discovery_failure_does_not_fall_through(plugin, monkeypatch):
     assert "error" in json.loads(
         plugin.module.execute_tool(
             tool_name="tool_describe",
-            args={"names": ["mty_submit_result"]},
+            args={"names": ["miy_submit_result"]},
             next_call=lambda: pytest.fail("Import failure must fail closed"),
         )
     )
@@ -262,19 +262,19 @@ def test_workload_discovery_failure_does_not_fall_through(plugin, monkeypatch):
         "web_search",
         "read_file",
         "terminal",
-        "mty_preview",
+        "miy_preview",
         "tool_search",
         "tool_describe",
-        "mty_submit_result",
+        "miy_submit_result",
     ],
 )
-def test_jobs_profile_intentionally_denies_tools_without_an_mty_run(
+def test_jobs_profile_intentionally_denies_tools_without_an_miy_run(
     plugin, monkeypatch, native_run_id, tool
 ):
     monkeypatch.setattr(
         sys.modules["hermes_constants"],
         "get_hermes_home",
-        lambda: Path("mty-" + "a" * 32 + "-jobs"),
+        lambda: Path("miy-" + "a" * 32 + "-jobs"),
     )
     monkeypatch.setattr(
         sys.modules["hermes_cli.config"], "load_config", lambda: {"mcp_servers": {}}
@@ -294,9 +294,9 @@ def test_registered_native_tool_requires_admission_for_every_call(plugin, monkey
     executions = []
 
     def rpc(server, run, method, params):
-        if method == "mty/context":
+        if method == "miy/context":
             return {"allow_native_tools": False, "native_tools": ["web_search"]}
-        assert method == "mty/native_admit" and params == {"tool": "web_search"}
+        assert method == "miy/native_admit" and params == {"tool": "web_search"}
         admissions.append(run)
         return {"accepted": len(admissions) == 1}
 
@@ -326,12 +326,12 @@ def interactive_catalog(plugin, monkeypatch):
         internal("tasks.list"),
         internal("tasks.create"),
         "terminal",
-        "mty_preview",
+        "miy_preview",
         "session_search",
-        "mty_submit_result",
+        "miy_submit_result",
         "unregistered_policy_tool",
         external,
-        prefix("mty-mcp-other-internal", "tasks.list"),
+        prefix("miy-mcp-other-internal", "tasks.list"),
     ]
     definitions = [{"type": "function", "function": {"name": name}} for name in names]
     scopes = {"run_test": ["tasks.list", "tasks.create"]}
@@ -340,7 +340,7 @@ def interactive_catalog(plugin, monkeypatch):
     def rpc(server, run_id, method, params):
         assert server is plugin.transport
         transport_calls.append((run_id, method))
-        if method == "mty/context":
+        if method == "miy/context":
             return {"allow_native_tools": True}
         assert method == "tools/list", "Discovery must never mutate"
         return {"tools": [{"name": name} for name in scopes[run_id]]}
@@ -394,10 +394,10 @@ def test_interactive_discovery_intersects_live_scope_and_execution_policy(
     assert set(result["tools"]) == {
         *(catalog.internal(name) for name in scope),
         "terminal",
-        "mty_preview",
+        "miy_preview",
         catalog.external,
     }
-    assert catalog.calls == [("run_test", "mty/context"), ("run_test", "tools/list")]
+    assert catalog.calls == [("run_test", "miy/context"), ("run_test", "tools/list")]
     assert catalog.definitions == original
 
 
@@ -423,7 +423,7 @@ def test_same_count_catalog_replacement_requires_refresh_then_recovers(interacti
     catalog = interactive_catalog
     catalog.scopes["run_test"] = ["tasks.list", "tasks.archive"]
     result = catalog.invoke()
-    assert result["code"] == "mty.tools.catalog_refresh_required"
+    assert result["code"] == "miy.tools.catalog_refresh_required"
     assert result["missing_tools"] == [catalog.internal("tasks.archive")]
     assert result["missing_count"] == 1
     # Simulate the native registry after the standard restart, keeping its size.
@@ -436,7 +436,7 @@ def test_same_count_catalog_replacement_requires_refresh_then_recovers(interacti
 
 def test_discovery_transport_failure_returns_stable_error(plugin, interactive_catalog, monkeypatch):
     monkeypatch.setattr(plugin.module, "_rpc", lambda *args: (_ for _ in ()).throw(OSError()))
-    assert interactive_catalog.invoke()["code"] == "mty.tools.discovery_unavailable"
+    assert interactive_catalog.invoke()["code"] == "miy.tools.discovery_unavailable"
 
 
 def test_removed_external_server_is_hidden(interactive_catalog):
@@ -479,7 +479,7 @@ def test_rejected_bridge_preserves_validation_only_for_admitted_tools(
         assert result["parameters"] == {"required": ["title"]}
         assert validated == [target]
     else:
-        assert result["code"] == "mty.tools.tool_unavailable"
+        assert result["code"] == "miy.tools.tool_unavailable"
         assert "parameters" not in result and validated == []
 
 
@@ -494,7 +494,7 @@ def test_parse_rejected_bridge_cannot_dispatch(plugin, interactive_catalog):
             next_call=lambda: pytest.fail("Malformed bridge cannot run"),
         )
     )
-    assert result["code"] == "mty.tools.invalid_tool_call"
+    assert result["code"] == "miy.tools.invalid_tool_call"
 
 
 def test_rpc_resolves_native_profile_secret_references_and_rejects_unresolved(plugin, monkeypatch):
@@ -521,7 +521,7 @@ def test_rpc_resolves_native_profile_secret_references_and_rejects_unresolved(pl
         ),
     )
     with pytest.raises(ValueError, match="Resolved profile authentication"):
-        plugin.module._rpc(server, "run_test", "mty/context", {})
+        plugin.module._rpc(server, "run_test", "miy/context", {})
     assert seen == []
     monkeypatch.setattr(
         sys.modules["tools.mcp_tool"],
@@ -531,7 +531,7 @@ def test_rpc_resolves_native_profile_secret_references_and_rejects_unresolved(pl
             "Authorization": "Bearer active-profile-secret",
         },
     )
-    assert plugin.module._rpc(server, "run_test", "mty/context", {}) == {"accepted": True}
+    assert plugin.module._rpc(server, "run_test", "miy/context", {}) == {"accepted": True}
     assert seen == ["Bearer active-profile-secret"]
     assert server["headers"]["Authorization"] == "Bearer ${PROFILE_KEY}"
 
@@ -582,7 +582,7 @@ def test_tool_rpc_waits_for_server_completion_beyond_thirty_seconds(plugin):
         thread.join(timeout=5)
 
 
-@pytest.mark.parametrize("method", ["tools/list", "mty/context", "tools/call"])
+@pytest.mark.parametrize("method", ["tools/list", "miy/context", "tools/call"])
 def test_rpc_bounds_control_waits_and_never_retries_uncertain_calls(plugin, monkeypatch, method):
     import httpx
 
@@ -618,7 +618,7 @@ def test_sent_tool_with_no_confirmation_reports_unknown_outcome_without_retry(
     calls = []
 
     def rpc(server, run, method, params):
-        if method == "mty/context":
+        if method == "miy/context":
             return {"allow_native_tools": True}
         if method == "tools/list":
             return {"tools": [{"name": "fixture.save", "annotations": {"readOnlyHint": False}}]}
@@ -675,12 +675,12 @@ def test_revoked_app_workload_history_cannot_be_read_from_admitted_chatbot(
     from uuid import uuid4
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
-    from mty_api.domains.auth.app_access import can_use_app
-    from mty_api.domains.auth.app_access_models import AppAccessPolicy
-    from mty_api.domains.auth.models import CompanyAppControl, User
-    from mty_api.domains.hermes.models import HermesProfileBinding
-    from mty_api.domains.hermes.repository import HermesRunRepository
-    from mty_api.domains.hermes.mcp_router import _available_tools
+    from miy_api.domains.auth.app_access import can_use_app
+    from miy_api.domains.auth.app_access_models import AppAccessPolicy
+    from miy_api.domains.auth.models import CompanyAppControl, User
+    from miy_api.domains.hermes.models import HermesProfileBinding
+    from miy_api.domains.hermes.repository import HermesRunRepository
+    from miy_api.domains.hermes.mcp_router import _available_tools
 
     engine = create_engine(application_postgres_dsn)
     try:
@@ -697,7 +697,7 @@ def test_revoked_app_workload_history_cannot_be_read_from_admitted_chatbot(
             binding = HermesProfileBinding(
                 id=str(uuid4()),
                 user_id=user.id,
-                profile_name="mty-" + "a" * 32,
+                profile_name="miy-" + "a" * 32,
                 status="active",
                 provider="openai",
                 model="test",
@@ -732,7 +732,7 @@ def test_revoked_app_workload_history_cannot_be_read_from_admitted_chatbot(
             assert not can_use_app(db, user_id=user.id, app_id="mail")
 
             def rpc(_server, native_run_id, method, _params):
-                assert method == "mty/context"
+                assert method == "miy/context"
                 _, _, active = _available_tools(
                     db, binding=binding, user=user, hermes_run_id=native_run_id
                 )

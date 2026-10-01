@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from mty_api.domains.notifications import realtime_event_types
+from miy_api.domains.notifications import realtime_event_types
 
 
 def test_notification_realtime_event_type_constants_match_client_contract() -> None:

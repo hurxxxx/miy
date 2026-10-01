@@ -1,4 +1,4 @@
-import { matchAppRoute } from '@mty/contracts/app-routes';
+import { matchAppRoute } from '@miy/contracts/app-routes';
 import {
   getShellPathname,
   resolveGlobalRouteAppId,

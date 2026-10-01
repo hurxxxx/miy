@@ -21,4 +21,4 @@ export {
   type CoreSubSidebarCreateMenuPosition as SubSidebarCreateMenuPosition,
   type CoreSubSidebarCreateMenuState as SubSidebarCreateMenuState,
   type CoreSubSidebarRect as SubSidebarRect,
-} from '@mty/core-web/sub-sidebar-frame';
+} from '@miy/core-web/sub-sidebar-frame';

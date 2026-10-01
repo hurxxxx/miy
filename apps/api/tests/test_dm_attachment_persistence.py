@@ -5,8 +5,8 @@ from io import BytesIO
 from fastapi import HTTPException
 import pytest
 
-from mty_api.domains.dm import attachment_persistence
-from mty_api.domains.dm.models import DmMessageAttachment
+from miy_api.domains.dm import attachment_persistence
+from miy_api.domains.dm.models import DmMessageAttachment
 
 
 def test_persist_created_attachment_stores_object_and_commits() -> None:

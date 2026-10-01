@@ -24,8 +24,8 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-vi.mock('@mty/ui', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@mty/ui')>()),
+vi.mock('@miy/ui', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@miy/ui')>()),
   useConfirm: () => ({
     confirm: vi.fn().mockResolvedValue(true),
     confirmDialog: null,
@@ -48,7 +48,7 @@ vi.mock('./admin-api', async (importOriginal) => ({
 const keyItem = {
   id: 'key-1',
   name: 'HR sync',
-  key_prefix: 'mty_pk_abcdefghijk',
+  key_prefix: 'miy_pk_abcdefghijk',
   scopes: ['organization:read'],
   status: 'active',
   created_by_name: 'Admin',
@@ -87,11 +87,11 @@ beforeEach(() => {
   vi.mocked(listPlatformApiKeys).mockResolvedValue(listResponse);
   vi.mocked(revealPlatformApiKey).mockResolvedValue({
     item: keyItem,
-    api_key: 'mty_pk_revealed_secret_value',
+    api_key: 'miy_pk_revealed_secret_value',
   });
   vi.mocked(createPlatformApiKey).mockResolvedValue({
     item: keyItem,
-    api_key: 'mty_pk_issued_secret_value',
+    api_key: 'miy_pk_issued_secret_value',
   });
 });
 
@@ -110,7 +110,7 @@ describe('AdminPlatformApiKeysSection', () => {
     );
 
     expect(
-      await screen.findByDisplayValue('mty_pk_revealed_secret_value'),
+      await screen.findByDisplayValue('miy_pk_revealed_secret_value'),
     ).toBeTruthy();
     const dialog = screen.getByRole('dialog');
     const closeButtons = within(dialog).getAllByRole('button', {
@@ -122,7 +122,7 @@ describe('AdminPlatformApiKeysSection', () => {
 
     await waitFor(() =>
       expect(
-        screen.queryByDisplayValue('mty_pk_revealed_secret_value'),
+        screen.queryByDisplayValue('miy_pk_revealed_secret_value'),
       ).toBeNull(),
     );
     expect(revealPlatformApiKey).toHaveBeenCalledWith('admin-token', 'key-1');
@@ -154,7 +154,7 @@ describe('AdminPlatformApiKeysSection', () => {
     );
 
     expect(
-      await screen.findByDisplayValue('mty_pk_issued_secret_value'),
+      await screen.findByDisplayValue('miy_pk_issued_secret_value'),
     ).toBeTruthy();
     expect(createPlatformApiKey).toHaveBeenCalledWith('admin-token', {
       name: 'Directory mirror',

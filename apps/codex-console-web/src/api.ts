@@ -27,19 +27,21 @@ export class ApiError extends Error {
   }
 }
 
-export type MTYSessionHandoff = { issuer: string; code: string };
+export type MIYSessionHandoff = { issuer: string; code: string };
 
-export function consumeMTYSessionHandoff(): MTYSessionHandoff | null {
+export function consumeMIYSessionHandoff(): MIYSessionHandoff | null {
   const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-  const issuer = fragment.get('mty_issuer');
-  const code = fragment.get('mty_code');
-  if (!issuer && !code) return null;
+  const current = fragment.has('miy_issuer') || fragment.has('miy_code');
+  const legacy = fragment.has('mty_issuer') || fragment.has('mty_code');
+  if (!current && !legacy) return null;
+  const issuer = fragment.get(current ? 'miy_issuer' : 'mty_issuer');
+  const code = fragment.get(current ? 'miy_code' : 'mty_code');
   window.history.replaceState(
     window.history.state,
     '',
     `${window.location.pathname}${window.location.search}`,
   );
-  if (!issuer || !code || !/^cc1_[A-Za-z0-9_-]{20,252}$/.test(code))
+  if ((current && legacy) || !issuer || !code || !/^cc1_[A-Za-z0-9_-]{20,252}$/.test(code))
     return null;
   return { issuer, code };
 }

@@ -57,10 +57,10 @@ ai_capability_modules=(...))`. An empty module list exposes no app tools.
 
 PMS provides the reference implementation:
 
-- `apps/api/src/mty_api/domains/pms/app_catalog.py`: module opt-in.
-- `apps/api/src/mty_api/domains/pms/tools.py`: AI inputs, options lookup,
+- `apps/api/src/miy_api/domains/pms/app_catalog.py`: module opt-in.
+- `apps/api/src/miy_api/domains/pms/tools.py`: AI inputs, options lookup,
   read operations and explicitly gated writes.
-- `apps/api/src/mty_api/domains/pms/approval_preview.py`: write previews.
+- `apps/api/src/miy_api/domains/pms/approval_preview.py`: write previews.
 
 ## Scope and lifecycle
 

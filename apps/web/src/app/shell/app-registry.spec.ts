@@ -3,11 +3,11 @@ import {
   APP_CONTRACTS,
   APP_ROUTE_BY_ID,
   type AppRouteId,
-} from '@mty/contracts/app-contracts';
+} from '@miy/contracts/app-contracts';
 import {
   getAppRouteChrome,
   getAppRoutePattern,
-} from '@mty/contracts/app-routes';
+} from '@miy/contracts/app-routes';
 
 import { communityGlobalRoutes } from '@/src/app-modules/community';
 import { settingsManifest } from '@/src/app-modules/settings';

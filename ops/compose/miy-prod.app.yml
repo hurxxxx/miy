@@ -1,0 +1,424 @@
+name: miy-prod-app
+
+x-hermes-sandbox-resources: &hermes-sandbox-resources
+  MIY_HERMES_TERMINAL_SANDBOX_NETWORK: &hermes-sandbox-network miy-prod-hermes-terminal-sandbox
+  MIY_HERMES_TERMINAL_EGRESS_CLIENT_VOLUME: &hermes-sandbox-ca-volume miy-prod-hermes-terminal-egress-client
+
+x-miy-app: &miy-app
+  image: miy-app:prod
+  network_mode: host
+  env_file:
+    - ../../.env
+  environment: &miy-app-environment
+    # The external provider credential is available only to Hermes services.
+    OPENROUTER_API_KEY: ""
+    MIY_API_AUTO_MIGRATE: "0"
+    MIY_API_FRONTEND_DIST_DIR: /opt/miy/dist/apps/web
+    MIY_API_RECORDING_SPOOL_DIR: /opt/miy/.runtime/recording-spool
+    MIY_API_SERVE_FRONTEND: "true"
+    MIY_OPF_CACHE_DIR: /opt/miy/.runtime/opf-cache
+  init: true
+  volumes:
+    - miy-prod-app-runtime:/opt/miy/.runtime
+
+services:
+  hermes-bootstrap:
+    image: nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
+    container_name: miy-prod-hermes-bootstrap
+    network_mode: host
+    restart: "no"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /run:rw,exec,nosuid,nodev,mode=0755
+      - /tmp:rw,exec,nosuid,nodev,mode=1777
+    environment:
+      API_SERVER_KEY: ${MIY_HERMES_API_KEY:-}
+      HERMES_GATEWAY_NO_SUPERVISE: "1"
+      HERMES_GID: "10000"
+      HERMES_UID: "10000"
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    command:
+      - /bin/sh
+      - -ec
+      - >-
+        /opt/hermes/.venv/bin/python /opt/miy-hermes/bootstrap.py &&
+        /opt/hermes/.venv/bin/hermes gateway stop
+    volumes:
+      - miy-prod-hermes-data:/opt/data
+      - ../hermes/bootstrap.py:/opt/miy-hermes/bootstrap.py:ro
+
+  hermes-gateway:
+    image: nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
+    container_name: miy-prod-hermes-gateway
+    network_mode: host
+    restart: unless-stopped
+    read_only: true
+    user: '10000:10000'
+    group_add:
+      - '${MIY_HERMES_DOCKER_GID:-0}'
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /run:rw,exec,nosuid,nodev,mode=0755
+      - /tmp:rw,exec,nosuid,nodev,mode=1777
+    depends_on:
+      hermes-bootstrap:
+        condition: service_completed_successfully
+      hermes-terminal-egress:
+        condition: service_healthy
+    environment:
+      <<: *hermes-sandbox-resources
+      API_SERVER_ENABLED: 'true'
+      API_SERVER_HOST: 127.0.0.1
+      API_SERVER_KEY: ${MIY_HERMES_API_KEY:-}
+      API_SERVER_PORT: ${MIY_HERMES_RUNTIME_PORT:-8642}
+      GATEWAY_MULTIPLEX_PROFILES: 'true'
+      HERMES_GATEWAY_NO_SUPERVISE: '1'
+      HERMES_WRITE_SAFE_ROOT: /workspace
+      HERMES_GID: '10000'
+      HERMES_UID: '10000'
+    entrypoint:
+      - /opt/hermes/.venv/bin/python
+      - /opt/miy-hermes/gateway_entry.py
+    command:
+      - gateway
+      - run
+      - --no-supervise
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - miy-prod-hermes-data:/opt/data
+      - ../hermes/gateway_entry.py:/opt/miy-hermes/gateway_entry.py:ro
+      - ../hermes/plugins/miy_runtime:/opt/hermes/plugins/miy_runtime:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS
+          -H "Authorization: Bearer $${API_SERVER_KEY}"
+          "http://127.0.0.1:$${API_SERVER_PORT}/health/detailed" >/dev/null
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  hermes-dashboard:
+    image: nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
+    container_name: miy-prod-hermes-dashboard
+    network_mode: host
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /run:rw,exec,nosuid,nodev,mode=0755
+      - /tmp:rw,exec,nosuid,nodev,mode=1777
+    depends_on:
+      hermes-gateway:
+        condition: service_healthy
+    environment:
+      GATEWAY_MULTIPLEX_PROFILES: "true"
+      HERMES_DASHBOARD_SESSION_TOKEN: ${MIY_HERMES_MANAGEMENT_TOKEN:-}
+      HERMES_GID: "10000"
+      HERMES_UID: "10000"
+    command:
+      - dashboard
+      - --host
+      - 127.0.0.1
+      - --port
+      - ${MIY_HERMES_MANAGEMENT_PORT:-9119}
+      - --no-open
+    volumes:
+      - miy-prod-hermes-data:/opt/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS
+          "http://127.0.0.1:${MIY_HERMES_MANAGEMENT_PORT:-9119}/api/health"
+          >/dev/null
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  hermes-terminal-egress-client-init:
+    image: nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
+    container_name: miy-prod-hermes-terminal-egress-client-init
+    user: "0:0"
+    read_only: true
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+    entrypoint:
+      - /bin/sh
+      - -ec
+    command:
+      - |
+        chown 0:0 /client
+        chmod 0700 /client
+        chown 10000:10000 /client
+    volumes:
+      - miy-prod-hermes-terminal-egress-client:/client
+    network_mode: none
+
+  hermes-terminal-egress:
+    image: nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
+    container_name: miy-prod-hermes-terminal-egress
+    restart: unless-stopped
+    depends_on:
+      hermes-terminal-egress-client-init:
+        condition: service_completed_successfully
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /run:rw,exec,nosuid,nodev,mode=0755
+      - /tmp:rw,exec,nosuid,nodev,mode=1777
+    environment:
+      HERMES_GID: "10000"
+      HERMES_HOME: /opt/data
+      HERMES_UID: "10000"
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      MIY_HERMES_TERMINAL_EGRESS_CLIENT_DIR: /opt/data/home/egress-client
+    command:
+      - /opt/hermes/.venv/bin/python
+      - /opt/miy-hermes/terminal_egress.py
+    volumes:
+      - miy-prod-hermes-terminal-egress-data:/opt/data
+      - miy-prod-hermes-terminal-egress-client:/opt/data/home/egress-client
+      - ../hermes/terminal_egress.py:/opt/miy-hermes/terminal_egress.py:ro
+    healthcheck:
+      test:
+        - CMD
+        - /opt/hermes/.venv/bin/python
+        - -c
+        - >-
+          import pathlib,socket;
+          assert pathlib.Path('/opt/data/home/egress-client/ca.crt').is_file();
+          s=socket.create_connection(('127.0.0.1',19090),3);s.close()
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+    networks:
+      miy-hermes-terminal-sandbox:
+        aliases:
+          - hermes-terminal-egress
+      default: {}
+
+  hermes-terminal-broker:
+    image: miy-app:prod
+    container_name: miy-prod-hermes-terminal-broker
+    user: "0:0"
+    restart: unless-stopped
+    depends_on:
+      hermes-terminal-egress:
+        condition: service_healthy
+    environment:
+      <<: *hermes-sandbox-resources
+      MIY_HERMES_MCP_SHARED_SECRET: ${MIY_HERMES_MCP_SHARED_SECRET:-}
+      MIY_HERMES_TERMINAL_BROKER_INSTANCE_ID: prod-broker
+      MIY_HERMES_TERMINAL_EGRESS_CLIENT_DIR: /run/miy-hermes-terminal-egress
+      MIY_HERMES_TERMINAL_IMAGE: nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
+      MIY_HERMES_TERMINAL_MCP_RELAY_BASE_URL: http://hermes-terminal-broker:18765/mcp
+      MIY_HERMES_TERMINAL_MCP_SOCKET_PATH: /run/miy/hermes-terminal-mcp.sock
+      MIY_HERMES_TERMINAL_PROFILE_ARCHIVE_MAX_BYTES: ${MIY_HERMES_TERMINAL_PROFILE_ARCHIVE_MAX_BYTES:-67108864}
+      MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE: ${MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE:?Production Hermes resource namespace is required}
+      MIY_HERMES_TERMINAL_WORKSPACE_ARCHIVE_MAX_BYTES: ${MIY_HERMES_TERMINAL_WORKSPACE_ARCHIVE_MAX_BYTES:-268435456}
+      MIY_HERMES_TERMINAL_WORKSPACE_LIVE_MAX_BYTES: ${MIY_HERMES_TERMINAL_WORKSPACE_ARCHIVE_MAX_BYTES:-268435456}
+    command:
+      - apps/api/.venv/bin/uvicorn
+      - miy_api.domains.hermes_terminal.broker_app:app
+      - --app-dir
+      - apps/api/src
+      - --host
+      - 0.0.0.0
+      - --port
+      - "18765"
+      - --no-access-log
+    ports:
+      - "127.0.0.1:${MIY_HERMES_TERMINAL_BROKER_PORT:-8765}:18765"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - miy-prod-app-runtime:/run/miy
+      - miy-prod-hermes-terminal-egress-client:/run/miy-hermes-terminal-egress:ro
+    healthcheck:
+      test:
+        - CMD
+        - apps/api/.venv/bin/python
+        - -c
+        - >-
+          import json,urllib.request;
+          body=json.load(urllib.request.urlopen('http://127.0.0.1:18765/healthz',timeout=5));
+          assert body.get('ready') is True
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    networks:
+      miy-hermes-terminal-sandbox:
+        aliases:
+          - hermes-terminal-broker
+      default: {}
+
+  migrate:
+    <<: *miy-app
+    command:
+      - apps/api/.venv/bin/python
+      - -c
+      - from miy_api.core.db import run_migrations; run_migrations()
+    restart: "no"
+
+  api:
+    <<: *miy-app
+    container_name: miy-prod-api
+    depends_on:
+      hermes-dashboard:
+        condition: service_healthy
+      hermes-gateway:
+        condition: service_healthy
+      hermes-terminal-broker:
+        condition: service_healthy
+      privacy-filter:
+        condition: service_healthy
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        exec apps/api/.venv/bin/uvicorn miy_api.main:app \
+          --app-dir apps/api/src \
+          --host "$${MIY_APP_BIND_HOST:-127.0.0.1}" \
+          --port "$${MIY_APP_PORT:-8000}" \
+          --proxy-headers \
+          --forwarded-allow-ips "$${MIY_APP_FORWARDED_ALLOW_IPS:-127.0.0.1}"
+    restart: unless-stopped
+    stop_grace_period: 45s
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          apps/api/.venv/bin/python -c
+          'import os, urllib.request;
+          urllib.request.urlopen(
+          "http://127.0.0.1:" + os.environ.get("MIY_APP_PORT", "8000") + "/healthz",
+          timeout=5).read()'
+      interval: 15s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
+  privacy-filter:
+    <<: *miy-app
+    container_name: miy-prod-privacy-filter
+    command:
+      - apps/api/.venv/bin/python
+      - -c
+      - |
+        import os
+        from urllib.parse import urlparse
+        import uvicorn
+        endpoint = urlparse(os.environ["MIY_OPF_SERVICE_BASE_URL"])
+        uvicorn.run(
+            "miy_api.domains.ai.privacy_filter_service:app",
+            app_dir="apps/api/src",
+            host=endpoint.hostname,
+            port=endpoint.port,
+        )
+    restart: unless-stopped
+    stop_grace_period: 45s
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          apps/api/.venv/bin/python -c
+          'import json, os, urllib.request;
+          body = json.load(urllib.request.urlopen(
+          os.environ["MIY_OPF_SERVICE_BASE_URL"].rstrip("/") + "/healthz",
+          timeout=5));
+          assert body.get("ready") is True'
+      interval: 15s
+      timeout: 8s
+      retries: 20
+      start_period: 5m
+
+  worker:
+    <<: *miy-app
+    container_name: miy-prod-worker
+    depends_on:
+      hermes-dashboard:
+        condition: service_healthy
+      hermes-gateway:
+        condition: service_healthy
+    environment:
+      <<: *miy-app-environment
+      MIY_WORKER_QUEUE_GROUP: all
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        queues="$$(apps/worker/.venv/bin/python -m miy_worker.queue_contract --celery-queues)"
+        exec apps/worker/.venv/bin/celery \
+          -A miy_worker.celery_app:celery_app worker \
+          --loglevel=info \
+          --queues "$${queues}" \
+          --hostname "prod-worker@%h"
+    restart: unless-stopped
+    stop_grace_period: 65m
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          apps/worker/.venv/bin/celery
+          -A miy_worker.celery_app:celery_app inspect ping
+          --destination "prod-worker@$${HOSTNAME}" --timeout 5
+          | grep -q pong
+      interval: 20s
+      timeout: 10s
+      retries: 12
+      start_period: 45s
+
+  beat:
+    <<: *miy-app
+    container_name: miy-prod-beat
+    environment:
+      <<: *miy-app-environment
+      MIY_WORKER_QUEUE_GROUP: beat
+    command:
+      - apps/worker/.venv/bin/celery
+      - -A
+      - miy_worker.celery_app:celery_app
+      - beat
+      - --loglevel=info
+    restart: unless-stopped
+    stop_grace_period: 45s
+    healthcheck:
+      test:
+        - CMD
+        - apps/worker/.venv/bin/python
+        - -m
+        - miy_worker.beat_health
+      interval: 30s
+      timeout: 5s
+      retries: 2
+      start_period: 90s
+
+volumes:
+  miy-prod-app-runtime:
+    name: miy-prod-app-runtime
+  miy-prod-hermes-data:
+    name: miy-prod-hermes-data
+  miy-prod-hermes-terminal-egress-data:
+    name: miy-prod-hermes-terminal-egress-data
+  miy-prod-hermes-terminal-egress-client:
+    name: *hermes-sandbox-ca-volume
+
+networks:
+  miy-hermes-terminal-sandbox:
+    name: *hermes-sandbox-network
+    internal: true
