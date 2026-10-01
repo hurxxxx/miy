@@ -11,10 +11,10 @@ from dev_accounts import dev_login
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from mty_api.core import llm as llm_core
-from mty_api.core.db import get_engine
-from mty_api.core.settings import get_settings
-from mty_api.domains.auth.models import AuditLog
+from miy_api.core import llm as llm_core
+from miy_api.core.db import get_engine
+from miy_api.core.settings import get_settings
+from miy_api.domains.auth.models import AuditLog
 from hermes_route_stub import hermes_route_stub  # noqa: F401
 
 pytestmark = pytest.mark.usefixtures("hermes_route_stub")

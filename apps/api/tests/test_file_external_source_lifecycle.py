@@ -12,16 +12,16 @@ from starlette.exceptions import HTTPException
 
 from company_admission_fixture import company_authority_tables, seed_company_app_access
 
-from mty_api.core.db import Base
-from mty_api.domains.auth.models import User, UserSystemRole
-from mty_api.domains.pms.space_models import Team, TeamMember, SpaceGroupBinding
-from mty_api.domains.groups.models import Group, GroupMember
-from mty_api.domains.source_access.policy import SourceAclPolicy
+from miy_api.core.db import Base
+from miy_api.domains.auth.models import User, UserSystemRole
+from miy_api.domains.pms.space_models import Team, TeamMember, SpaceGroupBinding
+from miy_api.domains.groups.models import Group, GroupMember
+from miy_api.domains.source_access.policy import SourceAclPolicy
 from sqlalchemy.exc import IntegrityError
-from mty_api.domains.files import external_lifecycle, service as files_service
-from mty_api.domains.files.external_access import authorize_explicit_file_ids
-from mty_api.domains.files.external_lifecycle import ExternalFileGrant
-from mty_api.domains.files.models import (
+from miy_api.domains.files import external_lifecycle, service as files_service
+from miy_api.domains.files.external_access import authorize_explicit_file_ids
+from miy_api.domains.files.external_lifecycle import ExternalFileGrant
+from miy_api.domains.files.models import (
     FileManagerCorpus,
     FileManagerFile,
     FileManagerFileAccessGrant,
@@ -29,13 +29,13 @@ from mty_api.domains.files.models import (
     FileManagerFolder,
     FileManagerStorageCleanupJob,
 )
-from mty_api.domains.files.source_access import (
+from miy_api.domains.files.source_access import (
     authorize_many_files,
     can_read_file,
     has_accessible_file,
 )
-from mty_api.domains.rag.contracts import RagSyncOperation
-from mty_api.domains.retrieval.models import RetrievalPartition
+from miy_api.domains.rag.contracts import RagSyncOperation
+from miy_api.domains.retrieval.models import RetrievalPartition
 
 
 CORPUS_ID = "corpus-source"

@@ -5,4 +5,4 @@ export {
   resolveCoreAppGate as resolveAppGate,
   type CoreAppGateResult as AppGateResult,
   type CoreAppGateStatus as AppGateStatus,
-} from '@mty/core-web/app-access';
+} from '@miy/core-web/app-access';

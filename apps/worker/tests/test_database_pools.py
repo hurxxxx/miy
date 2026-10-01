@@ -10,15 +10,15 @@ from sqlalchemy.pool import QueuePool
 
 def test_task_sessions_reuse_one_engine(tmp_path, monkeypatch) -> None:
     """Periodic tasks must not accumulate independent pools in one child."""
-    monkeypatch.setenv("MTY_POSTGRES_DSN", f"sqlite:///{tmp_path / 'tasks.db'}")
-    monkeypatch.setenv("MTY_WORKER_QUEUE_GROUP", "default")
-    settings = importlib.import_module("mty_worker.settings")
+    monkeypatch.setenv("MIY_POSTGRES_DSN", f"sqlite:///{tmp_path / 'tasks.db'}")
+    monkeypatch.setenv("MIY_WORKER_QUEUE_GROUP", "default")
+    settings = importlib.import_module("miy_worker.settings")
     settings.get_settings.cache_clear()
-    runtime = importlib.import_module("mty_worker.runtime")
-    mail = importlib.import_module("mty_worker.tasks.mail")
-    search = importlib.import_module("mty_worker.tasks.search_index")
-    media = importlib.import_module("mty_worker.tasks.media")
-    core_db = importlib.import_module("mty_api.core.db")
+    runtime = importlib.import_module("miy_worker.runtime")
+    mail = importlib.import_module("miy_worker.tasks.mail")
+    search = importlib.import_module("miy_worker.tasks.search_index")
+    media = importlib.import_module("miy_worker.tasks.media")
+    core_db = importlib.import_module("miy_api.core.db")
     monkeypatch.setattr(core_db, "_configured_engine", None)
     runtime.configure_database()
     factories = (
@@ -50,12 +50,12 @@ def test_task_sessions_reuse_one_engine(tmp_path, monkeypatch) -> None:
 
 def test_worker_pool_returns_overflow_connections(tmp_path, monkeypatch) -> None:
     """Exercise the configured pool with real connections, including rollback."""
-    runtime = importlib.import_module("mty_worker.runtime")
-    settings_module = importlib.import_module("mty_worker.settings")
+    runtime = importlib.import_module("miy_worker.runtime")
+    settings_module = importlib.import_module("miy_worker.settings")
     settings = settings_module.Settings(
         _env_file=None,
-        MTY_POSTGRES_DSN="postgresql+psycopg://unused/test",
-        MTY_WORKER_DB_POOL_TIMEOUT=1,
+        MIY_POSTGRES_DSN="postgresql+psycopg://unused/test",
+        MIY_WORKER_DB_POOL_TIMEOUT=1,
     )
     monkeypatch.setattr(runtime, "get_settings", lambda: settings)
     engines = []
@@ -94,9 +94,9 @@ def test_worker_pool_returns_overflow_connections(tmp_path, monkeypatch) -> None
 
 
 def test_worker_bootstrap_and_fork_share_the_domain_engine(tmp_path, monkeypatch) -> None:
-    runtime = importlib.import_module("mty_worker.runtime")
-    celery_module = importlib.import_module("mty_worker.celery_app")
-    core_db = importlib.import_module("mty_api.core.db")
+    runtime = importlib.import_module("miy_worker.runtime")
+    celery_module = importlib.import_module("miy_worker.celery_app")
+    core_db = importlib.import_module("miy_api.core.db")
     engine = create_engine(f"sqlite:///{tmp_path / 'fork.db'}")
     monkeypatch.setattr(runtime, "postgres_engine", lambda: engine)
     monkeypatch.setattr(core_db, "_configured_engine", None)
@@ -129,7 +129,7 @@ def test_empty_periodic_tasks_return_connections(tmp_path, monkeypatch, task_nam
     """Real task finally blocks must release connections even after a failed poll."""
     from sqlalchemy.orm import sessionmaker
 
-    module = importlib.import_module(f"mty_worker.tasks.{task_name}")
+    module = importlib.import_module(f"miy_worker.tasks.{task_name}")
     engine = create_engine(f"sqlite:///{tmp_path / 'maintenance.db'}", pool_size=1)
     factory = sessionmaker(bind=engine)
 

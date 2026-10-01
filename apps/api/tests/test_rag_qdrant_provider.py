@@ -10,12 +10,12 @@ import pytest
 from pydantic import ValidationError
 from qdrant_client import QdrantClient, models
 
-from mty_api.domains.document_processing import EvidenceBlock
-from mty_api.domains.files.rag_projection import (
+from miy_api.domains.document_processing import EvidenceBlock
+from miy_api.domains.files.rag_projection import (
     FileExtractionArtifact,
     build_file_rag_projection,
 )
-from mty_api.domains.rag.contracts import (
+from miy_api.domains.rag.contracts import (
     RagDeleteRequest,
     RagProjection,
     RagQueryRequest,
@@ -25,9 +25,9 @@ from mty_api.domains.rag.contracts import (
     RagVectorSearchMode,
     RagVectorSearchRequest,
 )
-from mty_api.domains.rag.providers import RagProviderConfigurationError
-from mty_api.domains.rag.providers.fake import FakeEmbeddingClient
-from mty_api.domains.rag.providers.openai_compatible import (
+from miy_api.domains.rag.providers import RagProviderConfigurationError
+from miy_api.domains.rag.providers.fake import FakeEmbeddingClient
+from miy_api.domains.rag.providers.openai_compatible import (
     InferenceGatewayOcrClient,
     OpenAICompatibleEmbeddingClient,
     OpenAICompatibleRerankClient,
@@ -35,15 +35,15 @@ from mty_api.domains.rag.providers.openai_compatible import (
     RagProviderTransientError,
     _clear_inference_gateway_health_cache,
 )
-from mty_api.domains.rag.providers.qdrant import QdrantVectorIndexClient
-from mty_api.domains.rag.query_service import RagQueryService
-from mty_api.domains.rag.runtime import (
+from miy_api.domains.rag.providers.qdrant import QdrantVectorIndexClient
+from miy_api.domains.rag.query_service import RagQueryService
+from miy_api.domains.rag.runtime import (
     PARTITIONED_RAG_GENERATION_SCHEMA_VERSION,
     resolve_partitioned_rag_collection_alias,
     resolve_partitioned_rag_collection_name,
 )
-from mty_api.domains.rag.service import RagService
-from mty_api.domains.retrieval.projection_identity import canonical_vector_point_id
+from miy_api.domains.rag.service import RagService
+from miy_api.domains.retrieval.projection_identity import canonical_vector_point_id
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:Payload indexes have no effect in the local Qdrant.*"
@@ -836,7 +836,7 @@ def test_partitioned_existing_collection_fails_closed_on_payload_schema_drift(
 
 def test_optional_metadata_filters_do_not_change_the_v1_generation_schema() -> None:
     settings = SimpleNamespace(
-        rag_qdrant_collection_prefix="mty-test-rag",
+        rag_qdrant_collection_prefix="miy-test-rag",
         rag_embedding_provider="fake",
         rag_local_embedding_model="unused-for-fake",
     )

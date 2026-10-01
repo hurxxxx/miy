@@ -28,7 +28,7 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: mocks.t }) }));
 vi.mock('@/src/platform/auth/auth-provider', () => ({
   useAuth: () => ({ token: 'test-token' }),
 }));
-vi.mock('@mty/ui', () => ({ useFeedback: () => mocks.feedback }));
+vi.mock('@miy/ui', () => ({ useFeedback: () => mocks.feedback }));
 vi.mock('../api/hermes-agent-api', () => ({
   listHermesFiles: mocks.listFiles,
   listHermesFileRevisions: mocks.listRevisions,

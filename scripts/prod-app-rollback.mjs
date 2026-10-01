@@ -197,7 +197,7 @@ export function prepareRollbackBundle(
     rmSync(archive);
     checkSnapshotTree(bundle);
     for (const relative of [
-      'ops/compose/mty-prod.app.yml',
+      'ops/compose/miy-prod.app.yml',
       'scripts/prod-app-config.mjs',
       'scripts/prod-app-smoke.mjs',
       'package.json',

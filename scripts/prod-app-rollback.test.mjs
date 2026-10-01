@@ -34,14 +34,14 @@ const shellQuote = (value) => `'${value.replaceAll("'", "'\\''")}'`;
 
 function fixture(t, { symlink = false } = {}) {
   const directory = mkdtempSync(
-    path.join(os.tmpdir(), 'mty-prod-rollback-test-'),
+    path.join(os.tmpdir(), 'miy-prod-rollback-test-'),
   );
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const rootDir = path.join(directory, 'prod');
   mkdirSync(rootDir);
   const files = {
-    'ops/compose/mty-prod.app.yml':
-      'services:\n  api:\n    image: mty-app:prod\n    env_file: [../../.env]\n',
+    'ops/compose/miy-prod.app.yml':
+      'services:\n  api:\n    image: miy-app:prod\n    env_file: [../../.env]\n',
     'ops/hermes/bootstrap.py': '# previous helper\n',
     'scripts/prod-app-config.mjs': `import {readFileSync} from 'node:fs';\nif (!readFileSync(process.argv[2], 'utf8').includes('PREVIOUS_CONTRACT=required')) { console.error('synthetic-sensitive-environment'); process.exit(1); }\n`,
     'scripts/prod-app-smoke.mjs': '// previous smoke\n',
@@ -97,7 +97,7 @@ function fixture(t, { symlink = false } = {}) {
     rootDir,
     envFile,
     image: IMAGE,
-    expectedImage: 'mty-app:prod',
+    expectedImage: 'miy-app:prod',
   };
   return { rootDir, envFile, revision, run, options, calls, directory };
 }
@@ -173,7 +173,7 @@ for (const invalid of [
       prepareRollbackBundle(
         {
           ...f.options,
-          image: invalid === 'mutable-tag' ? 'mty-app:prod' : IMAGE,
+          image: invalid === 'mutable-tag' ? 'miy-app:prod' : IMAGE,
         },
         { run },
       ),
@@ -324,10 +324,10 @@ function shellRestore(
 set -euo pipefail
 ROOT_DIR=${shellQuote(f.rootDir)}
 ENV_FILE=${shellQuote(currentEnv)}
-COMPOSE_FILE="$ROOT_DIR/ops/compose/mty-prod.app.yml"
-COMPOSE_PROJECT_NAME=mty-prod-app
-CURRENT_IMAGE=mty-app:prod
-PREVIOUS_IMAGE=mty-app:prod-previous
+COMPOSE_FILE="$ROOT_DIR/ops/compose/miy-prod.app.yml"
+COMPOSE_PROJECT_NAME=miy-prod-app
+CURRENT_IMAGE=miy-app:prod
+PREVIOUS_IMAGE=miy-app:prod-previous
 ROLLBACK_IMAGE=${shellQuote(mode === 'explicit' ? IMAGE : '')}
 ROLLBACK_BUNDLE=${shellQuote(mode === 'explicit' ? f.bundle : '')}
 EVENTS=${shellQuote(events)}
@@ -360,7 +360,7 @@ node() {
     [[ "$FAIL_STAGE" != env ]] || return 4
     ${shellQuote(process.execPath)} ${shellQuote(helper)} "\${@:2}"
   elif [[ "$1" == *prod-app-smoke.mjs ]]; then
-    printf 'smoke:%s:%s\\n' "$1" "$MTY_EXPECTED_REVISION" >> "$EVENTS"
+    printf 'smoke:%s:%s\\n' "$1" "$MIY_EXPECTED_REVISION" >> "$EVENTS"
     [[ "$FAIL_STAGE" != smoke ]] || return 4
   else return 9; fi
 }
@@ -402,7 +402,7 @@ test('explicit rollback restores pinned image, root/bundle env, previous definit
     f.events,
     new RegExp(
       f.bundle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-        '/ops/compose/mty-prod.app.yml',
+        '/ops/compose/miy-prod.app.yml',
     ),
   );
   assert.ok(
@@ -504,17 +504,17 @@ test('both Compose paths discard inherited product overrides while preserving Do
       `
 set -euo pipefail
 ENV_FILE=/synthetic/candidate/.env
-COMPOSE_FILE=/synthetic/candidate/ops/compose/mty-prod.app.yml
-COMPOSE_PROJECT_NAME=mty-prod-app
+COMPOSE_FILE=/synthetic/candidate/ops/compose/miy-prod.app.yml
+COMPOSE_PROJECT_NAME=miy-prod-app
 ROLLBACK_BUNDLE=/synthetic/previous
-export MTY_HERMES_API_KEY=synthetic-candidate
-export MTY_HERMES_MCP_SHARED_SECRET=synthetic-candidate
-export MTY_HERMES_TERMINAL_BROKER_PORT=19999
+export MIY_HERMES_API_KEY=synthetic-candidate
+export MIY_HERMES_MCP_SHARED_SECRET=synthetic-candidate
+export MIY_HERMES_TERMINAL_BROKER_PORT=19999
 export OPENROUTER_API_KEY=synthetic-candidate
 ${functions}
 docker() {
   local checked_key
-  for checked_key in MTY_HERMES_API_KEY MTY_HERMES_MCP_SHARED_SECRET MTY_HERMES_TERMINAL_BROKER_PORT OPENROUTER_API_KEY; do
+  for checked_key in MIY_HERMES_API_KEY MIY_HERMES_MCP_SHARED_SECRET MIY_HERMES_TERMINAL_BROKER_PORT OPENROUTER_API_KEY; do
     [[ ! -v "$checked_key" ]] || return 9
   done
   [[ "$DOCKER_HOST" == unix:///synthetic/docker.sock && -n "$PATH" ]] || return 9
@@ -522,7 +522,7 @@ docker() {
 }
 compose config
 rollback_compose config
-[[ "$MTY_HERMES_API_KEY" == synthetic-candidate && "$OPENROUTER_API_KEY" == synthetic-candidate ]]
+[[ "$MIY_HERMES_API_KEY" == synthetic-candidate && "$OPENROUTER_API_KEY" == synthetic-candidate ]]
 `,
     ],
     {
@@ -550,8 +550,8 @@ for (const command of ['deploy', 'rollback']) {
         '-c',
         `
 set -euo pipefail
-CURRENT_IMAGE=mty-app:prod
-PREVIOUS_IMAGE=mty-app:prod-previous
+CURRENT_IMAGE=miy-app:prod
+PREVIOUS_IMAGE=miy-app:prod-previous
 ROLLBACK_IMAGE=""
 ROLLBACK_ENV_FILE=""
 RELEASE_MR=""
@@ -580,7 +580,7 @@ ${dispatcher}
     assert.equal(result.status, 6);
     assert.equal(
       result.stdout,
-      `checkout\nrelease\nlock\nprepare:mty-app:${command === 'deploy' ? 'prod' : 'prod-previous'}\n`,
+      `checkout\nrelease\nlock\nprepare:miy-app:${command === 'deploy' ? 'prod' : 'prod-previous'}\n`,
     );
   });
 }

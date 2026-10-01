@@ -11,26 +11,26 @@ from pydantic import BaseModel
 import pytest
 from sqlalchemy import select
 
-from mty_api.core.db import get_session_factory
-from mty_api.core.i18n import LocalizedApiMessage
-from mty_api.core.principal import user_principal
-from mty_api.domains.ai import agent as ai_agent
-from mty_api.domains.ai import approvals as ai_approvals
-from mty_api.domains.ai import mcp as ai_mcp
-from mty_api.domains.ai import router as ai_router
-from mty_api.domains.ai.tool_contracts import AgentToolSpec
-from mty_api.domains.ai.runtime.models import AgentInvocation, AgentRun
-from mty_api.domains.ai.runtime.persistence import append_trace_event
-from mty_api.domains.ai import tool_service as ai_tool_service
-from mty_api.domains.ai.tool_runtime import ToolCallExecution
-from mty_api.core.llm_adapters import StreamChunk
-from mty_api.domains.ai.registry import (
+from miy_api.core.db import get_session_factory
+from miy_api.core.i18n import LocalizedApiMessage
+from miy_api.core.principal import user_principal
+from miy_api.domains.ai import agent as ai_agent
+from miy_api.domains.ai import approvals as ai_approvals
+from miy_api.domains.ai import mcp as ai_mcp
+from miy_api.domains.ai import router as ai_router
+from miy_api.domains.ai.tool_contracts import AgentToolSpec
+from miy_api.domains.ai.runtime.models import AgentInvocation, AgentRun
+from miy_api.domains.ai.runtime.persistence import append_trace_event
+from miy_api.domains.ai import tool_service as ai_tool_service
+from miy_api.domains.ai.tool_runtime import ToolCallExecution
+from miy_api.core.llm_adapters import StreamChunk
+from miy_api.domains.ai.registry import (
     AiCapabilityRegistry,
     ApprovalPreview,
     PreviewField,
 )
-from mty_api.domains.auth.access import load_user_graph
-from mty_api.domains.conversations import service as conversations_service
+from miy_api.domains.auth.access import load_user_graph
+from miy_api.domains.conversations import service as conversations_service
 from test_meeting import _auth_headers, _dev_login
 
 

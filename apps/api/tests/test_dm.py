@@ -5,7 +5,7 @@ import base64
 from fastapi.testclient import TestClient
 import pytest
 
-from mty_api.domains.dm.request_normalization import DM_MESSAGE_BODY_MAX_LENGTH
+from miy_api.domains.dm.request_normalization import DM_MESSAGE_BODY_MAX_LENGTH
 from dev_accounts import auth_headers, content_headers, create_company_user_session, dev_login
 
 
@@ -67,8 +67,8 @@ def test_dm_user_directory_is_company_wide_and_rechecks_active_accounts(
     assert peer["user"]["id"] in user_ids
     assert outsider["user"]["id"] in user_ids
 
-    from mty_api.core.db import get_session_factory
-    from mty_api.domains.auth.models import User
+    from miy_api.core.db import get_session_factory
+    from miy_api.domains.auth.models import User
 
     with get_session_factory().begin() as db:
         db.get(User, outsider["user"]["id"]).login_blocked = True
@@ -651,13 +651,13 @@ def test_group_dm_management_tracks_membership_lifecycle(client: TestClient) -> 
     added = create_company_user_session(
         client,
         login_id="dmadded",
-        email="dm-added@mty.local",
+        email="dm-added@miy.local",
         full_name="DM Added",
     )
     member_added = create_company_user_session(
         client,
         login_id="dmmemberadded",
-        email="dm-member-added@mty.local",
+        email="dm-member-added@miy.local",
         full_name="DM Member Added",
     )
 

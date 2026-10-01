@@ -52,42 +52,42 @@ class MonitoredService(BaseModel):
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
-    database_url: str = Field(validation_alias="MTY_CODEX_CONSOLE_DATABASE_URL")
-    origin: str = Field(validation_alias="MTY_CODEX_CONSOLE_ORIGIN")
-    base_path: str = Field(default="", validation_alias="MTY_CODEX_CONSOLE_BASE_PATH")
-    workspace: Path = Field(validation_alias="MTY_CODEX_CONSOLE_WORKSPACE")
+    database_url: str = Field(validation_alias="MIY_CODEX_CONSOLE_DATABASE_URL")
+    origin: str = Field(validation_alias="MIY_CODEX_CONSOLE_ORIGIN")
+    base_path: str = Field(default="", validation_alias="MIY_CODEX_CONSOLE_BASE_PATH")
+    workspace: Path = Field(validation_alias="MIY_CODEX_CONSOLE_WORKSPACE")
     worktree_base_ref: str = Field(
         default="HEAD",
         min_length=1,
         max_length=1024,
-        validation_alias="MTY_CODEX_CONSOLE_WORKTREE_BASE_REF",
+        validation_alias="MIY_CODEX_CONSOLE_WORKTREE_BASE_REF",
     )
     worktree_root: Path = Field(
-        default_factory=lambda: Path.home() / ".local/share/mty-codex-console/worktrees",
-        validation_alias="MTY_CODEX_CONSOLE_WORKTREE_ROOT",
+        default_factory=lambda: Path.home() / ".local/share/miy-codex-console/worktrees",
+        validation_alias="MIY_CODEX_CONSOLE_WORKTREE_ROOT",
     )
     protected_workspaces: list[Path] = Field(
         default_factory=list,
-        validation_alias="MTY_CODEX_CONSOLE_PROTECTED_WORKSPACES",
+        validation_alias="MIY_CODEX_CONSOLE_PROTECTED_WORKSPACES",
     )
-    binary: str = Field(default="codex", validation_alias="MTY_CODEX_CONSOLE_BINARY")
+    binary: str = Field(default="codex", validation_alias="MIY_CODEX_CONSOLE_BINARY")
     allowed_reasoning_efforts: list[
         Annotated[str, Field(min_length=1, max_length=40, pattern=r"^\S+$")]
     ] = Field(
         default_factory=lambda: ["none", "minimal", "low", "medium", "high", "xhigh"],
         min_length=1,
-        validation_alias="MTY_CODEX_CONSOLE_ALLOWED_REASONING_EFFORTS",
+        validation_alias="MIY_CODEX_CONSOLE_ALLOWED_REASONING_EFFORTS",
     )
-    bind_host: str = Field(default="127.0.0.1", validation_alias="MTY_CODEX_CONSOLE_BIND_HOST")
-    port: int = Field(default=19365, ge=1024, le=65535, validation_alias="MTY_CODEX_CONSOLE_PORT")
+    bind_host: str = Field(default="127.0.0.1", validation_alias="MIY_CODEX_CONSOLE_BIND_HOST")
+    port: int = Field(default=19365, ge=1024, le=65535, validation_alias="MIY_CODEX_CONSOLE_PORT")
     management_port: int = Field(
-        default=19367, ge=1024, le=65535, validation_alias="MTY_CODEX_CONSOLE_MANAGEMENT_PORT"
+        default=19367, ge=1024, le=65535, validation_alias="MIY_CODEX_CONSOLE_MANAGEMENT_PORT"
     )
     template_port: int = Field(
-        default=19368, ge=1024, le=65535, validation_alias="MTY_CODEX_CONSOLE_TEMPLATE_PORT"
+        default=19368, ge=1024, le=65535, validation_alias="MIY_CODEX_CONSOLE_TEMPLATE_PORT"
     )
     template_binary: Path | None = Field(
-        default=None, validation_alias="MTY_CODEX_CONSOLE_TEMPLATE_BINARY"
+        default=None, validation_alias="MIY_CODEX_CONSOLE_TEMPLATE_BINARY"
     )
 
     @field_validator("template_binary")
@@ -98,10 +98,10 @@ class Settings(BaseSettings):
         return value
 
     max_active_tasks: int = Field(
-        default=3, ge=1, le=16, validation_alias="MTY_CODEX_CONSOLE_MAX_ACTIVE_TASKS"
+        default=3, ge=1, le=16, validation_alias="MIY_CODEX_CONSOLE_MAX_ACTIVE_TASKS"
     )
     monitor_services: list[MonitoredService] = Field(
-        default_factory=list, max_length=64, validation_alias="MTY_CODEX_CONSOLE_MONITOR_SERVICES"
+        default_factory=list, max_length=64, validation_alias="MIY_CODEX_CONSOLE_MONITOR_SERVICES"
     )
 
     @field_validator("monitor_services")
@@ -120,30 +120,30 @@ class Settings(BaseSettings):
 
     web_dist: Path = Field(
         default=Path("../codex-console-web/dist"),
-        validation_alias="MTY_CODEX_CONSOLE_WEB_DIST",
+        validation_alias="MIY_CODEX_CONSOLE_WEB_DIST",
     )
     session_hours: int = Field(
-        default=12, ge=1, le=24, validation_alias="MTY_CODEX_CONSOLE_SESSION_HOURS"
+        default=12, ge=1, le=24, validation_alias="MIY_CODEX_CONSOLE_SESSION_HOURS"
     )
     sso_subjects: dict[str, UUID] = Field(
         default_factory=dict,
-        validation_alias="MTY_CODEX_CONSOLE_SSO_SUBJECTS",
+        validation_alias="MIY_CODEX_CONSOLE_SSO_SUBJECTS",
     )
     attachment_cache: Path = Field(
-        default_factory=lambda: Path.home() / ".local/share/mty-codex-console/attachments",
-        validation_alias="MTY_CODEX_CONSOLE_ATTACHMENT_CACHE",
+        default_factory=lambda: Path.home() / ".local/share/miy-codex-console/attachments",
+        validation_alias="MIY_CODEX_CONSOLE_ATTACHMENT_CACHE",
     )
     attachment_max_bytes: int = Field(
         default=50 * 1024 * 1024,
         ge=1,
         le=100 * 1024 * 1024,
-        validation_alias="MTY_CODEX_CONSOLE_ATTACHMENT_MAX_BYTES",
+        validation_alias="MIY_CODEX_CONSOLE_ATTACHMENT_MAX_BYTES",
     )
     attachment_task_max_bytes: int = Field(
         default=500 * 1024 * 1024,
         ge=1,
         le=10 * 1024 * 1024 * 1024,
-        validation_alias="MTY_CODEX_CONSOLE_ATTACHMENT_TASK_MAX_BYTES",
+        validation_alias="MIY_CODEX_CONSOLE_ATTACHMENT_TASK_MAX_BYTES",
     )
 
     @field_validator("attachment_cache")

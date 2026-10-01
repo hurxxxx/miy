@@ -1,4 +1,4 @@
-import { Button } from '@mty/ui';
+import { Button } from '@miy/ui';
 import { Loader2, Send } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 

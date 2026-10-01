@@ -2,7 +2,7 @@ import type {
   DmConversationParticipant,
   DmMessageAttachment,
   DmUser,
-} from '@mty/contracts/dm';
+} from '@miy/contracts/dm';
 
 const CREATED_AT = '2026-05-20T00:00:00.000Z';
 

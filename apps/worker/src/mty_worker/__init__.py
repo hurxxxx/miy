@@ -1,1 +1,0 @@
-"""MTY worker package."""

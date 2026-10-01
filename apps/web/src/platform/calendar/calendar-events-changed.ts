@@ -1,5 +1,5 @@
 export const CALENDAR_EVENTS_CHANGED_EVENT =
-  'mty:calendar-events-changed';
+  'miy:calendar-events-changed';
 
 export function dispatchCalendarEventsChanged(): void {
   if (typeof window === 'undefined') {

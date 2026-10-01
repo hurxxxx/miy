@@ -4,32 +4,32 @@ from types import SimpleNamespace
 
 import pytest
 
-from mty_api.domains.search.backend_contracts import (
+from miy_api.domains.search.backend_contracts import (
     KeywordAclBranch,
     KeywordAclFilter,
     KeywordSearchHit,
     KeywordSearchResult,
     keyword_acl_clause,
 )
-from mty_api.domains.search.backend_factory import (
+from miy_api.domains.search.backend_factory import (
     build_keyword_search_client,
     register_keyword_search_backend,
     reset_keyword_search_backends,
 )
-from mty_api.domains.search.opensearch import (
+from miy_api.domains.search.opensearch import (
     build_keyword_search_opensearch_body,
     parse_keyword_search_opensearch_response,
 )
-from mty_api.domains.search.query_policy import (
+from miy_api.domains.search.query_policy import (
     KEYWORD_SEARCH_TEXT_FIELDS,
     build_keyword_search_query,
     filter_and_sort_keyword_search_rows,
     keyword_search_row_matches_request,
     sort_keyword_search_rows,
 )
-from mty_api.domains.search.result_projection import build_search_facets
-from mty_api.domains.search.schemas import KeywordSearchRequest
-from mty_api.domains.search.service import (
+from miy_api.domains.search.result_projection import build_search_facets
+from miy_api.domains.search.schemas import KeywordSearchRequest
+from miy_api.domains.search.service import (
     _filter_accessible_search_rows,
     _load_authorized_ranked_candidates,
 )

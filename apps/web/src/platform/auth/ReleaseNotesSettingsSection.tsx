@@ -1,4 +1,4 @@
-import { InlineNotice } from '@mty/ui/feedback/inline-notice';
+import { InlineNotice } from '@miy/ui/feedback/inline-notice';
 import { useEffect, useMemo, useState } from 'react';
 
 import {

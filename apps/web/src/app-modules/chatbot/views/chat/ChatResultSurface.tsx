@@ -1,4 +1,4 @@
-import { DetailDrawer, useFeedback } from '@mty/ui';
+import { DetailDrawer, useFeedback } from '@miy/ui';
 import {
   Maximize2,
   Minimize2,

@@ -1,4 +1,4 @@
-import { Button } from '@mty/ui';
+import { Button } from '@miy/ui';
 import {
   Check,
   ChevronDown,

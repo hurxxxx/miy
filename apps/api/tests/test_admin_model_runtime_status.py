@@ -8,15 +8,15 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from mty_api.core.settings import Settings
-from mty_api.domains.admin import model_runtime_status_router
-from mty_api.domains.admin import model_runtime_status_service
-from mty_api.domains.admin.model_runtime_status_schemas import (
+from miy_api.core.settings import Settings
+from miy_api.domains.admin import model_runtime_status_router
+from miy_api.domains.admin import model_runtime_status_service
+from miy_api.domains.admin.model_runtime_status_schemas import (
     AdminModelRuntimeStatusResponse,
     ModelRuntimeModelResponse,
     ModelRuntimeTargetResponse,
 )
-from mty_api.domains.admin.model_runtime_status_service import (
+from miy_api.domains.admin.model_runtime_status_service import (
     collect_model_runtime_status,
 )
 from dev_accounts import auth_headers, dev_login
@@ -43,7 +43,7 @@ def _runtime_db(**overrides):
 def _settings(**overrides: object) -> Settings:
     values = {
         "postgres_dsn": (
-            "postgresql+psycopg://mty_test:mty_test@127.0.0.1:5432/mty_test"
+            "postgresql+psycopg://miy_test:miy_test@127.0.0.1:5432/miy_test"
         ),
         "inference_gateway_base_url": "http://current-server:18080",
         "inference_gateway_api_key": "gateway-secret",
@@ -291,8 +291,8 @@ def test_admin_model_runtime_status_returns_snapshot(
 
 @pytest.mark.anyio
 async def test_named_local_connections_are_probed_independently_without_holding_db(client):
-    from mty_api.core.db import get_session_factory
-    from mty_api.domains.ai.model_settings_models import (
+    from miy_api.core.db import get_session_factory
+    from miy_api.domains.ai.model_settings_models import (
         AiModelCatalogEntry,
         AiModelProviderConfig,
     )

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, InlineNotice, useFeedback } from '@mty/ui';
+import { Button, InlineNotice, useFeedback } from '@miy/ui';
 import { apiFetchJson } from '@/src/platform/api/client';
 import type { ApiSchema } from '@/src/platform/api/types';
 import { DirectoryPicker } from '@/src/platform/directory/DirectoryPicker';

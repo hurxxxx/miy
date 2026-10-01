@@ -5,7 +5,7 @@ import {
   RangeSliderRange,
   RangeSliderThumb,
   RangeSliderTrack,
-} from '@mty/ui';
+} from '@miy/ui';
 import {
   CalendarDays,
   ChevronDown,

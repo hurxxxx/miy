@@ -18,8 +18,8 @@ describe('draw.io embed protocol', () => {
     const config = buildDrawioEmbedConfig({
       env: {
         DEV: true,
-        VITE_MTY_DRAWIO_PORT: '18082',
-        VITE_MTY_DRAWIO_URL: '/drawio/',
+        VITE_MIY_DRAWIO_PORT: '18082',
+        VITE_MIY_DRAWIO_URL: '/drawio/',
       },
       location: testLocation('http://100.87.48.58:4200/apps/diagrams'),
     });
@@ -34,21 +34,21 @@ describe('draw.io embed protocol', () => {
     const config = buildDrawioEmbedConfig({
       env: {
         DEV: false,
-        VITE_MTY_DRAWIO_URL: 'https://drawio.mty.example/',
+        VITE_MIY_DRAWIO_URL: 'https://drawio.miy.example/',
       },
-      location: testLocation('https://mty.example/apps/diagrams'),
+      location: testLocation('https://miy.example/apps/diagrams'),
     });
 
-    expect(config.origin).toBe('https://drawio.mty.example');
-    expect(config.src).toContain('https://drawio.mty.example/');
+    expect(config.origin).toBe('https://drawio.miy.example');
+    expect(config.src).toContain('https://drawio.miy.example/');
   });
 
   it('builds a static dev iframe URL from the current private host when no URL is configured', () => {
     const config = buildDrawioEmbedConfig({
       env: {
         DEV: false,
-        VITE_MTY_DRAWIO_PORT: '18082',
-        VITE_MTY_DRAWIO_URL: '',
+        VITE_MIY_DRAWIO_PORT: '18082',
+        VITE_MIY_DRAWIO_URL: '',
       },
       location: testLocation('http://100.87.48.58:4200/apps/diagrams'),
     });
@@ -61,25 +61,25 @@ describe('draw.io embed protocol', () => {
     const config = buildDrawioEmbedConfig({
       env: {
         DEV: true,
-        VITE_MTY_DRAWIO_PORT: '18082',
-        VITE_MTY_DRAWIO_URL: '',
+        VITE_MIY_DRAWIO_PORT: '18082',
+        VITE_MIY_DRAWIO_URL: '',
       },
-      location: testLocation('https://dev.mty.example/apps/diagrams'),
+      location: testLocation('https://dev.miy.example/apps/diagrams'),
     });
 
-    expect(config.origin).toBe('https://dev.mty.example');
-    expect(config.src).toContain('https://dev.mty.example/drawio/');
+    expect(config.origin).toBe('https://dev.miy.example');
+    expect(config.src).toContain('https://dev.miy.example/drawio/');
     expect(config.src).not.toContain(':18082');
   });
 
   it('falls back to the legacy same-origin path when no absolute production URL is configured', () => {
     const config = buildDrawioEmbedConfig({
-      env: { DEV: false, VITE_MTY_DRAWIO_URL: '/drawio/' },
-      location: testLocation('https://mty.example/apps/diagrams'),
+      env: { DEV: false, VITE_MIY_DRAWIO_URL: '/drawio/' },
+      location: testLocation('https://miy.example/apps/diagrams'),
     });
 
-    expect(config.origin).toBe('https://mty.example');
-    expect(config.src).toContain('https://mty.example/drawio/');
+    expect(config.origin).toBe('https://miy.example');
+    expect(config.src).toContain('https://miy.example/drawio/');
   });
 
   it('accepts messages only from the configured draw.io origin', () => {

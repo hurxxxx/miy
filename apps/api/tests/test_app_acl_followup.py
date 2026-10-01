@@ -8,20 +8,20 @@ from fastapi.testclient import TestClient
 from sqlalchemy import delete, select, update
 
 from dev_accounts import auth_headers, dev_login
-from mty_api.core.db import get_session_factory
-from mty_api.domains.auth.access import load_user_graph
-from mty_api.domains.auth.dependencies import resolve_auth_context_from_token
-from mty_api.domains.auth.models import User
-from mty_api.domains.pms.space_models import Team, TeamMember
-from mty_api.domains.auth.security import new_id
-from mty_api.domains.docs.models import (
+from miy_api.core.db import get_session_factory
+from miy_api.domains.auth.access import load_user_graph
+from miy_api.domains.auth.dependencies import resolve_auth_context_from_token
+from miy_api.domains.auth.models import User
+from miy_api.domains.pms.space_models import Team, TeamMember
+from miy_api.domains.auth.security import new_id
+from miy_api.domains.docs.models import (
     DocMeetingAccess,
     NativeDoc,
     NativeDocTarget,
     NativeDocUserShare,
 )
-from mty_api.domains.pms.models import Task, TaskList, TaskUserAccess
-from mty_api.domains.source_access import SourceAclPolicy
+from miy_api.domains.pms.models import Task, TaskList, TaskUserAccess
+from miy_api.domains.source_access import SourceAclPolicy
 
 
 def _private_task(db, owner_id):
@@ -204,7 +204,7 @@ def test_task_grant_does_not_bypass_resource_context(client: TestClient, boundar
     assert response.status_code == 200
     with get_session_factory()() as db:
         if boundary == "app_revoked":
-            from mty_api.domains.auth.app_access_models import AppAccessPolicy
+            from miy_api.domains.auth.app_access_models import AppAccessPolicy
 
             db.get(AppAccessPolicy, "pms").audience = "selected"
         elif boundary == "inactive_team":

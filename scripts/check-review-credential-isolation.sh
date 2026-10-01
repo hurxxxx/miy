@@ -2,11 +2,11 @@
 # Run as the installation administrator, after provisioning the two service users.
 set -Eeuo pipefail
 runner_user="${1:-gitlab-runner}"
-evidence_home="$(getent passwd mty-review-evidence | cut -d: -f6)"
+evidence_home="$(getent passwd miy-review-evidence | cut -d: -f6)"
 [[ -n "$evidence_home" && "$evidence_home" != / ]] || exit 2
-fixture="$(sudo -H -u mty-review-evidence mktemp "$evidence_home/access-probe.XXXXXX")"
-trap 'sudo -H -u mty-review-evidence rm -f -- "$fixture"' EXIT
-printf 'synthetic-credential-for-access-test\n' | sudo -H -u mty-review-evidence tee "$fixture" >/dev/null
+fixture="$(sudo -H -u miy-review-evidence mktemp "$evidence_home/access-probe.XXXXXX")"
+trap 'sudo -H -u miy-review-evidence rm -f -- "$fixture"' EXIT
+printf 'synthetic-credential-for-access-test\n' | sudo -H -u miy-review-evidence tee "$fixture" >/dev/null
 sudo -H -u "$runner_user" python3 - "$fixture" <<'PY'
 import sys
 try:
@@ -17,11 +17,11 @@ except PermissionError:
 else:
     raise SystemExit('FAIL: Runner can read evidence credentials')
 PY
-if sudo -H -u "$runner_user" sudo -n -H -u mty-review-evidence /usr/bin/cat "$fixture" >/dev/null 2>&1; then
+if sudo -H -u "$runner_user" sudo -n -H -u miy-review-evidence /usr/bin/cat "$fixture" >/dev/null 2>&1; then
   echo 'FAIL: Runner has unrestricted evidence-account sudo access' >&2
   exit 1
 fi
-if sudo -H -u "$runner_user" sudo -n -H -u mty-review-evidence /usr/local/libexec/mty-review-evidence unexpected-argument >/dev/null 2>&1; then
+if sudo -H -u "$runner_user" sudo -n -H -u miy-review-evidence /usr/local/libexec/miy-review-evidence unexpected-argument >/dev/null 2>&1; then
   echo 'FAIL: evidence helper accepted command arguments' >&2
   exit 1
 fi

@@ -1,4 +1,4 @@
-import { DropdownMenu, type DropdownItem } from '@mty/ui';
+import { DropdownMenu, type DropdownItem } from '@miy/ui';
 import {
   Archive,
   ArrowLeft,

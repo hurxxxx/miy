@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from mty_api.domains.ai.agent_write_guard import (
+from miy_api.domains.ai.agent_write_guard import (
     latest_user_message_has_write_intent,
     write_tool_names_from_specs,
 )
-from mty_api.domains.ai.tool_contracts import AgentToolSpec
+from miy_api.domains.ai.tool_contracts import AgentToolSpec
 
 
 def _tool_spec(name: str) -> AgentToolSpec:

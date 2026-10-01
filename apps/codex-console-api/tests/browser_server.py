@@ -105,7 +105,7 @@ class BrowserRPC(FakeRPC):
 
 
 def main():
-    port = int(os.environ.get("MTY_CODEX_CONSOLE_PORT", "19365"))
+    port = int(os.environ.get("MIY_CODEX_CONSOLE_PORT", "19365"))
     with tempfile.TemporaryDirectory(prefix="codex-console-browser-") as directory:
         target = "sqlite+pysqlite:///" + str(Path(directory).resolve() / "console.sqlite3")
         migrate(target)
@@ -139,7 +139,7 @@ def main():
         settings = Settings(
             database_url=target,
             origin=f"http://127.0.0.1:{port}",
-            base_path=os.environ.get("MTY_CODEX_CONSOLE_BASE_PATH", ""),
+            base_path=os.environ.get("MIY_CODEX_CONSOLE_BASE_PATH", ""),
             workspace=root,
             attachment_cache=directory / "attachments",
             web_dist=Path(__file__).resolve().parents[2] / "codex-console-web/dist",

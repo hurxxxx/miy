@@ -6,7 +6,7 @@ import {
   SearchField,
   useConfirm,
   useFeedback,
-} from '@mty/ui';
+} from '@miy/ui';
 import { apiFetchJson } from '@/src/platform/api/client';
 import type { ApiSchema } from '@/src/platform/api/types';
 import type { AuthUser } from '@/src/platform/auth/auth-api';

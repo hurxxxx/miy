@@ -1,4 +1,4 @@
-import { buildAppHref } from '@mty/contracts/app-routes';
+import { buildAppHref } from '@miy/contracts/app-routes';
 import type { DiagramHubView, DiagramItem } from '../api/diagrams-api';
 
 export type DiagramLayoutMode = 'grid' | 'list';
@@ -19,7 +19,7 @@ export type DiagramsHubAction =
   | { type: 'remove'; id: string };
 
 export const DIAGRAM_HUB_PAGE_SIZE = 200;
-export const DIAGRAM_VIEW_MODE_STORAGE_KEY = 'mty:diagrams:view-mode';
+export const DIAGRAM_VIEW_MODE_STORAGE_KEY = 'miy:diagrams:view-mode';
 
 export const VIEW_LABEL_KEYS: Record<DiagramHubView, string> = {
   all: 'shell:nav.diagrams-all',

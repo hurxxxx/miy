@@ -1,23 +1,23 @@
 [importlinter]
-root_package = mty_api
+root_package = miy_api
 
 [importlinter:contract:routers_are_composition_only]
 name = Router modules are imported only by the API composition registry
 type = protected
 protected_modules =
-    mty_api.domains.*.router
-    mty_api.domains.auth.apps_router
+    miy_api.domains.*.router
+    miy_api.domains.auth.apps_router
 allowed_importers =
-    mty_api.api_registry
-    mty_api.installed_extension_apps
+    miy_api.api_registry
+    miy_api.installed_extension_apps
 as_packages = false
 
 [importlinter:contract:domains_do_not_import_composition_roots]
 name = Domain modules do not import API composition roots
 type = forbidden
 source_modules =
-    mty_api.domains
+    miy_api.domains
 forbidden_modules =
-    mty_api.app
-    mty_api.main
-    mty_api.api_registry
+    miy_api.app
+    miy_api.main
+    miy_api.api_registry

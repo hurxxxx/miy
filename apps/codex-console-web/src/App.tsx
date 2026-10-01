@@ -2,7 +2,7 @@ import { AgentTree, ManagementView, useOverview } from './management';
 import { PageLayout } from './page-layout';
 import { SessionList, sortSessions } from './sessions';
 import { useTaskSearch } from './task-search';
-import { Button, Dialog, Input } from '@mty/ui';
+import { Button, Dialog, Input } from '@miy/ui';
 import {
   Activity,
   ArrowUp,
@@ -33,7 +33,7 @@ import {
   api,
   apiBasePath,
   ApiError,
-  consumeMTYSessionHandoff,
+  consumeMIYSessionHandoff,
   locked,
   record,
   uploadAttachment,
@@ -308,7 +308,7 @@ export function App() {
     }
   }, [onError]);
   const initializeSession = useCallback(async () => {
-    const handoff = consumeMTYSessionHandoff();
+    const handoff = consumeMIYSessionHandoff();
     if (!handoff) {
       await checkSession();
       return;
@@ -317,7 +317,7 @@ export function App() {
     setError(null);
     try {
       const value = await api<{ authenticated: boolean }>(
-        '/session/mty',
+        '/session/miy',
         handoff,
       );
       setAuthenticated(value.authenticated);

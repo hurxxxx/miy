@@ -8,10 +8,10 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      '@mty/ui/styles.css': fileURLToPath(
+      '@miy/ui/styles.css': fileURLToPath(
         new URL('../../packages/ui/styles.css', import.meta.url),
       ),
-      '@mty/ui': fileURLToPath(
+      '@miy/ui': fileURLToPath(
         new URL('../../packages/ui/src/index.ts', import.meta.url),
       ),
     },

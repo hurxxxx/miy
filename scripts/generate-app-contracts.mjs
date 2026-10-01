@@ -18,7 +18,7 @@ const tsPath = path.join(
 );
 const pyPath = path.join(
   root,
-  'apps/api/src/mty_api/core/app_contracts_generated.py',
+  'apps/api/src/miy_api/core/app_contracts_generated.py',
 );
 const check = process.argv.includes('--check');
 

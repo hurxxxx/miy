@@ -1,5 +1,5 @@
-import { buildAppHref } from '@mty/contracts/app-routes';
-import { Button, Dialog, InlineNotice, useConfirm } from '@mty/ui';
+import { buildAppHref } from '@miy/contracts/app-routes';
+import { Button, Dialog, InlineNotice, useConfirm } from '@miy/ui';
 import {
   CheckSquare,
   Download,

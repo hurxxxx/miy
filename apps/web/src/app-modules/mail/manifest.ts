@@ -1,4 +1,4 @@
-import { getAppRoutePattern } from '@mty/contracts/app-routes';
+import { getAppRoutePattern } from '@miy/contracts/app-routes';
 import {
   FilePenLine,
   Inbox,

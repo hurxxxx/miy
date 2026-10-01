@@ -6,7 +6,7 @@ import { ResourcePickerDialog } from './ResourcePickerDialog';
 
 const dialogSpy = vi.hoisted(() => vi.fn());
 
-vi.mock('@mty/ui', () => ({
+vi.mock('@miy/ui', () => ({
   Button: ({
     children,
     ...props

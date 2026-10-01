@@ -1,4 +1,4 @@
-import { Dialog } from '@mty/ui';
+import { Dialog } from '@miy/ui';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';

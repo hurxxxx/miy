@@ -5,18 +5,18 @@ from fastapi.testclient import TestClient
 from dev_accounts import dev_login
 from sqlalchemy import select
 
-from mty_api.core.db import get_session_factory
-from mty_api.core.llm import get_supported_llm_tasks
-from mty_api.domains.ai.registry import get_ai_capability_registry
-from mty_api.domains.auth import access as auth_access
-from mty_api.domains.auth.app_access_models import AppAccessPolicy
-from mty_api.domains.auth.models import CompanyAppControl, PlatformAppBarCategoryApp
-from mty_api.domains.auth.app_catalog import (
+from miy_api.core.db import get_session_factory
+from miy_api.core.llm import get_supported_llm_tasks
+from miy_api.domains.ai.registry import get_ai_capability_registry
+from miy_api.domains.auth import access as auth_access
+from miy_api.domains.auth.app_access_models import AppAccessPolicy
+from miy_api.domains.auth.models import CompanyAppControl, PlatformAppBarCategoryApp
+from miy_api.domains.auth.app_catalog import (
     AppCatalogItem,
     AppNavCatalogItem,
     iter_app_catalog,
 )
-from mty_api.domains.auth.bootstrap_projection import project_bootstrap_apps
+from miy_api.domains.auth.bootstrap_projection import project_bootstrap_apps
 
 
 def _dev_login(client: TestClient, account_key: str) -> dict:

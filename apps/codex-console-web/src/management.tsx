@@ -1,4 +1,4 @@
-import { Button } from '@mty/ui';
+import { Button } from '@miy/ui';
 import { useEffect, useState } from 'react';
 import { api, apiBasePath, type Task } from './api';
 import type { components } from './api.generated';

@@ -4,7 +4,7 @@ import { runInNewContext } from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
 
 const source = readFileSync(
-  resolve(process.cwd(), '../../ops/bento/mty-bridge.js'),
+  resolve(process.cwd(), '../../ops/bento/miy-bridge.js'),
   'utf8',
 );
 function bridge(mode?: 'edit' | 'read') {
@@ -36,7 +36,7 @@ function bridge(mode?: 'edit' | 'read') {
     parent,
     bento,
     location: {
-      search: '?mty-embed=1',
+      search: '?miy-embed=1',
       origin: 'https://bento.example',
       href: 'https://bento.example/',
     },
@@ -71,7 +71,7 @@ function bridge(mode?: 'edit' | 'read') {
     sender: unknown = parent,
   ) =>
     listeners.get('message')?.({
-      data: { channel: 'mty:bento', version: 2, ...data },
+      data: { channel: 'miy:bento', version: 2, ...data },
       origin,
       source: sender,
     });

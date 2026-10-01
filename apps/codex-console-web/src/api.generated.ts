@@ -156,7 +156,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/session/mty": {
+    "/api/session/miy": {
         parameters: {
             query?: never;
             header?: never;
@@ -165,8 +165,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Login From Mty */
-        post: operations["login_from_mty_api_session_mty_post"];
+        /** Login From Miy */
+        post: operations["login_from_miy_api_session_miy_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -837,8 +837,8 @@ export interface components {
             /** Password */
             password: string;
         };
-        /** MTYSessionInput */
-        MTYSessionInput: {
+        /** MIYSessionInput */
+        MIYSessionInput: {
             /** Issuer */
             issuer: string;
             /** Code */
@@ -1703,7 +1703,7 @@ export interface operations {
             };
         };
     };
-    login_from_mty_api_session_mty_post: {
+    login_from_miy_api_session_miy_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -1712,7 +1712,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MTYSessionInput"];
+                "application/json": components["schemas"]["MIYSessionInput"];
             };
         };
         responses: {

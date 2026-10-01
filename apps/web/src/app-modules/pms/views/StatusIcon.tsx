@@ -1,5 +1,5 @@
 import { cn } from '@/src/lib/utils';
-import { Tooltip } from '@mty/ui';
+import { Tooltip } from '@miy/ui';
 import {
   CheckCircle2,
   Circle,

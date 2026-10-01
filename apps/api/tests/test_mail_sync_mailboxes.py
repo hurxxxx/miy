@@ -3,11 +3,11 @@ from __future__ import annotations
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from mty_api.core.db import Base
-from mty_api.domains.auth.models import User
-from mty_api.domains.mail.clients import MailboxInfo, MailConnectionSettings
-from mty_api.domains.mail.models import MailAccount, MailMailbox, MailSyncState
-from mty_api.domains.mail.sync_mailboxes import (
+from miy_api.core.db import Base
+from miy_api.domains.auth.models import User
+from miy_api.domains.mail.clients import MailboxInfo, MailConnectionSettings
+from miy_api.domains.mail.models import MailAccount, MailMailbox, MailSyncState
+from miy_api.domains.mail.sync_mailboxes import (
     deduplicate_mailboxes,
     ensure_inbox_mailbox,
     ensure_mailbox,
@@ -81,7 +81,7 @@ def _seed_account(session: Session) -> MailAccount:
             User(
                 id="user-1",
                 login_id="user-1",
-                email="user-1@mty.local",
+                email="user-1@miy.local",
                 full_name="User One",
                 password_hash="hash",
                 status="active",

@@ -14,10 +14,10 @@ from sqlalchemy.orm import Session
 
 from company_admission_fixture import company_authority_tables, seed_company_app_access
 
-from mty_api.core.db import Base
-from mty_api.domains.auth.models import User, UserSystemRole
-from mty_api.domains.files import bulk_ingest, service as files_service
-from mty_api.domains.files.models import (
+from miy_api.core.db import Base
+from miy_api.domains.auth.models import User, UserSystemRole
+from miy_api.domains.files import bulk_ingest, service as files_service
+from miy_api.domains.files.models import (
     FileManagerBulkIngestEntry,
     FileManagerBulkIngestRun,
     FileManagerCorpus,
@@ -25,13 +25,13 @@ from mty_api.domains.files.models import (
     FileManagerFolder,
     FileManagerStorageCleanupJob,
 )
-from mty_api.domains.rag.models import RagSyncJob
-from mty_api.domains.retrieval.models import (
+from miy_api.domains.rag.models import RagSyncJob
+from miy_api.domains.retrieval.models import (
     RetrievalPartition,
     RetrievalProjectionEvent,
     RetrievalProjectionHead,
 )
-from mty_api.domains.search.models import SearchIndexJob
+from miy_api.domains.search.models import SearchIndexJob
 
 
 ADMIN_ID = "admin-a"

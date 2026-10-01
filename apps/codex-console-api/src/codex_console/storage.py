@@ -18,7 +18,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.types import TypeDecorator
 
-SCHEMA = "console_sqlite_0001"
+SCHEMA = "console_sqlite_0002"
 
 
 class UTCDateTime(TypeDecorator):

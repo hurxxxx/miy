@@ -9,16 +9,16 @@
     "types": ["vite/client", "vitest"],
     "rootDir": "../..",
     "paths": {
-      "@mty/contracts": ["../../packages/contracts/src/index.ts"],
-      "@mty/contracts/openapi": [
+      "@miy/contracts": ["../../packages/contracts/src/index.ts"],
+      "@miy/contracts/openapi": [
         "../../packages/contracts/src/openapi.generated.d.ts"
       ],
-      "@mty/contracts/*": ["../../packages/contracts/src/*"],
-      "@mty/core-web": ["../../packages/core-web/src/index.ts"],
-      "@mty/core-web/*": ["../../packages/core-web/src/*"],
-      "@mty/ui": ["../../packages/ui/src/index.ts"],
-      "@mty/ui/*": ["../../packages/ui/src/lib/*"],
-      "@mty/ui/styles.css": ["../../packages/ui/styles.css"],
+      "@miy/contracts/*": ["../../packages/contracts/src/*"],
+      "@miy/core-web": ["../../packages/core-web/src/index.ts"],
+      "@miy/core-web/*": ["../../packages/core-web/src/*"],
+      "@miy/ui": ["../../packages/ui/src/index.ts"],
+      "@miy/ui/*": ["../../packages/ui/src/lib/*"],
+      "@miy/ui/styles.css": ["../../packages/ui/styles.css"],
       "@/src/*": ["./src/*"]
     }
   },

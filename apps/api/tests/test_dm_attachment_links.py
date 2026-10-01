@@ -6,11 +6,11 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from mty_api.core.model_registry import import_all_models
-from mty_api.domains.content_access import grants
-from mty_api.domains.content_access.grants import ContentGrantIssuer, InvalidContentGrant
-from mty_api.domains.dm import attachment_links
-from mty_api.domains.dm.models import DmMessageAttachment
+from miy_api.core.model_registry import import_all_models
+from miy_api.domains.content_access import grants
+from miy_api.domains.content_access.grants import ContentGrantIssuer, InvalidContentGrant
+from miy_api.domains.dm import attachment_links
+from miy_api.domains.dm.models import DmMessageAttachment
 
 
 @pytest.fixture(scope="module", autouse=True)

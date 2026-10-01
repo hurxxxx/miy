@@ -6,10 +6,10 @@
 //     transcription / attendees)
 //
 // The modal stays mounted on the calendar — the user can deep-edit the meeting
-// + notes without losing their place. `embedded` mode on the @mty/ui Dialog
+// + notes without losing their place. `embedded` mode on the @miy/ui Dialog
 // suppresses the built-in header / padding / scroll wrapper so the layout's
 // own chrome fills the surface cleanly.
-import { Dialog } from '@mty/ui';
+import { Dialog } from '@miy/ui';
 import { useTranslation } from 'react-i18next';
 
 import { MeetingDetailLayout } from '@/src/app-modules/meeting';

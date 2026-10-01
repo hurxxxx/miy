@@ -10,27 +10,27 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from mty_api.domains.auth.models import User
-from mty_api.domains.hermes import files
-from mty_api.domains.hermes.file_router import (
+from miy_api.domains.auth.models import User
+from miy_api.domains.hermes import files
+from miy_api.domains.hermes.file_router import (
     download_file,
     download_file_revision,
     session_file_revisions,
 )
-from mty_api.domains.hermes.model_policy import (
+from miy_api.domains.hermes.model_policy import (
     HermesModelPolicy,
     synchronize_model_policy,
 )
-from mty_api.domains.hermes.models import (
+from miy_api.domains.hermes.models import (
     HermesFileObject,
     HermesFileRevision,
     HermesProfileBinding,
     HermesRunProjection,
     HermesSessionBinding,
 )
-from mty_api.domains.hermes.repository import HermesRunRepository, utcnow_naive
-from mty_api.domains.hermes.workloads import _messages
-from mty_api.core.llm_errors import LlmProviderError
+from miy_api.domains.hermes.repository import HermesRunRepository, utcnow_naive
+from miy_api.domains.hermes.workloads import _messages
+from miy_api.core.llm_errors import LlmProviderError
 
 
 def seed(db):
@@ -47,7 +47,7 @@ def seed(db):
     binding = HermesProfileBinding(
         id=str(uuid4()),
         user_id=user_id,
-        profile_name=f"mty-{uuid4().hex}",
+        profile_name=f"miy-{uuid4().hex}",
         status="active",
         provider="openai",
         model="test",
@@ -179,7 +179,7 @@ async def test_model_snapshot_has_no_secret_and_auxiliary_follows_main(temperatu
         async def update_profile_env(self, profile, key, value):
             pass
 
-    await synchronize_model_policy(Client(), profile_name="mty-test-local", policy=policy)
+    await synchronize_model_policy(Client(), profile_name="miy-test-local", policy=policy)
     config = configs[0]
     assert config["fallback_providers"] == []
     assert all(
@@ -190,10 +190,10 @@ async def test_model_snapshot_has_no_secret_and_auxiliary_follows_main(temperatu
     provider = config["providers"][policy.key]
     if temperature is None:
         assert "extra_body" not in provider
-        assert "temperature" not in policy.run_options()["mty_policy"]
+        assert "temperature" not in policy.run_options()["miy_policy"]
     else:
         assert provider["extra_body"] == {"temperature": temperature}
-        assert policy.run_options()["mty_policy"]["temperature"] == temperature
+        assert policy.run_options()["miy_policy"]["temperature"] == temperature
         assert policy.key != replace(policy, temperature=None).key
         assert policy.key != replace(policy, temperature=temperature + 0.1).key
     assert config["delegation"]["provider"] == "auto"
@@ -215,7 +215,7 @@ async def test_model_snapshot_has_no_secret_and_auxiliary_follows_main(temperatu
         "/etc/passwd",
         "nested/../../secret",
         "nested//file",
-        ".mty-runtime/file",
+        ".miy-runtime/file",
         "nul\x00name",
     ],
 )
@@ -227,14 +227,14 @@ def test_workspace_paths_reject_escape_and_control_characters(path):
 @pytest.mark.anyio
 @pytest.mark.parametrize("temperature", [0, 0.7])
 async def test_anthropic_temperature_fails_before_provisioning(monkeypatch, temperature):
-    from mty_api.core.llm import (
+    from miy_api.core.llm import (
         LlmPoolConfig,
         LlmTaskContext,
         PolicyDecision,
         ResolvedLlmExecution,
     )
-    from mty_api.core.settings import get_settings
-    from mty_api.domains.hermes import workloads
+    from miy_api.core.settings import get_settings
+    from miy_api.domains.hermes import workloads
 
     config = LlmPoolConfig(
         "external",
@@ -281,7 +281,7 @@ async def test_anthropic_temperature_fails_before_provisioning(monkeypatch, temp
     assert error.value.pool == "external" and error.value.provider == "anthropic"
     default_policy = HermesModelPolicy.from_pool(config, model="test-model", max_tokens=4096)
     assert default_policy.api_mode == "anthropic_messages"
-    assert "temperature" not in default_policy.run_options()["mty_policy"]
+    assert "temperature" not in default_policy.run_options()["miy_policy"]
 
 
 @pytest.mark.anyio
@@ -293,17 +293,17 @@ async def test_cancel_during_admission_recovers_without_starting_another_run(
     import asyncio
     from sqlalchemy import select
     from sqlalchemy.orm import sessionmaker
-    from mty_api.core.llm import (
+    from miy_api.core.llm import (
         LlmPoolConfig,
         LlmTaskContext,
         PolicyDecision,
         ResolvedLlmExecution,
     )
-    from mty_api.core.settings import get_settings
-    from mty_api.domains.hermes import execution, workloads
-    from mty_api.domains.hermes.client import HermesClientError
-    from mty_api.domains.hermes.models import HermesDispatchOutbox, HermesRunInput
-    from mty_api.domains.hermes.repository import HermesDispatchRepository
+    from miy_api.core.settings import get_settings
+    from miy_api.domains.hermes import execution, workloads
+    from miy_api.domains.hermes.client import HermesClientError
+    from miy_api.domains.hermes.models import HermesDispatchOutbox, HermesRunInput
+    from miy_api.domains.hermes.repository import HermesDispatchRepository
 
     engine = create_engine(application_postgres_dsn)
     factory = sessionmaker(engine, expire_on_commit=False)
@@ -482,8 +482,8 @@ async def test_cancel_during_admission_recovers_without_starting_another_run(
 async def test_cancel_recovery_preserves_durable_terminal_details(
     application_postgres_dsn, monkeypatch, terminal_at, native_status
 ):
-    from mty_api.domains.hermes import execution
-    from mty_api.domains.hermes.client import HermesClientError
+    from miy_api.domains.hermes import execution
+    from miy_api.domains.hermes.client import HermesClientError
 
     polls, stops = [], []
 
@@ -563,7 +563,7 @@ async def test_cancel_recovery_preserves_durable_terminal_details(
 @pytest.mark.anyio
 @pytest.mark.parametrize("claimed", [False, True])
 async def test_public_stop_keeps_a_lost_acceptance_recoverable(application_postgres_dsn, claimed):
-    from mty_api.domains.hermes.router import stop_run
+    from miy_api.domains.hermes.router import stop_run
 
     engine = create_engine(application_postgres_dsn)
     try:
@@ -610,18 +610,18 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
     from sqlalchemy import select
     from sqlalchemy.orm import sessionmaker
     from starlette.requests import Request
-    from mty_api.core.llm import (
+    from miy_api.core.llm import (
         LlmPoolConfig,
         LlmTaskContext,
         PolicyDecision,
         ResolvedLlmExecution,
     )
-    from mty_api.core.settings import get_settings
-    from mty_api.domains.auth.models import CompanyAppControl
-    from mty_api.domains.auth.app_access_models import AppAccessPolicy
-    from mty_api.domains.hermes import workloads, execution, mcp_router
-    from mty_api.domains.hermes.service import mcp_profile_bearer_secret
-    from mty_api.domains.hermes.client import HermesClientError
+    from miy_api.core.settings import get_settings
+    from miy_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.auth.app_access_models import AppAccessPolicy
+    from miy_api.domains.hermes import workloads, execution, mcp_router
+    from miy_api.domains.hermes.service import mcp_profile_bearer_secret
+    from miy_api.domains.hermes.client import HermesClientError
 
     def unavailable():
         raise HermesClientError(
@@ -676,9 +676,9 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
 
             async def create_run(self, profile, **kwargs):
                 assert profile == profile_name
-                assert kwargs["runtime_options"]["mty_policy"]["model"] == "test-model"
-                assert kwargs["runtime_options"]["mty_policy"].get("temperature") == temperature
-                assert "mty_submit_result" in kwargs["instructions"]
+                assert kwargs["runtime_options"]["miy_policy"]["model"] == "test-model"
+                assert kwargs["runtime_options"]["miy_policy"].get("temperature") == temperature
+                assert "miy_submit_result" in kwargs["instructions"]
                 if contract in {"tool_result", "forced_final"}:
                     assert '"role": "tool"' in kwargs["input_text"]
                     assert "Application evidence" in kwargs["input_text"]
@@ -693,7 +693,7 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
                         {
                             "jsonrpc": "2.0",
                             "id": 1,
-                            "method": "mty/submit",
+                            "method": "miy/submit",
                             "params": {"result": result},
                         }
                     ).encode()
@@ -868,20 +868,20 @@ async def test_nested_generation_respects_capacity_without_waiting_for_its_paren
     import asyncio
     from sqlalchemy import select
     from sqlalchemy.orm import sessionmaker
-    from mty_api.core.llm import (
+    from miy_api.core.llm import (
         LlmPoolConfig,
         LlmTaskContext,
         PolicyDecision,
         ResolvedLlmExecution,
     )
-    from mty_api.core.settings import get_settings
-    from mty_api.domains.ai.tool_context import (
+    from miy_api.core.settings import get_settings
+    from miy_api.domains.ai.tool_context import (
         ToolExecutionContext,
         bind_tool_execution_context,
     )
-    from mty_api.domains.auth.models import CompanyAppControl
-    from mty_api.domains.auth.app_access_models import AppAccessPolicy
-    from mty_api.domains.hermes import workloads, execution
+    from miy_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.auth.app_access_models import AppAccessPolicy
+    from miy_api.domains.hermes import workloads, execution
 
     engine = create_engine(application_postgres_dsn)
     factory = sessionmaker(engine, expire_on_commit=False)
@@ -1031,17 +1031,17 @@ async def test_cancelled_workload_returns_lease_and_recovers_durable_stop(
     import asyncio
     from sqlalchemy import select
     from sqlalchemy.orm import sessionmaker
-    from mty_api.core.llm import (
+    from miy_api.core.llm import (
         LlmPoolConfig,
         LlmTaskContext,
         PolicyDecision,
         ResolvedLlmExecution,
     )
-    from mty_api.core.settings import get_settings
-    from mty_api.domains.auth.models import CompanyAppControl
-    from mty_api.domains.auth.app_access_models import AppAccessPolicy
-    from mty_api.domains.hermes import execution, workloads
-    from mty_api.domains.hermes.client import HermesClientError
+    from miy_api.core.settings import get_settings
+    from miy_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.auth.app_access_models import AppAccessPolicy
+    from miy_api.domains.hermes import execution, workloads
+    from miy_api.domains.hermes.client import HermesClientError
 
     engine = create_engine(application_postgres_dsn)
     factory = sessionmaker(engine, expire_on_commit=False)
@@ -1237,7 +1237,7 @@ def test_file_revisions_preserve_run_identity_and_bound_total_history(
                 )
             )
             assert {objects[row.object_key] for row in versions} == {b"first", b"second"}
-            from mty_api.domains.auth.models import CompanyAppControl
+            from miy_api.domains.auth.models import CompanyAppControl
 
             user = reopened.get(User, versions[0].user_id)
             reopened.get(CompanyAppControl, "chatbot").enabled = False
@@ -1438,7 +1438,7 @@ def test_workloads_preserve_messages_and_reject_application_tool_loops():
 
 def test_application_action_schema_enforces_tool_choice_arguments_and_parallel_limit():
     from jsonschema import Draft202012Validator, ValidationError
-    from mty_api.domains.hermes.tool_decisions import (
+    from miy_api.domains.hermes.tool_decisions import (
         decision_message,
         prepare_tool_decision,
     )
@@ -1503,7 +1503,7 @@ def test_application_action_schema_enforces_tool_choice_arguments_and_parallel_l
 async def test_session_activity_moves_across_pagination_without_read_or_replay_bumps(
     application_postgres_dsn, monkeypatch
 ):
-    from mty_api.domains.hermes import router
+    from miy_api.domains.hermes import router
 
     class Runtime:
         async def get_session(self, *args):
@@ -1551,7 +1551,7 @@ async def test_session_activity_moves_across_pagination_without_read_or_replay_b
 
 @pytest.mark.anyio
 async def test_sync_workload_cannot_block_the_callback_event_loop():
-    from mty_api.domains.hermes.workloads import complete_workload
+    from miy_api.domains.hermes.workloads import complete_workload
 
     with pytest.raises(LlmProviderError, match="worker thread"):
         complete_workload(None, None, {}, timeout_seconds=1)
@@ -1559,9 +1559,9 @@ async def test_sync_workload_cannot_block_the_callback_event_loop():
 
 def test_rag_tool_returns_evidence_without_starting_a_nested_generative_run(monkeypatch):
     from pydantic import ValidationError
-    from mty_api.domains.rag.tools import RagQueryToolArgs, _query
-    from mty_api.domains.rag.contracts import RagAnswerMode
-    from mty_api.domains.retrieval import application
+    from miy_api.domains.rag.tools import RagQueryToolArgs, _query
+    from miy_api.domains.rag.contracts import RagAnswerMode
+    from miy_api.domains.retrieval import application
 
     request = RagQueryToolArgs(query="authorized evidence")
     assert request.answer_mode == RagAnswerMode.SEARCH_ONLY
@@ -1582,7 +1582,7 @@ def test_rag_tool_returns_evidence_without_starting_a_nested_generative_run(monk
 def test_completed_result_preserves_long_text_and_usage_without_secret_event_fields(
     application_postgres_dsn,
 ):
-    from mty_api.domains.hermes.repository import MAX_RESULT_BYTES
+    from miy_api.domains.hermes.repository import MAX_RESULT_BYTES
 
     engine = create_engine(application_postgres_dsn)
     try:
@@ -1624,7 +1624,7 @@ async def test_upload_bounds_stream_and_rejects_cross_owner_before_reading(
     monkeypatch,
 ):
     from starlette.requests import Request
-    from mty_api.domains.hermes import file_router
+    from miy_api.domains.hermes import file_router
 
     monkeypatch.setattr(file_router, "MAX_FILE_BYTES", 4)
     monkeypatch.setattr(
@@ -1688,9 +1688,9 @@ def test_native_tool_budget_is_durable_and_atomic_per_run(application_postgres_d
     import asyncio
     import json
     from starlette.requests import Request
-    from mty_api.domains.hermes import mcp_router
+    from miy_api.domains.hermes import mcp_router
 
-    from mty_api.domains.ai.registry import AiCapabilityRegistry
+    from miy_api.domains.ai.registry import AiCapabilityRegistry
 
     registry = AiCapabilityRegistry()
     registry.register_llm_workload(
@@ -1737,7 +1737,7 @@ def test_native_tool_budget_is_durable_and_atomic_per_run(application_postgres_d
         def admit(tool, concurrent=False):
             async def call():
                 body = json.dumps(
-                    {"id": 1, "method": "mty/native_admit", "params": {"tool": tool}}
+                    {"id": 1, "method": "miy/native_admit", "params": {"tool": tool}}
                 ).encode()
 
                 async def receive():
@@ -1764,8 +1764,8 @@ def test_native_tool_budget_is_durable_and_atomic_per_run(application_postgres_d
 
 
 def admit_runtime_apps(db, user_id):
-    from mty_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
-    from mty_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
+    from miy_api.domains.auth.models import CompanyAppControl
 
     for app_id in ("chatbot", "mail"):
         db.merge(CompanyAppControl(app_id=app_id, enabled=True))
@@ -1780,7 +1780,7 @@ def admit_runtime_apps(db, user_id):
 async def test_run_event_stream_releases_request_connection_before_streaming(
     application_postgres_dsn,
 ):
-    from mty_api.domains.hermes import router
+    from miy_api.domains.hermes import router
 
     engine = create_engine(application_postgres_dsn, pool_size=1, max_overflow=0)
     try:
@@ -1806,10 +1806,10 @@ async def test_run_event_stream_releases_request_connection_before_streaming(
 async def test_run_reads_and_controls_recheck_current_owner_app_admission(
     application_postgres_dsn, revocation, monkeypatch
 ):
-    from mty_api.domains.auth.app_access_models import AppUserGrant
-    from mty_api.domains.auth.models import CompanyAppControl
-    from mty_api.domains.hermes import router
-    from mty_api.domains.hermes.schemas import HermesApprovalDecision, HermesSteerRequest
+    from miy_api.domains.auth.app_access_models import AppUserGrant
+    from miy_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.hermes import router
+    from miy_api.domains.hermes.schemas import HermesApprovalDecision, HermesSteerRequest
 
     engine = create_engine(application_postgres_dsn)
     try:
@@ -1871,8 +1871,8 @@ async def test_open_run_stream_stops_before_next_batch_after_app_revocation(
     application_postgres_dsn, monkeypatch, revoked_app
 ):
     from sqlalchemy.orm import sessionmaker
-    from mty_api.domains.auth.models import CompanyAppControl
-    from mty_api.domains.hermes import router
+    from miy_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.hermes import router
 
     engine = create_engine(application_postgres_dsn)
     try:
@@ -1913,11 +1913,11 @@ async def test_slow_file_transfer_keeps_other_requests_responsive(
     from httpx import ASGITransport, AsyncClient
     from pydantic import SecretStr
     from sqlalchemy.orm import sessionmaker
-    from mty_api.core.db import get_db_session
-    from mty_api.core.settings import get_settings
-    from mty_api.domains.hermes import mcp_router, file_router
-    from mty_api.domains.auth.dependencies import require_current_user
-    from mty_api.domains.hermes.service import mcp_profile_bearer_secret
+    from miy_api.core.db import get_db_session
+    from miy_api.core.settings import get_settings
+    from miy_api.domains.hermes import mcp_router, file_router
+    from miy_api.domains.auth.dependencies import require_current_user
+    from miy_api.domains.hermes.service import mcp_profile_bearer_secret
 
     engine = create_engine(application_postgres_dsn)
     factory = sessionmaker(engine)
@@ -1997,7 +1997,7 @@ async def test_slow_file_transfer_keeps_other_requests_responsive(
                 else client.post(
                     url,
                     headers=headers,
-                    json={"id": 1, "method": f"mty/files/{operation}", "params": params},
+                    json={"id": 1, "method": f"miy/files/{operation}", "params": params},
                 )
             )
             try:
@@ -2030,8 +2030,8 @@ async def test_upload_rechecks_app_admission_after_receiving_body(
     application_postgres_dsn, monkeypatch
 ):
     from starlette.requests import Request
-    from mty_api.domains.auth.models import CompanyAppControl
-    from mty_api.domains.hermes import file_router
+    from miy_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.hermes import file_router
 
     engine = create_engine(application_postgres_dsn)
     monkeypatch.setattr(
@@ -2075,9 +2075,9 @@ async def test_structured_callback_completes_while_callers_exhaust_thread_capaci
     from httpx import ASGITransport, AsyncClient
     from pydantic import SecretStr
     from sqlalchemy.orm import sessionmaker
-    from mty_api.core.settings import get_settings
-    from mty_api.domains.hermes import mcp_router
-    from mty_api.domains.hermes.service import mcp_profile_bearer_secret
+    from miy_api.core.settings import get_settings
+    from miy_api.domains.hermes import mcp_router
+    from miy_api.domains.hermes.service import mcp_profile_bearer_secret
 
     engine = create_engine(application_postgres_dsn)
     factory = sessionmaker(engine)
@@ -2138,7 +2138,7 @@ async def test_structured_callback_completes_while_callers_exhaust_thread_capaci
                         "Authorization": f"Bearer {token}",
                         "X-Hermes-Run-Id": "run_saturated_callback",
                     },
-                    json={"id": 1, "method": "mty/submit", "params": {"result": {"value": 42}}},
+                    json={"id": 1, "method": "miy/submit", "params": {"result": {"value": 42}}},
                 ),
                 timeout=2,
             )

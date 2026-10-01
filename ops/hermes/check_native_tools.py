@@ -22,9 +22,9 @@ from unittest.mock import patch
 from uuid import uuid4
 
 sys.path.insert(0, "/opt/hermes/plugins")
-import mty_runtime
-from mty_runtime.native_execution import install_code_guard
-from mty_runtime.sandbox import MTYSandbox
+import miy_runtime
+from miy_runtime.native_execution import install_code_guard
+from miy_runtime.sandbox import MIYSandbox
 from agent.terminal_env_registry import register_provider
 from hermes_cli import config, middleware
 import hermes_constants
@@ -34,15 +34,15 @@ from tools.interrupt import set_interrupt
 
 logging.disable(logging.CRITICAL)
 image = sys.argv[1]
-profile = "mty-" + uuid4().hex
-server_name = "mty-mcp-" + hashlib.sha256(profile.encode()).hexdigest()[:20] + "-internal"
+profile = "miy-" + uuid4().hex
+server_name = "miy-mcp-" + hashlib.sha256(profile.encode()).hexdigest()[:20] + "-internal"
 server = {"url": "http://synthetic.invalid", "headers": {"Authorization": "Bearer synthetic"}}
 current = ContextVar("native_check_conversation", default="first")
 snapshots = {"first": {}, "second": {}}
 tasks = {key: "native-check-" + uuid4().hex for key in snapshots}
 settings = {
     "mcp_servers": {server_name: server},
-    "terminal": {"backend": "mty_sandbox", "cwd": "/workspace", "container_persistent": False},
+    "terminal": {"backend": "miy_sandbox", "cwd": "/workspace", "container_persistent": False},
     "approvals": {"unattended_mode": "deny", "mode": "manual"},
     "code_execution": {"timeout": 10},
 }
@@ -55,13 +55,13 @@ def transport():
 def rpc(configured, run_id, method, params):
     assert configured == server and run_id == transport()[1]
     files = snapshots[current.get()]
-    if method == "mty/context":
+    if method == "miy/context":
         return {"allow_native_tools": True, "sandbox": {"image": image, "no_proxy": "localhost"}}
-    if method == "mty/files/list":
+    if method == "miy/files/list":
         return {"files": list(files.values())}
-    if method == "mty/files/read":
+    if method == "miy/files/read":
         return files[params["id"]]
-    if method == "mty/files/write":
+    if method == "miy/files/write":
         path = params["path"]
         files[path] = {
             "id": path, "relative_path": path,
@@ -69,7 +69,7 @@ def rpc(configured, run_id, method, params):
             "data": params["data"],
         }
         return {}
-    if method == "mty/files/checkpoint":
+    if method == "miy/files/checkpoint":
         return {"previews": 0}
     raise AssertionError("Unexpected synthetic RPC")
 
@@ -100,29 +100,29 @@ with (
         "HERMES_HOME": str(Path(home) / profile),
         "HERMES_WRITE_SAFE_ROOT": "/workspace",
         "HERMES_SESSION_PLATFORM": "api_server",
-        "TERMINAL_ENV": "mty_sandbox",
+        "TERMINAL_ENV": "miy_sandbox",
         "TERMINAL_CWD": "/workspace",
         "TERMINAL_CONTAINER_PERSISTENT": "false",
     }),
     patch.object(config, "load_config", lambda *a, **kw: settings),
     patch.object(config, "read_raw_config", lambda *a, **kw: {"code_execution": settings["code_execution"]}),
     patch.object(hermes_constants, "get_hermes_home", lambda: Path(home) / profile),
-    patch.object(mty_runtime, "_rpc", rpc),
-    patch.object(mty_runtime, "runtime_transport", transport),
-    patch.object(middleware, "_get_middleware_callbacks", lambda kind: [mty_runtime.execute_tool] if kind == "tool_execution" else []),
+    patch.object(miy_runtime, "_rpc", rpc),
+    patch.object(miy_runtime, "runtime_transport", transport),
+    patch.object(middleware, "_get_middleware_callbacks", lambda kind: [miy_runtime.execute_tool] if kind == "tool_execution" else []),
 ):
-    register_provider(MTYSandbox())
+    register_provider(MIYSandbox())
     install_code_guard()  # Checks real pinned source hashes, not mocks.
     try:
-        # Unattended guard remains denied outside an admitted MTY tool call.
-        assert not approval.check_execute_code_guard("pass", "mty_sandbox")["approved"]
+        # Unattended guard remains denied outside an admitted miy tool call.
+        assert not approval.check_execute_code_guard("pass", "miy_sandbox")["approved"]
         with ThreadPoolExecutor(max_workers=2) as pool:
             results = list(pool.map(
-                lambda name: call("execute_code", {"code": "print('MTY_NATIVE_CODE_OK')"}, name),
+                lambda name: call("execute_code", {"code": "print('MIY_NATIVE_CODE_OK')"}, name),
                 ["first", "second"],
             ))
         assert all(row.get("status") == "success" for row in results), results
-        assert all("MTY_NATIVE_CODE_OK" in row.get("output", "") for row in results), results
+        assert all("MIY_NATIVE_CODE_OK" in row.get("output", "") for row in results), results
         first = terminal_tool.get_active_env(tasks["first"])
         second = terminal_tool.get_active_env(tasks["second"])
         assert first._container != second._container
@@ -177,7 +177,7 @@ with (
 
         def cancellable():
             worker.append(threading.get_ident())
-            return call("execute_code", {"code": "import subprocess, time\nsubprocess.Popen(['sh', '-c', 'sleep 8; echo late > /workspace/cancel-late.txt'], start_new_session=True)\nopen('/tmp/mty-cancel-ready', 'w').close()\ntime.sleep(60)"})
+            return call("execute_code", {"code": "import subprocess, time\nsubprocess.Popen(['sh', '-c', 'sleep 8; echo late > /workspace/cancel-late.txt'], start_new_session=True)\nopen('/tmp/miy-cancel-ready', 'w').close()\ntime.sleep(60)"})
 
         settings["code_execution"]["timeout"] = 30
         with ThreadPoolExecutor(max_workers=1) as pool:
@@ -186,7 +186,7 @@ with (
             ready = False
             while time.monotonic() < deadline and not pending.done():
                 ready = subprocess.run(
-                    ["docker", "exec", previous, "test", "-f", "/tmp/mty-cancel-ready"],
+                    ["docker", "exec", previous, "test", "-f", "/tmp/miy-cancel-ready"],
                     capture_output=True, timeout=3, check=False,
                 ).returncode == 0
                 if ready:

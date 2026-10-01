@@ -1,4 +1,4 @@
-import { InlineNotice } from '@mty/ui/feedback/inline-notice';
+import { InlineNotice } from '@miy/ui/feedback/inline-notice';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { authenticatedContentObjectUrl } from '@/src/platform/browser/browser-download';

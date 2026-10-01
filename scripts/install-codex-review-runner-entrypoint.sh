@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-target="${CODEX_REVIEW_RUNNER_SCRIPT:-/usr/local/bin/mty-codex-review-ci}"
+target="${CODEX_REVIEW_RUNNER_SCRIPT:-/usr/local/bin/miy-codex-review-ci}"
 
 if [[ -n "$(git -C "$repo_root" status --porcelain)" ]]; then
   echo "Installing from dirty checkout; ensure this is intentional." >&2
@@ -28,8 +28,8 @@ for executable in "$node_bin" "$glab_bin"; do
     checked_path="$(dirname "$checked_path")"
   done
 done
-id mty-review-evidence >/dev/null 2>&1 ||
-  { echo "Prepare the isolated mty-review-evidence account as documented first." >&2; exit 2; }
+id miy-review-evidence >/dev/null 2>&1 ||
+  { echo "Prepare the isolated miy-review-evidence account as documented first." >&2; exit 2; }
 sudo install -d -o root -g root -m 755 /usr/local/libexec
 helper_tmp="$(mktemp)"
 trap 'rm -f "$helper_tmp"' EXIT
@@ -42,6 +42,6 @@ if (code.split(marker).length !== 2) throw new Error('Invalid evidence helper te
 process.stdout.write(code.replace(/^#![^\n]*/, () => `#!${node}`)
   .replace(marker, () => `const installedGlabBin = ${JSON.stringify(glab)};`));
 NODE
-sudo install -o root -g root -m 755 "$helper_tmp" /usr/local/libexec/mty-review-evidence
+sudo install -o root -g root -m 755 "$helper_tmp" /usr/local/libexec/miy-review-evidence
 sudo install -o root -g root -m 755 "$repo_root/scripts/codex-review-ci.sh" "$target"
-echo "Installed MTY Codex review runner entrypoint: ${target}"
+echo "Installed miy Codex review runner entrypoint: ${target}"

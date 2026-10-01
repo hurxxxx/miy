@@ -1,4 +1,4 @@
-import { Button, Dialog, InlineNotice } from '@mty/ui';
+import { Button, Dialog, InlineNotice } from '@miy/ui';
 import { Loader2 } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 

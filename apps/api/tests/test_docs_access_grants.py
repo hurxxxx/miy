@@ -7,16 +7,16 @@ from sqlalchemy import select
 
 from dev_accounts import dev_login
 
-from mty_api.core.db import get_session_factory
-from mty_api.domains.auth.models import User
-from mty_api.domains.auth.security import new_id
-from mty_api.domains.docs import access_grants
-from mty_api.domains.docs.access_grants import (
+from miy_api.core.db import get_session_factory
+from miy_api.domains.auth.models import User
+from miy_api.domains.auth.security import new_id
+from miy_api.domains.docs import access_grants
+from miy_api.domains.docs.access_grants import (
     bump_doc_grant_expiry_for_meeting,
     revoke_doc_grants_for_meeting_attendee,
 )
-from mty_api.domains.docs.models import DocMeetingAccess, NativeDoc
-from mty_api.domains.meeting.models import Meeting
+from miy_api.domains.docs.models import DocMeetingAccess, NativeDoc
+from miy_api.domains.meeting.models import Meeting
 
 
 def test_revoke_doc_grants_for_meeting_attendee_updates_active_grants_and_enqueues(
@@ -103,10 +103,10 @@ def _create_docs_meeting_access_context(
 
     with get_session_factory()() as db:
         owner = db.scalar(
-            select(User).where(User.email == "delivery-hub-admin@mty.local")
+            select(User).where(User.email == "delivery-hub-admin@miy.local")
         )
         recipient = db.scalar(
-            select(User).where(User.email == "delivery-hub-member@mty.local")
+            select(User).where(User.email == "delivery-hub-member@miy.local")
         )
         assert owner is not None
         assert recipient is not None

@@ -1,4 +1,4 @@
-import type { ApiSchema } from '@mty/contracts';
+import type { ApiSchema } from '@miy/contracts';
 import {
   HEIGHT,
   WIDTH,

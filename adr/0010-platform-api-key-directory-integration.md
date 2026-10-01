@@ -5,7 +5,7 @@
 
 ## Context
 
-회사별 MTY 구축에서는 인사·조직 시스템 등 내부 서비스가 조직 계층과 임직원
+회사별 miy 구축에서는 인사·조직 시스템 등 내부 서비스가 조직 계층과 임직원
 프로필을 읽어야 한다. 사용자 access token을 자동화에 재사용하면 사람의 세션과 시스템 주체가
 혼합되고, platform admin token을 제공하면 필요 이상의 쓰기 권한이 노출된다.
 
@@ -17,7 +17,7 @@
 
 ### 사용자 인증과 별도인 opaque credential을 사용한다
 
-`mty_pk_` opaque bearer token을 플랫폼 API 키로 사용한다. 외부 integration route만 이 credential을
+`miy_pk_` opaque bearer token을 플랫폼 API 키로 사용한다. 외부 integration route만 이 credential을
 인정하며 사용자/session dependency와 상호 교환하지 않는다. 조직·임직원 read scope를
 `organization:read`, `people:read`로 분리하고 발급 가능한 scope는 코드 registry로 제한한다.
 
@@ -25,7 +25,7 @@
 
 인증은 token의 SHA-256 hash를 constant-time 비교하는 방식으로 수행한다. 관리자 재표시 요구를
 위해 원문은 별도 전용 root에서 purpose-derived key로 암호화해 저장한다. root는
-`MTY_PLATFORM_API_KEY_ENCRYPTION_KEY`로만 공급하고 DB에는 두지 않는다.
+`MIY_PLATFORM_API_KEY_ENCRYPTION_KEY`로만 공급하고 DB에는 두지 않는다.
 
 목록에는 짧은 prefix만 표시한다. 발급·재표시 응답은 cache되지 않으며 모든 재표시는 감사한다.
 폐기하면 암호문을 삭제하고 status와 폐기자를 기록한다. hash는 폐기된 credential의 식별과

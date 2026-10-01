@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-@import '@mty/ui/styles.css';
+@import '@miy/ui/styles.css';
 @source '../../../packages/ui/src';
 
 /* Resolve the public UI primitives against the shared design tokens. */

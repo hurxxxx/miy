@@ -60,7 +60,7 @@ describe('planner calendar view model', () => {
     expect(readTimelineRangeDays()).toBe(56);
 
     window.localStorage.setItem(
-      'mty:planner-timeline-range-days',
+      'miy:planner-timeline-range-days',
       '7',
     );
     expect(readTimelineRangeDays()).toBe(28);

@@ -6,16 +6,16 @@ from types import SimpleNamespace
 
 import pytest
 
-from mty_api import evaluate_retrieval_quality
-from mty_api.evaluate_retrieval_quality import _evaluation_case, _retrieval_request
-from mty_api.domains.retrieval.contracts import (
+from miy_api import evaluate_retrieval_quality
+from miy_api.evaluate_retrieval_quality import _evaluation_case, _retrieval_request
+from miy_api.domains.retrieval.contracts import (
     RetrievalHit,
     RetrievalProfile,
     RetrievalQueryResponse,
     RetrievalStrategy,
 )
-from mty_api.domains.retrieval.evaluation import RetrievalQualityCorpusCase
-from mty_api.domains.retrieval.evaluation import RetrievalEvaluationCase
+from miy_api.domains.retrieval.evaluation import RetrievalQualityCorpusCase
+from miy_api.domains.retrieval.evaluation import RetrievalEvaluationCase
 
 
 def _corpus_case() -> RetrievalQualityCorpusCase:

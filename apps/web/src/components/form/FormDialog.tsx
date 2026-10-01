@@ -1,4 +1,4 @@
-import { Button, Dialog } from '@mty/ui';
+import { Button, Dialog } from '@miy/ui';
 import type { ReactNode } from 'react';
 
 export const FORM_FIELD_CONTROL_CLASS_NAME =

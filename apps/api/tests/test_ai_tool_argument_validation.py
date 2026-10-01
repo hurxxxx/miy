@@ -3,11 +3,11 @@ from __future__ import annotations
 import pytest
 from pydantic import BaseModel, ConfigDict, Field
 
-from mty_api.domains.ai.tool_argument_validation import (
+from miy_api.domains.ai.tool_argument_validation import (
     ToolArgumentValidationFailure,
     validate_tool_arguments,
 )
-from mty_api.domains.pms.tools import PmsUpdateTaskAiInput
+from miy_api.domains.pms.tools import PmsUpdateTaskAiInput
 
 
 class AliasArgs(BaseModel):

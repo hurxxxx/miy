@@ -8,15 +8,15 @@ from sqlalchemy import select
 
 from dev_accounts import auth_headers, dev_login
 
-from mty_api.core.db import get_session_factory
-from mty_api.domains.auth.models import User
-from mty_api.domains.auth.app_access_models import AppAccessPolicy
-from mty_api.domains.files import chat_retrieval
-from mty_api.domains.files import service as files_service
-from mty_api.domains.files.models import FileManagerFile
-from mty_api.domains.files.search import FileSearchRuntime, FileSearchUnavailable
-from mty_api.domains.retrieval.contracts import RetrievalHit
-from mty_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOURCE_TYPE
+from miy_api.core.db import get_session_factory
+from miy_api.domains.auth.models import User
+from miy_api.domains.auth.app_access_models import AppAccessPolicy
+from miy_api.domains.files import chat_retrieval
+from miy_api.domains.files import service as files_service
+from miy_api.domains.files.models import FileManagerFile
+from miy_api.domains.files.search import FileSearchRuntime, FileSearchUnavailable
+from miy_api.domains.retrieval.contracts import RetrievalHit
+from miy_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOURCE_TYPE
 
 
 def test_file_chat_evidence_raises_existing_unavailable_error_for_closed_runtime(
@@ -288,7 +288,7 @@ def test_file_chat_evidence_filters_candidate_after_app_admission_revoke(
 
     with get_session_factory()() as db:
         user = db.scalar(
-            select(User).where(User.email == "delivery-hub-member@mty.local")
+            select(User).where(User.email == "delivery-hub-member@miy.local")
         )
         assert user is not None
         policy = db.get(AppAccessPolicy, "files")

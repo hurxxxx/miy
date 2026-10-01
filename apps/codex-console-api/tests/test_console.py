@@ -173,8 +173,9 @@ def test_public_and_bound_loopback_login_have_separate_cookie_security(client):
         local.close()
 
 
-def test_mty_handoff_creates_console_session(client, monkeypatch):
-    from codex_console import mty_sso
+@pytest.mark.parametrize("path", ["/api/session/miy", "/api/session/mty"])
+def test_miy_handoff_creates_console_session(client, monkeypatch, path):
+    from codex_console import miy_sso
 
     assert client.delete("/api/session").status_code == 200
     owner_subject = UUID("11111111-1111-4111-8111-111111111111")
@@ -182,7 +183,7 @@ def test_mty_handoff_creates_console_session(client, monkeypatch):
         "https://dev.example.test": owner_subject,
     }
     exchange = monkeypatch.setattr(
-        mty_sso,
+        miy_sso,
         "exchange_code",
         lambda **values: (
             str(owner_subject)
@@ -193,7 +194,7 @@ def test_mty_handoff_creates_console_session(client, monkeypatch):
     assert exchange is None
 
     response = client.post(
-        "/api/session/mty",
+        path,
         json={"issuer": "https://dev.example.test", "code": "cc1_" + "a" * 32},
     )
     assert response.status_code == 200
@@ -201,18 +202,18 @@ def test_mty_handoff_creates_console_session(client, monkeypatch):
     assert client.get("/api/tasks").status_code == 200
 
 
-def test_mty_handoff_fails_closed(client, monkeypatch):
-    from codex_console import mty_sso
+def test_miy_handoff_fails_closed(client, monkeypatch):
+    from codex_console import miy_sso
 
     assert client.delete("/api/session").status_code == 200
     client.app.state.settings.sso_subjects = {}
     monkeypatch.setattr(
-        mty_sso,
+        miy_sso,
         "exchange_code",
         lambda **values: pytest.fail("an unconfigured issuer must not be contacted"),
     )
     response = client.post(
-        "/api/session/mty",
+        "/api/session/miy",
         json={"issuer": "https://evil.example", "code": "cc1_" + "a" * 32},
     )
     assert response.status_code == 401
@@ -220,21 +221,21 @@ def test_mty_handoff_fails_closed(client, monkeypatch):
     assert client.get("/api/tasks").status_code == 401
 
 
-def test_mty_handoff_rejects_a_different_user(client, monkeypatch):
-    from codex_console import mty_sso
+def test_miy_handoff_rejects_a_different_user(client, monkeypatch):
+    from codex_console import miy_sso
 
     assert client.delete("/api/session").status_code == 200
     client.app.state.settings.sso_subjects = {
         "https://dev.example.test": UUID("11111111-1111-4111-8111-111111111111"),
     }
     monkeypatch.setattr(
-        mty_sso,
+        miy_sso,
         "exchange_code",
         lambda **values: "22222222-2222-4222-8222-222222222222",
     )
 
     response = client.post(
-        "/api/session/mty",
+        "/api/session/miy",
         json={"issuer": "https://dev.example.test", "code": "cc1_" + "a" * 32},
     )
     assert response.status_code == 401

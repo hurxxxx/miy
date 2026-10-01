@@ -1,4 +1,4 @@
-import { BlockViewer, type BlockContent } from '@mty/ui';
+import { BlockViewer, type BlockContent } from '@miy/ui';
 import {
   ChevronLeft,
   ChevronRight,
@@ -327,7 +327,7 @@ function useDocsFullscreenReadModalElement({
             clientY: event.clientY - rect.top,
             deltaX: event.deltaX,
             deltaY: event.deltaY,
-            type: 'mty-docs-html-wheel',
+            type: 'miy-docs-html-wheel',
           },
           '*',
         );

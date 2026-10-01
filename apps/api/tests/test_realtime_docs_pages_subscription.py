@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from fastapi import HTTPException
 import pytest
 
-from mty_api.domains.realtime import docs_pages_subscription as subscriptions
+from miy_api.domains.realtime import docs_pages_subscription as subscriptions
 
 
 class _FakeDb:

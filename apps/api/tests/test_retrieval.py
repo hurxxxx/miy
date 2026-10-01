@@ -11,19 +11,19 @@ from sqlalchemy.orm import Session
 
 from dev_accounts import dev_login
 
-from mty_api.core.db import get_engine
-from mty_api.domains.ai.registry import (
+from miy_api.core.db import get_engine
+from miy_api.domains.ai.registry import (
     AppEntitlementView,
     get_ai_capability_registry,
     reset_ai_capability_registry,
 )
-from mty_api.domains.auth.models import CompanyAppControl
-from mty_api.domains.rag.contracts import RagAnswerMode, RagQueryHit, RagQueryResponse
-from mty_api.domains.rag.default_source_adapters import registered_rag_app_ids
-from mty_api.domains.rag.providers.fake import FakeRerankClient
-from mty_api.domains.retrieval import application as retrieval_application
-from mty_api.domains.retrieval import tools as retrieval_tools
-from mty_api.domains.retrieval.contracts import (
+from miy_api.domains.auth.models import CompanyAppControl
+from miy_api.domains.rag.contracts import RagAnswerMode, RagQueryHit, RagQueryResponse
+from miy_api.domains.rag.default_source_adapters import registered_rag_app_ids
+from miy_api.domains.rag.providers.fake import FakeRerankClient
+from miy_api.domains.retrieval import application as retrieval_application
+from miy_api.domains.retrieval import tools as retrieval_tools
+from miy_api.domains.retrieval.contracts import (
     RetrievalAnswerMode,
     RetrievalCitation,
     RetrievalGroundedAnswer,
@@ -31,19 +31,19 @@ from mty_api.domains.retrieval.contracts import (
     RetrievalQueryRequest,
     RetrievalStrategy,
 )
-from mty_api.domains.retrieval.grounding import RetrievalGroundingResult
-from mty_api.domains.retrieval.source_catalog import (
+from miy_api.domains.retrieval.grounding import RetrievalGroundingResult
+from miy_api.domains.retrieval.source_catalog import (
     default_sources_for_strategy,
     iter_retrieval_source_catalog,
     registered_retrieval_source_app_ids,
     source_catalog_item,
 )
-from mty_api.domains.retrieval.tools import retrieval_discoverable_app_ids
-from mty_api.domains.search.backend_contracts import (
+from miy_api.domains.retrieval.tools import retrieval_discoverable_app_ids
+from miy_api.domains.search.backend_contracts import (
     KeywordSearchQuery,
     KeywordSearchResult,
 )
-from mty_api.domains.search.schemas import (
+from miy_api.domains.search.schemas import (
     KeywordSearchResponse,
     SearchFacets,
     SearchHit,

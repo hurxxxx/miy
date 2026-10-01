@@ -14,12 +14,12 @@ async function notifyRecordingClients() {
     includeUncontrolled: true,
   });
   await Promise.all(
-    clients.map((client) => client.postMessage({ type: 'mty-recording-sync' })),
+    clients.map((client) => client.postMessage({ type: 'miy-recording-sync' })),
   );
 }
 
 worker.addEventListener('sync', (event) => {
-  if (event.tag === 'mty-recording-upload') {
+  if (event.tag === 'miy-recording-upload') {
     event.waitUntil(notifyRecordingClients());
   }
 });

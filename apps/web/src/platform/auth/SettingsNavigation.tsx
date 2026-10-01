@@ -38,8 +38,8 @@ export function SettingsNavigation({
       icon: Newspaper,
     },
     {
-      id: 'mtyDesktop' as const,
-      label: t('auth:settings.mtyDesktop'),
+      id: 'miyDesktop' as const,
+      label: t('auth:settings.miyDesktop'),
       icon: Monitor,
     },
   ];

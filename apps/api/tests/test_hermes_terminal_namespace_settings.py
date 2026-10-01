@@ -3,9 +3,9 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from mty_api.core import settings as settings_module
+from miy_api.core import settings as settings_module
 
-NAMESPACE_KEY = "MTY_HERMES_TERMINAL_RESOURCE_NAMESPACE"
+NAMESPACE_KEY = "MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE"
 
 
 @pytest.fixture(autouse=True)

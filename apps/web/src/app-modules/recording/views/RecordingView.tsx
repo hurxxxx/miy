@@ -1,10 +1,10 @@
-import { buildAppHref } from '@mty/contracts/app-routes';
+import { buildAppHref } from '@miy/contracts/app-routes';
 import {
   Button,
   DropdownMenu,
   InlineNotice,
   useConfirm,
-} from '@mty/ui';
+} from '@miy/ui';
 import {
   AlertCircle,
   AudioWaveform,

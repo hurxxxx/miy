@@ -8,25 +8,25 @@ from sqlalchemy import create_engine, event, func, insert, select, text, delete
 from sqlalchemy.orm import Session
 
 from company_admission_fixture import seed_company_app_access
-from mty_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
-from mty_api.domains.auth.models import User, UserSystemRole
-from mty_api.domains.files import service as files_service
-from mty_api.domains.files.models import (
+from miy_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
+from miy_api.domains.auth.models import User, UserSystemRole
+from miy_api.domains.files import service as files_service
+from miy_api.domains.files.models import (
     FileManagerCorpus,
     FileManagerFile,
 )
-from mty_api.domains.files.source_access import (
+from miy_api.domains.files.source_access import (
     FileManagerSourceAccessAdapter,
 )
-from mty_api.domains.rag.models import RagSyncJob
-from mty_api.domains.retrieval.models import (
+from miy_api.domains.rag.models import RagSyncJob
+from miy_api.domains.retrieval.models import (
     RetrievalPartition,
     RetrievalProjectionEvent,
     RetrievalProjectionHead,
 )
-from mty_api.domains.search.models import SearchIndexJob
-from mty_api.domains.source_access.policy import SourceAclPolicy
-from mty_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOURCE_TYPE
+from miy_api.domains.search.models import SearchIndexJob
+from miy_api.domains.source_access.policy import SourceAclPolicy
+from miy_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOURCE_TYPE
 
 
 pytestmark = pytest.mark.migration

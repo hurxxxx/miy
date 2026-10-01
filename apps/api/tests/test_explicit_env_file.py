@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from mty_api.core.explicit_env_file import ExplicitEnvFileError, load_explicit_env_file
+from miy_api.core.explicit_env_file import ExplicitEnvFileError, load_explicit_env_file
 
 
 def test_explicit_env_file_parses_dotenv_and_projects_allowlist(tmp_path: Path) -> None:
@@ -12,8 +12,8 @@ def test_explicit_env_file_parses_dotenv_and_projects_allowlist(tmp_path: Path) 
     env_file.write_text(
         "\n".join(
             (
-                "export MTY_TEST_PROVIDER='example' # provider",
-                'MTY_TEST_MODEL="example model"',
+                "export MIY_TEST_PROVIDER='example' # provider",
+                'MIY_TEST_MODEL="example model"',
                 "UNRELATED_SECRET=must-not-be-returned",
             )
         )
@@ -23,12 +23,12 @@ def test_explicit_env_file_parses_dotenv_and_projects_allowlist(tmp_path: Path) 
 
     result = load_explicit_env_file(
         env_file,
-        allowed_keys={"MTY_TEST_PROVIDER", "MTY_TEST_MODEL"},
+        allowed_keys={"MIY_TEST_PROVIDER", "MIY_TEST_MODEL"},
     )
 
     assert result == {
-        "MTY_TEST_PROVIDER": "example",
-        "MTY_TEST_MODEL": "example model",
+        "MIY_TEST_PROVIDER": "example",
+        "MIY_TEST_MODEL": "example model",
     }
     assert "must-not-be-returned" not in repr(result)
 
@@ -36,7 +36,7 @@ def test_explicit_env_file_parses_dotenv_and_projects_allowlist(tmp_path: Path) 
 @pytest.mark.parametrize(
     ("contents", "code"),
     (
-        ("MTY_TEST_MODEL=one\nMTY_TEST_MODEL=two\n", "env_file_duplicate_key"),
+        ("MIY_TEST_MODEL=one\nMIY_TEST_MODEL=two\n", "env_file_duplicate_key"),
         ("this is not dotenv\n", "env_file_invalid"),
     ),
 )
@@ -49,7 +49,7 @@ def test_explicit_env_file_rejects_ambiguous_input(
     env_file.write_text(contents, encoding="utf-8")
 
     with pytest.raises(ExplicitEnvFileError) as exc_info:
-        load_explicit_env_file(env_file, allowed_keys={"MTY_TEST_MODEL"})
+        load_explicit_env_file(env_file, allowed_keys={"MIY_TEST_MODEL"})
 
     assert exc_info.value.code == code
     assert contents not in str(exc_info.value)
@@ -59,7 +59,7 @@ def test_explicit_env_file_requires_existing_regular_file(tmp_path: Path) -> Non
     with pytest.raises(ExplicitEnvFileError) as exc_info:
         load_explicit_env_file(
             tmp_path / "missing.env",
-            allowed_keys={"MTY_TEST_MODEL"},
+            allowed_keys={"MIY_TEST_MODEL"},
         )
 
     assert exc_info.value.code == "env_file_unavailable"

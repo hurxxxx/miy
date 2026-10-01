@@ -85,7 +85,7 @@ describe('stale asset reload recovery', () => {
       'https://app.test/apps/pms?tab=board&__reload=1000#panel',
     );
     expect(storage.setItem).toHaveBeenCalledWith(
-      'mty:stale-asset-reload-at',
+      'miy:stale-asset-reload-at',
       '1000',
     );
   });

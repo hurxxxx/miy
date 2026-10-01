@@ -1,7 +1,7 @@
 import {
   createWhiteboardAccessRealtimeSubscriptionMessage,
   REALTIME_TOPIC_EVENT_TYPES,
-} from '@mty/contracts/realtime';
+} from '@miy/contracts/realtime';
 import {
   Fragment,
   useCallback,

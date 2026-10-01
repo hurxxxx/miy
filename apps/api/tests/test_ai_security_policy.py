@@ -5,30 +5,30 @@ from datetime import UTC, datetime, timedelta
 from fastapi.testclient import TestClient
 import pytest
 
-from mty_api.core.db import get_session_factory
-from mty_api.core.llm import LlmPoolConfig
-from mty_api.core.settings import Settings
-from mty_api.domains.ai import masking as masking_module
-from mty_api.domains.ai import external_gateway
-from mty_api.domains.ai.boundary_safety import evaluate_external_payload_safety
-from mty_api.domains.ai.external_gateway import (
+from miy_api.core.db import get_session_factory
+from miy_api.core.llm import LlmPoolConfig
+from miy_api.core.settings import Settings
+from miy_api.domains.ai import masking as masking_module
+from miy_api.domains.ai import external_gateway
+from miy_api.domains.ai.boundary_safety import evaluate_external_payload_safety
+from miy_api.domains.ai.external_gateway import (
     AiExternalCapabilityPolicyViolation,
     AiExternalCapabilityRequest,
     execute_external_capability,
 )
-from mty_api.domains.ai.gateway import (
+from miy_api.domains.ai.gateway import (
     AiGatewayPolicyViolation,
     AiGatewayRequest,
     resolve_gateway_execution,
 )
-from mty_api.domains.ai.privacy_filter import PrivacyFilterDetection
-from mty_api.domains.ai.models import (
+from miy_api.domains.ai.privacy_filter import PrivacyFilterDetection
+from miy_api.domains.ai.models import (
     AiSecurityDataProtectionSettings,
     AiSecurityDetectedValue,
     AiSecurityExternalTransferException,
     AiSecurityPolicyRule,
 )
-from mty_api.domains.ai.security_policy import (
+from miy_api.domains.ai.security_policy import (
     DATA_PROTECTION_SETTINGS_ID,
     EXTERNAL_TRANSFER_EXCEPTION_REASON,
     external_transfer_blockers_from_safety,
@@ -36,8 +36,8 @@ from mty_api.domains.ai.security_policy import (
     resolve_ai_security_policy,
     AiSecurityPolicyContext,
 )
-from mty_api.domains.auth.models import AuditLog
-from mty_api.domains.auth.security import new_id
+from miy_api.domains.auth.models import AuditLog
+from miy_api.domains.auth.security import new_id
 
 
 def _auth_headers(token: str) -> dict[str, str]:
@@ -61,8 +61,8 @@ def _bootstrap_admin_session(client: TestClient) -> dict:
     response = client.post(
         "/api/v1/auth/setup",
         json={
-            "full_name": "MTY Admin",
-            "email": "admin@mty.local",
+            "full_name": "miy Admin",
+            "email": "admin@miy.local",
             "password": "supersecret123",
         },
     )

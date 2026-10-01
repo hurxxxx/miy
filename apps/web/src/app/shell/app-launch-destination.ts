@@ -4,8 +4,8 @@ import { readStoredAuthToken } from '@/src/platform/auth/auth-storage';
 import {
   APP_CONTRACT_BY_ID,
   type AppId,
-} from '@mty/contracts/app-contracts';
-import { buildAppHref } from '@mty/contracts/app-routes';
+} from '@miy/contracts/app-contracts';
+import { buildAppHref } from '@miy/contracts/app-routes';
 import type { LauncherGlobalPaths } from './navigation-types';
 
 export type AppLaunchDestination =
@@ -129,8 +129,8 @@ async function launchCodexConsole(href: string): Promise<void> {
     const link = await createCodexConsoleSessionLink(token);
     const destination = new URL(href, window.location.origin);
     destination.hash = new URLSearchParams({
-      mty_issuer: window.location.origin,
-      mty_code: link.code,
+      miy_issuer: window.location.origin,
+      miy_code: link.code,
     }).toString();
     navigate(destination.toString());
   } catch {

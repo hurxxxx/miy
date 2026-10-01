@@ -13,20 +13,20 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["node"],
     "paths": {
-      "@mty/contracts": ["./packages/contracts/src/index.ts"],
-      "@mty/contracts/openapi": [
+      "@miy/contracts": ["./packages/contracts/src/index.ts"],
+      "@miy/contracts/openapi": [
         "./packages/contracts/src/openapi.generated.d.ts"
       ],
-      "@mty/contracts/*": ["./packages/contracts/src/*"],
-      "@mty/core-web": ["./packages/core-web/src/index.ts"],
-      "@mty/core-web/*": ["./packages/core-web/src/*"],
-      "@mty/web-shell": ["./apps/web/src/app/shell/AppContent.tsx"],
-      "@mty/web/styles.css": ["./apps/web/src/index.css"],
-      "@mty/web/fullcalendar-theme.css": [
+      "@miy/contracts/*": ["./packages/contracts/src/*"],
+      "@miy/core-web": ["./packages/core-web/src/index.ts"],
+      "@miy/core-web/*": ["./packages/core-web/src/*"],
+      "@miy/web-shell": ["./apps/web/src/app/shell/AppContent.tsx"],
+      "@miy/web/styles.css": ["./apps/web/src/index.css"],
+      "@miy/web/fullcalendar-theme.css": [
         "./apps/web/src/styles/fullcalendar-theme.css"
       ],
-      "@mty/ui": ["./packages/ui/src/index.ts"],
-      "@mty/ui/*": ["./packages/ui/src/lib/*"]
+      "@miy/ui": ["./packages/ui/src/index.ts"],
+      "@miy/ui/*": ["./packages/ui/src/lib/*"]
     }
   },
   "exclude": ["node_modules", "dist"]

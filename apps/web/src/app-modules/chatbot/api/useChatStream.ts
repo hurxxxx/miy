@@ -45,7 +45,7 @@ export interface UseChatStreamApi {
   upsertPendingApproval: (approval: PendingApproval) => void;
 }
 
-const AI_STREAM_ENABLED_STORAGE_KEY = 'mty.ai.streamEnabled';
+const AI_STREAM_ENABLED_STORAGE_KEY = 'miy.ai.streamEnabled';
 
 interface ChatStreamRuntime {
   stop: (() => Promise<void>) | null;
