@@ -74,7 +74,7 @@ class ValidationPostgresTest(unittest.TestCase):
         secret = "synthetic-secret-must-not-appear"
         self.connect.side_effect = RuntimeError(f"connection failed: postgresql://user:{secret}@private/db")
         stderr = io.StringIO()
-        with self.tools(), patch.dict(MODULE.os.environ, {"MTY_CI_POSTGRES_DSN": f"postgresql://{secret}"}), \
+        with self.tools(), patch.dict(MODULE.os.environ, {"MIY_CI_POSTGRES_DSN": f"postgresql://{secret}"}), \
                 patch.object(MODULE.sys, "argv", [str(SCRIPT), "--major-file", str(self.major_file)]), \
                 redirect_stderr(stderr):
             self.assertEqual(MODULE.main(), 2)

@@ -4,19 +4,19 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import delete
 
-from mty_api.core import llm as llm_core
-from mty_api.core.db import get_session_factory
-from mty_api.core.settings import get_settings
-from mty_api.domains.ai import gateway as gateway_module
-from mty_api.domains.ai.gateway import LlmWorkloadContext, build_llm_workload_request
-from mty_api.domains.ai.model_credentials import encrypt_api_key
-from mty_api.domains.ai.model_settings_models import (
+from miy_api.core import llm as llm_core
+from miy_api.core.db import get_session_factory
+from miy_api.core.settings import get_settings
+from miy_api.domains.ai import gateway as gateway_module
+from miy_api.domains.ai.gateway import LlmWorkloadContext, build_llm_workload_request
+from miy_api.domains.ai.model_credentials import encrypt_api_key
+from miy_api.domains.ai.model_settings_models import (
     AiModelCatalogEntry,
     AiModelProviderConfig,
     AiModelPolicyDefault,
     AiModelRouteOverride,
 )
-from mty_api.domains.ai.model_settings_service import (
+from miy_api.domains.ai.model_settings_service import (
     AiModelSettingsError,
     get_ai_model_settings_snapshot,
     resolve_ai_model_workload_route,
@@ -31,10 +31,10 @@ _DB_SECRET = "test-db-anthropic-secret"
 
 
 def _configure_conflicting_external_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("MTY_LLM_ANTHROPIC_API_KEY", "test-env-anthropic-secret")
-    monkeypatch.setenv("MTY_LLM_ANTHROPIC_BASE_URL", "https://env.example.test")
-    monkeypatch.setenv("MTY_LLM_ANTHROPIC_DEFAULT_MODEL", "env-only-model")
-    monkeypatch.setenv("MTY_LLM_ANTHROPIC_CANONICAL_MODEL", "env-only-model")
+    monkeypatch.setenv("MIY_LLM_ANTHROPIC_API_KEY", "test-env-anthropic-secret")
+    monkeypatch.setenv("MIY_LLM_ANTHROPIC_BASE_URL", "https://env.example.test")
+    monkeypatch.setenv("MIY_LLM_ANTHROPIC_DEFAULT_MODEL", "env-only-model")
+    monkeypatch.setenv("MIY_LLM_ANTHROPIC_CANONICAL_MODEL", "env-only-model")
     get_settings.cache_clear()
 
 

@@ -15,11 +15,11 @@ function testLocation(value: string): Location {
 describe('bento embed protocol', () => {
   it('builds a separate-origin local iframe URL', () => {
     const config = buildBentoEmbedConfig({
-      env: { DEV: true, VITE_MTY_BENTO_PORT: '18084' },
+      env: { DEV: true, VITE_MIY_BENTO_PORT: '18084' },
       location: testLocation('http://127.0.0.1:4200/apps/bento'),
     });
     expect(config).toEqual({
-      src: 'http://127.0.0.1:18084/?mty-embed=1',
+      src: 'http://127.0.0.1:18084/?miy-embed=1',
       origin: 'http://127.0.0.1:18084',
     });
   });
@@ -27,19 +27,19 @@ describe('bento embed protocol', () => {
   it('rejects same-origin and non-http production URLs', () => {
     expect(
       buildBentoEmbedConfig({
-        env: { VITE_MTY_BENTO_URL: '/bento/' },
+        env: { VITE_MIY_BENTO_URL: '/bento/' },
         location: testLocation('https://hub.example/apps/bento'),
       }),
     ).toBeNull();
     expect(
       buildBentoEmbedConfig({
-        env: { VITE_MTY_BENTO_URL: 'data:text/html,not-bento' },
+        env: { VITE_MIY_BENTO_URL: 'data:text/html,not-bento' },
         location: testLocation('https://hub.example/apps/bento'),
       }),
     ).toBeNull();
     expect(
       buildBentoEmbedConfig({
-        env: { VITE_MTY_BENTO_URL: 'http://bento.example/' },
+        env: { VITE_MIY_BENTO_URL: 'http://bento.example/' },
         location: testLocation('https://hub.example/apps/bento'),
       }),
     ).toBeNull();
@@ -60,7 +60,7 @@ describe('bento embed protocol', () => {
     ).toBe(false);
     expect(
       parseBentoBridgeMessage({
-        channel: 'mty:bento',
+        channel: 'miy:bento',
         version: 2,
         type: 'document-changed',
         documentJson: '{"format":"bento/slides"}',
@@ -82,7 +82,7 @@ describe('bento embed protocol', () => {
     });
     expect(
       parseBentoBridgeMessage({
-        channel: 'mty:bento',
+        channel: 'miy:bento',
         version: 1,
         type: 'ready',
       }),

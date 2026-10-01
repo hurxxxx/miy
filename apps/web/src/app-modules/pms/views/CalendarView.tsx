@@ -3,7 +3,7 @@ import {
   type UnifiedCalendarHandle,
 } from '@/src/components/calendar/UnifiedCalendar';
 import type { CalendarEvent } from '@/src/platform/calendar/calendar-types';
-import { Button } from '@mty/ui';
+import { Button } from '@miy/ui';
 import {
   CalendarDays,
   ChevronLeft,

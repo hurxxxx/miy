@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from mty_api.domains.admin import document_processing_projection
+from miy_api.domains.admin import document_processing_projection
 from dev_accounts import auth_headers, dev_login
 
 

@@ -27,13 +27,13 @@ class EnvContractScannerTest(unittest.TestCase):
                 root.mkdir()
                 shutil.copytree(source / "config", root / "config")
                 for relative_path in env_contract.SETTINGS_FILE_PARTS:
-                    peer_relative = Path(str(relative_path).replace("mty_api", "legacy_api").replace("mty_worker", "legacy_worker"))
+                    peer_relative = Path(str(relative_path).replace("miy_api", "legacy_api").replace("miy_worker", "legacy_worker"))
                     destination = root / (peer_relative if name == "prod" else relative_path)
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(source / relative_path, destination)
                 template = (source / ".env.example").read_text()
                 if name == "prod":
-                    template += "\nPEER_APP_PORT=1234\nMTY_LLM_LOCAL_API_KEY=synthetic-only\n"
+                    template += "\nPEER_APP_PORT=1234\nMIY_LLM_LOCAL_API_KEY=synthetic-only\n"
                 (root / ".env.example").write_text(template)
                 (root / ".env").write_text(template)
                 (root / "scripts").mkdir()
@@ -43,12 +43,12 @@ class EnvContractScannerTest(unittest.TestCase):
                     'Path("apps/worker/src/legacy_worker/settings.py")]\n'
                     'DEPLOY_ENV_KEYS: frozenset[str] = frozenset({"PEER_APP_PORT"})\n'
                     'FORBIDDEN_ENV_KEYS = frozenset(["OLD_RETIRED_KEY"])\n'
-                    'SKIP_SETTINGS_KEYS = {"MTY_API_MTY_DESKTOP_UPDATE_DIRS"}\n'
+                    'SKIP_SETTINGS_KEYS = {"MIY_API_MIY_DESKTOP_UPDATE_DIRS"}\n'
                     if name == "prod" else
                     'from pathlib import Path\n'
-                    'SETTINGS_FILE_PARTS = [Path("apps/api/src/mty_api/core/settings.py"), '
-                    'Path("apps/worker/src/mty_worker/settings.py")]\n'
-                    'DEPLOY_ENV_KEYS: frozenset[str] = frozenset({"MTY_APP_PORT"})\n'
+                    'SETTINGS_FILE_PARTS = [Path("apps/api/src/miy_api/core/settings.py"), '
+                    'Path("apps/worker/src/miy_worker/settings.py")]\n'
+                    'DEPLOY_ENV_KEYS: frozenset[str] = frozenset({"MIY_APP_PORT"})\n'
                     'FORBIDDEN_ENV_KEYS = frozenset(["OLD_RETIRED_KEY"])\n'
                     'SKIP_SETTINGS_KEYS = {"UNUSED_DEV_KEY"}\n'
                 )
@@ -98,7 +98,7 @@ class EnvContractScannerTest(unittest.TestCase):
             shutil.copytree(MODULE_PATH.parents[1] / "config", root / "config")
             path = root / "config/runtime.json"
             doc = json.loads(path.read_text())
-            doc["defaults"]["MTY_HERMES_API_KEY"] = "synthetic-secret"
+            doc["defaults"]["MIY_HERMES_API_KEY"] = "synthetic-secret"
             path.write_text(json.dumps(doc))
             report = env_contract.build_report(root)
             self.assertIn("invalid_runtime_config", self.codes(report))
@@ -166,25 +166,25 @@ class EnvContractScannerTest(unittest.TestCase):
     def test_public_defaults_cover_optional_env_overrides_without_hiding_secret_mismatches(self):
         settings = '''
 class Settings:
-    model_config = SettingsConfigDict(env_prefix="MTY_")
+    model_config = SettingsConfigDict(env_prefix="MIY_")
     tuning: int = 5
 '''
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             report = self.evaluate(
                 root,
-                env_texts={"dev": "MTY_SECRET=private\n",
-                           "example": "MTY_TUNING=8\nMTY_SECRET=\n"},
+                env_texts={"dev": "MIY_SECRET=private\n",
+                           "example": "MIY_TUNING=8\nMIY_SECRET=\n"},
                 settings_texts={"settings.py": settings},
-                runtime_config_keys=("MTY_TUNING",),
+                runtime_config_keys=("MIY_TUNING",),
             )
             self.assertNotIn("env_keyset_mismatch", self.codes(report))
             self.assertNotIn("env_key_order_mismatch", self.codes(report))
-            self.assertNotIn("MTY_TUNING", self.messages(report))
+            self.assertNotIn("MIY_TUNING", self.messages(report))
             report = self.evaluate(
                 root,
-                env_texts={"dev": "MTY_SECRET=private\n", "example": ""},
-                runtime_config_keys=("MTY_TUNING",),
+                env_texts={"dev": "MIY_SECRET=private\n", "example": ""},
+                runtime_config_keys=("MIY_TUNING",),
             )
             self.assertIn("env_keyset_mismatch", self.codes(report))
             self.assertIn("unknown_runtime_config_key", self.codes(report))
@@ -233,14 +233,14 @@ class Settings:
             report = self.evaluate(
                 root,
                 env_texts={
-                    "dev": "MTY_ONE=secret-one\nMTY_ONE=secret-two\n",
-                    "example": "MTY_ONE=example\n",
+                    "dev": "MIY_ONE=secret-one\nMIY_ONE=secret-two\n",
+                    "example": "MIY_ONE=example\n",
                 },
             )
 
         self.assertIn("duplicate_env_key", self.codes(report))
         messages = self.messages(report)
-        self.assertIn("dev: duplicate keys: MTY_ONE", messages)
+        self.assertIn("dev: duplicate keys: MIY_ONE", messages)
         self.assertNotIn("secret-one", messages)
         self.assertNotIn("secret-two", messages)
 
@@ -250,8 +250,8 @@ class Settings:
             report = self.evaluate(
                 root,
                 env_texts={
-                    "dev": "MTY_ONE=1\nMTY_TWO=2\n",
-                    "example": "MTY_ONE=1\nMTY_THREE=3\n",
+                    "dev": "MIY_ONE=1\nMIY_TWO=2\n",
+                    "example": "MIY_ONE=1\nMIY_THREE=3\n",
                 },
             )
 
@@ -267,8 +267,8 @@ class Settings:
             report = self.evaluate(
                 root,
                 env_texts={
-                    "dev": "MTY_ONE=secret-one\nMTY_TWO=secret-two\n",
-                    "example": "MTY_TWO=example-two\nMTY_ONE=example-one\n",
+                    "dev": "MIY_ONE=secret-one\nMIY_TWO=secret-two\n",
+                    "example": "MIY_TWO=example-two\nMIY_ONE=example-one\n",
                 },
             )
 
@@ -279,14 +279,14 @@ class Settings:
         self.assertNotIn("example-one", messages)
 
     def test_reports_retired_or_externally_owned_env_keys(self) -> None:
-        retired_key = "MTY_RETIRED"
+        retired_key = "MIY_RETIRED"
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             report = self.evaluate(
                 root,
                 env_texts={
-                    "dev": f"MTY_PRESENT=1\n{retired_key}=secret\n",
-                    "example": f"MTY_PRESENT=1\n{retired_key}=example\n",
+                    "dev": f"MIY_PRESENT=1\n{retired_key}=secret\n",
+                    "example": f"MIY_PRESENT=1\n{retired_key}=example\n",
                 },
                 forbidden_env_keys=(retired_key,),
             )
@@ -299,7 +299,7 @@ class Settings:
     def test_env_file_paths_include_optional_local_profile(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / ".env.local").write_text("MTY_PRESENT=1\n", encoding="utf-8")
+            (root / ".env.local").write_text("MIY_PRESENT=1\n", encoding="utf-8")
 
             paths = env_contract.env_file_paths(root, "dev")
 
@@ -308,10 +308,10 @@ class Settings:
     def test_reports_settings_keys_missing_from_env(self) -> None:
         settings = """
 class Settings:
-    present: str = Field(validation_alias="MTY_PRESENT")
-    missing: str = Field(validation_alias="MTY_MISSING")
+    present: str = Field(validation_alias="MIY_PRESENT")
+    missing: str = Field(validation_alias="MIY_MISSING")
 """
-        env_text = "MTY_PRESENT=1\n" + "".join(
+        env_text = "MIY_PRESENT=1\n" + "".join(
             f"{key}=example\n" for key in sorted(env_contract.DEPLOY_ENV_KEYS)
         )
         with tempfile.TemporaryDirectory() as directory:
@@ -327,7 +327,7 @@ class Settings:
 
         self.assertIn("missing_settings_key", self.codes(report))
         self.assertIn(
-            "env files are missing settings keys: MTY_MISSING",
+            "env files are missing settings keys: MIY_MISSING",
             self.messages(report),
         )
 
@@ -339,8 +339,8 @@ class Settings:
             report = self.evaluate(
                 root,
                 env_texts={
-                    "dev": "MTY_PRESENT=1\n",
-                    "example": "MTY_PRESENT=1\n",
+                    "dev": "MIY_PRESENT=1\n",
+                    "example": "MIY_PRESENT=1\n",
                 },
                 source_texts={"app.py": f"api_key = {token!r}\n"},
                 forbidden_patterns=(pattern,),
@@ -350,20 +350,20 @@ class Settings:
         self.assertIn("app.py: forbidden env token", self.messages(report))
 
     def test_forbids_exact_legacy_redis_alias_without_matching_scoped_keys(self) -> None:
-        legacy_token = "MTY_" + "REDIS_URL"
+        legacy_token = "MIY_" + "REDIS_URL"
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             report = self.evaluate(
                 root,
                 env_texts={
-                    "dev": "MTY_PRESENT=1\n",
-                    "example": "MTY_PRESENT=1\n",
+                    "dev": "MIY_PRESENT=1\n",
+                    "example": "MIY_PRESENT=1\n",
                 },
                 source_texts={
                     "legacy.py": f"redis_url = os.getenv({legacy_token!r})\n",
                     "scoped.py": (
-                        "collab = os.getenv('MTY_API_COLLAB_REDIS_URL')\n"
-                        "realtime = os.getenv('MTY_API_REALTIME_REDIS_URL')\n"
+                        "collab = os.getenv('MIY_API_COLLAB_REDIS_URL')\n"
+                        "realtime = os.getenv('MIY_API_REALTIME_REDIS_URL')\n"
                     ),
                 },
                 forbidden_patterns=tuple(env_contract.FORBIDDEN_ENV_PATTERNS),

@@ -1,5 +1,5 @@
 [project]
-name = "mty-codex-console"
+name = "miy-codex-console"
 version = "0.1.0"
 description = "Private, subscription-authenticated Codex development console"
 requires-python = ">=3.12,<3.13"

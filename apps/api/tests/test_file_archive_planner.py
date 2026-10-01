@@ -1,4 +1,4 @@
-from mty_api.domains.files.archive_planner import (
+from miy_api.domains.files.archive_planner import (
     ArchivePlanFile,
     ArchivePlanFolder,
     PlannedArchiveEntry,

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from mty_worker.tasks import ai_graph as ai_graph_tasks
+from miy_worker.tasks import ai_graph as ai_graph_tasks
 
 
 def test_worker_can_load_the_shared_hermes_workload_without_optional_extras() -> None:
-    from mty_api.domains.hermes.workloads import complete_workload
+    from miy_api.domains.hermes.workloads import complete_workload
 
     assert callable(complete_workload)
 

@@ -24,7 +24,7 @@ type NavigatorWithOpfs = Navigator & {
   };
 };
 
-const RECORDING_OPFS_ROOT = 'mty-recording';
+const RECORDING_OPFS_ROOT = 'miy-recording';
 
 function opfsNavigator(): NavigatorWithOpfs | null {
   if (typeof navigator === 'undefined') {

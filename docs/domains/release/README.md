@@ -2,28 +2,29 @@
 
 - First development install and setup recovery: [Development Installation](../../../INSTALL.md).
 - Environment-specific locale, browser, HTTPS, GitLab and Runner checks: [Installation operations](installation-operations.md).
-- Dev infra: `ops/compose/mty-dev.infra.yml`.
-- Prod infra: `ops/compose/mty-prod.infra.yml`.
+- Dev infra: `ops/compose/miy-dev.infra.yml`.
+- Prod infra: `ops/compose/miy-prod.infra.yml`.
 - Common entrypoint: `scripts/infra-stack.sh`.
 - Immutable production app image: `ops/app/Dockerfile`.
-- Production app runtime: `ops/compose/mty-prod.app.yml`.
+- Production app runtime: `ops/compose/miy-prod.app.yml`.
 - Guarded app entrypoint: `scripts/prod-app.sh`.
 - CI contract: `.gitlab-ci.yml` and `ops/ci/ci-first.gitlab-ci.yml`.
 - Branch, release, and deployment authorization: root `AGENTS.md`.
 - Prefer shared physical infra plus isolated data namespaces when services support it: PostgreSQL database/schema, MinIO bucket/prefix, OpenSearch index prefix, Qdrant collection prefix, Redis DB/key prefix, queue name/group.
 - Use env-named service instances only for incompatible lifecycle, security, capacity, or blast-radius requirements. `prod` checkout/branch is an operational guard, not a naming rule for every container.
-- Contract package publish: `contracts-v*` tag publishes `@mty/contracts`.
+- Contract package publish: `contracts-v*` tag publishes `@miy/contracts`.
 - Do not document server/user/systemd/internal-network-specific deployment in repo source.
 - GitLab `origin/main` is the production source; CI owns release-validation routing.
 
-## MTY naming cutover
+## miy naming cutover
 
-The MTY rename changes the GitHub and GitLab repository paths, package/import names,
+The shared brand is `miy`, independent of the deployment domain. The rename changes package/import names,
 environment keys, desktop update URLs and protocol, CI image names, Compose projects,
 container/network names and declared volumes. Updating only the checkout would make
 Compose create empty volumes and leave the existing production data behind. Do not
 start the renamed production Compose files until the following cutover is prepared
-and validated against the actual installation:
+and validated against the actual installation. Existing repository URLs remain valid
+until a separately coordinated repository move; source branding does not rename remotes:
 
 1. Record and back up the current Git remotes, protected CI variables, service
    configuration, running image IDs, databases, buckets, indexes, queues and Docker
@@ -44,9 +45,9 @@ and validated against the actual installation:
    has moved. `pnpm check:env-contract` validates dev and prod against each
    checkout's own declared settings and env contract during the rolling cutover;
    it does not migrate the external Codex Console config. Validate both app and
-   worker settings. Publish `@mty/contracts`
-   before desktop CI, then build a versioned MTY Desktop release from the separate
-   `hurxxxx/mty-desktop` repository. The renamed app ID, login protocol and feed
+   worker settings. Publish `@miy/contracts`
+   before desktop CI, then build a versioned miy Desktop release from the separate
+   desktop repository (currently `hurxxxx/mty-desktop`). The renamed app ID, login protocol and feed
    do not by themselves upgrade an installed legacy desktop client: validate an
    old-to-new update path or provide a manual replacement installer and a session
    migration/re-login path before advertising the new download. Update Codex
@@ -60,6 +61,25 @@ and validated against the actual installation:
 The production checkout and live resources are changed only under the separate
 authorization rules in [AGENTS.md](../../../AGENTS.md#git-and-delivery).
 
+Preview private key migration with
+`uv run --frozen --directory apps/api --python 3.12 python ../../scripts/miy-env-migrate.py --file ../../.env`;
+add `--apply` only for the intended file. The helper requires a private, owned regular
+file, makes a mode-0600 recovery backup and preserves every value, including existing
+database, bucket, index and path names. Colliding keys and interpolated references
+require manual review. Console configuration is a separate explicitly selected file.
+
+The API migration `miy_api_keys_20261001` permits new `miy_pk_` keys alongside existing
+keys without rewriting credentials; downgrade is blocked while any new keys remain.
+Stable encrypted-key purposes, bulk-ingest idempotency IDs, retrieval projection IDs
+and console template seed IDs retain their previous versioned identity. These are
+persisted contracts, not display branding. Console schema `console_sqlite_0002`
+renames only known repository skill references in template definitions, increments
+their version and retains task snapshots/history. Free-form prompts are not rewritten.
+Browser-local portal preferences/token keys and the desktop protocol now use `miy`;
+existing users may need to sign in again. Deploy the matching API/Web image together.
+Existing development seed accounts are matched by their stable catalog login ID;
+their email, password, user ID and permissions are preserved when the default brand email changes.
+
 ## Impact-based release validation
 
 `release_validation` defaults to `pnpm ci:all`. Only an explicit user request for simplified, urgent, or fast validation enables consideration of the fast lane; the request is not permission to omit relevant checks, merge, or deploy. The agent interprets intent and records the opt-in below. No hook or CI script scans natural-language prompts for authorization.
@@ -72,9 +92,9 @@ authorization rules in [AGENTS.md](../../../AGENTS.md#git-and-delivery).
 | Skills, native agent setup/hooks, tested Codex review tooling | Whitespace and `pnpm ci:harness`; omit API, generated contract, web build/test and browser E2E suites |
 | Web source/E2E or core-web source | `pnpm ci:web`; omit API and Codex Console suites |
 | Shared UI source/styles | `pnpm ci:web` and `pnpm ci:codex-console`; omit API suites |
-| Codex Console source/tests | `pnpm ci:codex-console`; omit MTY API and Web suites |
+| Codex Console source/tests | `pnpm ci:codex-console`; omit miy API and Web suites |
 | Mixed known focused surfaces | Stable union of their checks; omit unrelated suites |
-| Dependencies/lockfiles, worker, shared/generated contracts, MTY DB migrations, env, dev/runtime startup, Compose, images, release selector/CI routing/gates, or unknown paths | Full `pnpm ci:all` |
+| Dependencies/lockfiles, worker, shared/generated contracts, miy DB migrations, env, dev/runtime startup, Compose, images, release selector/CI routing/gates, or unknown paths | Full `pnpm ci:all` |
 | More than 40 files or 1,000 added/deleted lines; binary, symlink/submodule or mode changes | Full `pnpm ci:all` |
 
 The size limits are conservative routing policy, not measured correctness thresholds. Focused application routing is an allowlist of Web and Codex Console source and test trees, not a generic extension rule: API/worker code, dependency manifests, generated/shared contracts, database migrations, runtime configuration/topology and unknown paths remain full. Shared UI runs both of its consumers' suites. A `.sh`, `.yml`, or “setup/CI” name alone does not prove low impact. Release-control changes, including introducing or changing this selector, cannot choose their own abbreviated validation.
@@ -91,7 +111,7 @@ For an authorized release with an explicit fast request:
 3. In the authorized `dev -> main` MR, place the emitted marker on the first line of its description, then state the user's opt-in, purpose, affected checks, and remaining risks. Use the full SHAs emitted by the command:
 
    ```text
-   <!-- mty:release-validation:v1 mode=fast source=<full-dev-sha> target=<full-main-sha> -->
+   <!-- miy:release-validation:v1 mode=fast source=<full-dev-sha> target=<full-main-sha> -->
    ```
 
 4. Create a fresh MR pipeline after updating the description. Missing, malformed, duplicated, stale or truncated opt-in metadata selects full validation. Do not assume retrying an old job refreshes pipeline metadata. Only detached same-project release pipelines can select fast; other release event types keep full validation.
@@ -108,13 +128,13 @@ Selector maintenance checks: `node --test scripts/release-validation.test.mjs`, 
 - Run app commands only from a clean checkout named `prod` at `origin/main`.
 - Initial sibling `dev`/`prod` checkout creation is documented in [installation §2.5](../../../INSTALL.md). Creating the `main` worktree does not configure production credentials, promote a release, or deploy; never copy the development `.env` into it.
 - Keep `.env` aligned with `.env.example`; production preflight rejects dev login/seed flags, an unsafe attachment-signing key, an untrusted proxy wildcard, non-public or shared app/Bento origins, and host-port collisions.
-- Route each public hostname directly from the external HTTPS proxy to its declared service port. `MTY_APP_FORWARDED_ALLOW_IPS` lists only the exact external proxy IPs. Bind Bento to loopback for a local proxy or the exact private proxy-facing IPv4 address; production rejects wildcard, public-IP, IPv6, and hostname bindings.
+- Route each public hostname directly from the external HTTPS proxy to its declared service port. `MIY_APP_FORWARDED_ALLOW_IPS` lists only the exact external proxy IPs. Bind Bento to loopback for a local proxy or the exact private proxy-facing IPv4 address; production rejects wildcard, public-IP, IPv6, and hostname bindings.
 - The app image contains the web build, API, worker, migrations, and collaboration codec at one source revision. The Compose runtime starts the privacy filter, API, worker, and scheduler with restart policies and health checks.
 - API and worker use redis-py 8.1.x. Its reentrant PubSub lock permits Celery result finalizers to unsubscribe during a subscription; the 5.3.1 lock can deadlock the scheduler. Keep both lockfiles aligned and run `apps/worker/tests/test_redis_pubsub_reentrancy.py` in both Python environments when changing Redis dependencies.
 - OpenAI 3 and Anthropic 1 use HTTPX2. Keep OS CA certificates in the app image and suppress the `httpx2` request logger alongside `httpx` and `httpcore`; request URLs can contain credentials or user queries. Numeric SDK timeouts and the registered provider execution interface remain in use. Verify `apps/api/tests/test_logging_security.py` when changing HTTP clients.
 - Ruff's explicit `E4`, `E7`, `E9`, and `F` selection preserves all pre-0.16 checks, including rules removed from the new defaults. Dependency upgrades must not silently replace the existing lint policy with a different upstream default set.
 - Beat health requires a successful broker publication within 180 seconds. The official Celery `beat_init` and `after_task_publish` signals maintain a disposable `celerybeat-heartbeat` marker in Beat's working directory. Startup discards the previous marker; API and worker publications cannot refresh it. The marker stores no task or business data. Container health detects a stalled publisher after the freshness window and two failed 30-second checks; Docker restart policies alone do not restart an unhealthy process that is still running.
-- The image build embeds the validated `MTY_BENTO_SERVER_URL` in the static web bundle; changing that public origin requires a new app image.
+- The image build embeds the validated `MIY_BENTO_SERVER_URL` in the static web bundle; changing that public origin requires a new app image.
 - `pnpm app:prod:prepare --release-mr <iid>` verifies that the current `origin/main` is the named merged same-project `dev -> main` MR, that its current `release_validation` job passed, and that the validated source tree equals the production tree. It reuses a matching verified local candidate or builds it once from the committed Git snapshot, then prints its immutable image ID.
 - `pnpm app:prod:deploy --release-mr <iid> --image sha256:<candidate-image-id>` rechecks the same GitLab, source-tree, platform, build-setting, image-label and runtime-content contract. It never builds an image. It rejects a terminal broker listener that is not the expected existing production container, promotes the exact candidate ID, applies migrations, replaces the app runtime, and requires direct and public health identity plus readiness, revision, bootstrap, and login-shell checks.
 - Prepare, deploy and rollback are mutually exclusive host operations through a private runtime lock. Repeating prepare with the same commit, tree, platform and Bento URL verifies and returns the same candidate ID without building, including after a successful pipeline retry for the same source. A matching candidate that fails verification stops instead of rebuilding over the evidence.
@@ -164,7 +184,7 @@ Recovery stops only the production app Compose project without deleting volumes,
 [`config/runtime.json`](../../../config/runtime.json) owns reviewed, non-secret API/Worker
 startup defaults: database pools, LLM call timeouts, agent limits, retry/retention limits,
 collaboration limits, and embedding/reranker model IDs and revisions. The versioned JSON
-schema allowlists the supported typed `MTY_*` keys and validates their ranges.
+schema allowlists the supported typed `MIY_*` keys and validates their ranges.
 Missing files, unknown keys/profiles, duplicate JSON keys and invalid values fail startup;
 validation errors do not print supplied values. `pnpm check:env-contract` validates this
 document as well as the remaining env contract. Public config keys may be absent from
@@ -178,7 +198,7 @@ checks. Runtime config and pool regressions run in the API/Worker contract test 
 
 Settings precedence, highest first: explicit constructor values (tests), process environment,
 checkout `.env`, Pydantic secret files when configured, selected `profiles` overrides,
-`defaults`, typed code defaults. `MTY_ENV_PROFILE` selects `local`, `dev`, `prod`,
+`defaults`, typed code defaults. `MIY_ENV_PROFILE` selects `local`, `dev`, `prod`,
 `preview` or `test`; `development`/`production` map to `dev`/`prod`. With no profile, `local`
 applies. Settings are cached per process; changes require its normal restart.
 
@@ -210,10 +230,10 @@ plus migration/operator capacity, below the server's non-reserved connection lim
 
 | Runtime | Retained connections per process | Extra concurrent connections | Settings |
 | --- | --- | --- | --- |
-| API | 5 | 5 | `MTY_API_DB_POOL_SIZE`, `MTY_API_DB_MAX_OVERFLOW` |
-| Worker child | 1 | 2 | `MTY_WORKER_DB_POOL_SIZE`, `MTY_WORKER_DB_MAX_OVERFLOW` |
+| API | 5 | 5 | `MIY_API_DB_POOL_SIZE`, `MIY_API_DB_MAX_OVERFLOW` |
+| Worker child | 1 | 2 | `MIY_WORKER_DB_POOL_SIZE`, `MIY_WORKER_DB_MAX_OVERFLOW` |
 
-Both `MTY_API_DB_POOL_TIMEOUT` and `MTY_WORKER_DB_POOL_TIMEOUT`
+Both `MIY_API_DB_POOL_TIMEOUT` and `MIY_WORKER_DB_POOL_TIMEOUT`
 default to 45 seconds. These are lazy pool limits, not connections opened at startup.
 For example, two API processes and eighteen worker children have a combined maximum
 of `2 × (5 + 5) + 18 × (1 + 2) = 74` connections, retaining at most 28 after work finishes.
@@ -232,7 +252,7 @@ the pool size limit. SQLAlchemy's `NullPool` is the explicit no-pooling option.
 of a leaked session. Beat still runs maintenance every 30–60 seconds without users.
 Inspect `pg_stat_activity` grouped by `application_name`, `state` and database/role,
 excluding query text and business data. Clients identify themselves as
-`mty:<environment>:api` or `mty:<environment>:worker`. Repeated empty maintenance cycles
+`miy:<environment>:api` or `miy:<environment>:worker`. Repeated empty maintenance cycles
 must not grow the retained connection count. Investigate persistent `idle in transaction`
 separately, and never terminate arbitrary connections to conceal a leak.
 
@@ -264,7 +284,7 @@ requests. No database recreation or PostgreSQL capacity increase is required by 
 
 `dev.sh` is a foreground development command: its children stop when its session exits. A continuously available development address requires an independent host supervisor with restart-on-exit and persistent logs, using the same entrypoint, selected flags and checkout. For native minimal installation this is `./dev.sh --minimal-infra --no-infra`; use `./dev.sh --with-worker` when the selected configuration includes a worker. Manage that runtime through its supervisor instead of starting a second copy or stopping its children directly. Keep host-specific service definitions outside the repository.
 
-Worker concurrency is the typed `MTY_WORKER_CONCURRENCY` setting in `config/runtime.json` (default `1`, range `1..64`). Both development and the released production worker use Celery's public `worker_concurrency` configuration; the standard commands must not override it with a separate CLI count. One prefork child is the minimum for the demo deployment; the worker supervisor and single Beat scheduler remain required, and queued tasks run sequentially. CPU-count auto-detection is unsuitable for shared LXC hosts, where Python may see more CPUs than the process affinity allows. Include every child in the database and memory budgets. Raising concurrency requires a memory/throughput budget and worker restart. A source configuration change reaches production through the normal release image; Celery's targeted `pool_shrink` can reduce idle processes immediately, but is temporary and does not survive worker restart.
+Worker concurrency is the typed `MIY_WORKER_CONCURRENCY` setting in `config/runtime.json` (default `1`, range `1..64`). Both development and the released production worker use Celery's public `worker_concurrency` configuration; the standard commands must not override it with a separate CLI count. One prefork child is the minimum for the demo deployment; the worker supervisor and single Beat scheduler remain required, and queued tasks run sequentially. CPU-count auto-detection is unsuitable for shared LXC hosts, where Python may see more CPUs than the process affinity allows. Include every child in the database and memory budgets. Raising concurrency requires a memory/throughput budget and worker restart. A source configuration change reaches production through the normal release image; Celery's targeted `pool_shrink` can reduce idle processes immediately, but is temporary and does not survive worker restart.
 
 After startup, reboot or recovery, follow the shared [development access checks](installation-operations.md#development-access-checks): verify local listeners and API readiness, then use `pnpm dev:login-smoke` plus browser login, screens and logout for HTTP development access. `pnpm dev:public-smoke` remains required for an HTTPS public-domain development origin; it rejects HTTP and IP-address origins, including HTTPS IP addresses. Remote-PC installations also require a separate client-path browser check. INSTALL uses the same conditions; a server checking its own address does not establish client reachability.
 
@@ -274,7 +294,7 @@ After startup, reboot or recovery, follow the shared [development access checks]
 
 Harness fixtures also run capacity checks on their temporary workspaces. If the default temporary directory is a small tmpfs, set `TMPDIR` to an ignored, owner-only directory on a filesystem that satisfies the same capacity threshold before running `pnpm ci:harness`. Check that filesystem's free space; do not lower the threshold or bypass preflight. For console tests, temporary attachment directories must also be outside every Git checkout; do not reuse a repository-local harness `TMPDIR` for `ci:codex-console`.
 
-An explicitly authorized production deploy applies retention after successful public smoke. It does not clean before promotion, so the explicitly selected candidate ID cannot be retired between verification and tagging. `node scripts/docker-storage.mjs cleanup` is a read-only plan; `cleanup --apply` requires deploy or project artifact-cleanup scope. It removes recognized generated app/validation image tags and untagged validation images with a valid `io.mty.validation.contract` label older than 48 hours, preserving the prepared candidate, current production, its previous rollback image, the canonical CI image, every container-referenced image (including stopped containers), recent builds and unknown/manual tags. Each image is rechecked before non-force removal. Docker's own dangling-image pruning is restricted to positive project build-cache/app labels and the same age threshold. It never prunes volumes, containers, other projects, or the Docker daemon globally. Cleanup failure is reported; it does not roll back a healthy deployment.
+An explicitly authorized production deploy applies retention after successful public smoke. It does not clean before promotion, so the explicitly selected candidate ID cannot be retired between verification and tagging. `node scripts/docker-storage.mjs cleanup` is a read-only plan; `cleanup --apply` requires deploy or project artifact-cleanup scope. It removes recognized generated app/validation image tags and untagged validation images with a valid `io.miy.validation.contract` label older than 48 hours, preserving the prepared candidate, current production, its previous rollback image, the canonical CI image, every container-referenced image (including stopped containers), recent builds and unknown/manual tags. Each image is rechecked before non-force removal. Docker's own dangling-image pruning is restricted to positive project build-cache/app labels and the same age threshold. It never prunes volumes, containers, other projects, or the Docker daemon globally. Cleanup failure is reported; it does not roll back a healthy deployment.
 
 Production and validation Dockerfile revision/contract metadata follows the dependency layers so a new commit or builder-script change does not reinstall heavy dependencies. Production copies third-party Python environments before installing the small API/worker wheels; application source changes reuse the dependency layers. The collaboration codec deployment also precedes the web source copy, avoiding a new dependency layer for each UI or documentation change. Build stages have a project cache label; the final runtime does not inherit the cache label. Python installs use `uv --no-cache`; do not retain package downloads alongside installed environments. The Docker context excludes local runtime, Beat state and browser test reports. Failed test evidence remains governed by CI artifact expiry; do not add local copies of every run.
 

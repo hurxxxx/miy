@@ -7,7 +7,7 @@ from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
-from mty_api.core import db as db_module
+from miy_api.core import db as db_module
 
 
 def test_runtime_alembic_config_uses_workspace_root(
@@ -48,6 +48,7 @@ def _migration_config(dsn: str | None = None) -> Config:
 def test_repository_starts_at_company_deployment_baseline() -> None:
     revisions = list(ScriptDirectory.from_config(_migration_config()).walk_revisions())
     assert [revision.revision for revision in revisions] == [
+        "miy_api_keys_20261001",
         "decision_defaults_20260927",
         "llm_cap_defaults_20260918",
         "llm_connections_20260918",
@@ -113,8 +114,8 @@ def test_fresh_baseline_owns_company_identity_and_app_local_resources(postgres_d
 
 def test_runtime_metadata_has_no_duplicate_index_declarations() -> None:
     from collections import Counter
-    from mty_api.core.db import Base
-    from mty_api.core.model_registry import import_all_models
+    from miy_api.core.db import Base
+    from miy_api.core.model_registry import import_all_models
 
     import_all_models()
     duplicated = {
@@ -334,5 +335,39 @@ def test_decision_defaults_preserve_generation_and_downgrade(postgres_dsn: str) 
         command.downgrade(config, "llm_cap_defaults_20260918")
         with engine.connect() as conn:
             assert conn.execute(sa.text("SELECT app_id, route_mode, provider_id, model_id, max_output_tokens, version FROM ai_model_policy_defaults ORDER BY app_id, route_mode")).all() == before
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.migration
+def test_miy_api_key_migration_preserves_legacy_rows_and_guards_rollback(postgres_dsn):
+    config = _migration_config(postgres_dsn)
+    command.upgrade(config, "decision_defaults_20260927")
+    engine = sa.create_engine(postgres_dsn)
+    try:
+        def insert_key(ident, prefix):
+            with engine.begin() as connection:
+                connection.execute(sa.text(
+                    "INSERT INTO platform_api_keys "
+                    "(id, token_hash, secret_ciphertext, key_prefix, name, scopes, status, created_at) "
+                    "VALUES (:id, :hash, 'test-ciphertext', :prefix, 'Migration test', "
+                    "'[]', 'active', CURRENT_TIMESTAMP)"
+                ), {"id": ident, "hash": ident * 32, "prefix": prefix + "A" * 11})
+
+        insert_key("a", "mty_pk_")
+        command.upgrade(config, "head")
+        insert_key("b", "miy_pk_")
+        with engine.connect() as connection:
+            assert connection.scalar(sa.text("SELECT count(*) FROM platform_api_keys")) == 2
+            assert connection.scalar(sa.text(
+                "SELECT secret_ciphertext FROM platform_api_keys WHERE id='a'"
+            )) == "test-ciphertext"
+        with pytest.raises(RuntimeError, match="Remove miy platform API keys"):
+            command.downgrade(config, "decision_defaults_20260927")
+        with engine.begin() as connection:
+            connection.execute(sa.text("DELETE FROM platform_api_keys WHERE id='b'"))
+        command.downgrade(config, "decision_defaults_20260927")
+        with engine.connect() as connection:
+            assert connection.scalar(sa.text("SELECT count(*) FROM platform_api_keys")) == 1
     finally:
         engine.dispose()

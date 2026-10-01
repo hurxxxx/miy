@@ -1,4 +1,4 @@
-import { InlineNotice } from '@mty/ui';
+import { InlineNotice } from '@miy/ui';
 
 import { FormDialog } from '@/src/components/form/FormDialog';
 import type { MeetingDetail } from '../../api/meeting-api';

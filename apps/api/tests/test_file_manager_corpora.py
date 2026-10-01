@@ -8,10 +8,10 @@ from sqlalchemy import create_engine, delete, select, update
 from sqlalchemy.orm import Session
 
 from company_admission_fixture import company_authority_tables, seed_company_app_access
-from mty_api.core.db import Base
-from mty_api.domains.auth.models import AuditLog, CompanyAppControl, User, UserSystemRole
-from mty_api.domains.files import service as files_service
-from mty_api.domains.files.models import (
+from miy_api.core.db import Base
+from miy_api.domains.auth.models import AuditLog, CompanyAppControl, User, UserSystemRole
+from miy_api.domains.files import service as files_service
+from miy_api.domains.files.models import (
     FileManagerCorpus,
     FileManagerFile,
     FileManagerFileAccessGrant,
@@ -19,9 +19,9 @@ from mty_api.domains.files.models import (
     FileManagerFolder,
     FileManagerStorageCleanupJob,
 )
-from mty_api.domains.files.source_access import can_read_file
-from mty_api.domains.retrieval.models import RetrievalPartition
-from mty_api.domains.source_access.policy import SourceAclPolicy
+from miy_api.domains.files.source_access import can_read_file
+from miy_api.domains.retrieval.models import RetrievalPartition
+from miy_api.domains.source_access.policy import SourceAclPolicy
 
 
 @pytest.fixture

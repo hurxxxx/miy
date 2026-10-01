@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from mty_api.domains.ai.artifact_parser import (
+from miy_api.domains.ai.artifact_parser import (
     ArtifactStreamParser,
     ParsedArtifactBody,
     ParsedArtifactEnd,

@@ -2,8 +2,8 @@
 
 본인의 ChatGPT 구독으로 로그인한 Codex를 사용하는 독립 관리 콘솔과 개발 작업실이다.
 계획과 실행 두 모드로 질문·조사·문서 정리·코딩과 결과 검토를 진행한다.
-소스는 같은 저장소에서 관리하며, MTY 개인 앱에서 새 탭으로 연다. 콘솔의 실행 프로세스·
-로그인 세션·업무 DB는 MTY와 분리되어 있다. MTY에서 허용된 관리자가 앱 링크를 열면 짧게
+소스는 같은 저장소에서 관리하며, miy 개인 앱에서 새 탭으로 연다. 콘솔의 실행 프로세스·
+로그인 세션·업무 DB는 miy와 분리되어 있다. miy에서 허용된 관리자가 앱 링크를 열면 짧게
 유효한 일회용 코드로 별도 콘솔 세션을 만들 수 있다.
 
 ## 서비스와 작업 현황
@@ -85,18 +85,18 @@ root·하위 에이전트 수와 확인 필요 작업 수를 표시한다. 작�
 **Codex CLI 호환성 업데이트** 템플릿은 현재 설치 CLI에 맞춰 콘솔 코드·계약·검사·문서를
 수정·검증하고, 템플릿의 명시적 권한과 저장소 정책 범위에서 반영한다. 범용 자기개선이나
 시스템 CLI 자동 업그레이드는 수행하지 않는다. 실행기는 `template-current`의 별도 콘솔
-릴리스와 `MTY_CODEX_CONSOLE_TEMPLATE_BINARY`의 검증된 CLI를 사용한다. 일반 `current`
+릴리스와 `MIY_CODEX_CONSOLE_TEMPLATE_BINARY`의 검증된 CLI를 사용한다. 일반 `current`
 전환·management/session 재시작 중에는 이 실행기를 재시작하지 않는다. 호환성 확인 또는
 템플릿 실행기 자체가 실패하면 오류를 표시하고 수동 복구 안내를 제공한다.
 
 | 설정 | 기본값 | 의미 |
 | --- | --- | --- |
-| `MTY_CODEX_CONSOLE_PORT` | `19365` | 세션 API의 loopback 포트 |
-| `MTY_CODEX_CONSOLE_MANAGEMENT_PORT` | `19367` | 관리 UI/API의 loopback 포트 |
-| `MTY_CODEX_CONSOLE_TEMPLATE_PORT` | `19368` | 독립 템플릿 실행 API |
-| `MTY_CODEX_CONSOLE_TEMPLATE_BINARY` | 미설정 | 버전별 디렉터리에 설치한 호환 CLI의 절대 파일 경로. `templates` 역할에 필수 |
-| `MTY_CODEX_CONSOLE_MAX_ACTIVE_TASKS` | `3` | 동시에 접수할 root 작업 수, 1~16 |
-| `MTY_CODEX_CONSOLE_MONITOR_SERVICES` | `[]` | 소유자가 등록하는 서비스 JSON 배열, 최대 64개 |
+| `MIY_CODEX_CONSOLE_PORT` | `19365` | 세션 API의 loopback 포트 |
+| `MIY_CODEX_CONSOLE_MANAGEMENT_PORT` | `19367` | 관리 UI/API의 loopback 포트 |
+| `MIY_CODEX_CONSOLE_TEMPLATE_PORT` | `19368` | 독립 템플릿 실행 API |
+| `MIY_CODEX_CONSOLE_TEMPLATE_BINARY` | 미설정 | 버전별 디렉터리에 설치한 호환 CLI의 절대 파일 경로. `templates` 역할에 필수 |
+| `MIY_CODEX_CONSOLE_MAX_ACTIVE_TASKS` | `3` | 동시에 접수할 root 작업 수, 1~16 |
+| `MIY_CODEX_CONSOLE_MONITOR_SERVICES` | `[]` | 소유자가 등록하는 서비스 JSON 배열, 최대 64개 |
 
 일반 세션과 템플릿 실행기 health는 기본으로 등록된다. 추가 서비스는 `id`, `name`, `environment`와
 `health_url`, `unit` 또는 `container`로 등록한다. `unit`과 `container`는 동시에 지정하지
@@ -140,7 +140,7 @@ helper만 유지한다. 이 helper는 서비스 운영을 실행하지 않는다
   자동으로 허용한다.
   더 오래된 버전·시험판·스키마가 달라진 버전은 실행 전에 차단한다. Codex가 구독 인증,
   토큰 갱신, 원본 대화와 도구 실행을 관리한다. 클라이언트는 인증 파일을 읽거나 복사하지 않는다.
-- 이 도구는 개인 코딩 에이전트 클라이언트다. MTY 제품 앱의 생성형 호출, 공용 AI 공급자,
+- 이 도구는 개인 코딩 에이전트 클라이언트다. miy 제품 앱의 생성형 호출, 공용 AI 공급자,
   사용자·회사 권한을 대신하지 않는다. 제품 AI 기능에는 기존 등록 workload 계약을 적용한다.
 - 현재 서버의 Codex 사용자와 인증 저장소를 사용한다. 웹 비밀번호와 ChatGPT 로그인은 별개다.
   웹 로그아웃·비밀번호 변경은 웹 세션만 폐기한다.
@@ -155,7 +155,7 @@ helper만 유지한다. 이 helper는 서비스 운영을 실행하지 않는다
 
 ### 개인 CLI 클라이언트와 제품 AI의 연결 경계
 
-MTY API의 콘솔 연결 기능은 허용된 소유자에게 브라우저 launch URL만 반환한다. 제품 API나
+miy API의 콘솔 연결 기능은 허용된 소유자에게 브라우저 launch URL만 반환한다. 제품 API나
 worker가 콘솔에 생성 요청을 위임하는 경로는 없다. 콘솔은 별도 로그인·설치·DB를 사용하는
 공식 [App Server 클라이언트](https://learn.chatgpt.com/docs/app-server)이며 소유자가 직접
 입력한 개발 작업을 기존 ChatGPT 구독 세션에 전달한다. 제품 도메인 서비스의 workload와
@@ -179,7 +179,7 @@ API key 인증과 다른 공급자는 계속 거부한다. 제품 앱의 모델 
 
 | 설정 | 기본값 | 용도 |
 | --- | --- | --- |
-| `MTY_CODEX_CONSOLE_ALLOWED_REASONING_EFFORTS` | `["none","minimal","low","medium","high","xhigh"]` | 콘솔에서 선택·실행할 수 있는 강도. 빈 목록·빈 이름은 거부한다. |
+| `MIY_CODEX_CONSOLE_ALLOWED_REASONING_EFFORTS` | `["none","minimal","low","medium","high","xhigh"]` | 콘솔에서 선택·실행할 수 있는 강도. 빈 목록·빈 이름은 거부한다. |
 
 강도를 생략하면 같은 모델의 native thread 강도가 허용 범위에 있을 때 유지하고, 그렇지
 않으면 모델 권장 기본값을 사용한다. 권장값도 허용되지 않으면 해당 모델이 지원하는 허용
@@ -258,11 +258,11 @@ Git 작업을 직접 요청하면 Codex가 해당 저장소 지침에 따라 수
 
 | 설정 | 기본값 | 용도 |
 | --- | --- | --- |
-| `MTY_CODEX_CONSOLE_WORKTREE_BASE_REF` | `HEAD` | 격리 작업의 기준 ref. 실제 커밋으로 검증한다. |
-| `MTY_CODEX_CONSOLE_WORKTREE_ROOT` | `~/.local/share/mty-codex-console/worktrees` | 설정한 체크아웃 밖의 절대 경로. |
-| `MTY_CODEX_CONSOLE_PROTECTED_WORKSPACES` | `[]` | 접근 금지할 운영 체크아웃의 절대 경로 JSON 배열. |
+| `MIY_CODEX_CONSOLE_WORKTREE_BASE_REF` | `HEAD` | 격리 작업의 기준 ref. 실제 커밋으로 검증한다. |
+| `MIY_CODEX_CONSOLE_WORKTREE_ROOT` | `~/.local/share/miy-codex-console/worktrees` | 설정한 체크아웃 밖의 절대 경로. |
+| `MIY_CODEX_CONSOLE_PROTECTED_WORKSPACES` | `[]` | 접근 금지할 운영 체크아웃의 절대 경로 JSON 배열. |
 
-MTY 서버에서는 기준 ref를 `origin/dev`, 워크트리 경로를 체크아웃 루트의 `worktrees`로 설정하고
+miy 서버에서는 기준 ref를 `origin/dev`, 워크트리 경로를 체크아웃 루트의 `worktrees`로 설정하고
 실제 `prod` 경로와 dev/prod 제품 DB 이름을 금지 목록에 넣는다. 다른 저장소는 그 저장소의
 구성에 맞춘다. 전용 DB는 모든 설치에 필요하며 migration은 기존 비콘솔 테이블이 있으면 거부한다.
 
@@ -284,7 +284,7 @@ Python 버전만으로 SQLite 버전을 추정하지 말고 `python3 -c 'import 
 1. 소스·워크트리·릴리스 밖의 로컬 영구 디렉터리를 준비한다. SQLite 파일은 0600,
    디렉터리는 0700을 권장한다. NFS/SMB 공유 파일시스템을 사용하지 않는다.
 2. `apps/codex-console-api/.env.example`을 무시되는 `.env`로 복사하고 0600으로 보호한다.
-   `MTY_CODEX_CONSOLE_DATABASE_URL=sqlite+pysqlite:////absolute/path/to/console.sqlite3`와
+   `MIY_CODEX_CONSOLE_DATABASE_URL=sqlite+pysqlite:////absolute/path/to/console.sqlite3`와
    HTTPS origin, 실제 Git 작업 경로, 일반·템플릿 Codex 경로를 설정한다. PostgreSQL URL과
    메모리 DB·상대 경로·심볼릭 링크 DB는 거부한다. 기존 설치는 아래 이전 절차를 먼저 따른다.
 3. 저장소 루트에서 아래 명령을 실행한다.
@@ -312,49 +312,49 @@ uv run --frozen codex-console serve
 
 ## 개인 앱과 HTTPS 접속 연결
 
-MTY 루트 `.env`의 `MTY_CODEX_CONSOLE_LAUNCH_URL`은 브라우저가 열 주소다.
+miy 루트 `.env`의 `MIY_CODEX_CONSOLE_LAUNCH_URL`은 브라우저가 열 주소다.
 빈 값은 미설치 상태이며 앱을 숨긴다. HTTPS 절대 URL 또는 `/codex-console/` 같은 같은 origin
 경로를 사용한다. 로컬 단독 개발에는 loopback HTTP URL도 허용한다. URL에 사용자 정보나
 토큰을 넣지 않는다. 같은 개발 서버를 loopback과 원격 주소로 함께 사용하는 경우
-`MTY_CODEX_CONSOLE_LAUNCH_URL_BY_HOST`에 API가 받은 `Host` 헤더 값
+`MIY_CODEX_CONSOLE_LAUNCH_URL_BY_HOST`에 API가 받은 `Host` 헤더 값
 (호스트와 선택적 포트)을 키로, 해당 Console HTTPS 주소를 값으로 JSON 객체에 등록한다.
 Vite 프록시는 브라우저의 `host:port`를 전달하지만, 개발 Nginx는 포트 없는 `$host`를 전달하므로
 실제 API에 전달되는 값과 키를 맞춘다. 일치하는 항목이 없으면 기본 launch URL을 사용하고,
 기본값도 비어 있으면 해당 호스트의 콘솔 앱을 표시하지 않는다. 매핑된 URL은 비워 둘 수 없다.
 설정 변경 후 **개발** API·Web 서비스를 해당 호스트의 감독
-서비스로 재시작한다. 운영 MTY에 적용하는 작업은 별도 릴리스·배포 절차를 따른다.
+서비스로 재시작한다. 운영 miy에 적용하는 작업은 별도 릴리스·배포 절차를 따른다.
 
 ```dotenv
-MTY_CODEX_CONSOLE_LAUNCH_URL=http://127.0.0.1:19366
-MTY_CODEX_CONSOLE_LAUNCH_URL_BY_HOST='{"100.64.0.10:4200":"https://100.64.0.10:19443"}'
+MIY_CODEX_CONSOLE_LAUNCH_URL=http://127.0.0.1:19366
+MIY_CODEX_CONSOLE_LAUNCH_URL_BY_HOST='{"100.64.0.10:4200":"https://100.64.0.10:19443"}'
 ```
 
-위 주소는 예시다. loopback MTY에서 열면 기본 주소를, 지정한 원격 MTY host에서 열면
+위 주소는 예시다. loopback miy에서 열면 기본 주소를, 지정한 원격 miy host에서 열면
 매핑한 HTTPS 주소를 사용한다. 매핑 목적지도 기본 URL과 같은 검증을 거치며 원격 HTTP,
 사용자 정보, query, fragment는 허용하지 않는다.
 
-콘솔 `.env`의 `MTY_CODEX_CONSOLE_SSO_SUBJECTS`에는 자동 로그인을 허용할 MTY의
-정확한 origin과 그 환경에서 콘솔을 소유한 MTY 사용자 UUID를 JSON 객체로 등록한다. MTY 앱
-링크는 현재 MTY 세션과 Codex Console 앱 권한을 확인해
+콘솔 `.env`의 `MIY_CODEX_CONSOLE_SSO_SUBJECTS`에는 자동 로그인을 허용할 miy의
+정확한 origin과 그 환경에서 콘솔을 소유한 miy 사용자 UUID를 JSON 객체로 등록한다. miy 앱
+링크는 현재 miy 세션과 Codex Console 앱 권한을 확인해
 60초짜리 `cc1_` 코드를 만들고 URL fragment로 전달한다. 콘솔은 fragment를 즉시 지우고
-허용 목록의 origin에 있는 고정 교환 API만 호출한다. 코드는 한 번만 사용할 수 있으며 MTY
+허용 목록의 origin에 있는 고정 교환 API만 호출한다. 코드는 한 번만 사용할 수 있으며 miy
 세션이 종료되었거나 앱 권한이 회수되면 실패한다. 교환 응답의 안정적인 사용자 UUID가 해당
-origin에 설정된 소유자 UUID와 일치할 때만 콘솔 세션을 발급한다. MTY bearer token과 사용자
+origin에 설정된 소유자 UUID와 일치할 때만 콘솔 세션을 발급한다. miy bearer token과 사용자
 프로필은 콘솔에 전달하지 않는다. 직접 콘솔 주소를 열거나 교환이 실패하면 기존 소유자
 비밀번호 로그인을 사용한다.
 
 | 설정 | 기본값 | 용도 |
 | --- | --- | --- |
-| `MTY_CODEX_CONSOLE_SSO_SUBJECTS` | `{}` | 자동 로그인을 허용할 개발·운영 MTY HTTPS origin을 소유자 사용자 UUID에 연결한 JSON 객체. loopback HTTP는 로컬 개발에서만 허용한다. |
+| `MIY_CODEX_CONSOLE_SSO_SUBJECTS` | `{}` | 자동 로그인을 허용할 개발·운영 miy HTTPS origin을 소유자 사용자 UUID에 연결한 JSON 객체. loopback HTTP는 로컬 개발에서만 허용한다. |
 
 개발 Web 재시작과 무관하게 접속하려면 **전용 HTTPS 도메인**을 사용하고 앞단 프록시를
 콘솔에 직접 연결한다. DNS 등록뿐 아니라 프록시의 upstream 주소·포트도 준비해야 한다.
 
 | 설정 위치 | 키 | 값 |
 | --- | --- | --- |
-| MTY 루트 `.env` | `MTY_CODEX_CONSOLE_LAUNCH_URL` | `https://codex.example.com/` |
-| 콘솔 `.env` | `MTY_CODEX_CONSOLE_ORIGIN` | `https://codex.example.com` |
-| 콘솔 `.env` | `MTY_CODEX_CONSOLE_BASE_PATH` | 빈 값 |
+| miy 루트 `.env` | `MIY_CODEX_CONSOLE_LAUNCH_URL` | `https://codex.example.com/` |
+| 콘솔 `.env` | `MIY_CODEX_CONSOLE_ORIGIN` | `https://codex.example.com` |
+| 콘솔 `.env` | `MIY_CODEX_CONSOLE_BASE_PATH` | 빈 값 |
 
 실제 도메인으로 바꾸고 `브라우저 → HTTPS 프록시 → 관리/세션 서비스`로 연결한다.
 같은 호스트에서 TLS를 종료하면 `ops/codex-console/nginx.conf.example`을 사용한다.
@@ -369,11 +369,11 @@ Secure 쿠키를 사용하고 허용된 loopback HTTP에는 해당 호스트의 
 
 | 설정 위치 | 키 | 값 |
 | --- | --- | --- |
-| MTY 루트 `.env` | `MTY_CODEX_CONSOLE_LAUNCH_URL` | `/codex-console/` |
-| 콘솔 `.env` | `MTY_CODEX_CONSOLE_ORIGIN` | 실제 개발 사이트의 HTTPS origin |
-| 콘솔 `.env` | `MTY_CODEX_CONSOLE_BASE_PATH` | `/codex-console` |
+| miy 루트 `.env` | `MIY_CODEX_CONSOLE_LAUNCH_URL` | `/codex-console/` |
+| 콘솔 `.env` | `MIY_CODEX_CONSOLE_ORIGIN` | 실제 개발 사이트의 HTTPS origin |
+| 콘솔 `.env` | `MIY_CODEX_CONSOLE_BASE_PATH` | `/codex-console` |
 
-MTY Vite 개발·preview는 `/codex-console/api/tasks`·`/codex-console/api/codex`를
+miy Vite 개발·preview는 `/codex-console/api/tasks`·`/codex-console/api/codex`를
 포함 모든 `/codex-console` 경로를 19367로 전달한다.
 앞단 HTTPS 프록시는 이 경로를 기존 Web으로 전달한다. 별도 프록시에서 콘솔에 직접
 연결하는 경우에는 경로를 제거하지 않는 `ops/codex-console/nginx-path.conf.example`을 참고한다.
@@ -387,20 +387,20 @@ DNS 없이 서버 IP로 구성할 때는 IP SAN 인증서와 PC의 CA 신뢰 등
 
 이미 사용 중인 주소를 바꿀 때는 실행 중인 콘솔 작업을 먼저 완료·중단한다. 전용 프록시를
 준비한 뒤 콘솔 origin·base path를 함께 변경하고 콘솔 서비스를 재시작한다. 새 주소에서
-로그인·API·SSE·첨부 업로드를 확인한 후 MTY launch URL을 반영하고 개발 서비스를 재시작한다.
+로그인·API·SSE·첨부 업로드를 확인한 후 miy launch URL을 반영하고 개발 서비스를 재시작한다.
 `.auth_info`의 콘솔 URL도 갱신한다. 도메인이 바뀌면 기존 웹 쿠키가 전달되지 않으므로 같은
 작업실 비밀번호로 다시 로그인한다. 작업·첨부·ChatGPT 인증은 그대로 유지되며 UI 재빌드나
 DB migration은 필요 없다.
 
-MTY 플랫폼 관리자로 로그인하여 **관리자 설정 → 앱 사용/접근 설정**에서 `Codex 콘솔`을 켠다.
+miy 플랫폼 관리자로 로그인하여 **관리자 설정 → 앱 사용/접근 설정**에서 `Codex 콘솔`을 켠다.
 기존 설치에 새 앱을 등록하면 기본 비활성·선택 대상 상태이며 기존 권한을 자동 확대하지 않는다.
 등록 계약은 `platform_admin`을 요구한다. 개인 앱의 링크가 표시되더라도 실제 코딩 작업은
-콘솔의 별도 비밀번호 인증으로 보호된다. 이 링크는 MTY 인증 토큰이나 Codex 자격증명을 전달하지 않는다.
+콘솔의 별도 비밀번호 인증으로 보호된다. 이 링크는 miy 인증 토큰이나 Codex 자격증명을 전달하지 않는다.
 
 설치 완료 검사는 다음을 모두 포함한다.
 
 1. 콘솔 서비스가 실행 중이고 `/codex-console/healthz` 또는 전용 호스트의 `/healthz`가 성공한다.
-2. MTY **개인 앱 → Codex 콘솔** 클릭 시 새 탭에 로그인 화면이 표시되고 기존 탭이 유지된다.
+2. miy **개인 앱 → Codex 콘솔** 클릭 시 새 탭에 로그인 화면이 표시되고 기존 탭이 유지된다.
 3. 작업실 비밀번호로 로그인한 뒤 **구독 연결됨**이 표시된다. 미연결이면 공식 ChatGPT 로그인을 수행한다.
 4. 새로고침 후 화면 복원, 로그아웃 후 API 접근 차단, 콘솔 URL 아래의 API·SSE 응답을 확인한다.
 5. [.auth_info 관리](../../../INSTALL.md#11-로그인-정보-파일-관리)에 따라 주소·비밀번호를 서버에
@@ -420,22 +420,22 @@ MTY 플랫폼 관리자로 로그인하여 **관리자 설정 → 앱 사용/접
 이 구간은 신뢰하는 사설망에서만 사용하며 신뢰할 수 없는 네트워크에서는 호스트 간 TLS나
 인증된 터널을 구성한다. 외부 포트 전달로 이 HTTP 포트를 공개하지 않는다.
 
-Docker가 준비된 Linux 호스트에서는 MTY Compose와 별개로 실행할 수 있다. 다음 명령 전
+Docker가 준비된 Linux 호스트에서는 miy Compose와 별개로 실행할 수 있다. 다음 명령 전
 설정 파일을 설치하고 템플릿의 예시 IP·도메인을 실제 값으로 바꾼다. 기존 파일을 덮어쓰지 않는다.
 
 ```bash
-install -m 644 ops/codex-console/nginx-upstream.conf.example "$HOME/.config/mty-codex-console/upstream.conf"
+install -m 644 ops/codex-console/nginx-upstream.conf.example "$HOME/.config/miy-codex-console/upstream.conf"
 # upstream.conf의 수신 IP, 허용 프록시 IP, 도메인을 서버 편집기에서 설정한다.
 docker run --rm --network host --user 101:101 --read-only --cap-drop ALL \
   --security-opt no-new-privileges \
   --tmpfs /tmp:rw,noexec,nosuid,size=64m,uid=101,gid=101 \
-  --mount "type=bind,src=$HOME/.config/mty-codex-console/upstream.conf,dst=/etc/nginx/nginx.conf,readonly" \
+  --mount "type=bind,src=$HOME/.config/miy-codex-console/upstream.conf,dst=/etc/nginx/nginx.conf,readonly" \
   --entrypoint nginx nginx:1.27-alpine -t
 docker run -d --name codex-console-upstream --restart unless-stopped \
   --network host --user 101:101 --read-only --cap-drop ALL \
   --security-opt no-new-privileges \
   --tmpfs /tmp:rw,noexec,nosuid,size=64m,uid=101,gid=101 \
-  --mount "type=bind,src=$HOME/.config/mty-codex-console/upstream.conf,dst=/etc/nginx/nginx.conf,readonly" \
+  --mount "type=bind,src=$HOME/.config/miy-codex-console/upstream.conf,dst=/etc/nginx/nginx.conf,readonly" \
   --entrypoint nginx nginx:1.27-alpine -g 'daemon off;'
 ```
 
@@ -446,8 +446,8 @@ HTTPS `/healthz`와 로그인, 첨부 업로드를 확인한다. 허용하지 �
 `docker exec codex-console-upstream nginx -s reload`로 반영한다. 중지·재시작은
 `docker stop codex-console-upstream`, `docker restart codex-console-upstream`을 사용한다.
 
-이 연결 지점과 콘솔은 MTY Web·API 재시작에 종속되지 않는다. Docker로 실행하면 Docker
-재시작에는 영향을 받는다. 콘솔 저장소는 MTY PostgreSQL과 독립적이다. 같은 호스트의 전원·디스크 장애까지 분리하지는 않는다.
+이 연결 지점과 콘솔은 miy Web·API 재시작에 종속되지 않는다. Docker로 실행하면 Docker
+재시작에는 영향을 받는다. 콘솔 저장소는 miy PostgreSQL과 독립적이다. 같은 호스트의 전원·디스크 장애까지 분리하지는 않는다.
 
 ## 파일 보관과 메시지별 첨부
 
@@ -472,9 +472,9 @@ DB에서 사본을 복원한다. 원본을 삭제하면 DB 바이너리와 읽�
 
 | 콘솔 설정 | 기본값 | 용도 |
 | --- | --- | --- |
-| `MTY_CODEX_CONSOLE_ATTACHMENT_CACHE` | `~/.local/share/mty-codex-console/attachments` | 소유자 전용 읽기 사본. Git 저장소·릴리스 디렉터리 밖의 고정 경로를 사용한다. |
-| `MTY_CODEX_CONSOLE_ATTACHMENT_MAX_BYTES` | `52428800` | 파일당 50 MiB. 최대 설정값은 100 MiB. |
-| `MTY_CODEX_CONSOLE_ATTACHMENT_TASK_MAX_BYTES` | `524288000` | 작업당 활성 원본 500 MiB. |
+| `MIY_CODEX_CONSOLE_ATTACHMENT_CACHE` | `~/.local/share/miy-codex-console/attachments` | 소유자 전용 읽기 사본. Git 저장소·릴리스 디렉터리 밖의 고정 경로를 사용한다. |
+| `MIY_CODEX_CONSOLE_ATTACHMENT_MAX_BYTES` | `52428800` | 파일당 50 MiB. 최대 설정값은 100 MiB. |
+| `MIY_CODEX_CONSOLE_ATTACHMENT_TASK_MAX_BYTES` | `524288000` | 작업당 활성 원본 500 MiB. |
 
 작업당 활성 파일은 200개, 메시지당 선택은 20개까지다. 업로드는 원본 바이너리
 `PUT /api/tasks/{task_id}/attachments/{attachment_id}`로 전달하고 URL 인코딩한 파일 이름을
@@ -499,31 +499,31 @@ DB에서 사본을 복원한다. 원본을 삭제하면 DB 바이너리와 읽�
 다음은 사용자의 홈 디렉터리에 설치하는 예다. 이미 존재하는 릴리스는 덮어쓰지 않는다.
 
 ```bash
-bash scripts/build-codex-console.sh "$HOME/.local/share/mty-codex-console/releases/initial" /absolute/path/to/verified-python3
-mkdir -p "$HOME/.config/mty-codex-console" "$HOME/.config/systemd/user"
-install -m 600 apps/codex-console-api/.env.example "$HOME/.config/mty-codex-console/console.env"
-ln -s "$HOME/.local/share/mty-codex-console/releases/initial" "$HOME/.local/share/mty-codex-console/current"
-ln -s "$HOME/.local/share/mty-codex-console/releases/initial" "$HOME/.local/share/mty-codex-console/template-current"
+bash scripts/build-codex-console.sh "$HOME/.local/share/miy-codex-console/releases/initial" /absolute/path/to/verified-python3
+mkdir -p "$HOME/.config/miy-codex-console" "$HOME/.config/systemd/user"
+install -m 600 apps/codex-console-api/.env.example "$HOME/.config/miy-codex-console/console.env"
+ln -s "$HOME/.local/share/miy-codex-console/releases/initial" "$HOME/.local/share/miy-codex-console/current"
+ln -s "$HOME/.local/share/miy-codex-console/releases/initial" "$HOME/.local/share/miy-codex-console/template-current"
 install -m 644 ops/codex-console/codex-console.service ops/codex-console/codex-console-management.service ops/codex-console/codex-console-templates.service "$HOME/.config/systemd/user/"
 ```
 
-`console.env`를 서버 편집기에서 설정한다. `MTY_CODEX_CONSOLE_BINARY`는 현재 구독
+`console.env`를 서버 편집기에서 설정한다. `MIY_CODEX_CONSOLE_BINARY`는 현재 구독
 로그인 사용자가 실행하는 Codex의 절대 경로로 지정한다. 서비스 설치 계정도 동일하게 유지한다.
 템플릿용 CLI는 검증한 정확한 버전을 별도 디렉터리에 설치한다. 예를 들어
 `npm install --prefix /absolute/private/codex-0.159.2 --no-save @openai/codex@0.159.2`로
-설치한 뒤 `MTY_CODEX_CONSOLE_TEMPLATE_BINARY`를 그 디렉터리의
+설치한 뒤 `MIY_CODEX_CONSOLE_TEMPLATE_BINARY`를 그 디렉터리의
 `node_modules/@openai/codex/bin/codex.js`로 지정한다. 이 버전도 현재 생성 계약과 실제 구독
 smoke를 통과해야 한다. 해당 디렉터리를 일반 CLI 업데이트에 재사용하지 않는다. `.bin/codex`
 심볼릭 링크 대신 실제 실행 파일 경로를 지정하며, 패키지의 native 자원 전체를 보존한다.
-`MTY_CODEX_CONSOLE_WEB_DIST`는 예시의 상대 경로 `../codex-console-web/dist`를 유지해
+`MIY_CODEX_CONSOLE_WEB_DIST`는 예시의 상대 경로 `../codex-console-web/dist`를 유지해
 서비스 작업 경로의 릴리스를 따라가게 한다. 특정 릴리스의 절대 경로로 고정하면 서비스 전환 후에도
 이전 화면을 제공하므로 업데이트 때 API와 웹 정적 파일이 같은 릴리스인지 확인한다.
 서비스 활성화 전에 해당 환경으로 `migrate`, `set-password`를 수행한다. dotenv 형식으로
 작성한 환경 파일은 릴리스의 API 디렉터리에 `.env` 심볼릭 링크로 연결하면 CLI에서도 읽는다.
 
 ```bash
-ln -s "$HOME/.config/mty-codex-console/console.env" "$HOME/.local/share/mty-codex-console/current/apps/codex-console-api/.env"
-cd "$HOME/.local/share/mty-codex-console/current/apps/codex-console-api"
+ln -s "$HOME/.config/miy-codex-console/console.env" "$HOME/.local/share/miy-codex-console/current/apps/codex-console-api/.env"
+cd "$HOME/.local/share/miy-codex-console/current/apps/codex-console-api"
 .venv/bin/codex-console migrate
 .venv/bin/codex-console set-password
 systemctl --user daemon-reload
@@ -554,9 +554,18 @@ systemctl --user stop codex-console
 개발 서버의 `./dev.sh`와 콘솔은 서로 제어하지 않는다. 일반 UI/session 업데이트는 검증한
 새 릴리스로 `current`만 전환한다. `template-current`와 그 CLI 설치 경로는 유지한다.
 템플릿 실행기 업데이트는 그 실행기의 모든 root/하위 작업이 끝난 뒤 별도로 검증·전환한다.
-현재 SQLite 스키마는 `console_sqlite_0001`이다. 스키마 변경이 필요한 배포는 세 역할의
+현재 SQLite 스키마는 `console_sqlite_0002`이다. 스키마 변경이 필요한 배포는 세 역할의
 작업을 모두 종료하고 백업·세 서비스 중지·migration을 수행한다. 실행 중인 자기 업데이트에서
 스키마까지 바뀌면 자동 진행하지 말고 작업을 완료한 뒤 별도 유지보수로 반영한다.
+
+miy 전환에서는 보호된 설정의 키만 `MIY_CODEX_CONSOLE_*`로 이전한다.
+기존 SQLite·첨부·워크트리·릴리스 경로는 값으로 명시해 유지할 수 있다. 기본 경로는
+`miy-codex-console`을 사용하므로 기존 데이터가 없는 새 경로로 전환하지 않는다.
+`console_sqlite_0002`는 기존 템플릿 ID와 작업 스냅샷을 유지하며 알려진 저장소 스킬 참조만
+`miy-*`로 갱신한다. PostgreSQL import는 원본 복사·검증 후 SQLite 데이터 migration을 적용한다.
+현재 포털과의 순차 배포를 위해 콘솔은 기존 `mty_issuer`/`mty_code` handoff와
+`/api/session/mty`를 같은 인증 경계에서 수용한다. 새 발행·표준 계약은 `miy`이며
+두 형식을 혼합한 handoff는 거부한다. 데스크톱 링크는 새 `miy-desktop` 설치와 함께 검증한다.
 
 ## 독립 저장소와 백업
 
@@ -573,7 +582,7 @@ SQLite는 인증·승인·작업·템플릿·첨부 원본과 관측을 보관�
 .venv/bin/codex-console backup --destination /absolute/private/backups/console-before-update.sqlite3
 ```
 
-기존 PostgreSQL `console_0009`/`console_0010` 설치를 이전할 때:
+기존 PostgreSQL `console_0009`/`console_0010`/`console_0011` 설치를 이전할 때:
 
 1. 진행 중인 root/하위 작업을 종료하고 기존 두 서비스를 중지한다. 기존 env·릴리스와 PostgreSQL
    백업을 보존한다. 원본 DB에 앱을 계속 쓰게 한 채 이중 운영하지 않는다.
@@ -597,11 +606,11 @@ SQLite 복원은 세 서비스를 모두 중지하고, 기존 파일과 `-wal`/`
 
 ### 배포 완료 확인
 
-MTY 이름 전환은 전용 설정 파일의 환경변수와 별도 서비스 릴리스를 함께 바꾼다.
-[릴리스 전환 절차](../../domains/release/README.md#mty-naming-cutover)에 따라 기존 DB·작업·설정의 백업과 경로 이동을 검증한 뒤 아래 순서를 적용한다.
+miy 이름 전환은 전용 설정 파일의 환경변수와 별도 서비스 릴리스를 함께 바꾼다.
+[릴리스 전환 절차](../../domains/release/README.md#miy-naming-cutover)에 따라 기존 DB·작업·설정의 백업과 경로 이동을 검증한 뒤 아래 순서를 적용한다.
 
 소스 수정·커밋·푸시·dev/main 동기화와 실행 중인 콘솔 업데이트는 별개의 단계다.
-MTY 개발 서버나 운영 앱만 재시작해도 콘솔에는 반영되지 않는다. 사용자가 화면에 반영할
+miy 개발 서버나 운영 앱만 재시작해도 콘솔에는 반영되지 않는다. 사용자가 화면에 반영할
 Codex Console 구현을 요청하면 로컬 변경 또는 검증만으로 범위를 제한하지 않은 한 전용 콘솔
 릴리스와 공개 검증까지 완료해야 작업 완료로 보고한다. 실제 소스 통합과 서비스 변경 권한은
 루트 `AGENTS.md`를 따른다. 배포 승인이 아직 없다면 검증된 릴리스를 구체적으로 준비한 뒤
@@ -616,7 +625,7 @@ Codex Console 구현을 요청하면 로컬 변경 또는 검증만으로 범위
    로그인 세션에서 변경된 API 응답과 브라우저 동작도 검사한다. 추론 강도 변경은
    `/api/codex/models`와 실제 선택 목록을 모두 확인한다. 공개 경로의 prefix가 있으면
    각 경로에 적용한다. 쿠키·비밀번호·대화 내용은 검사 출력에 남기지 않는다.
-   자동 로그인 변경은 개발·운영 MTY 각각에서 앱 링크를 열어 비밀번호 화면 없이 콘솔에
+   자동 로그인 변경은 개발·운영 miy 각각에서 앱 링크를 열어 비밀번호 화면 없이 콘솔에
    들어가며 fragment가 주소에서 제거되는지 확인한다.
 4. 관리 로그인·서비스 상태·작업 현황·하위 agent 표시를 공개 브라우저에서 확인한다.
    세션 서비스만 중지했을 때 관리 화면은 유지되고 상태가 unknown/unavailable로 갱신되는지
@@ -702,7 +711,7 @@ pnpm --dir apps/codex-console-web e2e
 ```
 
 일반 DB/E2E 검사는 임시 SQLite 파일을 사용한다. 구버전 PostgreSQL migration과 SQLite 이전
-검사는 `MTY_TEST_POSTGRES_TEMPLATE_DSN`에 비운영 PostgreSQL 접속 정보를 지정한다. 해당 계정은
+검사는 `MIY_TEST_POSTGRES_TEMPLATE_DSN`에 비운영 PostgreSQL 접속 정보를 지정한다. 해당 계정은
 임시 `console_test_*` DB 생성·제거 권한이 필요하며, 설정이 없으면 이 검사만 skip된다.
 이전 도구 변경을 skip 상태로 전체 통과라고 보고하지 않는다. E2E는 실제 HTTP·SQLite와 테스트
 전용 프로토콜 대역을 사용한다. production 앱에는 mock 실행 모드가 없다.
@@ -723,7 +732,7 @@ Codex 업그레이드 계약은 설치된 안정 CLI가 최소 버전 이상이�
 `CodexErrorInfo`에 `tooManyDenials`가 추가되고, turn의 오류 설명은 중단된 turn도 포함하도록
 변경됐다. 요청·승인·샌드박스 스키마는 동일하다. 추가 오류 종류는 기존 일반 실패 경로로 처리하고
 중단된 turn은 기존 중단 상태로 표시한다. 호환성 해시는 이 변경도 포함하며 드리프트 차단을 유지한다.
-검사·재생성에는 서비스의 `MTY_CODEX_CONSOLE_BINARY`와 같은 CLI가 `PATH`에서 선택되는지
+검사·재생성에는 서비스의 `MIY_CODEX_CONSOLE_BINARY`와 같은 CLI가 `PATH`에서 선택되는지
 확인한다. 재생성은 `scripts/generate_protocol.py`의 기준 버전과 정확히 같은 CLI에서만 허용한다.
 
 ```bash
@@ -742,14 +751,14 @@ uv run --frozen --directory apps/codex-console-api python tests/live_management_
 management smoke는 두 root 요청의 동시 접수와 두 native subagent의 완료 projection,
 읽기 전용 저장소 보존을 검증한다.
 
-템플릿의 별도 실행기는 아래 smoke로 검증한다. `MTY_CODEX_CONSOLE_TEMPLATE_BINARY`는
+템플릿의 별도 실행기는 아래 smoke로 검증한다. `MIY_CODEX_CONSOLE_TEMPLATE_BINARY`는
 검증된 고정 CLI의 실행 파일 경로를 지정한다. 임시 저장소와 SQLite, 서로 다른 세 HTTP
 프로세스를 만들고 일반 CLI를 의도적으로 비호환 상태로 둔다. 고정 CLI의 native 작업을 시작한
 뒤 관리·세션 프로세스만 재시작해 로그인·thread ID·결과 보존을 확인한다. 실행 중 승인 보존과
 다중 프로세스 자원 제한은 `test_templates.py`·`test_standalone.py`에서 별도로 검증한다.
 
 ```bash
-MTY_CODEX_CONSOLE_TEMPLATE_BINARY=/absolute/private/codex-0.159.2/node_modules/@openai/codex/bin/codex.js \
+MIY_CODEX_CONSOLE_TEMPLATE_BINARY=/absolute/private/codex-0.159.2/node_modules/@openai/codex/bin/codex.js \
   uv run --frozen --directory apps/codex-console-api python tests/live_template_smoke.py
 ```
 

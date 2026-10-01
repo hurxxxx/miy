@@ -86,7 +86,7 @@ it('opens configured console destinations and rejects missing or unsafe URLs', (
 });
 
 it('opens Codex Console with a one-time handoff in the fragment', async () => {
-  localStorage.setItem('mty.auth.token', 'mty-token');
+  localStorage.setItem('miy.auth.token', 'miy-token');
   vi.mocked(createCodexConsoleSessionLink).mockResolvedValue({
     code: `cc1_${'a'.repeat(32)}`,
     expires_at: '2026-09-20T00:00:00Z',
@@ -109,13 +109,13 @@ it('opens Codex Console with a one-time handoff in the fragment', async () => {
 
   await vi.waitFor(() => expect(replace).toHaveBeenCalledOnce());
   expect(preventDefault).toHaveBeenCalledOnce();
-  expect(createCodexConsoleSessionLink).toHaveBeenCalledWith('mty-token');
+  expect(createCodexConsoleSessionLink).toHaveBeenCalledWith('miy-token');
   const destination = new URL(replace.mock.calls[0][0]);
   expect(destination.origin).toBe('https://console.example.test');
   expect(new URLSearchParams(destination.hash.slice(1))).toEqual(
     new URLSearchParams({
-      mty_issuer: window.location.origin,
-      mty_code: `cc1_${'a'.repeat(32)}`,
+      miy_issuer: window.location.origin,
+      miy_code: `cc1_${'a'.repeat(32)}`,
     }),
   );
 });
@@ -132,7 +132,7 @@ it('keeps the launcher close callback on internal app links', () => {
 });
 
 it('does not navigate the original tab after the user closes the pending popup', async () => {
-  localStorage.setItem('mty.auth.token', 'mty-token');
+  localStorage.setItem('miy.auth.token', 'miy-token');
   let resolveLink!: (value: { code: string; expires_at: string }) => void;
   vi.mocked(createCodexConsoleSessionLink).mockReturnValue(
     new Promise((resolve) => {

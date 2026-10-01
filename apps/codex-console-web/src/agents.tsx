@@ -1,4 +1,4 @@
-import { Button, Input } from '@mty/ui';
+import { Button, Input } from '@miy/ui';
 import { ArrowUpRight, Bot, Folder, Pin, PinOff } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { EmptyState, PageLayout } from './page-layout';

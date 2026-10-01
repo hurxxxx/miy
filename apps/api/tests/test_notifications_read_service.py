@@ -8,18 +8,18 @@ from fastapi import HTTPException
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from mty_api.core.db import Base
-from mty_api.domains.auth.models import User
-from mty_api.domains.notifications import read_service
-from mty_api.domains.notifications import visibility as notification_visibility
-from mty_api.domains.notifications.read_service import (
+from miy_api.core.db import Base
+from miy_api.domains.auth.models import User
+from miy_api.domains.notifications import read_service
+from miy_api.domains.notifications import visibility as notification_visibility
+from miy_api.domains.notifications.read_service import (
     list_user_notifications,
     mark_all_read_and_publish,
     mark_one_read_and_publish,
     mark_all_read,
     mark_one_read,
 )
-from mty_api.domains.pms.models import Notification
+from miy_api.domains.pms.models import Notification
 
 
 @pytest.fixture(autouse=True)
@@ -48,7 +48,7 @@ def _add_user(session: Session, user_id: str) -> None:
         User(
             id=user_id,
             login_id=user_id,
-            email=f"{user_id}@mty.local",
+            email=f"{user_id}@miy.local",
             full_name=user_id.title(),
             password_hash="hash",
             status="active",

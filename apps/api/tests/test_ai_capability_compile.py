@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 from pydantic import BaseModel, ConfigDict
 
-from mty_api.core.principal import user_principal
-from mty_api.domains.ai.registry import (
+from miy_api.core.principal import user_principal
+from miy_api.domains.ai.registry import (
     AiCapabilityRegistry,
     AppEntitlementView,
     get_ai_capability_registry,

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "MTY public runtime defaults",
+  "title": "miy public runtime defaults",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -15,54 +15,54 @@
     "defaults": {
       "$ref": "#/$defs/settings",
       "required": [
-        "MTY_LLM_EXTERNAL_LONG_GENERATION_TIMEOUT_SECONDS",
-        "MTY_LLM_LOCAL_LONG_GENERATION_TIMEOUT_SECONDS",
-        "MTY_LLM_REQUEST_TIMEOUT_SECONDS",
-        "MTY_AI_AGENT_MAX_CONSECUTIVE_TOOL_ERRORS",
-        "MTY_AI_AGENT_MAX_TOOL_CALLS",
-        "MTY_AI_AGENT_MAX_TURNS",
-        "MTY_AI_CONVERSATION_RUN_LOCK_TTL_SECONDS",
-        "MTY_AI_RUNTIME_RETENTION_DAYS",
-        "MTY_AI_RUNTIME_TRACE_PAYLOAD_MAX_BYTES",
-        "MTY_MODEL_STATUS_REQUEST_TIMEOUT_SECONDS",
-        "MTY_RAG_BACKFILL_BATCH_SIZE",
-        "MTY_RAG_BACKFILL_THROTTLE_MS",
-        "MTY_RAG_EMBEDDING_BATCH_SIZE",
-        "MTY_RAG_EMBEDDING_MAX_SEQ_LENGTH",
-        "MTY_RAG_EMBEDDING_MODEL",
-        "MTY_RAG_EMBEDDING_REVISION",
-        "MTY_RAG_JOB_MAX_ATTEMPTS",
-        "MTY_RAG_JOB_PROCESSING_LEASE_SECONDS",
-        "MTY_RAG_JOB_RETRY_BACKOFF_SECONDS",
-        "MTY_RAG_QUERY_TIMEOUT_MS",
-        "MTY_RAG_RERANK_CANDIDATE_K",
-        "MTY_RAG_RERANKER_BATCH_SIZE",
-        "MTY_RAG_RERANKER_MAX_LENGTH",
-        "MTY_RAG_RERANKER_MODEL",
-        "MTY_RAG_RERANKER_REVISION",
-        "MTY_API_ASR_REQUEST_TIMEOUT_SECONDS",
-        "MTY_API_DB_MAX_OVERFLOW",
-        "MTY_API_DB_POOL_SIZE",
-        "MTY_API_DB_POOL_TIMEOUT",
-        "MTY_WORKER_DB_MAX_OVERFLOW",
-        "MTY_WORKER_DB_POOL_SIZE",
-        "MTY_WORKER_DB_POOL_TIMEOUT",
-        "MTY_WORKER_CONCURRENCY",
-        "MTY_API_EVENT_LOOP_LAG_INTERVAL_SECONDS",
-        "MTY_API_EVENT_LOOP_LAG_WARN_MS",
-        "MTY_API_COLLAB_ACL_RECHECK_SECONDS",
-        "MTY_API_COLLAB_CLEANUP_TIMEOUT_SECONDS",
-        "MTY_API_COLLAB_MAX_ROOM_CLIENTS",
-        "MTY_API_COLLAB_MAX_USER_ROOM_CONNECTIONS",
-        "MTY_API_COLLAB_SNAPSHOT_DEBOUNCE_MS",
-        "MTY_API_RECORDING_MAX_SIZE_BYTES",
-        "MTY_API_RECORDING_STAGING_RETENTION_HOURS",
-        "MTY_MAIL_SYNC_DISPATCH_VISIBILITY_SECONDS",
-        "MTY_MAIL_SYNC_MAX_ATTEMPTS",
-        "MTY_MAIL_SYNC_MAX_MESSAGES",
-        "MTY_MAIL_SYNC_PROCESSING_LEASE_SECONDS",
-        "MTY_MAIL_SYNC_RETRY_BACKOFF_SECONDS",
-        "MTY_OTEL_METRICS_EXPORT_INTERVAL_MS"
+        "MIY_LLM_EXTERNAL_LONG_GENERATION_TIMEOUT_SECONDS",
+        "MIY_LLM_LOCAL_LONG_GENERATION_TIMEOUT_SECONDS",
+        "MIY_LLM_REQUEST_TIMEOUT_SECONDS",
+        "MIY_AI_AGENT_MAX_CONSECUTIVE_TOOL_ERRORS",
+        "MIY_AI_AGENT_MAX_TOOL_CALLS",
+        "MIY_AI_AGENT_MAX_TURNS",
+        "MIY_AI_CONVERSATION_RUN_LOCK_TTL_SECONDS",
+        "MIY_AI_RUNTIME_RETENTION_DAYS",
+        "MIY_AI_RUNTIME_TRACE_PAYLOAD_MAX_BYTES",
+        "MIY_MODEL_STATUS_REQUEST_TIMEOUT_SECONDS",
+        "MIY_RAG_BACKFILL_BATCH_SIZE",
+        "MIY_RAG_BACKFILL_THROTTLE_MS",
+        "MIY_RAG_EMBEDDING_BATCH_SIZE",
+        "MIY_RAG_EMBEDDING_MAX_SEQ_LENGTH",
+        "MIY_RAG_EMBEDDING_MODEL",
+        "MIY_RAG_EMBEDDING_REVISION",
+        "MIY_RAG_JOB_MAX_ATTEMPTS",
+        "MIY_RAG_JOB_PROCESSING_LEASE_SECONDS",
+        "MIY_RAG_JOB_RETRY_BACKOFF_SECONDS",
+        "MIY_RAG_QUERY_TIMEOUT_MS",
+        "MIY_RAG_RERANK_CANDIDATE_K",
+        "MIY_RAG_RERANKER_BATCH_SIZE",
+        "MIY_RAG_RERANKER_MAX_LENGTH",
+        "MIY_RAG_RERANKER_MODEL",
+        "MIY_RAG_RERANKER_REVISION",
+        "MIY_API_ASR_REQUEST_TIMEOUT_SECONDS",
+        "MIY_API_DB_MAX_OVERFLOW",
+        "MIY_API_DB_POOL_SIZE",
+        "MIY_API_DB_POOL_TIMEOUT",
+        "MIY_WORKER_DB_MAX_OVERFLOW",
+        "MIY_WORKER_DB_POOL_SIZE",
+        "MIY_WORKER_DB_POOL_TIMEOUT",
+        "MIY_WORKER_CONCURRENCY",
+        "MIY_API_EVENT_LOOP_LAG_INTERVAL_SECONDS",
+        "MIY_API_EVENT_LOOP_LAG_WARN_MS",
+        "MIY_API_COLLAB_ACL_RECHECK_SECONDS",
+        "MIY_API_COLLAB_CLEANUP_TIMEOUT_SECONDS",
+        "MIY_API_COLLAB_MAX_ROOM_CLIENTS",
+        "MIY_API_COLLAB_MAX_USER_ROOM_CONNECTIONS",
+        "MIY_API_COLLAB_SNAPSHOT_DEBOUNCE_MS",
+        "MIY_API_RECORDING_MAX_SIZE_BYTES",
+        "MIY_API_RECORDING_STAGING_RETENTION_HOURS",
+        "MIY_MAIL_SYNC_DISPATCH_VISIBILITY_SECONDS",
+        "MIY_MAIL_SYNC_MAX_ATTEMPTS",
+        "MIY_MAIL_SYNC_MAX_MESSAGES",
+        "MIY_MAIL_SYNC_PROCESSING_LEASE_SECONDS",
+        "MIY_MAIL_SYNC_RETRY_BACKOFF_SECONDS",
+        "MIY_OTEL_METRICS_EXPORT_INTERVAL_MS"
       ]
     },
     "profiles": {
@@ -93,159 +93,159 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "MTY_WORKER_CONCURRENCY": {
+        "MIY_WORKER_CONCURRENCY": {
           "maximum": 64,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_MAIL_SYNC_MAX_MESSAGES": {
+        "MIY_MAIL_SYNC_MAX_MESSAGES": {
           "maximum": 500,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_MAIL_SYNC_MAX_ATTEMPTS": {
+        "MIY_MAIL_SYNC_MAX_ATTEMPTS": {
           "maximum": 20,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_MAIL_SYNC_RETRY_BACKOFF_SECONDS": {
+        "MIY_MAIL_SYNC_RETRY_BACKOFF_SECONDS": {
           "maximum": 3600,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_MAIL_SYNC_PROCESSING_LEASE_SECONDS": {
+        "MIY_MAIL_SYNC_PROCESSING_LEASE_SECONDS": {
           "maximum": 7200,
           "minimum": 60,
           "type": "integer"
         },
-        "MTY_MAIL_SYNC_DISPATCH_VISIBILITY_SECONDS": {
+        "MIY_MAIL_SYNC_DISPATCH_VISIBILITY_SECONDS": {
           "maximum": 3600,
           "minimum": 30,
           "type": "integer"
         },
-        "MTY_API_COLLAB_ACL_RECHECK_SECONDS": {
+        "MIY_API_COLLAB_ACL_RECHECK_SECONDS": {
           "maximum": 300,
           "minimum": 5,
           "type": "integer"
         },
-        "MTY_API_COLLAB_SNAPSHOT_DEBOUNCE_MS": {
+        "MIY_API_COLLAB_SNAPSHOT_DEBOUNCE_MS": {
           "maximum": 30000,
           "minimum": 250,
           "type": "integer"
         },
-        "MTY_API_COLLAB_MAX_USER_ROOM_CONNECTIONS": {
+        "MIY_API_COLLAB_MAX_USER_ROOM_CONNECTIONS": {
           "maximum": 50,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_API_COLLAB_MAX_ROOM_CLIENTS": {
+        "MIY_API_COLLAB_MAX_ROOM_CLIENTS": {
           "maximum": 1000,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_API_COLLAB_CLEANUP_TIMEOUT_SECONDS": {
+        "MIY_API_COLLAB_CLEANUP_TIMEOUT_SECONDS": {
           "maximum": 60,
           "minimum": 0.1,
           "type": "number"
         },
-        "MTY_API_DB_POOL_SIZE": {
+        "MIY_API_DB_POOL_SIZE": {
           "maximum": 100,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_API_DB_MAX_OVERFLOW": {
+        "MIY_API_DB_MAX_OVERFLOW": {
           "maximum": 100,
           "minimum": 0,
           "type": "integer"
         },
-        "MTY_API_DB_POOL_TIMEOUT": {
+        "MIY_API_DB_POOL_TIMEOUT": {
           "maximum": 300,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_API_RECORDING_MAX_SIZE_BYTES": {
+        "MIY_API_RECORDING_MAX_SIZE_BYTES": {
           "minimum": 1048576,
           "type": "integer"
         },
-        "MTY_API_RECORDING_STAGING_RETENTION_HOURS": {
+        "MIY_API_RECORDING_STAGING_RETENTION_HOURS": {
           "maximum": 720,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_API_ASR_REQUEST_TIMEOUT_SECONDS": {
+        "MIY_API_ASR_REQUEST_TIMEOUT_SECONDS": {
           "exclusiveMinimum": 0,
           "maximum": 3600,
           "type": "number"
         },
-        "MTY_MODEL_STATUS_REQUEST_TIMEOUT_SECONDS": {
+        "MIY_MODEL_STATUS_REQUEST_TIMEOUT_SECONDS": {
           "exclusiveMinimum": 0,
           "maximum": 30,
           "type": "number"
         },
-        "MTY_LLM_LOCAL_LONG_GENERATION_TIMEOUT_SECONDS": {
+        "MIY_LLM_LOCAL_LONG_GENERATION_TIMEOUT_SECONDS": {
           "exclusiveMinimum": 0,
           "maximum": 3600,
           "type": "number"
         },
-        "MTY_LLM_EXTERNAL_LONG_GENERATION_TIMEOUT_SECONDS": {
+        "MIY_LLM_EXTERNAL_LONG_GENERATION_TIMEOUT_SECONDS": {
           "exclusiveMinimum": 0,
           "maximum": 3600,
           "type": "number"
         },
-        "MTY_LLM_REQUEST_TIMEOUT_SECONDS": {
+        "MIY_LLM_REQUEST_TIMEOUT_SECONDS": {
           "exclusiveMinimum": 0,
           "maximum": 3600,
           "type": "number"
         },
-        "MTY_AI_CONVERSATION_RUN_LOCK_TTL_SECONDS": {
+        "MIY_AI_CONVERSATION_RUN_LOCK_TTL_SECONDS": {
           "maximum": 86400,
           "minimum": 60,
           "type": "integer"
         },
-        "MTY_AI_RUNTIME_TRACE_PAYLOAD_MAX_BYTES": {
+        "MIY_AI_RUNTIME_TRACE_PAYLOAD_MAX_BYTES": {
           "maximum": 1048576,
           "minimum": 1024,
           "type": "integer"
         },
-        "MTY_AI_RUNTIME_RETENTION_DAYS": {
+        "MIY_AI_RUNTIME_RETENTION_DAYS": {
           "maximum": 3650,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_AI_AGENT_MAX_TURNS": {
+        "MIY_AI_AGENT_MAX_TURNS": {
           "maximum": 32,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_AI_AGENT_MAX_TOOL_CALLS": {
+        "MIY_AI_AGENT_MAX_TOOL_CALLS": {
           "maximum": 64,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_AI_AGENT_MAX_CONSECUTIVE_TOOL_ERRORS": {
+        "MIY_AI_AGENT_MAX_CONSECUTIVE_TOOL_ERRORS": {
           "maximum": 16,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_RAG_QUERY_TIMEOUT_MS": {
+        "MIY_RAG_QUERY_TIMEOUT_MS": {
           "maximum": 600000,
           "minimum": 100,
           "type": "integer"
         },
-        "MTY_RAG_RERANK_CANDIDATE_K": {
+        "MIY_RAG_RERANK_CANDIDATE_K": {
           "maximum": 100,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_RAG_JOB_PROCESSING_LEASE_SECONDS": {
+        "MIY_RAG_JOB_PROCESSING_LEASE_SECONDS": {
           "maximum": 7200,
           "minimum": 60,
           "type": "integer"
         },
-        "MTY_RAG_EMBEDDING_MODEL": {
+        "MIY_RAG_EMBEDDING_MODEL": {
           "type": "string"
         },
-        "MTY_RAG_EMBEDDING_REVISION": {
+        "MIY_RAG_EMBEDDING_REVISION": {
           "anyOf": [
             {
               "type": "string"
@@ -255,20 +255,20 @@
             }
           ]
         },
-        "MTY_RAG_EMBEDDING_BATCH_SIZE": {
+        "MIY_RAG_EMBEDDING_BATCH_SIZE": {
           "maximum": 256,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_RAG_EMBEDDING_MAX_SEQ_LENGTH": {
+        "MIY_RAG_EMBEDDING_MAX_SEQ_LENGTH": {
           "maximum": 8192,
           "minimum": 128,
           "type": "integer"
         },
-        "MTY_RAG_RERANKER_MODEL": {
+        "MIY_RAG_RERANKER_MODEL": {
           "type": "string"
         },
-        "MTY_RAG_RERANKER_REVISION": {
+        "MIY_RAG_RERANKER_REVISION": {
           "anyOf": [
             {
               "type": "string"
@@ -278,62 +278,62 @@
             }
           ]
         },
-        "MTY_RAG_RERANKER_BATCH_SIZE": {
+        "MIY_RAG_RERANKER_BATCH_SIZE": {
           "maximum": 256,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_RAG_RERANKER_MAX_LENGTH": {
+        "MIY_RAG_RERANKER_MAX_LENGTH": {
           "maximum": 8192,
           "minimum": 128,
           "type": "integer"
         },
-        "MTY_OTEL_METRICS_EXPORT_INTERVAL_MS": {
+        "MIY_OTEL_METRICS_EXPORT_INTERVAL_MS": {
           "maximum": 300000,
           "minimum": 1000,
           "type": "integer"
         },
-        "MTY_API_EVENT_LOOP_LAG_WARN_MS": {
+        "MIY_API_EVENT_LOOP_LAG_WARN_MS": {
           "maximum": 60000,
           "minimum": 100,
           "type": "integer"
         },
-        "MTY_API_EVENT_LOOP_LAG_INTERVAL_SECONDS": {
+        "MIY_API_EVENT_LOOP_LAG_INTERVAL_SECONDS": {
           "maximum": 60,
           "minimum": 0.1,
           "type": "number"
         },
-        "MTY_WORKER_DB_POOL_SIZE": {
+        "MIY_WORKER_DB_POOL_SIZE": {
           "maximum": 100,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_WORKER_DB_MAX_OVERFLOW": {
+        "MIY_WORKER_DB_MAX_OVERFLOW": {
           "maximum": 100,
           "minimum": 0,
           "type": "integer"
         },
-        "MTY_WORKER_DB_POOL_TIMEOUT": {
+        "MIY_WORKER_DB_POOL_TIMEOUT": {
           "maximum": 300,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_RAG_BACKFILL_BATCH_SIZE": {
+        "MIY_RAG_BACKFILL_BATCH_SIZE": {
           "maximum": 500,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_RAG_BACKFILL_THROTTLE_MS": {
+        "MIY_RAG_BACKFILL_THROTTLE_MS": {
           "maximum": 60000,
           "minimum": 0,
           "type": "integer"
         },
-        "MTY_RAG_JOB_MAX_ATTEMPTS": {
+        "MIY_RAG_JOB_MAX_ATTEMPTS": {
           "maximum": 20,
           "minimum": 1,
           "type": "integer"
         },
-        "MTY_RAG_JOB_RETRY_BACKOFF_SECONDS": {
+        "MIY_RAG_JOB_RETRY_BACKOFF_SECONDS": {
           "maximum": 3600,
           "minimum": 1,
           "type": "integer"

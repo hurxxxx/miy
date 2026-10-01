@@ -1,4 +1,4 @@
-import { useFeedback } from '@mty/ui';
+import { useFeedback } from '@miy/ui';
 import { Loader2, Paperclip } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useRef, useState } from 'react';

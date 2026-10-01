@@ -13,8 +13,8 @@
       "options": {
         "cwd": "apps/worker",
         "commands": [
-          "env -u OPENROUTER_API_KEY sh -c 'queues=\"$(uv run --python 3.12 python -m mty_worker.queue_contract --celery-queues)\" && MTY_WORKER_QUEUE_GROUP=all uv run --python 3.12 celery -A mty_worker.celery_app:celery_app worker --loglevel=info -Q \"$queues\"'",
-          "env -u OPENROUTER_API_KEY MTY_WORKER_QUEUE_GROUP=beat uv run --python 3.12 celery -A mty_worker.celery_app:celery_app beat --loglevel=info"
+          "env -u OPENROUTER_API_KEY sh -c 'queues=\"$(uv run --python 3.12 python -m miy_worker.queue_contract --celery-queues)\" && MIY_WORKER_QUEUE_GROUP=all uv run --python 3.12 celery -A miy_worker.celery_app:celery_app worker --loglevel=info -Q \"$queues\"'",
+          "env -u OPENROUTER_API_KEY MIY_WORKER_QUEUE_GROUP=beat uv run --python 3.12 celery -A miy_worker.celery_app:celery_app beat --loglevel=info"
         ],
         "parallel": true
       }
@@ -38,7 +38,7 @@
       "cache": false,
       "options": {
         "cwd": "apps/worker",
-        "command": "MTY_WORKER_BROKER_URL=memory:// MTY_WORKER_RESULT_BACKEND=cache+memory:// UV_PROJECT_ENVIRONMENT=../../.runtime/ci-worker-venv uv run --no-sync --frozen --python 3.12 --group dev python -m pytest tests -q"
+        "command": "MIY_WORKER_BROKER_URL=memory:// MIY_WORKER_RESULT_BACKEND=cache+memory:// UV_PROJECT_ENVIRONMENT=../../.runtime/ci-worker-venv uv run --no-sync --frozen --python 3.12 --group dev python -m pytest tests -q"
       }
     }
   }

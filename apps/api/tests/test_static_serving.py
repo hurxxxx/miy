@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from fastapi.responses import Response
 
-from mty_api.static_serving import (
+from miy_api.static_serving import (
     STATIC_WEBSOCKET_POLICY_VIOLATION_CLOSE_CODE,
     StaticServingPolicy,
     apply_static_response_headers,
@@ -67,7 +67,7 @@ def test_static_serving_policy_builds_websocket_close_message() -> None:
 
 def test_apply_static_response_headers_only_mutates_successful_responses() -> None:
     headers = SimpleNamespace(
-        content_disposition='attachment; filename="MTY.deb"',
+        content_disposition='attachment; filename="miy.deb"',
         content_type="application/vnd.debian.binary-package",
     )
     response = Response(status_code=200)
@@ -76,7 +76,7 @@ def test_apply_static_response_headers_only_mutates_successful_responses() -> No
     apply_static_response_headers(response, headers)
     apply_static_response_headers(missing, headers)
 
-    assert response.headers["content-disposition"] == 'attachment; filename="MTY.deb"'
+    assert response.headers["content-disposition"] == 'attachment; filename="miy.deb"'
     assert response.headers["content-type"] == "application/vnd.debian.binary-package"
     assert "content-disposition" not in missing.headers
 

@@ -18,15 +18,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
 from dev_accounts import auth_headers, dev_login
-from mty_api.core.db import get_session_factory
-from mty_api.core.settings import Settings
-from mty_api.domains.agent_terminal.app_catalog import AGENT_TERMINAL_APP
-from mty_api.domains.agent_terminal.codex_history import (
+from miy_api.core.db import get_session_factory
+from miy_api.core.settings import Settings
+from miy_api.domains.agent_terminal.app_catalog import AGENT_TERMINAL_APP
+from miy_api.domains.agent_terminal.codex_history import (
     AgentTerminalCodexHistoryError,
     list_codex_threads,
     require_codex_thread,
 )
-from mty_api.domains.agent_terminal.git_changes import (
+from miy_api.domains.agent_terminal.git_changes import (
     AgentTerminalGitError,
     get_git_commit_detail,
     get_git_commit_diff,
@@ -35,10 +35,10 @@ from mty_api.domains.agent_terminal.git_changes import (
     get_git_status,
     get_git_summary,
 )
-from mty_api.domains.agent_terminal.models import AgentTerminalSession
-from mty_api.domains.agent_terminal.models import utcnow_naive
-from mty_api.domains.agent_terminal.runtime import AgentTerminalRuntime
-from mty_api.domains.agent_terminal.service import (
+from miy_api.domains.agent_terminal.models import AgentTerminalSession
+from miy_api.domains.agent_terminal.models import utcnow_naive
+from miy_api.domains.agent_terminal.runtime import AgentTerminalRuntime
+from miy_api.domains.agent_terminal.service import (
     AgentTerminalConfigurationError,
     AgentTerminalRoot,
     build_codex_environment,
@@ -47,7 +47,7 @@ from mty_api.domains.agent_terminal.service import (
     resolve_root,
     resolve_tmux_binary,
 )
-from mty_api.domains.auth.models import AuditLog
+from miy_api.domains.auth.models import AuditLog
 
 
 def _settings(tmp_path: Path, **overrides: object) -> Settings:
@@ -98,7 +98,7 @@ def _initialize_git_repository(root: Path) -> None:
 
 def test_agent_terminal_catalog_is_admin_only_personal_tool() -> None:
     assert AGENT_TERMINAL_APP.app_id == "agent-terminal"
-    from mty_api.core.app_registry import compile_app_registry
+    from miy_api.core.app_registry import compile_app_registry
 
     assert (
         compile_app_registry([AGENT_TERMINAL_APP]).catalog[0].execution_context_kind == "personal"
@@ -142,7 +142,7 @@ def test_codex_process_environment_does_not_inherit_api_secrets() -> None:
             "HOME": "/srv/agent",
             "PATH": "/usr/bin",
             "CODEX_HOME": "/srv/agent/.codex",
-            "MTY_POSTGRES_DSN": "secret-dsn",
+            "MIY_POSTGRES_DSN": "secret-dsn",
             "THIRD_PARTY_TOKEN": "secret-key",
         }
     )
@@ -150,7 +150,7 @@ def test_codex_process_environment_does_not_inherit_api_secrets() -> None:
     assert environment["HOME"] == "/srv/agent"
     assert environment["CODEX_HOME"] == "/srv/agent/.codex"
     assert environment["TERM"] == "xterm-256color"
-    assert "MTY_POSTGRES_DSN" not in environment
+    assert "MIY_POSTGRES_DSN" not in environment
     assert "THIRD_PARTY_TOKEN" not in environment
 
 
@@ -283,7 +283,7 @@ def test_tmux_resize_updates_the_attachment_pty(tmp_path: Path) -> None:
     )
 
     with patch(
-        "mty_api.domains.agent_terminal.runtime._set_terminal_size"
+        "miy_api.domains.agent_terminal.runtime._set_terminal_size"
     ) as set_terminal_size:
         asyncio.run(runtime.resize("session-1", cols=180, rows=64))
 
@@ -663,7 +663,7 @@ def test_admin_can_reconnect_to_owned_codex_session_without_transcript_audit(
     )
     fake_codex.chmod(0o700)
 
-    from mty_api.core.settings import get_settings
+    from miy_api.core.settings import get_settings
 
     settings = get_settings()
     settings.agent_terminal_enabled = True

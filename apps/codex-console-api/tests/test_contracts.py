@@ -73,7 +73,7 @@ def test_example_covers_exact_typed_env_contract():
         if line and not line.startswith("#")
     }
     assert keys == {field.validation_alias for field in Settings.model_fields.values()}
-    assert all(key.startswith("MTY_") for key in keys)
+    assert all(key.startswith("MIY_") for key in keys)
 
 
 def test_remote_http_and_product_database_are_rejected(repository):
@@ -100,7 +100,7 @@ def test_reasoning_policy_is_configurable_and_rejects_empty_efforts(repository, 
         "origin": "http://localhost",
         "_env_file": None,
     }
-    key = "MTY_CODEX_CONSOLE_ALLOWED_REASONING_EFFORTS"
+    key = "MIY_CODEX_CONSOLE_ALLOWED_REASONING_EFFORTS"
     monkeypatch.setenv(key, '["low","high"]')
     assert Settings(**data).allowed_reasoning_efforts == ["low", "high"]
     for invalid in ("[]", '[""]', '[" "]', '["two words"]'):

@@ -4,9 +4,9 @@ After=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=%h/.local/share/mty-codex-console/template-current/apps/codex-console-api
-EnvironmentFile=%h/.config/mty-codex-console/console.env
-ExecStart=%h/.local/share/mty-codex-console/template-current/apps/codex-console-api/.venv/bin/codex-console templates
+WorkingDirectory=%h/.local/share/miy-codex-console/template-current/apps/codex-console-api
+EnvironmentFile=%h/.config/miy-codex-console/console.env
+ExecStart=%h/.local/share/miy-codex-console/template-current/apps/codex-console-api/.venv/bin/codex-console templates
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=15

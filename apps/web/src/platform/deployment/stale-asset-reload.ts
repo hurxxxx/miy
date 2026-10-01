@@ -1,4 +1,4 @@
-const STALE_ASSET_RELOAD_STORAGE_KEY = 'mty:stale-asset-reload-at';
+const STALE_ASSET_RELOAD_STORAGE_KEY = 'miy:stale-asset-reload-at';
 const DEFAULT_STALE_ASSET_RELOAD_COOLDOWN_MS = 60_000;
 export const STALE_ASSET_RELOAD_QUERY_PARAM = '__reload';
 

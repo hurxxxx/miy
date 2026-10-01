@@ -79,7 +79,7 @@ describe('browser download', () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: 'Bearer session-token',
-          'X-MTY-Content-Grant': 'signed-token',
+          'X-MIY-Content-Grant': 'signed-token',
         }),
       }),
     );

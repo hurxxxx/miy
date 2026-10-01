@@ -18,9 +18,9 @@ from psycopg import sql
 from sqlalchemy.engine import make_url
 
 
-TEST_RESOURCE_PREFIX = "mty-api-test-"
-TEST_INDEX_PREFIX = "mty_api_test_"
-TEST_DATABASE_PREFIX = "mty_test_"
+TEST_RESOURCE_PREFIX = "miy-api-test-"
+TEST_INDEX_PREFIX = "miy_api_test_"
+TEST_DATABASE_PREFIX = "miy_test_"
 _STALE_RESOURCE_TTL_HOURS = 24
 _NON_PRODUCTION_PROFILES = {"dev", "development", "local", "test", "testing"}
 _NON_PRODUCTION_ACK = "non-production"
@@ -65,7 +65,7 @@ def _approved_dev_values(name: str) -> set[str]:
     approved: set[str] = set()
     for env_file in _env_files():
         values = _env_values(env_file)
-        profile = str(values.get("MTY_ENV_PROFILE") or "").strip().lower()
+        profile = str(values.get("MIY_ENV_PROFILE") or "").strip().lower()
         value = values.get(name)
         if profile in _NON_PRODUCTION_PROFILES and value:
             approved.add(str(value).rstrip("/"))
@@ -73,12 +73,12 @@ def _approved_dev_values(name: str) -> set[str]:
 
 
 def _has_non_production_ack() -> bool:
-    return os.getenv("MTY_TEST_NON_PRODUCTION_ACK", "") == _NON_PRODUCTION_ACK
+    return os.getenv("MIY_TEST_NON_PRODUCTION_ACK", "") == _NON_PRODUCTION_ACK
 
 
 def _run_token() -> str:
     run_id = os.getenv(
-        "MTY_API_TEST_RUN_ID",
+        "MIY_API_TEST_RUN_ID",
         f"local-{os.getpid()}-{uuid.uuid4().hex}",
     )
     return hashlib.sha256(run_id.encode("utf-8")).hexdigest()[:12]
@@ -88,19 +88,19 @@ TEST_RUN_TOKEN = _run_token()
 
 
 def stale_resource_cutoff() -> datetime:
-    raw_hours = os.getenv("MTY_TEST_RESOURCE_TTL_HOURS", "")
+    raw_hours = os.getenv("MIY_TEST_RESOURCE_TTL_HOURS", "")
     try:
         hours = int(raw_hours) if raw_hours else _STALE_RESOURCE_TTL_HOURS
     except ValueError as error:
-        raise RuntimeError("MTY_TEST_RESOURCE_TTL_HOURS must be an integer.") from error
+        raise RuntimeError("MIY_TEST_RESOURCE_TTL_HOURS must be an integer.") from error
     if hours < 1:
-        raise RuntimeError("MTY_TEST_RESOURCE_TTL_HOURS must be at least 1.")
+        raise RuntimeError("MIY_TEST_RESOURCE_TTL_HOURS must be at least 1.")
     return datetime.now(timezone.utc) - timedelta(hours=hours)
 
 
 def _assert_non_production(selected: dict[str, str]) -> None:
     profile = (
-        (os.getenv("MTY_ENV_PROFILE") or _file_value("MTY_ENV_PROFILE") or "")
+        (os.getenv("MIY_ENV_PROFILE") or _file_value("MIY_ENV_PROFILE") or "")
         .strip()
         .lower()
     )
@@ -121,13 +121,13 @@ def _assert_non_production(selected: dict[str, str]) -> None:
         if normalized not in _approved_dev_values(runtime_name) and not _has_non_production_ack():
             raise RuntimeError(
                 f"Unrecognized {runtime_name} test endpoint requires "
-                "MTY_TEST_NON_PRODUCTION_ACK=non-production."
+                "MIY_TEST_NON_PRODUCTION_ACK=non-production."
             )
 
 
 def assert_non_production_postgres_dsn(dsn: str) -> None:
     profile = (
-        (os.getenv("MTY_ENV_PROFILE") or _file_value("MTY_ENV_PROFILE") or "")
+        (os.getenv("MIY_ENV_PROFILE") or _file_value("MIY_ENV_PROFILE") or "")
         .strip()
         .lower()
     )
@@ -137,15 +137,15 @@ def assert_non_production_postgres_dsn(dsn: str) -> None:
         )
 
     selected = make_url(dsn)
-    approved = _approved_dev_values("MTY_POSTGRES_DSN")
+    approved = _approved_dev_values("MIY_POSTGRES_DSN")
     if dsn.rstrip("/") not in approved and not _has_non_production_ack():
         raise RuntimeError(
             "Unrecognized PostgreSQL test template requires "
-            "MTY_TEST_NON_PRODUCTION_ACK=non-production."
+            "MIY_TEST_NON_PRODUCTION_ACK=non-production."
         )
 
     prod_env = _workspace_root().parent / "prod" / ".env"
-    raw_prod_dsn = _env_values(prod_env).get("MTY_POSTGRES_DSN")
+    raw_prod_dsn = _env_values(prod_env).get("MIY_POSTGRES_DSN")
     if raw_prod_dsn:
         production = make_url(str(raw_prod_dsn))
         if selected.database == production.database and selected.username == production.username:
@@ -219,7 +219,7 @@ def cleanup_stale_postgres_databases(
                 """
                 SELECT d.datname, shobj_description(d.oid, 'pg_database')
                 FROM pg_database AS d
-                WHERE d.datname LIKE 'mty_test_%'
+                WHERE d.datname LIKE 'miy_test_%'
                   AND NOT EXISTS (
                     SELECT 1 FROM pg_stat_activity AS a
                     WHERE a.datname = d.datname
@@ -227,7 +227,7 @@ def cleanup_stale_postgres_databases(
                 """
             )
             rows = cursor.fetchall()
-    marker = "mty-test-created-at="
+    marker = "miy-test-created-at="
     for database, description in rows:
         if not description or not str(description).startswith(marker):
             continue
@@ -258,20 +258,20 @@ class IntegrationInfra:
 
     @classmethod
     def load(cls) -> IntegrationInfra:
-        redis_url = _value("MTY_TEST_REDIS_URL", "MTY_API_COLLAB_REDIS_URL")
+        redis_url = _value("MIY_TEST_REDIS_URL", "MIY_API_COLLAB_REDIS_URL")
         minio_endpoint = _validate_http_endpoint(
             "MinIO endpoint",
-            _value("MTY_TEST_MINIO_ENDPOINT", "MTY_MINIO_ENDPOINT"),
+            _value("MIY_TEST_MINIO_ENDPOINT", "MIY_MINIO_ENDPOINT"),
         )
         opensearch_url = _validate_http_endpoint(
             "OpenSearch endpoint",
-            _value("MTY_TEST_OPENSEARCH_URL", "MTY_OPENSEARCH_URL"),
+            _value("MIY_TEST_OPENSEARCH_URL", "MIY_OPENSEARCH_URL"),
         )
         _assert_non_production(
             {
-                "MTY_API_COLLAB_REDIS_URL": redis_url,
-                "MTY_MINIO_ENDPOINT": minio_endpoint,
-                "MTY_OPENSEARCH_URL": opensearch_url,
+                "MIY_API_COLLAB_REDIS_URL": redis_url,
+                "MIY_MINIO_ENDPOINT": minio_endpoint,
+                "MIY_OPENSEARCH_URL": opensearch_url,
             }
         )
         parsed_redis = urlparse(redis_url)
@@ -281,10 +281,10 @@ class IntegrationInfra:
             redis_url=redis_url,
             minio_endpoint=minio_endpoint,
             minio_access_key=_value(
-                "MTY_TEST_MINIO_ACCESS_KEY", "MTY_MINIO_ACCESS_KEY"
+                "MIY_TEST_MINIO_ACCESS_KEY", "MIY_MINIO_ACCESS_KEY"
             ),
             minio_secret_key=_value(
-                "MTY_TEST_MINIO_SECRET_KEY", "MTY_MINIO_SECRET_KEY"
+                "MIY_TEST_MINIO_SECRET_KEY", "MIY_MINIO_SECRET_KEY"
             ),
             opensearch_url=opensearch_url,
         )
@@ -463,12 +463,12 @@ class IntegrationInfra:
             response.raise_for_status()
 
     def _postgres_template_dsn(self) -> str | None:
-        configured = os.getenv("MTY_TEST_POSTGRES_TEMPLATE_DSN")
+        configured = os.getenv("MIY_TEST_POSTGRES_TEMPLATE_DSN")
         if configured:
             assert_non_production_postgres_dsn(configured)
             return configured
         root = _workspace_root()
-        template = _file_value("MTY_POSTGRES_DSN", (root / ".env", root / ".env.local"))
+        template = _file_value("MIY_POSTGRES_DSN", (root / ".env", root / ".env.local"))
         if template:
             assert_non_production_postgres_dsn(template)
         return template

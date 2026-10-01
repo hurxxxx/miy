@@ -5,10 +5,10 @@ from datetime import UTC, datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from mty_api.core.db import Base
-from mty_api.domains.auth.models import User
-from mty_api.domains.pms.space_models import Team
-from mty_api.domains.docs.models import (
+from miy_api.core.db import Base
+from miy_api.domains.auth.models import User
+from miy_api.domains.pms.space_models import Team
+from miy_api.domains.docs.models import (
     DocMeetingAccess,
     DocsCollection,
     NativeDoc,
@@ -18,17 +18,17 @@ from mty_api.domains.docs.models import (
     NativeDocUserShare,
     NativeDocGroupShare,
 )
-from mty_api.domains.meeting.models import Meeting
-from mty_api.domains.files.models import (
+from miy_api.domains.meeting.models import Meeting
+from miy_api.domains.files.models import (
     FileManagerCorpus,
     FileManagerFile,
     FileManagerFileSourceMetadata,
 )
-from mty_api.domains.pms.models import Folder, Task, TaskList
-from mty_api.domains.retrieval.models import RetrievalPartition
-from mty_api.domains.search.docs_projection import load_docs_search_document
-from mty_api.domains.search.projections import all_search_documents, load_search_document
-from mty_api.domains.search.schemas import SearchEntityType
+from miy_api.domains.pms.models import Folder, Task, TaskList
+from miy_api.domains.retrieval.models import RetrievalPartition
+from miy_api.domains.search.docs_projection import load_docs_search_document
+from miy_api.domains.search.projections import all_search_documents, load_search_document
+from miy_api.domains.search.schemas import SearchEntityType
 
 
 def _session() -> Session:
@@ -64,7 +64,7 @@ def _add_user(session: Session) -> None:
         User(
             id="user-1",
             login_id="docs-owner",
-            email="docs-owner@mty.local",
+            email="docs-owner@miy.local",
             full_name="Docs Owner",
             password_hash="hash",
             status="active",

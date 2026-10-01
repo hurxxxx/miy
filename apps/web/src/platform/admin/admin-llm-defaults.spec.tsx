@@ -18,8 +18,8 @@ vi.mock('react-i18next', () => ({
 vi.mock('./admin-ai-model-settings-api', () => ({
   updateAdminAiModelDefault: vi.fn(),
 }));
-vi.mock('@mty/ui', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@mty/ui')>()),
+vi.mock('@miy/ui', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@miy/ui')>()),
   useFeedback: () => ({ success: vi.fn(), error: vi.fn() }),
 }));
 

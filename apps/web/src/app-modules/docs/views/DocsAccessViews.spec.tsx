@@ -8,7 +8,7 @@ import {
 import { useEffect } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { REALTIME_TOPIC_EVENT_TYPES } from '@mty/contracts/realtime';
+import { REALTIME_TOPIC_EVENT_TYPES } from '@miy/contracts/realtime';
 import {
   DocsApiError,
   getDocsItem,
@@ -47,8 +47,8 @@ vi.mock('@/src/platform/realtime/realtime-provider', () => ({
     }, [type, listener]);
   },
 }));
-vi.mock('@mty/ui', async (original) => ({
-  ...(await original<typeof import('@mty/ui')>()),
+vi.mock('@miy/ui', async (original) => ({
+  ...(await original<typeof import('@miy/ui')>()),
   useConfirm: () => ({ confirm: vi.fn(), confirmDialog: null }),
 }));
 vi.mock('../api/docs-api', async (original) => ({

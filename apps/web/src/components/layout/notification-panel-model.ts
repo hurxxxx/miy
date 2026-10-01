@@ -89,7 +89,7 @@ export function resolveDmNotificationThreadId(
   if (!actionUrl?.startsWith('/')) {
     return undefined;
   }
-  const parsed = new URL(actionUrl, 'https://mty.local');
+  const parsed = new URL(actionUrl, 'https://miy.local');
   if (parsed.pathname === '/dm') {
     return parsed.searchParams.get('thread');
   }

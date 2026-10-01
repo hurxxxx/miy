@@ -8,11 +8,11 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from company_admission_fixture import company_authority_tables, seed_company_app_access
-from mty_api.core import settings
-from mty_api.core.db import Base
-from mty_api.domains.auth.models import User
-from mty_api.domains.groups.models import Group, GroupMember
-from mty_api.domains.pms.space_models import SpaceGroupBinding, Team, TeamMember
+from miy_api.core import settings
+from miy_api.core.db import Base
+from miy_api.domains.auth.models import User
+from miy_api.domains.groups.models import Group, GroupMember
+from miy_api.domains.pms.space_models import SpaceGroupBinding, Team, TeamMember
 
 
 @pytest.fixture
@@ -20,9 +20,9 @@ def pms_creation_db(monkeypatch: pytest.MonkeyPatch):
     # Import the real handlers with isolated settings, without reading deployment env files.
     monkeypatch.setattr(settings, "ENV_FILE", Path("/dev/null"))
     monkeypatch.setitem(settings.Settings.model_config, "env_file", None)
-    monkeypatch.setenv("MTY_POSTGRES_DSN", "sqlite://")
+    monkeypatch.setenv("MIY_POSTGRES_DSN", "sqlite://")
     settings.get_settings.cache_clear()
-    from mty_api.domains.pms import router
+    from miy_api.domains.pms import router
 
     engine = create_engine("sqlite://")
     try:
@@ -83,7 +83,7 @@ def test_group_creation_never_grants_direct_space_ownership(
             db=db,
             current_user=contributor,
         )
-        from mty_api.domains.pms.models import TaskList
+        from miy_api.domains.pms.models import TaskList
 
         list_id = db.scalar(select(TaskList.id).where(TaskList.folder_id == folder.id))
     else:

@@ -1,4 +1,4 @@
-import { Tooltip } from '@mty/ui';
+import { Tooltip } from '@miy/ui';
 import { Shield, ShieldAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { AiBackendMode, LlmHealthResponse } from '../../api/chatbot-api';

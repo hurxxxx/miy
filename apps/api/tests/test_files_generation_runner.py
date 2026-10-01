@@ -12,15 +12,15 @@ import pytest
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from mty_api.core.db import Base
-from mty_api.domains.auth.models import User
-from mty_api.domains.files.models import (
+from miy_api.core.db import Base
+from miy_api.domains.auth.models import User
+from miy_api.domains.files.models import (
     FileManagerCorpus,
     FileManagerFile,
     FileManagerFileSourceMetadata,
     FileManagerFolder,
 )
-from mty_api.domains.retrieval.files_generation_runner import (
+from miy_api.domains.retrieval.files_generation_runner import (
     FilesBackendPairInspection,
     FilesGenerationBaselineMode,
     FilesGenerationError,
@@ -31,22 +31,22 @@ from mty_api.domains.retrieval.files_generation_runner import (
     FilesSourceProjectionSnapshot,
     load_files_source_snapshot,
 )
-from mty_api.domains.retrieval.files_quality_judgments import FilesQualityJudgmentSnapshot
-from mty_api.domains.retrieval.evaluation import (
+from miy_api.domains.retrieval.files_quality_judgments import FilesQualityJudgmentSnapshot
+from miy_api.domains.retrieval.evaluation import (
     RetrievalEvaluationReport,
     RetrievalQualityGateArtifact,
     retrieval_embedding_generation_identity,
     retrieval_quality_corpus_sha256,
     retrieval_reranker_generation_identity,
 )
-from mty_api.domains.retrieval.files_generation_backends import (
+from miy_api.domains.retrieval.files_generation_backends import (
     FilesPhysicalGenerationBackends,
 )
-from mty_api.domains.retrieval.files_generation_materializer import (
+from miy_api.domains.retrieval.files_generation_materializer import (
     FilesCachedProjectionMaterializer,
 )
-from mty_api.domains.rag.models import RagSyncJob
-from mty_api.domains.retrieval.models import (
+from miy_api.domains.rag.models import RagSyncJob
+from miy_api.domains.retrieval.models import (
     RetrievalPartition,
     RetrievalProjectionEvent,
     RetrievalProjectionGeneration,
@@ -54,20 +54,20 @@ from mty_api.domains.retrieval.models import (
     RetrievalProjectionGenerationState,
     RetrievalProjectionHead,
 )
-from mty_api.domains.retrieval.projection_identity import (
+from miy_api.domains.retrieval.projection_identity import (
     canonical_search_document_id,
     canonical_vector_point_id,
 )
-from mty_api.domains.rag.runtime import (
+from miy_api.domains.rag.runtime import (
     resolve_default_collection_name,
     resolve_partitioned_rag_collection_alias,
 )
-from mty_api.domains.search.index_gateway import (
+from miy_api.domains.search.index_gateway import (
     keyword_search_index_alias,
     keyword_search_partitioned_index_alias,
 )
-from mty_api.domains.search.models import SearchIndexJob
-from mty_api.domains.source_access.resource_types import (
+from miy_api.domains.search.models import SearchIndexJob
+from miy_api.domains.source_access.resource_types import (
     FILE_MANAGER_FILE_RESOURCE_TYPE,
     NATIVE_DOC_RESOURCE_TYPE,
 )

@@ -1,7 +1,7 @@
 import {
   getAppRouteChrome,
   getAppRoutePattern,
-} from '@mty/contracts/app-routes';
+} from '@miy/contracts/app-routes';
 import { createElement, lazy } from 'react';
 import { useSearchParams } from 'react-router-dom';
 

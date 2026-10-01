@@ -9,7 +9,7 @@ import { buildWhiteboardSharePresenter } from './whiteboard-share-model';
 function user(id: string, fullName: string): ShareableUserItem {
   return {
     id,
-    email: `${id}@mty.local`,
+    email: `${id}@miy.local`,
     full_name: fullName,
   } as ShareableUserItem;
 }
@@ -32,13 +32,13 @@ function sharing(): WhiteboardSharingResponse {
 describe('whiteboard share model', () => {
   it('builds a same-origin link url and stable user rows', () => {
     const presenter = buildWhiteboardSharePresenter({
-      origin: 'https://app.mty.local',
+      origin: 'https://app.miy.local',
       sharing: sharing(),
       users: [user('user-1', 'Ada Lovelace'), user('user-2', 'Grace Hopper')],
     });
 
     expect(presenter.linkUrl).toBe(
-      'https://app.mty.local/apps/whiteboard/shared/share-token',
+      'https://app.miy.local/apps/whiteboard/shared/share-token',
     );
     expect(presenter.userRows.map((row) => row.user.id)).toEqual([
       'user-1',
@@ -56,7 +56,7 @@ describe('whiteboard share model', () => {
 
   it('returns empty sharing state before the response loads', () => {
     const presenter = buildWhiteboardSharePresenter({
-      origin: 'https://app.mty.local',
+      origin: 'https://app.miy.local',
       sharing: null,
       users: [user('user-1', 'Ada Lovelace')],
     });

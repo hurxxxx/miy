@@ -6,8 +6,8 @@ import {
   downloadAuthenticatedContent,
 } from '@/src/platform/browser/browser-download';
 import { useMediaUpload } from '@/src/platform/media/use-media-upload';
-import type { BlockContent } from '@mty/ui';
-import { Badge, BlockEditor, BlockViewer, Button } from '@mty/ui';
+import type { BlockContent } from '@miy/ui';
+import { Badge, BlockEditor, BlockViewer, Button } from '@miy/ui';
 import {
   Archive,
   Check,

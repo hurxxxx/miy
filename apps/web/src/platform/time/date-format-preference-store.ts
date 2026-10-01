@@ -4,7 +4,7 @@ import {
   normalizeDateFormatPreference,
 } from './zoned-date-formatter';
 
-export const DATE_FORMAT_STORAGE_KEY = 'mty:date-format';
+export const DATE_FORMAT_STORAGE_KEY = 'miy:date-format';
 
 export function readStoredDateFormatPreference(): DateFormatPreference {
   if (typeof window === 'undefined') return DEFAULT_DATE_FORMAT;

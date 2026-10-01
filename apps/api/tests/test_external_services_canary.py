@@ -6,14 +6,14 @@ from minio.error import S3Error
 import pytest
 
 from integration_infra import IntegrationInfra, MinioTestTarget
-from mty_api.core.settings import get_settings
-from mty_api.core.storage import ensure_bucket, get_minio_client
-from mty_api.domains.files.storage_adapter import (
+from miy_api.core.settings import get_settings
+from miy_api.core.storage import ensure_bucket, get_minio_client
+from miy_api.domains.files.storage_adapter import (
     open_file_object,
     put_file_object,
     remove_file_object,
 )
-from mty_api.domains.search.opensearch import OpenSearchKeywordClient
+from miy_api.domains.search.opensearch import OpenSearchKeywordClient
 
 
 pytestmark = pytest.mark.external_integration
@@ -25,10 +25,10 @@ def test_minio_file_storage_round_trip(
 ) -> None:
     payload = b"release validation minio canary"
     storage_key = "canary/round-trip.txt"
-    monkeypatch.setenv("MTY_MINIO_ENDPOINT", minio_target.endpoint)
-    monkeypatch.setenv("MTY_MINIO_ACCESS_KEY", minio_target.access_key)
-    monkeypatch.setenv("MTY_MINIO_SECRET_KEY", minio_target.secret_key)
-    monkeypatch.setenv("MTY_MINIO_BUCKET", minio_target.bucket)
+    monkeypatch.setenv("MIY_MINIO_ENDPOINT", minio_target.endpoint)
+    monkeypatch.setenv("MIY_MINIO_ACCESS_KEY", minio_target.access_key)
+    monkeypatch.setenv("MIY_MINIO_SECRET_KEY", minio_target.secret_key)
+    monkeypatch.setenv("MIY_MINIO_BUCKET", minio_target.bucket)
     get_settings.cache_clear()
     get_minio_client.cache_clear()
     try:

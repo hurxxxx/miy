@@ -21,27 +21,27 @@ sys.path.insert(0, str(ROOT / "apps/api/src"))
 
 from dotenv import dotenv_values
 from sqlalchemy import func, select
-from mty_api.core.db import get_session_factory
-from mty_api.core.model_registry import import_all_models
-from mty_api.domains.ai.model_credentials import (
+from miy_api.core.db import get_session_factory
+from miy_api.core.model_registry import import_all_models
+from miy_api.domains.ai.model_credentials import (
     decrypt_api_key,
     encrypt_api_key,
 )
-from mty_api.domains.ai.model_settings_models import (
+from miy_api.domains.ai.model_settings_models import (
     AiModelPolicyDefault,
     AiModelProviderConfig,
 )
-from mty_api.domains.hermes_terminal.models import (
+from miy_api.domains.hermes_terminal.models import (
     HermesTerminalSession,
     HERMES_TERMINAL_ACTIVE_STATUSES,
 )
 
 RETIRED = frozenset(
     {
-        "MTY_LLM_LOCAL_API_KEY",
-        "MTY_LLM_LOCAL_BASE_URL",
-        "MTY_LLM_LOCAL_PROVIDER",
-        "MTY_AI_DEFAULT_EXTERNAL_LLM_PROVIDER",
+        "MIY_LLM_LOCAL_API_KEY",
+        "MIY_LLM_LOCAL_BASE_URL",
+        "MIY_LLM_LOCAL_PROVIDER",
+        "MIY_AI_DEFAULT_EXTERNAL_LLM_PROVIDER",
     }
 )
 
@@ -74,13 +74,13 @@ def prune_keys(original: str, keys: set[str]) -> str:
 
 def backfill(db, values: dict[str, str | None]) -> set[str]:
     """Idempotent: never overwrite existing DB endpoints or ciphertext."""
-    from mty_api.core.llm_provider_registry import llm_provider_descriptor
+    from miy_api.core.llm_provider_registry import llm_provider_descriptor
 
     keys = set(RETIRED.intersection(values))
     if any("${" in (values.get(key) or "") for key in (*keys, "OPENROUTER_API_KEY")):
         raise ValueError("resolve referenced LLM settings before cutover")
-    endpoint = values.get("MTY_LLM_LOCAL_BASE_URL") or ""
-    local_key = values.get("MTY_LLM_LOCAL_API_KEY") or ""
+    endpoint = values.get("MIY_LLM_LOCAL_BASE_URL") or ""
+    local_key = values.get("MIY_LLM_LOCAL_API_KEY") or ""
     local = db.get(AiModelProviderConfig, "local")
     if endpoint or local_key:
         if local is None:
@@ -115,7 +115,7 @@ def backfill(db, values: dict[str, str | None]) -> set[str]:
         legacy_id = (
             "local"
             if route == "local"
-            else values.get("MTY_AI_DEFAULT_EXTERNAL_LLM_PROVIDER")
+            else values.get("MIY_AI_DEFAULT_EXTERNAL_LLM_PROVIDER")
         )
         provider = db.get(AiModelProviderConfig, legacy_id) if legacy_id else None
         if not row.provider_id and provider is not None and provider.enabled:
@@ -160,7 +160,7 @@ def backfill(db, values: dict[str, str | None]) -> set[str]:
             decrypt_api_key(row.api_key_ciphertext)
         keys.add("OPENROUTER_API_KEY")
     if local is not None and local.endpoint_url:
-        from mty_api.domains.ai.model_settings_service import (
+        from miy_api.domains.ai.model_settings_service import (
             _validate_endpoint_url,
         )
 

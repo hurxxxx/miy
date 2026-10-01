@@ -28,7 +28,7 @@ import {
   TabsList,
   TabsTrigger,
   Tooltip,
-} from '@mty/ui';
+} from '@miy/ui';
 
 import type { AuthUser } from '@/src/platform/auth/auth-api';
 import { useAuth } from '@/src/platform/auth/auth-provider';

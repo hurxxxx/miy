@@ -14,7 +14,7 @@ from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from starlette.requests import ClientDisconnect
 
-from . import agents, attachments, auth, git, host, monitor, mty_sso, routing, store, templates
+from . import agents, attachments, auth, git, host, miy_sso, monitor, routing, store, templates
 from .config import Settings
 from .errors import ConsoleError
 from .models import Agent, Event, Task, database
@@ -37,8 +37,8 @@ from .schemas import (
     LoginInput,
     Message,
     MessageBody,
+    MIYSessionInput,
     ModelOut,
-    MTYSessionInput,
     NewTask,
     Ok,
     Recover,
@@ -291,13 +291,14 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
         token, csrf = result
         return _authenticated_response(cfg, request, token, csrf)
 
-    @app.post("/api/session/mty", response_model=SessionOut)
-    def login_from_mty(body: MTYSessionInput, request: Request):
+    @app.post("/api/session/miy", response_model=SessionOut)
+    @app.post("/api/session/mty", response_model=SessionOut, include_in_schema=False)
+    def login_from_miy(body: MIYSessionInput, request: Request):
         cfg = app.state.settings
         expected_subject = cfg.sso_subjects.get(body.issuer)
         if expected_subject is None:
             raise ConsoleError("login_failed", 401)
-        subject = mty_sso.exchange_code(issuer=body.issuer, code=body.code)
+        subject = miy_sso.exchange_code(issuer=body.issuer, code=body.code)
         if subject != str(expected_subject):
             raise ConsoleError("login_failed", 401)
         token, csrf = auth.create_session(app.state.factory, cfg.session_hours)

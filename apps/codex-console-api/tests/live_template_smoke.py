@@ -1,6 +1,6 @@
 """Opt-in native template isolation/restart test, using only disposable fixtures.
 
-Requires subscription login and MTY_CODEX_CONSOLE_TEMPLATE_BINARY pointing to a
+Requires subscription login and MIY_CODEX_CONSOLE_TEMPLATE_BINARY pointing to a
 verified compatible CLI installation; no live console service is touched.
 """
 
@@ -24,7 +24,7 @@ from codex_console.models import Owner, database
 from codex_console.rpc import CodexRPC
 
 ROOT = Path(__file__).resolve().parents[3]
-PIN = Path(os.environ["MTY_CODEX_CONSOLE_TEMPLATE_BINARY"]).resolve(strict=True)
+PIN = Path(os.environ["MIY_CODEX_CONSOLE_TEMPLATE_BINARY"]).resolve(strict=True)
 
 
 def port():
@@ -87,7 +87,7 @@ def main():
         with factory.begin() as db:
             db.add(Owner(password_hash=password_hash(password)))
         engine.dispose()
-        env = {k: v for k, v in os.environ.items() if not k.startswith("MTY_CODEX_CONSOLE_")}
+        env = {k: v for k, v in os.environ.items() if not k.startswith("MIY_CODEX_CONSOLE_")}
         for key, field in Settings.model_fields.items():
             value = getattr(cfg, key)
             if value is not None:

@@ -4,17 +4,17 @@ Use this package only for contracts consumed by two or more runtimes/apps.
 
 Current exports:
 
-- `@mty/contracts`
-- `@mty/contracts/api`
-- `@mty/contracts/app-contracts`
-- `@mty/contracts/app-routes`
-- `@mty/contracts/auth`
-- `@mty/contracts/dm`
-- `@mty/contracts/notifications`
-- `@mty/contracts/mty-desktop-update-feed`
-- `@mty/contracts/mty-desktop-update-feed.manifest.json`
-- `@mty/contracts/openapi`
-- `@mty/contracts/realtime`
+- `@miy/contracts`
+- `@miy/contracts/api`
+- `@miy/contracts/app-contracts`
+- `@miy/contracts/app-routes`
+- `@miy/contracts/auth`
+- `@miy/contracts/dm`
+- `@miy/contracts/notifications`
+- `@miy/contracts/miy-desktop-update-feed`
+- `@miy/contracts/miy-desktop-update-feed.manifest.json`
+- `@miy/contracts/openapi`
+- `@miy/contracts/realtime`
 
 `app-contracts` is generated from `packages/contracts/app-contracts.json`; `app-routes` is the only
 shared browser-route builder/parser contract. Regenerate both runtime projections with

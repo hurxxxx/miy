@@ -1,4 +1,4 @@
-import type { AppRouteId } from '@mty/contracts/app-contracts';
+import type { AppRouteId } from '@miy/contracts/app-contracts';
 import type { ReactNode } from 'react';
 
 import type { ShellAppId } from '@/src/platform/apps/app-links';

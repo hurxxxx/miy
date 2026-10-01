@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import pytest
 
-from mty_api.core.app_registry import (
+from miy_api.core.app_registry import (
     AppRegistration,
     AppNavRegistration,
     app_is_available_to_system_roles,
     compile_app_registry,
 )
-from mty_api.domains.auth.app_catalog import get_app_catalog_item, iter_app_catalog
-from mty_api.domains.auth.app_bar_preferences import normalize_app_bar_pinned_app_ids
-from mty_api.domains.files.app_catalog import FILES_APP
+from miy_api.domains.auth.app_catalog import get_app_catalog_item, iter_app_catalog
+from miy_api.domains.auth.app_bar_preferences import normalize_app_bar_pinned_app_ids
+from miy_api.domains.files.app_catalog import FILES_APP
 
 
 def _registration(

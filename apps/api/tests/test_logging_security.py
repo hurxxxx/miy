@@ -6,7 +6,7 @@ import httpx
 import httpx2
 import pytest
 
-from mty_api.core.logging_security import install_sensitive_http_logging_guard
+from miy_api.core.logging_security import install_sensitive_http_logging_guard
 
 
 @pytest.mark.parametrize("http_client", [httpx, httpx2])

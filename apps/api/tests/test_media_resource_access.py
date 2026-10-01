@@ -8,13 +8,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from company_admission_fixture import company_authority_tables, seed_company_app_access
-from mty_api.core.db import Base
-from mty_api.core.i18n import ERROR_CODE_HEADER
-from mty_api.domains.auth.models import User, UserSystemRole
-from mty_api.domains.pms.space_models import Team, TeamMember
-from mty_api.domains.docs.models import NativeDocGroupShare
-from mty_api.domains.pms.space_models import SpaceGroupBinding
-from mty_api.domains.docs.models import (
+from miy_api.core.db import Base
+from miy_api.core.i18n import ERROR_CODE_HEADER
+from miy_api.domains.auth.models import User, UserSystemRole
+from miy_api.domains.pms.space_models import Team, TeamMember
+from miy_api.domains.docs.models import NativeDocGroupShare
+from miy_api.domains.pms.space_models import SpaceGroupBinding
+from miy_api.domains.docs.models import (
     DocMeetingAccess,
     DocsCollection,
     NativeDoc,
@@ -22,13 +22,13 @@ from mty_api.domains.docs.models import (
     NativeDocPage,
     NativeDocUserShare,
 )
-from mty_api.domains.community.models import (
+from miy_api.domains.community.models import (
     CommunityChannel,
     CommunityComment,
     CommunityPost,
 )
-from mty_api.domains.media.models import MediaFile
-from mty_api.domains.media.resource_access import (
+from miy_api.domains.media.models import MediaFile
+from miy_api.domains.media.resource_access import (
     MEDIA_RESOURCE_COMMUNITY_COMMENT,
     MEDIA_RESOURCE_COMMUNITY_POST,
     can_access_docs_native_page,
@@ -36,8 +36,8 @@ from mty_api.domains.media.resource_access import (
     ensure_media_link_resource_access,
     media_ids_from_urls,
 )
-from mty_api.domains.meeting.models import Meeting
-from mty_api.domains.pms.models import Folder, Milestone, Task, TaskList, TaskUserAccess
+from miy_api.domains.meeting.models import Meeting
+from miy_api.domains.pms.models import Folder, Milestone, Task, TaskList, TaskUserAccess
 
 
 def _session() -> Session:
@@ -77,7 +77,7 @@ def _user(user_id: str) -> User:
     return User(
         id=user_id,
         login_id=user_id,
-        email=f"{user_id}@mty.local",
+        email=f"{user_id}@miy.local",
         full_name=user_id.title(),
         password_hash="hash",
         status="active",

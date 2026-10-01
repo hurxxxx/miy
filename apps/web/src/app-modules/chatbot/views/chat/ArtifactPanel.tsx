@@ -1,4 +1,4 @@
-import { Tooltip, useFeedback } from '@mty/ui';
+import { Tooltip, useFeedback } from '@miy/ui';
 import 'highlight.js/styles/github.css';
 import { Check, Copy, Download, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';

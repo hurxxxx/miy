@@ -10,10 +10,10 @@ const oldImage = (id, tags, extra = {}) => ({
   Id: id,
   RepoTags: tags,
   Created: '2020-01-01T00:00:00Z',
-  Config: { Labels: { 'org.opencontainers.image.title': 'MTY' } },
+  Config: { Labels: { 'org.opencontainers.image.title': 'miy' } },
   ...extra,
 });
-const appTag = (id) => `mty-app:${id.repeat(12)}`;
+const appTag = (id) => `miy-app:${id.repeat(12)}`;
 
 test('pipeline retries for the same release do not change the image contract', async () => {
   const script = await readFile(
@@ -200,11 +200,11 @@ promote_image sha256:${'0'.repeat(63)}2
   assert.equal(result.stderr, '');
 });
 const storageImages = () => [
-  oldImage('current', ['mty-app:prod', appTag('a')]),
-  oldImage('previous', ['mty-app:prod-previous', appTag('b')]),
+  oldImage('current', ['miy-app:prod', appTag('a')]),
+  oldImage('previous', ['miy-app:prod-previous', appTag('b')]),
   oldImage('ci', [
-    'mty-validation:node22-python312',
-    'mty-validation:redis64-impact-release',
+    'miy-validation:node22-python312',
+    'miy-validation:redis64-impact-release',
   ]),
   oldImage('retired', [appTag('c')]),
 ];
@@ -226,19 +226,19 @@ test('storage requires both absolute and proportional disk headroom', () => {
 test('retention preserves current, rollback, CI, container refs, recent and unknown images', () => {
   const images = [
     ...storageImages(),
-    oldImage('candidate', ['mty-app:candidate']),
+    oldImage('candidate', ['miy-app:candidate']),
     oldImage('running', [appTag('d')]),
     oldImage('stopped', [appTag('e')]),
     oldImage('manual', [
       appTag('f'),
-      'mty-app:keep-for-investigation',
+      'miy-app:keep-for-investigation',
     ]),
     oldImage('foreign', ['another-project:old']),
     oldImage('unlabeled', [appTag('1')], { Config: {} }),
     oldImage('recent', [appTag('2')], { Created: new Date().toISOString() }),
     oldImage('undated', [appTag('3')], { Created: 'unknown' }),
     oldImage('dangling', []),
-    oldImage('old-ci', ['mty-validation:deps-aaaaaaaaaaaa']),
+    oldImage('old-ci', ['miy-validation:deps-aaaaaaaaaaaa']),
   ];
   assert.deepEqual(
     retirementPlan(images, [{ Image: 'running' }, { Image: 'stopped' }]).map(
@@ -263,7 +263,7 @@ test('cleanup is read-only by default and uses only scoped non-force image remov
       'prune',
       '--force',
       '--filter',
-      'label=io.mty.build-cache=true',
+      'label=io.miy.build-cache=true',
       '--filter',
       'until=48h',
     ],
@@ -272,7 +272,7 @@ test('cleanup is read-only by default and uses only scoped non-force image remov
       'prune',
       '--force',
       '--filter',
-      'label=org.opencontainers.image.title=MTY',
+      'label=org.opencontainers.image.title=miy',
       '--filter',
       'until=48h',
     ],
@@ -283,7 +283,7 @@ test('replaced validation images are retired by identity without touching unknow
   const validation = (id, extra = {}) =>
     oldImage(id, [], {
       Config: {
-        Labels: { 'io.mty.validation.contract': 'a'.repeat(64) },
+        Labels: { 'io.miy.validation.contract': 'a'.repeat(64) },
       },
       ...extra,
     });
@@ -298,7 +298,7 @@ test('replaced validation images are retired by identity without touching unknow
       validation('recent-ci', { Created: new Date().toISOString() }),
       validation('manual-ci', { RepoTags: ['manual:preserve'] }),
       validation('invalid-label', {
-        Config: { Labels: { 'io.mty.validation.contract': '' } },
+        Config: { Labels: { 'io.miy.validation.contract': '' } },
       }),
       oldImage('unknown-dangling', [], { Config: {} }),
     ],
@@ -339,7 +339,7 @@ test('cleanup stops if a candidate gains a reference or tag after inspection', (
                 state.containers.push({ Image: 'retired' });
               else
                 state.images[3].RepoTags.push(
-                  'mty-app:prod-previous',
+                  'miy-app:prod-previous',
                 );
             }
             return state;
@@ -364,7 +364,7 @@ test('production dependency layers exclude revision churn, uv cache and local te
   const [buildStages, runtime] = dockerfile.split('AS runtime');
   assert.match(
     runtime,
-    /COPY --chown=mty:mty config config/,
+    /COPY --chown=miy:miy config config/,
   );
   assert.ok(!ignore.split('\n').includes('config'));
   assert.equal(
@@ -378,7 +378,7 @@ test('production dependency layers exclude revision churn, uv cache and local te
   assert.doesNotMatch(dependencies, /COPY apps\/(?:api|worker)\/src/);
   assert.match(
     runtime,
-    /COPY --from=python-build \/opt\/mty\/apps\/api\/\.venv/,
+    /COPY --from=python-build \/opt\/miy\/apps\/api\/\.venv/,
   );
   assert.match(
     runtime,
@@ -392,28 +392,28 @@ test('production dependency layers exclude revision churn, uv cache and local te
     buildStages.indexOf('RUN pnpm --filter') < buildStages.indexOf('COPY . .'),
   );
   assert.ok(
-    buildStages.indexOf('ARG MTY_BENTO_SERVER_URL') >
+    buildStages.indexOf('ARG MIY_BENTO_SERVER_URL') >
       buildStages.indexOf('RUN pnpm install'),
   );
   assert.equal(
-    (buildStages.match(/io.mty.build-cache="true"/g) ?? []).length,
+    (buildStages.match(/io.miy.build-cache="true"/g) ?? []).length,
     2,
   );
   assert.ok(
-    runtime.indexOf('ARG MTY_BUILD_REVISION') >
+    runtime.indexOf('ARG MIY_BUILD_REVISION') >
       runtime.lastIndexOf('COPY '),
   );
   assert.ok(
-    runtime.indexOf('ARG MTY_BUILD_REVISION') >
+    runtime.indexOf('ARG MIY_BUILD_REVISION') >
       runtime.lastIndexOf('RUN '),
   );
   assert.match(
     runtime,
-    /org.opencontainers.image.revision="\$\{MTY_BUILD_REVISION\}"/,
+    /org.opencontainers.image.revision="\$\{MIY_BUILD_REVISION\}"/,
   );
-  assert.match(runtime, /io.mty.release.contract=/);
-  assert.match(runtime, /io.mty.release.pipeline=/);
-  assert.doesNotMatch(runtime, /io.mty.build-cache/);
+  assert.match(runtime, /io.miy.release.contract=/);
+  assert.match(runtime, /io.miy.release.pipeline=/);
+  assert.doesNotMatch(runtime, /io.miy.build-cache/);
   for (const entry of [
     '.runtime',
     '.dev',
@@ -459,43 +459,43 @@ function validEnv(overrides = {}) {
   return new Map(
     Object.entries({
       OPENROUTER_API_KEY: 'sk-or-v1-production-test-key',
-      MTY_API_ALLOW_DEV_ADMIN_LOGIN: '0',
-      MTY_API_DEV_PORT: '8001',
-      MTY_API_ENVIRONMENT: 'production',
-      MTY_API_OBJECT_STORAGE_REQUIRED: 'true',
-      MTY_API_SEED_DEV_LOGIN_ACCOUNT: 'false',
-      MTY_CONTENT_GRANT_SIGNING_KEY:
+      MIY_API_ALLOW_DEV_ADMIN_LOGIN: '0',
+      MIY_API_DEV_PORT: '8001',
+      MIY_API_ENVIRONMENT: 'production',
+      MIY_API_OBJECT_STORAGE_REQUIRED: 'true',
+      MIY_API_SEED_DEV_LOGIN_ACCOUNT: 'false',
+      MIY_CONTENT_GRANT_SIGNING_KEY:
         'production-test-content-signing-key',
-      MTY_APP_BIND_HOST: '127.0.0.1',
-      MTY_APP_FORWARDED_ALLOW_IPS: '127.0.0.1',
-      MTY_APP_PORT: '8000',
-      MTY_APP_PUBLIC_URL: 'https://prod.example.com',
-      MTY_BENTO_BIND_HOST: '127.0.0.1',
-      MTY_BENTO_PORT: '18084',
-      MTY_BENTO_SERVER_URL: 'https://bento.example.com',
-      MTY_DRAWIO_PORT: '18083',
-      MTY_ENV_PROFILE: 'prod',
-      MTY_HERMES_API_KEY: 'production-hermes-runtime-secret-00000001',
-      MTY_HERMES_ENABLED: 'true',
-      MTY_HERMES_MANAGEMENT_BASE_URL: 'http://127.0.0.1:9119',
-      MTY_HERMES_MANAGEMENT_PORT: '9119',
-      MTY_HERMES_MANAGEMENT_TOKEN:
+      MIY_APP_BIND_HOST: '127.0.0.1',
+      MIY_APP_FORWARDED_ALLOW_IPS: '127.0.0.1',
+      MIY_APP_PORT: '8000',
+      MIY_APP_PUBLIC_URL: 'https://prod.example.com',
+      MIY_BENTO_BIND_HOST: '127.0.0.1',
+      MIY_BENTO_PORT: '18084',
+      MIY_BENTO_SERVER_URL: 'https://bento.example.com',
+      MIY_DRAWIO_PORT: '18083',
+      MIY_ENV_PROFILE: 'prod',
+      MIY_HERMES_API_KEY: 'production-hermes-runtime-secret-00000001',
+      MIY_HERMES_ENABLED: 'true',
+      MIY_HERMES_MANAGEMENT_BASE_URL: 'http://127.0.0.1:9119',
+      MIY_HERMES_MANAGEMENT_PORT: '9119',
+      MIY_HERMES_MANAGEMENT_TOKEN:
         'production-hermes-management-secret-0001',
-      MTY_HERMES_MCP_SERVER_URL:
+      MIY_HERMES_MCP_SERVER_URL:
         'http://127.0.0.1:8000/api/v1/internal/hermes/mcp',
-      MTY_HERMES_MCP_SHARED_SECRET:
+      MIY_HERMES_MCP_SHARED_SECRET:
         'production-hermes-mcp-secret-0000000001',
-      MTY_HERMES_PROFILE_CLONE_SOURCE: 'default',
-      MTY_HERMES_RUNTIME_BASE_URL: 'http://127.0.0.1:8642',
-      MTY_HERMES_RUNTIME_PORT: '8642',
-      MTY_HERMES_TERMINAL_BROKER_BASE_URL: 'http://127.0.0.1:8765',
-      MTY_HERMES_TERMINAL_BROKER_PORT: '8765',
-      MTY_HERMES_TERMINAL_RESOURCE_NAMESPACE: 'prod',
-      MTY_INFRA_NGINX_PORT: '14200',
-      MTY_OPF_ENABLED: 'true',
-      MTY_OPF_REQUIRED: 'true',
-      MTY_OPF_SERVICE_BASE_URL: 'http://127.0.0.1:18081',
-      MTY_WEB_DEV_PORT: '4200',
+      MIY_HERMES_PROFILE_CLONE_SOURCE: 'default',
+      MIY_HERMES_RUNTIME_BASE_URL: 'http://127.0.0.1:8642',
+      MIY_HERMES_RUNTIME_PORT: '8642',
+      MIY_HERMES_TERMINAL_BROKER_BASE_URL: 'http://127.0.0.1:8765',
+      MIY_HERMES_TERMINAL_BROKER_PORT: '8765',
+      MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE: 'prod',
+      MIY_INFRA_NGINX_PORT: '14200',
+      MIY_OPF_ENABLED: 'true',
+      MIY_OPF_REQUIRED: 'true',
+      MIY_OPF_SERVICE_BASE_URL: 'http://127.0.0.1:18081',
+      MIY_WEB_DEV_PORT: '4200',
       ...overrides,
     }),
   );
@@ -504,13 +504,13 @@ function validEnv(overrides = {}) {
 test('parses dotenv assignments without evaluating shell syntax', () => {
   const values = parseEnvText(`
     # comment
-    export MTY_ENV_PROFILE=prod
-    MTY_APP_PUBLIC_URL="https://prod.example.com"
+    export MIY_ENV_PROFILE=prod
+    MIY_APP_PUBLIC_URL="https://prod.example.com"
     ignored shell text
   `);
-  assert.equal(values.get('MTY_ENV_PROFILE'), 'prod');
+  assert.equal(values.get('MIY_ENV_PROFILE'), 'prod');
   assert.equal(
-    values.get('MTY_APP_PUBLIC_URL'),
+    values.get('MIY_APP_PUBLIC_URL'),
     'https://prod.example.com',
   );
   assert.equal(values.has('ignored shell text'), false);
@@ -543,7 +543,7 @@ test('requires an exact private or loopback Bento IPv4 bind address', () => {
     assert.throws(
       () =>
         assertProductionAppEnv(
-          validEnv({ MTY_BENTO_BIND_HOST: value }),
+          validEnv({ MIY_BENTO_BIND_HOST: value }),
         ),
       /exact private or loopback IPv4 address/,
     );
@@ -551,7 +551,7 @@ test('requires an exact private or loopback Bento IPv4 bind address', () => {
 
   for (const value of ['10.20.30.40', '172.16.0.1', '192.168.1.10']) {
     assert.equal(
-      assertProductionAppEnv(validEnv({ MTY_BENTO_BIND_HOST: value }))
+      assertProductionAppEnv(validEnv({ MIY_BENTO_BIND_HOST: value }))
         .bentoBindHost,
       value,
     );
@@ -562,16 +562,16 @@ test('rejects development access and port collisions', () => {
   assert.throws(
     () =>
       assertProductionAppEnv(
-        validEnv({ MTY_API_ALLOW_DEV_ADMIN_LOGIN: '1' }),
+        validEnv({ MIY_API_ALLOW_DEV_ADMIN_LOGIN: '1' }),
       ),
     /ALLOW_DEV_ADMIN_LOGIN/,
   );
   assert.throws(
-    () => assertProductionAppEnv(validEnv({ MTY_APP_PORT: '4200' })),
+    () => assertProductionAppEnv(validEnv({ MIY_APP_PORT: '4200' })),
     /WEB_DEV_PORT/,
   );
   assert.throws(
-    () => assertProductionAppEnv(validEnv({ MTY_APP_PORT: '18084' })),
+    () => assertProductionAppEnv(validEnv({ MIY_APP_PORT: '18084' })),
     /BENTO_PORT/,
   );
 });
@@ -584,7 +584,7 @@ test('requires a credential-free HTTPS public origin', () => {
     'https://user:password@prod.example.com',
   ]) {
     assert.throws(() =>
-      assertProductionAppEnv(validEnv({ MTY_APP_PUBLIC_URL: value })),
+      assertProductionAppEnv(validEnv({ MIY_APP_PUBLIC_URL: value })),
     );
   }
 });
@@ -599,7 +599,7 @@ test('requires a separate credential-free HTTPS Bento origin', () => {
   ]) {
     assert.throws(() =>
       assertProductionAppEnv(
-        validEnv({ MTY_BENTO_SERVER_URL: value }),
+        validEnv({ MIY_BENTO_SERVER_URL: value }),
       ),
     );
   }
@@ -617,7 +617,7 @@ test('rejects unsafe production secrets and proxy trust', () => {
     assert.throws(
       () =>
         assertProductionAppEnv(
-          validEnv({ MTY_CONTENT_GRANT_SIGNING_KEY: value }),
+          validEnv({ MIY_CONTENT_GRANT_SIGNING_KEY: value }),
         ),
       /CONTENT_GRANT_SIGNING_KEY/,
     );
@@ -625,7 +625,7 @@ test('rejects unsafe production secrets and proxy trust', () => {
   assert.throws(
     () =>
       assertProductionAppEnv(
-        validEnv({ MTY_APP_FORWARDED_ALLOW_IPS: '*' }),
+        validEnv({ MIY_APP_FORWARDED_ALLOW_IPS: '*' }),
       ),
     /exact proxy IP addresses/,
   );
@@ -636,7 +636,7 @@ test('requires a separate loopback privacy-filter origin', () => {
     () =>
       assertProductionAppEnv(
         validEnv({
-          MTY_OPF_SERVICE_BASE_URL: 'http://127.0.0.1:8000',
+          MIY_OPF_SERVICE_BASE_URL: 'http://127.0.0.1:8000',
         }),
       ),
     /must not collide/,
@@ -645,7 +645,7 @@ test('requires a separate loopback privacy-filter origin', () => {
     () =>
       assertProductionAppEnv(
         validEnv({
-          MTY_OPF_SERVICE_BASE_URL: 'https://opf.example.com',
+          MIY_OPF_SERVICE_BASE_URL: 'https://opf.example.com',
         }),
       ),
     /loopback HTTP origin/,
@@ -655,9 +655,9 @@ test('requires a separate loopback privacy-filter origin', () => {
 test('requires isolated production Hermes credentials', () => {
   for (const [key, value] of [
     ['OPENROUTER_API_KEY', 'short'],
-    ['MTY_HERMES_API_KEY', 'change-me'],
-    ['MTY_HERMES_MANAGEMENT_TOKEN', 'short'],
-    ['MTY_HERMES_MCP_SHARED_SECRET', 'dev-secret'],
+    ['MIY_HERMES_API_KEY', 'change-me'],
+    ['MIY_HERMES_MANAGEMENT_TOKEN', 'short'],
+    ['MIY_HERMES_MCP_SHARED_SECRET', 'dev-secret'],
   ]) {
     assert.throws(() => assertProductionAppEnv(validEnv({ [key]: value })));
   }
@@ -665,7 +665,7 @@ test('requires isolated production Hermes credentials', () => {
     () =>
       assertProductionAppEnv(
         validEnv({
-          MTY_HERMES_MANAGEMENT_TOKEN:
+          MIY_HERMES_MANAGEMENT_TOKEN:
             'production-hermes-runtime-secret-00000001',
         }),
       ),
@@ -684,7 +684,7 @@ test('requires loopback Hermes endpoints on their declared ports', () => {
     () =>
       assertProductionAppEnv(
         validEnv({
-          MTY_HERMES_RUNTIME_BASE_URL: 'http://0.0.0.0:8642',
+          MIY_HERMES_RUNTIME_BASE_URL: 'http://0.0.0.0:8642',
         }),
       ),
     /loopback HTTP endpoint/,
@@ -693,7 +693,7 @@ test('requires loopback Hermes endpoints on their declared ports', () => {
     () =>
       assertProductionAppEnv(
         validEnv({
-          MTY_HERMES_MCP_SERVER_URL:
+          MIY_HERMES_MCP_SERVER_URL:
             'http://127.0.0.1:8000/api/v1/tools/mcp',
         }),
       ),
@@ -703,7 +703,7 @@ test('requires loopback Hermes endpoints on their declared ports', () => {
     () =>
       assertProductionAppEnv(
         validEnv({
-          MTY_HERMES_TERMINAL_BROKER_BASE_URL:
+          MIY_HERMES_TERMINAL_BROKER_BASE_URL:
             'http://127.0.0.1:8766',
         }),
       ),
@@ -713,7 +713,7 @@ test('requires loopback Hermes endpoints on their declared ports', () => {
 
 test('worker healthcheck uses the container hostname without spawning hostname', async () => {
   const composeText = await readFile(
-    new URL('../ops/compose/mty-prod.app.yml', import.meta.url),
+    new URL('../ops/compose/miy-prod.app.yml', import.meta.url),
     'utf8',
   );
   assert.match(composeText, /--destination "prod-worker@\$\$\{HOSTNAME\}"/);
@@ -723,12 +723,12 @@ test('worker healthcheck uses the container hostname without spawning hostname',
 test('production compose does not add a second ingress proxy', async () => {
   const [composeText, releaseScript] = await Promise.all([
     readFile(
-      new URL('../ops/compose/mty-prod.app.yml', import.meta.url),
+      new URL('../ops/compose/miy-prod.app.yml', import.meta.url),
       'utf8',
     ),
     readFile(new URL('./prod-app.sh', import.meta.url), 'utf8'),
   ]);
-  assert.doesNotMatch(composeText, /mty-edge|ops\/edge/);
+  assert.doesNotMatch(composeText, /miy-edge|ops\/edge/);
   assert.match(releaseScript, /--remove-orphans/);
 });
 
@@ -737,14 +737,14 @@ test('production image build embeds the validated Bento public URL', async () =>
     readFile(new URL('../ops/app/Dockerfile', import.meta.url), 'utf8'),
     readFile(new URL('./prod-app.sh', import.meta.url), 'utf8'),
   ]);
-  assert.match(dockerfile, /ARG MTY_BENTO_SERVER_URL/);
+  assert.match(dockerfile, /ARG MIY_BENTO_SERVER_URL/);
   assert.match(
     dockerfile,
-    /MTY_BENTO_SERVER_URL="\$\{MTY_BENTO_SERVER_URL\}"/,
+    /MIY_BENTO_SERVER_URL="\$\{MIY_BENTO_SERVER_URL\}"/,
   );
   assert.match(
     releaseScript,
-    /--build-arg "MTY_BENTO_SERVER_URL=\$bento_server_url"/,
+    /--build-arg "MIY_BENTO_SERVER_URL=\$bento_server_url"/,
   );
 });
 
@@ -778,10 +778,10 @@ for (const namespace of [
       () =>
         assertProductionAppEnv(
           validEnv({
-            MTY_HERMES_TERMINAL_RESOURCE_NAMESPACE: namespace,
+            MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE: namespace,
           }),
         ),
-      /MTY_HERMES_TERMINAL_RESOURCE_NAMESPACE/,
+      /MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE/,
     );
   });
 }
@@ -791,7 +791,7 @@ for (const namespace of ['prod', 'company-prod-20260908', 'p'.repeat(32)]) {
     assert.doesNotThrow(() =>
       assertProductionAppEnv(
         validEnv({
-          MTY_HERMES_TERMINAL_RESOURCE_NAMESPACE: namespace,
+          MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE: namespace,
         }),
       ),
     );
@@ -801,12 +801,12 @@ for (const namespace of ['prod', 'company-prod-20260908', 'p'.repeat(32)]) {
 test('broker Compose maps the typed namespace and production has no fallback', async () => {
   for (const [filename, expression] of [
     [
-      'mty-dev.infra.yml',
-      '${MTY_HERMES_TERMINAL_RESOURCE_NAMESPACE:-dev}',
+      'miy-dev.infra.yml',
+      '${MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE:-dev}',
     ],
     [
-      'mty-prod.app.yml',
-      '${MTY_HERMES_TERMINAL_RESOURCE_NAMESPACE:?Production Hermes resource namespace is required}',
+      'miy-prod.app.yml',
+      '${MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE:?Production Hermes resource namespace is required}',
     ],
   ]) {
     const text = await readFile(
@@ -816,11 +816,11 @@ test('broker Compose maps the typed namespace and production has no fallback', a
     const line = text
       .split('\n')
       .find((value) =>
-        value.trim().startsWith('MTY_HERMES_TERMINAL_RESOURCE_NAMESPACE:'),
+        value.trim().startsWith('MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE:'),
       );
     assert.equal(
       line?.trim(),
-      `MTY_HERMES_TERMINAL_RESOURCE_NAMESPACE: ${expression}`,
+      `MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE: ${expression}`,
     );
   }
 });

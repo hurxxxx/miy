@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import Column, MetaData, String, Table, create_engine, select
 
-from mty_api.domains.source_access.access_scope import AccessScopeRules
+from miy_api.domains.source_access.access_scope import AccessScopeRules
 
 
 _SCOPE_CASES = [
@@ -92,10 +92,10 @@ def test_sql_scope_projection_matches_the_same_fail_closed_matrix(
 def test_live_scope_policy_rejects_temporary_password_until_change_is_complete() -> None:
     from sqlalchemy.orm import Session
     from company_admission_fixture import company_authority_tables, seed_company_app_access
-    from mty_api.core.db import Base
-    from mty_api.domains.auth.models import User
-    from mty_api.domains.pms.space_models import Team, TeamMember, SpaceGroupBinding
-    from mty_api.domains.source_access.access_scope import AccessScopePolicy
+    from miy_api.core.db import Base
+    from miy_api.domains.auth.models import User
+    from miy_api.domains.pms.space_models import Team, TeamMember, SpaceGroupBinding
+    from miy_api.domains.source_access.access_scope import AccessScopePolicy
 
     engine = create_engine("sqlite://")
     try:

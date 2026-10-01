@@ -5,10 +5,10 @@ from datetime import UTC, datetime, timedelta
 from fastapi.testclient import TestClient
 
 from dev_accounts import auth_headers, dev_login
-from mty_api.core.db import get_session_factory
-from mty_api.core.settings import get_settings
-from mty_api.domains.auth.models import CompanyAppControl, DesktopSessionLink
-from mty_api.domains.auth.security import hash_token
+from miy_api.core.db import get_session_factory
+from miy_api.core.settings import get_settings
+from miy_api.domains.auth.models import CompanyAppControl, DesktopSessionLink
+from miy_api.domains.auth.security import hash_token
 
 
 def test_codex_console_session_link_exchanges_once(

@@ -1,4 +1,4 @@
-import { getAppRoutePattern } from '@mty/contracts/app-routes';
+import { getAppRoutePattern } from '@miy/contracts/app-routes';
 import { useTranslation } from 'react-i18next';
 import { useAppBootstrapContext } from '@/src/platform/apps/app-bootstrap-context';
 import { appLaunchLinkProps } from '@/src/app/shell/app-launch-destination';

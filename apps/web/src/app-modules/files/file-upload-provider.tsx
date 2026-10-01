@@ -1,4 +1,4 @@
-import { useFeedback } from '@mty/ui';
+import { useFeedback } from '@miy/ui';
 import {
   AlertCircle,
   CheckCircle2,

@@ -10,8 +10,8 @@ import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
-NETWORK_KEY = "MTY_HERMES_TERMINAL_SANDBOX_NETWORK"
-VOLUME_KEY = "MTY_HERMES_TERMINAL_EGRESS_CLIENT_VOLUME"
+NETWORK_KEY = "MIY_HERMES_TERMINAL_SANDBOX_NETWORK"
+VOLUME_KEY = "MIY_HERMES_TERMINAL_EGRESS_CLIENT_VOLUME"
 
 
 @pytest.fixture
@@ -35,12 +35,12 @@ def sandbox(monkeypatch):
         module = ModuleType(name)
         module.__dict__.update(members)
         monkeypatch.setitem(sys.modules, name, module)
-    directory = ROOT / "ops/hermes/plugins/mty_runtime"
-    package = ModuleType("mty_sandbox_test")
+    directory = ROOT / "ops/hermes/plugins/miy_runtime"
+    package = ModuleType("miy_sandbox_test")
     package.__path__ = [str(directory)]
     monkeypatch.setitem(sys.modules, package.__name__, package)
     spec = importlib.util.spec_from_file_location(
-        "mty_sandbox_test.sandbox", directory / "sandbox.py"
+        "miy_sandbox_test.sandbox", directory / "sandbox.py"
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -79,10 +79,10 @@ def sandbox(monkeypatch):
 def test_compose_gateway_and_broker_use_the_declared_sandbox_resources(deployment):
     suffix = "infra" if deployment == "dev" else "app"
     compose = yaml.safe_load(
-        (ROOT / f"ops/compose/mty-{deployment}.{suffix}.yml").read_text()
+        (ROOT / f"ops/compose/miy-{deployment}.{suffix}.yml").read_text()
     )
-    network = compose["networks"]["mty-hermes-terminal-sandbox"]
-    volume = compose["volumes"][f"mty-{deployment}-hermes-terminal-egress-client"]
+    network = compose["networks"]["miy-hermes-terminal-sandbox"]
+    volume = compose["volumes"][f"miy-{deployment}-hermes-terminal-egress-client"]
     assert network["internal"] is True
     for service in ("hermes-gateway", "hermes-terminal-broker"):
         environment = compose["services"][service]["environment"]
@@ -98,7 +98,7 @@ def test_sandbox_uses_deployment_resources_and_checks_before_creation(sandbox):
         args = next(args for args in sandbox.calls if args[1] == "run")
         assert "--network=deployment-network" in args
         assert (
-            "type=volume,src=deployment-ca,dst=/run/mty-egress-ca.crt,volume-subpath=ca.crt,readonly"
+            "type=volume,src=deployment-ca,dst=/run/miy-egress-ca.crt,volume-subpath=ca.crt,readonly"
             in args
         )
         assert "database-namespace" not in " ".join(args)
@@ -129,13 +129,13 @@ def test_failed_removal_keeps_exact_container_for_retry_and_closes_execution(san
 def test_recreated_sandbox_retries_server_checkpoint_without_new_local_changes(
     sandbox, monkeypatch
 ):
-    package = sys.modules["mty_sandbox_test"]
+    package = sys.modules["miy_sandbox_test"]
     attempts = []
 
     def rpc(server, run_id, method, params):
-        if method == "mty/files/list":
+        if method == "miy/files/list":
             return {"files": [{"relative_path": "app.js", "sha256": "saved"}]}
-        assert method == "mty/files/checkpoint"
+        assert method == "miy/files/checkpoint"
         attempts.append(run_id)
         if len(attempts) == 1:
             raise OSError("synthetic checkpoint outage")

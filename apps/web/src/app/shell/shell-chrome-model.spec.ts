@@ -9,9 +9,9 @@ import { resolveShellChromeState } from './shell-chrome-model';
 function buildUser(overrides: Partial<AuthUser> = {}): AuthUser {
   return createAuthUser({
     date_format: 'korean',
-    display_name: 'MTY Member',
-    email: 'member@mty.local',
-    full_name: 'MTY Member',
+    display_name: 'miy Member',
+    email: 'member@miy.local',
+    full_name: 'miy Member',
     id: 'user-1',
     locale: 'ko-KR',
     login_id: 'member',

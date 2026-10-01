@@ -174,14 +174,14 @@ Chrome·Chromium·Snap 경로를 동일하게 가정하지 않는다. 정책은 
 
 | 접속 구성 | 필요한 접속 검사 |
 | --- | --- |
-| HTTP 개발 접속 | `MTY_DEV_SMOKE_API_URL='http://<개발-호스트>:<Web-포트>' pnpm dev:login-smoke`와 같은 주소의 브라우저 로그인·앱 화면·로그아웃 |
-| HTTPS 공개 도메인의 개발 접속 | 개발 `.env`의 `MTY_UAT_BASE_URL`을 `https://<개발-공개-도메인>:<HTTPS-포트>`로 맞춘 뒤 `pnpm dev:public-smoke` 실행. 실제 브라우저 로그인·화면·로그아웃도 확인 |
+| HTTP 개발 접속 | `MIY_DEV_SMOKE_API_URL='http://<개발-호스트>:<Web-포트>' pnpm dev:login-smoke`와 같은 주소의 브라우저 로그인·앱 화면·로그아웃 |
+| HTTPS 공개 도메인의 개발 접속 | 개발 `.env`의 `MIY_UAT_BASE_URL`을 `https://<개발-공개-도메인>:<HTTPS-포트>`로 맞춘 뒤 `pnpm dev:public-smoke` 실행. 실제 브라우저 로그인·화면·로그아웃도 확인 |
 | HTTPS IP 기반 개발 접속 | [CA 신뢰](#https-trust)와 IP SAN을 확인한 뒤 HTTPS Web 주소로 `dev:login-smoke`와 브라우저 검사. `dev:public-smoke`에는 IP URL을 넣지 않음 |
 
 `dev:public-smoke`는 **HTTPS 공개 도메인 origin**을 요구한다. IP 주소·localhost·`.local`·단일 호스트명과
 경로·쿼리·자격증명이 포함된 URL은 허용하지 않는다. 루트 개발 `.env`의 해당 설정만 실제 origin에 맞추고 다른 설정은 보존한다.
 [개발 환경 로더](../../../scripts/dev-env.sh)는 `.env`에 같은 키가 있으면 명령 앞에서 지정한 값보다 나중에 덮어쓴다.
-`MTY_DEV_SMOKE_API_URL`도 해당 키가 `.env`에 있다면 검사하려는 주소와 일치시킨다. 환경설정 전체나 자격증명은 출력하지 않는다.
+`MIY_DEV_SMOKE_API_URL`도 해당 키가 `.env`에 있다면 검사하려는 주소와 일치시킨다. 환경설정 전체나 자격증명은 출력하지 않는다.
 이 검사는 로컬/공개 health의 개발 런타임 일치, readiness, bootstrap과 로그인 HTML을 확인한다.
 HTTP·IP 설치를 통과시키려고 [기존 검사](../../../scripts/live-uat-preflight.mjs)나 HTTPS 요구를 완화하지 않는다.
 GitLab의 HTTPS IP 검사에는 아래의 별도 GitLab 경로를 사용한다.

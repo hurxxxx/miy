@@ -27,11 +27,11 @@ const mrEnv = {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const completeChecks = REQUIRED_CHECK_IDS.map(
-  (checkId) => `- [x] <!-- mty:check:${checkId} --> checked`,
+  (checkId) => `- [x] <!-- miy:check:${checkId} --> checked`,
 ).join('\n');
 const completeFields = REQUIRED_FIELD_IDS.map(
   (fieldId) =>
-    `Field: <!-- mty:field:${fieldId} --> ${
+    `Field: <!-- miy:field:${fieldId} --> ${
       fieldId === 'company-keyword-search'
         ? 'none - this app does not expose company keyword search'
         : `evidence for ${fieldId}`
@@ -50,11 +50,11 @@ Source: def45678
 `;
 
 const completeCoreChecks = CORE_REQUIRED_CHECK_IDS.map(
-  (checkId) => `- [x] <!-- mty:check:${checkId} --> checked`,
+  (checkId) => `- [x] <!-- miy:check:${checkId} --> checked`,
 ).join('\n');
 const completeCoreFields = CORE_REQUIRED_FIELD_IDS.map(
   (fieldId) =>
-    `Field: <!-- mty:field:${fieldId} --> ${
+    `Field: <!-- miy:field:${fieldId} --> ${
       fieldId === 'company-keyword-search'
         ? 'none - this enablement does not change company keyword search'
         : `evidence for ${fieldId}`
@@ -77,13 +77,13 @@ test('recognizes app-owned and protected-core paths', () => {
   );
   assert.equal(
     isDomainAppDeliveryPath(
-      'apps/api/src/mty_api/domains/bento/router.py',
+      'apps/api/src/miy_api/domains/bento/router.py',
     ),
     true,
   );
   assert.equal(
     isDomainAppDeliveryPath(
-      'apps/api/src/mty_api/domains/auth/router.py',
+      'apps/api/src/miy_api/domains/auth/router.py',
     ),
     false,
   );
@@ -97,7 +97,7 @@ test('recognizes app-owned and protected-core paths', () => {
     'content_access',
     'workspaces',
   ]) {
-    const filePath = `apps/api/src/mty_api/domains/${domain}/router.py`;
+    const filePath = `apps/api/src/miy_api/domains/${domain}/router.py`;
     assert.equal(isProtectedCorePath(filePath), true);
     assert.equal(isDomainAppDeliveryPath(filePath), false);
   }
@@ -136,16 +136,16 @@ test('repository MR templates fit inside the GitLab CI description variable', ()
   assert.ok(vibeTemplate.includes(CONTRACT_EVIDENCE_MARKER));
   assert.ok(coreTemplate.includes(CORE_ENABLEMENT_MARKER));
   for (const checkId of REQUIRED_CHECK_IDS) {
-    assert.ok(vibeTemplate.includes(`<!-- mty:check:${checkId} -->`));
+    assert.ok(vibeTemplate.includes(`<!-- miy:check:${checkId} -->`));
   }
   for (const fieldId of REQUIRED_FIELD_IDS) {
-    assert.ok(vibeTemplate.includes(`<!-- mty:field:${fieldId} -->`));
+    assert.ok(vibeTemplate.includes(`<!-- miy:field:${fieldId} -->`));
   }
   for (const checkId of CORE_REQUIRED_CHECK_IDS) {
-    assert.ok(coreTemplate.includes(`<!-- mty:check:${checkId} -->`));
+    assert.ok(coreTemplate.includes(`<!-- miy:check:${checkId} -->`));
   }
   for (const fieldId of CORE_REQUIRED_FIELD_IDS) {
-    assert.ok(coreTemplate.includes(`<!-- mty:field:${fieldId} -->`));
+    assert.ok(coreTemplate.includes(`<!-- miy:field:${fieldId} -->`));
   }
 });
 
@@ -224,8 +224,8 @@ test('rejects unchecked items, placeholders, and stale SHA evidence', () => {
     changes: [{ status: 'M', path: 'apps/web/src/app-modules/bento/View.tsx' }],
     description: completeDescription
       .replace(
-        '- [x] <!-- mty:check:scope-clean -->',
-        '- [ ] <!-- mty:check:scope-clean -->',
+        '- [x] <!-- miy:check:scope-clean -->',
+        '- [ ] <!-- miy:check:scope-clean -->',
       )
       .replace('evidence for verification', 'REPLACE_ME')
       .replace('Source: def45678', 'Source: 00000000'),

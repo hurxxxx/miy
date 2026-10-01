@@ -17,15 +17,15 @@ fi
 
 INSTANCE_ID="${2:-$(dev_api_name "$INSTANCE_INDEX")}"
 
-export MTY_API_INSTANCE_ID="$INSTANCE_ID"
+export MIY_API_INSTANCE_ID="$INSTANCE_ID"
 
-if [[ "${MTY_API_AUTO_MIGRATE:-}" == "" ]]; then
+if [[ "${MIY_API_AUTO_MIGRATE:-}" == "" ]]; then
   if [[ "$PORT" == "8001" ]]; then
-    export MTY_API_AUTO_MIGRATE=1
+    export MIY_API_AUTO_MIGRATE=1
   else
-    export MTY_API_AUTO_MIGRATE=0
+    export MIY_API_AUTO_MIGRATE=0
   fi
 fi
 
 cd "$ROOT_DIR/apps/api"
-exec "$ROOT_DIR/apps/api/.venv/bin/python" -m uvicorn mty_api.main:app --app-dir src --host "$MTY_DEV_API_HOST" --port "$PORT"
+exec "$ROOT_DIR/apps/api/.venv/bin/python" -m uvicorn miy_api.main:app --app-dir src --host "$MIY_DEV_API_HOST" --port "$PORT"

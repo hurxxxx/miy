@@ -422,7 +422,7 @@ function createHermesRequestId(): string {
   ) {
     return globalThis.crypto.randomUUID();
   }
-  return `mty-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  return `miy-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
 function hasRewriteDirective(payload: AiChatRequest): boolean {

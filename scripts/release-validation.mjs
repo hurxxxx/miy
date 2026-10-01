@@ -6,7 +6,7 @@ import { parseArgs } from 'node:util';
 import { pathToFileURL } from 'node:url';
 import { requireDiskHeadroom } from './docker-storage.mjs';
 
-export const MARKER = '<!-- mty:release-validation:v1';
+export const MARKER = '<!-- miy:release-validation:v1';
 export const LIMITS = Object.freeze({ files: 40, lines: 1000 });
 const SHA = /^[0-9a-f]{40}$/;
 const REPORT = 'release-validation-context.md';

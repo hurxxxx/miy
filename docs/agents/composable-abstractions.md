@@ -27,7 +27,7 @@ apps/web/src/app-modules/<moduleId>/
   views/
   *-model.ts
 
-apps/api/src/mty_api/domains/<domain>/
+apps/api/src/miy_api/domains/<domain>/
   router.py
   schemas.py
   application.py

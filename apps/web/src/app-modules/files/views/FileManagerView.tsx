@@ -1,4 +1,4 @@
-import { InlineNotice } from '@mty/ui';
+import { InlineNotice } from '@miy/ui';
 import {
   CheckCircle2,
   CircleAlert,

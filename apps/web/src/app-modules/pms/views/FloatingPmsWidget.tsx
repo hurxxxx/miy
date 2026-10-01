@@ -1,5 +1,5 @@
 import { useAppAdmission } from '@/src/platform/apps/app-bootstrap-context';
-import { Button, InlineNotice } from '@mty/ui';
+import { Button, InlineNotice } from '@miy/ui';
 import {
   CalendarDays,
   CheckCircle2,

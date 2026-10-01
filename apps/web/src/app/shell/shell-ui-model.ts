@@ -3,7 +3,7 @@ import type { ThemePreference } from '@/src/platform/auth/auth-api';
 import {
   APP_CONTRACT_BY_ID,
   type AppId,
-} from '@mty/contracts/app-contracts';
+} from '@miy/contracts/app-contracts';
 
 export type ResolvedThemePreference = 'light' | 'dark';
 export type AppDisplayScope = 'company' | 'personal';

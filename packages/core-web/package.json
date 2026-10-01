@@ -1,5 +1,5 @@
 {
-  "name": "@mty/core-web",
+  "name": "@miy/core-web",
   "version": "0.0.1",
   "type": "module",
   "main": "./dist/index.js",

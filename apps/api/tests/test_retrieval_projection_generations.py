@@ -7,13 +7,13 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from mty_api.domains.auth.models import utcnow_naive
-from mty_api.domains.retrieval.models import (
+from miy_api.domains.auth.models import utcnow_naive
+from miy_api.domains.retrieval.models import (
     RetrievalPartition,
     RetrievalProjectionEvent,
     RetrievalProjectionGeneration,
 )
-from mty_api.domains.retrieval.projection_generations import (
+from miy_api.domains.retrieval.projection_generations import (
     RetrievalProjectionGenerationError,
     begin_generation_cutover,
     compensate_generation_pair_cutover,
