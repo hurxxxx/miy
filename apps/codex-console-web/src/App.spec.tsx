@@ -955,7 +955,7 @@ it.each([
     within(screen.getByRole('navigation', { name: '콘솔 메뉴' }))
       .getAllByRole('button')
       .map((b) => b.textContent),
-  ).toEqual(['세션', '작업 템플릿', '모니터링']);
+  ).toEqual(['세션', '작업 템플릿', '지침·스킬', '모니터링']);
   expect(screen.queryByRole('list', { name: '최근 세션' })).toBeNull();
 });
 

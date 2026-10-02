@@ -1425,7 +1425,7 @@ class Runtime:
             return []
         if any(not isinstance(n, str) or not n.strip() or len(n) > 200 for n in names):
             raise ConsoleError("invalid_input", 422)
-        result = await rpc.call("skills/list", {"cwds": [root], "forceReload": False})
+        result = await rpc.call("skills/list", {"cwds": [root], "forceReload": True})
         available = {
             s["name"]: s
             for entry in result.get("data", [])

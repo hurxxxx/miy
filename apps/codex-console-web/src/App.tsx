@@ -9,6 +9,7 @@ import {
   MessagesSquare,
   CircleStop,
   Code2,
+  BookOpen,
   ListTodo,
   LogOut,
   Menu,
@@ -57,6 +58,7 @@ import {
 import { AttachmentBadges, FileLibrary } from './attachments';
 import { CodexUpdateGuide } from './codex-update';
 import { Templates } from './templates';
+import { Instructions } from './instructions';
 import { AgentActivity } from './agent-activity';
 import { needsAttention, executing, running } from './agent-state';
 import { GitWorkspace, GitSummary, useGitState } from './git';
@@ -76,7 +78,12 @@ const tabs: { id: Tab; label: Copy }[] = [
 ];
 
 type SessionTab = 'sessions' | 'codex' | null;
-type ConsolePage = 'sessions' | 'workspace' | 'templates' | 'monitoring';
+type ConsolePage =
+  | 'sessions'
+  | 'workspace'
+  | 'templates'
+  | 'instructions'
+  | 'monitoring';
 function readRoute(): {
   page: ConsolePage;
   task: string | null;
@@ -92,7 +99,7 @@ function readRoute(): {
     ? 'workspace'
     : tab === 'codex'
       ? 'sessions'
-      : view === 'templates' || view === 'monitoring'
+      : view === 'templates' || view === 'monitoring' || view === 'instructions'
         ? view
         : 'sessions';
   const template = params.get('template');
@@ -363,8 +370,12 @@ export function App() {
     [act, refreshTask, refreshTasks],
   );
   const send = useCallback(
-    async (suffix: string, data: Record<string, unknown>) => {
-      const taskId = selectedRef.current;
+    async (
+      suffix: string,
+      data: Record<string, unknown>,
+      requestedTaskId?: string,
+    ) => {
+      const taskId = requestedTaskId ?? selectedRef.current;
       if (!taskId) return false;
       const payload = { attachment_ids: attachmentIds, ...data };
       const key = JSON.stringify([taskId, suffix, payload]);
@@ -954,6 +965,7 @@ export function App() {
             [
               ['sessions', 'Sessions', MessagesSquare],
               ['templates', 'Task templates', ListTodo],
+              ['instructions', 'Instructions and skills', BookOpen],
               ['monitoring', 'Monitoring', Activity],
             ] as const
           ).map(([id, label, Icon]) => (
@@ -1002,7 +1014,33 @@ export function App() {
           </Button>
         </footer>
       </aside>
-      {page === 'templates' ? (
+      <Instructions
+        active={page === 'instructions'}
+        t={t}
+        onRequest={async (title, text, requestStage) => {
+          const next = await api<Detail>('/tasks', { title, isolate: false });
+          drafts.current.set(next.id, text);
+          choose(next.id);
+          // Reuse operation IDs, uncertainty recovery and the native approval flow.
+          const accepted = await send(
+            requestStage === 'plan' ? 'messages' : 'implement',
+            {
+              text,
+              ...(requestStage === 'plan' ? { stage: 'plan' } : {}),
+              model: null,
+              effort: null,
+              permissions: 'ask',
+              attachment_ids: [],
+            },
+            next.id,
+          );
+          if (accepted) {
+            drafts.current.delete(next.id);
+            if (selectedRef.current === next.id) setMessage('');
+          }
+        }}
+      />
+      {page === 'instructions' ? null : page === 'templates' ? (
         <Templates
           t={t}
           openTask={choose}
@@ -1407,7 +1445,7 @@ export function App() {
                     t={t}
                   />
                   {!!skills.length && (
-                    <label>
+                    <label className="skill-picker">
                       <span className="sr-only">{t('Use a skill')}</span>
                       <select
                         aria-label={t('Use a skill')}
