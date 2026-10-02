@@ -51,12 +51,20 @@ test('sessions is the entry menu and restores search, scroll and drafts across w
   await expect(page.getByLabel('세션 검색')).toHaveValue(first);
   await page.getByLabel('세션 검색').fill(prefix);
   await expect(list.locator('.session-title')).toHaveCount(24);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.scrollingElement!.scrollHeight <= innerHeight,
+      ),
+    )
+    .toBe(true);
   const row = list.locator('.session-title').nth(12);
   await row.scrollIntoViewIfNeeded();
   const offset = await page
     .locator('.sessions-view')
     .evaluate((node) => node.scrollTop);
   expect(offset).toBeGreaterThan(100);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
   await row.click();
   await expect(page.locator('.workspace')).toBeVisible();
   await page.getByRole('button', { name: '세션 목록으로' }).click();
@@ -99,6 +107,11 @@ test('sessions is the entry menu and restores search, scroll and drafts across w
     )
     .boundingBox();
   expect(description?.width).toBeGreaterThan(240);
+  expect(
+    await page.evaluate(
+      () => document.scrollingElement!.scrollHeight <= innerHeight,
+    ),
+  ).toBe(true);
   await page.getByLabel('세션 검색').fill(second);
   await expect(list.locator('.session-title')).toHaveCount(1);
   await list.getByRole('button', { name: new RegExp(second) }).click();
