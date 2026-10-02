@@ -12,6 +12,45 @@ test('document workspace uses the viewport, filters readable names, and keeps ac
   await expect(
     page.getByRole('heading', { name: '지침·스킬', exact: true }),
   ).toBeVisible();
+  await expect(
+    page.locator('.instruction-editor-empty .page-empty'),
+  ).toBeVisible();
+  for (const viewport of [
+    { width: 2048, height: 1080 },
+    { width: 1280, height: 800 },
+    { width: 820, height: 720 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const emptyPane = await page
+      .locator('.instruction-editor-empty')
+      .boundingBox();
+    const library = await page.locator('.instruction-library').boundingBox();
+    for (const selector of ['h2', 'p', '.page-empty-icon']) {
+      const hint = await page
+        .locator(`.instruction-editor-empty .page-empty ${selector}`)
+        .boundingBox();
+      expect(hint!.x).toBeGreaterThanOrEqual(library!.x + library!.width + 16);
+      expect(hint!.x + hint!.width).toBeLessThanOrEqual(
+        emptyPane!.x + emptyPane!.width - 16,
+      );
+      expect(
+        Math.abs(
+          hint!.x + hint!.width / 2 - (emptyPane!.x + emptyPane!.width / 2),
+        ),
+      ).toBeLessThanOrEqual(2);
+      expect(hint!.y).toBeGreaterThanOrEqual(emptyPane!.y);
+      expect(hint!.y + hint!.height).toBeLessThanOrEqual(
+        emptyPane!.y + emptyPane!.height,
+      );
+    }
+  }
+  await page.setViewportSize({ width: 390, height: 720 });
+  await expect(page.locator('.instruction-editor-empty')).not.toBeVisible();
+  await expect(page.locator('.instruction-library')).toBeVisible();
+  await page.setViewportSize({ width: 2048, height: 1080 });
+  await page.screenshot({
+    path: '../../.runtime/console-instructions-empty-desktop.png',
+  });
   const cookie = (await page.context().cookies()).find(
     (c) => c.name === 'codex_console_csrf',
   )!;
