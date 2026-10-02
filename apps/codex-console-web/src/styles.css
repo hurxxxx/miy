@@ -420,8 +420,8 @@ textarea {color: inherit; background: transparent; resize: vertical; border: 0; 
 .instruction-save-state {display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ui-color-ink-subtle);}
 .instruction-save-state kbd {font: 10px var(--ui-font-mono); padding-left: 8px; color: var(--ui-color-ink-subtle);}
 .instruction-actions {display: flex; gap: 6px; flex-wrap: wrap;}
-.instruction-editor-empty {justify-content: center;}
-.instruction-editor-empty .page-empty {border: 0; background: none;}
+.instruction-editor-empty {justify-content: center; align-items: center; padding: 24px; overflow: auto;}
+.instruction-editor-empty .page-empty {width: min(100%, 480px); min-width: 0; min-height: 0; padding: 0; align-items: center; text-align: center; overflow-wrap: anywhere; border: 0; background: none;}
 .instruction-alert {margin: 12px 18px; font-size: 12px; line-height: 1.7; flex-shrink: 0; color: var(--ui-color-danger-text);}
 .instruction-editor-body > .stack {padding: 16px 24px; flex-shrink: 0;}
 .instruction-mobile-picker {display: none;}
