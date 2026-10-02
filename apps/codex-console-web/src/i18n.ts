@@ -1,4 +1,21 @@
 export const korean = {
+  'Root folder': '최상위 폴더',
+  'All documents': '전체',
+  'Supporting files': '참고·설정',
+  'Document types': '문서 종류 필터',
+  'Document library': '문서 목록',
+  'No matching documents': '검색한 문서가 없습니다',
+  'Show document list': '문서 목록 보기',
+  'Document view': '문서 보기 방식',
+  'Read document': '읽기',
+  'Edit source': '편집',
+  Skills: '스킬',
+  Documents: '문서',
+  'Document preview': '문서 미리보기',
+  'No unsaved changes': '변경 없음',
+  'Save your changes before asking Codex.':
+    'Codex에 요청하기 전에 변경을 저장하세요.',
+
   'Latest saved content': '최신 저장 내용',
   'Keep my draft against this version': '이 버전을 기준으로 내 초안 유지',
   'Use the latest saved content': '최신 저장 내용으로 교체',
