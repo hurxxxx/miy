@@ -64,6 +64,26 @@ test.describe('AI-friendly app boundary smoke', () => {
     await expect(
       page.getByRole('heading', { level: 1, name: /Planner|플래너/ }),
     ).toBeVisible();
+    const clocks = page.getByRole('group', {
+      name: /도시별 현재 시간|Current times by city/,
+    });
+    const cities = [
+      /한국 시간 \(KST\)|Korea time \(KST\)/,
+      /미국 뉴욕 시간|New York, US time/,
+      /독일 베를린 시간|Berlin, Germany time/,
+    ];
+    for (const city of cities) {
+      await expect(
+        clocks.getByText(city).locator('..').locator('time'),
+      ).toHaveText(/\d{2}:\d{2}:\d{2}/);
+    }
+    await page.setViewportSize({ width: 360, height: 740 });
+    for (const city of cities) {
+      const bounds = await clocks.getByText(city).locator('..').boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(360);
+    }
     errors.expectClean();
   });
 

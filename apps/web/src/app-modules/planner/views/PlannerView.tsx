@@ -84,6 +84,7 @@ import {
 import { PlannerEventChoicePopover } from './PlannerEventChoicePopover';
 import { PlannerEventModal } from './PlannerEventModal';
 import { PlannerTimelineView } from './PlannerTimelineView';
+import { WorldClocks } from './WorldClocks';
 
 const SURFACE_MODE_LABEL_KEYS: Record<PlannerSurfaceMode, string> = {
   calendar: 'planner.surfaces.calendar',
@@ -857,6 +858,8 @@ function usePlannerViewElement(): ReactNode {
             </div>
           </div>
         </div>
+
+        <WorldClocks />
 
         {actionError ? (
           <div
