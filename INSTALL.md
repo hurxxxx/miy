@@ -106,7 +106,7 @@ Git과 CA 인증서가 없으면 Linux 배포판의 패키지 관리자로 먼�
 
 | 원격 이름 | 대상 | 용도 |
 | --- | --- | --- |
-| `upstream` | `https://github.com/hurxxxx/mty.git` | 원본 코드와 업데이트를 가져오는 곳 |
+| `upstream` | `https://github.com/hurxxxx/miy.git` | 원본 코드와 업데이트를 가져오는 곳 |
 | `origin` | 조직 내부 GitLab 프로젝트 | 내부 변경사항, MR, CI와 배포 기준을 관리하는 곳 |
 
 원격 역할과 브랜치·게시 권한은 [저장소 정책](AGENTS.md#git-and-delivery)을 따른다.
@@ -126,7 +126,7 @@ Git과 CA 인증서가 없으면 Linux 배포판의 패키지 관리자로 먼�
 ```bash
 mkdir -p miy
 cd miy
-git clone --origin upstream --branch main https://github.com/hurxxxx/mty.git dev
+git clone --origin upstream --branch main https://github.com/hurxxxx/miy.git dev
 cd dev
 git switch --no-track -c dev
 git config remote.pushDefault origin
@@ -510,7 +510,7 @@ mkdir -p miy
 cd miy
 git clone --branch dev '<GitLab에서-받은-저장소-주소>' dev
 cd dev
-git remote add upstream https://github.com/hurxxxx/mty.git
+git remote add upstream https://github.com/hurxxxx/miy.git
 git config remote.pushDefault origin
 ```
 
