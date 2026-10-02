@@ -349,6 +349,27 @@ class Settings:
         self.assertIn("forbidden_env_token", self.codes(report))
         self.assertIn("app.py: forbidden env token", self.messages(report))
 
+    def test_rejects_earlier_brand_env_keys_without_matching_current_or_unrelated_names(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for brand in ("OWH", "OPEN_WORK_HUB"):
+                for scope in ("", "VITE_"):
+                    with self.subTest(brand=brand, scope=scope):
+                        legacy = f"{scope}{brand}_CODEX_CONSOLE_PORT"
+                        report = self.evaluate(
+                            root,
+                            env_texts={"dev": "MIY_PRESENT=1\n", "example": "MIY_PRESENT=1\n"},
+                            source_texts={
+                                "legacy.py": f"port = os.getenv({legacy!r})\n",
+                                "current.py": "port = os.getenv('MIY_CODEX_CONSOLE_PORT')\n",
+                                "browser.ts": "const port = import.meta.env.VITE_MIY_PORT;\n",
+                                "unrelated.py": "arrowhead = True\nALLOWH_PORT = 1\n",
+                            },
+                            forbidden_patterns=tuple(env_contract.FORBIDDEN_ENV_PATTERNS),
+                        )
+                        self.assertEqual([hit.path for hit in report.forbidden_hits], ["legacy.py"])
+                        self.assertIn("forbidden_env_token", self.codes(report))
+
     def test_forbids_exact_legacy_redis_alias_without_matching_scoped_keys(self) -> None:
         legacy_token = "MIY_" + "REDIS_URL"
         with tempfile.TemporaryDirectory() as directory:
