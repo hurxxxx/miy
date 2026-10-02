@@ -45,8 +45,14 @@ def _apply_runtime_policy(config: dict[str, Any]) -> bool:
     """Bootstrap transport/lifecycle only; administrator DB owns model selection."""
     before = deepcopy(config)
     plugins = config.setdefault("plugins", {})
-    plugins["enabled"] = sorted((set(plugins.get("enabled", [])) - {"mty_runtime"}) | {"miy_runtime"})
-    plugins["disabled"] = [name for name in plugins.get("disabled", []) if name not in {"miy_runtime", "mty_runtime"}]
+    plugins["enabled"] = sorted(
+        (set(plugins.get("enabled", [])) - {"owh_runtime", "mty_runtime"}) | {"miy_runtime"}
+    )
+    plugins["disabled"] = [
+        name
+        for name in plugins.get("disabled", [])
+        if name not in {"miy_runtime", "mty_runtime", "owh_runtime"}
+    ]
     config.setdefault("gateway", {}).setdefault("api_server", {})["max_concurrent_runs"] = 0
     config["terminal"] = {
         "backend": "miy_sandbox",

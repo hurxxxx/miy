@@ -49,7 +49,10 @@ def test_bootstrap_preserves_db_model_policy_and_configures_native_runtime(monke
         "providers": {"db-policy": {"key_env": "SCOPED_TEST_KEY"}},
         "fallback_providers": [],
         "auxiliary": {"compression": {"provider": "main"}},
-        "plugins": {"enabled": ["other-plugin"], "disabled": ["miy_runtime"]},
+        "plugins": {
+            "enabled": ["other-plugin", "owh_runtime", "mty_runtime"],
+            "disabled": ["miy_runtime", "mty_runtime", "owh_runtime", "other-disabled"],
+        },
         "agent": {"environment_probe": False},
     }
     bootstrap, saved = _load_bootstrap(monkeypatch, config)
@@ -57,7 +60,10 @@ def test_bootstrap_preserves_db_model_policy_and_configures_native_runtime(monke
     reconciled = saved[0]
     for key in ("model", "providers", "fallback_providers", "auxiliary"):
         assert reconciled[key] == config[key]
-    assert reconciled["plugins"] == {"enabled": ["miy_runtime", "other-plugin"], "disabled": []}
+    assert reconciled["plugins"] == {
+        "enabled": ["miy_runtime", "other-plugin"],
+        "disabled": ["other-disabled"],
+    }
     assert reconciled["gateway"]["api_server"]["max_concurrent_runs"] == 0
     assert reconciled["terminal"] == {
         "backend": "miy_sandbox",
