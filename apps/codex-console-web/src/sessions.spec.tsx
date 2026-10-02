@@ -8,7 +8,7 @@ import {
 import { useState } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { api, type Task } from './api';
-import { AgentsView, type AgentFilters } from './agents';
+import { SessionsView, type SessionFilters } from './sessions';
 import { hasFinished, type Agent } from './agent-state';
 import { translate } from './i18n';
 
@@ -81,13 +81,13 @@ function Harness({
   openTask?: (id: string) => void;
   templateId?: string | null;
 }) {
-  const [filters, setFilters] = useState<AgentFilters>({
+  const [filters, setFilters] = useState<SessionFilters>({
     status: 'all',
     source: 'all',
     query: '',
   });
   return (
-    <AgentsView
+    <SessionsView
       templateId={templateId}
       clearTemplate={vi.fn()}
       tasks={tasks}
@@ -97,6 +97,8 @@ function Harness({
       onFilters={setFilters}
       t={translate('en-US')}
       openTask={openTask}
+      newTask={vi.fn()}
+      importSession={vi.fn()}
       openTemplates={vi.fn()}
       refresh={vi.fn()}
       onError={vi.fn()}
@@ -166,16 +168,20 @@ it('shows search failures, retries, and finds older runs through the server', as
     path === '/monitor/services' ? [] : search(),
   );
   render(<Harness />);
-  fireEvent.change(screen.getByRole('textbox', { name: 'Search tasks' }), {
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search sessions' }), {
     target: { value: 'Older' },
   });
-  await screen.findByText('Updates delayed. Showing the last received state.');
-  expect(screen.queryByText('No matching tasks')).toBeNull();
+  await screen.findByText(
+    'Session list could not be refreshed. Showing the last received state.',
+  );
+  expect(screen.queryByText('No matching sessions')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
   await screen.findByRole('button', { name: 'Older result' });
   await waitFor(() =>
     expect(
-      screen.queryByText('Updates delayed. Showing the last received state.'),
+      screen.queryByText(
+        'Session list could not be refreshed. Showing the last received state.',
+      ),
     ).toBeNull(),
   );
   expect(vi.mocked(api).mock.calls.at(-1)?.[0]).toBe('/overview?search=Older');
@@ -224,7 +230,7 @@ it('loads all versions by template ID, combines search, and hides global rows wh
   expect(screen.getByText('Renamed template')).toBeTruthy();
   expect(screen.getByText('Archived template')).toBeTruthy();
   expect(screen.queryByRole('combobox', { name: 'Task source' })).toBeNull();
-  fireEvent.change(screen.getByRole('textbox', { name: 'Search tasks' }), {
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search sessions' }), {
     target: { value: 'Old' },
   });
   await waitFor(() =>
@@ -239,7 +245,7 @@ it('loads all versions by template ID, combines search, and hides global rows wh
   expect(
     screen.queryByRole('button', { name: 'Old template version' }),
   ).toBeNull();
-  await screen.findByText('No matching tasks');
+  await screen.findByText('No matching sessions');
   expect(api).toHaveBeenCalledWith(
     '/overview?search=Old&template_id=second',
     undefined,
@@ -275,10 +281,10 @@ it('keeps history scoped when template metadata fails and retries a failed histo
     'Template details are unavailable. The history filter is still applied.',
   );
   const warning = await screen.findByText(
-    'Updates delayed. Showing the last received state.',
+    'Session list could not be refreshed. Showing the last received state.',
   );
   expect(screen.queryByRole('button', { name: 'Parallel work' })).toBeNull();
-  expect(screen.queryByText('No matching tasks')).toBeNull();
+  expect(screen.queryByText('No matching sessions')).toBeNull();
   fireEvent.click(
     within(warning.parentElement!).getByRole('button', { name: 'Retry' }),
   );
