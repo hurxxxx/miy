@@ -36,12 +36,12 @@ test('sessions is the entry menu and restores search, scroll and drafts across w
     if (title === first)
       await page.getByLabel('요청 내용 입력').fill('전환해도 보존할 초안');
   }
-  await expect(sidebar.locator('.session-row')).toHaveCount(0);
+  await expect(sidebar.locator('.session-title')).toHaveCount(0);
   await page.getByRole('button', { name: '세션 목록으로' }).click();
   await expect(page).toHaveURL(/view=sessions/);
   await page.getByLabel('세션 검색').fill(first);
   const list = page.getByRole('list', { name: '세션', exact: true });
-  await expect(list.getByRole('button')).toHaveCount(1);
+  await expect(list.locator('.session-title')).toHaveCount(1);
   await list.getByRole('button', { name: new RegExp(first) }).click();
   await expect(page.getByRole('heading', { name: first })).toBeFocused();
   await expect(page.getByLabel('요청 내용 입력')).toHaveValue(
@@ -50,8 +50,8 @@ test('sessions is the entry menu and restores search, scroll and drafts across w
   await page.getByRole('button', { name: '세션 목록으로' }).click();
   await expect(page.getByLabel('세션 검색')).toHaveValue(first);
   await page.getByLabel('세션 검색').fill(prefix);
-  await expect(list.getByRole('button')).toHaveCount(24);
-  const row = list.getByRole('button').nth(12);
+  await expect(list.locator('.session-title')).toHaveCount(24);
+  const row = list.locator('.session-title').nth(12);
   await row.scrollIntoViewIfNeeded();
   const offset = await page
     .locator('.sessions-view')
@@ -61,7 +61,7 @@ test('sessions is the entry menu and restores search, scroll and drafts across w
   await expect(page.locator('.workspace')).toBeVisible();
   await page.getByRole('button', { name: '세션 목록으로' }).click();
   await expect(page.getByLabel('세션 검색')).toHaveValue(prefix);
-  await expect(list.getByRole('button')).toHaveCount(24);
+  await expect(list.locator('.session-title')).toHaveCount(24);
   await expect
     .poll(() =>
       page.locator('.sessions-view').evaluate((node) => node.scrollTop),
@@ -69,14 +69,14 @@ test('sessions is the entry menu and restores search, scroll and drafts across w
     .toBeCloseTo(offset, 0);
   // Clicking the selected menu again must not disable future scroll recording.
   await sidebar.getByRole('button', { name: '세션', exact: true }).click();
-  await list.getByRole('button').nth(19).scrollIntoViewIfNeeded();
+  await list.locator('.session-title').nth(19).scrollIntoViewIfNeeded();
   const nextOffset = await page
     .locator('.sessions-view')
     .evaluate((node) => node.scrollTop);
-  await list.getByRole('button').nth(19).click();
+  await list.locator('.session-title').nth(19).click();
   await expect(page.locator('.workspace')).toBeVisible();
   await page.goBack();
-  await expect(list.getByRole('button')).toHaveCount(24);
+  await expect(list.locator('.session-title')).toHaveCount(24);
   await expect
     .poll(() =>
       page.locator('.sessions-view').evaluate((node) => node.scrollTop),
@@ -92,8 +92,15 @@ test('sessions is the entry menu and restores search, scroll and drafts across w
       .every((r: { thread_id: string | null }) => r.thread_id === null),
   ).toBe(true);
   await page.setViewportSize({ width: 320, height: 720 });
+  const description = await page
+    .getByText(
+      '대화를 이어가고, 실행 상황과 확인이 필요한 요청을 살펴보세요.',
+      { exact: true },
+    )
+    .boundingBox();
+  expect(description?.width).toBeGreaterThan(240);
   await page.getByLabel('세션 검색').fill(second);
-  await expect(list.getByRole('button')).toHaveCount(1);
+  await expect(list.locator('.session-title')).toHaveCount(1);
   await list.getByRole('button', { name: new RegExp(second) }).click();
   await expect(page.getByRole('heading', { name: second })).toBeFocused();
   await page.getByRole('button', { name: '메뉴 열기' }).click();

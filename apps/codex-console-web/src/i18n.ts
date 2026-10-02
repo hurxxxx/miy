@@ -6,8 +6,8 @@ export const korean = {
   'Session views': '세션 보기',
   'Search sessions': '세션 검색',
   'Import Codex session': 'Codex 세션 불러오기',
-  'Find a conversation and continue in your workspace.':
-    '지난 대화를 찾아 작업실에서 이어가세요.',
+  'Find conversations, follow running work, and respond to requests.':
+    '대화를 이어가고, 실행 상황과 확인이 필요한 요청을 살펴보세요.',
   'No matching sessions': '검색한 세션이 없습니다',
   'No sessions yet': '아직 세션이 없습니다',
   'Session list could not be refreshed. Showing the last received state.':
@@ -33,12 +33,7 @@ export const korean = {
     '일부 실행 서비스의 상태를 확인할 수 없습니다. 마지막으로 보고된 에이전트 상태를 표시합니다.',
   Workspace: '작업 경로',
   'Current step': '현재 단계',
-  'Agent views': '에이전트 보기',
-  'Agent runs': '작업 에이전트',
   'Codex sessions': 'Codex 세션',
-  'View all agents': '전체 에이전트 보기',
-  'Follow running work, respond to requests, and revisit results.':
-    '작업별 에이전트 진행 상황을 확인하고, 요청에 응답하거나 결과를 다시 살펴보세요.',
   Finished: '종료',
   'Search tasks by title': '작업 제목으로 검색',
   'Task source': '작업 유형',
@@ -46,8 +41,8 @@ export const korean = {
   'Matching tasks': '표시된 작업',
   'Recent work is shown here. Search by title to find older runs.':
     '최근 작업과 추적 중인 작업을 표시합니다. 이전 이력은 제목으로 검색하세요.',
-  'Choose another filter, or start a task from a template.':
-    '다른 조건을 선택하거나 템플릿으로 새 작업을 시작하세요.',
+  'Choose another filter, or start a new task.':
+    '다른 조건을 선택하거나 새 작업을 시작하세요.',
   'Pending requests': '대기 중인 요청',
   'Respond to requests': '요청 확인',
   'Open conversation and results': '대화·결과 열기',
