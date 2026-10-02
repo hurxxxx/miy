@@ -27,6 +27,39 @@ def test_keys_change_without_changing_credentials_resource_paths_or_line_endings
     assert migration.rename_keys(updated) == (updated, 0)
 
 
+@pytest.mark.parametrize("brand", ["OWH", "OPEN_WORK_HUB"])
+def test_earlier_brand_keys_migrate_without_rewriting_values(brand):
+    original = (
+        f'export {brand}_CODEX_CONSOLE_DATABASE_URL="sqlite:////data/{brand}/console.db"\r\n'
+        f'VITE_{brand}_DESKTOP_INSTALLER_URL_WIN=https://example.test/{brand}.exe\r\n'
+        f'{brand}_API_{brand}_DESKTOP_UPDATE_DIRS="/data/{brand}"\r\n'
+        f'OTHER="{brand}_SECRET"\r\n'
+    )
+    updated, count = migration.rename_keys(original)
+    assert count == 3
+    assert updated == (
+        f'export MIY_CODEX_CONSOLE_DATABASE_URL="sqlite:////data/{brand}/console.db"\r\n'
+        f'VITE_MIY_DESKTOP_INSTALLER_URL_WIN=https://example.test/{brand}.exe\r\n'
+        f'MIY_API_MIY_DESKTOP_UPDATE_DIRS="/data/{brand}"\r\n'
+        f'OTHER="{brand}_SECRET"\r\n'
+    )
+    assert migration.rename_keys(updated) == (updated, 0)
+
+
+@pytest.mark.parametrize("brand", ["OWH", "OPEN_WORK_HUB"])
+@pytest.mark.parametrize("scope", ["", "VITE_"])
+def test_earlier_brand_collisions_and_references_are_refused(brand, scope):
+    legacy = f"{scope}{brand}_SECRET"
+    current = f"{scope}MIY_SECRET"
+    for text in (
+        f"{legacy}=one\n{current}=two\n",
+        f"{legacy}=one\nOTHER=${{{legacy}}}\n",
+        f"{legacy}=one\n{scope}MTY_SECRET=two\n",
+    ):
+        with pytest.raises(ValueError):
+            migration.rename_keys(text)
+
+
 @pytest.mark.parametrize("text", [
     "MTY_A=one\nMIY_A=two\n", "MTY_A=one\nMTY_A=two\n",
     "MTY_A=one\nOTHER=${MTY_A}\n", 'OTHER="line\nMTY_A=secret\nend"\n',
