@@ -88,7 +88,9 @@ textarea {color: inherit; background: transparent; resize: vertical; border: 0; 
 .composer {position: relative; height: 280px; flex: 0 0 280px; margin: 0 18px 18px; overflow: visible; border: 1px solid var(--ui-color-border-strong); border-radius: 10px; background: var(--ui-color-surface); display: flex; flex-direction: column;}
 .composer textarea {min-height: 88px; max-height: none; flex: 1 1 auto; font-size: 13px; resize: none; overflow-y: auto;}
 .composer-toolbar {display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; padding: 4px 10px 10px; gap: 8px;}
-.composer-controls {display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1 1 auto;}
+.composer-controls {display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; flex: 1 1 auto;}
+.skill-picker {min-width: 0; flex: 0 1 120px;}
+.skill-picker select {width: 100%; max-width: 120px;}
 .composer-toolbar .actions {flex-shrink: 0;}
 .composer-toolbar select {font-size: 11px; background: var(--ui-color-surface-subtle); border: 0;}
 .composer-toolbar .muted {font-size: 10px;}
@@ -217,7 +219,7 @@ textarea {color: inherit; background: transparent; resize: vertical; border: 0; 
 .upload-status > span {overflow-wrap: anywhere; min-width: 0; flex: 1;}
 .upload-status progress {max-width: 70px;}
 
-.execution-settings {margin: 0; padding: 0; border: 0; display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1 1 auto;}
+.execution-settings {margin: 0; padding: 0; border: 0; display: flex; align-items: center; gap: 6px; min-width: 160px; flex: 1 0 160px;}
 .execution-model-picker {position: relative; min-width: 0; flex: 1 1 auto;}
 .execution-settings-trigger {width: 100%; max-width: 260px; min-width: 0; gap: 5px; white-space: nowrap; background: var(--ui-color-surface-subtle);}
 .execution-settings-trigger > span:first-child {overflow: hidden; text-overflow: ellipsis;}
@@ -356,6 +358,30 @@ textarea {color: inherit; background: transparent; resize: vertical; border: 0; 
 .management-view .muted, .management-view small {color: var(--ui-color-ink-muted);}
 .page-content {width: min(100%, 1180px); margin-inline: auto; display: flex; flex-direction: column; gap: 24px; min-width: 0;}
 .page-content > * {flex-shrink: 0;}
+.instructions-view[hidden] {display: none;}
+.instruction-guide {font-size: 13px; line-height: 1.7;}
+.instruction-guide summary {cursor: pointer; font-weight: 600;}
+.instruction-guide p {margin-block: 10px;}
+.instruction-controls {display: flex; gap: 16px; align-items: end; flex-wrap: wrap;}
+.instruction-controls label {display: grid; gap: 6px;}
+.instruction-controls input {flex: 1; min-width: 180px; max-width: 480px;}
+.instruction-root {margin: 0; overflow-wrap: anywhere; font: 12px/1.6 monospace;}
+.instruction-columns {display: grid; grid-template-columns: minmax(180px, 270px) minmax(0, 1fr); gap: 24px; align-items: start;}
+.instruction-files {display: flex; flex-direction: column; border-top: 1px solid var(--ui-color-border); max-height: 520px; overflow: auto;}
+.instruction-files button {text-align: left; display: grid; gap: 6px; background: none; border: 0; border-bottom: 1px solid var(--ui-color-border); padding: 14px 10px; cursor: pointer; color: inherit;}
+.instruction-files button[aria-current] {background: var(--ui-color-surface-subtle); border-left: 3px solid var(--ui-color-ink);}
+.instruction-files strong {overflow-wrap: anywhere; font: 12px/1.7 monospace;}
+.instruction-files small {font-size: 11px;}
+.instruction-editor {min-width: 0; display: grid; gap: 14px;}
+.instruction-editor-heading {display: grid; gap: 8px;}
+.instruction-editor h2 {overflow-wrap: anywhere;}
+.instruction-editor textarea {width: 100%; resize: vertical; min-height: 280px; font: 13px/1.7 monospace; tab-size: 2;}
+.instruction-actions {display: flex; flex-wrap: wrap; gap: 8px;}
+@media (max-width: 760px) {
+  .instruction-columns {grid-template-columns: minmax(0, 1fr);}
+  .instruction-files {max-height: 240px;}
+  .instruction-controls {align-items: stretch;}
+}
 .page-footnote {margin: 0; line-height: 1.7;}
 .agent-runs:empty, .template-list:empty {display: none;}
 .native-history-view .task-row strong {white-space: normal; overflow-wrap: anywhere; font-size: 14px;}
