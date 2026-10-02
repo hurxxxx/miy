@@ -1,5 +1,122 @@
 import { expect, test } from '@playwright/test';
 
+test('document workspace uses the viewport, filters readable names, and keeps actions visible across panes and mobile', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 2048, height: 1080 });
+  await page.goto('./?view=instructions');
+  await page
+    .getByLabel('본인 전용 비밀번호')
+    .fill('console-tests-only-password');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: '지침·스킬', exact: true }),
+  ).toBeVisible();
+  const cookie = (await page.context().cookies()).find(
+    (c) => c.name === 'codex_console_csrf',
+  )!;
+  const suffix = Date.now();
+  const path = `docs/ux-${suffix}/AGENTS.md`;
+  const content =
+    '# Team instructions\n\nKeep work focused and review changes before publishing.\n\n' +
+    Array.from(
+      { length: 32 },
+      (_, i) =>
+        `## Procedure ${i + 1}\n\nInspect the requested files, preserve unrelated changes, and verify the result.\n\n- Check the applicable instructions.\n- Report the observed outcome.\n\n`,
+    ).join('');
+  const save = async (path: string, content: string) => {
+    const response = await page.request.put('api/instructions/document', {
+      headers: {
+        Origin: new URL(page.url()).origin,
+        'X-CSRF-Token': decodeURIComponent(cookie.value),
+      },
+      data: { scope: 'project', path, content, revision: null },
+    });
+    expect(response.status()).toBe(200);
+  };
+  await save(path, content);
+  for (let i = 0; i < 28; i++) {
+    const name = `ux-procedure-${String(i).padStart(2, '0')}-${suffix}`;
+    await save(
+      `.agents/skills/${name}/SKILL.md`,
+      `---\nname: ${name}\ndescription: Review a scoped team workflow.\n---\n\n# Review workflow\n\n1. Read the instructions.\n2. Verify the requested changes.\n`,
+    );
+  }
+  await page
+    .getByRole('region', { name: '문서 목록', exact: true })
+    .getByRole('button', { name: '새로고침' })
+    .click();
+  const files = page.getByRole('navigation', { name: '에이전트 참조 문서' });
+  await files.getByRole('button', { name: path, exact: true }).click();
+  await expect(page.getByLabel('문서 미리보기')).toContainText(
+    'Team instructions',
+  );
+  await expect(page.getByLabel('문서 내용', { exact: true })).toHaveCount(0);
+  const columns = await page.locator('.instruction-columns').boundingBox();
+  const sidebar = await page.locator('.sidebar').boundingBox();
+  expect(columns!.x).toBeLessThanOrEqual(sidebar!.width + 32);
+  expect(columns!.width).toBeGreaterThan(2048 - sidebar!.width - 70);
+  const footer = page.locator('.instruction-editor-footer');
+  const before = await footer.boundingBox();
+  await page.locator('.instruction-editor-body').evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  expect((await footer.boundingBox())!.y).toBe(before!.y);
+  expect(before!.y + before!.height).toBeLessThanOrEqual(1080);
+  const filters = page.getByRole('group', { name: '문서 종류 필터' });
+  await filters.getByRole('button', { name: '스킬', exact: true }).click();
+  await expect(
+    files.getByRole('button', { name: path, exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByLabel('문서 검색', { exact: true })
+    .fill(`ux-procedure-04-${suffix}`);
+  await expect(files.getByRole('button')).toHaveCount(1);
+  await expect(files.locator('strong')).toHaveText(`ux-procedure-04-${suffix}`);
+  await page.getByLabel('문서 검색', { exact: true }).fill('no-such-document');
+  await expect(
+    page.getByText('검색한 문서가 없습니다', { exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: '필터 초기화', exact: true }).click();
+  await page.locator('.instruction-editor-body').evaluate((el) => {
+    el.scrollTop = 0;
+  });
+  await page.screenshot({
+    path: '../../.runtime/console-instructions-ux-desktop.png',
+  });
+  await page.setViewportSize({ width: 390, height: 720 });
+  await expect(
+    page.getByRole('button', { name: '문서 목록 보기' }),
+  ).toBeVisible();
+  await expect(files).not.toBeVisible();
+  await expect(
+    page.getByRole('button', { name: '문서 저장', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: '문서 목록 보기' }).click();
+  await expect(files).toBeVisible();
+  const skill = files
+    .getByRole('button')
+    .filter({ hasText: `ux-procedure-04-${suffix}` });
+  await skill.click();
+  await expect(files).not.toBeVisible();
+  await expect(page.getByLabel('문서 미리보기')).toContainText(
+    'Review workflow',
+  );
+  await page.getByRole('button', { name: '편집', exact: true }).click();
+  await expect(page.getByLabel('문서 내용', { exact: true })).toBeVisible();
+  await page.screenshot({
+    path: '../../.runtime/console-instructions-ux-mobile.png',
+  });
+  const geometry = await page.evaluate(() => ({
+    height: document.documentElement.scrollHeight,
+    width: document.documentElement.scrollWidth,
+    scroll: window.scrollY,
+  }));
+  expect(geometry.height).toBeLessThanOrEqual(720);
+  expect(geometry.width).toBeLessThanOrEqual(390);
+  expect(geometry.scroll).toBe(0);
+});
+
 test('edits official documents, keeps drafts, detects conflicts, and asks Codex in a new session', async ({
   page,
 }) => {
@@ -23,7 +140,7 @@ test('edits official documents, keeps drafts, detects conflicts, and asks Codex 
   const editor = page.getByLabel('문서 내용', { exact: true });
   const content = '# Scoped rules\n\nKeep the requested scope.  \n';
   await editor.fill(content);
-  await page.getByRole('button', { name: '문서 저장', exact: true }).click();
+  await editor.press('Control+s');
   await expect(
     page.getByRole('status').filter({ hasText: '저장했습니다' }),
   ).toBeVisible();
@@ -32,6 +149,8 @@ test('edits official documents, keeps drafts, detects conflicts, and asks Codex 
     .getByRole('navigation', { name: '에이전트 참조 문서' })
     .getByRole('button', { name: 'module/AGENTS.override.md' })
     .click();
+  await expect(page.getByLabel('문서 미리보기')).toContainText('Scoped rules');
+  await page.getByRole('button', { name: '편집', exact: true }).click();
   await expect(editor).toHaveValue(content);
   const draft = content + '\nMy draft\n';
   await editor.fill(draft);

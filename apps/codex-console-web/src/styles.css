@@ -358,29 +358,101 @@ textarea {color: inherit; background: transparent; resize: vertical; border: 0; 
 .management-view .muted, .management-view small {color: var(--ui-color-ink-muted);}
 .page-content {width: min(100%, 1180px); margin-inline: auto; display: flex; flex-direction: column; gap: 24px; min-width: 0;}
 .page-content > * {flex-shrink: 0;}
+/* The document workspace uses the available viewport; its panes scroll independently. */
 .instructions-view[hidden] {display: none;}
-.instruction-guide {font-size: 13px; line-height: 1.7;}
-.instruction-guide summary {cursor: pointer; font-weight: 600;}
-.instruction-guide p {margin-block: 10px;}
-.instruction-controls {display: flex; gap: 16px; align-items: end; flex-wrap: wrap;}
-.instruction-controls label {display: grid; gap: 6px;}
-.instruction-controls input {flex: 1; min-width: 180px; max-width: 480px;}
-.instruction-root {margin: 0; overflow-wrap: anywhere; font: 12px/1.6 monospace;}
-.instruction-columns {display: grid; grid-template-columns: minmax(180px, 270px) minmax(0, 1fr); gap: 24px; align-items: start;}
-.instruction-files {display: flex; flex-direction: column; border-top: 1px solid var(--ui-color-border); max-height: 520px; overflow: auto;}
-.instruction-files button {text-align: left; display: grid; gap: 6px; background: none; border: 0; border-bottom: 1px solid var(--ui-color-border); padding: 14px 10px; cursor: pointer; color: inherit;}
-.instruction-files button[aria-current] {background: var(--ui-color-surface-subtle); border-left: 3px solid var(--ui-color-ink);}
-.instruction-files strong {overflow-wrap: anywhere; font: 12px/1.7 monospace;}
-.instruction-files small {font-size: 11px;}
-.instruction-editor {min-width: 0; display: grid; gap: 14px;}
-.instruction-editor-heading {display: grid; gap: 8px;}
-.instruction-editor h2 {overflow-wrap: anywhere;}
-.instruction-editor textarea {width: 100%; resize: vertical; min-height: 280px; font: 13px/1.7 monospace; tab-size: 2;}
-.instruction-actions {display: flex; flex-wrap: wrap; gap: 8px;}
+.instructions-view {overflow: hidden; padding: 24px;}
+.instructions-view .page-content {width: 100%; height: 100%; gap: 20px;}
+.instructions-view .page-heading {gap: 16px; align-items: center;}
+.instructions-view .page-heading h1 {font-size: 24px; margin-bottom: 4px;}
+.instructions-view .page-heading p {margin: 0; font-size: 13px;}
+.instruction-guide {font-size: 13px; line-height: 1.8;}
+.instruction-guide p {margin-block: 12px;}
+.instruction-guide a {color: var(--ui-color-info); text-decoration: underline;}
+.instruction-columns {display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 0; flex: 1 1 0; min-height: 0; border: 1px solid var(--ui-color-border); border-radius: 10px; overflow: hidden;}
+.instruction-library {display: flex; flex-direction: column; min-width: 0; min-height: 0; border-right: 1px solid var(--ui-color-border); background: var(--ui-color-surface-subtle);}
+.instruction-library-tools {padding: 16px 14px 10px; display: grid; gap: 12px; flex-shrink: 0;}
+.instruction-scope-row {display: flex; align-items: center; gap: 6px;}
+.instruction-scope-row select {flex: 1; min-width: 0; height: 32px; background: var(--ui-color-surface); font-size: 12px;}
+.instruction-search {position: relative; min-width: 0;}
+.instruction-search > svg {position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--ui-color-ink-subtle); pointer-events: none;}
+.instruction-search input {width: 100%; padding-left: 32px; height: 34px; font-size: 12px; background: var(--ui-color-surface);}
+.instruction-kind-filters {display: flex; gap: 4px;}
+.instruction-kind-filters button {font-size: 11px; line-height: 1.4; padding: 5px 7px; border: 1px solid transparent; border-radius: 5px; color: var(--ui-color-ink-muted); white-space: nowrap;}
+.instruction-kind-filters button[aria-pressed='true'] {background: var(--ui-color-surface); border-color: var(--ui-color-border); color: var(--ui-color-ink); font-weight: 600;}
+.instruction-library-summary {display: flex; justify-content: space-between; gap: 12px; color: var(--ui-color-ink-subtle); font-size: 11px;}
+.instruction-root {display: inline-flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
+.instruction-files {display: flex; flex-direction: column; overflow: auto; min-height: 0; flex: 1; padding: 4px 8px 12px; scrollbar-gutter: stable;}
+.instruction-files button {display: flex; align-items: center; gap: 10px; text-align: left; padding: 11px 10px; border: 1px solid transparent; border-radius: 7px; color: inherit; background: none; cursor: pointer; min-width: 0; flex-shrink: 0;}
+.instruction-files button > svg {flex-shrink: 0; color: var(--ui-color-ink-subtle);}
+.instruction-files button:hover {background: var(--ui-color-surface);}
+.instruction-files button[aria-current] {background: var(--ui-color-surface); border-color: var(--ui-color-border); box-shadow: var(--ui-shadow-sm);}
+.instruction-files button[aria-current] > svg {color: var(--ui-color-ink);}
+.instruction-file-label {display: grid; gap: 4px; min-width: 0; flex: 1;}
+.instruction-file-label strong {font-size: 12px; line-height: 1.5; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
+.instruction-file-label small {font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ui-color-ink-subtle);}
+.instruction-draft-dot {display: inline-block; width: 6px; height: 6px; background: var(--ui-color-info); border-radius: 50%; flex-shrink: 0;}
+.instruction-no-results {display: grid; justify-items: center; gap: 12px; padding: 32px 12px; text-align: center; color: var(--ui-color-ink-subtle); font-size: 12px;}
+.instruction-no-results p {margin: 0;}
+.instruction-editor {display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--ui-color-surface);}
+.instruction-editor-heading {display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding: 18px 24px 12px; flex-shrink: 0;}
+.instruction-editor-title {display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;}
+.instruction-editor-title > div {min-width: 0;}
+.instruction-editor-heading h2 {overflow-wrap: anywhere; font-size: 16px; line-height: 1.5; margin: 0 0 4px;}
+.instruction-editor-heading small {font-size: 11px;}
+.instruction-mode {display: flex; padding: 3px; border: 1px solid var(--ui-color-border); border-radius: 7px; gap: 3px; background: var(--ui-color-surface-subtle); flex-shrink: 0;}
+.instruction-mode button {padding: 5px 12px; font-size: 12px; border: 0; border-radius: 4px; color: var(--ui-color-ink-muted);}
+.instruction-mode button[aria-pressed='true'] {background: var(--ui-color-surface); color: var(--ui-color-ink); box-shadow: var(--ui-shadow-sm); font-weight: 600;}
+.instruction-location {padding: 0 24px 14px; border-bottom: 1px solid var(--ui-color-border); font: 11px/1.7 var(--ui-font-mono); color: var(--ui-color-ink-subtle); flex-shrink: 0;}
+.instruction-location summary {cursor: pointer; overflow-wrap: anywhere;}
+.instruction-location code {display: block; padding: 8px 0 0; overflow-wrap: anywhere; font-size: 10px;}
+.instruction-editor-body {flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column;}
+.instruction-editor-body.editing {background: var(--ui-color-surface-subtle);}
+.instruction-editor-body textarea {width: 100%; resize: none; min-height: 160px; flex: 1 0 160px; padding: 20px 24px; background: var(--ui-color-surface); font: 13px/1.8 var(--ui-font-mono); tab-size: 2;}
+.instruction-preview {padding: 24px 32px 36px; width: min(100%, 960px); margin-inline: auto;}
+.instruction-preview .markdown {font-size: 14px; line-height: 1.9;}
+.instruction-preview .markdown > :first-child {margin-top: 0;}
+.instruction-preview .markdown h1 {font-size: 24px;}
+.instruction-preview .markdown h2 {font-size: 18px; margin-top: 28px;}
+.instruction-preview pre, .instruction-metadata pre {white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.8 var(--ui-font-mono);}
+.instruction-metadata {border: 1px solid var(--ui-color-border); background: var(--ui-color-surface-subtle); border-radius: 6px; padding: 10px 12px; margin-bottom: 24px; font-size: 12px;}
+.instruction-metadata summary {cursor: pointer; color: var(--ui-color-ink-muted);}
+.instruction-editor-footer {padding: 12px 18px; border-top: 1px solid var(--ui-color-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: var(--ui-color-surface); flex-shrink: 0;}
+.instruction-save-state {display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ui-color-ink-subtle);}
+.instruction-save-state kbd {font: 10px var(--ui-font-mono); padding-left: 8px; color: var(--ui-color-ink-subtle);}
+.instruction-actions {display: flex; gap: 6px; flex-wrap: wrap;}
+.instruction-editor-empty {justify-content: center;}
+.instruction-editor-empty .page-empty {border: 0; background: none;}
+.instruction-alert {margin: 12px 18px; font-size: 12px; line-height: 1.7; flex-shrink: 0; color: var(--ui-color-danger-text);}
+.instruction-editor-body > .stack {padding: 16px 24px; flex-shrink: 0;}
+.instruction-mobile-picker {display: none;}
+@media (max-width: 1100px) {
+  .instruction-columns {grid-template-columns: 240px minmax(0, 1fr);}
+  .instruction-editor-heading {padding: 16px;}
+  .instruction-location {padding-inline: 16px;}
+  .instruction-preview {padding: 20px;}
+  .instruction-editor-body textarea {padding: 18px;}
+  .instruction-editor-footer {padding: 10px 12px;}
+  .instruction-save-state kbd {display: none;}
+}
 @media (max-width: 760px) {
-  .instruction-columns {grid-template-columns: minmax(0, 1fr);}
-  .instruction-files {max-height: 240px;}
-  .instruction-controls {align-items: stretch;}
+  .instructions-view {padding: 16px;}
+  .instructions-view .page-content {gap: 16px;}
+  .instructions-view .page-heading {align-items: start;}
+  .instructions-view .page-heading h1 {font-size: 21px;}
+  .instructions-view .page-heading p {font-size: 12px;}
+  .instruction-columns {display: flex; flex-direction: column;}
+  .instruction-library {border-right: 0; flex: 1;}
+  .instruction-columns[data-document-open='true'] .instruction-library {display: none;}
+  .instruction-columns[data-document-open='true'][data-files-open='true'] .instruction-library {display: flex;}
+  .instruction-columns[data-document-open='true'][data-files-open='true'] .instruction-editor {display: none;}
+  .instruction-columns[data-document-open='false'] .instruction-editor-empty {display: none;}
+  .instruction-editor {flex: 1;}
+  .instruction-mobile-picker {display: inline-flex;}
+  .instruction-editor-heading {padding: 12px;}
+  .instruction-location {padding: 0 12px 10px;}
+  .instruction-editor-footer {gap: 8px;}
+  .instruction-actions {width: 100%; justify-content: flex-end;}
+  .instruction-preview {padding: 18px;}
 }
 .page-footnote {margin: 0; line-height: 1.7;}
 .agent-runs:empty, .template-list:empty {display: none;}
