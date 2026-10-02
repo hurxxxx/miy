@@ -428,6 +428,12 @@ DNS 없이 서버 IP로 구성할 때는 IP SAN 인증서와 PC의 CA 신뢰 등
 [설치 운영 확인](../../domains/release/installation-operations.md#https-trust)에 따라 준비한다.
 `https://<서버-IP>:<HTTPS-포트>/`를 launch URL로 사용하며 loopback API 포트를 공개하지 않는다.
 
+miy 자동 로그인의 발행 origin도 HTTPS여야 한다. 허용된 issuer에 사설 CA를 사용하면
+PC뿐 아니라 Console 서비스 호스트에도 CA를 신뢰 등록한다. 서버의 코드 교환은 Python
+`ssl.create_default_context()`의 시스템 신뢰 저장소를 사용하며 인증서·호스트명 검증을 유지한다.
+전용 CA 파일이 필요하면 서비스 환경의 `SSL_CERT_FILE`로 지정할 수 있다. HTTP 프록시 환경변수는
+코드 교환에 적용하지 않으며, 리다이렉트도 따르지 않는다. TLS 회귀 테스트에는 `openssl` 실행 파일이 필요하다.
+
 이미 사용 중인 주소를 바꿀 때는 실행 중인 콘솔 작업을 먼저 완료·중단한다. 전용 프록시를
 준비한 뒤 콘솔 origin·base path를 함께 변경하고 콘솔 서비스를 재시작한다. 새 주소에서
 로그인·API·SSE·첨부 업로드를 확인한 후 miy launch URL을 반영하고 개발 서비스를 재시작한다.

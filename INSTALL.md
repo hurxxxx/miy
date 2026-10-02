@@ -988,6 +988,8 @@ Platform API 키나 miy AI 공급자 설정을 요구하지 않는다.
   기존 개발 사이트의 `/codex-console/`를 Vite로 연결하는 대안은 개발 Web 재시작 시 접속이 중단된다.
   IP 기반 최초 설치에는 [HTTPS 신뢰 등록](docs/domains/release/installation-operations.md#https-trust)을 적용한다.
   외부 HTTP origin 허용이나 Codex 인증 파일 복사로 우회하지 않는다.
+- miy 자동 로그인은 HTTPS 발행 origin에서 확인한다. 사설 CA를 사용하면 PC와 Console 서비스 호스트
+  양쪽의 신뢰 저장소를 준비한다. [서버의 인증서 검증](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
 - miy의 typed launch URL 설정과 관리자 앱 사용 설정에서 `codex-console`을 활성화한다.
   URL 미설정·비활성화 상태에서는 개인 앱에 노출되지 않는다. 자동 로그인을 사용할 때는
   [개인 앱과 HTTPS 접속 연결](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)에 따라
