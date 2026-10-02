@@ -35,7 +35,8 @@ textarea {color: inherit; background: transparent; resize: vertical; border: 0; 
 .danger {color: var(--ui-color-danger-text);}
 .brand {display: flex; gap: 9px; align-items: center; font-size: 14px;}
 .brand-mark {display: grid; place-items: center; width: 50px; height: 50px; background: var(--ui-color-accent); color: var(--ui-color-accent-fg); border-radius: 14px;}
-.console-shell {height: 100dvh; display: grid; grid-template-columns: 244px minmax(0, 1fr); grid-template-rows: 56px minmax(0, 1fr); overflow: hidden;}
+/* Keep absolutely positioned accessibility text inside the viewport shell. */
+.console-shell {position: relative; height: 100dvh; display: grid; grid-template-columns: 244px minmax(0, 1fr); grid-template-rows: 56px minmax(0, 1fr); overflow: hidden;}
 .topbar {background: var(--ui-color-surface); grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; border-bottom: 1px solid var(--ui-color-border); gap: 8px;}
 .topbar-actions {display: flex; align-items: center; gap: 14px;}
 .account-badge {display: flex; gap: 7px; align-items: center; background: transparent; border: 0; color: var(--ui-color-ink-muted); font-size: 12px; padding: 6px 0;}
