@@ -77,7 +77,7 @@ FORBIDDEN_ENV_KEYS = frozenset(
 )
 
 FORBIDDEN_ENV_PATTERNS = [
-    re.compile(r"\bOPEN_WORK_HUB_[A-Z0-9_]*\b"),
+    re.compile(r"\b(?:VITE_)?(?:OPEN_WORK_HUB|OWH)_[A-Z0-9_]*\b"),
     re.compile(r"(?<!MIY_)\bLOCAL_AI_[A-Z0-9_]*\b"),
     re.compile(r"\bAI_AGENT_MAX_[A-Z0-9_]*\b"),
     re.compile(r"\bAI_TOOL_CALLING_ENABLED\b"),

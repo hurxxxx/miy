@@ -76,6 +76,10 @@ add `--apply` only for the intended file. The helper requires a private, owned r
 file, makes a mode-0600 recovery backup and preserves every value, including existing
 database, bucket, index and path names. Colliding keys and interpolated references
 require manual review. Console configuration is a separate explicitly selected file.
+The helper also accepts the earlier `owh` and `open-work-hub` environment key
+prefixes, including browser keys. All previous prefixes map to the same miy key;
+collisions between old prefixes or with an existing miy key are refused. Secret
+values and physical data names are preserved.
 
 The API migration `miy_api_keys_20261001` permits new `miy_pk_` keys alongside existing
 keys without rewriting credentials; downgrade is blocked while any new keys remain.
@@ -91,7 +95,7 @@ their email, password, user ID and permissions are preserved when the default br
 
 ### Existing installation paths
 
-Move an existing checkout root from `mty` to `miy` only after inventorying its
+Move an existing `mty` or `open-work-hub` checkout root to `miy` only after inventorying its
 linked worktrees, service units, host bind mounts and private path settings. Stop
 checkout-local processes and Console executors after confirming that no root or
 child agent is active. Back up Console SQLite with its consistent backup command
@@ -115,6 +119,13 @@ granted roots; do not rewrite prompts or conversation history to remove old name
 Archived virtual environments may require reconstruction at a new release path
 before rollback; their obsolete generated entrypoints are not live dependencies. When moving service-account homes, use `usermod --move-home`
 after stopping their processes and retain their UID, ownership and private modes.
+
+Retire disabled units that still start the old checkout after verifying the miy
+replacement is active. Keep their definitions and inactive Console configuration,
+releases and database backups in a private miy backup directory. Do not rename
+stopped application containers, volume identities or rollback manifests merely to
+remove old text: paired recovery uses their recorded names. They are recovery
+artifacts, not the active runtime.
 
 Python virtual environments contain absolute interpreter paths and entrypoint
 shebangs. Prepare fresh Console releases at the new location, installing each
