@@ -23,7 +23,10 @@ test('monitoring links to templates without running commands and task history st
   expect(await (await page.request.get('api/overview')).json()).toHaveLength(
     before.length,
   );
-  await page.getByRole('button', { name: '새 작업', exact: true }).click();
+  await page
+    .locator('#console-sidebar')
+    .getByRole('button', { name: '새 작업', exact: true })
+    .click();
   await page.getByLabel('작업 제목').fill('모니터링 후 작업');
   await submitNewTask(page);
   await expect(page.getByLabel('실행 모드')).toHaveValue('plan');
@@ -34,7 +37,7 @@ test('monitoring links to templates without running commands and task history st
   expect(task.executor).toBe('session');
   await page
     .getByRole('navigation', { name: '콘솔 메뉴' })
-    .getByRole('button', { name: '에이전트', exact: true })
+    .getByRole('button', { name: '세션', exact: true })
     .click();
   const card = page.locator('.overview-task').filter({ hasText: task.title });
   await card.getByRole('button', { name: '고정', exact: true }).click();
@@ -45,7 +48,9 @@ test('monitoring links to templates without running commands and task history st
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: '메뉴 열기' }).click();
   await expect(
-    page.getByRole('button', { name: '새 작업', exact: true }),
+    page
+      .locator('#console-sidebar')
+      .getByRole('button', { name: '새 작업', exact: true }),
   ).toBeVisible();
   expect(
     await page.evaluate(

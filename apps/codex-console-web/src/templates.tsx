@@ -585,7 +585,12 @@ export function Templates({
             />
           </label>
           <fieldset>
-            <legend>{t('Available skills')}</legend>
+            <legend>{t('Explicit skills for this run')}</legend>
+            <p className="muted">
+              {t(
+                'Selected skills are explicitly requested. Codex can also choose unselected skills when their descriptions match, unless implicit invocation is disabled.',
+              )}
+            </p>
             {catalogError && (
               <p role="status">
                 {t(

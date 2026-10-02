@@ -1,7 +1,6 @@
 import { AgentTree, ManagementView, useOverview } from './management';
 import { PageLayout } from './page-layout';
-import { SessionList, sortSessions } from './sessions';
-import { useTaskSearch } from './task-search';
+import { SessionsView, type SessionFilters } from './sessions';
 import { Button, Dialog, Input } from '@miy/ui';
 import {
   Activity,
@@ -10,7 +9,7 @@ import {
   MessagesSquare,
   CircleStop,
   Code2,
-  Bot,
+  BookOpen,
   ListTodo,
   LogOut,
   Menu,
@@ -20,14 +19,7 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   active,
   api,
@@ -66,8 +58,8 @@ import {
 import { AttachmentBadges, FileLibrary } from './attachments';
 import { CodexUpdateGuide } from './codex-update';
 import { Templates } from './templates';
+import { Instructions } from './instructions';
 import { AgentActivity } from './agent-activity';
-import { AgentsView, type AgentFilters } from './agents';
 import { needsAttention, executing, running } from './agent-state';
 import { GitWorkspace, GitSummary, useGitState } from './git';
 import {
@@ -90,7 +82,7 @@ type ConsolePage =
   | 'sessions'
   | 'workspace'
   | 'templates'
-  | 'agents'
+  | 'instructions'
   | 'monitoring';
 function readRoute(): {
   page: ConsolePage;
@@ -107,11 +99,9 @@ function readRoute(): {
     ? 'workspace'
     : tab === 'codex'
       ? 'sessions'
-      : view === 'history'
-        ? 'agents'
-        : view === 'templates' || view === 'agents' || view === 'monitoring'
-          ? view
-          : 'sessions';
+      : view === 'templates' || view === 'monitoring' || view === 'instructions'
+        ? view
+        : 'sessions';
   const template = params.get('template');
   return {
     page,
@@ -119,7 +109,8 @@ function readRoute(): {
     sessionTab:
       page === 'sessions' ? (tab === 'codex' ? 'codex' : 'sessions') : null,
     template:
-      page === 'agents' &&
+      page === 'sessions' &&
+      tab !== 'codex' &&
       template &&
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
         template,
@@ -167,7 +158,7 @@ export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const sidebar = useRef<HTMLElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
-  const [agentFilters, setAgentFilters] = useState<AgentFilters>({
+  const [sessionFilters, setSessionFilters] = useState<SessionFilters>({
     status: 'all',
     source: 'all',
     query: '',
@@ -175,45 +166,7 @@ export function App() {
   const [sessionTab, setSessionTab] = useState<SessionTab>(
     () => readRoute().sessionTab,
   );
-  const [sessionQuery, setSessionQuery] = useState('');
-  const [sessionRetry, setSessionRetry] = useState(0);
-  const sessionViewport = useRef<HTMLElement>(null);
   const sessionScroll = useRef(0);
-  const restoreSessionScroll = useRef(true);
-  const sessionSearch = useTaskSearch(
-    tasks,
-    sessionQuery.trim(),
-    null,
-    sessionRetry,
-    authenticated === true && page === 'sessions' && sessionTab === 'sessions',
-  );
-  const sessionRows = sortSessions(
-    sessionSearch.remote
-      ? sessionSearch.search.key === sessionSearch.key
-        ? sessionSearch.search.rows
-        : []
-      : tasks,
-  );
-  const sessionsLoading = sessionSearch.remote
-    ? sessionSearch.search.key !== sessionSearch.key ||
-      sessionSearch.search.loading
-    : !overviewCheckedAt && !overviewFailed;
-  const sessionsFailed = sessionSearch.remote
-    ? sessionSearch.search.key === sessionSearch.key &&
-      sessionSearch.search.failed
-    : overviewFailed;
-  useLayoutEffect(() => {
-    if (
-      page !== 'sessions' ||
-      sessionTab !== 'sessions' ||
-      sessionsLoading ||
-      !restoreSessionScroll.current ||
-      !sessionViewport.current
-    )
-      return;
-    sessionViewport.current.scrollTop = sessionScroll.current;
-    restoreSessionScroll.current = false;
-  }, [page, sessionTab, sessionQuery, sessionsLoading, sessionRows.length]);
   const [templateId, setTemplateId] = useState(() => readRoute().template);
   const [history, setHistory] = useState<Thread[]>([]);
   const [historyCursor, setHistoryCursor] = useState<string | null>(null);
@@ -417,8 +370,12 @@ export function App() {
     [act, refreshTask, refreshTasks],
   );
   const send = useCallback(
-    async (suffix: string, data: Record<string, unknown>) => {
-      const taskId = selectedRef.current;
+    async (
+      suffix: string,
+      data: Record<string, unknown>,
+      requestedTaskId?: string,
+    ) => {
+      const taskId = requestedTaskId ?? selectedRef.current;
       if (!taskId) return false;
       const payload = { attachment_ids: attachmentIds, ...data };
       const key = JSON.stringify([taskId, suffix, payload]);
@@ -727,11 +684,7 @@ export function App() {
     if (selected) drafts.current.set(selected, message);
     setPage(next);
     setSessionTab(next === 'sessions' ? (tab ?? 'sessions') : null);
-    if (
-      next === 'sessions' &&
-      (page !== 'sessions' || sessionTab !== (tab ?? 'sessions'))
-    )
-      restoreSessionScroll.current = true;
+    if (template !== templateId) sessionScroll.current = 0;
     setTemplateId(template);
     setSidebarOpen(false);
     window.history.pushState(
@@ -767,17 +720,13 @@ export function App() {
       setPage(route.page);
       setSidebarOpen(false);
       setSessionTab(route.sessionTab);
-      if (
-        route.page === 'sessions' &&
-        (page !== 'sessions' || sessionTab !== route.sessionTab)
-      )
-        restoreSessionScroll.current = true;
+      if (route.template !== templateId) sessionScroll.current = 0;
       setTemplateId(route.template);
       if (route.task) setSelected(route.task);
     };
     window.addEventListener('popstate', pop);
     return () => window.removeEventListener('popstate', pop);
-  }, [selected, message, page, sessionTab]);
+  }, [selected, message, templateId]);
   const sessionNavigation = (
     <div className="history-tabs" role="group" aria-label={t('Session views')}>
       <button
@@ -793,52 +742,6 @@ export function App() {
         {t('Import Codex session')}
       </button>
     </div>
-  );
-  const sessionSearchInput = (id: string) => (
-    <Input
-      type="search"
-      id={id}
-      aria-label={t('Search sessions')}
-      placeholder={t('Search sessions')}
-      maxLength={200}
-      value={sessionQuery}
-      onChange={(event) => {
-        sessionScroll.current = 0;
-        restoreSessionScroll.current = true;
-        setSessionQuery(event.target.value);
-      }}
-    />
-  );
-  const sessionFeedback = (
-    <>
-      {sessionsFailed ? (
-        <div className="session-notice" role="status">
-          <p>
-            {t(
-              'Session list could not be refreshed. Showing the last received state.',
-            )}
-          </p>
-          <Button
-            variant="ghost"
-            onClick={() =>
-              sessionSearch.remote
-                ? setSessionRetry((value) => value + 1)
-                : void refreshTasks().catch(onError)
-            }
-          >
-            {t('Retry')}
-          </Button>
-        </div>
-      ) : sessionsLoading ? (
-        <p className="session-notice" role="status">
-          {t('Searching')}
-        </p>
-      ) : !sessionRows.length ? (
-        <p className="session-notice" role="status">
-          {t(sessionQuery.trim() ? 'No matching sessions' : 'No sessions yet')}
-        </p>
-      ) : null}
-    </>
   );
   const uploadStatus = uploads.map((upload, index) => (
     <div className="upload-status" key={index} role="status">
@@ -991,7 +894,7 @@ export function App() {
             failed={overviewFailed}
             t={t}
             openTask={choose}
-            openAgents={() => navigate('agents')}
+            openSessions={() => navigate('sessions')}
           />
           <button
             className="account-badge"
@@ -1062,7 +965,7 @@ export function App() {
             [
               ['sessions', 'Sessions', MessagesSquare],
               ['templates', 'Task templates', ListTodo],
-              ['agents', 'Agents', Bot],
+              ['instructions', 'Instructions and skills', BookOpen],
               ['monitoring', 'Monitoring', Activity],
             ] as const
           ).map(([id, label, Icon]) => (
@@ -1077,7 +980,7 @@ export function App() {
             >
               <Icon size={17} />
               <span>{t(label)}</span>
-              {id === 'agents' && tasks.some(needsAttention) && (
+              {id === 'sessions' && tasks.some(needsAttention) && (
                 <span className="nav-count">
                   {tasks.filter(needsAttention).length}
                 </span>
@@ -1111,14 +1014,40 @@ export function App() {
           </Button>
         </footer>
       </aside>
-      {page === 'templates' ? (
+      <Instructions
+        active={page === 'instructions'}
+        t={t}
+        onRequest={async (title, text, requestStage) => {
+          const next = await api<Detail>('/tasks', { title, isolate: false });
+          drafts.current.set(next.id, text);
+          choose(next.id);
+          // Reuse operation IDs, uncertainty recovery and the native approval flow.
+          const accepted = await send(
+            requestStage === 'plan' ? 'messages' : 'implement',
+            {
+              text,
+              ...(requestStage === 'plan' ? { stage: 'plan' } : {}),
+              model: null,
+              effort: null,
+              permissions: 'ask',
+              attachment_ids: [],
+            },
+            next.id,
+          );
+          if (accepted) {
+            drafts.current.delete(next.id);
+            if (selectedRef.current === next.id) setMessage('');
+          }
+        }}
+      />
+      {page === 'instructions' ? null : page === 'templates' ? (
         <Templates
           t={t}
           openTask={choose}
           onError={onError}
           openHistory={(id) => {
-            setAgentFilters({ status: 'all', source: 'all', query: '' });
-            navigate('agents', null, id);
+            setSessionFilters({ status: 'all', source: 'all', query: '' });
+            navigate('sessions', null, id);
           }}
         />
       ) : page === 'monitoring' ? (
@@ -1127,21 +1056,6 @@ export function App() {
           tasks={tasks}
           openTask={choose}
           openTemplates={() => navigate('templates')}
-        />
-      ) : page === 'agents' ? (
-        <AgentsView
-          templateId={templateId}
-          clearTemplate={() => navigate('agents')}
-          checkedAt={overviewCheckedAt}
-          failed={overviewFailed}
-          filters={agentFilters}
-          onFilters={setAgentFilters}
-          t={t}
-          tasks={tasks}
-          openTask={choose}
-          openTemplates={() => navigate('templates')}
-          refresh={refreshTasks}
-          onError={onError}
         />
       ) : sessionTab === 'codex' ? (
         <PageLayout
@@ -1200,42 +1114,25 @@ export function App() {
           )}
         </PageLayout>
       ) : sessionTab === 'sessions' ? (
-        <PageLayout
-          className="sessions-view"
-          scrollRef={sessionViewport}
-          onScroll={(event) => {
-            if (!restoreSessionScroll.current)
-              sessionScroll.current = event.currentTarget.scrollTop;
-          }}
-          title={t('Sessions')}
-          description={t('Find a conversation and continue in your workspace.')}
-          actions={
-            <Button variant="primary" onClick={() => setNewOpen(true)}>
-              <Plus size={16} aria-hidden="true" />
-              {t('New task')}
-            </Button>
-          }
-          navigation={sessionNavigation}
-        >
-          <div className="list-toolbar">
-            {sessionSearchInput('all-session-search')}
-          </div>
-          {sessionFeedback}
-          <div aria-busy={sessionsLoading}>
-            <SessionList
-              tasks={sessionRows}
-              selected={selected}
-              locale={locale}
-              t={t}
-              openTask={choose}
-            />
-          </div>
-          <p className="page-footnote muted">
-            {t(
-              'Recent work is shown here. Search by title to find older runs.',
-            )}
-          </p>
-        </PageLayout>
+        <SessionsView
+          key={templateId ?? 'all'}
+          templateId={templateId}
+          clearTemplate={() => navigate('sessions')}
+          checkedAt={overviewCheckedAt}
+          failed={overviewFailed}
+          filters={sessionFilters}
+          onFilters={setSessionFilters}
+          t={t}
+          tasks={tasks}
+          selectedTask={selected}
+          openTask={choose}
+          newTask={() => setNewOpen(true)}
+          openTemplates={() => navigate('templates')}
+          refresh={refreshTasks}
+          onError={onError}
+          importSession={() => navigate('sessions', 'codex')}
+          scrollPosition={sessionScroll}
+        />
       ) : !task ? (
         <main className="welcome">
           <div className="brand-mark">
@@ -1548,7 +1445,7 @@ export function App() {
                     t={t}
                   />
                   {!!skills.length && (
-                    <label>
+                    <label className="skill-picker">
                       <span className="sr-only">{t('Use a skill')}</span>
                       <select
                         aria-label={t('Use a skill')}

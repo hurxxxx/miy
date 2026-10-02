@@ -1,4 +1,81 @@
 export const korean = {
+  'Root folder': '최상위 폴더',
+  'All documents': '전체',
+  'Supporting files': '참고·설정',
+  'Document types': '문서 종류 필터',
+  'Document library': '문서 목록',
+  'No matching documents': '검색한 문서가 없습니다',
+  'Show document list': '문서 목록 보기',
+  'Document view': '문서 보기 방식',
+  'Read document': '읽기',
+  'Edit source': '편집',
+  Skills: '스킬',
+  Documents: '문서',
+  'Document preview': '문서 미리보기',
+  'No unsaved changes': '변경 없음',
+  'Save your changes before asking Codex.':
+    'Codex에 요청하기 전에 변경을 저장하세요.',
+
+  'Latest saved content': '최신 저장 내용',
+  'Keep my draft against this version': '이 버전을 기준으로 내 초안 유지',
+  'Use the latest saved content': '최신 저장 내용으로 교체',
+  'Instructions and skills': '지침·스킬',
+  'Edit the files Codex reads, or ask Codex to improve them.':
+    'Codex가 참조하는 원본 문서를 편집하거나 Codex에 개선을 요청하세요.',
+  'New document': '문서 만들기',
+  'How Codex uses these files': '문서가 적용되는 방식',
+  'AGENTS.md supplies persistent instructions. AGENTS.override.md takes precedence in the same folder. More specific folders add their own instructions.':
+    'AGENTS.md는 작업 지침입니다. 같은 폴더에서는 AGENTS.override.md가 우선하고, 하위 폴더 지침이 더 구체적인 규칙을 추가합니다.',
+  'SKILL.md defines a reusable procedure with a name and description. Codex can choose matching skills automatically; selecting a skill explicitly requests it.':
+    'SKILL.md는 이름·설명이 있는 재사용 작업 절차입니다. 설명이 맞으면 Codex가 자동 선택할 수 있고, 체크하면 명시적으로 사용을 요청합니다.',
+  'agents/openai.yaml can set allow_implicit_invocation to false. References hold supporting Markdown. Installed plugins and system skills are managed by their installer.':
+    'agents/openai.yaml에서 allow_implicit_invocation을 false로 설정하면 자동 호출을 끌 수 있습니다. references에는 참고 문서를 둡니다. 설치된 플러그인·시스템 스킬은 설치 도구로 관리합니다.',
+  'Instruction changes apply to new sessions. Start a new session to verify them. Skill discovery is refreshed from the original files.':
+    '지침 변경은 새 세션에서 확인하세요. 스킬 목록은 원본 파일에서 다시 불러옵니다.',
+  'Official instruction documentation': '공식 지침 문서',
+  'Official skill documentation': '공식 스킬 문서',
+  'Document scope': '적용 범위',
+  'Project documents': '프로젝트 문서',
+  'Personal skills': '개인 스킬',
+  'Global instructions': '전역 지침·스킬',
+  'Search documents': '문서 검색',
+  'Loading documents': '문서 불러오는 중',
+  'Agent documents': '에이전트 참조 문서',
+  Instructions: '지침',
+  Skill: '스킬',
+  'Skill metadata': '스킬 메타데이터',
+  Reference: '참고 문서',
+  'No documents in this scope': '이 범위에 문서가 없습니다',
+  'Document editor': '문서 편집기',
+  'Document content': '문서 내용',
+  'Unsaved changes': '저장하지 않은 변경',
+  'Ask Codex to edit': 'Codex에 수정 요청',
+  'Reload document': '문서 다시 읽기',
+  'Load latest version and keep my draft': '최신 버전 확인 후 내 초안 유지',
+  'Save your changes before asking Codex. Drafts stay here while navigating the console.':
+    'Codex에 요청하기 전에 변경을 저장하세요. 콘솔 메뉴를 이동해도 작성 중인 초안은 유지됩니다.',
+  'Choose an agent document': '참조 문서를 선택하세요',
+  'Open a file to edit it, or create instructions or a skill at an official location.':
+    '파일을 열어 편집하거나 공식 경로에 지침·스킬을 만드세요.',
+  'Document type': '문서 종류',
+  'Document path': '문서 경로',
+  'Paths are relative to the selected scope. Subfolder instructions and skill references are supported.':
+    '선택한 범위의 기준 폴더에서 상대 경로를 입력하세요. 하위 폴더 지침과 스킬 참고 문서를 지원합니다.',
+  'Open document': '문서 열기',
+  'Requested changes': '수정할 내용',
+  'Planning proposes changes without editing. Implementation uses the existing Codex permissions and approval flow. Results open in a new session.':
+    '계획 모드는 변경안을 제안합니다. 실행 모드는 기존 Codex 권한·승인 절차로 수정합니다. 결과는 새 세션에서 확인합니다.',
+  'Send request': '요청 보내기',
+  'Explicit skills for this run': '명시적으로 사용할 스킬',
+  'Selected skills are explicitly requested. Codex can also choose unselected skills when their descriptions match, unless implicit invocation is disabled.':
+    '체크한 스킬은 이번 실행에 명시적으로 요청합니다. 체크하지 않아도 설명이 작업과 맞으면 자동으로 사용할 수 있습니다. 자동 호출을 끈 스킬은 제외됩니다.',
+  'This document changed elsewhere. Your draft is preserved; review the latest version before saving.':
+    '다른 곳에서 문서가 변경되었습니다. 초안은 유지됩니다. 최신 버전을 확인하고 저장하세요.',
+  'Agent documents must be UTF-8 text under 64 KiB.':
+    '참조 문서는 64 KiB 이하 UTF-8 텍스트여야 합니다.',
+  'SKILL.md needs YAML frontmatter with name and description.':
+    'SKILL.md 상단에 name과 description이 있는 YAML 메타데이터가 필요합니다.',
+
   'Back to sessions': '세션 목록으로',
   Pinned: '고정됨',
   Sessions: '세션',
@@ -6,8 +83,8 @@ export const korean = {
   'Session views': '세션 보기',
   'Search sessions': '세션 검색',
   'Import Codex session': 'Codex 세션 불러오기',
-  'Find a conversation and continue in your workspace.':
-    '지난 대화를 찾아 작업실에서 이어가세요.',
+  'Find conversations, follow running work, and respond to requests.':
+    '대화를 이어가고, 실행 상황과 확인이 필요한 요청을 살펴보세요.',
   'No matching sessions': '검색한 세션이 없습니다',
   'No sessions yet': '아직 세션이 없습니다',
   'Session list could not be refreshed. Showing the last received state.':
@@ -33,12 +110,7 @@ export const korean = {
     '일부 실행 서비스의 상태를 확인할 수 없습니다. 마지막으로 보고된 에이전트 상태를 표시합니다.',
   Workspace: '작업 경로',
   'Current step': '현재 단계',
-  'Agent views': '에이전트 보기',
-  'Agent runs': '작업 에이전트',
   'Codex sessions': 'Codex 세션',
-  'View all agents': '전체 에이전트 보기',
-  'Follow running work, respond to requests, and revisit results.':
-    '작업별 에이전트 진행 상황을 확인하고, 요청에 응답하거나 결과를 다시 살펴보세요.',
   Finished: '종료',
   'Search tasks by title': '작업 제목으로 검색',
   'Task source': '작업 유형',
@@ -46,8 +118,8 @@ export const korean = {
   'Matching tasks': '표시된 작업',
   'Recent work is shown here. Search by title to find older runs.':
     '최근 작업과 추적 중인 작업을 표시합니다. 이전 이력은 제목으로 검색하세요.',
-  'Choose another filter, or start a task from a template.':
-    '다른 조건을 선택하거나 템플릿으로 새 작업을 시작하세요.',
+  'Choose another filter, or start a new task.':
+    '다른 조건을 선택하거나 새 작업을 시작하세요.',
   'Pending requests': '대기 중인 요청',
   'Respond to requests': '요청 확인',
   'Open conversation and results': '대화·결과 열기',
@@ -507,6 +579,12 @@ export const translate =
     locale === 'ko-KR' ? korean[key] : key;
 
 const errors: Record<string, Copy> = {
+  instruction_conflict:
+    'This document changed elsewhere. Your draft is preserved; review the latest version before saving.',
+  instruction_too_large: 'Agent documents must be UTF-8 text under 64 KiB.',
+  instruction_not_text: 'Agent documents must be UTF-8 text under 64 KiB.',
+  invalid_skill_document:
+    'SKILL.md needs YAML frontmatter with name and description.',
   stale_template: 'The template changed. Reload it before saving or running.',
   template_not_found: 'The template is unavailable or archived.',
   template_runner_unavailable:

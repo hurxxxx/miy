@@ -69,6 +69,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/instructions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Listing */
+        get: operations["listing_api_instructions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/instructions/document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Document */
+        get: operations["document_api_instructions_document_get"];
+        /** Save */
+        put: operations["save_api_instructions_document_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/monitor/host": {
         parameters: {
             query?: never;
@@ -718,6 +753,32 @@ export interface components {
             /** Available */
             available: number;
         };
+        /** DocumentCatalog */
+        DocumentCatalog: {
+            /** Entries */
+            entries: components["schemas"]["DocumentEntry"][];
+            /** Roots */
+            roots: {
+                [key: string]: string;
+            };
+        };
+        /** DocumentEntry */
+        DocumentEntry: {
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "project" | "personal" | "global";
+            /** Path */
+            path: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "instructions" | "skill" | "metadata" | "reference";
+            /** Editable */
+            editable: boolean;
+        };
         /** DocumentInput */
         DocumentInput: {
             /** Kind */
@@ -726,6 +787,43 @@ export interface components {
             base_version: number;
             /** Body */
             body: string;
+        };
+        /** DocumentOut */
+        DocumentOut: {
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "project" | "personal" | "global";
+            /** Path */
+            path: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "instructions" | "skill" | "metadata" | "reference";
+            /** Editable */
+            editable: boolean;
+            /** Exists */
+            exists: boolean;
+            /** Revision */
+            revision: string | null;
+            /** Content */
+            content: string;
+        };
+        /** DocumentWrite */
+        DocumentWrite: {
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "project" | "personal" | "global";
+            /** Path */
+            path: string;
+            /** Content */
+            content: string;
+            /** Revision */
+            revision?: string | null;
         };
         /** GitStatusOut */
         GitStatusOut: {
@@ -1522,6 +1620,91 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TaskDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listing_api_instructions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentCatalog"];
+                };
+            };
+        };
+    };
+    document_api_instructions_document_get: {
+        parameters: {
+            query: {
+                scope: "project" | "personal" | "global";
+                path: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_api_instructions_document_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentOut"];
                 };
             };
             /** @description Validation Error */

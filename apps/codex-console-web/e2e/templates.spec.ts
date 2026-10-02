@@ -99,7 +99,7 @@ test('edits a template, runs independent sessions, and retains history after edi
   await updatedRow
     .getByRole('button', { name: '실행 이력', exact: true })
     .click();
-  await expect(page).toHaveURL(/view=agents&template=[0-9a-f-]+/);
+  await expect(page).toHaveURL(/view=sessions&template=[0-9a-f-]+/);
   const historyUrl = page.url();
   await expect(
     page.getByRole('region', { name: '선택한 템플릿' }),
@@ -121,7 +121,7 @@ test('edits a template, runs independent sessions, and retains history after edi
     .getByRole('button', { name: /^종료/ })
     .click();
   await expect(runs).toHaveCount(2);
-  await page.getByLabel('작업 검색', { exact: true }).fill(renamed);
+  await page.getByLabel('세션 검색', { exact: true }).fill(renamed);
   await expect(runs).toHaveCount(1);
   await page
     .getByRole('navigation', { name: '콘솔 메뉴' })
@@ -165,12 +165,10 @@ test('edits a template, runs independent sessions, and retains history after edi
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  await page
-    .getByRole('button', { name: '전체 에이전트 보기', exact: true })
-    .click();
-  await expect(page).toHaveURL(/\?view=agents$/);
+  await page.getByRole('button', { name: '전체 세션', exact: true }).click();
+  await expect(page).toHaveURL(/\?view=sessions$/);
   await expect(
-    page.getByRole('heading', { name: '에이전트', exact: true }),
+    page.getByRole('heading', { name: '세션', exact: true }),
   ).toBeVisible();
 });
 
