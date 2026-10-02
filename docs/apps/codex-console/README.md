@@ -423,6 +423,12 @@ miy 플랫폼 관리자로 로그인하여 **관리자 설정 → 앱 사용/접
 
 Docker가 준비된 Linux 호스트에서는 miy Compose와 별개로 실행할 수 있다. 다음 명령 전
 설정 파일을 설치하고 템플릿의 예시 IP·도메인을 실제 값으로 바꾼다. 기존 파일을 덮어쓰지 않는다.
+이전 브랜드의 설정 디렉터리가 bind mount로 연결되어 있으면 파일 이동만으로 컨테이너가
+새 경로를 사용하지 않는다. 기존 이미지 digest·실행 사용자·네트워크·읽기 전용 설정·권한 제한을
+유지하고, 새 경로를 mount한 일회성 컨테이너에서 `nginx -t`를 통과한 뒤 연결 지점 컨테이너를
+교체한다. `docker inspect --format '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{println}}{{end}}' codex-console-upstream`으로
+실제 mount를 확인하고 공개 HTTPS의 로그인·API·SSE까지 검증한다. 실패하면 보존한 기존 설정과
+컨테이너로 복원한다. 콘솔의 세 역할 서비스와 SQLite 저장소는 이 프록시 경로 이전에 종속되지 않는다.
 
 ```bash
 install -m 644 ops/codex-console/nginx-upstream.conf.example "$HOME/.config/miy-codex-console/upstream.conf"

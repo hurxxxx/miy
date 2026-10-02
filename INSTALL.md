@@ -10,8 +10,10 @@ Web·API·Worker는 저장소 소스에서 실행하고, 최초 셋업의 Postgr
 운영 배포는 [Release Domain](docs/domains/release/README.md)의 별도 절차를 따른다.
 
 공통 브랜드와 패키지 이름은 **miy**이며 접속 도메인은 설치 설정으로 관리한다.
-기존 MTY 설치를 갱신할 때는 [이름 전환 절차](docs/domains/release/README.md#miy-naming-cutover)에
+기존 MTY·OWH·Open Work Hub 설치를 갱신할 때는 [이름 전환 절차](docs/domains/release/README.md#miy-naming-cutover)에
 따라 `.env` 키를 `MIY_*`로 이전하고 기존 데이터 경로를 보존한 뒤 새 패키지를 설치한다.
+기존 디렉터리의 이름도 바꾸려면 [설치 경로 이전](docs/domains/release/README.md#existing-installation-paths)에 따라
+Git worktree·서비스·bind mount를 함께 옮기고 임시 경로 링크 없이 검증한다.
 새 Compose 기본 이름으로 실행하기 전에 기존 볼륨·DB·bucket의 이전 또는 명시적 연결을 확인한다.
 아이콘 원본은 `apps/web/public/brand-icon.svg`이며 `pnpm generate:brand-icons`로
 PNG·favicon을 재생성한다. 이 명령은 설치된 Playwright Chromium을 사용한다.
