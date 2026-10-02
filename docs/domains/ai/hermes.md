@@ -520,6 +520,8 @@ Use the repository's explicit non-production PostgreSQL test configuration for i
 - [Pinned implementation](https://github.com/NousResearch/hermes-agent/tree/v2026.8.31): inspect matching profile config, plugins/middleware, terminal environment provider, approval context and iron-proxy implementation before an upgrade.
 - [Gemini OpenAI compatibility](https://ai.google.dev/gemini-api/docs/openai).
 
+## Naming cutover
+
 The miy naming cutover changes plugin/module paths and typed keys only in source.
 Keep configured profile/workspace/CA volumes, network names, runner namespace and
 MCP URLs aligned with the installation until the coordinated resource cutover in
@@ -529,5 +531,8 @@ Compose project against empty volumes. Recreate the gateway with the matching
 the pinned Hermes image, provider policy and isolation controls are unchanged.
 Existing `mty-<user-id>` profile names are durable binding identities and remain
 supported by the same authenticated admission, MCP bridge and tool policy checks.
-Bootstrap replaces their known `mty_runtime` plugin setting with `miy_runtime`
-without changing model policy, credentials, profile directories or session data.
+Bootstrap removes retired `owh_runtime` and `mty_runtime` entries from both enabled
+and disabled plugin lists and enables `miy_runtime`. Unrelated plugins, model policy,
+credentials, profile directories and session data remain unchanged; reconciliation is
+idempotent. This only cleans persisted plugin configuration and does not restore retired
+module aliases or rename durable profile identities.
