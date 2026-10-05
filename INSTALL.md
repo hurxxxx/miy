@@ -980,6 +980,7 @@ AI 보호 정책을 끄지 않는다. 추가 키·서버가 필요한 기능은 
   자동 시작을 완료한다. [서비스와 작업 현황](docs/apps/codex-console/README.md#서비스와-작업-현황)의
   세 포트·management 단일 프록시 경로·읽기 전용 모니터·병렬 작업 제한을 설정한다. 템플릿 실행기는 별도 고정 CLI와 `template-current` 릴리스를 사용한다.
 - 앱 운영 집계를 제공할 설치는 [운영 조회와 개발 화면 연결](docs/apps/codex-console/README.md#운영-조회와-개발-화면-연결)에 따라 MIY 조회 API를 먼저 배포하고 전용 키·origin을 Workbench 환경 파일에 설치한다. `glab`은 서비스 OS 사용자로 내부 GitLab에 인증한다. Studio·앱 관리·플랫폼 화면, 미설정/권한 거부 표시, 기존 작업, SQLite 백업·복원을 확인한다.
+- 지침·스킬에서는 프로젝트 폴더와 스킬 참고 문서의 탐색·내부 링크, 관리자·시스템·플러그인 스킬의 읽기 전용 표시를 확인한다. `MIY_CODEX_CONSOLE_WORKSPACE`는 대상 Git 저장소이며 MIY 저장소에 한정되지 않는다. **Codex 스킬 발견 상태**와 **지침 탐색 설정**으로 작업 경로별 native 결과·대체 파일명·합산 제한을 확인한다. 설치 파일 목록과 실제 실행 가능 범위는 [지침·스킬 계약](docs/apps/codex-console/README.md#서비스와-작업-현황)을 따른다.
 - 설치 호스트의 콘솔 Vite와 공개 HTTPS 주소에서 각각 작업실 로그인을 확인한다.
   접속 범위와 쿠키 계약은 [Codex Console 접속](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
 - 같은 개발 사이트를 로컬·원격 주소로 함께 열면 `MIY_CODEX_CONSOLE_LAUNCH_URL_BY_HOST`로
@@ -1005,7 +1006,7 @@ AI 보호 정책을 끄지 않는다. 추가 키·서버가 필요한 기능은 
   비밀번호 화면이 표시되어야 한다. 이어서 ChatGPT 구독 연결 상태, 로그아웃 후 접근 차단,
   프록시 아래의 정적 파일·API·SSE를 확인한다.
 - [실행 설정과 재개](docs/apps/codex-console/README.md#실행-설정과-중단-후-계속하기)에 따라
-  구독 모델 목록·계획/실행 모드·승인/YOLO 선택과 탭 종료 후 백그라운드 작업 복원·중단 재개를 확인한다.
+  구독 모델 목록·계획/실행 모드, **이 계획으로 실행** 확인 창의 승인/YOLO 선택·취소·같은 작업의 후속 요청 권한 유지와 탭 종료 후 백그라운드 작업 복원·중단 재개를 확인한다.
   설치한 세션 user unit은 `NoNewPrivileges=false`를 유지하고, 재시작 뒤 메인 PID가 `NoNewPrivs: 0`인지와
   YOLO에서 설치 계정에 이미 허용된 비대화형 sudo·그룹 자원 접근이 동작하는지 확인한다. 이 설정은
   새 OS 권한을 부여하지 않으므로 필요한 sudoers·그룹 권한은 호스트에서 별도로 준비한다.

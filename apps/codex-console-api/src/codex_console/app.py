@@ -359,6 +359,37 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
     async def models(task_id: str | None = Query(default=None, max_length=36)):
         return await runtime_for(task_id).models(task_id=task_id)
 
+    @app.get("/api/codex/skills", dependencies=secured, response_model=instructions.SkillDiscovery)
+    async def discovered_skills(directory_name: str = Query(default=".", max_length=1000)):
+        root = templates.directory(app.state.settings, directory_name)
+        rpc = await runtime_for().authenticated_rpc()
+        result = await rpc.call("skills/list", {"cwds": [str(root)], "forceReload": True})
+        try:
+            entries = [entry for entry in result["data"] if entry["cwd"] == str(root)]
+            if len(entries) != 1 or not isinstance(entries[0].get("errors", []), list):
+                raise ValueError("Invalid discovery result")
+            discovery = instructions.SkillDiscovery(
+                directory=directory_name,
+                skills=entries[0]["skills"],
+                error_count=len(entries[0].get("errors", [])),
+            )
+        except (ValueError, KeyError, TypeError):
+            raise ConsoleError("request_failed", 502) from None
+        # Project trust and config layering belong to Codex. Never expose the raw config.
+        try:
+            config = (await rpc.call("config/read", {"cwd": str(root), "includeLayers": False}))[
+                "config"
+            ]
+            discovery.guidance = instructions.GuidanceConfiguration(
+                fallback_filenames=config.get("project_doc_fallback_filenames") or [],
+                max_bytes=config.get("project_doc_max_bytes")
+                if config.get("project_doc_max_bytes") is not None
+                else 32768,
+            )
+        except (ConsoleError, ValueError, KeyError, TypeError, AttributeError):
+            pass  # Skill discovery remains useful if the config projection is unavailable.
+        return discovery
+
     @app.post("/api/codex/login", dependencies=secured, response_model=DeviceLoginOut)
     async def codex_login():
         rpc = await app.state.runtime.connect()

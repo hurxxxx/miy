@@ -80,6 +80,10 @@ test('native plan, implementation, diff and refresh recovery', async ({
     .getByRole('button', { name: '이 계획으로 실행', exact: true })
     .click();
   await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('dialog').getByLabel('실행 권한')).toHaveValue(
+    'ask',
+  );
+  await page.getByRole('dialog').getByLabel('실행 권한').selectOption('yolo');
   await page.getByRole('dialog').getByRole('button', { name: '취소' }).click();
   await expect(
     page.getByText('Implemented the greeting.', { exact: false }),
@@ -87,13 +91,29 @@ test('native plan, implementation, diff and refresh recovery', async ({
   await page
     .getByRole('button', { name: '이 계획으로 실행', exact: true })
     .click();
+  await expect(page.getByRole('dialog').getByLabel('실행 권한')).toHaveValue(
+    'ask',
+  );
+  await page.getByRole('dialog').getByLabel('실행 권한').selectOption('yolo');
   const implementation = await holdCompletion(page);
+  const implementationRequest = page.waitForRequest(
+    (request) =>
+      request.method() === 'POST' &&
+      new URL(request.url()).pathname.endsWith('/implement'),
+  );
   await accepted(page, '/implement', () =>
     page
       .getByRole('dialog')
       .getByRole('button', { name: '이 계획으로 실행' })
       .click(),
   );
+  expect((await implementationRequest).postDataJSON()).toMatchObject({
+    permissions: 'yolo',
+    revision_id: expect.any(Number),
+  });
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByLabel('실행 모드')).toHaveValue('implement');
+  await expect(page.getByLabel('실행 권한')).toHaveValue('yolo');
   await expect(page.getByLabel('현재 실행 상태')).toContainText('진행 중');
   await releaseCompletion(page, implementation);
   await expect(
@@ -109,6 +129,8 @@ test('native plan, implementation, diff and refresh recovery', async ({
     page.getByRole('heading', { name: '인사말 기능 개발' }),
   ).toBeVisible();
   expect(page.url()).toBe(url);
+  await expect(page.getByLabel('실행 모드')).toHaveValue('implement');
+  await expect(page.getByLabel('실행 권한')).toHaveValue('yolo');
   await page.getByRole('button', { name: '실행 결과', exact: true }).click();
   await expect(
     page.getByLabel('결과물').getByText('종료 코드 0'),
