@@ -324,6 +324,96 @@ def test_runtime_unknown_preserves_last_observation_and_does_not_invent_zero(
     assert result["checked_at"] is not None
 
 
+def test_http_null_cannot_refresh_installation_or_usage_evidence(client, app_catalog, monkeypatch):
+    from pydantic import SecretStr
+
+    cfg = client.app.state.settings
+    cfg.miy_api_origin = "https://miy.example.test"
+    cfg.miy_api_key = SecretStr("test-read-key")
+    revision = "a" * 40
+    responses = {
+        "/api/v1/integrations/apps": {
+            "schema_version": 1,
+            "items": [
+                {
+                    "app_id": "planner",
+                    "title": "Planner",
+                    "enabled": True,
+                    "release_unit": "miy-app",
+                    "installed_revision": revision,
+                    "runtime_ai": False,
+                }
+            ],
+            "total": 1,
+            "page": 1,
+            "page_size": 200,
+            "generated_at": now().isoformat(),
+        },
+        "/api/v1/integrations/apps/planner/usage": {
+            "schema_version": 1,
+            "app_id": "planner",
+            "month": now().strftime("%Y-%m"),
+            "app_opens": 2,
+            "llm_calls": 1,
+            "llm_errors": 0,
+            "total_tokens": 42,
+            "unreported_calls": 0,
+            "complete": True,
+            "cost_basis": "not_reported",
+            "generated_at": now().isoformat(),
+        },
+    }
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        sources.httpx,
+        "AsyncClient",
+        lambda **kwargs: original(
+            **kwargs,
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(
+                    200,
+                    content=json.dumps(responses[request.url.path]),
+                    headers={"content-type": "application/json"},
+                )
+            ),
+        ),
+    )
+    before = client.get("/api/workbench/runtime").json()
+    usage = client.get("/api/workbench/apps/planner/usage").json()
+    assert not before["stale"] and not usage["stale"]
+    patch = client.post(
+        "/api/workbench/apps/planner/maintenance",
+        json={
+            "title": "Patch",
+            "target_revision": revision,
+        },
+    ).json()
+
+    async def passed(*args):
+        return {"pipeline_id": 14, "revision": revision}
+
+    monkeypatch.setattr(sources, "verified_pipeline", passed)
+    responses = dict.fromkeys(responses)
+    with client.app.state.factory.begin() as db:
+        for row in db.scalars(select(WorkbenchObservation)):
+            row.checked_at = now() - timedelta(seconds=60)
+    assert (
+        client.post(
+            f"/api/workbench/apps/planner/maintenance/{patch['id']}/verify",
+            json={"version": 1},
+        ).status_code
+        == 409
+    )
+    after = client.get("/api/workbench/runtime").json()
+    assert after["state"] == "unsupported" and after["stale"]
+    assert after["items"] == before["items"]
+    assert after["checked_at"] == before["checked_at"]
+    after_usage = client.get("/api/workbench/apps/planner/usage").json()
+    assert after_usage["runtime_state"] == "unsupported" and after_usage["stale"]
+    assert after_usage["runtime"] == usage["runtime"]
+    assert after_usage["runtime_checked_at"] == usage["runtime_checked_at"]
+
+
 @pytest.mark.anyio
 async def test_miy_adapter_bounds_redirects_and_credentials(settings, monkeypatch):
     from pydantic import SecretStr

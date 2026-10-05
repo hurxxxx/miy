@@ -70,7 +70,7 @@ async def runtime_catalog(settings, factory, *, fresh=False):
     if not stored or stored.get("origin") != settings.miy_api_origin:
         state, data = await miy_get(settings, "?page_size=200")
         try:
-            parsed = RuntimeCatalog.model_validate(data) if data is not None else None
+            parsed = RuntimeCatalog.model_validate(data) if state == "ready" else None
             if parsed and (
                 parsed.total != len(parsed.items)
                 or len({a.app_id for a in parsed.items}) != len(parsed.items)
@@ -115,7 +115,7 @@ async def runtime_usage(settings, factory, app_id):
     if not stored or stored.get("origin") != origin:
         state, data = await miy_get(settings, "/" + quote(app_id, safe="") + "/usage")
         try:
-            parsed = RuntimeUsage.model_validate(data) if data is not None else None
+            parsed = RuntimeUsage.model_validate(data) if state == "ready" else None
             if parsed and (parsed.app_id != app_id or parsed.month != month):
                 raise ValueError("Mismatched projection")
             normalized = parsed.model_dump(mode="json") if parsed else None

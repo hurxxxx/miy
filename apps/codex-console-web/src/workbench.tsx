@@ -35,11 +35,13 @@ function useResource<T>(path: string, refresh: number) {
   }, []);
   useEffect(() => {
     const controller = new AbortController();
-    setError(null);
     setLoading(true);
     void api<T>(path, undefined, 'GET', controller.signal)
       .then((data) => {
-        if (!controller.signal.aborted) setResult({ path, data });
+        if (!controller.signal.aborted) {
+          setResult({ path, data });
+          setError(null);
+        }
       })
       .catch((reason) => {
         if (!controller.signal.aborted)
@@ -184,6 +186,7 @@ export function WorkbenchApps({
       }
     >
       {error && <ReadError code={error} t={t} />}
+      {runtime.error && <ReadError code={runtime.error} t={t} />}
       {actionError && <ReadError code={actionError} t={t} />}
       {loading && <p role="status">{t('Loading app catalog')}</p>}
       {data && (
@@ -192,6 +195,7 @@ export function WorkbenchApps({
             {t('Development revision')}:{' '}
             <Revision value={data.source_revision} t={t} />{' '}
             {data.source_dirty && t('Uncommitted changes')}
+            {error && <> · {t('Current state not verified')}</>}
           </p>
           {newProject && (
             <ProjectForm
@@ -359,7 +363,11 @@ export function WorkbenchApps({
                   <AppManagement
                     key={app.app_id}
                     app={app}
-                    runtime={runtime.data}
+                    runtime={
+                      runtime.data && runtime.error
+                        ? { ...runtime.data, state: 'unavailable', stale: true }
+                        : runtime.data
+                    }
                     t={t}
                     refresh={refresh}
                     startTask={startTask}
@@ -568,7 +576,7 @@ function AppManagement({
       : installed?.installed_revision;
   const installationStale =
     app.release_unit === 'miy-workbench'
-      ? !evidence.data?.workbench_release
+      ? !!evidence.error || !evidence.data?.workbench_release
       : runtime?.stale !== false;
   const [edit, setEdit] = useState<Maintenance | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
@@ -623,10 +631,16 @@ function AppManagement({
         </div>
       </dl>
       {error && <ReadError code={error} t={t} />}
+      {evidence.error && (
+        <>
+          <ReadError code={evidence.error} t={t} />
+          <p className="muted">{t('Current state not verified')}</p>
+        </>
+      )}
       {evidence.data && (
         <p className="muted">
           {t('Development revision CI')}:{' '}
-          {evidence.data.gitlab.stale
+          {evidence.error || evidence.data.gitlab.stale
             ? t('Not verified')
             : (evidence.data.gitlab.pipelines?.find(
                 (p) => p.revision === evidence.data?.git?.head,
@@ -640,7 +654,11 @@ function AppManagement({
       {usage.data && (
         <UsagePanel
           t={t}
-          data={usage.data}
+          data={
+            usage.error
+              ? { ...usage.data, runtime_state: 'unavailable', stale: true }
+              : usage.data
+          }
           busy={busy}
           onBudget={(body) =>
             run(async () => {
@@ -1175,6 +1193,9 @@ export function WorkbenchPlatform({
         <>
           <section className="wb-panel">
             <h2>{t('Local source')}</h2>
+            {error && (
+              <p className="muted">{t('Current state not verified')}</p>
+            )}
             <p>
               MIY Workbench · {t('Installed revision')}:{' '}
               <Revision value={data.workbench_release?.source_revision} t={t} />{' '}
@@ -1232,8 +1253,8 @@ export function WorkbenchPlatform({
           <section className="wb-panel">
             <h2>GitLab</h2>
             <Connection
-              state={data.gitlab.state}
-              stale={data.gitlab.stale}
+              state={error ? 'unavailable' : data.gitlab.state}
+              stale={!!error || data.gitlab.stale}
               checkedAt={data.gitlab.checked_at}
               t={t}
             />
@@ -1256,14 +1277,18 @@ export function WorkbenchPlatform({
                       ) : (
                         item.name
                       )}{' '}
-                      · {item.status} <Revision value={item.revision} t={t} />
+                      ·{' '}
+                      {error || data.gitlab.stale
+                        ? t('Not verified')
+                        : item.status}{' '}
+                      <Revision value={item.revision} t={t} />
                     </li>
                   ))}
                 </ul>
                 {!data.gitlab[key]?.length && (
                   <p className="muted">
                     {t(
-                      data.gitlab.state === 'ready'
+                      !error && data.gitlab.state === 'ready'
                         ? 'No entries'
                         : 'Not verified',
                     )}
@@ -1283,7 +1308,7 @@ export function WorkbenchPlatform({
               <strong>{service.name}</strong>
               <p>
                 {service.environment} ·{' '}
-                {service.stale ? t('Not verified') : service.status}
+                {failed || service.stale ? t('Not verified') : service.status}
               </p>
               <Revision value={service.version} t={t} />
               <small>

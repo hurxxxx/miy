@@ -1,5 +1,116 @@
 import { expect, test } from '@playwright/test';
 
+test('failed refreshes retain observations and drafts while invalidating current status', async ({
+  page,
+}) => {
+  let failing = false;
+  const revision = 'a'.repeat(40);
+  const checked = new Date().toISOString();
+  await page.route('**/api/workbench/runtime', async (route) => {
+    await route.fulfill({
+      status: failing ? 503 : 200,
+      json: failing
+        ? { error: 'unavailable' }
+        : {
+            state: 'ready',
+            stale: false,
+            checked_at: checked,
+            items: [
+              {
+                app_id: 'planner',
+                title: 'Planner',
+                enabled: true,
+                runtime_ai: true,
+                installed_revision: revision,
+                release_unit: 'miy-app',
+              },
+            ],
+          },
+    });
+  });
+  await page.route('**/api/workbench/platform', async (route) => {
+    if (failing)
+      return route.fulfill({ status: 503, json: { error: 'unavailable' } });
+    const response = await route.fetch();
+    const data = await response.json();
+    await route.fulfill({
+      json: {
+        ...data,
+        gitlab: {
+          state: 'ready',
+          stale: false,
+          checked_at: checked,
+          branches: [],
+          merge_requests: [],
+          pipelines: [
+            {
+              id: 1,
+              name: 'release-check',
+              status: 'success',
+              revision: data.git.head,
+            },
+          ],
+        },
+      },
+    });
+  });
+  await page.route('**/api/workbench/apps/planner/usage', async (route) => {
+    if (failing)
+      return route.fulfill({ status: 503, json: { error: 'unavailable' } });
+    const response = await route.fetch();
+    await route.fulfill({
+      json: {
+        ...(await response.json()),
+        runtime_state: 'ready',
+        stale: false,
+        runtime_checked_at: checked,
+      },
+    });
+  });
+  await page.goto('./?view=apps');
+  await page
+    .getByLabel('본인 전용 비밀번호')
+    .fill('console-tests-only-password');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await page.getByRole('button', { name: /^Planner 개인 계획/ }).click();
+  await expect(page.getByText(/^개발 리비전 CI: success/)).toBeVisible();
+  await expect(page.getByText(/^연결됨/)).toHaveCount(2);
+  await page.getByRole('button', { name: '예산 편집', exact: true }).click();
+  await page.getByLabel('개발 토큰 예산', { exact: true }).fill('3456');
+  failing = true;
+  const refresh = page
+    .getByRole('main')
+    .getByRole('button', { name: '새로고침', exact: true });
+  await refresh.click();
+  await expect(page.getByText(/^연결할 수 없음/)).toHaveCount(2);
+  await expect(page.getByText(/^연결됨/)).toHaveCount(0);
+  await expect(page.getByText(/^개발 리비전 CI: success/)).toHaveCount(0);
+  await expect(
+    page.getByText('현재 상태 확인 불가', { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel('개발 토큰 예산', { exact: true })).toHaveValue(
+    '3456',
+  );
+  await expect(
+    page.getByRole('main').getByText(revision.slice(0, 12), { exact: true }),
+  ).toBeVisible();
+  failing = false;
+  await page
+    .getByRole('navigation', { name: 'Workbench 메뉴' })
+    .getByRole('button', { name: '플랫폼 관리', exact: true })
+    .click();
+  await expect(page.getByText(/release-check · success/)).toBeVisible();
+  failing = true;
+  await refresh.click();
+  await expect(page.getByText(/^연결할 수 없음/)).toBeVisible();
+  await expect(page.getByText(/release-check · success/)).toHaveCount(0);
+  await expect(page.getByText(/release-check/)).toBeVisible();
+  failing = false;
+  await refresh.click();
+  await expect(page.getByText(/release-check · success/)).toBeVisible();
+  await expect(page.getByText(/^연결됨/)).toBeVisible();
+});
+
 test('budget polling preserves the draft and original version across concurrent tabs', async ({
   page,
   context,
