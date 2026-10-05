@@ -36,6 +36,35 @@ export function resolveExecution(value: Execution, models: Model[]): Execution {
     : value;
 }
 
+export function PermissionSelect({
+  value,
+  onChange,
+  disabled = false,
+  t,
+}: {
+  value: Execution['permissions'] | 'read-only';
+  onChange: (value: Execution['permissions']) => void;
+  disabled?: boolean;
+  t: Translate;
+}) {
+  return (
+    <select
+      aria-label={t('Permissions')}
+      value={value}
+      disabled={disabled || value === 'read-only'}
+      onChange={(event) =>
+        onChange(event.target.value as Execution['permissions'])
+      }
+    >
+      {value === 'read-only' && (
+        <option value="read-only">{t('Read-only')}</option>
+      )}
+      <option value="ask">{t('Ask when needed')}</option>
+      <option value="yolo">{t('YOLO · Full access')}</option>
+    </select>
+  );
+}
+
 export function ExecutionSettings({
   models,
   value,
@@ -179,23 +208,12 @@ export function ExecutionSettings({
       </div>
       <label className="execution-permissions">
         <span className="sr-only">{t('Permissions')}</span>
-        <select
-          aria-label={t('Permissions')}
+        <PermissionSelect
           value={implementation ? value.permissions : 'read-only'}
-          disabled={!implementation}
-          onChange={(event) =>
-            onChange({
-              ...value,
-              permissions: event.target.value as Execution['permissions'],
-            })
-          }
-        >
-          {!implementation && (
-            <option value="read-only">{t('Read-only')}</option>
-          )}
-          <option value="ask">{t('Ask when needed')}</option>
-          <option value="yolo">{t('YOLO · Full access')}</option>
-        </select>
+          disabled={disabled}
+          onChange={(permissions) => onChange({ ...value, permissions })}
+          t={t}
+        />
       </label>
     </fieldset>
   );

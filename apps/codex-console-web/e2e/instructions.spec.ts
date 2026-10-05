@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Route } from '@playwright/test';
 
 test('a delayed conflict read cannot replace another document or its draft', async ({
   page,
@@ -249,9 +249,10 @@ test('document workspace uses the viewport, filters readable names, and keeps ac
   ).toBeVisible();
   await page.getByRole('button', { name: '문서 목록 보기' }).click();
   await expect(files).toBeVisible();
-  const skill = files
-    .getByRole('button')
-    .filter({ hasText: `ux-procedure-04-${suffix}` });
+  const skill = files.getByRole('button', {
+    name: `.agents/skills/ux-procedure-04-${suffix}/SKILL.md`,
+    exact: true,
+  });
   await skill.click();
   await expect(files).not.toBeVisible();
   await expect(page.getByLabel('문서 미리보기')).toContainText(
@@ -283,7 +284,7 @@ test('edits official documents, keeps drafts, detects conflicts, and asks Codex 
   await expect(
     page.getByRole('heading', { name: '지침·스킬', exact: true }),
   ).toBeVisible();
-  await page.getByRole('button', { name: '문서 만들기' }).click();
+  await page.getByRole('button', { name: '문서 만들기', exact: true }).click();
   await page
     .getByRole('dialog')
     .getByLabel('문서 경로')
@@ -404,7 +405,7 @@ test('creates a discoverable skill, metadata, and references without outer scrol
     .getByLabel('본인 전용 비밀번호')
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await page.getByRole('button', { name: '문서 만들기' }).click();
+  await page.getByRole('button', { name: '문서 만들기', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('문서 종류').selectOption('skill');
   const name = `console-skill-${Date.now()}`;
@@ -425,7 +426,9 @@ test('creates a discoverable skill, metadata, and references without outer scrol
     ],
     ['reference', 'references/guide.md', '# Skill reference\n'],
   ]) {
-    await page.getByRole('button', { name: '문서 만들기' }).click();
+    await page
+      .getByRole('button', { name: '문서 만들기', exact: true })
+      .click();
     await dialog.getByLabel('문서 종류').selectOption(kind);
     await dialog
       .getByLabel('문서 경로')
@@ -461,4 +464,216 @@ test('creates a discoverable skill, metadata, and references without outer scrol
   }));
   expect(dimensions.height).toBeLessThanOrEqual(dimensions.viewportHeight);
   expect(dimensions.width).toBeLessThanOrEqual(dimensions.viewportWidth);
+});
+
+test('folder exploration links the full skill bundle, searches contents, and keeps installed files read-only', async ({
+  page,
+}) => {
+  await page.goto('./?view=instructions');
+  await page
+    .getByLabel('본인 전용 비밀번호')
+    .fill('console-tests-only-password');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: '지침·스킬', exact: true }),
+  ).toBeVisible();
+  const cookie = (await page.context().cookies()).find(
+    (c) => c.name === 'codex_console_csrf',
+  )!;
+  const headers = {
+    Origin: new URL(page.url()).origin,
+    'X-CSRF-Token': decodeURIComponent(cookie.value),
+  };
+  const name = `bundle-${Date.now()}`;
+  const folder = `.agents/skills/${name}`;
+  for (const [path, content] of [
+    [
+      `${folder}/SKILL.md`,
+      `---\nname: ${name}\ndescription: Semantic discovery marker\n---\n\n# Bundle\n\n[Design](DESIGN.md)\n\n[Broken anchor](#%E0%A4%A)\n`,
+    ],
+    [`${folder}/DESIGN.md`, '# Design reference\n\n[Back](SKILL.md)\n'],
+  ]) {
+    expect(
+      (
+        await page.request.put('api/instructions/document', {
+          headers,
+          data: { scope: 'project', path, content, revision: null },
+        })
+      ).status(),
+    ).toBe(200);
+  }
+  await page
+    .getByRole('region', { name: '문서 목록', exact: true })
+    .getByRole('button', { name: '새로고침' })
+    .click();
+  const files = page.getByRole('navigation', { name: '에이전트 참조 문서' });
+  await files
+    .getByRole('button', { name: `${folder}/SKILL.md`, exact: true })
+    .click();
+  await page.getByRole('button', { name: '편집', exact: true }).click();
+  const editor = page.getByLabel('문서 내용', { exact: true });
+  const draft = (await editor.inputValue()) + '\nUnsaved local draft\n';
+  await editor.fill(draft);
+  await page.getByRole('button', { name: '읽기', exact: true }).click();
+  await page
+    .getByLabel('문서 미리보기')
+    .getByRole('link', { name: 'Design', exact: true })
+    .click();
+  await expect(page.getByLabel('문서 미리보기')).toContainText(
+    'Design reference',
+  );
+  expect(page.context().pages()).toHaveLength(1);
+  await page
+    .getByLabel('문서 미리보기')
+    .getByRole('link', { name: 'Back', exact: true })
+    .click();
+  await expect(editor).toHaveValue(draft);
+  await files.getByRole('button', { name: '모두 접기', exact: true }).click();
+  await expect(
+    files.getByRole('button', { name: `${folder}/SKILL.md`, exact: true }),
+  ).not.toBeVisible();
+  await page
+    .getByLabel('문서 검색', { exact: true })
+    .fill('Semantic discovery marker');
+  await expect(
+    files.getByRole('button', { name: `${folder}/SKILL.md`, exact: true }),
+  ).toBeVisible();
+  await page.getByLabel('문서 검색', { exact: true }).fill('');
+  await files.getByRole('button', { name: '모두 펼치기', exact: true }).click();
+  await expect(
+    files.getByRole('button', { name: `${folder}/DESIGN.md`, exact: true }),
+  ).toBeVisible();
+  await page.locator('.instruction-discovery summary').click();
+  await page
+    .getByRole('button', { name: '발견 상태 확인', exact: true })
+    .click();
+  await expect(page.locator('.instruction-discovery')).toContainText(
+    '발견된 스킬',
+  );
+  await page.locator('.instruction-context summary').click();
+  await expect(page.locator('.instruction-context')).toContainText(
+    'Codex에서 발견됨 · 활성',
+  );
+  await page.getByRole('button', { name: '읽기', exact: true }).click();
+  await page.getByRole('link', { name: 'Broken anchor', exact: true }).click();
+  await expect(
+    page.locator('.instruction-editor [role="alert"]'),
+  ).toBeVisible();
+  expect(page.context().pages()).toHaveLength(1);
+
+  let releaseDiscovery!: (route: Route) => void;
+  const pendingDiscovery = new Promise<Route>((resolve) => {
+    releaseDiscovery = resolve;
+  });
+  await page.route('**/api/codex/skills?**', releaseDiscovery);
+  const checkDiscovery = page.getByRole('button', {
+    name: '발견 상태 확인',
+    exact: true,
+  });
+  await checkDiscovery.click();
+  const pending = await pendingDiscovery;
+  await expect(checkDiscovery).toBeDisabled();
+  await page.getByRole('button', { name: '문서 저장', exact: true }).click();
+  await expect(checkDiscovery).toBeEnabled();
+  await pending.fulfill({
+    json: { directory: '.', skills: [], error_count: 0 },
+  });
+  await expect(page.locator('.instruction-context')).toContainText(
+    '발견 상태 미확인',
+  );
+  await page.unroute('**/api/codex/skills?**', releaseDiscovery);
+  await page.getByLabel('적용 범위', { exact: true }).selectOption('system');
+  await files
+    .getByRole('button', { name: 'installed-review/SKILL.md', exact: true })
+    .click();
+  await expect(page.getByLabel('문서 미리보기')).toContainText(
+    'Installed review',
+  );
+  await expect(
+    page.getByRole('button', { name: '문서 만들기', exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole('button', { name: '문서 저장', exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole('button', { name: 'Codex에 수정 요청', exact: true }),
+  ).toBeDisabled();
+  await page.getByRole('button', { name: '원문 보기', exact: true }).click();
+  await expect(editor).toHaveAttribute('readonly', '');
+});
+
+test('native discovery exposes uncatalogued paths, duplicate names, and effective instruction settings', async ({
+  page,
+}) => {
+  await page.route('**/api/codex/skills?**', async (route) => {
+    await route.fulfill({
+      json: {
+        directory: '.',
+        error_count: 0,
+        skills: [
+          {
+            name: 'quality-check',
+            description: 'User skill',
+            path: '/opt/shared/quality-check/SKILL.md',
+            enabled: true,
+          },
+          {
+            name: 'quality-check',
+            description: 'Administrator skill',
+            path: '/etc/codex/skills/quality-check/SKILL.md',
+            enabled: false,
+          },
+        ],
+        guidance: {
+          fallback_filenames: ['TEAM_GUIDE.md', '.agents.md'],
+          max_bytes: 65536,
+        },
+      },
+    });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('./?view=instructions');
+  await page
+    .getByLabel('본인 전용 비밀번호')
+    .fill('console-tests-only-password');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: '지침·스킬', exact: true }),
+  ).toBeVisible();
+  await page.locator('.instruction-discovery > summary').click();
+  await page
+    .getByRole('button', { name: '발견 상태 확인', exact: true })
+    .click();
+  const discovery = page.locator('.instruction-discovery');
+  await expect(discovery).toContainText('발견된 스킬: 2');
+  await discovery
+    .locator('summary')
+    .filter({ hasText: '조회된 스킬 목록' })
+    .click();
+  const rows = discovery.locator('li');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText('/opt/shared/quality-check/SKILL.md');
+  await expect(rows.nth(0)).toContainText('편집기가 지원하는 파일 경로 밖');
+  await expect(rows.nth(1)).toContainText('Codex에서 발견됨 · 비활성');
+  await discovery
+    .locator('summary')
+    .filter({ hasText: '지침 탐색 설정' })
+    .click();
+  await expect(discovery).toContainText('65536 B');
+  await expect(discovery).toContainText('TEAM_GUIDE.md, .agents.md');
+  await expect(discovery).toContainText('이 편집기에서는 편집할 수 없습니다');
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  expect(
+    await page
+      .locator('.instruction-files')
+      .evaluate((node) => node.getBoundingClientRect().height),
+  ).toBeGreaterThan(100);
+  await page.getByLabel('적용 범위', { exact: true }).selectOption('admin');
+  await expect(
+    page.getByRole('button', { name: '문서 만들기', exact: true }),
+  ).toBeDisabled();
 });

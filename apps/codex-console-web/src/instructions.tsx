@@ -16,6 +16,11 @@ import type { components } from './api.generated';
 import { errorCopy, type Translate } from './i18n';
 import { EmptyState, PageLayout } from './page-layout';
 import { Markdown } from './views';
+import {
+  DocumentFolders,
+  linkedDocument,
+  relatedGuidance,
+} from './instruction-explorer';
 
 type Catalog = components['schemas']['DocumentCatalog'];
 type Document = components['schemas']['DocumentOut'];
@@ -27,6 +32,9 @@ const scopeLabels = {
   project: 'Project documents',
   personal: 'Personal skills',
   global: 'Global instructions',
+  admin: 'Administrator skills',
+  system: 'System skills',
+  plugins: 'Plugin skills',
 } as const;
 
 export function Instructions({
@@ -51,6 +59,18 @@ export function Instructions({
   const [helpOpen, setHelpOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(true);
   const [search, setSearch] = useState('');
+  const [searchEntries, setSearchEntries] = useState<Entry[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState(false);
+  const [createFolder, setCreateFolder] = useState('');
+  const [discoveryDirectory, setDiscoveryDirectory] = useState('.');
+  const [discovery, setDiscovery] = useState<
+    components['schemas']['SkillDiscovery'] | null
+  >(null);
+  const [discovering, setDiscovering] = useState(false);
+  const [discoveryError, setDiscoveryError] = useState(false);
+  const discoverySequence = useRef(0);
+  const canCreate = !['admin', 'system', 'plugins'].includes(scope);
   const [document, setDocument] = useState<Document | null>(null);
   const [latestDocument, setLatestDocument] = useState<Document | null>(null);
   const [content, setContent] = useState('');
@@ -76,7 +96,14 @@ export function Instructions({
   const remember = () => {
     if (document) drafts.current.set(identity(document), { document, content });
   };
+  const resetDiscovery = useCallback(() => {
+    ++discoverySequence.current;
+    setDiscovery(null);
+    setDiscovering(false);
+    setDiscoveryError(false);
+  }, []);
   const load = useCallback(async () => {
+    resetDiscovery();
     setLoading(true);
     try {
       setCatalog(await api<Catalog>('/instructions'));
@@ -86,10 +113,35 @@ export function Instructions({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [resetDiscovery]);
   useEffect(() => {
     if (active) void load();
   }, [active, load]);
+  useEffect(() => {
+    let current = true;
+    setSearchEntries(null);
+    setSearchError(false);
+    setSearching(!!search.trim());
+    if (!search.trim() || !active) return;
+    const timer = window.setTimeout(() => {
+      void api<Catalog>(
+        `/instructions?scope=${scope}&q=${encodeURIComponent(search.trim())}`,
+      )
+        .then((result) => {
+          if (current) setSearchEntries(result.entries);
+        })
+        .catch(() => {
+          if (current) setSearchError(true);
+        })
+        .finally(() => {
+          if (current) setSearching(false);
+        });
+    }, 250);
+    return () => {
+      current = false;
+      window.clearTimeout(timer);
+    };
+  }, [active, search, scope, catalog]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
       if (
@@ -180,18 +232,27 @@ export function Instructions({
     }
   };
   const matches = (entry: Pick<Entry, 'kind' | 'path'>) =>
-    entry.path.toLowerCase().includes(search.toLowerCase()) &&
-    (filter === 'all' ||
-      entry.kind === filter ||
-      (filter === 'support' && ['metadata', 'reference'].includes(entry.kind)));
-  const kindOrder = { instructions: 0, skill: 1, metadata: 2, reference: 3 };
+    filter === 'all' ||
+    entry.kind === filter ||
+    (filter === 'support' &&
+      ['metadata', 'reference', 'bridge', 'script'].includes(entry.kind));
+  const kindOrder = {
+    instructions: 0,
+    skill: 1,
+    metadata: 2,
+    reference: 3,
+    bridge: 4,
+    script: 5,
+  };
   const scopedEntries = (catalog?.entries ?? [])
     .filter((e) => e.scope === scope)
     .sort(
       (a, b) =>
         kindOrder[a.kind] - kindOrder[b.kind] || a.path.localeCompare(b.path),
     );
-  const entries = scopedEntries.filter(matches);
+  const entries = (
+    search.trim() ? (searchEntries ?? []) : scopedEntries
+  ).filter(matches);
   const selectedEntries =
     document?.scope === scope &&
     !document.exists &&
@@ -207,7 +268,11 @@ export function Instructions({
           ? 'Skill'
           : entry.kind === 'metadata'
             ? 'Skill metadata'
-            : 'Reference',
+            : entry.kind === 'bridge'
+              ? 'Linked instructions'
+              : entry.kind === 'script'
+                ? 'Skill script'
+                : 'Reference',
     );
   const fileLabel = (entry: Pick<Entry, 'kind' | 'path'>) => {
     const parts = entry.path.split('/');
@@ -220,16 +285,134 @@ export function Instructions({
           t('Root folder');
     return { label, context };
   };
-  const createDocument = () => {
-    setKind(scope === 'personal' ? 'skill' : 'instructions');
-    setPath(scope === 'personal' ? 'skills/my-skill/SKILL.md' : 'AGENTS.md');
+  const createDocument = (folder = '') => {
+    setCreateFolder(folder);
+    const inSkill = /(?:^|\/)(?:\.agents\/)?skills\/[^/]+(?:\/|$)/.test(folder);
+    const skillRoot = /(?:^|\/)skills$/.test(folder);
+    setKind(
+      inSkill
+        ? 'reference'
+        : skillRoot || scope === 'personal'
+          ? 'skill'
+          : 'instructions',
+    );
+    setPath(
+      inSkill
+        ? `${folder}/guide.md`
+        : skillRoot
+          ? `${folder}/my-skill/SKILL.md`
+          : scope === 'personal'
+            ? 'skills/my-skill/SKILL.md'
+            : `${folder ? folder + '/' : ''}AGENTS.md`,
+    );
     setCreating(true);
   };
+  const discover = async () => {
+    const sequence = ++discoverySequence.current;
+    setDiscovering(true);
+    setDiscovery(null);
+    setDiscoveryError(false);
+    try {
+      const result = await api<components['schemas']['SkillDiscovery']>(
+        `/codex/skills?directory_name=${encodeURIComponent(discoveryDirectory)}`,
+      );
+      if (sequence === discoverySequence.current) setDiscovery(result);
+    } catch {
+      if (sequence === discoverySequence.current) setDiscoveryError(true);
+    } finally {
+      if (sequence === discoverySequence.current) setDiscovering(false);
+    }
+  };
+  const followLink = (href: string) => {
+    if (/^[a-z][a-z\d+.-]*:/i.test(href) || href.startsWith('//')) return false;
+    if (busy) return true;
+    if (!document) return true;
+    if (href.startsWith('#')) {
+      const slug = (text: string) =>
+        text
+          .toLowerCase()
+          .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+          .replace(/\s+/g, '-');
+      let name: string;
+      try {
+        name = decodeURIComponent(href.slice(1));
+      } catch {
+        setError('document_link_unavailable');
+        return true;
+      }
+      [
+        ...window.document.querySelectorAll(
+          '.instruction-preview :is(h1,h2,h3,h4,h5,h6)',
+        ),
+      ]
+        .find((h) => slug(h.textContent ?? '') === name)
+        ?.scrollIntoView({ block: 'start' });
+      return true;
+    }
+    const linked = linkedDocument(document, href, catalog?.entries ?? []);
+    if (linked) {
+      setSearch('');
+      setFilter('all');
+      void open(linked);
+    } else setError('document_link_unavailable');
+    return true;
+  };
+  const discovered = discovery?.skills.find(
+    (skill) =>
+      document &&
+      skill.path === `${catalog?.roots[document.scope]}/${document.path}`,
+  );
+  const guidance = document
+    ? relatedGuidance(catalog?.entries ?? [], document)
+    : [];
   const selectedLabel = document ? fileLabel(document).label : '';
   const frontmatter =
     document?.kind === 'skill'
       ? content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)
       : null;
+  const renderEntry = (entry: Entry, inFolder = false) => {
+    const { label, context } = fileLabel(entry);
+    const draft = drafts.current.get(identity(entry));
+    const changed =
+      document && identity(entry) === identity(document)
+        ? dirty
+        : !!draft && draft.content !== draft.document.content;
+    const Icon =
+      entry.kind === 'skill'
+        ? Sparkles
+        : entry.kind === 'instructions'
+          ? BookOpen
+          : FileText;
+    return (
+      <button
+        key={identity(entry)}
+        aria-label={entry.path}
+        title={entry.path}
+        disabled={busy}
+        aria-current={
+          document && identity(entry) === identity(document)
+            ? 'page'
+            : undefined
+        }
+        onClick={() => void open(entry)}
+      >
+        <Icon size={16} aria-hidden="true" />
+        <span className="instruction-file-label">
+          <strong>{inFolder ? entry.path.split('/').at(-1) : label}</strong>
+          <small>
+            {kindLabel(entry)}
+            {!inFolder && ` · ${context}`}
+          </small>
+        </span>
+        {changed && (
+          <span
+            className="instruction-draft-dot"
+            aria-label={t('Unsaved changes')}
+          />
+        )}
+      </button>
+    );
+  };
   return (
     <PageLayout
       hidden={!active}
@@ -247,7 +430,10 @@ export function Instructions({
           >
             <HelpCircle size={17} />
           </Button>
-          <Button disabled={busy} onClick={createDocument}>
+          <Button
+            disabled={busy || !canCreate}
+            onClick={() => createDocument()}
+          >
             <Plus size={16} />
             {t('New document')}
           </Button>
@@ -306,6 +492,7 @@ export function Instructions({
                 aria-label={t('Search documents')}
                 placeholder={t('Search documents')}
                 value={search}
+                maxLength={200}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
@@ -342,76 +529,184 @@ export function Instructions({
                 </span>
               )}
             </div>
+            {!canCreate && (
+              <p className="instruction-scope-note">
+                {t(
+                  'Installed files are read-only. Discovery depends on the selected working folder.',
+                )}
+              </p>
+            )}
+            {scope === 'plugins' && (
+              <p className="instruction-scope-note">
+                {t(
+                  'Workbench sessions disable plugin and MCP execution. Installed files remain available for inspection.',
+                )}
+              </p>
+            )}
+            <details className="instruction-discovery">
+              <summary>{t('Codex skill discovery')}</summary>
+              <label>
+                {t('Working folder')}
+                <Input
+                  value={discoveryDirectory}
+                  maxLength={1000}
+                  onChange={(e) => {
+                    setDiscoveryDirectory(e.target.value);
+                    resetDiscovery();
+                  }}
+                />
+              </label>
+              <Button
+                disabled={discovering || !discoveryDirectory.trim()}
+                onClick={() => void discover()}
+              >
+                {t('Check discovery')}
+              </Button>
+              <p role="status">
+                {t(
+                  discovering
+                    ? 'Checking discovery'
+                    : discoveryError
+                      ? 'Discovery unavailable'
+                      : discovery
+                        ? 'Discovered skills'
+                        : 'Discovery not checked',
+                )}
+                {discovery ? `: ${discovery.skills.length}` : ''}
+              </p>
+              {!!discovery?.error_count && (
+                <p role="alert">
+                  {t('Some skills could not be loaded')}:{' '}
+                  {discovery.error_count}
+                </p>
+              )}
+              {discovery && (
+                <>
+                  <p>
+                    {t(
+                      'Discovery shows availability for this working folder, not skills already used by a session.',
+                    )}
+                  </p>
+                  <details>
+                    <summary>{t('Discovered skill list')}</summary>
+                    <ul className="instruction-discovered-skills">
+                      {discovery.skills.map((skill, index) => {
+                        const entry = catalog?.entries.find(
+                          (item) =>
+                            skill.path ===
+                            `${catalog.roots[item.scope]}/${item.path}`,
+                        );
+                        return (
+                          <li key={`${skill.path}:${index}`}>
+                            {entry ? (
+                              <button
+                                disabled={busy}
+                                onClick={() => {
+                                  setScope(entry.scope);
+                                  setSearch('');
+                                  setFilter('all');
+                                  void open(entry);
+                                }}
+                              >
+                                {skill.name}
+                              </button>
+                            ) : (
+                              <strong>{skill.name}</strong>
+                            )}
+                            <span>
+                              {t(
+                                skill.enabled
+                                  ? 'Skill enabled'
+                                  : 'Skill disabled',
+                              )}
+                            </span>
+                            <code>{skill.path}</code>
+                            {!entry && (
+                              <span>
+                                {t(
+                                  'Discovered by Codex; this path is outside the file editor.',
+                                )}
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </details>
+                  <details>
+                    <summary>{t('Instruction discovery settings')}</summary>
+                    {discovery.guidance ? (
+                      <>
+                        <p>
+                          {t('Combined project instruction limit')}:{' '}
+                          {discovery.guidance.max_bytes} B
+                        </p>
+                        <p>
+                          {t('Fallback filenames')}:{' '}
+                          {discovery.guidance.fallback_filenames.join(', ') ||
+                            t('No fallback filenames')}
+                        </p>
+                        <p>
+                          {t(
+                            'Codex uses at most one non-empty instruction file per folder, from the project root to the working folder. Fallback filenames run in Codex but are not editable here.',
+                          )}
+                        </p>
+                      </>
+                    ) : (
+                      <p>{t('Instruction settings unavailable')}</p>
+                    )}
+                  </details>
+                </>
+              )}
+            </details>
           </div>
           <nav className="instruction-files" aria-label={t('Agent documents')}>
-            {selectedEntries.map((entry) => {
-              const { label, context } = fileLabel(entry);
-              const draft = drafts.current.get(identity(entry));
-              const changed =
-                document && identity(entry) === identity(document)
-                  ? dirty
-                  : !!draft && draft.content !== draft.document.content;
-              const Icon =
-                entry.kind === 'skill'
-                  ? Sparkles
-                  : entry.kind === 'instructions'
-                    ? BookOpen
-                    : FileText;
-              return (
-                <button
-                  key={identity(entry)}
-                  aria-label={entry.path}
-                  title={entry.path}
-                  disabled={busy}
-                  aria-current={
-                    document && identity(entry) === identity(document)
-                      ? 'page'
-                      : undefined
-                  }
-                  onClick={() => void open(entry)}
-                >
-                  <Icon size={16} aria-hidden="true" />
-                  <span className="instruction-file-label">
-                    <strong>{label}</strong>
-                    <small>
-                      {kindLabel(entry)} · {context}
-                    </small>
-                  </span>
-                  {changed && (
-                    <span
-                      className="instruction-draft-dot"
-                      aria-label={t('Unsaved changes')}
-                    />
-                  )}
-                </button>
-              );
-            })}
+            {search.trim() ? (
+              selectedEntries.map((entry) => renderEntry(entry))
+            ) : (
+              <DocumentFolders
+                key={scope}
+                entries={selectedEntries}
+                selected={document?.scope === scope ? document.path : undefined}
+                renderFile={(entry) => renderEntry(entry, true)}
+                onCreate={canCreate && !busy ? createDocument : undefined}
+                t={t}
+              />
+            )}
+            {searching && (
+              <p role="status">{t('Searching document contents')}</p>
+            )}
+            {searchError && <p role="alert">{t('Document search failed')}</p>}
             {loading && !catalog && (
               <p role="status">{t('Loading documents')}</p>
             )}
-            {!loading && !selectedEntries.length && catalog && (
-              <div className="instruction-no-results">
-                <FileText size={22} />
-                <p>
-                  {t(
-                    search || filter !== 'all'
-                      ? 'No matching documents'
-                      : 'No documents in this scope',
+            {!loading &&
+              !searching &&
+              !searchError &&
+              !selectedEntries.length &&
+              catalog && (
+                <div className="instruction-no-results">
+                  <FileText size={22} />
+                  <p>
+                    {t(
+                      search || filter !== 'all'
+                        ? 'No matching documents'
+                        : 'No documents in this scope',
+                    )}
+                  </p>
+                  {(search || filter !== 'all') && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setSearch('');
+                        setFilter('all');
+                      }}
+                    >
+                      {t('Clear filters')}
+                    </Button>
                   )}
-                </p>
-                {(search || filter !== 'all') && (
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setSearch('');
-                      setFilter('all');
-                    }}
-                  >
-                    {t('Clear filters')}
-                  </Button>
-                )}
-              </div>
-            )}
+                </div>
+              )}
           </nav>
         </section>
         {document ? (
@@ -452,7 +747,7 @@ export function Instructions({
                   aria-pressed={mode === 'edit'}
                   onClick={() => setMode('edit')}
                 >
-                  {t('Edit source')}
+                  {t(document.editable ? 'Edit source' : 'View source')}
                 </button>
               </div>
             </header>
@@ -470,6 +765,62 @@ export function Instructions({
                   {t(errorCopy(error))}
                 </p>
               )}
+              <details className="instruction-context">
+                <summary>
+                  {t('Document scope and related instructions')}
+                  {!document.editable ? ` · ${t('Read-only')}` : ''}
+                </summary>
+                <p>
+                  {t(
+                    document.scope === 'project'
+                      ? 'These instructions belong to this project folder. Verify changes in a new session.'
+                      : 'This document comes from the selected user or installed source.',
+                  )}
+                </p>
+                {document.kind === 'skill' && (
+                  <>
+                    <p>
+                      {t(
+                        !discovery
+                          ? 'Discovery not checked'
+                          : discovered
+                            ? discovered.enabled
+                              ? 'Skill enabled'
+                              : 'Skill disabled'
+                            : 'Not in the discovered skills',
+                      )}
+                    </p>
+                    {discovered && (
+                      <p>
+                        {discovered.name} — {discovered.description}
+                      </p>
+                    )}
+                  </>
+                )}
+                {guidance.length > 0 && (
+                  <>
+                    <p>
+                      {t(
+                        'Related instruction files; an override takes precedence in its folder.',
+                      )}
+                    </p>
+                    {guidance.map((entry) => (
+                      <button
+                        key={identity(entry)}
+                        disabled={busy}
+                        onClick={() => {
+                          setScope(entry.scope);
+                          setSearch('');
+                          setFilter('all');
+                          void open(entry);
+                        }}
+                      >
+                        {entry.path}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </details>
               {mode === 'edit' ? (
                 <>
                   <label className="sr-only" htmlFor="instruction-content">
@@ -479,7 +830,8 @@ export function Instructions({
                     id="instruction-content"
                     spellCheck={false}
                     value={content}
-                    disabled={busy || !document.editable}
+                    disabled={busy}
+                    readOnly={!document.editable}
                     maxLength={65536}
                     aria-keyshortcuts="Control+s Meta+s"
                     onKeyDown={(event) => {
@@ -488,7 +840,7 @@ export function Instructions({
                         event.key.toLowerCase() === 's'
                       ) {
                         event.preventDefault();
-                        if (!busy) void save();
+                        if (!busy && document.editable) void save();
                       }
                     }}
                     onChange={(e) => {
@@ -508,10 +860,12 @@ export function Instructions({
                       <pre>{frontmatter[1]}</pre>
                     </details>
                   )}
-                  {document.kind === 'metadata' ? (
+                  {document.kind === 'metadata' ||
+                  document.kind === 'script' ? (
                     <pre>{content}</pre>
                   ) : (
                     <Markdown
+                      onLink={followLink}
                       text={
                         frontmatter
                           ? content.slice(frontmatter[0].length)
@@ -590,7 +944,9 @@ export function Instructions({
                   <RefreshCw size={15} />
                 </Button>
                 <Button
-                  disabled={busy || dirty || !document.exists}
+                  disabled={
+                    busy || dirty || !document.exists || !document.editable
+                  }
                   title={
                     dirty
                       ? t('Save your changes before asking Codex.')
@@ -660,6 +1016,36 @@ export function Instructions({
               'Instruction changes apply to new sessions. Start a new session to verify them. Skill discovery is refreshed from the original files.',
             )}
           </p>
+          <p>
+            {t(
+              'This workspace uses the configured Git repository. Instruction and skill rules do not depend on the project name, language, or framework.',
+            )}
+          </p>
+          <p>
+            {t(
+              'Codex uses at most one non-empty instruction file per folder, from the project root to the working folder. Fallback filenames run in Codex but are not editable here.',
+            )}
+          </p>
+          <p>
+            {t(
+              'The editor limit is 64 KiB per file; Codex has a separate combined project instruction limit, normally 32 KiB.',
+            )}
+          </p>
+          <p>
+            {t(
+              'Codex can discover linked skill folders and load assets on demand. The file editor excludes symlinks and non-text assets; check native discovery for those skills.',
+            )}
+          </p>
+          <p>
+            {t(
+              'Workbench sessions disable plugin and MCP execution. Installed files remain available for inspection.',
+            )}
+          </p>
+          <p>
+            {t(
+              'Discovery preserves same-name skills at different paths. Session and template execution still selects by name; use unique names for explicit selection.',
+            )}
+          </p>
           <a
             href="https://learn.chatgpt.com/docs/agent-configuration/agents-md"
             target="_blank"
@@ -726,13 +1112,19 @@ export function Instructions({
               onChange={(e) => {
                 const next = e.target.value as typeof kind;
                 setKind(next);
-                const prefix =
-                  scope === 'project'
-                    ? '.agents/skills/my-skill/'
-                    : 'skills/my-skill/';
+                const skillFolder = createFolder.match(
+                  /^(.*(?:^|\/)skills\/[^/]+)(?:\/.*)?$/,
+                )?.[1];
+                const prefix = skillFolder
+                  ? `${skillFolder}/`
+                  : createFolder.endsWith('skills')
+                    ? `${createFolder}/my-skill/`
+                    : scope === 'project'
+                      ? `${createFolder ? createFolder + '/' : ''}.agents/skills/my-skill/`
+                      : 'skills/my-skill/';
                 setPath(
                   next === 'instructions'
-                    ? 'AGENTS.md'
+                    ? `${createFolder ? createFolder + '/' : ''}AGENTS.md`
                     : prefix +
                         (next === 'skill'
                           ? 'SKILL.md'
