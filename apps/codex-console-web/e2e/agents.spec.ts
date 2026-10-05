@@ -9,7 +9,7 @@ test('unified sessions preserves status filters and search with legacy and Codex
     .getByLabel('본인 전용 비밀번호')
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  const navigation = page.getByRole('navigation', { name: '콘솔 메뉴' });
+  const navigation = page.getByRole('navigation', { name: 'Workbench 메뉴' });
   await expect(
     navigation.getByRole('button', { name: '세션', exact: true }),
   ).toHaveAttribute('aria-current', 'page');

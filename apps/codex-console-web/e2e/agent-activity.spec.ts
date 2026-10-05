@@ -61,7 +61,7 @@ test('global activity follows parallel agents through completion across pages an
   await page.keyboard.press('Escape');
   await expect(trigger).toBeFocused();
   await page
-    .getByRole('navigation', { name: '콘솔 메뉴' })
+    .getByRole('navigation', { name: 'Workbench 메뉴' })
     .getByRole('button', { name: '모니터링' })
     .click();
   await expect(trigger).toHaveAccessibleName(/실행 중 에이전트: 2/);

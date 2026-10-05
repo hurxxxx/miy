@@ -162,6 +162,23 @@ export function Instructions({
       setBusy(false);
     }
   };
+  const loadLatest = async () => {
+    if (!document) return;
+    const sequence = ++readSequence.current;
+    try {
+      const latest = await api<Document>(
+        `/instructions/document?scope=${document.scope}&path=${encodeURIComponent(document.path)}`,
+      );
+      if (
+        sequence === readSequence.current &&
+        identity(latest) === identity(document)
+      ) {
+        setLatestDocument(latest);
+      }
+    } catch (e) {
+      if (sequence === readSequence.current) showError(e);
+    }
+  };
   const matches = (entry: Pick<Entry, 'kind' | 'path'>) =>
     entry.path.toLowerCase().includes(search.toLowerCase()) &&
     (filter === 'all' ||
@@ -257,6 +274,7 @@ export function Instructions({
                 disabled={busy}
                 onChange={(e) => {
                   remember();
+                  ++readSequence.current;
                   setScope(e.target.value as Scope);
                   setSearch('');
                   setFilter('all');
@@ -504,56 +522,45 @@ export function Instructions({
                 </div>
               )}
               {error === 'instruction_conflict' && (
-                <Button
-                  disabled={busy}
-                  onClick={() => {
-                    // Keep the local draft while showing the latest content separately.
-                    void api<Document>(
-                      `/instructions/document?scope=${document.scope}&path=${encodeURIComponent(document.path)}`,
-                    )
-                      .then((latest) => {
-                        setLatestDocument(latest);
-                      })
-                      .catch(showError);
-                  }}
-                >
+                <Button disabled={busy} onClick={() => void loadLatest()}>
                   {t('Load latest version and keep my draft')}
                 </Button>
               )}
-              {latestDocument && (
-                <section className="stack">
-                  <label>
-                    {t('Latest saved content')}
-                    <textarea
-                      readOnly
-                      value={latestDocument.content}
-                      rows={8}
-                    />
-                  </label>
-                  <div className="instruction-actions">
-                    <Button
-                      onClick={() => {
-                        setDocument(latestDocument);
-                        setLatestDocument(null);
-                        setError(null);
-                      }}
-                    >
-                      {t('Keep my draft against this version')}
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setDocument(latestDocument);
-                        setContent(latestDocument.content);
-                        drafts.current.delete(identity(latestDocument));
-                        setLatestDocument(null);
-                        setError(null);
-                      }}
-                    >
-                      {t('Use the latest saved content')}
-                    </Button>
-                  </div>
-                </section>
-              )}
+              {latestDocument &&
+                identity(latestDocument) === identity(document) && (
+                  <section className="stack">
+                    <label>
+                      {t('Latest saved content')}
+                      <textarea
+                        readOnly
+                        value={latestDocument.content}
+                        rows={8}
+                      />
+                    </label>
+                    <div className="instruction-actions">
+                      <Button
+                        onClick={() => {
+                          setDocument(latestDocument);
+                          setLatestDocument(null);
+                          setError(null);
+                        }}
+                      >
+                        {t('Keep my draft against this version')}
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setDocument(latestDocument);
+                          setContent(latestDocument.content);
+                          drafts.current.delete(identity(latestDocument));
+                          setLatestDocument(null);
+                          setError(null);
+                        }}
+                      >
+                        {t('Use the latest saved content')}
+                      </Button>
+                    </div>
+                  </section>
+                )}
             </div>
             <footer className="instruction-editor-footer">
               <div className="instruction-save-state" role="status">

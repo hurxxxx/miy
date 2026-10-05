@@ -7,7 +7,7 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 from psycopg import sql
-from sqlalchemy import create_engine, select, text
+from sqlalchemy import create_engine, inspect, select, text
 from sqlalchemy.engine import make_url
 
 from codex_console.app import create_app
@@ -162,9 +162,13 @@ def legacy_database(client, postgres_database_url):
 
     def snapshot():
         with client.app.state.factory() as reader, engine.begin() as writer:
-            for table in reversed(Base.metadata.sorted_tables):
+            # Workbench-only tables were introduced after the PostgreSQL-to-SQLite
+            # cutover. A frozen legacy source contains only its historical tables.
+            legacy_names = set(inspect(writer).get_table_names())
+            tables = [t for t in Base.metadata.sorted_tables if t.name in legacy_names]
+            for table in reversed(tables):
                 writer.execute(table.delete())
-            for table in Base.metadata.sorted_tables:
+            for table in tables:
                 rows = list(reader.execute(select(table)).mappings())
                 if rows:
                     writer.execute(table.insert(), [dict(row) for row in rows])

@@ -57,6 +57,7 @@ from miy_api.domains.integrations.admin_router import (
 from miy_api.domains.integrations.directory_router import (
     router as directory_integrations_router,
 )
+from miy_api.domains.integrations.app_router import router as app_integrations_router
 from miy_api.domains.mail.router import router as mail_router
 from miy_api.domains.media.router import router as media_router
 from miy_api.domains.meeting.router import router as meeting_router
@@ -139,6 +140,7 @@ def _router_specs() -> list[_RouterSpec]:
         _RouterSpec(admin_app_access_router, "protected"),
         _RouterSpec(admin_platform_api_keys_router, "protected"),
         _RouterSpec(directory_integrations_router),
+        _RouterSpec(app_integrations_router),
         _RouterSpec(usage_router, "protected"),
         _RouterSpec(tetris_router, "protected"),
         _RouterSpec(dm_router, "protected"),

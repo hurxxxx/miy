@@ -2,12 +2,107 @@ import asyncio
 import json
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
 from codex_console.errors import ConsoleError
+from codex_console.protocol_contract import COMPATIBILITY_SCHEMA_NAMES, build_contract
 from codex_console.rpc import CodexRPC
+
+
+@pytest.mark.parametrize(
+    ("version", "drift", "accepted"),
+    [
+        ("0.159.2", None, True),
+        ("0.160.0", None, True),
+        ("0.159.1", None, False),
+        ("0.160.0-alpha.1", None, False),
+        ("0.160.0", "nested-permission", False),
+        ("0.160.0", "missing-permission", False),
+        ("0.160.0", "invalid-json", False),
+        ("0.160.0", "generation-failed", False),
+    ],
+)
+def test_start_requires_stable_version_and_exact_contract_before_handshake(
+    tmp_path, monkeypatch, version, drift, accepted
+):
+    import codex_console.rpc as rpc_module
+
+    schema = {
+        "type": "object",
+        "properties": {"permissions": {"$ref": "#/definitions/Permissions"}},
+        "definitions": {"Permissions": {"type": "object", "additionalProperties": False}},
+    }
+    baseline = tmp_path / "baseline"
+    baseline.mkdir()
+    for name in COMPATIBILITY_SCHEMA_NAMES:
+        (baseline / f"{name}.json").write_text(json.dumps(schema))
+    monkeypatch.setattr(rpc_module, "CONTRACT", build_contract("0.159.2", baseline))
+
+    async def run():
+        calls = []
+        stream = asyncio.StreamReader()
+        stream.feed_data(b'{"id":1,"result":{"userAgent":"test"}}\n')
+        process = SimpleNamespace(
+            returncode=None,
+            stdout=stream,
+            stdin=SimpleNamespace(write=Mock(), drain=AsyncMock()),
+            wait=AsyncMock(return_value=0),
+        )
+        process.terminate = Mock(side_effect=lambda: setattr(process, "returncode", 0))
+
+        async def spawn(*args, **kwargs):
+            calls.append(args)
+            if args[1:] == ("--version",):
+                return SimpleNamespace(
+                    returncode=0,
+                    communicate=AsyncMock(return_value=(f"codex-cli {version}".encode(), b"")),
+                )
+            if args[1:3] == ("app-server", "generate-json-schema"):
+                target = Path(args[-1])
+                for name in COMPATIBILITY_SCHEMA_NAMES:
+                    (target / f"{name}.json").write_text(json.dumps(schema))
+                permission = target / "PermissionsRequestApprovalResponse.json"
+                if drift == "nested-permission":
+                    changed = json.loads(permission.read_text())
+                    changed["definitions"]["Permissions"]["additionalProperties"] = True
+                    permission.write_text(json.dumps(changed))
+                elif drift == "missing-permission":
+                    permission.unlink()
+                elif drift == "invalid-json":
+                    permission.write_text("{")
+                return SimpleNamespace(
+                    returncode=1 if drift == "generation-failed" else 0,
+                    wait=AsyncMock(return_value=0),
+                )
+            return process
+
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", spawn)
+        rpc = CodexRPC("test-codex", tmp_path, AsyncMock(), AsyncMock())
+        try:
+            if accepted:
+                await rpc.start()
+                assert rpc.connected
+                assert "--experimental" in calls[1]
+                assert calls[2][1:] == (
+                    "app-server", "--listen", "stdio://", "-c",
+                    'forced_login_method="chatgpt"', "--disable", "apps", "--disable", "plugins",
+                )
+                messages = [json.loads(call.args[0]) for call in process.stdin.write.call_args_list]
+                assert messages[0]["method"] == "initialize"
+                assert messages[0]["params"]["capabilities"] == {"experimentalApi": True}
+                assert messages[1] == {"method": "initialized", "params": {}}
+            else:
+                with pytest.raises(ConsoleError, match="codex_version_mismatch"):
+                    await rpc.start()
+                assert rpc.process is None
+                assert all("--listen" not in args for args in calls)
+                process.stdin.write.assert_not_called()
+        finally:
+            await rpc.close()
+
+    asyncio.run(run())
 
 
 @pytest.mark.parametrize(

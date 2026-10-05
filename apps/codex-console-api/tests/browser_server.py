@@ -151,6 +151,13 @@ def main():
         ):
             subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True)
         (root / "README.md").write_text("Browser regression fixture\n")
+        contract = root / "packages/contracts/app-contracts.json"
+        contract.parent.mkdir(parents=True)
+        contract.write_bytes(
+            (
+                Path(__file__).resolve().parents[3] / "packages/contracts/app-contracts.json"
+            ).read_bytes()
+        )
         subprocess.run(["git", "-C", str(root), "add", "."], check=True)
         subprocess.run(
             ["git", "-C", str(root), "commit", "-m", "fixture"],

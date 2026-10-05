@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { submitNewTask } from './task-submission';
 
-test('sessions is the entry menu and restores search, scroll and drafts across workspace navigation', async ({
+test('sessions restores search, scroll and drafts across workspace navigation', async ({
   page,
 }) => {
-  await page.goto('./');
+  await page.goto('./?view=sessions');
   await page
     .getByLabel('본인 전용 비밀번호')
     .fill('console-tests-only-password');

@@ -24,6 +24,11 @@ class MIYSessionInput(Input):
 class TaskContext(Input):
     purpose: Literal["development", "inspection", "deployment", "recovery"] = "development"
     service_id: str | None = Field(default=None, max_length=100)
+    area: Literal["studio", "apps", "platform"] | None = None
+    app_id: str | None = Field(default=None, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=80)
+    project_id: UUID | None = None
+    maintenance_id: UUID | None = None
+    release_unit: Literal["miy-app", "miy-workbench"] | None = None
 
 
 class NewTask(Input):

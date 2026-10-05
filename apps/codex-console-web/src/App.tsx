@@ -4,6 +4,7 @@ import { SessionsView, type SessionFilters } from './sessions';
 import { Button, Dialog, Input } from '@miy/ui';
 import {
   Activity,
+  Boxes,
   ArrowUp,
   ArrowLeft,
   MessagesSquare,
@@ -58,6 +59,11 @@ import {
 import { AttachmentBadges, FileLibrary } from './attachments';
 import { CodexUpdateGuide } from './codex-update';
 import { Templates } from './templates';
+import {
+  WorkbenchApps,
+  WorkbenchPlatform,
+  type StartWorkbenchTask,
+} from './workbench';
 import { Instructions } from './instructions';
 import { AgentActivity } from './agent-activity';
 import { needsAttention, executing, running } from './agent-state';
@@ -79,6 +85,9 @@ const tabs: { id: Tab; label: Copy }[] = [
 
 type SessionTab = 'sessions' | 'codex' | null;
 type ConsolePage =
+  | 'studio'
+  | 'apps'
+  | 'platform'
   | 'sessions'
   | 'workspace'
   | 'templates'
@@ -99,9 +108,17 @@ function readRoute(): {
     ? 'workspace'
     : tab === 'codex'
       ? 'sessions'
-      : view === 'templates' || view === 'monitoring' || view === 'instructions'
+      : view === 'templates' ||
+          view === 'monitoring' ||
+          view === 'instructions' ||
+          view === 'studio' ||
+          view === 'apps' ||
+          view === 'platform' ||
+          view === 'sessions'
         ? view
-        : 'sessions';
+        : view === 'agents' || view === 'history' || view === 'workspace'
+          ? 'sessions'
+          : 'studio';
   const template = params.get('template');
   return {
     page,
@@ -695,6 +712,20 @@ export function App() {
         : `?view=${next}${tab === 'codex' ? '&tab=codex' : ''}${template ? `&template=${encodeURIComponent(template)}` : ''}`,
     );
   };
+  const startWorkbenchTask: StartWorkbenchTask = async (
+    context,
+    title,
+    prompt,
+  ) => {
+    const next = await api<Detail>('/tasks', {
+      title,
+      context,
+      isolate: false,
+    });
+    drafts.current.set(next.id, prompt);
+    choose(next.id);
+    await refreshTasks();
+  };
   useEffect(() => {
     if (!authenticated || page !== 'sessions' || sessionTab !== 'codex') return;
     const controller = new AbortController();
@@ -814,7 +845,7 @@ export function App() {
           <div className="brand-mark">
             <Code2 size={24} />
           </div>
-          <p className="eyebrow">CODEX CONSOLE</p>
+          <p className="eyebrow">MIY WORKBENCH</p>
           <h1>{t('Your private development workspace')}</h1>
           <p className="login-description">
             {t(
@@ -885,7 +916,7 @@ export function App() {
         </Button>
         <div className="brand">
           <Code2 size={21} />
-          <strong>Codex Console</strong>
+          <strong>MIY Workbench</strong>
         </div>
         <div className="topbar-actions">
           <AgentActivity
@@ -946,7 +977,7 @@ export function App() {
         className={`sidebar ${sidebarOpen ? 'open' : ''}`}
       >
         <div className="sidebar-heading">
-          <span>{t('Your Codex workspace')}</span>
+          <span>{t('Develop, deliver and maintain')}</span>
         </div>
         <Button
           variant="primary"
@@ -959,10 +990,13 @@ export function App() {
         </Button>
         <nav
           className="console-navigation"
-          aria-label={t('Console navigation')}
+          aria-label={t('Workbench navigation')}
         >
           {(
             [
+              ['studio', 'MIY Studio', Code2],
+              ['apps', 'App management center', Boxes],
+              ['platform', 'Platform management', Activity],
               ['sessions', 'Sessions', MessagesSquare],
               ['templates', 'Task templates', ListTodo],
               ['instructions', 'Instructions and skills', BookOpen],
@@ -971,6 +1005,16 @@ export function App() {
           ).map(([id, label, Icon]) => (
             <button
               key={id}
+              className={
+                [
+                  'sessions',
+                  'templates',
+                  'instructions',
+                  'monitoring',
+                ].includes(id)
+                  ? 'nav-secondary'
+                  : undefined
+              }
               aria-current={
                 page === id || (id === 'sessions' && page === 'workspace')
                   ? 'page'
@@ -1040,7 +1084,23 @@ export function App() {
           }
         }}
       />
-      {page === 'instructions' ? null : page === 'templates' ? (
+      {page === 'studio' || page === 'apps' ? (
+        <WorkbenchApps
+          key={page}
+          area={page}
+          newTask={() => setNewOpen(true)}
+          t={t}
+          tasks={tasks}
+          openTask={choose}
+          startTask={startWorkbenchTask}
+        />
+      ) : page === 'platform' ? (
+        <WorkbenchPlatform
+          t={t}
+          navigate={navigate}
+          startTask={startWorkbenchTask}
+        />
+      ) : page === 'instructions' ? null : page === 'templates' ? (
         <Templates
           t={t}
           openTask={choose}

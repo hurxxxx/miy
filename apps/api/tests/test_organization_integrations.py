@@ -214,6 +214,8 @@ def test_scoped_platform_api_keys_are_revealable_audited_and_revocable(
     assert set(list_payload["available_scopes"]) == {
         "organization:read",
         "people:read",
+        "app-catalog:read",
+        "app-usage:read",
     }
     assert "api_key" not in list_response.text
     assert any(
