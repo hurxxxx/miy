@@ -1,5 +1,55 @@
 import { expect, test } from '@playwright/test';
 
+test('budget polling preserves the draft and original version across concurrent tabs', async ({
+  page,
+  context,
+}) => {
+  await page.goto('./?view=apps');
+  await page
+    .getByLabel('본인 전용 비밀번호')
+    .fill('console-tests-only-password');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await page.getByRole('button', { name: /^Planner 개인 계획/ }).click();
+  await page.getByRole('button', { name: '예산 편집', exact: true }).click();
+  const draft = page.getByLabel('개발 토큰 예산', { exact: true });
+  await draft.fill('2345');
+
+  const other = await context.newPage();
+  await other.goto('./?view=apps');
+  await other.getByRole('button', { name: /^Planner 개인 계획/ }).click();
+  await other.getByRole('button', { name: '예산 편집', exact: true }).click();
+  await other.getByLabel('개발 토큰 예산', { exact: true }).fill('6789');
+  await other.getByRole('button', { name: '저장', exact: true }).click();
+  await expect(
+    other.getByText('토큰 예산: 6,789', { exact: true }),
+  ).toBeVisible();
+
+  await page
+    .getByRole('main')
+    .getByRole('button', { name: '새로고침', exact: true })
+    .click();
+  await expect(
+    page.getByText('토큰 예산: 6,789', { exact: true }),
+  ).toBeVisible();
+  await expect(draft).toHaveValue('2345');
+  const saved = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/workbench/apps/planner/budget') &&
+      response.request().method() === 'PUT',
+  );
+  await page.getByRole('button', { name: '저장', exact: true }).click();
+  expect((await saved).status()).toBe(409);
+  await expect(draft).toHaveValue('2345');
+  const current = await (
+    await page.request.get('api/workbench/apps/planner/usage')
+  ).json();
+  expect(current.budget.development_tokens).toBe(6789);
+  await page.getByRole('button', { name: '예산 편집', exact: true }).click();
+  await page.getByRole('button', { name: '예산 편집', exact: true }).click();
+  await expect(draft).toHaveValue('6789');
+  await other.close();
+});
+
 test('Workbench connects app maintenance to Studio without granting deployment authority', async ({
   page,
 }) => {

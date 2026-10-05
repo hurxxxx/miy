@@ -1,5 +1,121 @@
 import { expect, test } from '@playwright/test';
 
+test('a delayed conflict read cannot replace another document or its draft', async ({
+  page,
+}) => {
+  await page.goto('./?view=instructions');
+  await page
+    .getByLabel('본인 전용 비밀번호')
+    .fill('console-tests-only-password');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: '지침·스킬', exact: true }),
+  ).toBeVisible();
+  const cookie = (await page.context().cookies()).find(
+    (c) => c.name === 'codex_console_csrf',
+  )!;
+  const headers = {
+    Origin: new URL(page.url()).origin,
+    'X-CSRF-Token': decodeURIComponent(cookie.value),
+  };
+  const suffix = Date.now();
+  const first = `delayed-${suffix}/AGENTS.md`;
+  const second = `other-${suffix}/AGENTS.md`;
+  for (const path of [first, second]) {
+    expect(
+      (
+        await page.request.put('api/instructions/document', {
+          headers,
+          data: {
+            scope: 'project',
+            path,
+            revision: null,
+            content: `# ${path}\n`,
+          },
+        })
+      ).status(),
+    ).toBe(200);
+  }
+  await page
+    .getByRole('region', { name: '문서 목록', exact: true })
+    .getByRole('button', { name: '새로고침' })
+    .click();
+  const files = page.getByRole('navigation', { name: '에이전트 참조 문서' });
+  await files.getByRole('button', { name: first, exact: true }).click();
+  await page.getByRole('button', { name: '편집', exact: true }).click();
+  const editor = page.getByLabel('문서 내용', { exact: true });
+  await editor.fill('First local draft');
+  const url = `api/instructions/document?scope=project&path=${encodeURIComponent(first)}`;
+  const original = await (await page.request.get(url)).json();
+  expect(
+    (
+      await page.request.put('api/instructions/document', {
+        headers,
+        data: {
+          scope: 'project',
+          path: first,
+          revision: original.revision,
+          content: 'First external edit',
+        },
+      })
+    ).status(),
+  ).toBe(200);
+  await page.getByRole('button', { name: '문서 저장', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText(
+    '다른 곳에서 문서가 변경되었습니다',
+  );
+
+  let release!: () => void;
+  const delayed = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(
+    (url) =>
+      url.pathname.endsWith('/api/instructions/document') &&
+      url.searchParams.get('path') === first,
+    async (route) => {
+      const response = await route.fetch();
+      await delayed;
+      await route.fulfill({ response });
+    },
+  );
+  const requested = page.waitForRequest(
+    (request) => new URL(request.url()).searchParams.get('path') === first,
+  );
+  await page
+    .getByRole('button', { name: '최신 버전 확인 후 내 초안 유지' })
+    .click();
+  await requested;
+  await files.getByRole('button', { name: second, exact: true }).click();
+  await page.getByRole('button', { name: '편집', exact: true }).click();
+  await editor.fill('Second local draft');
+  const received = page.waitForResponse(
+    (response) => new URL(response.url()).searchParams.get('path') === first,
+  );
+  release();
+  await received;
+  await page.getByRole('button', { name: '문서 저장', exact: true }).click();
+  await expect(
+    page.getByRole('status').filter({ hasText: '저장했습니다' }),
+  ).toBeVisible();
+  await expect(page.getByLabel('최신 저장 내용')).toHaveCount(0);
+  await expect(page.locator('.instruction-location summary')).toHaveText(
+    second,
+  );
+  expect((await (await page.request.get(url)).json()).content).toBe(
+    'First external edit',
+  );
+  expect(
+    (
+      await (
+        await page.request.get(
+          `api/instructions/document?scope=project&path=${encodeURIComponent(second)}`,
+        )
+      ).json()
+    ).content,
+  ).toBe('Second local draft');
+});
+
 test('document workspace uses the viewport, filters readable names, and keeps actions visible across panes and mobile', async ({
   page,
 }) => {

@@ -791,7 +791,7 @@ function UsagePanel({
   busy: boolean;
   onBudget: (value: Budget) => Promise<boolean>;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<Budget | null>(null);
   const format = (value?: number | null) =>
     value == null ? t('Not reported') : value.toLocaleString();
   return (
@@ -800,7 +800,9 @@ function UsagePanel({
         <h3>
           {t('Monthly usage and budget')} · {data.month} UTC
         </h3>
-        <Button onClick={() => setEditing(!editing)}>{t('Edit budget')}</Button>
+        <Button onClick={() => setEditing(editing ? null : data.budget)}>
+          {t('Edit budget')}
+        </Button>
       </div>
       <Connection
         state={data.runtime_state}
@@ -880,12 +882,11 @@ function UsagePanel({
       )}
       {editing && (
         <BudgetForm
-          key={data.budget.version}
           t={t}
-          budget={data.budget}
+          budget={editing}
           busy={busy}
           onSave={async (value) => {
-            if (await onBudget(value)) setEditing(false);
+            if (await onBudget(value)) setEditing(null);
           }}
         />
       )}
