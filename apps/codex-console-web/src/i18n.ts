@@ -186,8 +186,63 @@ export const korean = {
   'Official skill documentation': '공식 스킬 문서',
   'Document scope': '적용 범위',
   'Project documents': '프로젝트 문서',
+  'System skills': '시스템 스킬 · 읽기 전용',
+  'Plugin skills': '플러그인 스킬 · 읽기 전용',
+  'New document here': '이 폴더에 문서 만들기',
+  'Expand folders': '모두 펼치기',
+  'Collapse folders': '모두 접기',
+  'Searching document contents': '이름·설명·본문 검색 중',
+  'Document search failed': '검색하지 못했습니다. 검색어를 다시 입력하세요.',
+  'Linked instructions': '연결 지침',
+  'Skill script': '스킬 스크립트',
+  'Installed files are read-only. Discovery depends on the selected working folder.':
+    '설치된 파일은 읽기 전용입니다. 발견 여부는 작업 경로에 따라 달라집니다.',
+  'Codex skill discovery': 'Codex 스킬 발견 상태',
+  'Working folder': '확인할 작업 경로',
+  'Check discovery': '발견 상태 확인',
+  'Checking discovery': '발견 상태 확인 중',
+  'Discovery unavailable': '발견 상태를 확인하지 못했습니다',
+  'Discovery not checked': '발견 상태 미확인',
+  'Discovered skills': '발견된 스킬',
+  'Some skills could not be loaded': '일부 스킬을 불러오지 못했습니다',
+  'Skill enabled': 'Codex에서 발견됨 · 활성',
+  'Skill disabled': 'Codex에서 발견됨 · 비활성',
+  'Not in the discovered skills': '현재 작업 경로의 발견 목록에 없음',
+  'View source': '원문 보기',
+  'Document scope and related instructions': '문서 범위·관련 지침',
+  'These instructions belong to this project folder. Verify changes in a new session.':
+    '이 프로젝트 폴더의 문서입니다. 변경한 지침은 새 세션에서 적용을 확인하세요.',
+  'This document comes from the selected user or installed source.':
+    '선택한 사용자 범위 또는 설치 위치의 문서입니다.',
+  'Related instruction files; an override takes precedence in its folder.':
+    '관련 지침 파일입니다. 같은 폴더에서는 override 지침을 우선 확인하세요.',
+  'The linked document is outside this library or is unavailable.':
+    '연결된 문서가 이 목록의 범위 밖에 있거나 읽을 수 없습니다.',
   'Personal skills': '개인 스킬',
   'Global instructions': '전역 지침·스킬',
+  'Administrator skills': '관리자 스킬 · 읽기 전용',
+  'Discovery preserves same-name skills at different paths. Session and template execution still selects by name; use unique names for explicit selection.':
+    '발견 목록은 이름이 같은 스킬의 경로를 구분합니다. 세션·템플릿 실행 선택은 아직 이름을 사용하므로 명시 선택할 스킬의 이름은 고유하게 지정하세요.',
+  'Discovered skill list': '조회된 스킬 목록',
+  'Discovery shows availability for this working folder, not skills already used by a session.':
+    '이 작업 경로에서 발견된 목록입니다. 세션이 이미 사용한 스킬 목록을 뜻하지 않습니다.',
+  'Discovered by Codex; this path is outside the file editor.':
+    'Codex에서 발견했으나 이 편집기가 지원하는 파일 경로 밖에 있습니다.',
+  'Instruction discovery settings': '지침 탐색 설정',
+  'Combined project instruction limit': '프로젝트 지침 합산 제한',
+  'Fallback filenames': '대체 지침 파일명',
+  'No fallback filenames': '없음',
+  'Instruction settings unavailable': '지침 탐색 설정을 확인할 수 없습니다.',
+  'Codex uses at most one non-empty instruction file per folder, from the project root to the working folder. Fallback filenames run in Codex but are not editable here.':
+    'Codex는 프로젝트 루트부터 작업 폴더까지 폴더당 비어 있지 않은 지침 파일 하나를 선택합니다. 설정된 대체 파일명은 Codex에서 적용되지만 이 편집기에서는 편집할 수 없습니다.',
+  'This workspace uses the configured Git repository. Instruction and skill rules do not depend on the project name, language, or framework.':
+    '설정한 Git 저장소를 작업 공간으로 사용합니다. 지침·스킬 규칙은 프로젝트 이름이나 언어·프레임워크에 의존하지 않습니다.',
+  'The editor limit is 64 KiB per file; Codex has a separate combined project instruction limit, normally 32 KiB.':
+    '편집기는 파일당 64 KiB를 지원합니다. Codex의 프로젝트 지침 합산 제한은 별도이며 기본 32 KiB입니다.',
+  'Codex can discover linked skill folders and load assets on demand. The file editor excludes symlinks and non-text assets; check native discovery for those skills.':
+    'Codex는 심볼릭 링크로 연결된 스킬과 필요한 자원을 읽을 수 있습니다. 이 편집기는 심볼릭 링크와 비텍스트 자원을 제외하므로 해당 스킬은 발견 상태에서 확인하세요.',
+  'Workbench sessions disable plugin and MCP execution. Installed files remain available for inspection.':
+    'Workbench 세션에서는 플러그인·MCP 실행을 비활성화합니다. 설치된 파일은 내용을 확인하는 용도로 제공합니다.',
   'Search documents': '문서 검색',
   'Loading documents': '문서 불러오는 중',
   'Agent documents': '에이전트 참조 문서',
@@ -803,6 +858,8 @@ const errors: Record<string, Copy> = {
     'The Codex connection was lost. Check the task state before retrying.',
   usage_limit: 'The subscription usage limit has been reached.',
   path_denied: 'This path is not available in the console.',
+  document_link_unavailable:
+    'The linked document is outside this library or is unavailable.',
   output_too_large: 'This file or output is too large to display.',
   catalog_unavailable:
     'The app catalog is unavailable. Check the registered app contracts.',

@@ -71,6 +71,7 @@ import { GitWorkspace, GitSummary, useGitState } from './git';
 import {
   ExecutionSettings,
   ExecutionStatus,
+  PermissionSelect,
   resolveExecution,
   type Execution,
 } from './execution';
@@ -1617,10 +1618,7 @@ export function App() {
                 t={t}
                 busy={busy}
                 onSave={(body) => mutate('documents', body, 'PUT')}
-                onImplement={(revision) => {
-                  setStage('implement');
-                  approveImplementation(revision);
-                }}
+                onImplement={approveImplementation}
               />
             )}
             {tab === 'files' && uploadStatus}
@@ -1731,28 +1729,33 @@ export function App() {
           setPlanToApprove(null);
         }}
         onConfirm={() => {
-          if (planToApprove)
-            void (async () => {
-              return send('implement', {
-                ...approvalExecution,
-                text: approvalText,
-                revision_id: planToApprove.id,
-                attachment_ids: approvalFiles.map((file) => file.id),
-              });
-            })().then((ok) => {
-              if (ok) {
-                setPlanToApprove(null);
-                setExecution((current) => ({
-                  ...current,
-                  model: null,
-                  effort: null,
-                }));
-                setMessage((current) =>
-                  current === approvalText ? '' : current,
-                );
-                setTab('branch');
-              }
-            });
+          if (!task || !planToApprove) return;
+          const approvedTaskId = task.id;
+          void send(
+            'implement',
+            {
+              ...approvalExecution,
+              text: approvalText,
+              revision_id: planToApprove.id,
+              attachment_ids: approvalFiles.map((file) => file.id),
+            },
+            approvedTaskId,
+          ).then((ok) => {
+            if (ok && selectedRef.current === approvedTaskId) {
+              setPlanToApprove(null);
+              setStage('implement');
+              setExecution((current) => ({
+                ...current,
+                model: null,
+                effort: null,
+                permissions: approvalExecution.permissions,
+              }));
+              setMessage((current) =>
+                current === approvalText ? '' : current,
+              );
+              setTab('branch');
+            }
+          });
         }}
       >
         {error && (
@@ -1762,13 +1765,19 @@ export function App() {
         )}
         <p>
           {approvalDisplay.model ?? t('Loading model catalog…')}
-          {approvalDisplay.effort ? ` · ${approvalDisplay.effort}` : ''} ·{' '}
-          {t(
-            approvalExecution.permissions === 'yolo'
-              ? 'YOLO · Full access'
-              : 'Ask when needed',
-          )}
+          {approvalDisplay.effort ? ` · ${approvalDisplay.effort}` : ''}
         </p>
+        <label className="stack">
+          {t('Permissions')}
+          <PermissionSelect
+            value={approvalExecution.permissions}
+            onChange={(permissions) =>
+              setApprovalExecution((current) => ({ ...current, permissions }))
+            }
+            disabled={busy}
+            t={t}
+          />
+        </label>
         {approvalExecution.permissions === 'yolo' && (
           <p className="danger">
             {t('YOLO runs commands without approval or sandbox restrictions.')}

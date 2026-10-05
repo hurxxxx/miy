@@ -1,12 +1,13 @@
 # Composable Abstractions
 
-Use when similar screens/features tempt a shared framework.
+Use when deciding whether to reuse, extract, or keep components and logic local, across any application or service in the repository.
 
 ## Rule
 
-- Share policy, state transition, validation, permission, and data flow before sharing whole screens.
-- Keep app-local assembly when domain meaning differs.
-- Promote only after third use and when rules outnumber exceptions.
+- Reuse a suitable existing implementation through its supported entrypoint even when the new feature has only one caller; do not wait for another duplicate.
+- Before creating an abstraction, identify at least two actual consumers with the same contract and domain meaning. Share policy, state transition, validation, permission, and data flow before sharing whole screens; rules must outnumber exceptions.
+- Choose the smallest shared scope: callers within one feature share a feature-local module; callers within one app share an app-local module; cross-app packages need actual consumers in different apps. Keep domain-specific assembly local.
+- Record the searched entrypoints and why they fit or cannot meet the requirement in the change rationale. Do not create speculative frameworks or add project/customer/screen-specific flags to force reuse.
 - Common model must expose affected screens, owners, identifiers, and tests.
 - If config hides branches or gains screen-specific booleans, demote to local assembly.
 

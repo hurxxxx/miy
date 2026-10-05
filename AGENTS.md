@@ -28,7 +28,7 @@
 
 ## Platform Boundaries
 
-- Use existing composition roots, registries, manifests, public APIs, generated contracts, and migrations.
+- Before adding components, helpers, or logic, search the owning feature, shared packages, and public APIs; reuse suitable implementations and explain any necessary new implementation. Follow [shared abstraction criteria](docs/agents/composable-abstractions.md) for extraction. Use existing composition roots, registries, manifests, generated contracts, and migrations.
 - For third-party libraries and external tools, prefer the pinned version's documented configuration, public APIs, extension points, and official headless/lifecycle features. Before adding a wrapper, monkey patch, compatibility shim, or duplicated lifecycle/state logic, verify that the official surface cannot meet the requirement. Keep any necessary adapter narrow, version-pinned, fail-closed, tested, and documented with the specific upstream gap; remove it when an official capability replaces it.
 - Shared/auditable state belongs in PostgreSQL or object storage, not UI hiding, browser storage, `/tmp`, process memory, or JSON load-modify-write. Exception: the standalone, single-owner Codex Console uses its own durable local SQLite database so miy database outages do not disable recovery access; follow its [storage and backup contract](docs/apps/codex-console/README.md#독립-저장소와-백업).
 - Server enforcement owns auth, user/execution identity, company app admission, resource ACL, and fail-closed AI write approval.

@@ -180,6 +180,174 @@ async function openAndCompose() {
   });
 }
 
+async function openPlanConfirmation() {
+  detail.revisions = [
+    {
+      id: 7,
+      kind: 'plan',
+      version: 2,
+      body: 'Implement the agreed change.',
+      created_at: detail.updated_at,
+    },
+  ];
+  render(<App />);
+  await screen.findByRole('heading', { name: 'Test task' });
+  fireEvent.click(
+    within(screen.getByRole('navigation', { name: '결과물' })).getByRole(
+      'button',
+      { name: '계획' },
+    ),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '이 계획으로 실행' }));
+  return screen.getByRole('dialog');
+}
+
+it.each(['ask', 'yolo'] as const)(
+  'executes the saved plan with %s and retains that permission for the next request',
+  async (permissions) => {
+    submit = async (body) => {
+      detail = {
+        ...detail,
+        stage: 'implement',
+        permissions: body.permissions as 'ask' | 'yolo',
+        event_id: detail.event_id + 1,
+      };
+      return detail;
+    };
+    const dialog = await openPlanConfirmation();
+    expect(within(dialog).getByLabelText('실행 권한')).toHaveProperty(
+      'value',
+      'ask',
+    );
+    fireEvent.change(within(dialog).getByLabelText('실행 권한'), {
+      target: { value: permissions },
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: '이 계획으로 실행' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(api).toHaveBeenCalledWith(
+      `/tasks/${taskId}/implement`,
+      expect.objectContaining({
+        revision_id: 7,
+        permissions,
+        model: null,
+        effort: null,
+      }),
+    );
+    expect(screen.getByLabelText('실행 모드')).toHaveProperty(
+      'value',
+      'implement',
+    );
+    expect(screen.getByLabelText('실행 권한')).toHaveProperty(
+      'value',
+      permissions,
+    );
+    fireEvent.change(screen.getByLabelText('요청 내용 입력'), {
+      target: { value: 'Continue with the next change.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '보내기' }));
+    await waitFor(() =>
+      expect(api).toHaveBeenCalledWith(
+        `/tasks/${taskId}/implement`,
+        expect.objectContaining({
+          text: 'Continue with the next change.',
+          permissions,
+        }),
+      ),
+    );
+  },
+);
+
+it('discards a cancelled plan permission choice without executing or changing the composer', async () => {
+  const dialog = await openPlanConfirmation();
+  fireEvent.change(within(dialog).getByLabelText('실행 권한'), {
+    target: { value: 'yolo' },
+  });
+  fireEvent.click(within(dialog).getByRole('button', { name: '취소' }));
+  expect(screen.getByLabelText('실행 모드')).toHaveProperty('value', 'plan');
+  expect(screen.getByLabelText('실행 권한')).toHaveProperty(
+    'value',
+    'read-only',
+  );
+  expect(
+    vi.mocked(api).mock.calls.some(([path]) => path.endsWith('/implement')),
+  ).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: '이 계획으로 실행' }));
+  expect(
+    within(screen.getByRole('dialog')).getByLabelText('실행 권한'),
+  ).toHaveProperty('value', 'ask');
+});
+
+it('locks permission changes during submission and keeps the same choice and operation for retry', async () => {
+  let fail!: (error: Error) => void;
+  submit = () =>
+    new Promise((_, reject) => {
+      fail = reject;
+    });
+  const dialog = await openPlanConfirmation();
+  const selector = within(dialog).getByLabelText('실행 권한');
+  const execute = within(dialog).getByRole('button', {
+    name: '이 계획으로 실행',
+  });
+  fireEvent.change(selector, { target: { value: 'yolo' } });
+  fireEvent.click(execute);
+  await waitFor(() => expect(selector).toHaveProperty('disabled', true));
+  expect(execute).toHaveProperty('disabled', true);
+  await act(async () => fail(new ApiError('unavailable')));
+  expect(selector).toHaveProperty('disabled', false);
+  expect(selector).toHaveProperty('value', 'yolo');
+  submit = async () => detail;
+  fireEvent.click(execute);
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  const requests = vi
+    .mocked(api)
+    .mock.calls.filter(([path]) => path.endsWith('/implement'));
+  expect(requests).toHaveLength(2);
+  expect(requests[1][1]).toEqual(requests[0][1]);
+  expect(screen.getByLabelText('실행 권한')).toHaveProperty('value', 'yolo');
+});
+
+it('does not carry a late plan execution permission into another task', async () => {
+  const second = {
+    ...detail,
+    id: '00000000-0000-4000-8000-000000000002',
+    title: 'Another task',
+  };
+  const original = vi.mocked(api).getMockImplementation()!;
+  vi.mocked(api).mockImplementation((path, ...args) => {
+    if (path === `/tasks/${second.id}`) return Promise.resolve(second);
+    if (path === `/tasks/${second.id}/git`) return Promise.resolve(gitState);
+    return original(path, ...args);
+  });
+  let finish!: (value: Detail) => void;
+  submit = () =>
+    new Promise((resolve) => {
+      finish = resolve;
+    });
+  const dialog = await openPlanConfirmation();
+  fireEvent.change(within(dialog).getByLabelText('실행 권한'), {
+    target: { value: 'yolo' },
+  });
+  fireEvent.click(
+    within(dialog).getByRole('button', { name: '이 계획으로 실행' }),
+  );
+  await waitFor(() => expect(finish).toBeTypeOf('function'));
+  act(() => {
+    window.history.pushState(null, '', `?task=${second.id}`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await screen.findByRole('heading', { name: second.title });
+  await act(async () =>
+    finish({ ...detail, stage: 'implement', permissions: 'yolo' }),
+  );
+  expect(screen.getByLabelText('실행 모드')).toHaveProperty('value', 'plan');
+  fireEvent.change(screen.getByLabelText('실행 모드'), {
+    target: { value: 'implement' },
+  });
+  expect(screen.getByLabelText('실행 권한')).toHaveProperty('value', 'ask');
+});
+
 it('shows the terminal repair prompt for model version failures and clears it after retry', async () => {
   const original = vi.mocked(api).getMockImplementation()!;
   let mismatch = true;
