@@ -325,6 +325,7 @@ export function Instructions({
   };
   const followLink = (href: string) => {
     if (/^[a-z][a-z\d+.-]*:/i.test(href) || href.startsWith('//')) return false;
+    if (busy) return true;
     if (!document) return true;
     if (href.startsWith('#')) {
       const slug = (text: string) =>
