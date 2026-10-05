@@ -33,14 +33,14 @@ export function AgentActivity({
   failed,
   t,
   openTask,
-  openAgents,
+  openSessions,
 }: {
   tasks: Task[];
   checkedAt: number | null;
   failed: boolean;
   t: Translate;
   openTask: (id: string) => void;
-  openAgents: () => void;
+  openSessions: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
@@ -271,10 +271,10 @@ export function AgentActivity({
               variant="ghost"
               onClick={() => {
                 setOpen(false);
-                openAgents();
+                openSessions();
               }}
             >
-              {t('View all agents')}
+              {t('All sessions')}
               <ArrowUpRight size={14} />
             </Button>
           </footer>

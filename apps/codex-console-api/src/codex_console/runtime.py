@@ -8,10 +8,10 @@ from pathlib import Path
 from jsonschema import Draft7Validator
 from sqlalchemy import or_, select, update
 
-from . import agents, attachments, git, planning, store
+from . import agents, attachments, git, planning, store, workbench
 from .auth import digest
 from .errors import ConsoleError
-from .models import Agent, Item, Operation, PendingRequest, Task
+from .models import Agent, DevelopmentUsage, Item, Operation, PendingRequest, Task
 from .rpc import CONTRACT, CodexRPC
 
 APPROVALS = {
@@ -269,6 +269,8 @@ class Runtime:
             task.thread_id, task.model = result["thread"]["id"], result["model"]
             db.flush()
             agents.register(db, {**result["thread"], "cwd": task.root}, executor=self.executor)
+            if not thread_id:
+                db.add(DevelopmentUsage(thread_id=task.thread_id, task_id=task.id, total_tokens=0))
         return result
 
     @staticmethod
@@ -1178,6 +1180,8 @@ class Runtime:
                 with self.factory.begin() as db:
                     current = self.require_task(db, task_id, locked=True)
                     agents.project(db, current, thread_id, method, params)
+                    if method == "thread/tokenUsage/updated":
+                        workbench.observe_usage(db, current, thread_id, params)
                 await self.finish_descendants(task_id)
                 return
             fingerprint, fingerprint_error = None, None
@@ -1201,7 +1205,9 @@ class Runtime:
                 turn_id = params.get("turnId") or (params.get("turn") or {}).get("id")
                 if turn_id and task.turn_id and turn_id != task.turn_id:
                     return
-                if method in ("item/started", "item/completed"):
+                if method == "thread/tokenUsage/updated":
+                    workbench.observe_usage(db, task, thread_id, params)
+                elif method in ("item/started", "item/completed"):
                     store.upsert_item(db, task, turn_id or task.turn_id or "", params["item"])
                 elif method in (
                     "item/agentMessage/delta",
@@ -1425,7 +1431,7 @@ class Runtime:
             return []
         if any(not isinstance(n, str) or not n.strip() or len(n) > 200 for n in names):
             raise ConsoleError("invalid_input", 422)
-        result = await rpc.call("skills/list", {"cwds": [root], "forceReload": False})
+        result = await rpc.call("skills/list", {"cwds": [root], "forceReload": True})
         available = {
             s["name"]: s
             for entry in result.get("data", [])

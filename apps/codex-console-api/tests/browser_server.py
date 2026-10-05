@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -10,6 +11,7 @@ from uuid import uuid4
 import uvicorn
 from conftest import PASSWORD, FakeRPC
 
+from codex_console import instructions
 from codex_console.app import create_app
 from codex_console.auth import password_hash
 from codex_console.cli import migrate
@@ -26,6 +28,25 @@ class BrowserRPC(FakeRPC):
 
     async def call(self, method, params):
         result = await super().call(method, params)
+        if method == "skills/list":
+            result = {
+                "data": [
+                    {
+                        "cwd": cwd,
+                        "skills": [
+                            {
+                                "name": re.search(r"(?m)^name: (.+)$", path.read_text())[1],
+                                "description": "Browser fixture skill",
+                                "path": str(path),
+                                "enabled": True,
+                            }
+                            for path in (Path(cwd) / ".agents/skills").glob("*/SKILL.md")
+                        ],
+                        "errors": [],
+                    }
+                    for cwd in params["cwds"]
+                ]
+            }
         if method == "turn/start":
             job = asyncio.create_task(
                 self.finish(params, result["turn"]["id"], type(self).completion_gate)
@@ -130,6 +151,13 @@ def main():
         ):
             subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True)
         (root / "README.md").write_text("Browser regression fixture\n")
+        contract = root / "packages/contracts/app-contracts.json"
+        contract.parent.mkdir(parents=True)
+        contract.write_bytes(
+            (
+                Path(__file__).resolve().parents[3] / "packages/contracts/app-contracts.json"
+            ).read_bytes()
+        )
         subprocess.run(["git", "-C", str(root), "add", "."], check=True)
         subprocess.run(
             ["git", "-C", str(root), "commit", "-m", "fixture"],
@@ -150,6 +178,11 @@ def main():
             web_dist=Path(__file__).resolve().parents[2] / "codex-console-web/dist",
             _env_file=None,
         )
+        instructions.roots = lambda cfg: {
+            "project": cfg.workspace,
+            "personal": directory / "personal",
+            "global": directory / "codex-home",
+        }
         app = create_app(settings, rpc_factory=BrowserRPC)
         # Only this disposable browser fixture has completion controls. Product
         # code and the real app-server transport never install these endpoints.

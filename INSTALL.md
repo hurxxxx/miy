@@ -10,15 +10,17 @@ Web·API·Worker는 저장소 소스에서 실행하고, 최초 셋업의 Postgr
 운영 배포는 [Release Domain](docs/domains/release/README.md)의 별도 절차를 따른다.
 
 공통 브랜드와 패키지 이름은 **miy**이며 접속 도메인은 설치 설정으로 관리한다.
-기존 MTY 설치를 갱신할 때는 [이름 전환 절차](docs/domains/release/README.md#miy-naming-cutover)에
+기존 MTY·OWH·Open Work Hub 설치를 갱신할 때는 [이름 전환 절차](docs/domains/release/README.md#miy-naming-cutover)에
 따라 `.env` 키를 `MIY_*`로 이전하고 기존 데이터 경로를 보존한 뒤 새 패키지를 설치한다.
+기존 `mty` 디렉터리도 바꾸려면 [설치 경로 이전](docs/domains/release/README.md#existing-installation-paths)에 따라
+워크트리·콘솔 이력·서비스 경로를 함께 이동하고 확인한다.
 새 Compose 기본 이름으로 실행하기 전에 기존 볼륨·DB·bucket의 이전 또는 명시적 연결을 확인한다.
 아이콘 원본은 `apps/web/public/brand-icon.svg`이며 `pnpm generate:brand-icons`로
 PNG·favicon을 재생성한다. 이 명령은 설치된 Playwright Chromium을 사용한다.
 
-README의 전체 셋업 요청에는 [Codex Console 설치](docs/apps/codex-console/README.md#설치)도 포함된다.
+README의 전체 셋업 요청에는 [MIY Workbench 설치](docs/apps/codex-console/README.md#설치)도 포함된다.
 현재 ChatGPT 구독 로그인을 사용하며 miy 개발 서버와 별도 프로세스·로그인·DB로 실행한다.
-개인 앱의 **Codex 콘솔**을 클릭하면 새 탭으로 열린다. [함께 설치하는 절차](#61-codex-콘솔-함께-설치)를 완료한다.
+개인 앱의 **MIY Workbench**을 클릭하면 새 탭으로 열린다. [함께 설치하는 절차](#61-codex-콘솔-함께-설치)를 완료한다.
 
 ## 설치 계정 권한
 
@@ -104,7 +106,7 @@ Git과 CA 인증서가 없으면 Linux 배포판의 패키지 관리자로 먼�
 
 | 원격 이름 | 대상 | 용도 |
 | --- | --- | --- |
-| `upstream` | `https://github.com/hurxxxx/mty.git` | 원본 코드와 업데이트를 가져오는 곳 |
+| `upstream` | `https://github.com/hurxxxx/miy.git` | 원본 코드와 업데이트를 가져오는 곳 |
 | `origin` | 조직 내부 GitLab 프로젝트 | 내부 변경사항, MR, CI와 배포 기준을 관리하는 곳 |
 
 원격 역할과 브랜치·게시 권한은 [저장소 정책](AGENTS.md#git-and-delivery)을 따른다.
@@ -124,7 +126,7 @@ Git과 CA 인증서가 없으면 Linux 배포판의 패키지 관리자로 먼�
 ```bash
 mkdir -p miy
 cd miy
-git clone --origin upstream --branch main https://github.com/hurxxxx/mty.git dev
+git clone --origin upstream --branch main https://github.com/hurxxxx/miy.git dev
 cd dev
 git switch --no-track -c dev
 git config remote.pushDefault origin
@@ -402,6 +404,10 @@ Runner 상세 조회에는 해당 프로젝트의 Maintainer 역할이 필요하
 예를 들어 서비스 계정은 `sudo useradd --system --create-home --home-dir /var/lib/miy-review-evidence --shell /usr/sbin/nologin miy-review-evidence`로 만들고,
 기존 계정이 있으면 재생성하지 않고 소유권과 접근 범위를 검증한다. 홈에는 `sudo chmod 700 /var/lib/miy-review-evidence`를 적용한다.
 `/etc/miy/review-evidence.json`을 root 소유로 준비해 실제 값의 `{"api_url":"https://<서버-IP>:8443/api/v4","project_id":<프로젝트-ID>}`를 기록한다.
+이 파일에는 인증 토큰을 넣지 않는다. `sudo chown root:miy-review-evidence /etc/miy/review-evidence.json`과
+`sudo chmod 0640 /etc/miy/review-evidence.json`으로 증거 확인 계정만 읽을 수 있게 한다.
+`sudo -u miy-review-evidence test -r /etc/miy/review-evidence.json` 및 같은 계정의 `test ! -w`를 확인한다.
+Runner 계정에는 이 그룹을 부여하지 않고, 인증 파일은 계정의 비공개 홈에서 계속 `0600`으로 유지한다.
 `/etc/sudoers.d/miy-review-evidence`에는 실제 Runner 사용자 기준으로 다음 한 명령만 허용하고 `0440` 및 `visudo -cf` 검사를 적용한다.
 
 ```sudoers
@@ -504,7 +510,7 @@ mkdir -p miy
 cd miy
 git clone --branch dev '<GitLab에서-받은-저장소-주소>' dev
 cd dev
-git remote add upstream https://github.com/hurxxxx/mty.git
+git remote add upstream https://github.com/hurxxxx/miy.git
 git config remote.pushDefault origin
 ```
 
@@ -962,17 +968,18 @@ AI 보호 정책을 끄지 않는다. 추가 키·서버가 필요한 기능은 
 
 ## 6.1. Codex 콘솔 함께 설치
 
-[Codex Console 소유 문서](docs/apps/codex-console/README.md)의 설치·서비스 실행·개인 앱 연결
+[MIY Workbench 소유 문서](docs/apps/codex-console/README.md)의 설치·서비스 실행·개인 앱 연결
 절차를 수행한다. miy PostgreSQL에 의존하지 않는 전용 로컬 SQLite 파일을 준비하고, Codex를 구독으로
 로그인한 OS 사용자로 서비스를 실행한다. 콘솔은 [현재 기준 버전](docs/apps/codex-console/README.md#설치)
 이상의 안정 CLI를 사용한다. 서비스의 `MIY_CODEX_CONSOLE_BINARY`와 검증 명령의 CLI가
 같은지 확인한다. 시작 시 RPC 스키마 호환성을 검사하며
-Platform API 키나 miy AI 공급자 설정을 요구하지 않는다.
+기본 개발·복구 기능에는 Platform API 키나 miy AI 공급자 설정을 요구하지 않는다. 운영 앱 집계 연결은 아래 별도 조회 키를 사용한다.
 
 - [독립 저장소와 백업](docs/apps/codex-console/README.md#독립-저장소와-백업)에 따라 영구 데이터 경로·0600 권한·online backup을 준비한다. Python에 포함된 SQLite의 WAL 수정 버전을 확인한다. 기존 PostgreSQL 설치는 원본을 보존하며 검증된 이전 도구로 복사한다.
 - 콘솔의 `.env`와 웹 비밀번호를 준비하고 migration·정적 UI 빌드·관리/세션/템플릿 세 systemd 서비스의
   자동 시작을 완료한다. [서비스와 작업 현황](docs/apps/codex-console/README.md#서비스와-작업-현황)의
   세 포트·management 단일 프록시 경로·읽기 전용 모니터·병렬 작업 제한을 설정한다. 템플릿 실행기는 별도 고정 CLI와 `template-current` 릴리스를 사용한다.
+- 앱 운영 집계를 제공할 설치는 [운영 조회와 개발 화면 연결](docs/apps/codex-console/README.md#운영-조회와-개발-화면-연결)에 따라 MIY 조회 API를 먼저 배포하고 전용 키·origin을 Workbench 환경 파일에 설치한다. `glab`은 서비스 OS 사용자로 내부 GitLab에 인증한다. Studio·앱 관리·플랫폼 화면, 미설정/권한 거부 표시, 기존 작업, SQLite 백업·복원을 확인한다.
 - 설치 호스트의 콘솔 Vite와 공개 HTTPS 주소에서 각각 작업실 로그인을 확인한다.
   접속 범위와 쿠키 계약은 [Codex Console 접속](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
 - 같은 개발 사이트를 로컬·원격 주소로 함께 열면 `MIY_CODEX_CONSOLE_LAUNCH_URL_BY_HOST`로

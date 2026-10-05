@@ -45,9 +45,18 @@ until a separately coordinated repository move; source branding does not rename 
    has moved. `pnpm check:env-contract` validates dev and prod against each
    checkout's own declared settings and env contract during the rolling cutover;
    it does not migrate the external Codex Console config. Validate both app and
-   worker settings. Publish `@miy/contracts`
-   before desktop CI, then build a versioned miy Desktop release from the separate
-   desktop repository (currently `hurxxxx/mty-desktop`). The renamed app ID, login protocol and feed
+   worker settings. Follow the standalone desktop's
+   [dependency installation instructions](https://github.com/hurxxxx/miy-desktop#development):
+   its included, versioned `@miy/contracts` package artifact supports source
+   installation and CI without prior registry publication. Contract source remains
+   in this repository; keep the artifact's provenance and pnpm integrity intact.
+   Preparing a package version in an MR does not publish it: only an explicitly
+   authorized `contracts-v*` tag starts the package publishing job. The old
+   `@mty/contracts@0.0.3` has different desktop feed exports and is not a compatible
+   npm alias for the renamed contract. Registry publication and installer
+   distribution still require separate authorization and validation.
+   Build a versioned miy Desktop release from the separate
+   desktop repository ([`hurxxxx/miy-desktop`](https://github.com/hurxxxx/miy-desktop)). The renamed app ID, login protocol and feed
    do not by themselves upgrade an installed legacy desktop client: validate an
    old-to-new update path or provide a manual replacement installer and a session
    migration/re-login path before advertising the new download. Update Codex
@@ -67,6 +76,10 @@ add `--apply` only for the intended file. The helper requires a private, owned r
 file, makes a mode-0600 recovery backup and preserves every value, including existing
 database, bucket, index and path names. Colliding keys and interpolated references
 require manual review. Console configuration is a separate explicitly selected file.
+The helper also accepts the earlier `owh` and `open-work-hub` environment key
+prefixes, including browser keys. All previous prefixes map to the same miy key;
+collisions between old prefixes or with an existing miy key are refused. Secret
+values and physical data names are preserved.
 
 The API migration `miy_api_keys_20261001` permits new `miy_pk_` keys alongside existing
 keys without rewriting credentials; downgrade is blocked while any new keys remain.
@@ -79,6 +92,55 @@ Browser-local portal preferences/token keys and the desktop protocol now use `mi
 existing users may need to sign in again. Deploy the matching API/Web image together.
 Existing development seed accounts are matched by their stable catalog login ID;
 their email, password, user ID and permissions are preserved when the default brand email changes.
+
+### Existing installation paths
+
+Move an existing `mty` or `open-work-hub` checkout root to `miy` only after inventorying its
+linked worktrees, service units, host bind mounts and private path settings. Stop
+checkout-local processes and Console executors after confirming that no root or
+child agent is active. Back up Console SQLite with its consistent backup command
+and preserve private configuration, service units and rollback bundles. An existing
+destination must be inspected; never overwrite another checkout or Console database.
+
+Move the physical directories and run `git worktree repair` from the new `dev`
+checkout with each moved linked worktree's absolute path. Old compatibility links
+can conceal broken Git links: repair before creating them, or remove only those
+verified aliases briefly during repair and restore them afterward. Verify both
+each worktree's `.git` target and `git worktree list`; preserve branches and dirty work.
+
+Update only host path settings, unit working directories and executable paths.
+Keep credentials, database/bucket/index names, native thread IDs and historical
+execution snapshots unchanged. Console's current task roots may be relocated
+with a backed-up, stopped database; retain previously granted execution roots for
+native resume validation. Old path aliases are temporary: verify native `thread/resume` with the new `cwd`
+while aliases are absent, and validate the pinned rollback bundle from its new
+location before removing them. Retain historical execution snapshots and previously
+granted roots; do not rewrite prompts or conversation history to remove old names.
+Archived virtual environments may require reconstruction at a new release path
+before rollback; their obsolete generated entrypoints are not live dependencies. When moving service-account homes, use `usermod --move-home`
+after stopping their processes and retain their UID, ownership and private modes.
+
+Retire disabled units that still start the old checkout after verifying the miy
+replacement is active. Keep their definitions and inactive Console configuration,
+releases and database backups in a private miy backup directory. Do not rename
+stopped application containers, volume identities or rollback manifests merely to
+remove old text: paired recovery uses their recorded names. They are recovery
+artifacts, not the active runtime.
+
+Python virtual environments contain absolute interpreter paths and entrypoint
+shebangs. Prepare fresh Console releases at the new location, installing each
+release's frozen dependencies with its verified Python interpreter; retain the
+separately pinned template source and CLI. Do not patch generated entrypoints or
+overwrite previous releases. Update `current`, `template-current` and the protected
+config path, then reload systemd units. Recreate affected dev bind mounts with the
+native infra wrapper and production app mounts through guarded `pnpm app:prod:up`
+from clean `prod` at `origin/main`, retaining the current image and existing volumes.
+
+Verify env/path contracts, worktree status, SQLite integrity and history counts,
+service-account credential isolation, direct/public health and authenticated Console
+history/monitoring. Run the [Hermes recreation checks](../ai/hermes.md#sandbox-execution-check)
+when its gateway is recreated. Check the actual process working directories and
+Docker mount sources; an old path alias alone does not prove that execution moved.
 
 ## Impact-based release validation
 

@@ -16,10 +16,13 @@ ASSIGNMENT = re.compile(r"^(\s*(?:export\s+)?)([A-Za-z_][A-Za-z_0-9]*)(\s*=)", r
 
 
 def renamed_key(key: str) -> str:
-    if key.startswith("VITE_MTY_"):
-        return "VITE_MIY_" + key[len("VITE_MTY_"):].replace("MTY_DESKTOP", "MIY_DESKTOP")
-    if key.startswith("MTY_"):
-        return "MIY_" + key[len("MTY_"):].replace("MTY_DESKTOP", "MIY_DESKTOP")
+    for brand in ("MTY", "OWH", "OPEN_WORK_HUB"):
+        for scope in ("VITE_", ""):
+            prefix = f"{scope}{brand}_"
+            if key.startswith(prefix):
+                return f"{scope}MIY_" + key[len(prefix):].replace(
+                    f"{brand}_DESKTOP", "MIY_DESKTOP"
+                )
     return key
 
 

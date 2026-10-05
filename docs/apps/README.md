@@ -12,7 +12,7 @@ platform contract.
 | Recording | [recording/README.md](recording/README.md) |
 | Tetris | [tetris/README.md](tetris/README.md) |
 
-Independent development tools: [Codex Console](codex-console/README.md) is an owner-only
+Independent development tools: [MIY Workbench](codex-console/README.md) is an owner-only
 web client for the local Codex subscription, with its own process, login, and database.
 
 Executable identity, routes, runtime availability, and launcher behavior remain in the

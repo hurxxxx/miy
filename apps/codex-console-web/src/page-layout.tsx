@@ -7,6 +7,7 @@ export function PageLayout({
   actions,
   navigation,
   className = '',
+  hidden = false,
   scrollRef,
   onScroll,
   children,
@@ -16,12 +17,14 @@ export function PageLayout({
   actions?: ReactNode;
   navigation?: ReactNode;
   className?: string;
+  hidden?: boolean;
   scrollRef?: Ref<HTMLElement>;
   onScroll?: UIEventHandler<HTMLElement>;
   children: ReactNode;
 }) {
   return (
     <main
+      hidden={hidden}
       className={`management-view ${className}`}
       ref={scrollRef}
       onScroll={onScroll}

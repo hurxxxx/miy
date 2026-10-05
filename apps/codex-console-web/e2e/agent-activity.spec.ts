@@ -61,7 +61,7 @@ test('global activity follows parallel agents through completion across pages an
   await page.keyboard.press('Escape');
   await expect(trigger).toBeFocused();
   await page
-    .getByRole('navigation', { name: '콘솔 메뉴' })
+    .getByRole('navigation', { name: 'Workbench 메뉴' })
     .getByRole('button', { name: '모니터링' })
     .click();
   await expect(trigger).toHaveAccessibleName(/실행 중 에이전트: 2/);
@@ -86,8 +86,8 @@ test('global activity follows parallel agents through completion across pages an
   expect(box!.x).toBeGreaterThanOrEqual(0);
   expect(box!.x + box!.width).toBeLessThanOrEqual(390);
   expect(box!.y + box!.height).toBeLessThanOrEqual(844);
-  await panel.getByRole('button', { name: '전체 에이전트 보기' }).click();
-  await expect(page).toHaveURL(/view=agents/);
+  await panel.getByRole('button', { name: '전체 세션' }).click();
+  await expect(page).toHaveURL(/view=sessions/);
   await expect(panel).toHaveCount(0);
   await trigger.click();
   await expect(panel.getByText('병렬 점검')).toBeVisible();

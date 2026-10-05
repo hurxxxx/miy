@@ -1,4 +1,231 @@
 export const korean = {
+  'Personal launcher and activity overview': '개인 앱 런처와 활동 현황',
+  'Subscription authenticated coding terminal':
+    '구독 인증을 사용하는 코딩 터미널',
+  'App development, maintenance and platform operations':
+    '앱 개발·유지보수와 플랫폼 운영',
+  'AI conversations, research and generated artifacts':
+    'AI 대화·조사와 결과물 생성',
+  'Projects, tasks and team collaboration': '프로젝트·업무와 팀 협업',
+  'Collaborative document authoring and sharing': '문서 공동 작성과 공유',
+  'File upload, storage and sharing': '파일 업로드·저장과 공유',
+  'Personal mailbox and correspondence': '개인 메일함과 메일 송수신',
+  'Company discussions and suggestions': '사내 토론과 제안',
+  'Collaborative visual whiteboards': '공동 작업 화이트보드',
+  'Diagram editing and sharing': '다이어그램 편집과 공유',
+  'Structured tables and collaborative documents': '구조화된 표와 협업 문서',
+  'Personal plans and task scheduling': '개인 계획과 업무 일정',
+  'Meetings, agendas and shared notes': '회의·안건과 공동 회의록',
+  'Real-time video meetings': '실시간 화상 회의',
+  'Recordings and transcription': '녹음과 음성 전사',
+  'Search over authorized indexed sources': '접근 권한이 있는 자료 검색',
+  'Personal Tetris game': '개인 테트리스 게임',
+  'Review app reuse': '기존 앱 재사용 검토',
+  'Workbench release': 'Workbench 릴리스',
+  'Development revision CI': '개발 리비전 CI',
+  Save: '저장',
+  'Verification completed': '검증 완료',
+  'Verify patch installation': '패치 적용 검증',
+  'Reported cost exceeds the budget.': '보고된 비용이 예산을 초과했습니다.',
+  'Verify the exact revision in CI and the installed release before completing this patch.':
+    '패치를 완료하려면 대상 리비전의 CI 성공과 실제 설치를 확인해야 합니다.',
+  'MIY Studio': 'MIY Studio',
+  'App management center': '앱 관리 센터',
+  'Platform management': '플랫폼 관리',
+  'Develop, deliver and maintain': '개발 · 배포 · 유지보수',
+  'Develop apps through plans, code changes and verified results.':
+    '계획·코드 변경·검증 결과를 연결해 앱을 개발합니다.',
+  'Track app releases, maintenance and development and runtime usage.':
+    '앱 릴리스·유지보수와 개발·운영 사용량을 관리합니다.',
+  'New app project': '새 앱 프로젝트',
+  'Loading app catalog': '앱 목록을 불러오는 중',
+  'Development revision': '개발 리비전',
+  'Uncommitted changes': '미커밋 변경 있음',
+  'Find an app': '앱 찾기',
+  'Search purpose or capability': '목적이나 기능으로 검색',
+  'App catalog': '앱 목록',
+  'No matching apps': '일치하는 앱이 없습니다',
+  'Search existing capabilities before starting a new app.':
+    '새 앱을 만들기 전에 기존 앱의 기능을 검색하세요.',
+  'Selected app': '선택한 앱',
+  'Develop app': '수정 개발',
+  'Open development app': '개발 앱 열기',
+  'Release unit': '배포 단위',
+  'Source paths': '관련 소스',
+  'This app ships with the MIY release. Deployment and rollback apply to that release.':
+    '이 앱은 MIY 릴리스에 포함됩니다. 배포와 롤백도 해당 릴리스 단위로 적용됩니다.',
+  'Related work': '관련 작업',
+  'App projects': '앱 프로젝트',
+  'Continue development': '개발 이어가기',
+  'Project title': '프로젝트 이름',
+  'Requirements and acceptance criteria': '요구사항과 완료 기준',
+  'Reuse decision': '재사용 결정',
+  'Create a new app': '새 앱 개발',
+  'Extend an existing app': '기존 앱 확장',
+  'App identifier': '앱 식별자',
+  'Choose an app': '앱 선택',
+  'Existing apps reviewed and decision rationale': '검토한 기존 앱과 결정 근거',
+  'Create project and plan': '프로젝트 생성·계획 시작',
+  'Connection not configured': '연동 미설정',
+  'Connection unavailable': '연결할 수 없음',
+  'Integration update required': '연동 API 업데이트 필요',
+  'Read access denied': '조회 권한 없음',
+  'Last checked': '마지막 확인',
+  'Current state not verified': '현재 상태 확인 불가',
+  'Not verified': '미확인',
+  'Installed revision': '설치 리비전',
+  'App availability': '앱 제공 상태',
+  Enabled: '사용 허용',
+  Disabled: '사용 중지',
+  'Runtime AI': '운영 AI',
+  Registered: '등록됨',
+  'Not registered': '등록되지 않음',
+  'Loading usage': '사용량을 불러오는 중',
+  'Maintenance and patches': '문제·패치 관리',
+  'Register a problem': '문제 등록',
+  'No maintenance items': '등록된 유지보수 항목이 없습니다',
+  Cancelled: '취소됨',
+  Planned: '계획됨',
+  Open: '진행 전',
+  'Target revision': '대상 리비전',
+  'Installation observed': '설치 확인됨',
+  'Installation not verified': '설치 미확인',
+  'Open linked work': '연결된 작업 열기',
+  'Prepare a patch': '패치 준비',
+  'A related task needs attention.': '확인이 필요한 관련 작업이 있습니다.',
+  'A maintenance target date has passed.':
+    '목표 일정을 지난 유지보수 항목이 있습니다.',
+  'Development token budget exceeded.': '개발 토큰 예산을 초과했습니다.',
+  'Runtime token budget exceeded.': '운영 토큰 예산을 초과했습니다.',
+  'Runtime AI errors were reported.': '운영 AI 오류가 보고되었습니다.',
+  'Monthly usage and budget': '월별 사용량·예산',
+  'Edit budget': '예산 편집',
+  'Not reported': '미집계',
+  'Observed development tokens': '관측된 개발 토큰',
+  'Runtime tokens': '운영 토큰',
+  'Token budget': '토큰 예산',
+  'App opens': '앱 실행 수',
+  'Reported cost': '보고된 비용',
+  'Amount not provided': '금액 미제공',
+  'Development usage includes observed events only. Unreported subscription charges are not zero.':
+    '개발 사용량은 관측된 이벤트 기준입니다. 제공되지 않은 구독 비용은 0원으로 계산하지 않습니다.',
+  'Some usage is unreported; totals are incomplete.':
+    '미집계 사용량이 있어 합계가 전체 사용량을 나타내지 않습니다.',
+  'Monthly cost budget': '월 비용 예산',
+  'Cost comparison requires reported charges.':
+    '비용 비교에는 보고된 금액이 필요합니다.',
+  'Management alerts': '관리 알림',
+  'Development token budget': '개발 토큰 예산',
+  'Runtime token budget': '운영 토큰 예산',
+  Currency: '통화',
+  'Problem or patch title': '문제·패치 제목',
+  'Maintenance notes': '내용·처리 계획',
+  'Maintenance owner': '유지보수 담당',
+  'Target date': '목표 일정',
+  'Maintenance state': '처리 상태',
+  'Manage launcher development, source control, harness and service delivery.':
+    '런처 개발·소스·하네스와 서비스 운영을 관리합니다.',
+  'Develop the launcher': '런처 개발',
+  'Prepare a release': '릴리스 준비',
+  'Plan recovery': '복구 계획',
+  'Inspect services': '서비스 점검',
+  'Platform work': '플랫폼 작업',
+  'Loading source status': '소스 상태를 불러오는 중',
+  'Local source': '로컬 소스',
+  'Local tracking refs are not automatically fetched.':
+    '로컬 추적 참조는 자동으로 fetch하지 않습니다.',
+  'Recent commits': '최근 커밋',
+  Worktrees: '워크트리',
+  Branches: '브랜치',
+  'Merge requests': '머지 요청',
+  'CI pipelines': 'CI 파이프라인',
+  'No entries': '항목 없음',
+  Services: '서비스',
+  'Service status unavailable': '서비스 상태를 확인할 수 없습니다',
+  'Service health and app functional verification are separate checks.':
+    '서비스 상태와 앱 기능 검증 결과는 구분해서 확인합니다.',
+  'The app catalog is unavailable. Check the registered app contracts.':
+    '앱 목록을 확인할 수 없습니다. 앱 등록 계약을 확인하세요.',
+  'This app is not registered in the selected checkout.':
+    '현재 체크아웃에 등록된 앱이 아닙니다.',
+
+  'Root folder': '최상위 폴더',
+  'All documents': '전체',
+  'Supporting files': '참고·설정',
+  'Document types': '문서 종류 필터',
+  'Document library': '문서 목록',
+  'No matching documents': '검색한 문서가 없습니다',
+  'Show document list': '문서 목록 보기',
+  'Document view': '문서 보기 방식',
+  'Read document': '읽기',
+  'Edit source': '편집',
+  Skills: '스킬',
+  Documents: '문서',
+  'Document preview': '문서 미리보기',
+  'No unsaved changes': '변경 없음',
+  'Save your changes before asking Codex.':
+    'Codex에 요청하기 전에 변경을 저장하세요.',
+
+  'Latest saved content': '최신 저장 내용',
+  'Keep my draft against this version': '이 버전을 기준으로 내 초안 유지',
+  'Use the latest saved content': '최신 저장 내용으로 교체',
+  'Instructions and skills': '지침·스킬',
+  'Edit the files Codex reads, or ask Codex to improve them.':
+    'Codex가 참조하는 원본 문서를 편집하거나 Codex에 개선을 요청하세요.',
+  'New document': '문서 만들기',
+  'How Codex uses these files': '문서가 적용되는 방식',
+  'AGENTS.md supplies persistent instructions. AGENTS.override.md takes precedence in the same folder. More specific folders add their own instructions.':
+    'AGENTS.md는 작업 지침입니다. 같은 폴더에서는 AGENTS.override.md가 우선하고, 하위 폴더 지침이 더 구체적인 규칙을 추가합니다.',
+  'SKILL.md defines a reusable procedure with a name and description. Codex can choose matching skills automatically; selecting a skill explicitly requests it.':
+    'SKILL.md는 이름·설명이 있는 재사용 작업 절차입니다. 설명이 맞으면 Codex가 자동 선택할 수 있고, 체크하면 명시적으로 사용을 요청합니다.',
+  'agents/openai.yaml can set allow_implicit_invocation to false. References hold supporting Markdown. Installed plugins and system skills are managed by their installer.':
+    'agents/openai.yaml에서 allow_implicit_invocation을 false로 설정하면 자동 호출을 끌 수 있습니다. references에는 참고 문서를 둡니다. 설치된 플러그인·시스템 스킬은 설치 도구로 관리합니다.',
+  'Instruction changes apply to new sessions. Start a new session to verify them. Skill discovery is refreshed from the original files.':
+    '지침 변경은 새 세션에서 확인하세요. 스킬 목록은 원본 파일에서 다시 불러옵니다.',
+  'Official instruction documentation': '공식 지침 문서',
+  'Official skill documentation': '공식 스킬 문서',
+  'Document scope': '적용 범위',
+  'Project documents': '프로젝트 문서',
+  'Personal skills': '개인 스킬',
+  'Global instructions': '전역 지침·스킬',
+  'Search documents': '문서 검색',
+  'Loading documents': '문서 불러오는 중',
+  'Agent documents': '에이전트 참조 문서',
+  Instructions: '지침',
+  Skill: '스킬',
+  'Skill metadata': '스킬 메타데이터',
+  Reference: '참고 문서',
+  'No documents in this scope': '이 범위에 문서가 없습니다',
+  'Document editor': '문서 편집기',
+  'Document content': '문서 내용',
+  'Unsaved changes': '저장하지 않은 변경',
+  'Ask Codex to edit': 'Codex에 수정 요청',
+  'Reload document': '문서 다시 읽기',
+  'Load latest version and keep my draft': '최신 버전 확인 후 내 초안 유지',
+  'Save your changes before asking Codex. Drafts stay here while navigating the console.':
+    'Codex에 요청하기 전에 변경을 저장하세요. Workbench 메뉴를 이동해도 작성 중인 초안은 유지됩니다.',
+  'Choose an agent document': '참조 문서를 선택하세요',
+  'Open a file to edit it, or create instructions or a skill at an official location.':
+    '파일을 열어 편집하거나 공식 경로에 지침·스킬을 만드세요.',
+  'Document type': '문서 종류',
+  'Document path': '문서 경로',
+  'Paths are relative to the selected scope. Subfolder instructions and skill references are supported.':
+    '선택한 범위의 기준 폴더에서 상대 경로를 입력하세요. 하위 폴더 지침과 스킬 참고 문서를 지원합니다.',
+  'Open document': '문서 열기',
+  'Requested changes': '수정할 내용',
+  'Planning proposes changes without editing. Implementation uses the existing Codex permissions and approval flow. Results open in a new session.':
+    '계획 모드는 변경안을 제안합니다. 실행 모드는 기존 Codex 권한·승인 절차로 수정합니다. 결과는 새 세션에서 확인합니다.',
+  'Send request': '요청 보내기',
+  'Explicit skills for this run': '명시적으로 사용할 스킬',
+  'Selected skills are explicitly requested. Codex can also choose unselected skills when their descriptions match, unless implicit invocation is disabled.':
+    '체크한 스킬은 이번 실행에 명시적으로 요청합니다. 체크하지 않아도 설명이 작업과 맞으면 자동으로 사용할 수 있습니다. 자동 호출을 끈 스킬은 제외됩니다.',
+  'This document changed elsewhere. Your draft is preserved; review the latest version before saving.':
+    '다른 곳에서 문서가 변경되었습니다. 초안은 유지됩니다. 최신 버전을 확인하고 저장하세요.',
+  'Agent documents must be UTF-8 text under 64 KiB.':
+    '참조 문서는 64 KiB 이하 UTF-8 텍스트여야 합니다.',
+  'SKILL.md needs YAML frontmatter with name and description.':
+    'SKILL.md 상단에 name과 description이 있는 YAML 메타데이터가 필요합니다.',
+
   'Back to sessions': '세션 목록으로',
   Pinned: '고정됨',
   Sessions: '세션',
@@ -6,8 +233,8 @@ export const korean = {
   'Session views': '세션 보기',
   'Search sessions': '세션 검색',
   'Import Codex session': 'Codex 세션 불러오기',
-  'Find a conversation and continue in your workspace.':
-    '지난 대화를 찾아 작업실에서 이어가세요.',
+  'Find conversations, follow running work, and respond to requests.':
+    '대화를 이어가고, 실행 상황과 확인이 필요한 요청을 살펴보세요.',
   'No matching sessions': '검색한 세션이 없습니다',
   'No sessions yet': '아직 세션이 없습니다',
   'Session list could not be refreshed. Showing the last received state.':
@@ -33,12 +260,7 @@ export const korean = {
     '일부 실행 서비스의 상태를 확인할 수 없습니다. 마지막으로 보고된 에이전트 상태를 표시합니다.',
   Workspace: '작업 경로',
   'Current step': '현재 단계',
-  'Agent views': '에이전트 보기',
-  'Agent runs': '작업 에이전트',
   'Codex sessions': 'Codex 세션',
-  'View all agents': '전체 에이전트 보기',
-  'Follow running work, respond to requests, and revisit results.':
-    '작업별 에이전트 진행 상황을 확인하고, 요청에 응답하거나 결과를 다시 살펴보세요.',
   Finished: '종료',
   'Search tasks by title': '작업 제목으로 검색',
   'Task source': '작업 유형',
@@ -46,8 +268,8 @@ export const korean = {
   'Matching tasks': '표시된 작업',
   'Recent work is shown here. Search by title to find older runs.':
     '최근 작업과 추적 중인 작업을 표시합니다. 이전 이력은 제목으로 검색하세요.',
-  'Choose another filter, or start a task from a template.':
-    '다른 조건을 선택하거나 템플릿으로 새 작업을 시작하세요.',
+  'Choose another filter, or start a new task.':
+    '다른 조건을 선택하거나 새 작업을 시작하세요.',
   'Pending requests': '대기 중인 요청',
   'Respond to requests': '요청 확인',
   'Open conversation and results': '대화·결과 열기',
@@ -84,7 +306,7 @@ export const korean = {
   'Run history': '실행 이력',
   Monitoring: '모니터링',
   'Your Codex workspace': 'Codex 작업 공간',
-  'Console navigation': '콘솔 메뉴',
+  'Workbench navigation': 'Workbench 메뉴',
   'Open navigation': '메뉴 열기',
   'Save the context once. Start each run in a new Codex session.':
     '작업 맥락을 미리 저장하고, 실행할 때마다 새 Codex 세션에서 작업합니다.',
@@ -476,6 +698,14 @@ export const korean = {
   'This file or output is too large to display.':
     '표시할 수 있는 파일·출력 크기를 초과했습니다.',
   'Check the entered values.': '입력 내용을 확인해 주세요.',
+  'The request body is too large. Reduce the input and retry.':
+    '요청 크기가 너무 큽니다. 입력을 줄이고 다시 시도해 주세요.',
+  'The request upload timed out. Check the task state before retrying.':
+    '요청 전송 시간이 초과됐습니다. 작업 상태를 확인한 뒤 다시 시도해 주세요.',
+  'The request upload was cancelled. Check the task state before retrying.':
+    '요청 전송이 취소됐습니다. 작업 상태를 확인한 뒤 다시 시도해 주세요.',
+  'A template reference file is missing. Check its path before running.':
+    '템플릿 참조 파일이 없습니다. 경로를 확인한 뒤 실행해 주세요.',
   'A compatible Codex version is required.':
     '호환되는 Codex 버전이 필요합니다.',
   'The request may have started. Recover its state before retrying.':
@@ -499,6 +729,14 @@ export const translate =
     locale === 'ko-KR' ? korean[key] : key;
 
 const errors: Record<string, Copy> = {
+  verification_unavailable:
+    'Verify the exact revision in CI and the installed release before completing this patch.',
+  instruction_conflict:
+    'This document changed elsewhere. Your draft is preserved; review the latest version before saving.',
+  instruction_too_large: 'Agent documents must be UTF-8 text under 64 KiB.',
+  instruction_not_text: 'Agent documents must be UTF-8 text under 64 KiB.',
+  invalid_skill_document:
+    'SKILL.md needs YAML frontmatter with name and description.',
   stale_template: 'The template changed. Reload it before saving or running.',
   template_not_found: 'The template is unavailable or archived.',
   template_runner_unavailable:
@@ -566,7 +804,17 @@ const errors: Record<string, Copy> = {
   usage_limit: 'The subscription usage limit has been reached.',
   path_denied: 'This path is not available in the console.',
   output_too_large: 'This file or output is too large to display.',
+  catalog_unavailable:
+    'The app catalog is unavailable. Check the registered app contracts.',
+  app_not_found: 'This app is not registered in the selected checkout.',
   invalid_input: 'Check the entered values.',
+  input_too_large: 'The request body is too large. Reduce the input and retry.',
+  input_timeout:
+    'The request upload timed out. Check the task state before retrying.',
+  input_cancelled:
+    'The request upload was cancelled. Check the task state before retrying.',
+  reference_not_found:
+    'A template reference file is missing. Check its path before running.',
   invalid_answer: 'Check the entered values.',
   codex_version_mismatch:
     'The Codex version does not match this console. A compatibility update is required.',

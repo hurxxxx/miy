@@ -92,7 +92,7 @@ it('keeps completed work visible, groups parallel children, and opens its origin
     checkedAt: Date.now(),
     failed: false,
     openTask: vi.fn(),
-    openAgents: vi.fn(),
+    openSessions: vi.fn(),
   };
   const running = task({
     thread_id: 'root',
@@ -172,7 +172,7 @@ it('marks stale data and limits recent results without hiding attention', async 
       pending_count: 1,
     }),
   );
-  const openAgents = vi.fn();
+  const openSessions = vi.fn();
   render(
     <AgentActivity
       tasks={tasks}
@@ -180,7 +180,7 @@ it('marks stale data and limits recent results without hiding attention', async 
       failed
       t={translate('en-US')}
       openTask={vi.fn()}
-      openAgents={openAgents}
+      openSessions={openSessions}
     />,
   );
   fireEvent.click(
@@ -198,8 +198,6 @@ it('marks stale data and limits recent results without hiding attention', async 
   expect(
     within(dialog).getByRole('button', { name: /Waiting task/ }),
   ).toBeTruthy();
-  fireEvent.click(
-    within(dialog).getByRole('button', { name: 'View all agents' }),
-  );
-  expect(openAgents).toHaveBeenCalledOnce();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'All sessions' }));
+  expect(openSessions).toHaveBeenCalledOnce();
 });

@@ -7,9 +7,13 @@ import { pathToFileURL } from 'node:url';
 
 const LEGACY_CHECKOUT_BASE = '/projects/miy-';
 
-const DEFAULT_LEGACY_PATHS = ['prod', 'dev'].map(
-  (suffix) => `${LEGACY_CHECKOUT_BASE}${suffix}`,
-);
+const DEFAULT_LEGACY_PATHS = [
+  ...['prod', 'dev'].map((suffix) => `${LEGACY_CHECKOUT_BASE}${suffix}`),
+  `/projects/${'open-work-hub'}`,
+  ...['.config', '.local/share'].map(
+    (directory) => `/${directory}/${'owh'}-codex-console`,
+  ),
+];
 const DEFAULT_EXCLUDED_PATH_PREFIXES = [];
 export const FAILURE_MESSAGE = 'Found legacy checkout path references.';
 
