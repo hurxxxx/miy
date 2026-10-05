@@ -12,6 +12,18 @@ and launcher placement; its schema validates the source and `pnpm generate:app-c
 both TypeScript and Python projections. Generated files are never edited manually. Display categories
 such as `ai`, `collaboration`, and `business` are not executable app identities.
 
+Optional `management` metadata in that same contract provides a short purpose, capability keywords,
+repository-relative `source_paths`, and `release_unit` for MIY Workbench. Paths must remain inside the
+checkout. This metadata supports discovery and maintenance; it grants no execution or resource access.
+Leaf apps share the `miy-app` Web/API/Worker release. The standalone `codex-console` identity retains
+its technical ID and uses the separate `miy-workbench` release while displaying **MIY Workbench**.
+An app is not an independently deployable service merely because it has a catalog entry.
+
+[App management projections](../integrations/README.md#앱-관리-조회) own external read scopes and
+installed revision/usage DTOs. [MIY Workbench](../../apps/codex-console/README.md) owns projects,
+maintenance records and development usage in its independent owner-operated store. App business
+configuration and company app admission remain in their existing product administration surfaces.
+
 ## Routes And Bootstrap
 
 Browser routes are `/apps/:appId/...`; the neutral launcher is `/`. APIs are `/api/v1/...`, with one

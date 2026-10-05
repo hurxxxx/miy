@@ -947,17 +947,28 @@ it.each([
   '?view=workspace&tab=sessions',
   '?view=agents',
   '?view=history',
-])('opens the session list as the entry point at %s', async (route) => {
-  window.history.replaceState(null, '', route || '/');
-  render(<App />);
-  await screen.findByRole('heading', { name: '세션' });
-  expect(
-    within(screen.getByRole('navigation', { name: '콘솔 메뉴' }))
-      .getAllByRole('button')
-      .map((b) => b.textContent),
-  ).toEqual(['세션', '작업 템플릿', '지침·스킬', '모니터링']);
-  expect(screen.queryByRole('list', { name: '최근 세션' })).toBeNull();
-});
+])(
+  'opens Studio by default and preserves the session entry point at %s',
+  async (route) => {
+    window.history.replaceState(null, '', route || '/');
+    render(<App />);
+    await screen.findByRole('heading', { name: route ? '세션' : 'MIY Studio' });
+    expect(
+      within(screen.getByRole('navigation', { name: 'Workbench 메뉴' }))
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual([
+      'MIY Studio',
+      '앱 관리 센터',
+      '플랫폼 관리',
+      '세션',
+      '작업 템플릿',
+      '지침·스킬',
+      '모니터링',
+    ]);
+    expect(screen.queryByRole('list', { name: '최근 세션' })).toBeNull();
+  },
+);
 
 it('keeps legacy native-session links under workspace and retains explicit import confirmation', async () => {
   window.history.replaceState(null, '', '?view=agents&tab=codex');
@@ -975,7 +986,7 @@ it('keeps legacy native-session links under workspace and retains explicit impor
   render(<App />);
   await screen.findByRole('heading', { name: 'Codex 세션 불러오기' });
   expect(
-    within(screen.getByRole('navigation', { name: '콘솔 메뉴' }))
+    within(screen.getByRole('navigation', { name: 'Workbench 메뉴' }))
       .getByRole('button', { name: '세션' })
       .getAttribute('aria-current'),
   ).toBe('page');

@@ -196,7 +196,7 @@ test('edits official documents, keeps drafts, detects conflicts, and asks Codex 
   await expect(
     page.getByRole('button', { name: 'Codex에 수정 요청' }),
   ).toBeDisabled();
-  const nav = page.getByRole('navigation', { name: '콘솔 메뉴' });
+  const nav = page.getByRole('navigation', { name: 'Workbench 메뉴' });
   await nav.getByRole('button', { name: '작업 템플릿', exact: true }).click();
   await nav.getByRole('button', { name: '지침·스킬', exact: true }).click();
   await expect(editor).toHaveValue(draft);
@@ -322,7 +322,7 @@ test('creates a discoverable skill, metadata, and references without outer scrol
     ).toBeVisible();
   }
   await page
-    .getByRole('navigation', { name: '콘솔 메뉴' })
+    .getByRole('navigation', { name: 'Workbench 메뉴' })
     .getByRole('button', { name: '작업 템플릿', exact: true })
     .click();
   await page.getByRole('button', { name: '템플릿 만들기' }).click();

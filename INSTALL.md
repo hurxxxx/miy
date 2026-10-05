@@ -18,9 +18,9 @@ Web·API·Worker는 저장소 소스에서 실행하고, 최초 셋업의 Postgr
 아이콘 원본은 `apps/web/public/brand-icon.svg`이며 `pnpm generate:brand-icons`로
 PNG·favicon을 재생성한다. 이 명령은 설치된 Playwright Chromium을 사용한다.
 
-README의 전체 셋업 요청에는 [Codex Console 설치](docs/apps/codex-console/README.md#설치)도 포함된다.
+README의 전체 셋업 요청에는 [MIY Workbench 설치](docs/apps/codex-console/README.md#설치)도 포함된다.
 현재 ChatGPT 구독 로그인을 사용하며 miy 개발 서버와 별도 프로세스·로그인·DB로 실행한다.
-개인 앱의 **Codex 콘솔**을 클릭하면 새 탭으로 열린다. [함께 설치하는 절차](#61-codex-콘솔-함께-설치)를 완료한다.
+개인 앱의 **MIY Workbench**을 클릭하면 새 탭으로 열린다. [함께 설치하는 절차](#61-codex-콘솔-함께-설치)를 완료한다.
 
 ## 설치 계정 권한
 
@@ -968,17 +968,18 @@ AI 보호 정책을 끄지 않는다. 추가 키·서버가 필요한 기능은 
 
 ## 6.1. Codex 콘솔 함께 설치
 
-[Codex Console 소유 문서](docs/apps/codex-console/README.md)의 설치·서비스 실행·개인 앱 연결
+[MIY Workbench 소유 문서](docs/apps/codex-console/README.md)의 설치·서비스 실행·개인 앱 연결
 절차를 수행한다. miy PostgreSQL에 의존하지 않는 전용 로컬 SQLite 파일을 준비하고, Codex를 구독으로
 로그인한 OS 사용자로 서비스를 실행한다. 콘솔은 [현재 기준 버전](docs/apps/codex-console/README.md#설치)
 이상의 안정 CLI를 사용한다. 서비스의 `MIY_CODEX_CONSOLE_BINARY`와 검증 명령의 CLI가
 같은지 확인한다. 시작 시 RPC 스키마 호환성을 검사하며
-Platform API 키나 miy AI 공급자 설정을 요구하지 않는다.
+기본 개발·복구 기능에는 Platform API 키나 miy AI 공급자 설정을 요구하지 않는다. 운영 앱 집계 연결은 아래 별도 조회 키를 사용한다.
 
 - [독립 저장소와 백업](docs/apps/codex-console/README.md#독립-저장소와-백업)에 따라 영구 데이터 경로·0600 권한·online backup을 준비한다. Python에 포함된 SQLite의 WAL 수정 버전을 확인한다. 기존 PostgreSQL 설치는 원본을 보존하며 검증된 이전 도구로 복사한다.
 - 콘솔의 `.env`와 웹 비밀번호를 준비하고 migration·정적 UI 빌드·관리/세션/템플릿 세 systemd 서비스의
   자동 시작을 완료한다. [서비스와 작업 현황](docs/apps/codex-console/README.md#서비스와-작업-현황)의
   세 포트·management 단일 프록시 경로·읽기 전용 모니터·병렬 작업 제한을 설정한다. 템플릿 실행기는 별도 고정 CLI와 `template-current` 릴리스를 사용한다.
+- 앱 운영 집계를 제공할 설치는 [운영 조회와 개발 화면 연결](docs/apps/codex-console/README.md#운영-조회와-개발-화면-연결)에 따라 MIY 조회 API를 먼저 배포하고 전용 키·origin을 Workbench 환경 파일에 설치한다. `glab`은 서비스 OS 사용자로 내부 GitLab에 인증한다. Studio·앱 관리·플랫폼 화면, 미설정/권한 거부 표시, 기존 작업, SQLite 백업·복원을 확인한다.
 - 설치 호스트의 콘솔 Vite와 공개 HTTPS 주소에서 각각 작업실 로그인을 확인한다.
   접속 범위와 쿠키 계약은 [Codex Console 접속](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
 - 같은 개발 사이트를 로컬·원격 주소로 함께 열면 `MIY_CODEX_CONSOLE_LAUNCH_URL_BY_HOST`로

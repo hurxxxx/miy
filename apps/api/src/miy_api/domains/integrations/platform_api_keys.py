@@ -27,7 +27,9 @@ from miy_api.domains.integrations.models import PlatformApiKey
 PLATFORM_API_KEY_TOKEN_PREFIX = "miy_pk_"
 PLATFORM_API_KEY_STATUS_ACTIVE = "active"
 PLATFORM_API_KEY_STATUS_REVOKED = "revoked"
-PLATFORM_API_KEY_SCOPE_REGISTRY = ("organization:read", "people:read")
+PLATFORM_API_KEY_SCOPE_REGISTRY = (
+    "organization:read", "people:read", "app-catalog:read", "app-usage:read",
+)
 PLATFORM_API_KEY_SCOPE_OPENAPI_EXTENSION = "x-miy-platform-api-scopes"
 PLATFORM_API_KEY_SCOPE_DEPENDENCY_ATTRIBUTE = "__miy_platform_api_scopes__"
 _DISPLAY_PREFIX_LENGTH = 18

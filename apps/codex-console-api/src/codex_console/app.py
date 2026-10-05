@@ -26,6 +26,7 @@ from . import (
     routing,
     store,
     templates,
+    workbench,
 )
 from .config import Settings
 from .errors import ConsoleError
@@ -161,7 +162,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
             engine.dispose()
 
     app = FastAPI(
-        title="Codex Console",
+        title="MIY Workbench",
         version="0.1.0",
         lifespan=lifespan,
         docs_url=None,
@@ -287,6 +288,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
     templates.register(app, owner, runtime_for)
     secured = [Depends(owner)]
     instructions.install(app, secured)
+    workbench.install(app, secured)
 
     @app.get("/api/monitor/host", dependencies=secured, response_model=host.HostOut)
     def host_status():
@@ -473,7 +475,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
 
     @app.post("/api/tasks", dependencies=secured, response_model=TaskDetail)
     def new_task(body: NewTask):
-        context = body.context.model_dump() if body.context else None
+        context = body.context.model_dump(mode="json") if body.context else None
         if context and context.get("service_id"):
             service = next(
                 (s for s in monitor.services(app.state.settings) if s.id == context["service_id"]),
@@ -488,9 +490,11 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
                 if s["id"] == service.id
             )
         with app.state.factory.begin() as db:
+            context = workbench.validate_context(app.state.settings, db, context)
             task = Task(title=body.title, root=str(app.state.settings.workspace), context=context)
             db.add(task)
             db.flush()
+            workbench.link_task(db, task)
             if body.isolate:
                 cfg = app.state.settings
                 root, isolated = git.prepare_workspace(
@@ -769,6 +773,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
                     "/api/monitor",
                     "/api/templates",
                     "/api/instructions",
+                    "/api/workbench",
                 )
             )
         ]
