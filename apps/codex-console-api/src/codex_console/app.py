@@ -14,7 +14,20 @@ from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from starlette.requests import ClientDisconnect
 
-from . import agents, attachments, auth, git, host, miy_sso, monitor, routing, store, templates
+from . import (
+    agents,
+    attachments,
+    auth,
+    git,
+    host,
+    instructions,
+    miy_sso,
+    monitor,
+    routing,
+    store,
+    templates,
+    workbench,
+)
 from .config import Settings
 from .errors import ConsoleError
 from .models import Agent, Event, Task, database
@@ -149,7 +162,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
             engine.dispose()
 
     app = FastAPI(
-        title="Codex Console",
+        title="MIY Workbench",
         version="0.1.0",
         lifespan=lifespan,
         docs_url=None,
@@ -190,7 +203,14 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
                 ):
                     raise ConsoleError("origin_denied", 403)
             if path.startswith(
-                ("/api/tasks", "/api/codex", "/api/templates", "/api/overview", "/api/monitor")
+                (
+                    "/api/tasks",
+                    "/api/codex",
+                    "/api/templates",
+                    "/api/overview",
+                    "/api/monitor",
+                    "/api/instructions",
+                )
             ) or (path == "/api/session" and request.method == "DELETE"):
                 # Reject unauthenticated requests before reading or forwarding their bodies.
                 owner(request)
@@ -201,7 +221,10 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
                 char_limit = (
                     DOCUMENT_CHAR_LIMIT
                     if request.method == "PUT"
-                    and re.fullmatch(r"/api/tasks/[0-9a-f-]{36}/documents", path)
+                    and (
+                        re.fullmatch(r"/api/tasks/[0-9a-f-]{36}/documents", path)
+                        or path == "/api/instructions/document"
+                    )
                     else MESSAGE_CHAR_LIMIT
                     if request.method == "POST"
                     and re.fullmatch(r"/api/tasks/[0-9a-f-]{36}/(messages|steer|implement)", path)
@@ -264,6 +287,8 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
 
     templates.register(app, owner, runtime_for)
     secured = [Depends(owner)]
+    instructions.install(app, secured)
+    workbench.install(app, secured)
 
     @app.get("/api/monitor/host", dependencies=secured, response_model=host.HostOut)
     def host_status():
@@ -450,7 +475,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
 
     @app.post("/api/tasks", dependencies=secured, response_model=TaskDetail)
     def new_task(body: NewTask):
-        context = body.context.model_dump() if body.context else None
+        context = body.context.model_dump(mode="json") if body.context else None
         if context and context.get("service_id"):
             service = next(
                 (s for s in monitor.services(app.state.settings) if s.id == context["service_id"]),
@@ -465,9 +490,11 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
                 if s["id"] == service.id
             )
         with app.state.factory.begin() as db:
+            context = workbench.validate_context(app.state.settings, db, context)
             task = Task(title=body.title, root=str(app.state.settings.workspace), context=context)
             db.add(task)
             db.flush()
+            workbench.link_task(db, task)
             if body.isolate:
                 cfg = app.state.settings
                 root, isolated = git.prepare_workspace(
@@ -497,7 +524,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
             runtime_for(task_id).require_allowed_task(task)
             root = task.root
         rpc = await runtime_for(task_id).authenticated_rpc()
-        result = await rpc.call("skills/list", {"cwds": [root], "forceReload": False})
+        result = await rpc.call("skills/list", {"cwds": [root], "forceReload": True})
         return [
             {"name": s["name"], "description": s.get("description", "")[:500]}
             for entry in result.get("data", [])
@@ -740,7 +767,14 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
             for r in app.router.routes
             if r.path == "/healthz"
             or r.path.startswith(
-                ("/api/session", "/api/overview", "/api/monitor", "/api/templates")
+                (
+                    "/api/session",
+                    "/api/overview",
+                    "/api/monitor",
+                    "/api/templates",
+                    "/api/instructions",
+                    "/api/workbench",
+                )
             )
         ]
     return app

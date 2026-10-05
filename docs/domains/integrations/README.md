@@ -1,8 +1,8 @@
 # 플랫폼 API 키와 외부 연계 계약
 
 이 도메인은 회사 내부 또는 승인된 외부 시스템이 miy의 제한된 company-level
-projection을 읽는 경계를 소유한다. 현재 제공하는 기능은 조직·임직원 디렉터리의 읽기 전용
-연계이며 사용자 세션, 관리자 API, 앱 API를 대신하는 범용 서비스 계정이 아니다.
+projection을 읽는 경계를 소유한다. 조직·임직원 디렉터리와 앱 관리 집계를 읽기 전용으로
+제공하며 사용자 세션, 관리자 API, 앱 API를 대신하는 범용 서비스 계정이 아니다.
 
 핵심 결정과 보안 근거는
 [ADR 0010](../../../adr/0010-platform-api-key-directory-integration.md)에 기록한다.
@@ -32,13 +32,16 @@ projection을 읽는 경계를 소유한다. 현재 제공하는 기능은 조�
 | ------------------- | ------------------------------------------------------- | ------------------------------------- |
 | `organization:read` | `GET /api/v1/integrations/directory/organization-units` | 조직 계층과 활성 상태                 |
 | `people:read`       | `GET /api/v1/integrations/directory/people`             | 사용자 식별·프로필·주 소속 메타데이터 |
+| `app-catalog:read` | `GET /api/v1/integrations/apps` | 앱 식별자·회사 활성화·설치 버전·운영 AI 등록 여부 |
+| `app-usage:read` | `GET /api/v1/integrations/apps/{app_id}/usage` | 앱별 월간 실행·AI 토큰 집계 |
 
 Scope registry는 코드의 고정 allowlist이며 임의 문자열 scope를 발급할 수 없다. 각 route는
 OpenAPI의 `x-miy-platform-api-scopes` extension으로 요구 scope를 선언한다. 관리자
 목록 API는 이 OpenAPI 계약에서 scope별 operation과 Swagger/ReDoc 링크를 파생한다. 문서 목록을
 별도 하드코딩하지 않는다.
 
-모든 외부 목록은 `page`와 최대 200인 `page_size`를 받으며 기본적으로 활성 항목만 반환한다.
+외부 목록은 `page`와 최대 200인 `page_size`를 받는다. 디렉터리는 기본적으로 활성 항목만,
+앱 목록은 비활성 앱도 활성 여부와 함께 반환한다.
 응답은 요청 시점의 현재 상태 projection이다. 페이지 사이의 snapshot consistency, delta token,
 tombstone, webhook과 exactly-once 전달은 현재 제공하지 않는다. 장기 동기화 consumer는 전체
 재조정이 가능해야 한다.
@@ -69,7 +72,7 @@ tombstone, webhook과 exactly-once 전달은 현재 제공하지 않는다. 장�
 ## 검증
 
 - API, scope, 저장·폐기·감사 계약:
-  `apps/api/tests/test_organization_integrations.py`
+  `apps/api/tests/test_organization_integrations.py`, `apps/api/tests/test_app_integrations.py`
 - OpenAPI/generated client: `pnpm generate:api-client`, `pnpm check:api-contract`
 - Migration graph: `pnpm check:alembic-graph`, `pnpm test:alembic-graph`
 
@@ -79,3 +82,24 @@ tombstone, webhook과 exactly-once 전달은 현재 제공하지 않는다. 장�
 읽기 전용 projection으로 유지한다. 직접 생성 그룹은 이 범위에 포함하지 않는다. 응답의 ID와
 상위 ID, 사용자 주 소속 ID는 그룹 ID이며 `source_reference`로 인사 원본 식별자를 제공한다.
 기존 조직 ID의 이전과 참조 갱신은 [사용자·그룹·인사배치 계약](../organization/README.md#마이그레이션과-검증)을 따른다.
+
+## 앱 관리 조회
+
+앱 집계 응답은 `schema_version: 1`과 생성 시각을 포함한다. 카탈로그는 canonical 앱 계약,
+회사 앱 활성화 설정, 등록된 AI workload, 실행 프로세스의 고정된 runtime revision을 읽는다.
+`enabled`는 회사의 앱 활성화 여부이며 개별 사용자의 실행 권한을 의미하지 않는다.
+MIY Web/API/Worker의 앱은 `miy-app` 배포 단위를 공유한다. 별도 서비스인 MIY Workbench의
+설치 버전은 MIY API에서 추정하지 않고 `null`로 반환한다.
+
+사용량의 선택적 `month=YYYY-MM-DD`는 해당 날짜가 속한 UTC 월을 지정한다. 앱 열기는
+`app.open` 이벤트, 운영 AI 호출은 같은 앱·월의 `llm_call` 감사 기록에서 집계한다.
+사용자·업무 내용·프롬프트·원본 오류·키·설정은 반환하지 않는다. AI 기록은 최대 100,000건을
+집계하며 초과 시 `complete: false`를 반환한다. 토큰을 보고하지 않은 호출은
+`unreported_calls`로 표시하고, 모든 호출의 토큰이 미보고이면 `total_tokens: null`이다.
+호출 자체가 없으면 0이다. 현재 출처에는 청구 금액이 없으므로 `amount_minor: null`,
+`cost_basis: not_reported`를 반환한다. 개발용 구독 토큰과 운영 AI 토큰은 합치지 않는다.
+
+기존 키에 scope가 자동 추가되지는 않는다. 관리자가 필요한 두 읽기 scope만 승인해 발급한
+키를 [Workbench의 서버 설정](../../apps/codex-console/README.md)에 연결한다. 성공한 앱 read는
+키 ID·operation·대상 앱을 감사하고 `private, no-store`를 적용한다. 키 폐기나 MIY 장애는
+Workbench의 독립 로그인·개발·복구 기능을 막지 않으며 원격 집계는 확인 불가 상태가 된다.

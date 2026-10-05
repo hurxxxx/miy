@@ -63,7 +63,7 @@ if [ ! -e "$miy_install_root" ] && [ ! -L "$miy_install_root" ]; then
   sudo install -d -m 0755 -o "$(id -u)" -g "$(id -g)" "$miy_install_root"
 fi
 cd "$miy_install_root"
-git clone --origin upstream --branch main https://github.com/hurxxxx/mty.git dev
+git clone --origin upstream --branch main https://github.com/hurxxxx/miy.git dev
 cd dev
 git switch --no-track -c dev
 git config remote.pushDefault origin

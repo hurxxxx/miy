@@ -1893,6 +1893,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/apps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Apps */
+        get: operations["app_integrations_list_apps_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/apps/{app_id}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Usage */
+        get: operations["app_integrations_read_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/usage/events": {
         parameters: {
             query?: never;
@@ -8905,6 +8939,45 @@ export interface components {
             /** Pinned App Ids */
             pinned_app_ids?: string[];
         };
+        /** AppUsageResponse */
+        AppUsageResponse: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /** App Id */
+            app_id: string;
+            /** Month */
+            month: string;
+            /** App Opens */
+            app_opens: number;
+            /** Llm Calls */
+            llm_calls: number;
+            /** Llm Errors */
+            llm_errors: number;
+            /** Total Tokens */
+            total_tokens: number | null;
+            /** Unreported Calls */
+            unreported_calls: number;
+            /** Complete */
+            complete: boolean;
+            /** Amount Minor */
+            amount_minor: number | null;
+            /** Currency */
+            currency: string | null;
+            /**
+             * Cost Basis
+             * @constant
+             */
+            cost_basis: "not_reported";
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+        };
         /** ApprovalAbandonRequest */
         ApprovalAbandonRequest: {
             /** Reason */
@@ -13101,6 +13174,43 @@ export interface components {
             job_id: string;
             /** Task Id */
             task_id?: string | null;
+        };
+        /** ManagedAppResponse */
+        ManagedAppResponse: {
+            /** App Id */
+            app_id: string;
+            /** Title */
+            title: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Release Unit */
+            release_unit: string;
+            /** Installed Revision */
+            installed_revision: string | null;
+            /** Runtime Ai */
+            runtime_ai: boolean;
+        };
+        /** ManagedAppsResponse */
+        ManagedAppsResponse: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /** Items */
+            items: components["schemas"]["ManagedAppResponse"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
         };
         /** MediaLinkRequest */
         MediaLinkRequest: {
@@ -22692,6 +22802,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DirectoryPeopleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    app_integrations_list_apps_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedAppsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    app_integrations_read_usage_get: {
+        parameters: {
+            query?: {
+                month?: string | null;
+            };
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppUsageResponse"];
                 };
             };
             /** @description Validation Error */

@@ -91,6 +91,66 @@ class Revision(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
 
 
+class WorkbenchProject(Base):
+    __tablename__ = "console_projects"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    app_id: Mapped[str] = mapped_column(String(80), unique=True)
+    title: Mapped[str] = mapped_column(String(200))
+    summary: Mapped[str] = mapped_column(Text)
+    reuse_decision: Mapped[str] = mapped_column(String(24))
+    reuse_notes: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+
+
+class Maintenance(Base):
+    __tablename__ = "console_maintenance"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    app_id: Mapped[str] = mapped_column(String(80), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    notes: Mapped[str] = mapped_column(Text, default="")
+    owner: Mapped[str] = mapped_column(String(120), default="")
+    due_on: Mapped[str | None] = mapped_column(String(10))
+    state: Mapped[str] = mapped_column(String(24), default="open")
+    target_revision: Mapped[str | None] = mapped_column(String(40))
+    verification: Mapped[dict | None] = mapped_column(JSON)
+    task_id: Mapped[str | None] = mapped_column(ForeignKey("console_tasks.id"))
+    version: Mapped[int] = mapped_column(default=1)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+
+
+class AppBudget(Base):
+    __tablename__ = "console_app_budgets"
+    app_id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    development_tokens: Mapped[int | None] = mapped_column(Integer)
+    runtime_tokens: Mapped[int | None] = mapped_column(Integer)
+    amount_minor: Mapped[int | None] = mapped_column(Integer)
+    currency: Mapped[str] = mapped_column(String(3), default="KRW")
+    version: Mapped[int] = mapped_column(default=1)
+
+
+class DevelopmentUsage(Base):
+    __tablename__ = "console_development_usage"
+    thread_id: Mapped[str] = mapped_column(String(160), primary_key=True)
+    task_id: Mapped[str] = mapped_column(ForeignKey("console_tasks.id"), index=True)
+    total_tokens: Mapped[int] = mapped_column(Integer)
+    observed_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+
+
+class DevelopmentUsageMonth(Base):
+    __tablename__ = "console_development_usage_months"
+    thread_id: Mapped[str] = mapped_column(String(160), primary_key=True)
+    month: Mapped[str] = mapped_column(String(7), primary_key=True)
+    task_id: Mapped[str] = mapped_column(ForeignKey("console_tasks.id"), index=True)
+    total_tokens: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class WorkbenchObservation(Base):
+    __tablename__ = "console_workbench_observations"
+    key: Mapped[str] = mapped_column(String(120), primary_key=True)
+    payload: Mapped[dict] = mapped_column(JSON)
+    checked_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+
+
 class Item(Base):
     __tablename__ = "console_items"
     __table_args__ = (UniqueConstraint("task_id", "item_id"),)

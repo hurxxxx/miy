@@ -368,11 +368,11 @@ it('preserves the plan draft across result tabs and tasks and warns before leavi
   fireEvent.click(results.getByRole('button', { name: '파일' }));
   fireEvent.click(results.getByRole('button', { name: '계획' }));
   expect(screen.getByText('Plan draft')).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: '에이전트' }));
+  fireEvent.click(screen.getByRole('button', { name: '세션' }));
   fireEvent.click(await screen.findByRole('button', { name: /Another task/ }));
   await screen.findByRole('heading', { name: 'Another task' });
   expect(screen.queryByText('Plan draft')).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: '에이전트' }));
+  fireEvent.click(screen.getByRole('button', { name: '세션' }));
   fireEvent.click(screen.getByRole('button', { name: /Test task/ }));
   await screen.findByText('Plan draft');
   fireEvent.click(
@@ -396,12 +396,12 @@ it('searches all tasks on the server without clearing the open draft or acceptin
         })
       : [{ ...detail, id: 'other', title: 'New search result' }];
   await openAndCompose();
-  fireEvent.click(screen.getByRole('button', { name: '에이전트' }));
-  fireEvent.change(screen.getByLabelText('작업 검색'), {
+  fireEvent.click(screen.getByRole('button', { name: '세션' }));
+  fireEvent.change(screen.getByLabelText('세션 검색'), {
     target: { value: 'old' },
   });
   await waitFor(() => expect(resolveOld).toBeTypeOf('function'));
-  fireEvent.change(screen.getByLabelText('작업 검색'), {
+  fireEvent.change(screen.getByLabelText('세션 검색'), {
     target: { value: 'new' },
   });
   await screen.findByRole('button', { name: /New search result/ });
@@ -410,6 +410,9 @@ it('searches all tasks on the server without clearing the open draft or acceptin
   );
   expect(screen.queryByRole('button', { name: /Old result/ })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: '세션' }));
+  fireEvent.change(screen.getByLabelText('세션 검색'), {
+    target: { value: '' },
+  });
   fireEvent.click(
     within(screen.getByRole('list', { name: '세션' })).getByRole('button', {
       name: /Test task/,
@@ -865,8 +868,8 @@ it('opens the sessions menu by pinned/recency order, preserves drafts and never 
   const sessions = () => within(screen.getByRole('list', { name: '세션' }));
   expect(
     sessions()
-      .getAllByRole('button')
-      .map((b) => b.querySelector('.session-title')?.textContent),
+      .getAllByRole('heading')
+      .map((heading) => heading.textContent),
   ).toEqual([
     '고정됨Pinned earlier session',
     'Test task',
@@ -938,17 +941,31 @@ it('searches older sessions, rejects stale responses and keeps search when retur
   );
 });
 
-it.each(['', '?view=sessions', '?view=workspace&tab=sessions'])(
-  'opens the session list as the entry point at %s',
+it.each([
+  '',
+  '?view=sessions',
+  '?view=workspace&tab=sessions',
+  '?view=agents',
+  '?view=history',
+])(
+  'opens Studio by default and preserves the session entry point at %s',
   async (route) => {
     window.history.replaceState(null, '', route || '/');
     render(<App />);
-    await screen.findByRole('heading', { name: '세션' });
+    await screen.findByRole('heading', { name: route ? '세션' : 'MIY Studio' });
     expect(
-      within(screen.getByRole('navigation', { name: '콘솔 메뉴' }))
+      within(screen.getByRole('navigation', { name: 'Workbench 메뉴' }))
         .getAllByRole('button')
         .map((b) => b.textContent),
-    ).toEqual(['세션', '작업 템플릿', '에이전트', '모니터링']);
+    ).toEqual([
+      'MIY Studio',
+      '앱 관리 센터',
+      '플랫폼 관리',
+      '세션',
+      '작업 템플릿',
+      '지침·스킬',
+      '모니터링',
+    ]);
     expect(screen.queryByRole('list', { name: '최근 세션' })).toBeNull();
   },
 );
@@ -969,7 +986,7 @@ it('keeps legacy native-session links under workspace and retains explicit impor
   render(<App />);
   await screen.findByRole('heading', { name: 'Codex 세션 불러오기' });
   expect(
-    within(screen.getByRole('navigation', { name: '콘솔 메뉴' }))
+    within(screen.getByRole('navigation', { name: 'Workbench 메뉴' }))
       .getByRole('button', { name: '세션' })
       .getAttribute('aria-current'),
   ).toBe('page');
@@ -986,3 +1003,55 @@ it('keeps legacy native-session links under workspace and retains explicit impor
     vi.mocked(api).mock.calls.some(([path]) => path === '/tasks/import'),
   ).toBe(false);
 });
+
+it.each(['sessions', 'agents', 'history'])(
+  'retains template scope through legacy %s links and returns to all sessions',
+  async (view) => {
+    const templateId = '11111111-1111-4111-8111-111111111111';
+    window.history.replaceState(
+      null,
+      '',
+      `?view=${view}&template=${templateId}`,
+    );
+    const original = vi.mocked(api).getMockImplementation()!;
+    const templateRun = {
+      ...detail,
+      title: 'Scoped template run',
+      executor: 'templates' as const,
+    };
+    vi.mocked(api).mockImplementation(async (path, ...args) => {
+      if (path === `/templates/${templateId}`)
+        return {
+          id: templateId,
+          definition: { name: 'Selected template' },
+          archived: false,
+        };
+      if (path.startsWith('/overview?search=')) return [templateRun];
+      return original(path, ...args);
+    });
+    render(<App />);
+    await screen.findByRole('heading', { name: '템플릿 실행 이력' });
+    await screen.findByRole('button', { name: 'Scoped template run' });
+    expect(screen.queryByRole('button', { name: 'Test task' })).toBeNull();
+    expect(api).toHaveBeenCalledWith(
+      `/overview?search=&template_id=${templateId}`,
+      undefined,
+      'GET',
+      expect.any(AbortSignal),
+    );
+    fireEvent.click(
+      within(screen.getByRole('region', { name: '선택한 템플릿' })).getByRole(
+        'button',
+        { name: '전체 세션' },
+      ),
+    );
+    await screen.findByRole('heading', { name: '세션' });
+    expect(window.location.search).toBe('?view=sessions');
+    expect(screen.getByRole('button', { name: 'Test task' })).toBeTruthy();
+    expect(
+      vi
+        .mocked(api)
+        .mock.calls.some(([, body, method]) => body || method === 'POST'),
+    ).toBe(false);
+  },
+);
