@@ -182,7 +182,16 @@ def main():
             "project": cfg.workspace,
             "personal": directory / "personal",
             "global": directory / "codex-home",
+            "admin": directory / "machine/skills",
+            "system": directory / "codex-home/skills/.system",
+            "plugins": directory / "codex-home/plugins/cache",
         }
+        installed = directory / "codex-home/skills/.system/installed-review/SKILL.md"
+        installed.parent.mkdir(parents=True)
+        installed.write_text(
+            "---\nname: installed-review\ndescription: Installed review\n---\n"
+            "\n# Installed review\n"
+        )
         app = create_app(settings, rpc_factory=BrowserRPC)
         # Only this disposable browser fixture has completion controls. Product
         # code and the real app-server transport never install these endpoints.

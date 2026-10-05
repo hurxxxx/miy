@@ -1,5 +1,7 @@
 import hashlib
 import os
+import shutil
+import subprocess
 
 import pytest
 
@@ -12,6 +14,9 @@ def document_roots(monkeypatch, repository, tmp_path):
         "project": repository,
         "personal": tmp_path / "personal",
         "global": tmp_path / "codex-home",
+        "admin": tmp_path / "machine/skills",
+        "system": tmp_path / "codex-home/skills/.system",
+        "plugins": tmp_path / "codex-home/plugins/cache",
     }
     monkeypatch.setattr(instructions, "roots", lambda settings: locations)
     return locations
@@ -70,6 +75,145 @@ def test_conflict_preserves_an_external_edit(client, repository):
     assert save(client, content="My draft\n", revision=original["revision"]).status_code == 409
     assert (repository / "AGENTS.md").read_text() == "External change\n"
     assert not list(repository.glob(".console-document-*"))
+
+
+def test_documents_are_portable_between_unrelated_repositories(
+    client, repository, tmp_path, document_roots
+):
+    from codex_console.config import Settings
+
+    for project in ("order-book", "research-notebooks"):
+        root = tmp_path / project
+        shutil.copytree(repository, root)
+        subprocess.run(["git", "-C", str(root), "branch", "-m", "primary"], check=True)
+        settings = Settings(
+            **{**client.app.state.settings.model_dump(), "workspace": root}, _env_file=None
+        )
+        client.app.state.settings = settings
+        document_roots["project"] = root
+        assert save(client, "components/AGENTS.override.md", f"# {project}\n").status_code == 200
+        path = "components/.agents/skills/quality-check/SKILL.md"
+        content = "---\nname: quality-check\ndescription: Check local quality\n---\n"
+        assert save(client, path, content).status_code == 200
+        catalog = client.get("/api/instructions").json()
+        assert catalog["roots"]["project"] == str(root)
+        assert {entry["path"] for entry in catalog["entries"]} == {
+            "components/AGENTS.override.md", path
+        }
+        assert read(client, "components/AGENTS.override.md").json()["content"] == f"# {project}\n"
+    assert (tmp_path / "order-book/components/AGENTS.override.md").read_text() == "# order-book\n"
+
+
+def test_skill_bundle_markdown_search_and_read_only_sources(client, document_roots):
+    paths = {
+        ("project", ".agents/skills/review/DESIGN.md"): "# Design\n\nSemantic needle.\n",
+        ("project", ".agents/skills/review/notes/deep.md"): "# Nested reference\n",
+        ("project", ".agents/skills/review/scripts/check.py"): "print('example')\n",
+        ("project", "apps/CLAUDE.md"): "@AGENTS.md\n",
+        ("project", ".github/copilot-instructions.md"): "Read AGENTS.md\n",
+        ("system", "review/SKILL.md"): "---\nname: review\ndescription: Review\n---\n",
+        ("admin", "company-review/SKILL.md"): "# Machine managed\n",
+        ("plugins", "vendor/plugin/1.0/skills/review/SKILL.md"): "# Installed\n",
+    }
+    for (scope, path), content in paths.items():
+        target = document_roots[scope] / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content)
+    entries = client.get("/api/instructions").json()["entries"]
+    assert {(e["scope"], e["path"]) for e in entries} == set(paths)
+    for entry in entries:
+        response = read(client, entry["path"], entry["scope"])
+        assert response.status_code == 200
+        data = response.json()
+        assert data["content"] == paths[(entry["scope"], entry["path"])]
+        editable = entry["kind"] == "reference"
+        assert data["editable"] == editable
+        if not editable:
+            assert (
+                save(
+                    client,
+                    entry["path"],
+                    "changed",
+                    scope=entry["scope"],
+                    revision=data["revision"],
+                ).status_code
+                == 403
+            )
+    found = client.get("/api/instructions", params={"q": "SEMANTIC needle", "scope": "project"})
+    assert [e["path"] for e in found.json()["entries"]] == [".agents/skills/review/DESIGN.md"]
+    assert (
+        client.get("/api/instructions", params={"q": "needle", "scope": "system"}).json()["entries"]
+        == []
+    )
+
+
+def test_installed_scope_rejects_links_and_arbitrary_files(client, document_roots, tmp_path):
+    root = document_roots["system"]
+    (root / "review").mkdir(parents=True)
+    private = tmp_path / "private.md"
+    private.write_text("private")
+    (root / "review/SKILL.md").symlink_to(private)
+    assert read(client, "review/SKILL.md", "system").status_code == 403
+    assert read(client, "../AGENTS.md", "system").status_code == 403
+    assert read(client, "vendor/auth.json", "plugins").status_code == 403
+    assert read(client, "review/.env.md", "system").status_code == 403
+    assert client.get("/api/instructions?scope=system").json()["entries"] == []
+
+
+def test_discovery_reports_native_enabled_state_and_fails_closed(client, repository, monkeypatch):
+    from conftest import FakeRPC
+
+    original = FakeRPC.call
+    payload = {
+        "data": [
+            {
+                "cwd": str(repository),
+                "skills": [
+                    {
+                        "name": "review",
+                        "description": "Review code",
+                        "path": str(repository / ".agents/skills/review/SKILL.md"),
+                        "enabled": False,
+                    }
+                ],
+                "errors": [],
+            }
+        ]
+    }
+    config = {
+        "project_doc_fallback_filenames": ["TEAM_GUIDE.md", ".agents.md"],
+        "project_doc_max_bytes": 65536,
+        "unrelated_private_setting": "not-for-the-browser",
+    }
+
+    async def call(self, method, params):
+        if method == "skills/list":
+            assert params == {"cwds": [str(repository)], "forceReload": True}
+            return payload
+        if method == "config/read":
+            assert params == {"cwd": str(repository), "includeLayers": False}
+            return {"config": config}
+        return await original(self, method, params)
+
+    monkeypatch.setattr(FakeRPC, "call", call)
+    response = client.get("/api/codex/skills")
+    assert response.status_code == 200
+    assert response.json()["skills"][0]["enabled"] is False
+    assert response.json()["guidance"] == {
+        "fallback_filenames": ["TEAM_GUIDE.md", ".agents.md"],
+        "max_bytes": 65536,
+    }
+    assert "not-for-the-browser" not in response.text
+    config["project_doc_max_bytes"] = "not-an-integer"
+    response = client.get("/api/codex/skills")
+    assert response.status_code == 200
+    assert response.json()["guidance"] is None
+    assert response.json()["skills"][0]["enabled"] is False
+    payload["data"][0]["skills"][0]["enabled"] = "false"
+    assert client.get("/api/codex/skills").status_code == 502
+    assert client.get("/api/codex/skills?directory_name=../private").status_code == 403
+    client.cookies.clear()
+    assert client.get("/api/codex/skills").status_code == 401
 
 
 def test_official_scoped_files_and_skill_references(client, document_roots):

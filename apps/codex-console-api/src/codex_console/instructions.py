@@ -18,8 +18,10 @@ from .errors import ConsoleError
 
 MAX_BYTES = 64 * 1024
 MAX_FILES = 2000
-Scope = Literal["project", "personal", "global"]
+Scope = Literal["project", "personal", "global", "admin", "system", "plugins"]
+Kind = Literal["instructions", "skill", "metadata", "reference", "bridge", "script"]
 GUIDANCE = {"AGENTS.md", "AGENTS.override.md"}
+READ_ONLY = {"admin", "system", "plugins"}
 
 
 class DocumentKey(BaseModel):
@@ -35,7 +37,7 @@ class DocumentWrite(DocumentKey):
 
 
 class DocumentOut(DocumentKey):
-    kind: Literal["instructions", "skill", "metadata", "reference"]
+    kind: Kind
     editable: bool
     exists: bool
     revision: str | None
@@ -43,7 +45,7 @@ class DocumentOut(DocumentKey):
 
 
 class DocumentEntry(DocumentKey):
-    kind: Literal["instructions", "skill", "metadata", "reference"]
+    kind: Kind
     editable: bool
 
 
@@ -52,11 +54,34 @@ class DocumentCatalog(BaseModel):
     roots: dict[str, str]
 
 
+class DiscoveredSkill(BaseModel):
+    path: str = Field(max_length=4000)
+    name: str = Field(max_length=200)
+    description: str = Field(max_length=8000)
+    enabled: bool = Field(strict=True)
+
+
+class GuidanceConfiguration(BaseModel):
+    fallback_filenames: list[str] = Field(max_length=100)
+    max_bytes: int = Field(ge=0, strict=True)
+
+
+class SkillDiscovery(BaseModel):
+    directory: str
+    skills: list[DiscoveredSkill] = Field(max_length=MAX_FILES)
+    error_count: int = Field(ge=0)
+    guidance: GuidanceConfiguration | None = None
+
+
 def roots(settings):
+    home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).expanduser()
     return {
         "project": settings.workspace,
         "personal": Path.home() / ".agents",
-        "global": Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).expanduser(),
+        "global": home,
+        "admin": Path("/etc/codex/skills"),
+        "system": home / "skills" / ".system",
+        "plugins": home / "plugins" / "cache",
     }
 
 
@@ -70,23 +95,36 @@ def target(settings, scope, relative):
     candidate = git.safe_path(root, relative)
     settings.require_allowed_paths(root, candidate)
     parts = path.parts
+    if scope == "project" and (
+        parts[-1] == "CLAUDE.md" or relative == ".github/copilot-instructions.md"
+    ):
+        return root, "bridge", False
     if parts[-1] in GUIDANCE and (scope == "project" or len(parts) == 1):
-        return root, "instructions", True
+        if scope in ("project", "global"):
+            return root, "instructions", True
     prefix = (".agents", "skills") if scope == "project" else ("skills",)
     # Repository scopes can have their own .agents/skills directory.
     offset = next((i for i in range(len(parts)) if parts[i : i + len(prefix)] == prefix), None)
-    if offset is None or (scope != "project" and offset != 0):
+    if scope in ("admin", "system"):
+        rest = parts
+    elif offset is None or (scope in ("personal", "global") and offset != 0):
         raise ConsoleError("path_denied", 403)
-    rest = parts[offset + len(prefix) :]
+    else:
+        rest = parts[offset + len(prefix) :]
     if len(rest) < 2 or not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{0,99}", rest[0]):
         raise ConsoleError("path_denied", 403)
     tail = rest[1:]
+    if any(part.startswith(".") for part in tail):
+        raise ConsoleError("path_denied", 403)
+    editable = scope not in READ_ONLY
     if tail == ("SKILL.md",):
-        return root, "skill", True
+        return root, "skill", editable
     if tail == ("agents", "openai.yaml"):
-        return root, "metadata", True
-    if len(tail) >= 2 and tail[0] == "references" and tail[-1].endswith(".md"):
-        return root, "reference", True
+        return root, "metadata", editable
+    if tail[-1].endswith(".md"):
+        return root, "reference", editable
+    if tail[0] == "scripts" and path.suffix in {".py", ".sh", ".js", ".mjs", ".ts"}:
+        return root, "script", False
     raise ConsoleError("path_denied", 403)
 
 
@@ -149,6 +187,8 @@ def output(key, kind, editable, data):
 def read(settings, key):
     root, kind, editable = target(settings, key.scope, key.path)
     if not (root / key.path).exists():
+        if not editable:
+            raise ConsoleError("path_denied", 403)
         return output(key, kind, editable, None)
     with parent(root, key.path) as (directory, name):
         data, _ = read_at(directory, name)
@@ -157,6 +197,8 @@ def read(settings, key):
 
 def write(settings, body):
     root, kind, editable = target(settings, body.scope, body.path)
+    if not editable:
+        raise ConsoleError("path_denied", 403)
     data = body.content.encode("utf-8")
     if len(data) > MAX_BYTES:
         raise ConsoleError("instruction_too_large", 413)
@@ -204,7 +246,7 @@ def write(settings, body):
     return output(DocumentKey(scope=body.scope, path=body.path), kind, editable, data)
 
 
-def catalog(settings):
+def catalog(settings, scope_filter=None, query=""):
     locations = roots(settings)
     candidates = [
         ("project", p.decode("utf-8", "replace"))
@@ -214,8 +256,10 @@ def catalog(settings):
         if p
     ]
     candidates.extend((scope, name) for scope in ("project", "global") for name in GUIDANCE)
-    for scope in ("personal", "global"):
-        base = locations[scope] / "skills"
+    for scope in ("personal", "global", "admin", "system", "plugins"):
+        if scope not in locations or (scope_filter and scope != scope_filter):
+            continue
+        base = locations[scope] / "skills" if scope in ("personal", "global") else locations[scope]
         if not base.is_dir() or base.is_symlink():
             continue
         visited = 0
@@ -223,22 +267,42 @@ def catalog(settings):
             visited += len(dirs) + len(files)
             if visited > 10000:
                 raise ConsoleError("output_too_large", 413)
-            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            dirs[:] = [
+                d for d in dirs if not d.startswith(".") and not (Path(directory) / d).is_symlink()
+            ]
             for name in files:
                 candidates.append(
                     (scope, str((Path(directory) / name).relative_to(locations[scope])))
                 )
     entries = {}
+    searched_bytes = 0
+    query = query.strip().casefold()
     for scope, path in candidates:
-        if Path(path).name not in GUIDANCE | {"SKILL.md", "openai.yaml"} and not (
-            "/references/" in path and path.endswith(".md")
+        if scope_filter and scope != scope_filter:
+            continue
+        if not (
+            path.endswith(".md")
+            or path.endswith("/agents/openai.yaml")
+            or ("/scripts/" in path and Path(path).suffix in {".py", ".sh", ".js", ".mjs", ".ts"})
         ):
             continue
         try:
             root, kind, editable = target(settings, scope, path)
             if not (root / path).is_file():
                 continue
+            if query and query not in path.casefold():
+                with parent(root, path) as (directory, name):
+                    data, _ = read_at(directory, name)
+                if data is None:
+                    continue
+                searched_bytes += len(data)
+                if searched_bytes > 16 * 1024 * 1024:
+                    raise ConsoleError("output_too_large", 413)
+                if query not in data.decode("utf-8").casefold():
+                    continue
         except ConsoleError:
+            if searched_bytes > 16 * 1024 * 1024:
+                raise
             continue
         entries[(scope, path)] = DocumentEntry(scope=scope, path=path, kind=kind, editable=editable)
         if len(entries) > MAX_FILES:
@@ -251,8 +315,8 @@ def catalog(settings):
 
 def install(app, secured):
     @app.get("/api/instructions", dependencies=secured, response_model=DocumentCatalog)
-    def listing():
-        return catalog(app.state.settings)
+    def listing(scope: Scope | None = None, q: str = Query(default="", max_length=200)):
+        return catalog(app.state.settings, scope, q)
 
     @app.get("/api/instructions/document", dependencies=secured, response_model=DocumentOut)
     def document(scope: Scope, path: str = Query(min_length=1, max_length=1000)):

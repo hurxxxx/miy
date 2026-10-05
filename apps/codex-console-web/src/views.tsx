@@ -32,14 +32,27 @@ import {
 import type { Copy, Translate } from './i18n';
 import { AttachmentBadges } from './attachments';
 
-export function Markdown({ text }: { text: string }) {
+export function Markdown({
+  text,
+  onLink,
+}: {
+  text: string;
+  onLink?: (href: string) => boolean;
+}) {
   return (
     <div className="markdown">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           a: ({ children, ...props }) => (
-            <a {...props} target="_blank" rel="noreferrer noopener">
+            <a
+              {...props}
+              target="_blank"
+              rel="noreferrer noopener"
+              onClick={(event) => {
+                if (props.href && onLink?.(props.href)) event.preventDefault();
+              }}
+            >
               {children}
             </a>
           ),
