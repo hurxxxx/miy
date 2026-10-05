@@ -36,7 +36,7 @@ test('monitoring links to templates without running commands and task history st
   expect(task.thread_id).toBeNull();
   expect(task.executor).toBe('session');
   await page
-    .getByRole('navigation', { name: '콘솔 메뉴' })
+    .getByRole('navigation', { name: 'Workbench 메뉴' })
     .getByRole('button', { name: '세션', exact: true })
     .click();
   const card = page.locator('.overview-task').filter({ hasText: task.title });

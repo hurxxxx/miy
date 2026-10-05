@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Final
 
-APP_CONTRACT_REVISION: Final = "sha256:dc7af621dbfb839406491f331635208dfa7242e58975c1092854f4f7dafc3b10"
+APP_CONTRACT_REVISION: Final = "sha256:a77dc81f85a4281fc312bd8b7af04036c5f210eb163ba8439f858eae7cd1890d"
 APP_CONTRACTS: Final = [
   {
     "app_id": "home",
@@ -24,7 +24,18 @@ APP_CONTRACTS: Final = [
         "suffix": "",
         "chrome": "containedSurface"
       }
-    ]
+    ],
+    "management": {
+      "summary": "Personal launcher and activity overview",
+      "capabilities": [
+        "launcher",
+        "navigation"
+      ],
+      "source_paths": [
+        "apps/web/src/app-modules/home"
+      ],
+      "release_unit": "miy-app"
+    }
   },
   {
     "app_id": "agent-terminal",
@@ -48,11 +59,23 @@ APP_CONTRACTS: Final = [
         "suffix": "",
         "chrome": "fullSurface"
       }
-    ]
+    ],
+    "management": {
+      "summary": "Subscription authenticated coding terminal",
+      "capabilities": [
+        "coding",
+        "terminal"
+      ],
+      "source_paths": [
+        "apps/web/src/app-modules/agent-terminal",
+        "apps/api/src/miy_api/domains/agent_terminal"
+      ],
+      "release_unit": "miy-app"
+    }
   },
   {
     "app_id": "codex-console",
-    "title": "Codex Console",
+    "title": "MIY Workbench",
     "icon_key": "code-xml",
     "execution_context_kind": "personal",
     "resource_scope": "personal",
@@ -73,7 +96,20 @@ APP_CONTRACTS: Final = [
         "suffix": "",
         "chrome": "containedSurface"
       }
-    ]
+    ],
+    "management": {
+      "summary": "App development, maintenance and platform operations",
+      "capabilities": [
+        "studio",
+        "delivery",
+        "maintenance"
+      ],
+      "source_paths": [
+        "apps/codex-console-web/src",
+        "apps/codex-console-api/src/codex_console"
+      ],
+      "release_unit": "miy-workbench"
+    }
   },
   {
     "app_id": "chatbot",
@@ -93,7 +129,21 @@ APP_CONTRACTS: Final = [
         "suffix": "",
         "chrome": "containedSurface"
       }
-    ]
+    ],
+    "management": {
+      "summary": "AI conversations, research and generated artifacts",
+      "capabilities": [
+        "ai",
+        "conversation",
+        "research"
+      ],
+      "source_paths": [
+        "apps/web/src/app-modules/chatbot",
+        "apps/api/src/miy_api/domains/conversations",
+        "apps/api/src/miy_api/domains/ai"
+      ],
+      "release_unit": "miy-app"
+    }
   },
   {
     "app_id": "pms",
@@ -153,7 +203,20 @@ APP_CONTRACTS: Final = [
         "suffix": "/spaces/:spaceId/whiteboards/:whiteboardId",
         "chrome": "containedSurface"
       }
-    ]
+    ],
+    "management": {
+      "summary": "Projects, tasks and team collaboration",
+      "capabilities": [
+        "projects",
+        "tasks",
+        "workflow"
+      ],
+      "source_paths": [
+        "apps/web/src/app-modules/pms",
+        "apps/api/src/miy_api/domains/pms"
+      ],
+      "release_unit": "miy-app"
+    }
   },
   {
     "app_id": "docs",
@@ -193,7 +256,19 @@ APP_CONTRACTS: Final = [
         "suffix": "/shared/:shareToken/html/:pageId",
         "chrome": "shared"
       }
-    ]
+    ],
+    "management": {
+      "summary": "Collaborative document authoring and sharing",
+      "capabilities": [
+        "documents",
+        "collaboration"
+      ],
+      "source_paths": [
+        "apps/web/src/app-modules/docs",
+        "apps/api/src/miy_api/domains/docs"
+      ],
+      "release_unit": "miy-app"
+    }
   },
   {
     "app_id": "files",
@@ -218,7 +293,19 @@ APP_CONTRACTS: Final = [
         "suffix": "/chat",
         "chrome": "standard"
       }
-    ]
+    ],
+    "management": {
+      "summary": "File upload, storage and sharing",
+      "capabilities": [
+        "files",
+        "storage"
+      ],
+      "source_paths": [
+        "apps/web/src/app-modules/files",
+        "apps/api/src/miy_api/domains/files"
+      ],
+      "release_unit": "miy-app"
+    }
   },
   {
     "app_id": "mail",
@@ -238,7 +325,19 @@ APP_CONTRACTS: Final = [
         "suffix": "",
         "chrome": "standard"
       }
-    ]
+    ],
+    "management": {
+      "summary": "Personal mailbox and correspondence",
+      "capabilities": [
+        "mail",
+        "communication"
+      ],
+      "source_paths": [
+        "apps/web/src/app-modules/mail",
+        "apps/api/src/miy_api/domains/mail"
+      ],
+      "release_unit": "miy-app"
+    }
   },
   {
     "app_id": "community",
@@ -263,7 +362,19 @@ APP_CONTRACTS: Final = [
         "suffix": "/posts/:postId",
         "chrome": "standard"
       }
-    ]
+    ],
+    "management": {
+      "summary": "Company discussions and suggestions",
+      "capabilities": [
+        "community",
+        "discussion"
+      ],
+      "source_paths": [
+        "apps/web/src/app-modules/community",
+        "apps/api/src/miy_api/domains/community"
+      ],
+      "release_unit": "miy-app"
+    }
   },
   {
     "app_id": "whiteboard",
@@ -293,7 +404,19 @@ APP_CONTRACTS: Final = [
         "suffix": "/shared/:shareToken",
         "chrome": "shared"
       }
-    ]
+    ],
+    "management": {
+      "summary": "Collaborative visual whiteboards",
+      "capabilities": [
+        "whiteboard",
+        "collaboration"
+      ],
+      "source_paths": [
+        "apps/web/src/app-modules/whiteboard",
+        "apps/api/src/miy_api/domains/whiteboard"
+      ],
+      "release_unit": "miy-app"
+    }
   },
   {
     "app_id": "diagrams",
@@ -318,7 +441,19 @@ APP_CONTRACTS: Final = [
         "suffix": "/diagrams/:diagramId",
         "chrome": "containedSurface"
       }
-    ]
+    ],
+    "management": {
+      "summary": "Diagram editing and sharing",
+      "capabilities": [
+        "diagram",
+        "drawing"
+      ],
+      "source_paths": [
+        "apps/web/src/app-modules/diagrams",
+        "apps/api/src/miy_api/domains/diagrams"
+      ],
+      "release_unit": "miy-app"
+    }
   },
   {
     "app_id": "bento",
@@ -343,7 +478,19 @@ APP_CONTRACTS: Final = [
         "suffix": "/presentations/:documentId",
         "chrome": "containedSurface"
       }
-    ]
+    ],
+    "management": {
+      "summary": "Structured tables and collaborative documents",
+      "capabilities": [
+        "tables",
+        "data"
+      ],
+      "source_paths": [
+        "apps/web/src/app-modules/bento",
+        "apps/api/src/miy_api/domains/bento"
+      ],
+      "release_unit": "miy-app"
+    }
   },
   {
     "app_id": "planner",
@@ -363,7 +510,19 @@ APP_CONTRACTS: Final = [
         "suffix": "",
         "chrome": "fullSurface"
       }
-    ]
+    ],
+    "management": {
+      "summary": "Personal plans and task scheduling",
+      "capabilities": [
+        "planning",
+        "calendar"
+      ],
+      "source_paths": [
+        "apps/web/src/app-modules/planner",
+        "apps/api/src/miy_api/domains/planner"
+      ],
+      "release_unit": "miy-app"
+    }
   },
   {
     "app_id": "meeting",
@@ -388,7 +547,19 @@ APP_CONTRACTS: Final = [
         "suffix": "/meetings/:meetingId",
         "chrome": "standard"
       }
-    ]
+    ],
+    "management": {
+      "summary": "Meetings, agendas and shared notes",
+      "capabilities": [
+        "meeting",
+        "minutes"
+      ],
+      "source_paths": [
+        "apps/web/src/app-modules/meeting",
+        "apps/api/src/miy_api/domains/meeting"
+      ],
+      "release_unit": "miy-app"
+    }
   },
   {
     "app_id": "video-chat",
@@ -413,7 +584,19 @@ APP_CONTRACTS: Final = [
         "suffix": "/sessions/:sessionId",
         "chrome": "containedSurface"
       }
-    ]
+    ],
+    "management": {
+      "summary": "Real-time video meetings",
+      "capabilities": [
+        "video",
+        "communication"
+      ],
+      "source_paths": [
+        "apps/web/src/app-modules/video-chat",
+        "apps/api/src/miy_api/domains/video_chat"
+      ],
+      "release_unit": "miy-app"
+    }
   },
   {
     "app_id": "recording",
@@ -438,7 +621,19 @@ APP_CONTRACTS: Final = [
         "suffix": "/recordings/:recordingId",
         "chrome": "standard"
       }
-    ]
+    ],
+    "management": {
+      "summary": "Recordings and transcription",
+      "capabilities": [
+        "recording",
+        "transcription"
+      ],
+      "source_paths": [
+        "apps/web/src/app-modules/recording",
+        "apps/api/src/miy_api/domains/recording"
+      ],
+      "release_unit": "miy-app"
+    }
   },
   {
     "app_id": "retrieval-search",
@@ -458,7 +653,19 @@ APP_CONTRACTS: Final = [
         "suffix": "",
         "chrome": "standard"
       }
-    ]
+    ],
+    "management": {
+      "summary": "Search over authorized indexed sources",
+      "capabilities": [
+        "search",
+        "retrieval"
+      ],
+      "source_paths": [
+        "apps/web/src/app-modules/retrieval-search",
+        "apps/api/src/miy_api/domains/retrieval"
+      ],
+      "release_unit": "miy-app"
+    }
   },
   {
     "app_id": "tetris",
@@ -478,7 +685,18 @@ APP_CONTRACTS: Final = [
         "suffix": "",
         "chrome": "containedSurface"
       }
-    ]
+    ],
+    "management": {
+      "summary": "Personal Tetris game",
+      "capabilities": [
+        "game"
+      ],
+      "source_paths": [
+        "apps/web/src/app-modules/tetris",
+        "apps/api/src/miy_api/domains/tetris"
+      ],
+      "release_unit": "miy-app"
+    }
   }
 ]
 APP_CONTRACT_BY_ID: Final = {app["app_id"]: app for app in APP_CONTRACTS}

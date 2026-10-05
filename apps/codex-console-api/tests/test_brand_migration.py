@@ -56,7 +56,7 @@ def test_renamed_skills_preserve_templates_and_execution_history(tmp_path):
             ]
             assert row.definition["prompt"] == "Keep my mty notes unchanged."
             assert db.scalar(text("SELECT version_num FROM console_alembic_version")) == (
-                "console_sqlite_0002"
+                "console_sqlite_0003"
             )
         templates.seed(factory)
         migrate(url)

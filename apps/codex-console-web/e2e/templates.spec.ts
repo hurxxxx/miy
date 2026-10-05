@@ -62,7 +62,7 @@ test('edits a template, runs independent sessions, and retains history after edi
   const first = new URL(page.url()).searchParams.get('task');
   await expect(page.getByLabel('현재 실행 상태')).toContainText('준비됨');
   await page
-    .getByRole('navigation', { name: '콘솔 메뉴' })
+    .getByRole('navigation', { name: 'Workbench 메뉴' })
     .getByRole('button', { name: '작업 템플릿' })
     .click();
   await row.getByRole('button', { name: '템플릿 더보기' }).click();
@@ -93,7 +93,7 @@ test('edits a template, runs independent sessions, and retains history after edi
   await expect(page).toHaveURL(/task=[0-9a-f-]+/);
   await expect(page.getByLabel('현재 실행 상태')).toContainText('준비됨');
   await page
-    .getByRole('navigation', { name: '콘솔 메뉴' })
+    .getByRole('navigation', { name: 'Workbench 메뉴' })
     .getByRole('button', { name: '작업 템플릿', exact: true })
     .click();
   await updatedRow
@@ -124,7 +124,7 @@ test('edits a template, runs independent sessions, and retains history after edi
   await page.getByLabel('세션 검색', { exact: true }).fill(renamed);
   await expect(runs).toHaveCount(1);
   await page
-    .getByRole('navigation', { name: '콘솔 메뉴' })
+    .getByRole('navigation', { name: 'Workbench 메뉴' })
     .getByRole('button', { name: '작업 템플릿', exact: true })
     .click();
   await updatedRow.getByRole('button', { name: '템플릿 더보기' }).click();
@@ -143,7 +143,7 @@ test('edits a template, runs independent sessions, and retains history after edi
   ).toBeVisible();
   await expect(runs).toHaveCount(0);
   await page
-    .getByRole('navigation', { name: '콘솔 메뉴' })
+    .getByRole('navigation', { name: 'Workbench 메뉴' })
     .getByRole('button', { name: '작업 템플릿', exact: true })
     .click();
   await updatedRow.getByRole('button', { name: '템플릿 더보기' }).click();
@@ -192,7 +192,7 @@ test('monitoring navigation works on a narrow screen without horizontal overflow
   ).toBe(true);
   await page.getByRole('button', { name: '메뉴 열기' }).click();
   await page
-    .getByRole('navigation', { name: '콘솔 메뉴' })
+    .getByRole('navigation', { name: 'Workbench 메뉴' })
     .getByRole('button', { name: '작업 템플릿' })
     .click();
   await expect(

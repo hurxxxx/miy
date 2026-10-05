@@ -5,7 +5,7 @@ from typing import Annotated
 from urllib.parse import urlsplit
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
@@ -129,6 +129,31 @@ class Settings(BaseSettings):
         default_factory=dict,
         validation_alias="MIY_CODEX_CONSOLE_SSO_SUBJECTS",
     )
+    miy_api_origin: str | None = Field(
+        default=None, validation_alias="MIY_CODEX_CONSOLE_MIY_API_ORIGIN"
+    )
+    miy_api_key: SecretStr | None = Field(
+        default=None, validation_alias="MIY_CODEX_CONSOLE_MIY_API_KEY"
+    )
+    preview_origin: str | None = Field(
+        default=None, validation_alias="MIY_CODEX_CONSOLE_PREVIEW_ORIGIN"
+    )
+
+    @field_validator("miy_api_origin", "preview_origin", mode="before")
+    @classmethod
+    def optional_origin(cls, value):
+        return cls._validated_origin(value) if value else None
+
+    @field_validator("miy_api_key", mode="before")
+    @classmethod
+    def optional_key(cls, value):
+        return value or None
+
+    @model_validator(mode="after")
+    def integration_pair(self):
+        if bool(self.miy_api_origin) != bool(self.miy_api_key):
+            raise ValueError("Configure both the MIY API origin and its read-only API key")
+        return self
     attachment_cache: Path = Field(
         default_factory=lambda: Path.home() / ".local/share/miy-codex-console/attachments",
         validation_alias="MIY_CODEX_CONSOLE_ATTACHMENT_CACHE",

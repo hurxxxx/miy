@@ -104,6 +104,160 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workbench/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Catalog */
+        get: operations["read_catalog_api_workbench_catalog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workbench/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Project */
+        post: operations["create_project_api_workbench_projects_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workbench/runtime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Runtime */
+        get: operations["read_runtime_api_workbench_runtime_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workbench/apps/{app_id}/maintenance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Maintenance List */
+        get: operations["maintenance_list_api_workbench_apps__app_id__maintenance_get"];
+        put?: never;
+        /** Create Maintenance */
+        post: operations["create_maintenance_api_workbench_apps__app_id__maintenance_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workbench/apps/{app_id}/maintenance/{record_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Maintenance */
+        put: operations["update_maintenance_api_workbench_apps__app_id__maintenance__record_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workbench/apps/{app_id}/maintenance/{record_id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify Maintenance */
+        post: operations["verify_maintenance_api_workbench_apps__app_id__maintenance__record_id__verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workbench/apps/{app_id}/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Budget */
+        put: operations["budget_api_workbench_apps__app_id__budget_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workbench/apps/{app_id}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Usage */
+        get: operations["usage_api_workbench_apps__app_id__usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workbench/platform": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Platform */
+        get: operations["platform_api_workbench_platform_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/monitor/host": {
         parameters: {
             query?: never;
@@ -691,6 +845,28 @@ export interface components {
                 [key: string]: string[];
             } | null;
         };
+        /** AppDescriptor */
+        AppDescriptor: {
+            /** App Id */
+            app_id: string;
+            /** Title */
+            title: string;
+            /** Summary */
+            summary: string;
+            /** Capabilities */
+            capabilities: string[];
+            /** Source Paths */
+            source_paths: string[];
+            /**
+             * Release Unit
+             * @enum {string}
+             */
+            release_unit: "miy-app" | "miy-workbench";
+            /** Route Base */
+            route_base: string;
+            /** Preview Url */
+            preview_url?: string | null;
+        };
         /** AttachmentLimits */
         AttachmentLimits: {
             /** File Bytes */
@@ -713,6 +889,41 @@ export interface components {
             /** Deleted */
             deleted: boolean;
         };
+        /** BudgetInput */
+        BudgetInput: {
+            /** Development Tokens */
+            development_tokens?: number | null;
+            /** Runtime Tokens */
+            runtime_tokens?: number | null;
+            /** Amount Minor */
+            amount_minor?: number | null;
+            /**
+             * Currency
+             * @default KRW
+             */
+            currency: string;
+            /**
+             * Version
+             * @default 0
+             */
+            version: number;
+        };
+        /** CatalogOut */
+        CatalogOut: {
+            /** Items */
+            items: components["schemas"]["AppDescriptor"][];
+            /** Projects */
+            projects: components["schemas"]["ProjectOut"][];
+            /** Source Revision */
+            source_revision: string | null;
+            /** Source Dirty */
+            source_dirty: boolean;
+            /**
+             * Checked At
+             * Format: date-time
+             */
+            checked_at: string;
+        };
         /** ChangeOut */
         ChangeOut: {
             /** Path */
@@ -721,6 +932,13 @@ export interface components {
             status: string;
             /** Old Path */
             old_path: string | null;
+        };
+        /** CommitOut */
+        CommitOut: {
+            /** Revision */
+            revision: string;
+            /** Subject */
+            subject: string;
         };
         /** DeviceLoginOut */
         DeviceLoginOut: {
@@ -824,6 +1042,46 @@ export interface components {
             content: string;
             /** Revision */
             revision?: string | null;
+        };
+        /** GitLabItem */
+        GitLabItem: {
+            /** Id */
+            id?: number | null;
+            /** Name */
+            name: string;
+            /** Revision */
+            revision?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Url */
+            url?: string | null;
+        };
+        /** GitLabOut */
+        GitLabOut: {
+            /** State */
+            state: string;
+            /** Checked At */
+            checked_at?: string | null;
+            /**
+             * Stale
+             * @default true
+             */
+            stale: boolean;
+            /**
+             * Branches
+             * @default []
+             */
+            branches: components["schemas"]["GitLabItem"][];
+            /**
+             * Merge Requests
+             * @default []
+             */
+            merge_requests: components["schemas"]["GitLabItem"][];
+            /**
+             * Pipelines
+             * @default []
+             */
+            pipelines: components["schemas"]["GitLabItem"][];
         };
         /** GitStatusOut */
         GitStatusOut: {
@@ -942,6 +1200,82 @@ export interface components {
             /** Code */
             code: string;
         };
+        /** MaintenanceInput */
+        MaintenanceInput: {
+            /** Title */
+            title: string;
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+            /**
+             * Owner
+             * @default
+             */
+            owner: string;
+            /** Due On */
+            due_on?: string | null;
+            /**
+             * State
+             * @default open
+             * @enum {string}
+             */
+            state: "open" | "planned" | "cancelled";
+            /** Target Revision */
+            target_revision?: string | null;
+            /** Task Id */
+            task_id?: string | null;
+            /**
+             * Version
+             * @default 0
+             */
+            version: number;
+        };
+        /** MaintenanceOut */
+        MaintenanceOut: {
+            /** Title */
+            title: string;
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+            /**
+             * Owner
+             * @default
+             */
+            owner: string;
+            /** Due On */
+            due_on?: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "open" | "planned" | "cancelled" | "verified";
+            /** Target Revision */
+            target_revision?: string | null;
+            /** Task Id */
+            task_id?: string | null;
+            /**
+             * Version
+             * @default 0
+             */
+            version: number;
+            /** Id */
+            id: string;
+            /** App Id */
+            app_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Verification */
+            verification?: {
+                [key: string]: unknown;
+            } | null;
+        };
         /** MemoryOut */
         MemoryOut: {
             /** Total */
@@ -1047,6 +1381,55 @@ export interface components {
              */
             ok: boolean;
         };
+        /** PlatformOut */
+        PlatformOut: {
+            git: components["schemas"]["GitStatusOut"] | null;
+            /** Commits */
+            commits: components["schemas"]["CommitOut"][];
+            /** Worktrees */
+            worktrees: string[];
+            gitlab: components["schemas"]["GitLabOut"];
+            workbench_release?: components["schemas"]["ReleaseIdentity"] | null;
+        };
+        /** ProjectInput */
+        ProjectInput: {
+            /** App Id */
+            app_id: string;
+            /** Title */
+            title: string;
+            /** Summary */
+            summary: string;
+            /**
+             * Reuse Decision
+             * @enum {string}
+             */
+            reuse_decision: "new" | "extend";
+            /** Reuse Notes */
+            reuse_notes: string;
+        };
+        /** ProjectOut */
+        ProjectOut: {
+            /** App Id */
+            app_id: string;
+            /** Title */
+            title: string;
+            /** Summary */
+            summary: string;
+            /**
+             * Reuse Decision
+             * @enum {string}
+             */
+            reuse_decision: "new" | "extend";
+            /** Reuse Notes */
+            reuse_notes: string;
+            /** Id */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** Recover */
         Recover: {
             /**
@@ -1054,6 +1437,15 @@ export interface components {
              * @default false
              */
             confirm_workspace: boolean;
+        };
+        /** ReleaseIdentity */
+        ReleaseIdentity: {
+            /** Source Revision */
+            source_revision: string;
+            /** Source Dirty */
+            source_dirty: boolean;
+            /** Digest */
+            digest: string;
         };
         /** RequestOut */
         RequestOut: {
@@ -1078,6 +1470,82 @@ export interface components {
             body: string;
             /** Created At */
             created_at: string;
+        };
+        /** RuntimeApp */
+        RuntimeApp: {
+            /** App Id */
+            app_id: string;
+            /** Title */
+            title: string;
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Release Unit
+             * @enum {string}
+             */
+            release_unit: "miy-app" | "miy-workbench";
+            /** Installed Revision */
+            installed_revision?: string | null;
+            /** Runtime Ai */
+            runtime_ai: boolean;
+        };
+        /** RuntimeOut */
+        RuntimeOut: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "ready" | "unconfigured" | "unavailable" | "unsupported" | "denied";
+            /** Checked At */
+            checked_at?: string | null;
+            /**
+             * Stale
+             * @default true
+             */
+            stale: boolean;
+            /**
+             * Items
+             * @default []
+             */
+            items: components["schemas"]["RuntimeApp"][];
+        };
+        /** RuntimeUsage */
+        RuntimeUsage: {
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /** App Id */
+            app_id: string;
+            /** Month */
+            month: string;
+            /** App Opens */
+            app_opens: number;
+            /** Llm Calls */
+            llm_calls: number;
+            /** Llm Errors */
+            llm_errors: number;
+            /** Total Tokens */
+            total_tokens?: number | null;
+            /** Unreported Calls */
+            unreported_calls: number;
+            /** Complete */
+            complete: boolean;
+            /** Amount Minor */
+            amount_minor?: number | null;
+            /** Currency */
+            currency?: string | null;
+            /**
+             * Cost Basis
+             * @enum {string}
+             */
+            cost_basis: "not_reported" | "reported";
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
         };
         /** ServiceOut */
         ServiceOut: {
@@ -1121,6 +1589,16 @@ export interface components {
             purpose: "development" | "inspection" | "deployment" | "recovery";
             /** Service Id */
             service_id?: string | null;
+            /** Area */
+            area?: ("studio" | "apps" | "platform") | null;
+            /** App Id */
+            app_id?: string | null;
+            /** Project Id */
+            project_id?: string | null;
+            /** Maintenance Id */
+            maintenance_id?: string | null;
+            /** Release Unit */
+            release_unit?: ("miy-app" | "miy-workbench") | null;
         };
         /** TaskDetail */
         TaskDetail: {
@@ -1415,6 +1893,32 @@ export interface components {
             /** Updated At */
             updated_at: number;
         };
+        /** UsageOut */
+        UsageOut: {
+            /** Month */
+            month: string;
+            /** Development Tokens */
+            development_tokens: number | null;
+            /** Development Tasks */
+            development_tasks: number;
+            /** Unreported Tasks */
+            unreported_tasks: number;
+            /** Development Amount Minor */
+            development_amount_minor?: null;
+            runtime?: components["schemas"]["RuntimeUsage"] | null;
+            /** Runtime State */
+            runtime_state: string;
+            /** Runtime Checked At */
+            runtime_checked_at?: string | null;
+            /**
+             * Stale
+             * @default true
+             */
+            stale: boolean;
+            budget: components["schemas"]["BudgetInput"];
+            /** Alerts */
+            alerts: string[];
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -1427,6 +1931,11 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** VerifyMaintenance */
+        VerifyMaintenance: {
+            /** Version */
+            version: number;
         };
     };
     responses: never;
@@ -1714,6 +2223,303 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_catalog_api_workbench_catalog_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogOut"];
+                };
+            };
+        };
+    };
+    create_project_api_workbench_projects_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_runtime_api_workbench_runtime_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuntimeOut"];
+                };
+            };
+        };
+    };
+    maintenance_list_api_workbench_apps__app_id__maintenance_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaintenanceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_maintenance_api_workbench_apps__app_id__maintenance_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaintenanceInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaintenanceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_maintenance_api_workbench_apps__app_id__maintenance__record_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaintenanceInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaintenanceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_maintenance_api_workbench_apps__app_id__maintenance__record_id__verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyMaintenance"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaintenanceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    budget_api_workbench_apps__app_id__budget_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BudgetInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetInput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    usage_api_workbench_apps__app_id__usage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    platform_api_workbench_platform_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformOut"];
                 };
             };
         };

@@ -2,6 +2,43 @@
 @import '@miy/ui/styles.css';
 @source '../../../packages/ui/src';
 
+.console-navigation .nav-secondary {font-size: 12px; padding-left: 28px;}
+.wb-search {display: grid; gap: 8px; margin: 20px 0 14px; max-width: 560px;}
+.wb-catalog {display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 20px;}
+.wb-app, .wb-service {text-align: left; border: 0; border-bottom: 1px solid var(--ui-color-border); border-radius: 0; background: var(--ui-color-surface); color: inherit; padding: 12px; display: grid; gap: 6px; overflow-wrap: anywhere;}
+.wb-app {grid-template-columns: 20px minmax(0, 1fr); align-content: start;}
+.wb-app small, .wb-app span {grid-column: 2;}
+.wb-app.selected {box-shadow: inset 3px 0 0 var(--ui-color-accent); background: var(--ui-color-surface-subtle);}
+.wb-app-layout.has-selection {display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr); gap: 24px; align-items: start;}
+.has-selection .wb-app-picker {max-height: 65vh; overflow: auto;}
+.has-selection .wb-catalog {grid-template-columns: minmax(0, 1fr); gap: 0;}
+.wb-app-layout > .wb-panel {margin-top: 0; min-width: 0;}
+.wb-app-layout .wb-panel {padding-inline: 0; border: 0; border-radius: 0;}
+@media (max-width: 900px) {
+  .wb-app-layout.has-selection {display: flex; flex-direction: column;}
+  .wb-app-layout > .wb-panel {order: -1; width: 100%;}
+  .has-selection .wb-app-picker {width: 100%; max-height: 40vh;}
+}
+.wb-app small {line-height: 1.6;}
+.wb-app span {font-size: 11px; color: var(--ui-color-ink-subtle);}
+.wb-panel {margin: 20px 0; padding: 20px; border: 1px solid var(--ui-color-border); border-radius: 12px; background: var(--ui-color-surface); overflow-wrap: anywhere;}
+.wb-heading {display: flex; align-items: start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;}
+.wb-heading h2, .wb-heading h3 {margin-bottom: 8px;}
+.wb-facts {display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin: 20px 0;}
+.wb-facts dt {font-size: 12px; color: var(--ui-color-ink-subtle); margin-bottom: 6px;}
+.wb-facts dd {margin: 0; font-size: 15px; overflow-wrap: anywhere;}
+.wb-panel label {display: grid; gap: 8px;}
+.wb-panel textarea {min-height: 90px; border: 1px solid var(--ui-color-border); border-radius: 6px;}
+.wb-form {padding: 16px; border: 1px solid var(--ui-color-border); border-radius: 8px; margin-bottom: 14px;}
+.wb-usage {padding: 16px 0; border-top: 1px solid var(--ui-color-border); border-bottom: 1px solid var(--ui-color-border); margin-bottom: 22px;}
+.wb-patch {display: flex; justify-content: space-between; gap: 12px; border-top: 1px solid var(--ui-color-border); padding: 16px 0; flex-wrap: wrap;}
+.wb-patch p {white-space: pre-wrap; margin: 8px 0;}
+.wb-work-list {display: grid; gap: 8px;}
+.wb-work-list button {display: flex; justify-content: space-between; gap: 10px; border: 1px solid var(--ui-color-border); background: transparent; color: inherit; border-radius: 6px; padding: 12px; text-align: left;}
+.wb-commits {list-style: none; padding: 0; display: grid; gap: 10px;}
+.wb-alerts {background: var(--ui-color-warning-bg); color: var(--ui-color-warning-text); padding: 14px 28px; border-radius: 8px;}
+.wb-panel a {color: var(--ui-color-accent);}
+
 /* Resolve the public UI primitives against the shared design tokens. */
 @theme inline {
   --color-ui-accent: var(--ui-color-accent);

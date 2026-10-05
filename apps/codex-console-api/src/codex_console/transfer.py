@@ -170,7 +170,11 @@ def import_postgres(source_url, destination_url):
                 raise ValueError("Import supports PostgreSQL console_0009 through console_0011")
             revision = versions[0]
             names = set(inspect(reader).get_table_names()) - {"console_alembic_version"}
-            expected = set(Base.metadata.tables)
+            expected = set(Base.metadata.tables) - {
+                "console_projects", "console_maintenance", "console_app_budgets",
+                "console_development_usage", "console_development_usage_months",
+                "console_workbench_observations",
+            }
             if revision == "console_0009":
                 expected -= {"console_templates", "console_host_observations"}
             if names != expected:
