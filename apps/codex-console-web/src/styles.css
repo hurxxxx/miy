@@ -407,7 +407,7 @@ textarea {color: inherit; background: transparent; resize: vertical; border: 0; 
 .instruction-guide a {color: var(--ui-color-info); text-decoration: underline;}
 .instruction-columns {display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 0; flex: 1 1 0; min-height: 0; border: 1px solid var(--ui-color-border); border-radius: 10px; overflow: hidden;}
 .instruction-library {display: flex; flex-direction: column; min-width: 0; min-height: 0; border-right: 1px solid var(--ui-color-border); background: var(--ui-color-surface-subtle);}
-.instruction-library-tools {padding: 16px 14px 10px; display: grid; gap: 12px; flex-shrink: 0;}
+.instruction-library-tools {padding: 16px 14px 10px; display: grid; gap: 12px; flex-shrink: 0; max-height: 65%; overflow: auto;}
 .instruction-scope-row {display: flex; align-items: center; gap: 6px;}
 .instruction-scope-row select {flex: 1; min-width: 0; height: 32px; background: var(--ui-color-surface); font-size: 12px;}
 .instruction-search {position: relative; min-width: 0;}
@@ -419,6 +419,32 @@ textarea {color: inherit; background: transparent; resize: vertical; border: 0; 
 .instruction-library-summary {display: flex; justify-content: space-between; gap: 12px; color: var(--ui-color-ink-subtle); font-size: 11px;}
 .instruction-root {display: inline-flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
 .instruction-files {display: flex; flex-direction: column; overflow: auto; min-height: 0; flex: 1; padding: 4px 8px 12px; scrollbar-gutter: stable;}
+.instruction-folder {min-width: 0; flex-shrink: 0;}
+.instruction-folder summary {display: flex; align-items: center; gap: 6px; padding: 7px 4px; cursor: pointer; font-size: 12px; list-style: none;}
+.instruction-folder summary::before {content: '›'; flex-shrink: 0;}
+.instruction-folder[open] > summary::before {transform: rotate(90deg);}
+.instruction-folder summary span {overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
+.instruction-folder summary svg {flex-shrink: 0;}
+.instruction-folder summary:focus-visible {outline: 2px solid var(--ui-color-info); outline-offset: -2px;}
+.instruction-folder-children {padding-left: 9px; margin-left: 5px; border-left: 1px solid var(--ui-color-border);}
+.instruction-files .instruction-folder-children > button {width: 100%; padding: 7px 5px;}
+.instruction-folder-tools {display: flex; gap: 8px; flex-shrink: 0;}
+.instruction-files .instruction-folder-tools button, .instruction-files .instruction-folder-create {font-size: 10px; padding: 6px 4px; color: var(--ui-color-ink-subtle);}
+.instruction-files .instruction-folder-create {margin-left: auto; padding: 3px; opacity: 0;}
+.instruction-folder > summary:hover .instruction-folder-create, .instruction-folder > summary:focus-within .instruction-folder-create {opacity: 1;}
+@media (hover: none) {.instruction-files .instruction-folder-create {opacity: 1;}}
+.instruction-discovery, .instruction-scope-note {font-size: 11px; line-height: 1.6; margin: 0; color: var(--ui-color-ink-muted);}
+.instruction-discovery summary {cursor: pointer;}
+.instruction-discovery label {display: grid; gap: 4px; margin-block: 8px;}
+.instruction-discovery input {width: 100%; height: 30px; font-size: 12px;}
+.instruction-discovery details {margin-top: 6px;}
+.instruction-discovered-skills {list-style: none; padding: 0; max-height: 180px; overflow: auto;}
+.instruction-discovered-skills li {display: grid; gap: 3px; padding-block: 8px; border-bottom: 1px solid var(--ui-color-border); overflow-wrap: anywhere;}
+.instruction-discovered-skills code {font-size: 10px; white-space: normal;}
+.instruction-discovered-skills button {text-align: left; text-decoration: underline;}
+.instruction-context {margin: 12px 18px 0; padding-bottom: 10px; border-bottom: 1px solid var(--ui-color-border); font-size: 12px; line-height: 1.7; flex-shrink: 0;}
+.instruction-context summary {cursor: pointer;}
+.instruction-context button {padding: 3px 8px; margin: 2px; border: 1px solid var(--ui-color-border); border-radius: 4px; overflow-wrap: anywhere;}
 .instruction-files button {display: flex; align-items: center; gap: 10px; text-align: left; padding: 11px 10px; border: 1px solid transparent; border-radius: 7px; color: inherit; background: none; cursor: pointer; min-width: 0; flex-shrink: 0;}
 .instruction-files button > svg {flex-shrink: 0; color: var(--ui-color-ink-subtle);}
 .instruction-files button:hover {background: var(--ui-color-surface);}

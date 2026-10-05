@@ -396,6 +396,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/codex/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Discovered Skills */
+        get: operations["discovered_skills_api_codex_skills_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/codex/login": {
         parameters: {
             query?: never;
@@ -960,6 +977,17 @@ export interface components {
             /** New */
             new: string;
         };
+        /** DiscoveredSkill */
+        DiscoveredSkill: {
+            /** Path */
+            path: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /** Enabled */
+            enabled: boolean;
+        };
         /** DiskOut */
         DiskOut: {
             /** Path */
@@ -986,14 +1014,14 @@ export interface components {
              * Scope
              * @enum {string}
              */
-            scope: "project" | "personal" | "global";
+            scope: "project" | "personal" | "global" | "admin" | "system" | "plugins";
             /** Path */
             path: string;
             /**
              * Kind
              * @enum {string}
              */
-            kind: "instructions" | "skill" | "metadata" | "reference";
+            kind: "instructions" | "skill" | "metadata" | "reference" | "bridge" | "script";
             /** Editable */
             editable: boolean;
         };
@@ -1012,14 +1040,14 @@ export interface components {
              * Scope
              * @enum {string}
              */
-            scope: "project" | "personal" | "global";
+            scope: "project" | "personal" | "global" | "admin" | "system" | "plugins";
             /** Path */
             path: string;
             /**
              * Kind
              * @enum {string}
              */
-            kind: "instructions" | "skill" | "metadata" | "reference";
+            kind: "instructions" | "skill" | "metadata" | "reference" | "bridge" | "script";
             /** Editable */
             editable: boolean;
             /** Exists */
@@ -1035,7 +1063,7 @@ export interface components {
              * Scope
              * @enum {string}
              */
-            scope: "project" | "personal" | "global";
+            scope: "project" | "personal" | "global" | "admin" | "system" | "plugins";
             /** Path */
             path: string;
             /** Content */
@@ -1111,6 +1139,13 @@ export interface components {
             changed: number;
             /** Checked At */
             checked_at: string;
+        };
+        /** GuidanceConfiguration */
+        GuidanceConfiguration: {
+            /** Fallback Filenames */
+            fallback_filenames: string[];
+            /** Max Bytes */
+            max_bytes: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1571,6 +1606,16 @@ export interface components {
         SessionOut: {
             /** Authenticated */
             authenticated: boolean;
+        };
+        /** SkillDiscovery */
+        SkillDiscovery: {
+            /** Directory */
+            directory: string;
+            /** Skills */
+            skills: components["schemas"]["DiscoveredSkill"][];
+            /** Error Count */
+            error_count: number;
+            guidance?: components["schemas"]["GuidanceConfiguration"] | null;
         };
         /** SkillOut */
         SkillOut: {
@@ -2144,7 +2189,10 @@ export interface operations {
     };
     listing_api_instructions_get: {
         parameters: {
-            query?: never;
+            query?: {
+                scope?: ("project" | "personal" | "global" | "admin" | "system" | "plugins") | null;
+                q?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2160,12 +2208,21 @@ export interface operations {
                     "application/json": components["schemas"]["DocumentCatalog"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     document_api_instructions_document_get: {
         parameters: {
             query: {
-                scope: "project" | "personal" | "global";
+                scope: "project" | "personal" | "global" | "admin" | "system" | "plugins";
                 path: string;
             };
             header?: never;
@@ -2763,6 +2820,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModelOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discovered_skills_api_codex_skills_get: {
+        parameters: {
+            query?: {
+                directory_name?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillDiscovery"];
                 };
             };
             /** @description Validation Error */
