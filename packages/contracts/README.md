@@ -27,9 +27,14 @@ Keep app transport, auth tokens, Electron IPC, and adapter details in owning app
 
 ## Publish
 
-Publish to the GitLab npm Package Registry. Tag must match package version.
+Publish to the GitLab npm Package Registry only after explicit publication
+authorization under the [Git delivery rules](../../AGENTS.md#git-and-delivery).
+From the repository root, read the tag version from the package metadata so it
+matches the package being published. Preparing or merging a version change alone
+does not publish the package.
 
 ```bash
-git tag contracts-v0.0.3
-git push origin contracts-v0.0.3
+contracts_version="$(node -p "require('./packages/contracts/package.json').version")"
+git tag "contracts-v${contracts_version}"
+git push origin "contracts-v${contracts_version}"
 ```
