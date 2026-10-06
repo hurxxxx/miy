@@ -3,10 +3,12 @@
 import asyncio
 import os
 import re
+import sqlite3
 from datetime import timedelta
 from pathlib import Path
 
 from pydantic import BaseModel
+from sqlalchemy.exc import OperationalError
 
 from .models import HostObservation, now
 from .rpc import CONTRACT
@@ -151,7 +153,12 @@ async def observe(settings, factory):
             version(settings.binary), version(settings.template_binary)
         )
         payload.update(installed_cli=installed, template_cli=runner)
-        await asyncio.to_thread(_save_observation, factory, payload)
+        try:
+            await asyncio.to_thread(_save_observation, factory, payload)
+        except OperationalError as error:
+            if getattr(error.orig, "sqlite_errorcode", 0) & 0xFF != sqlite3.SQLITE_BUSY:
+                raise
+            # Preserve the last sample and retry at the normal observation interval.
         await asyncio.sleep(10)
 
 

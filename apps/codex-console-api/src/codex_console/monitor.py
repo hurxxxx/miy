@@ -3,9 +3,11 @@
 import asyncio
 import json
 import re
+import sqlite3
 from datetime import timedelta
 
 import httpx
+from sqlalchemy.exc import OperationalError
 
 from .config import MonitoredService
 from .models import ServiceObservation, now
@@ -113,7 +115,13 @@ async def observe(settings, factory):
                         status, version = await probe(service, client)
                 except TimeoutError:
                     status, version = "unknown", None
-                await asyncio.to_thread(_save_observation, factory, service, status, version)
+                try:
+                    await asyncio.to_thread(_save_observation, factory, service, status, version)
+                except OperationalError as error:
+                    if getattr(error.orig, "sqlite_errorcode", 0) & 0xFF != sqlite3.SQLITE_BUSY:
+                        raise
+                    # Keep the last sample; the existing polling cadence refreshes
+                    # after contention clears, and snapshot() marks old data stale.
 
         while True:
             await asyncio.gather(*(collect(service) for service in services(settings)))

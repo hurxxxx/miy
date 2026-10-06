@@ -1,12 +1,15 @@
 import asyncio
+import sqlite3
 import threading
 import time
+from datetime import timedelta
 
 import pytest
 from sqlalchemy import event
+from sqlalchemy.exc import OperationalError
 
 from codex_console import host, monitor
-from codex_console.models import HostObservation, ServiceObservation, database
+from codex_console.models import HostObservation, ServiceObservation, database, now
 
 
 @pytest.mark.parametrize("kind", ["services", "host"])
@@ -61,6 +64,86 @@ def test_observer_writer_wait_keeps_event_loop_responsive(settings, monkeypatch,
             if observer is not None:
                 observer.cancel()
                 await asyncio.gather(observer, return_exceptions=True)
+
+    try:
+        asyncio.run(run())
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.parametrize("kind", ["services", "host"])
+@pytest.mark.parametrize("error_code", [sqlite3.SQLITE_BUSY, sqlite3.SQLITE_ERROR])
+def test_observer_writer_errors_preserve_data_and_only_busy_refreshes(
+    settings, monkeypatch, kind, error_code
+):
+    engine, factory = database(settings.database_url)
+    module = monitor if kind == "services" else host
+    selected = monitor.services(settings)[:1]
+    model, key = (
+        (ServiceObservation, selected[0].id) if kind == "services" else (HostObservation, 1)
+    )
+    original = module._save_observation
+    calls = 0
+    previous = now() - timedelta(minutes=1)
+    with factory.begin() as db:
+        db.add(
+            ServiceObservation(service_id=key, status="healthy", version="v1", checked_at=previous)
+            if kind == "services"
+            else HostObservation(id=key, payload={}, checked_at=previous)
+        )
+
+    async def probe(*_args):
+        return "healthy", "v2"
+
+    async def version(*_args):
+        return None
+
+    monkeypatch.setattr(monitor, "services", lambda _cfg: selected)
+    monkeypatch.setattr(monitor, "probe", probe)
+    monkeypatch.setattr(host, "collect", lambda _cfg: {})
+    monkeypatch.setattr(host, "version", version)
+
+    async def run():
+        first = asyncio.Event()
+        refreshed = asyncio.Event()
+        loop = asyncio.get_running_loop()
+
+        def save(*args):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                error = sqlite3.OperationalError("database is locked")
+                error.sqlite_errorcode = error_code
+                loop.call_soon_threadsafe(first.set)
+                raise OperationalError("BEGIN IMMEDIATE", (), error)
+            original(*args)
+            loop.call_soon_threadsafe(refreshed.set)
+
+        monkeypatch.setattr(module, "_save_observation", save)
+        observer = asyncio.create_task(module.observe(settings, factory))
+        ready = asyncio.create_task(refreshed.wait())
+        try:
+            await asyncio.wait_for(first.wait(), 3)
+            with factory() as db:
+                assert db.get(model, key).checked_at == previous
+            if error_code != sqlite3.SQLITE_BUSY:
+                with pytest.raises(OperationalError):
+                    await observer
+                assert calls == 1
+                return
+            done, _ = await asyncio.wait(
+                (observer, ready), timeout=12, return_when=asyncio.FIRST_COMPLETED
+            )
+            if observer in done:
+                await observer
+            assert ready in done
+            with factory() as db:
+                assert db.get(model, key).checked_at > previous
+            assert calls == 2
+        finally:
+            observer.cancel()
+            ready.cancel()
+            await asyncio.gather(observer, ready, return_exceptions=True)
 
     try:
         asyncio.run(run())
