@@ -4,10 +4,12 @@ import asyncio
 import json
 import os
 import re
+import sqlite3
 from urllib.parse import quote, urlsplit
 
 import httpx
 from pydantic import ValidationError
+from sqlalchemy.exc import OperationalError
 
 from . import git
 from .errors import ConsoleError
@@ -18,10 +20,10 @@ MAX_BYTES = 1024 * 1024
 TTL = 15
 
 
-def cached(factory, key):
+def cached(factory, key, *, allow_expired=False):
     with factory() as db:
         row = db.get(WorkbenchObservation, key)
-        if row and (now() - row.checked_at).total_seconds() < TTL:
+        if row and (allow_expired or (now() - row.checked_at).total_seconds() < TTL):
             return row.payload
     return None
 
@@ -79,7 +81,7 @@ async def runtime_catalog(settings, factory, *, fresh=False):
             normalized = parsed.model_dump(mode="json") if parsed else None
         except (ValueError, ValidationError):
             state, normalized = "unsupported", None
-        stored = save_scoped(factory, key, settings.miy_api_origin, state, normalized)
+        stored = await save_scoped(factory, key, settings.miy_api_origin, state, normalized)
     return RuntimeOut(
         state=stored["state"],
         checked_at=stored.get("checked_at"),
@@ -88,7 +90,26 @@ async def runtime_catalog(settings, factory, *, fresh=False):
     )
 
 
-def save_scoped(factory, key, origin, state, data):
+async def save_scoped(factory, key, origin, state, data):
+    try:
+        return await asyncio.to_thread(_save_scoped, factory, key, origin, state, data)
+    except OperationalError as error:
+        if getattr(error.orig, "sqlite_errorcode", 0) & 0xFF != sqlite3.SQLITE_BUSY:
+            raise
+        # Observations may retain stale evidence, but a failed write cannot
+        # refresh its timestamp or carry evidence into a changed installation.
+        old = cached(factory, key, allow_expired=True) or {}
+        if old.get("origin") != origin:
+            old = {}
+        return {
+            "origin": origin,
+            "state": "unavailable" if state == "ready" else state,
+            "data": old.get("data"),
+            "checked_at": old.get("checked_at"),
+        }
+
+
+def _save_scoped(factory, key, origin, state, data):
     with factory.begin() as db:
         row = db.get(WorkbenchObservation, key)
         old = row.payload if row and row.payload.get("origin") == origin else {}
@@ -121,7 +142,7 @@ async def runtime_usage(settings, factory, app_id):
             normalized = parsed.model_dump(mode="json") if parsed else None
         except (ValueError, ValidationError):
             state, normalized = "unsupported", None
-        stored = save_scoped(factory, key, origin, state, normalized)
+        stored = await save_scoped(factory, key, origin, state, normalized)
     return stored
 
 
@@ -238,9 +259,9 @@ async def gitlab(settings, factory):
                     for r in pipelines
                 ],
             }
-            stored = save_scoped(factory, "gitlab", web, "ready", data)
+            stored = await save_scoped(factory, "gitlab", web, "ready", data)
         except (OSError, TimeoutError, ValueError, KeyError, TypeError, RecursionError):
-            stored = save_scoped(factory, "gitlab", web, "unavailable", None)
+            stored = await save_scoped(factory, "gitlab", web, "unavailable", None)
     return GitLabOut(
         state=stored["state"],
         stale=stored["state"] != "ready",
