@@ -79,6 +79,49 @@ def test_seeded_dev_account_supports_configured_password_login(
     assert rejected.json()["code"] == "auth.invalid_credentials"
 
 
+@pytest.mark.parametrize("status", ["active", "inactive"])
+def test_dev_seed_preserves_account_identity_after_email_change(
+    client: TestClient, status: str
+) -> None:
+    from miy_api.core.db import get_session_factory
+    from miy_api.domains.auth.access import (
+        are_dev_login_accounts_seeded,
+        ensure_dev_login_seed_data,
+        get_dev_login_user,
+        list_dev_login_accounts,
+        resolve_system_roles,
+    )
+    from miy_api.domains.auth.models import User
+
+    _seed_dev_accounts()
+    with get_session_factory()() as db:
+        user = get_dev_login_user(db, "administrator")
+        assert user is not None
+        user.email = "owner@previous-installation.example"
+        user.full_name = "Retained owner"
+        user.status = status
+        db.commit()
+        before = (user.id, user.password_hash, resolve_system_roles(db, user))
+        assert are_dev_login_accounts_seeded(db)
+
+        ensure_dev_login_seed_data(db)
+        ensure_dev_login_seed_data(db)
+        db.refresh(user)
+        assert (user.id, user.password_hash, resolve_system_roles(db, user)) == before
+        assert (user.email, user.full_name, user.status) == (
+            "owner@previous-installation.example", "Retained owner", status
+        )
+        assert len(db.scalars(select(User)).all()) == 1
+        listed = list_dev_login_accounts(db)
+        resolved = get_dev_login_user(db, "administrator")
+        if status == "active":
+            assert resolved is not None and resolved.id == user.id
+            assert [item["email"] for item in listed] == [user.email]
+        else:
+            assert resolved is None
+            assert listed == []
+
+
 def test_seed_preserves_user_created_space_membership(client: TestClient) -> None:
     from miy_api.core.db import get_session_factory
     from miy_api.domains.auth.access import ensure_seed_data
