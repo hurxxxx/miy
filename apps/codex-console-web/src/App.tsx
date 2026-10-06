@@ -1258,19 +1258,8 @@ export function App() {
                     <Button
                       disabled={busy}
                       onClick={() => {
-                        const confirmWorkspace =
-                          task.stage === 'implement' || task.stage === 'review';
-                        if (
-                          confirmWorkspace &&
-                          !window.confirm(
-                            t(
-                              'Review the current diff first. Keep these changes in this task and continue in the same workspace?',
-                            ),
-                          )
-                        )
-                          return;
                         void mutate('recover', {
-                          confirm_workspace: confirmWorkspace,
+                          confirm_workspace: true,
                         });
                       }}
                     >

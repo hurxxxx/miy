@@ -39,15 +39,20 @@ class _ExtractionBudget:
     max_seconds: float = _MAX_EXTRACT_SECONDS
     started_at: float = field(default_factory=time.monotonic)
     chars: int = 0
+    limited: bool = False
 
     def should_continue(self) -> bool:
-        return self.chars < self.max_chars and time.monotonic() - self.started_at < self.max_seconds
+        available = self.chars < self.max_chars and time.monotonic() - self.started_at < self.max_seconds
+        self.limited = self.limited or not available
+        return available
 
     def append(self, blocks: list[EvidenceBlock], block: EvidenceBlock) -> bool:
         if not self.should_continue():
             return False
         remaining = self.max_chars - self.chars
-        text = block.text[:remaining].strip()
+        normalized = block.text.strip()
+        text = normalized[:remaining].strip()
+        self.limited = self.limited or len(normalized) > remaining
         if not text:
             return False
         if text != block.text:

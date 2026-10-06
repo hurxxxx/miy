@@ -239,7 +239,7 @@ def test_recovery_continues_same_native_thread_and_preserves_partial_files(clien
     runtime = client.app.state.runtime
     client.portal.call(runtime.on_disconnect, "codex_event_failed")
     assert client.get(path).json()["error_code"] == "codex_event_failed"
-    assert client.post(path + "/recover", json={}).status_code == 409
+    assert client.post(path + "/recover", json={}).status_code == 200
     assert client.post(path + "/recover", json={"confirm_workspace": True}).status_code == 200
     continued = client.post(
         path + "/implement",

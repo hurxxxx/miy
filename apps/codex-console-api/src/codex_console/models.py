@@ -62,6 +62,7 @@ class Task(Base):
     previous_execution_root: Mapped[str | None] = mapped_column(Text)
     previous_permissions: Mapped[str | None] = mapped_column(String(24))
     worktree_owned: Mapped[bool] = mapped_column(default=False)
+    # Retained for database compatibility; Git snapshots no longer gate native execution.
     fingerprint: Mapped[str | None] = mapped_column(String(64))
     model: Mapped[str | None] = mapped_column(String(200))
     effort: Mapped[str | None] = mapped_column(String(40))

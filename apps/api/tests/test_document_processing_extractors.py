@@ -139,6 +139,89 @@ def test_extract_document_uses_supplied_extractor_registry() -> None:
     assert bundle.to_dict()["evidence_blocks"][0]["block_id"] == "doc:custom"
 
 
+@pytest.mark.parametrize("limit", ["none", "pages", "characters", "time"])
+def test_pdf_extraction_reports_incomplete_evidence(monkeypatch, limit):
+    import fitz
+
+    from miy_api.domains.document_processing.contracts import _ExtractionBudget
+
+    with fitz.open() as document:
+        for text in ("First evidence page", "Second evidence page"):
+            document.new_page().insert_text((72, 72), text)
+        content = document.tobytes()
+    if limit == "pages":
+        monkeypatch.setattr(extractors_module, "_MAX_PDF_PAGES", 1)
+    elif limit in {"characters", "time"}:
+        monkeypatch.setattr(
+            extractors_module,
+            "_ExtractionBudget",
+            lambda: _ExtractionBudget(max_chars=5, max_seconds=0 if limit == "time" else 20),
+        )
+    result = extract_document(
+        document_id="pdf", filename="evidence.pdf", mime_type="application/pdf", content=content
+    )
+    assert result.metadata["truncated"] is (limit != "none")
+    if limit == "none":
+        assert len(result.evidence_blocks) == 2
+    elif limit == "pages":
+        assert len(result.evidence_blocks) == 1
+        assert "Second" not in result.normalized_text
+    elif limit == "characters":
+        assert result.evidence_blocks[0].text == "First"
+    else:
+        assert result.evidence_blocks == []
+
+
+@pytest.mark.parametrize("limit", ["none", "paragraphs", "rows", "cells", "characters", "time"])
+def test_docx_extraction_reports_incomplete_evidence(monkeypatch, limit):
+    from docx import Document
+
+    from miy_api.domains.document_processing.contracts import _ExtractionBudget
+
+    document = Document()
+    document.add_paragraph("First evidence paragraph")
+    document.add_paragraph("Second evidence paragraph")
+    table = document.add_table(rows=2, cols=1)
+    table.cell(0, 0).text = "First evidence cell"
+    table.cell(1, 0).text = "Second evidence cell"
+    buffer = BytesIO()
+    document.save(buffer)
+    constants = {
+        "paragraphs": "_MAX_DOCX_PARAGRAPHS",
+        "rows": "_MAX_DOCX_TABLE_ROWS",
+        "cells": "_MAX_CELL_CHARS",
+    }
+    if limit in constants:
+        monkeypatch.setattr(extractors_module, constants[limit], 1)
+    elif limit in {"characters", "time"}:
+        monkeypatch.setattr(
+            extractors_module,
+            "_ExtractionBudget",
+            lambda: _ExtractionBudget(max_chars=5, max_seconds=0 if limit == "time" else 20),
+        )
+    result = extract_document(
+        document_id="docx",
+        filename="evidence.docx",
+        mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        content=buffer.getvalue(),
+    )
+    assert result.metadata.get("truncated", False) is (limit != "none")
+    assert result.metadata["malformed_table_rows_skipped"] == 0
+    if limit == "none":
+        assert "Second evidence paragraph" in result.normalized_text
+        assert result.evidence_blocks[-1].rows == [["First evidence cell"], ["Second evidence cell"]]
+    elif limit == "paragraphs":
+        assert "Second evidence paragraph" not in result.normalized_text
+    elif limit == "rows":
+        assert result.evidence_blocks[-1].rows == [["First evidence cell"]]
+    elif limit == "cells":
+        assert result.evidence_blocks[-1].rows == [["F"], ["S"]]
+    elif limit == "characters":
+        assert result.evidence_blocks[0].text == "First"
+    else:
+        assert result.evidence_blocks == []
+
+
 def test_pptx_extractor_returns_slide_text_table_and_deduped_notes() -> None:
     bundle = extract_document(
         document_id="doc",
@@ -187,6 +270,43 @@ def test_extract_document_rejects_unsupported_or_malformed_documents() -> None:
             mime_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
             content=b"not a zip",
         )
+
+
+@pytest.mark.parametrize("cells", [["", "retained"], ["retained", ""], ["", "retained", ""]])
+def test_docx_empty_edge_cells_do_not_report_truncated_evidence(cells: list[str]) -> None:
+    from docx import Document
+
+    document = Document()
+    table = document.add_table(rows=1, cols=len(cells))
+    for cell, text in zip(table.rows[0].cells, cells):
+        cell.text = text
+    buffer = BytesIO()
+    document.save(buffer)
+    bundle = extract_document(
+        document_id="edge-cells", filename="table.docx",
+        mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        content=buffer.getvalue(),
+    )
+    assert bundle.metadata.get("truncated", False) is False
+    assert bundle.evidence_blocks[0].rows == [cells]
+    assert bundle.evidence_blocks[0].text == "retained"
+
+
+def test_docx_cell_whitespace_normalization_is_not_a_character_limit(monkeypatch) -> None:
+    from docx import Document
+
+    monkeypatch.setattr(extractors_module, "_MAX_CELL_CHARS", 8)
+    document = Document()
+    document.add_table(rows=1, cols=1).cell(0, 0).text = "     retained     "
+    buffer = BytesIO()
+    document.save(buffer)
+    bundle = extract_document(
+        document_id="spaced-cell", filename="table.docx",
+        mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        content=buffer.getvalue(),
+    )
+    assert bundle.metadata.get("truncated", False) is False
+    assert bundle.evidence_blocks[0].rows == [["retained"]]
 
 
 def test_docx_extractor_skips_one_malformed_vertical_merge_row() -> None:

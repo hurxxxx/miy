@@ -5175,6 +5175,10 @@ export const resources = {
       planner: {
         add: '추가',
         allDay: '종일 일정',
+        koreanTime: '한국 시간 (KST)',
+        newYorkTime: '미국 뉴욕 시간',
+        berlinTime: '독일 베를린 시간',
+        currentTimes: '도시별 현재 시간',
         create: '생성',
         createEventOrMeeting: '이벤트 또는 회의 생성',
         chooseMeetingDetail: '회의 선택',
@@ -11411,6 +11415,10 @@ export const resources = {
       planner: {
         add: 'Add',
         allDay: 'All-day event',
+        koreanTime: 'Korea time (KST)',
+        newYorkTime: 'New York, US time',
+        berlinTime: 'Berlin, Germany time',
+        currentTimes: 'Current times by city',
         create: 'Create',
         createEventOrMeeting: 'Create event or meeting',
         chooseMeetingDetail: 'Choose a meeting',

@@ -12,8 +12,10 @@ Web·API·Worker는 저장소 소스에서 실행하고, 최초 셋업의 Postgr
 공통 브랜드와 패키지 이름은 **miy**이며 접속 도메인은 설치 설정으로 관리한다.
 기존 MTY·OWH·Open Work Hub 설치를 갱신할 때는 [이름 전환 절차](docs/domains/release/README.md#miy-naming-cutover)에
 따라 `.env` 키를 `MIY_*`로 이전하고 기존 데이터 경로를 보존한 뒤 새 패키지를 설치한다.
-기존 `mty` 디렉터리도 바꾸려면 [설치 경로 이전](docs/domains/release/README.md#existing-installation-paths)에 따라
-워크트리·콘솔 이력·서비스 경로를 함께 이동하고 확인한다.
+Hermes를 사용하는 기존 설치는 [Hermes 이름 전환](docs/domains/ai/hermes.md#naming-cutover)의
+bootstrap 플러그인 설정 정리와 검증도 수행한다. 기존 프로필 식별자와 세션은 보존한다.
+기존 디렉터리의 이름도 바꾸려면 [설치 경로 이전](docs/domains/release/README.md#existing-installation-paths)에 따라
+Git worktree·서비스·bind mount를 함께 옮기고 임시 경로 링크 없이 검증한다.
 새 Compose 기본 이름으로 실행하기 전에 기존 볼륨·DB·bucket의 이전 또는 명시적 연결을 확인한다.
 아이콘 원본은 `apps/web/public/brand-icon.svg`이며 `pnpm generate:brand-icons`로
 PNG·favicon을 재생성한다. 이 명령은 설치된 Playwright Chromium을 사용한다.
@@ -396,6 +398,7 @@ OpenSearch는 앱의 최소 첫 실행에는 선택 사항이지만 현재 릴�
 개발 사용자의 로그인이나 nvm 설정이 Runner 서비스에 자동으로 전달된다고 가정하지 말고 서비스의 PATH를 맞춘다.
 shell executor의 로그인 셸이 서비스 PATH를 초기화할 수 있으므로, Runner 작업 계정에서도 도구 탐색을 확인한다.
 필요하면 해당 Runner의 `config.toml`에 지원되는 `environment = ["PATH=<검증한-도구-경로>:<기본-PATH>"]`를 지정하고 실제 job으로 재검사한다.
+실제 job이 `Prepare environment`에서 실패하면 [shell executor 준비 단계 복구](docs/domains/release/installation-operations.md#shell-executor-preparation-failures)를 따른다.
 리뷰 전·후 GitLab 메타데이터 검증은 Codex와 **다른 OS 계정** `miy-review-evidence`에서 수행한다.
 [리뷰 실행기 인증 계약](docs/agents/local-codex-review.md#contract)에 따라 홈 `0700`인 비로그인 서비스 계정을 준비하고,
 그 계정으로 단일 프로젝트 비관리자 GitLab 계정의 `read_api` PAT를 표준 입력으로 받아 `glab`을 인증한다.
@@ -437,6 +440,7 @@ Runner 업데이트 후에는 [네트워크·테스트 DB 재검사와 복구](d
 테스트용 DB 생성·삭제에 필요한 권한만 부여하고 GitLab 자체 DB, 개발 업무 DB나 운영 DB를 사용하지 않는다.
 Docker 작업 안의 `127.0.0.1`은 호스트 DB 주소가 아니므로 Runner의 실제 네트워크에서 접속 가능한 주소를 사용한다.
 CI 서버와 검증 이미지 클라이언트의 메이저 버전은 프로젝트 DB와 맞춘다. PostgreSQL 17 같은 특정 메이저 버전을 요구하지 않는다.
+CI 테스트 DB 생성에는 서버 측 `vector` 확장도 필요하다. [CI PostgreSQL 확장 준비](docs/domains/release/installation-operations.md#ci-postgresql-extensions)에 따라 설치·검증하고, 확장 생성을 위해 CI 계정에 superuser 권한을 주지 않는다.
 같은 비운영 PostgreSQL 인스턴스에 별도 CI DB·계정을 둘 수 있으며, CI 계정은 개발 업무 DB를 소유하거나 접근하지 못하게 한다. 별도 CI 클러스터가 필요하면 같은 메이저 버전으로 만들고 별도 데이터 디렉터리·포트·계정을 사용한다.
 전용 CI 클러스터는 DB 관리자가 `template1`에 pgvector 확장을 먼저 설치하고, CI 계정으로 만든 임시 DB가 이를 상속하는지 확인한다. 원격 테스트 계정에 superuser를 부여하지 않는다. 명령과 공유 클러스터 제한은 [CI DB 준비 계약](docs/domains/release/README.md#validation-image-platform-and-database)을 따른다.
 릴리스 CI는 실제 DB 서버와 이미지의 `pg_dump`·`pg_restore`·`psql` 버전이 일치하는지 테스트 시작 전에 검사한다. 불일치 시 DB 연결 대상과 [검증 이미지 구성](docs/domains/release/README.md#validation-image-platform-and-database)을 바로잡고 재실행한다.
@@ -766,6 +770,7 @@ API·개발 PostgreSQL·Redis의 수신 주소는 loopback으로 유지한다. `
 기본 설정에서는 API 시작 전에 Alembic 마이그레이션을 실행한다.
 DB를 지우거나 `stamp`로 오류를 건너뛰지 않는다. 이전 스키마라면
 [API 마이그레이션 안내](apps/api/README.md#alembic)를 먼저 확인한다.
+AI 보고서를 저장하기 전에는 [AI 산출물 번호 시퀀스 복구](docs/domains/ai/execution.md#artifacts-and-visibility)를 포함한 현재 head까지 적용한다. 기존 산출물과 이미 할당한 번호는 유지하며 코드 롤백 시 시퀀스를 삭제하지 않는다.
 
 기존 Docker 방식을 선택한 경우에만 위 실행 명령 대신 `pnpm dev:minimal`을 사용하고,
 컨테이너 상태는 `pnpm dev:infra:minimal:status`로 확인한다. 네이티브 구성에서는 이 명령들을 사용하지 않는다.
@@ -966,7 +971,19 @@ curl --fail --silent --output /dev/null http://127.0.0.1:8001/readyz
 AI 보호 정책을 끄지 않는다. 추가 키·서버가 필요한 기능은 미설정 상태로 명시한다.
 별도의 사용자 요청 없이 준비 확인만을 위해 유료 추론을 실행하지 않는다.
 
+Hermes 애플리케이션 응답·도구 정책을 갱신할 때는 [기존 설치 갱신](docs/domains/ai/hermes.md#updating-an-existing-development-installation)에 따라 게이트웨이와 API·Worker를 갱신한다. 일반 텍스트 응답도 검증된 결과 제출을 사용하므로, 도구 노출·결과 제출·누락 시 실패 동작을 함께 확인한다.
+
 ## 6.1. Codex 콘솔 함께 설치
+
+여러 miy 서버를 발행 origin으로 구분하는 원격 자동 로그인은 miy 개발 사이트와 Console **양쪽의 HTTPS origin**을 사용한다.
+HTTP 개발 사이트를 유지하면서 별도 TLS 프록시 포트를 연결할 수 있다. 새 HTTPS 개발
+호스트의 launch URL 매핑, 정확한 origin·소유자 UUID 허용 목록, 브라우저와 Console 런타임의
+사설 CA 신뢰는 [Console 접속 절차](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)를
+따른다. 다중 서버 구성에서는 원격 HTTP 발행 origin을 허용하지 않으며, 만료된 일회용 코드는 모든 구성에서 거부한다.
+같은 miy 서버를 여러 주소로 여는 데모는 [서버와 소유자 한 쌍](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)만
+등록하면 주소별 허용 목록 없이 기존 로그인을 사용할 수 있다. 코드는 설정한 서버에서만 검증한다.
+구버전 PostgreSQL 저장소는 [이전과 백업 절차](docs/apps/codex-console/README.md#독립-저장소와-백업)에
+따라 복원본에서 migration·import를 검증한 뒤 이전한다.
 
 [MIY Workbench 소유 문서](docs/apps/codex-console/README.md)의 설치·서비스 실행·개인 앱 연결
 절차를 수행한다. miy PostgreSQL에 의존하지 않는 전용 로컬 SQLite 파일을 준비하고, Codex를 구독으로
@@ -981,10 +998,12 @@ AI 보호 정책을 끄지 않는다. 추가 키·서버가 필요한 기능은 
   세 포트·management 단일 프록시 경로·읽기 전용 모니터·병렬 작업 제한을 설정한다. 템플릿 실행기는 별도 고정 CLI와 `template-current` 릴리스를 사용한다.
 - 앱 운영 집계를 제공할 설치는 [운영 조회와 개발 화면 연결](docs/apps/codex-console/README.md#운영-조회와-개발-화면-연결)에 따라 MIY 조회 API를 먼저 배포하고 전용 키·origin을 Workbench 환경 파일에 설치한다. `glab`은 서비스 OS 사용자로 내부 GitLab에 인증한다. Studio·앱 관리·플랫폼 화면, 미설정/권한 거부 표시, 기존 작업, SQLite 백업·복원을 확인한다.
 - 지침·스킬에서는 프로젝트 폴더와 스킬 참고 문서의 탐색·내부 링크, 관리자·시스템·플러그인 스킬의 읽기 전용 표시를 확인한다. `MIY_CODEX_CONSOLE_WORKSPACE`는 대상 Git 저장소이며 MIY 저장소에 한정되지 않는다. **Codex 스킬 발견 상태**와 **지침 탐색 설정**으로 작업 경로별 native 결과·대체 파일명·합산 제한을 확인한다. 설치 파일 목록과 실제 실행 가능 범위는 [지침·스킬 계약](docs/apps/codex-console/README.md#서비스와-작업-현황)을 따른다.
+- [중단 후 계속하기](docs/apps/codex-console/README.md#실행-설정과-중단-후-계속하기)를 확인한다. 일반 실행과 상태 확인에는 Git 사전 검사가 없으며, 삭제된 작업 경로나 명령 실패는 같은 대화에서 Codex가 판단한다. 새 작업·템플릿의 명시적 격리를 사용할 때만 [작업 공간 설정](docs/apps/codex-console/README.md#브랜치와-작업-공간)의 기준 ref와 워크트리 경로를 준비한다.
 - 설치 호스트의 콘솔 Vite와 공개 HTTPS 주소에서 각각 작업실 로그인을 확인한다.
   접속 범위와 쿠키 계약은 [Codex Console 접속](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
 - 같은 개발 사이트를 로컬·원격 주소로 함께 열면 `MIY_CODEX_CONSOLE_LAUNCH_URL_BY_HOST`로
-  접속 호스트별 Console 주소를 설정한다. 키 형식과 fallback은 [Codex Console 접속](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
+  서로 다른 Console 주소가 필요한 호스트만 설정한다. 모든 접속에서 같은 콘솔을 쓰면 기본 launch URL 하나를 사용한다.
+  키 형식과 fallback은 [Codex Console 접속](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
 - [추론 강도 허용 목록](docs/apps/codex-console/README.md#개인-cli-클라이언트와-제품-ai의-연결-경계)을
   확인한다. 기본값은 `xhigh`까지이며 새 강도는 명시적으로 허용할 때까지 표시하지 않는다.
 - [파일 첨부 설정](docs/apps/codex-console/README.md#파일-보관과-메시지별-첨부)에 따라 원본 DB
@@ -993,7 +1012,12 @@ AI 보호 정책을 끄지 않는다. 추가 키·서버가 필요한 기능은 
   앞단 프록시가 다른 호스트이면 [사설망 연결 설정](docs/apps/codex-console/README.md#tls-프록시가-다른-호스트에-있을-때)을 따른다.
   기존 개발 사이트의 `/codex-console/`를 Vite로 연결하는 대안은 개발 Web 재시작 시 접속이 중단된다.
   IP 기반 최초 설치에는 [HTTPS 신뢰 등록](docs/domains/release/installation-operations.md#https-trust)을 적용한다.
-  외부 HTTP origin 허용이나 Codex 인증 파일 복사로 우회하지 않는다.
+  인증 교환 서버의 원격 HTTP 등록이나 Codex 인증 파일 복사로 우회하지 않는다.
+- miy 자동 로그인의 인증 교환은 HTTPS origin에서 확인한다. 사설 CA를 사용하면 PC와 Console 서비스 호스트
+  양쪽의 신뢰 저장소를 준비한다. [서버의 인증서 검증](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
+- 서버에서 직접 사용하는 브라우저는 `http://127.0.0.1:19365/`로 진입해 설정한 콘솔 화면 주소로
+  이동하는지 확인한다. [콘솔 설치의 로컬 진입점](docs/apps/codex-console/README.md#설치)을 따른다.
+  여러 접속 주소의 자동 로그인은 [단일 miy 서버 설정](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 사용한다.
 - miy의 typed launch URL 설정과 관리자 앱 사용 설정에서 `codex-console`을 활성화한다.
   URL 미설정·비활성화 상태에서는 개인 앱에 노출되지 않는다. 자동 로그인을 사용할 때는
   [개인 앱과 HTTPS 접속 연결](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)에 따라
@@ -1111,6 +1135,8 @@ GitLab 패키지 다운로드·lint·최소 환경 실행은 중간 단계다. �
 이 가이드의 영향받는 절차와 연결된 소유 문서를 같은 변경에서 갱신한다.
 이 문서에는 다른 설치에서도 재사용할 절차·전제 조건·복구 방법을 남긴다.
 특정 서버의 로그인 정보는 `.auth_info`에서 관리하고, 비밀값을 제외한 접속 안내·실행 시각·검사 결과만 설치 결과로 전달한다.
+
+개발·운영 버전이 다른 순차 갱신 중에는 환경 계약 검사가 각 체크아웃의 설정 계약을 사용한다. `config/runtime.json` 도입 전 버전의 다른 체크아웃에만 런타임 설정 파일의 부재를 허용하며, 현재 버전의 파일 누락이나 불완전한 설정은 계속 오류로 처리한다. 다른 체크아웃의 코드를 실행하지 않고 선언된 계약만 읽는다.
 
 ## 8. 내부 관리 시작 후 원본 업데이트
 

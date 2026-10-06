@@ -17,6 +17,40 @@ from codex_console.config import MonitoredService
 from codex_console.models import ResourceLease, ServiceObservation, now
 
 
+@pytest.mark.parametrize("client_role", ["session"], indirect=True)
+@pytest.mark.parametrize(
+    "origin,base_path",
+    [
+        ("https://console.example.test", ""),
+        ("https://console.example.test", "/codex-console"),
+        ("http://127.0.0.1:19366", ""),
+    ],
+)
+def test_session_entry_opens_configured_console_without_redirecting_apis(
+    client, origin, base_path
+):
+    settings = client.app.state.settings
+    settings.origin = origin
+    settings.base_path = base_path
+    client.app.root_path = base_path
+    browser = TestClient(client.app, base_url=settings.local_origin)
+    try:
+        for method in ("GET", "HEAD"):
+            response = browser.request(method, f"{base_path}/", follow_redirects=False)
+            assert response.status_code == 307
+            assert response.headers["location"] == f"{origin}{base_path}/"
+            assert response.headers["cache-control"] == "no-store"
+        assert browser.get(f"{base_path}/healthz").json() == {"ok": True}
+        assert browser.get(f"{base_path}/api/session").json() == {"authenticated": False}
+        assert browser.get(f"{base_path}/api/tasks").status_code == 401
+        assert browser.get(f"{base_path}/missing", follow_redirects=False).status_code == 404
+        assert (
+            browser.get(f"{base_path}/", headers={"host": "evil.invalid"}).status_code == 403
+        )
+    finally:
+        browser.close()
+
+
 def execute(client, task):
     return client.post(
         f"/api/tasks/{task['id']}/implement",
@@ -77,9 +111,18 @@ def test_isolated_writers_and_operations_serialization(client):
     assert execute(client, tasks[1]).status_code == 200
 
 
-def test_child_keeps_lease_after_root_completion_and_is_stoppable(client):
-    task = send_message(client, new_task(client)).json()
+@pytest.mark.parametrize("stage", ["plan", "implement"])
+def test_child_keeps_lease_until_native_completion_even_if_git_fails(client, monkeypatch, stage):
+    from codex_console import git
+    from codex_console.errors import ConsoleError
+
+    task = send_message(client, new_task(client), stage=stage).json()
     thread = child(client, task)
+
+    def unavailable(*args, **kwargs):
+        raise ConsoleError("git_unavailable")
+
+    monkeypatch.setattr(git, "git", unavailable)
     complete(client, task)
     with client.app.state.factory() as db:
         assert db.scalar(select(ResourceLease).where(ResourceLease.task_id == task["id"]))
@@ -100,6 +143,7 @@ def test_child_keeps_lease_after_root_completion_and_is_stoppable(client):
     )
     with client.app.state.factory() as db:
         assert not db.scalar(select(ResourceLease).where(ResourceLease.task_id == task["id"]))
+    assert client.get(f"/api/tasks/{task['id']}").json()["status"] == "idle"
 
 
 def test_child_approval_discovered_without_started_event_and_routed_by_rpc_id(client):
@@ -196,13 +240,21 @@ def test_management_survives_session_disconnect_without_creating_runtime(
         assert not hasattr(management.state, "runtime")
 
 
-def test_monitor_stale_data_is_unknown(client, settings):
-    with client.app.state.factory.begin() as db:
-        row = db.get(ServiceObservation, "console-session")
-        row.status, row.version, row.checked_at = "healthy", "v1", now() - timedelta(minutes=1)
-    result = monitor.snapshot(settings, client.app.state.factory)[0]
-    assert result["status"] == "unknown" and result["stale"]
-    assert result["version"] == "v1"
+def test_monitor_stale_data_is_unknown(settings):
+    from codex_console.models import database
+
+    engine, factory = database(settings.database_url)
+    try:
+        with factory.begin() as db:
+            db.add(ServiceObservation(
+                service_id="console-session", status="healthy", version="v1",
+                checked_at=now() - timedelta(minutes=1),
+            ))
+        result = monitor.snapshot(settings, factory)[0]
+        assert result["status"] == "unknown" and result["stale"]
+        assert result["version"] == "v1"
+    finally:
+        engine.dispose()
 
 
 @pytest.mark.parametrize(
