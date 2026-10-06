@@ -407,6 +407,10 @@ Runner 상세 조회에는 해당 프로젝트의 Maintainer 역할이 필요하
 예를 들어 서비스 계정은 `sudo useradd --system --create-home --home-dir /var/lib/miy-review-evidence --shell /usr/sbin/nologin miy-review-evidence`로 만들고,
 기존 계정이 있으면 재생성하지 않고 소유권과 접근 범위를 검증한다. 홈에는 `sudo chmod 700 /var/lib/miy-review-evidence`를 적용한다.
 `/etc/miy/review-evidence.json`을 root 소유로 준비해 실제 값의 `{"api_url":"https://<서버-IP>:8443/api/v4","project_id":<프로젝트-ID>}`를 기록한다.
+이 파일에는 인증 토큰을 넣지 않는다. `sudo chown root:miy-review-evidence /etc/miy/review-evidence.json`과
+`sudo chmod 0640 /etc/miy/review-evidence.json`으로 증거 확인 계정만 읽을 수 있게 한다.
+`sudo -u miy-review-evidence test -r /etc/miy/review-evidence.json` 및 같은 계정의 `test ! -w`를 확인한다.
+Runner 계정에는 이 그룹을 부여하지 않고, 인증 파일은 계정의 비공개 홈에서 계속 `0600`으로 유지한다.
 `/etc/sudoers.d/miy-review-evidence`에는 실제 Runner 사용자 기준으로 다음 한 명령만 허용하고 `0440` 및 `visudo -cf` 검사를 적용한다.
 
 ```sudoers
