@@ -100,7 +100,8 @@ MLX_MODEL=org/local-model-id bash scripts/mlx-serve.sh
 
 The shared PDF/DOCX extractors retain bounded evidence and mark `metadata.truncated`
 when page, paragraph, table-row, cell, character, or time limits prevent a complete
-read. Reaching a budget is conservatively reported as incomplete. Consumers must
+read. Whitespace normalization alone does not set the flag; character limits apply
+to normalized evidence and cell text. Reaching a budget is conservatively reported as incomplete. Consumers must
 check this metadata before treating the extracted evidence as the whole document.
 Malformed DOCX rows retain their separate `malformed_table_rows_skipped` count.
 

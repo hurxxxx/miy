@@ -272,6 +272,43 @@ def test_extract_document_rejects_unsupported_or_malformed_documents() -> None:
         )
 
 
+@pytest.mark.parametrize("cells", [["", "retained"], ["retained", ""], ["", "retained", ""]])
+def test_docx_empty_edge_cells_do_not_report_truncated_evidence(cells: list[str]) -> None:
+    from docx import Document
+
+    document = Document()
+    table = document.add_table(rows=1, cols=len(cells))
+    for cell, text in zip(table.rows[0].cells, cells):
+        cell.text = text
+    buffer = BytesIO()
+    document.save(buffer)
+    bundle = extract_document(
+        document_id="edge-cells", filename="table.docx",
+        mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        content=buffer.getvalue(),
+    )
+    assert bundle.metadata.get("truncated", False) is False
+    assert bundle.evidence_blocks[0].rows == [cells]
+    assert bundle.evidence_blocks[0].text == "retained"
+
+
+def test_docx_cell_whitespace_normalization_is_not_a_character_limit(monkeypatch) -> None:
+    from docx import Document
+
+    monkeypatch.setattr(extractors_module, "_MAX_CELL_CHARS", 8)
+    document = Document()
+    document.add_table(rows=1, cols=1).cell(0, 0).text = "     retained     "
+    buffer = BytesIO()
+    document.save(buffer)
+    bundle = extract_document(
+        document_id="spaced-cell", filename="table.docx",
+        mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        content=buffer.getvalue(),
+    )
+    assert bundle.metadata.get("truncated", False) is False
+    assert bundle.evidence_blocks[0].rows == [["retained"]]
+
+
 def test_docx_extractor_skips_one_malformed_vertical_merge_row() -> None:
     bundle = extract_document(
         document_id="doc",

@@ -50,11 +50,12 @@ class _ExtractionBudget:
         if not self.should_continue():
             return False
         remaining = self.max_chars - self.chars
-        text = block.text[:remaining].strip()
+        normalized = block.text.strip()
+        text = normalized[:remaining].strip()
+        self.limited = self.limited or len(normalized) > remaining
         if not text:
             return False
         if text != block.text:
-            self.limited = True
             block = replace(block, text=text)
         blocks.append(block)
         self.chars += len(text)

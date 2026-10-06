@@ -146,10 +146,11 @@ class DocxExtractor:
                 if table_rows_seen + len(rows) >= _MAX_DOCX_TABLE_ROWS:
                     break
                 try:
+                    cell_texts = [(cell.text or "").strip() for cell in row.cells]
                     cells_truncated = cells_truncated or any(
-                        len(cell.text or "") > _MAX_CELL_CHARS for cell in row.cells
+                        len(text) > _MAX_CELL_CHARS for text in cell_texts
                     )
-                    cells = [(cell.text or "").strip()[:_MAX_CELL_CHARS] for cell in row.cells]
+                    cells = [text[:_MAX_CELL_CHARS] for text in cell_texts]
                 except ValueError:
                     # Some Word producers emit a vertical-merge continuation whose
                     # preceding row omits the referenced grid cell. python-docx
