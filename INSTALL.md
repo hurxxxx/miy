@@ -966,6 +966,16 @@ AI 보호 정책을 끄지 않는다. 추가 키·서버가 필요한 기능은 
 
 ## 6.1. Codex 콘솔 함께 설치
 
+여러 miy 서버를 발행 origin으로 구분하는 원격 자동 로그인은 miy 개발 사이트와 Console **양쪽의 HTTPS origin**을 사용한다.
+HTTP 개발 사이트를 유지하면서 별도 TLS 프록시 포트를 연결할 수 있다. 새 HTTPS 개발
+호스트의 launch URL 매핑, 정확한 origin·소유자 UUID 허용 목록, 브라우저와 Console 런타임의
+사설 CA 신뢰는 [Console 접속 절차](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)를
+따른다. 다중 서버 구성에서는 원격 HTTP 발행 origin을 허용하지 않으며, 만료된 일회용 코드는 모든 구성에서 거부한다.
+같은 miy 서버를 여러 주소로 여는 데모는 [서버와 소유자 한 쌍](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)만
+등록하면 주소별 허용 목록 없이 기존 로그인을 사용할 수 있다. 코드는 설정한 서버에서만 검증한다.
+구버전 PostgreSQL 저장소는 [이전과 백업 절차](docs/apps/codex-console/README.md#독립-저장소와-백업)에
+따라 복원본에서 migration·import를 검증한 뒤 이전한다.
+
 [MIY Workbench 소유 문서](docs/apps/codex-console/README.md)의 설치·서비스 실행·개인 앱 연결
 절차를 수행한다. miy PostgreSQL에 의존하지 않는 전용 로컬 SQLite 파일을 준비하고, Codex를 구독으로
 로그인한 OS 사용자로 서비스를 실행한다. 콘솔은 [현재 기준 버전](docs/apps/codex-console/README.md#설치)
@@ -982,7 +992,8 @@ AI 보호 정책을 끄지 않는다. 추가 키·서버가 필요한 기능은 
 - 설치 호스트의 콘솔 Vite와 공개 HTTPS 주소에서 각각 작업실 로그인을 확인한다.
   접속 범위와 쿠키 계약은 [Codex Console 접속](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
 - 같은 개발 사이트를 로컬·원격 주소로 함께 열면 `MIY_CODEX_CONSOLE_LAUNCH_URL_BY_HOST`로
-  접속 호스트별 Console 주소를 설정한다. 키 형식과 fallback은 [Codex Console 접속](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
+  서로 다른 Console 주소가 필요한 호스트만 설정한다. 모든 접속에서 같은 콘솔을 쓰면 기본 launch URL 하나를 사용한다.
+  키 형식과 fallback은 [Codex Console 접속](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
 - [추론 강도 허용 목록](docs/apps/codex-console/README.md#개인-cli-클라이언트와-제품-ai의-연결-경계)을
   확인한다. 기본값은 `xhigh`까지이며 새 강도는 명시적으로 허용할 때까지 표시하지 않는다.
 - [파일 첨부 설정](docs/apps/codex-console/README.md#파일-보관과-메시지별-첨부)에 따라 원본 DB
@@ -991,9 +1002,12 @@ AI 보호 정책을 끄지 않는다. 추가 키·서버가 필요한 기능은 
   앞단 프록시가 다른 호스트이면 [사설망 연결 설정](docs/apps/codex-console/README.md#tls-프록시가-다른-호스트에-있을-때)을 따른다.
   기존 개발 사이트의 `/codex-console/`를 Vite로 연결하는 대안은 개발 Web 재시작 시 접속이 중단된다.
   IP 기반 최초 설치에는 [HTTPS 신뢰 등록](docs/domains/release/installation-operations.md#https-trust)을 적용한다.
-  외부 HTTP origin 허용이나 Codex 인증 파일 복사로 우회하지 않는다.
-- miy 자동 로그인은 HTTPS 발행 origin에서 확인한다. 사설 CA를 사용하면 PC와 Console 서비스 호스트
+  인증 교환 서버의 원격 HTTP 등록이나 Codex 인증 파일 복사로 우회하지 않는다.
+- miy 자동 로그인의 인증 교환은 HTTPS origin에서 확인한다. 사설 CA를 사용하면 PC와 Console 서비스 호스트
   양쪽의 신뢰 저장소를 준비한다. [서버의 인증서 검증](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
+- 서버에서 직접 사용하는 브라우저는 `http://127.0.0.1:19365/`로 진입해 설정한 콘솔 화면 주소로
+  이동하는지 확인한다. [콘솔 설치의 로컬 진입점](docs/apps/codex-console/README.md#설치)을 따른다.
+  여러 접속 주소의 자동 로그인은 [단일 miy 서버 설정](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 사용한다.
 - miy의 typed launch URL 설정과 관리자 앱 사용 설정에서 `codex-console`을 활성화한다.
   URL 미설정·비활성화 상태에서는 개인 앱에 노출되지 않는다. 자동 로그인을 사용할 때는
   [개인 앱과 HTTPS 접속 연결](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)에 따라
