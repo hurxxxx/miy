@@ -38,9 +38,16 @@ SETTING_ALIASES = {
 }
 
 
+@pytest.fixture(autouse=True)
+def _isolated_policy_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    for alias in SETTING_ALIASES.values():
+        monkeypatch.delenv(alias, raising=False)
+
+
 def _settings(**overrides):
     aliased_overrides = {SETTING_ALIASES.get(key, key): value for key, value in overrides.items()}
     return Settings(
+        _env_file=None,
         postgres_dsn="postgresql+psycopg://miy_test:miy_test@127.0.0.1:5432/miy_test",
         **aliased_overrides,
     )

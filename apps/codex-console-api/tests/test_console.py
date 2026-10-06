@@ -202,11 +202,69 @@ def test_miy_handoff_creates_console_session(client, monkeypatch, path):
     assert client.get("/api/tasks").status_code == 200
 
 
-def test_miy_handoff_fails_closed(client, monkeypatch):
+@pytest.mark.parametrize(
+    "browser_issuer",
+    [
+        "http://127.0.0.1:4200",
+        "http://localhost:4200",
+        "http://demo.example.test:4200",
+        "https://another-address.example.test",
+        "http://169.254.169.254",
+    ],
+)
+def test_single_miy_backend_accepts_browser_aliases_without_contacting_them(
+    client, monkeypatch, browser_issuer
+):
+    from codex_console import miy_sso
+
+    assert client.delete("/api/session").status_code == 200
+    cfg = client.app.state.settings
+    issuer = "https://dev.example.test"
+    owner = UUID("11111111-1111-4111-8111-111111111111")
+    cfg.sso_subjects = {issuer: owner}
+    calls = []
+
+    def exchange(**values):
+        calls.append(values)
+        assert values["issuer"] == issuer
+        return str(owner) if values["code"] == "cc1_" + "a" * 32 else None
+
+    monkeypatch.setattr(miy_sso, "exchange_code", exchange)
+    for code, status in (("cc1_" + "b" * 32, 401), ("cc1_" + "a" * 32, 200)):
+        response = client.post("/api/session/miy", json={"issuer": browser_issuer, "code": code})
+        assert response.status_code == status
+    assert len(calls) == 2
+    assert client.get("/api/tasks").status_code == 200
+
+
+def test_single_miy_backend_still_requires_the_configured_owner(client, monkeypatch):
+    from codex_console import miy_sso
+
+    assert client.delete("/api/session").status_code == 200
+    cfg = client.app.state.settings
+    cfg.sso_subjects = {
+        "https://dev.example.test": UUID("11111111-1111-4111-8111-111111111111")
+    }
+    monkeypatch.setattr(miy_sso, "exchange_code", lambda **values: str(uuid4()))
+    response = client.post(
+        "/api/session/miy",
+        json={"issuer": "http://demo.example.test:4200", "code": "cc1_" + "a" * 32},
+    )
+    assert response.status_code == 401
+    assert client.get("/api/tasks").status_code == 401
+
+
+@pytest.mark.parametrize("multiple_backends", [False, True])
+def test_miy_handoff_fails_closed(client, monkeypatch, multiple_backends):
     from codex_console import miy_sso
 
     assert client.delete("/api/session").status_code == 200
     client.app.state.settings.sso_subjects = {}
+    if multiple_backends:
+        client.app.state.settings.sso_subjects = {
+            "https://dev.example.test": UUID(int=1),
+            "https://prod.example.test": UUID(int=2),
+        }
     monkeypatch.setattr(
         miy_sso,
         "exchange_code",
@@ -718,7 +776,7 @@ def test_completion_expires_unanswered_questions(client):
     assert result["status"] == "interrupted"
 
 
-def test_dirty_dev_is_preserved_in_isolated_worktree(client, repository):
+def test_dirty_workspace_is_passed_to_codex_without_automatic_isolation(client, repository):
     task = plan(client)
     (repository / "hello.txt").write_text("unrelated edit\n")
     result = client.post(
@@ -726,12 +784,12 @@ def test_dirty_dev_is_preserved_in_isolated_worktree(client, repository):
         json={"operation_id": str(uuid4()), "revision_id": task["revisions"][-1]["id"]},
     )
     assert result.status_code == 200
-    assert result.json()["isolated"] is True
+    assert result.json()["isolated"] is False
     assert (repository / "hello.txt").read_text() == "unrelated edit\n"
-    assert result.json()["root"] != str(repository)
+    assert result.json()["root"] == str(repository)
 
 
-def test_current_task_dirty_changes_can_continue_but_external_edits_cannot(client, repository):
+def test_external_edits_are_left_for_codex_to_assess(client, repository):
     task = plan(client)
     revision = task["revisions"][-1]["id"]
     endpoint = f"/api/tasks/{task['id']}/implement"
@@ -742,12 +800,9 @@ def test_current_task_dirty_changes_can_continue_but_external_edits_cannot(clien
     task = complete(client, task)
     assert task["status"] == "idle"
     (repository / "hello.txt").write_text("external change\n")
-    assert (
-        client.post(endpoint, json={"operation_id": str(uuid4()), "revision_id": revision}).json()[
-            "code"
-        ]
-        == "workspace_changed"
-    )
+    response = client.post(endpoint, json={"operation_id": str(uuid4()), "revision_id": revision})
+    assert response.status_code == 200
+    assert (repository / "hello.txt").read_text() == "external change\n"
 
 
 def test_diff_blocks_secrets_and_symlink_escape(client, repository, tmp_path):
@@ -765,17 +820,6 @@ def test_diff_blocks_secrets_and_symlink_escape(client, repository, tmp_path):
         client.get(f"/api/tasks/{task['id']}/diff", params={"path": "../outside.txt"}).status_code
         != 200
     )
-
-
-def test_untracked_file_boundaries_are_included_in_workspace_fingerprint(repository):
-    from codex_console.git import fingerprint
-
-    (repository / "a.txt").write_bytes(b"a")
-    (repository / "b.txt").write_bytes(b"bc")
-    previous = fingerprint(repository)
-    (repository / "a.txt").write_bytes(b"ab")
-    (repository / "b.txt").write_bytes(b"c")
-    assert fingerprint(repository) != previous
 
 
 def test_failed_turn_never_becomes_success(client):

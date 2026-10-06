@@ -1,6 +1,5 @@
 """Bounded Git access; no shell, external diff driver, arbitrary cwd or raw file endpoint."""
 
-import hashlib
 import os
 import selectors
 import stat
@@ -135,19 +134,6 @@ def changes(root: Path) -> list[dict]:
     return result
 
 
-def fingerprint(root: Path) -> str:
-    root = repository_root(root)
-    result = hashlib.sha256(git(root, "rev-parse", "HEAD"))
-    result.update(git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all"))
-    # Include bytes so edits to already-dirty files cannot masquerade as our own previous diff.
-    result.update(git(root, "diff", "--no-ext-diff", "--no-textconv", "--binary", "HEAD"))
-    for item in changes(root):
-        if item["status"] == "??":
-            result.update(item["path"].encode() + b"\0")
-            result.update(hashlib.sha256(read_worktree_file(root, item["path"])).digest())
-    return result.hexdigest()
-
-
 def status(root: Path) -> dict:
     """Read local Git state only; remote counts describe cached refs, never a fetch."""
     root = repository_root(root)
@@ -200,44 +186,15 @@ def status(root: Path) -> dict:
     }
 
 
-def remove_missing_worktree(workspace: Path, target: Path) -> None:
-    """Remove only this absent owned worktree's registration, never prune or force."""
-    if target.exists() or target.is_symlink():
-        raise ConsoleError("worktree_exists")
-    expected = b"worktree " + os.fsencode(target.resolve())
-    records = git(workspace, "worktree", "list", "--porcelain", "-z").split(b"\0\0")
-    for record in records:
-        fields = record.split(b"\0")
-        if not fields or fields[0] != expected:
-            continue
-        if any(field == b"locked" or field.startswith(b"locked ") for field in fields):
-            raise ConsoleError("worktree_exists")
-        if target.exists() or target.is_symlink():
-            raise ConsoleError("worktree_exists")
-        # Git validates the exact registration and retains its own lock/dirty checks.
-        git(workspace, "worktree", "remove", str(target))
-        return
-
-
 def prepare_workspace(
     workspace: Path,
     task_id: str,
-    previous: str | None,
     *,
     base_ref: str,
     worktree_root: Path,
     validate_target=None,
-    force_isolated=False,
 ) -> tuple[Path, bool]:
-    if previous is not None:
-        if fingerprint(workspace) != previous:
-            raise ConsoleError("workspace_changed")
-        return workspace, False
-    if (
-        not force_isolated
-        and not git(workspace, "status", "--porcelain=v1", "--untracked-files=all").strip()
-    ):
-        return workspace, False
+    """Create an explicitly requested isolated checkout; native turns need no Git preflight."""
     target = worktree_root / f"codex-{task_id}"
     if validate_target is not None:
         validate_target(target)
@@ -246,7 +203,7 @@ def prepare_workspace(
     base = git(workspace, "rev-parse", "--verify", "--end-of-options", f"{base_ref}^{{commit}}")
     relative = workspace.relative_to(repository_root(workspace))
     if relative != Path("."):
-        # Preserve a selected cwd when dirty work requires an isolated checkout.
+        # Explicit isolation preserves the selected subdirectory.
         if (
             git(
                 workspace, "cat-file", "-t", f"{base.decode().strip()}:{relative.as_posix()}"

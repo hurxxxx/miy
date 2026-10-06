@@ -603,6 +603,7 @@ def test_runtime_keeps_tmux_session_across_api_runtime_restart(tmp_path: Path) -
 
 def test_runtime_startup_marks_missing_tmux_sessions_failed(
     client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     admin = dev_login(client, "administrator")
     session_id = "orphaned-terminal-session"
@@ -626,6 +627,8 @@ def test_runtime_startup_marks_missing_tmux_sessions_failed(
 
     runtime = client.app.state.agent_terminal_runtime
     runtime._settings.agent_terminal_enabled = True
+    # Session inspection is mocked below; recovery must also run without a host tmux install.
+    monkeypatch.setattr(runtime, "_tmux_binary", "tmux")
 
     async def missing_tmux_session(_session_id: str) -> None:
         return None

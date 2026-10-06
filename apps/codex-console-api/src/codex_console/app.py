@@ -8,7 +8,7 @@ from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, Response, StreamingResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
@@ -290,6 +290,15 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
     instructions.install(app, secured)
     workbench.install(app, secured)
 
+    if role == "session":
+
+        @app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
+        def open_console(request: Request):
+            cfg = request.app.state.settings
+            return RedirectResponse(
+                f"{cfg.origin}{cfg.base_path}/", headers={"Cache-Control": "no-store"}
+            )
+
     @app.get("/api/monitor/host", dependencies=secured, response_model=host.HostOut)
     def host_status():
         return host.snapshot(app.state.factory)
@@ -329,10 +338,12 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
     @app.post("/api/session/mty", response_model=SessionOut, include_in_schema=False)
     def login_from_miy(body: MIYSessionInput, request: Request):
         cfg = app.state.settings
-        expected_subject = cfg.sso_subjects.get(body.issuer)
+        # A single backend verifies codes from all of its browser address aliases.
+        issuer = next(iter(cfg.sso_subjects)) if len(cfg.sso_subjects) == 1 else body.issuer
+        expected_subject = cfg.sso_subjects.get(issuer)
         if expected_subject is None:
             raise ConsoleError("login_failed", 401)
-        subject = miy_sso.exchange_code(issuer=body.issuer, code=body.code)
+        subject = miy_sso.exchange_code(issuer=issuer, code=body.code)
         if subject != str(expected_subject):
             raise ConsoleError("login_failed", 401)
         token, csrf = auth.create_session(app.state.factory, cfg.session_hours)
@@ -531,11 +542,9 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
                 root, isolated = git.prepare_workspace(
                     cfg.workspace,
                     task.id,
-                    None,
                     base_ref=cfg.worktree_base_ref,
                     worktree_root=cfg.worktree_root,
                     validate_target=cfg.require_allowed_paths,
-                    force_isolated=True,
                 )
                 task.root, task.worktree_owned = str(root), isolated
             store.changed(db, task, "task.created")
@@ -713,7 +722,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
 
     @app.post("/api/tasks/{task_id}/recover", dependencies=secured, response_model=TaskDetail)
     async def recover(task_id: str, body: Recover):
-        await runtime_for(task_id).recover(task_id, confirm_workspace=body.confirm_workspace)
+        await runtime_for(task_id).recover(task_id)
         return store.detail(app.state.factory, task_id, app.state.settings)
 
     @app.post(

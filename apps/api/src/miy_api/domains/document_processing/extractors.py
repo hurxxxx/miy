@@ -60,6 +60,7 @@ class PdfPlumberExtractor:
         budget = _ExtractionBudget()
         try:
             with pdfplumber.open(BytesIO(content)) as pdf:
+                pages_truncated = len(pdf.pages) > _MAX_PDF_PAGES
                 for page_number, page in enumerate(pdf.pages[:_MAX_PDF_PAGES], start=1):
                     if not budget.should_continue():
                         break
@@ -88,6 +89,7 @@ class PdfPlumberExtractor:
             filename=filename,
             mime_type=mime_type,
             evidence_blocks=blocks,
+            metadata={"truncated": pages_truncated or budget.limited},
         )
 
 
@@ -135,6 +137,7 @@ class DocxExtractor:
                 break
         table_rows_seen = 0
         malformed_table_rows_skipped = 0
+        cells_truncated = False
         for table_index, table in enumerate(document.tables, start=1):
             if not budget.should_continue() or table_rows_seen >= _MAX_DOCX_TABLE_ROWS:
                 break
@@ -143,7 +146,11 @@ class DocxExtractor:
                 if table_rows_seen + len(rows) >= _MAX_DOCX_TABLE_ROWS:
                     break
                 try:
-                    cells = [(cell.text or "").strip()[:_MAX_CELL_CHARS] for cell in row.cells]
+                    cell_texts = [(cell.text or "").strip() for cell in row.cells]
+                    cells_truncated = cells_truncated or any(
+                        len(text) > _MAX_CELL_CHARS for text in cell_texts
+                    )
+                    cells = [text[:_MAX_CELL_CHARS] for text in cell_texts]
                 except ValueError:
                     # Some Word producers emit a vertical-merge continuation whose
                     # preceding row omits the referenced grid cell. python-docx
@@ -176,6 +183,14 @@ class DocxExtractor:
             evidence_blocks=blocks,
             metadata={
                 "malformed_table_rows_skipped": malformed_table_rows_skipped,
+                **(
+                    {"truncated": True}
+                    if budget.limited
+                    or cells_truncated
+                    or len(document.paragraphs) > _MAX_DOCX_PARAGRAPHS
+                    or table_rows_seen >= _MAX_DOCX_TABLE_ROWS
+                    else {}
+                ),
             },
         )
 

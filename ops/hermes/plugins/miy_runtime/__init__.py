@@ -202,6 +202,44 @@ def _rpc(server: dict, run_id: str, method: str, params: dict) -> dict:
             return body["result"]
 
 
+def prepare_llm_request(*, request: dict, api_mode: str = "", **context):
+    """Expose the admitted workload tools through Hermes' public request hook."""
+    restricted = dict(request)
+    try:
+        from hermes_constants import get_hermes_home
+        from tools.registry import registry
+
+        if not re.fullmatch(r"(?:miy|mty)-[0-9a-f]{32}(?:-local)?(?:-jobs)?", get_hermes_home().name):
+            return {"request": request}
+        server, run_id = runtime_transport()
+        execution = _rpc(server, run_id, "miy/context", {})
+        if execution.get("allow_native_tools") is True:
+            return {"request": request}
+        allowed = set(execution.get("native_tools", []))
+        if execution.get("output_schema") is not None:
+            allowed.add("miy_submit_result")
+        # Native Tool Search can defer schemas behind discovery/dispatch bridges.
+        # Workloads cannot use those bridges: offer their real registered schemas.
+        definitions = registry.get_definitions(allowed, quiet=True)
+        if api_mode == "anthropic_messages":
+            from agent.anthropic_adapter import convert_tools_to_anthropic
+
+            definitions = convert_tools_to_anthropic(definitions)
+        elif api_mode != "chat_completions":
+            raise ValueError("Unsupported managed workload transport")
+        restricted["tools"] = definitions
+    except (ImportError, LookupError, AttributeError, TypeError, ValueError, RuntimeError,
+            OSError, httpx.HTTPError):
+        # Hermes request middleware skips exceptions. Return an empty tool set
+        # on failed admission/discovery instead; execution middleware still owns
+        # authorization, and missing required result submission fails the run.
+        restricted["tools"] = []
+    if not restricted["tools"]:
+        restricted.pop("tool_choice", None)
+        restricted.pop("parallel_tool_calls", None)
+    return {"request": restricted}
+
+
 def execute_tool(*, tool_name: str, args: dict, next_call, **context):
     # Check every miy internal prefix, including another profile's tool names.
     # Returning an error is deliberate: native middleware falls through when
@@ -343,6 +381,7 @@ def register(ctx):
 
     install_code_guard()
     ctx.register_terminal_environment_provider(MIYSandbox())
+    ctx.register_middleware("llm_request", prepare_llm_request)
     ctx.register_middleware("tool_execution", execute_tool)
     ctx.register_tool(
         name="miy_preview",
