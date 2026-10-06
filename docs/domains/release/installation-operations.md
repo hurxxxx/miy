@@ -270,7 +270,38 @@ job별 네트워크는 실제 job의 서비스 연결을 확인한다. 등록 �
 - 네트워크 존재뿐 아니라 CIDR·gateway·Runner 연결 설정, DB의 바인딩·HBA·방화벽, 필요한 서비스 상태를 확인한다.
 - 실제 검증 이미지와 작업 네트워크에서 CI 전용 계정으로 인증 연결과 `SELECT 1`, `SHOW server_version_num`을 확인한다. 호스트에서의 `pg_isready`만으로 대신하지 않는다. 연결 정보는 보호된 입력·libpq 서비스와 passfile 등으로 전달하고 DSN·비밀번호를 출력하지 않는다.
 - 이미지의 PostgreSQL 클라이언트 메이저와 실제 CI 서버 메이저가 맞는지 [기존 검사 계약](README.md#validation-image-platform-and-database)을 따른다. GitLab TLS 신뢰와 필요한 이미지·서비스도 재확인한다.
+- [CI PostgreSQL 확장](#ci-postgresql-extensions)의 서버 패키지와 신규 테스트 DB 상속도 확인한다. 클라이언트 도구 설치만으로 서버 확장이 준비되지는 않는다.
 - 네트워크가 없어졌다면 다른 네트워크와 충돌하지 않는지 확인하고 기록한 설정으로 **누락된 프로젝트 소유 네트워크만** 복구한다. 필요한 서비스 연결과 DB 시작 의존성을 복구한 뒤 같은 연결 검사를 반복한다. 이름이 같아도 설정이 다른 기존 리소스를 삭제·덮어쓰지 않는다.
 
 Docker 전체 prune, 컨테이너·네트워크·볼륨 일괄 삭제, 기존 DB 재생성은 복구 절차로 사용하지 않는다.
 실제 파이프라인 검사는 기존 CI 라우팅과 승인 범위를 유지한다. Runner 업데이트 확인만을 위해 릴리스 MR·게시 태그를 생성하지 않는다.
+
+### Shell executor preparation failures
+
+실제 job이 `Prepare environment`에서 실패하면 [GitLab 로그인 셸 프로필 안내](https://docs.gitlab.com/runner/shells/#shell-profile-loading)에 따라
+Runner의 **실제 실행 계정**에 있는 `.bash_logout`을 확인한다. 기본 `clear_console` 호출이 비대화형 셸에서 실패하면
+터미널이 있을 때만 실행하도록 제한하거나 해당 콘솔 정리 호출을 제거한다. 다른 계정의 프로필은 변경하지 않는다.
+수정 후 같은 MR 파이프라인을 재실행해 준비 단계와 실제 job의 성공을 확인한다.
+
+## CI PostgreSQL extensions
+
+현재 PostgreSQL 테스트 fixture는 새 테스트 DB에 `vector` 확장을 요구한다.
+검증 이미지의 Python 드라이버·PostgreSQL 클라이언트와 별도로, CI DB **서버**에
+[pgvector 공식 설치 안내](https://github.com/pgvector/pgvector#installation)의 해당 서버 메이저용 패키지가 필요하다.
+PGDG APT에서는 `postgresql-<서버-메이저>-pgvector` 패키지를 사용한다. 설치 전 모의 실행으로
+기존 PostgreSQL·다른 서비스의 업그레이드나 삭제가 포함되지 않는지 확인하고 선택한 버전을 기록한다.
+
+`vector` 생성은 superuser 권한이 필요하다. CI 작업 계정의 권한을 늘리지 말고,
+별도 **CI 전용 클러스터**의 `template1`에 관리자가 한 번 준비해 신규 테스트 DB가 상속하게 한다.
+다음 명령의 libpq 서비스는 확인된 CI 전용 클러스터를 가리켜야 한다.
+공유 개발·운영 클러스터의 `template1`을 이 절차로 변경하지 않는다.
+
+```bash
+psql -Xw 'service=miy-ci-admin dbname=template1' -v ON_ERROR_STOP=1 \
+  -c 'CREATE EXTENSION IF NOT EXISTS vector'
+```
+
+실제 Runner 컨테이너 네트워크에서 CI 작업 계정으로 새 임시 테스트 DB를 만들고,
+`SELECT extversion FROM pg_extension WHERE extname = 'vector'`가 반환되는지 확인한다.
+검증 뒤 해당 임시 DB만 제거한다. `tests/test_alembic_migrations.py`를 같은 CI 접속 설정으로
+실행하면 fixture의 신규 DB 생성·확장 확인·마이그레이션·정리까지 검증할 수 있다.

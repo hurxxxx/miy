@@ -44,7 +44,8 @@ explicitly verified test infrastructure below.
 
 Before database tests, configure `MIY_TEST_POSTGRES_TEMPLATE_DSN` for a dedicated
 non-production PostgreSQL instance with pgvector available and a role allowed to create/drop test
-databases and enable the extension. Use compatible `pg_dump`/`pg_restore` clients. The fixture also
+databases. For the non-superuser CI role, pre-provision the extension in its isolated test template
+as described in the installation guide below. Use compatible `pg_dump`/`pg_restore` clients. The fixture also
 accepts the verified development DSN from ignored env files, but never resets that database: each
 worker creates its own `miy_test_*` database, migrates it, and restores the seeded data
 between tests. A setup failure also removes the database created by that attempt. Keep production

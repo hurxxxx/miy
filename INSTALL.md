@@ -398,6 +398,7 @@ OpenSearch는 앱의 최소 첫 실행에는 선택 사항이지만 현재 릴�
 개발 사용자의 로그인이나 nvm 설정이 Runner 서비스에 자동으로 전달된다고 가정하지 말고 서비스의 PATH를 맞춘다.
 shell executor의 로그인 셸이 서비스 PATH를 초기화할 수 있으므로, Runner 작업 계정에서도 도구 탐색을 확인한다.
 필요하면 해당 Runner의 `config.toml`에 지원되는 `environment = ["PATH=<검증한-도구-경로>:<기본-PATH>"]`를 지정하고 실제 job으로 재검사한다.
+실제 job이 `Prepare environment`에서 실패하면 [shell executor 준비 단계 복구](docs/domains/release/installation-operations.md#shell-executor-preparation-failures)를 따른다.
 리뷰 전·후 GitLab 메타데이터 검증은 Codex와 **다른 OS 계정** `miy-review-evidence`에서 수행한다.
 [리뷰 실행기 인증 계약](docs/agents/local-codex-review.md#contract)에 따라 홈 `0700`인 비로그인 서비스 계정을 준비하고,
 그 계정으로 단일 프로젝트 비관리자 GitLab 계정의 `read_api` PAT를 표준 입력으로 받아 `glab`을 인증한다.
@@ -435,6 +436,7 @@ Runner 업데이트 후에는 [네트워크·테스트 DB 재검사와 복구](d
 테스트용 DB 생성·삭제에 필요한 권한만 부여하고 GitLab 자체 DB, 개발 업무 DB나 운영 DB를 사용하지 않는다.
 Docker 작업 안의 `127.0.0.1`은 호스트 DB 주소가 아니므로 Runner의 실제 네트워크에서 접속 가능한 주소를 사용한다.
 CI 서버와 검증 이미지 클라이언트의 메이저 버전은 프로젝트 DB와 맞춘다. PostgreSQL 17 같은 특정 메이저 버전을 요구하지 않는다.
+CI 테스트 DB 생성에는 서버 측 `vector` 확장도 필요하다. [CI PostgreSQL 확장 준비](docs/domains/release/installation-operations.md#ci-postgresql-extensions)에 따라 설치·검증하고, 확장 생성을 위해 CI 계정에 superuser 권한을 주지 않는다.
 같은 비운영 PostgreSQL 인스턴스에 별도 CI DB·계정을 둘 수 있으며, CI 계정은 개발 업무 DB를 소유하거나 접근하지 못하게 한다. 별도 CI 클러스터가 필요하면 같은 메이저 버전으로 만들고 별도 데이터 디렉터리·포트·계정을 사용한다.
 전용 CI 클러스터는 DB 관리자가 `template1`에 pgvector 확장을 먼저 설치하고, CI 계정으로 만든 임시 DB가 이를 상속하는지 확인한다. 원격 테스트 계정에 superuser를 부여하지 않는다. 명령과 공유 클러스터 제한은 [CI DB 준비 계약](docs/domains/release/README.md#validation-image-platform-and-database)을 따른다.
 릴리스 CI는 실제 DB 서버와 이미지의 `pg_dump`·`pg_restore`·`psql` 버전이 일치하는지 테스트 시작 전에 검사한다. 불일치 시 DB 연결 대상과 [검증 이미지 구성](docs/domains/release/README.md#validation-image-platform-and-database)을 바로잡고 재실행한다.
