@@ -135,6 +135,15 @@ async def version(binary):
             await process.wait()
 
 
+def _save_observation(factory, payload):
+    with factory.begin() as db:
+        row = db.get(HostObservation, 1)
+        if not row:
+            row = HostObservation(id=1, payload=payload)
+            db.add(row)
+        row.payload, row.checked_at = payload, now()
+
+
 async def observe(settings, factory):
     while True:
         payload = await asyncio.to_thread(collect, settings)
@@ -142,12 +151,7 @@ async def observe(settings, factory):
             version(settings.binary), version(settings.template_binary)
         )
         payload.update(installed_cli=installed, template_cli=runner)
-        with factory.begin() as db:
-            row = db.get(HostObservation, 1)
-            if not row:
-                row = HostObservation(id=1, payload=payload)
-                db.add(row)
-            row.payload, row.checked_at = payload, now()
+        await asyncio.to_thread(_save_observation, factory, payload)
         await asyncio.sleep(10)
 
 

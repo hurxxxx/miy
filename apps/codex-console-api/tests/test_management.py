@@ -206,13 +206,21 @@ def test_management_survives_session_disconnect_without_creating_runtime(
         assert not hasattr(management.state, "runtime")
 
 
-def test_monitor_stale_data_is_unknown(client, settings):
-    with client.app.state.factory.begin() as db:
-        row = db.get(ServiceObservation, "console-session")
-        row.status, row.version, row.checked_at = "healthy", "v1", now() - timedelta(minutes=1)
-    result = monitor.snapshot(settings, client.app.state.factory)[0]
-    assert result["status"] == "unknown" and result["stale"]
-    assert result["version"] == "v1"
+def test_monitor_stale_data_is_unknown(settings):
+    from codex_console.models import database
+
+    engine, factory = database(settings.database_url)
+    try:
+        with factory.begin() as db:
+            db.add(ServiceObservation(
+                service_id="console-session", status="healthy", version="v1",
+                checked_at=now() - timedelta(minutes=1),
+            ))
+        result = monitor.snapshot(settings, factory)[0]
+        assert result["status"] == "unknown" and result["stale"]
+        assert result["version"] == "v1"
+    finally:
+        engine.dispose()
 
 
 @pytest.mark.parametrize(

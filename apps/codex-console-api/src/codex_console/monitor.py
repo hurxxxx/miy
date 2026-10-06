@@ -93,6 +93,15 @@ async def probe(service, client):
     return status, version
 
 
+def _save_observation(factory, service, status, version):
+    with factory.begin() as db:
+        row = db.get(ServiceObservation, service.id)
+        if not row:
+            row = ServiceObservation(service_id=service.id, status=status)
+            db.add(row)
+        row.status, row.version, row.checked_at = status, version, now()
+
+
 async def observe(settings, factory):
     async with httpx.AsyncClient(timeout=3, follow_redirects=False, trust_env=False) as client:
         semaphore = asyncio.Semaphore(4)
@@ -104,12 +113,7 @@ async def observe(settings, factory):
                         status, version = await probe(service, client)
                 except TimeoutError:
                     status, version = "unknown", None
-                with factory.begin() as db:
-                    row = db.get(ServiceObservation, service.id)
-                    if not row:
-                        row = ServiceObservation(service_id=service.id, status=status)
-                        db.add(row)
-                    row.status, row.version, row.checked_at = status, version, now()
+                await asyncio.to_thread(_save_observation, factory, service, status, version)
 
         while True:
             await asyncio.gather(*(collect(service) for service in services(settings)))

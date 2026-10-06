@@ -249,6 +249,8 @@ root·하위 에이전트 수와 확인 필요 작업 수를 표시한다. 작�
 브라우저는 서비스 ID만 선택하며 probe 주소나 명령을 지정하지 않는다. health URL은 자격증명·
 query·fragment 없는 사설/loopback 고정 IP의 HTTP(S)만 허용한다. DNS·redirect를 따르지 않는다.
 모니터는 10초 간격으로 최대 4개를 병렬 조회하고 30초 지난 기록은 unknown으로 표시한다.
+관측 결과의 SQLite 쓰기는 작업 스레드에서 수행해 다른 요청의 쓰기 잠금을 기다리는 동안에도
+세션·관리 서비스의 이벤트 루프가 응답할 수 있게 한다.
 health 응답은 16 KiB, supervisor 출력은 4 KiB, 개별 probe는 5초로 제한한다. systemd의
 `ActiveState` 또는 Docker의 `State.Status`만 조회하며 시작·재시작·복구 명령은 없다.
 서비스의 health가 버전을 반환하지 않으면 버전을 추정하지 않는다.
