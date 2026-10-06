@@ -3,7 +3,7 @@ import subprocess
 from uuid import uuid4
 
 import pytest
-from conftest import complete, new_task, plan, send_message
+from conftest import complete, isolate_existing_task, new_task, plan, send_message
 
 from codex_console import git
 from codex_console.models import Operation
@@ -49,6 +49,7 @@ def test_default_planning_does_not_generate_a_document(client):
 def test_loaded_thread_cwd_does_not_override_an_isolated_workspace(client, repository):
     task = plan(client)
     (repository / "unrelated.txt").write_text("preserve me")
+    isolate_existing_task(client, task)
     result = client.post(
         f"/api/tasks/{task['id']}/implement",
         json={"operation_id": str(uuid4()), "revision_id": task["revisions"][-1]["id"]},
@@ -170,9 +171,7 @@ def test_completed_structured_turn_from_previous_release_recovers_only_its_plan(
         for kind in ("requirements", "plan")
     ]
     task = complete(client, task, "Both documents saved", documents=documents)
-    assert [(row["kind"], row["body"]) for row in task["revisions"]] == [
-        ("plan", "Initial plan")
-    ]
+    assert [(row["kind"], row["body"]) for row in task["revisions"]] == [("plan", "Initial plan")]
     assert task["items"][-1]["text"] == "Both documents saved"
 
     task = send_message(client, task, text="Revise the plan").json()
@@ -229,12 +228,12 @@ def test_new_prompt_steers_a_verified_active_uncertain_turn_without_replaying(cl
 
 
 @pytest.mark.parametrize("removal", ["git", "directory"])
-def test_removed_owned_worktree_keeps_thread_but_resets_file_ownership(client, repository, removal):
+def test_removed_owned_worktree_is_passed_to_codex_without_cleanup(client, repository, removal):
     from codex_console.models import Task
 
     (repository / "unrelated.txt").write_text("must stay")
     task = client.post(
-        f"/api/tasks/{new_task(client)['id']}/implement",
+        f"/api/tasks/{new_task(client, isolate=True)['id']}/implement",
         json={
             "operation_id": str(uuid4()),
             "text": "Make the requested change",
@@ -263,8 +262,8 @@ def test_removed_owned_worktree_keeps_thread_but_resets_file_ownership(client, r
     response = send_message(client, task, text="Explain the completed work")
     assert response.status_code == 200
     assert response.json()["thread_id"] == thread
-    assert response.json()["root"] == str(repository)
-    assert not response.json()["isolated"]
+    assert response.json()["root"] == old_root
+    assert response.json()["isolated"]
     if removal == "directory":
         after = git.git(repository, "worktree", "list", "--porcelain", "-z")
         for path in other_paths:
@@ -272,7 +271,7 @@ def test_removed_owned_worktree_keeps_thread_but_resets_file_ownership(client, r
             previous = next(record for record in before.split(b"\0\0") if record.startswith(marker))
             assert previous in after.split(b"\0\0")
         assert (other_paths[2] / "preserve.txt").read_text() == "keep this active worktree"
-        assert b"worktree " + old_root.encode() not in after
+        assert before == after
     with client.app.state.factory() as db:
         assert db.get(Task, task["id"]).fingerprint is None
     complete(client, response.json(), documents=[])
@@ -292,7 +291,7 @@ def test_isolation_works_without_an_origin_or_dev_branch(repository, tmp_path):
     run(repository, "update-ref", "-d", "refs/remotes/origin/dev")
     (repository / "unrelated.txt").write_text("preserve")
     root, owned = git.prepare_workspace(
-        repository, str(uuid4()), None, base_ref="HEAD", worktree_root=tmp_path / "sessions"
+        repository, str(uuid4()), base_ref="HEAD", worktree_root=tmp_path / "sessions"
     )
     assert owned and run(root, "rev-parse", "HEAD") == run(repository, "rev-parse", "HEAD")
     assert (repository / "unrelated.txt").read_text() == "preserve"
@@ -629,6 +628,7 @@ def test_uncertain_workspace_transition_accepts_only_recorded_previous_cwd(
 
     task = plan(client)
     (repository / "unrelated.txt").write_text("preserve this file")
+    isolate_existing_task(client, task)
     endpoint = f"/api/tasks/{task['id']}"
     rpc = client.app.state.runtime.rpc
     rpc.fail_turn = True
@@ -838,7 +838,7 @@ def test_removed_locked_owned_worktree_is_not_forced_or_relocated(client, reposi
 
     (repository / "unrelated.txt").write_text("keep this file")
     task = client.post(
-        f"/api/tasks/{new_task(client)['id']}/implement",
+        f"/api/tasks/{new_task(client, isolate=True)['id']}/implement",
         json={
             "operation_id": str(uuid4()),
             "text": "Inspect the workspace",
@@ -849,7 +849,8 @@ def test_removed_locked_owned_worktree_is_not_forced_or_relocated(client, reposi
     shutil.rmtree(task["root"])
     before = git.git(repository, "worktree", "list", "--porcelain", "-z")
     response = send_message(client, task, text="Explain the result")
-    assert response.status_code == 409 and response.json()["code"] == "worktree_exists"
+    assert response.status_code == 200
+    assert response.json()["root"] == task["root"]
     assert git.git(repository, "worktree", "list", "--porcelain", "-z") == before
     with client.app.state.factory() as db:
         saved = db.get(Task, task["id"])

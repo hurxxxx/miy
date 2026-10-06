@@ -1,11 +1,10 @@
-import asyncio
-import threading
+import shutil
 from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from conftest import complete, new_task, plan, planning_text, send_message
-from sqlalchemy import event, select
+from conftest import complete, new_task, notify, plan, planning_text, send_message
+from sqlalchemy import select
 
 from codex_console import attachments, git, store
 from codex_console.errors import ConsoleError
@@ -271,10 +270,10 @@ def test_restart_at_submission_boundary_keeps_lease_and_never_replays(client):
 
 
 @pytest.mark.parametrize("isolated", [False, True])
-def test_interrupted_implementation_keeps_root_after_explicit_confirmation(
+def test_interrupted_implementation_keeps_root_without_git_confirmation(
     client, repository, isolated
 ):
-    task = plan(client)
+    task = plan(client, isolate=isolated)
     if isolated:
         (repository / "hello.txt").write_text("unrelated change\n")
     endpoint = f"/api/tasks/{task['id']}/implement"
@@ -286,11 +285,6 @@ def test_interrupted_implementation_keeps_root_after_explicit_confirmation(
     (root / "hello.txt").write_text("interrupted implementation\n")
     client.portal.call(client.app.state.runtime.on_disconnect)
     recovered = client.post(f"/api/tasks/{task['id']}/recover", json={})
-    assert recovered.status_code == 409
-    assert recovered.json()["code"] == "workspace_confirmation_required"
-    with client.app.state.factory() as db:
-        assert db.get(WorkspaceLease, 1).task_id == task["id"]
-    recovered = client.post(f"/api/tasks/{task['id']}/recover", json={"confirm_workspace": True})
     assert recovered.status_code == 200
     assert recovered.json()["root"] == str(root)
     assert recovered.json()["stage"] == "review"
@@ -300,94 +294,101 @@ def test_interrupted_implementation_keeps_root_after_explicit_confirmation(
     assert (root / "hello.txt").read_text() == "interrupted implementation\n"
     complete(client, resumed.json())
     (root / "hello.txt").write_text("later external change\n")
-    assert (
-        client.post(endpoint, json={"operation_id": str(uuid4()), "revision_id": revision}).json()[
-            "code"
-        ]
-        == "workspace_changed"
-    )
+    resumed = client.post(endpoint, json={"operation_id": str(uuid4()), "revision_id": revision})
+    assert resumed.status_code == 200
+    assert (root / "hello.txt").read_text() == "later external change\n"
 
 
-def test_completion_fingerprint_failure_requires_recovery_without_moving_root(client, monkeypatch):
-    task = plan(client)
-    task = client.post(
-        f"/api/tasks/{task['id']}/implement",
-        json={
-            "operation_id": str(uuid4()),
-            "revision_id": task["revisions"][-1]["id"],
+@pytest.mark.parametrize("stage", ["plan", "implement"])
+@pytest.mark.parametrize("code", ["git_unavailable", "git_timeout", "output_too_large"])
+def test_git_and_command_failures_do_not_stop_native_turns(client, monkeypatch, stage, code):
+    task = new_task(client)
+    with client.app.state.factory.begin() as db:
+        db.get(Task, task["id"]).fingerprint = "legacy-baseline"
+
+    def unavailable(*args, **kwargs):
+        raise ConsoleError(code)
+
+    monkeypatch.setattr(git, "git", unavailable)
+    endpoint = f"/api/tasks/{task['id']}"
+    assert client.get(endpoint + "/git").status_code == 409
+    submitted = send_message(client, task, stage=stage)
+    assert submitted.status_code == 200
+    task = submitted.json()
+    notify(
+        client,
+        task,
+        "item/completed",
+        {
+            "item": {
+                "id": "failed-command",
+                "type": "commandExecution",
+                "status": "failed",
+                "exitCode": 127,
+                "aggregatedOutput": "Command unavailable",
+            }
         },
-    ).json()
-
-    def unavailable(root):
-        raise ConsoleError("git_unavailable")
-
-    monkeypatch.setattr(git, "fingerprint", unavailable)
-    result = complete(client, task)
-    assert result["status"] == "uncertain"
-    assert result["stage"] == "implement"
-    assert result["root"] == task["root"]
-    with client.app.state.factory() as db:
-        assert db.get(Task, task["id"]).fingerprint is not None
-        assert db.get(WorkspaceLease, 1).task_id == task["id"]
-
-
-def test_disconnect_waits_for_completion_without_blocking_event_loop(client, monkeypatch):
-    task = plan(client)
-    task = client.post(
-        f"/api/tasks/{task['id']}/implement",
-        json={"operation_id": str(uuid4()), "revision_id": task["revisions"][-1]["id"]},
-    ).json()
+    )
+    assert client.get(endpoint).json()["status"] == "running"
     runtime = client.app.state.runtime
-    started, release = threading.Event(), threading.Event()
-    original = git.fingerprint
+    client.portal.call(
+        runtime.on_message,
+        {
+            "id": 73,
+            "method": "item/tool/requestUserInput",
+            "params": {
+                "threadId": task["thread_id"],
+                "turnId": task["turn_id"],
+                "questions": [
+                    {"id": "next", "header": "Next step", "question": "How should I continue?"}
+                ],
+            },
+        },
+    )
+    waiting = client.get(endpoint).json()
+    assert waiting["status"] == "waiting"
+    question = waiting["requests"][0]
+    assert (
+        client.post(
+            endpoint + "/requests/" + question["id"],
+            json={"answers": {"next": ["Inspect the environment"]}},
+        ).status_code
+        == 200
+    )
+    assert client.get(endpoint).json()["status"] == "running"
+    finished = complete(client, task)
+    assert finished["status"] == "idle" and finished["error_code"] is None
+    assert not any(method == "turn/interrupt" for method, _ in client.app.state.runtime.rpc.calls)
+    with client.app.state.factory() as db:
+        assert db.get(WorkspaceLease, 1).task_id is None
+    assert send_message(client, task, stage=stage).status_code == 200
 
-    def slow_fingerprint(root):
-        started.set()
-        assert release.wait(3)
-        return original(root)
 
-    def limit_locks(connection):
-        # Make a regression fail within a bounded time instead of hanging pytest.
-        connection.exec_driver_sql("PRAGMA busy_timeout=500")
-
-    monkeypatch.setattr(git, "fingerprint", slow_fingerprint)
-    engine = runtime.factory.kw["bind"]
-    event.listen(engine, "begin", limit_locks)
-
-    async def scenario():
-        completion = asyncio.create_task(
-            runtime.on_message(
-                {
-                    "method": "turn/completed",
-                    "params": {
-                        "threadId": task["thread_id"],
-                        "turnId": task["turn_id"],
-                        "turn": {"id": task["turn_id"], "status": "completed"},
-                    },
-                }
-            )
-        )
-        assert await asyncio.to_thread(started.wait, 2)
-        disconnected = asyncio.create_task(runtime.on_disconnect())
-        try:
-            await asyncio.sleep(0.05)
-            assert not disconnected.done()
-        finally:
-            release.set()
-            results = await asyncio.wait_for(
-                asyncio.gather(completion, disconnected, return_exceptions=True), 2
-            )
-        assert results == [None, None]
-
-    try:
-        client.portal.call(scenario)
-    finally:
-        release.set()
-        event.remove(engine, "begin", limit_locks)
-    assert client.get("/healthz").status_code == 200
-    detail = client.get(f"/api/tasks/{task['id']}").json()
-    assert detail["status"] == "idle"
-    assert detail["stage"] == "review"
+@pytest.mark.parametrize("owned", [False, True])
+@pytest.mark.parametrize("stage", ["plan", "implement"])
+def test_missing_cwd_recovery_and_next_turn_are_delegated_to_codex(client, owned, stage):
+    task = new_task(client, isolate=owned)
+    task = send_message(client, task, stage=stage).json()
+    runtime = client.app.state.runtime
+    client.portal.call(runtime.on_disconnect)
+    root = Path(task["root"])
+    shutil.rmtree(root)
+    endpoint = f"/api/tasks/{task['id']}"
+    starts = sum(method == "turn/start" for method, _ in runtime.rpc.calls)
+    recovered = client.post(endpoint + "/recover", json={})
+    assert recovered.status_code == 200
+    assert recovered.json()["thread_id"] == task["thread_id"]
+    assert recovered.json()["root"] == str(root)
+    assert recovered.json()["isolated"] == owned
+    assert recovered.json()["status"] == "interrupted"
+    assert recovered.json()["error_code"] is None
+    assert not root.exists()
+    assert sum(method == "turn/start" for method, _ in runtime.rpc.calls) == starts
+    next_turn = send_message(client, task, stage=stage, text="Inspect the workspace and continue")
+    assert next_turn.status_code == 200
+    params = [params for method, params in runtime.rpc.calls if method == "turn/start"][-1]
+    assert params["cwd"] == str(root)
+    assert not root.exists()
 
 
 def test_failed_steer_preparation_can_retry_but_uncertain_steer_cannot(client, monkeypatch):

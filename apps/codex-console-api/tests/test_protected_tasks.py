@@ -44,7 +44,6 @@ def test_changed_protection_blocks_stored_root_before_git_or_thread(
         pytest.fail("Git must not access the protected task root")
 
     monkeypatch.setattr(git, "prepare_workspace", forbidden)
-    monkeypatch.setattr(git, "fingerprint", forbidden)
     response = submit(client, task, stage)
     assert response.status_code == 403
     assert response.json()["code"] == "path_denied"
@@ -76,7 +75,7 @@ def test_protected_recovery_and_rejoin_preserve_state(
     def forbidden(*args, **kwargs):
         pytest.fail("Recovery must not remove protected registrations")
 
-    monkeypatch.setattr(git, "remove_missing_worktree", forbidden)
+    monkeypatch.setattr(git, "git", forbidden)
     for suffix, body in (
         ("recover", {"confirm_workspace": True}),
         ("messages", {"operation_id": str(uuid4()), "text": "Continue"}),
@@ -124,7 +123,7 @@ def test_protected_approval_and_steering_block_but_interrupt_and_completion_work
     assert client.post(path + "/interrupt").status_code == 200
     finished = complete(client, task, status="interrupted")
     assert finished["status"] == "interrupted"
-    assert finished["error_code"] == "path_denied"
+    assert finished["error_code"] is None
 
 
 def test_missing_protected_worktree_is_not_unregistered(client, repository, tmp_path, monkeypatch):
@@ -138,7 +137,7 @@ def test_missing_protected_worktree_is_not_unregistered(client, repository, tmp_
     def forbidden(*args, **kwargs):
         pytest.fail("Protected missing worktree registration must be preserved")
 
-    monkeypatch.setattr(git, "remove_missing_worktree", forbidden)
+    monkeypatch.setattr(git, "git", forbidden)
     assert submit(client, task).status_code == 403
     with client.app.state.factory() as db:
         row = db.get(Task, task["id"])
@@ -153,16 +152,19 @@ def test_protection_failure_during_preparation_records_failure_and_releases_leas
 
     task = new_task(client)
 
-    def preparation(*args, **kwargs):
+    async def preparation(*args, **kwargs):
         protect_existing(client, repository, tmp_path)
         raise ConsoleError("path_denied", 403)
 
-    monkeypatch.setattr(git, "prepare_workspace", preparation)
+    runtime = client.app.state.runtime
+    original = runtime.ensure_thread
+    monkeypatch.setattr(runtime, "ensure_thread", preparation)
     assert submit(client, task).status_code == 403
     with client.app.state.factory() as db:
         row = db.get(Task, task["id"])
         assert row.status == "failed" and row.error_code == "path_denied"
         assert db.get(Operation, row.current_operation_id).state == "failed"
+    monkeypatch.setattr(runtime, "ensure_thread", original)
     # A different allowed task can acquire the execution lease.
     assert submit(client, new_task(client), "plan").status_code == 200
 
@@ -244,13 +246,12 @@ def test_protected_paths_resolve_aliases_and_missing_descendants(settings, repos
     settings.require_allowed_paths(repository)
 
 
-def test_protected_prospective_worktree_is_checked_before_git_add(client, repository):
-    from codex_console.models import Operation
+def test_explicit_isolation_checks_prospective_target_before_git_add(client, repository):
+    from codex_console.errors import ConsoleError
 
     task = new_task(client)
     settings = client.app.state.settings
     target = settings.worktree_root / f"codex-{task['id']}"
-    # The configured storage parent remains allowed; only this child is protected.
     current = Settings(
         **{**settings.model_dump(), "protected_workspaces": [target]}, _env_file=None
     )
@@ -259,20 +260,20 @@ def test_protected_prospective_worktree_is_checked_before_git_add(client, reposi
     before = subprocess.check_output(
         ["git", "-C", str(repository), "worktree", "list", "--porcelain"]
     )
-    response = submit(client, task)
-    assert response.status_code == 403 and response.json()["code"] == "path_denied"
+    with pytest.raises(ConsoleError) as error:
+        git.prepare_workspace(
+            repository,
+            task["id"],
+            base_ref=current.worktree_base_ref,
+            worktree_root=current.worktree_root,
+            validate_target=current.require_allowed_paths,
+        )
+    assert error.value.code == "path_denied"
     assert not target.exists()
     assert (
         subprocess.check_output(["git", "-C", str(repository), "worktree", "list", "--porcelain"])
         == before
     )
     assert (repository / "dirty.txt").read_text() == "preserve"
-    assert not any(
-        method in ("thread/start", "turn/start") for method, _ in client.app.state.runtime.rpc.calls
-    )
-    with client.app.state.factory() as db:
-        row = db.get(Task, task["id"])
-        assert row.status == "failed" and row.root == str(repository)
-        assert db.get(Operation, row.current_operation_id).state == "failed"
-    # Blocking one target does not prevent another allowed task from taking the lease.
-    assert submit(client, new_task(client)).status_code == 200
+    # Ordinary execution does not select or access a prospective isolation directory.
+    assert submit(client, task).status_code == 200

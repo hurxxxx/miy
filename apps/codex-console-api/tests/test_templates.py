@@ -180,7 +180,9 @@ def test_nested_template_preserves_cwd_when_isolated_and_diff_uses_repository_pa
     git.git(repository, "add", "component")
     git.git(repository, "commit", "-m", "nested fixture")
     (repository / "unrelated.txt").write_text("Keep this existing work\n")
-    row = template(client, directory="component", references=["entry.txt"], stage="implement")
+    row = template(
+        client, directory="component", references=["entry.txt"], stage="implement", isolate=True
+    )
     task = launch(client, row).json()
     assert task["status"] == "running", task.get("error_code")
     root = Path(task["root"])
@@ -193,9 +195,8 @@ def test_nested_template_preserves_cwd_when_isolated_and_diff_uses_repository_pa
     (root / "new.txt").write_text("first\n")
     assert {r["path"] for r in git.changes(root)} == {"component/entry.txt", "component/new.txt"}
     assert git.diff(root, "component/entry.txt")["new"] == "after\n"
-    before = git.fingerprint(root)
     (root / "new.txt").write_text("second\n")
-    assert git.fingerprint(root) != before
+    assert git.diff(root, "component/new.txt")["new"] == "second\n"
     assert (repository / "unrelated.txt").read_text() == "Keep this existing work\n"
 
 
@@ -326,7 +327,9 @@ def test_parent_and_nested_writers_share_one_workspace_lease(client, repository)
     assert response.status_code == 200
     root_task = response.json()
     assert root_task["status"] == "running"
-    row = template(client, directory="component", references=["entry.txt"], stage="implement")
+    row = template(
+        client, directory="component", references=["entry.txt"], stage="implement"
+    )
     blocked = launch(client, row).json()
     assert blocked["status"] == "failed" and blocked["error_code"] == "workspace_busy"
     isolated = launch(client, template(client, isolate=True, stage="implement")).json()
