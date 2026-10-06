@@ -766,6 +766,7 @@ API·개발 PostgreSQL·Redis의 수신 주소는 loopback으로 유지한다. `
 기본 설정에서는 API 시작 전에 Alembic 마이그레이션을 실행한다.
 DB를 지우거나 `stamp`로 오류를 건너뛰지 않는다. 이전 스키마라면
 [API 마이그레이션 안내](apps/api/README.md#alembic)를 먼저 확인한다.
+AI 보고서를 저장하기 전에는 [AI 산출물 번호 시퀀스 복구](docs/domains/ai/execution.md#artifacts-and-visibility)를 포함한 현재 head까지 적용한다. 기존 산출물과 이미 할당한 번호는 유지하며 코드 롤백 시 시퀀스를 삭제하지 않는다.
 
 기존 Docker 방식을 선택한 경우에만 위 실행 명령 대신 `pnpm dev:minimal`을 사용하고,
 컨테이너 상태는 `pnpm dev:infra:minimal:status`로 확인한다. 네이티브 구성에서는 이 명령들을 사용하지 않는다.

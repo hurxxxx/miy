@@ -48,6 +48,7 @@ def _migration_config(dsn: str | None = None) -> Config:
 def test_repository_starts_at_company_deployment_baseline() -> None:
     revisions = list(ScriptDirectory.from_config(_migration_config()).walk_revisions())
     assert [revision.revision for revision in revisions] == [
+        "artifact_sequences_20261006",
         "miy_api_keys_20261001",
         "decision_defaults_20260927",
         "llm_cap_defaults_20260918",
