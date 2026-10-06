@@ -979,6 +979,7 @@ AI 보호 정책을 끄지 않는다. 추가 키·서버가 필요한 기능은 
   세 포트·management 단일 프록시 경로·읽기 전용 모니터·병렬 작업 제한을 설정한다. 템플릿 실행기는 별도 고정 CLI와 `template-current` 릴리스를 사용한다.
 - 앱 운영 집계를 제공할 설치는 [운영 조회와 개발 화면 연결](docs/apps/codex-console/README.md#운영-조회와-개발-화면-연결)에 따라 MIY 조회 API를 먼저 배포하고 전용 키·origin을 Workbench 환경 파일에 설치한다. `glab`은 서비스 OS 사용자로 내부 GitLab에 인증한다. Studio·앱 관리·플랫폼 화면, 미설정/권한 거부 표시, 기존 작업, SQLite 백업·복원을 확인한다.
 - 지침·스킬에서는 프로젝트 폴더와 스킬 참고 문서의 탐색·내부 링크, 관리자·시스템·플러그인 스킬의 읽기 전용 표시를 확인한다. `MIY_CODEX_CONSOLE_WORKSPACE`는 대상 Git 저장소이며 MIY 저장소에 한정되지 않는다. **Codex 스킬 발견 상태**와 **지침 탐색 설정**으로 작업 경로별 native 결과·대체 파일명·합산 제한을 확인한다. 설치 파일 목록과 실제 실행 가능 범위는 [지침·스킬 계약](docs/apps/codex-console/README.md#서비스와-작업-현황)을 따른다.
+- [중단 후 계속하기](docs/apps/codex-console/README.md#실행-설정과-중단-후-계속하기)를 확인한다. 일반 실행과 상태 확인에는 Git 사전 검사가 없으며, 삭제된 작업 경로나 명령 실패는 같은 대화에서 Codex가 판단한다. 새 작업·템플릿의 명시적 격리를 사용할 때만 [작업 공간 설정](docs/apps/codex-console/README.md#브랜치와-작업-공간)의 기준 ref와 워크트리 경로를 준비한다.
 - 설치 호스트의 콘솔 Vite와 공개 HTTPS 주소에서 각각 작업실 로그인을 확인한다.
   접속 범위와 쿠키 계약은 [Codex Console 접속](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
 - 같은 개발 사이트를 로컬·원격 주소로 함께 열면 `MIY_CODEX_CONSOLE_LAUNCH_URL_BY_HOST`로

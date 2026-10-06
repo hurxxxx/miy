@@ -246,16 +246,19 @@ def client(settings, client_role):
     engine.dispose()
 
 
-def new_task(client, title="A useful change"):
-    result = client.post("/api/tasks", json={"title": title})
+def new_task(client, title="A useful change", *, isolate=False):
+    result = client.post("/api/tasks", json={"title": title, "isolate": isolate})
     assert result.status_code == 200
     return result.json()
 
 
 def send_message(client, task, stage="plan", text="Inspect the repository", operation_id=None):
+    body = {"text": text, "operation_id": operation_id or str(uuid4())}
+    if stage != "implement":
+        body["stage"] = stage
     return client.post(
-        f"/api/tasks/{task['id']}/messages",
-        json={"text": text, "stage": stage, "operation_id": operation_id or str(uuid4())},
+        f"/api/tasks/{task['id']}/" + ("implement" if stage == "implement" else "messages"),
+        json=body,
     )
 
 
@@ -297,7 +300,27 @@ def complete(client, task, body="An actionable plan", status="completed", *, doc
     return client.get(f"/api/tasks/{task['id']}").json()
 
 
-def plan(client):
-    task = new_task(client)
+def plan(client, *, isolate=False):
+    task = new_task(client, isolate=isolate)
     task = send_message(client, task, "plan").json()
     return complete(client, task)
+
+
+def isolate_existing_task(client, task):
+    """Represent a saved task that changed cwd in an earlier Console release."""
+    from pathlib import Path
+
+    from codex_console import git
+    from codex_console.models import Task
+
+    cfg = client.app.state.settings
+    root, _ = git.prepare_workspace(
+        Path(task["root"]),
+        task["id"],
+        base_ref=cfg.worktree_base_ref,
+        worktree_root=cfg.worktree_root,
+        validate_target=cfg.require_allowed_paths,
+    )
+    with client.app.state.factory.begin() as db:
+        saved = db.get(Task, task["id"])
+        saved.root, saved.worktree_owned = str(root), True

@@ -718,7 +718,7 @@ def test_completion_expires_unanswered_questions(client):
     assert result["status"] == "interrupted"
 
 
-def test_dirty_dev_is_preserved_in_isolated_worktree(client, repository):
+def test_dirty_workspace_is_passed_to_codex_without_automatic_isolation(client, repository):
     task = plan(client)
     (repository / "hello.txt").write_text("unrelated edit\n")
     result = client.post(
@@ -726,12 +726,12 @@ def test_dirty_dev_is_preserved_in_isolated_worktree(client, repository):
         json={"operation_id": str(uuid4()), "revision_id": task["revisions"][-1]["id"]},
     )
     assert result.status_code == 200
-    assert result.json()["isolated"] is True
+    assert result.json()["isolated"] is False
     assert (repository / "hello.txt").read_text() == "unrelated edit\n"
-    assert result.json()["root"] != str(repository)
+    assert result.json()["root"] == str(repository)
 
 
-def test_current_task_dirty_changes_can_continue_but_external_edits_cannot(client, repository):
+def test_external_edits_are_left_for_codex_to_assess(client, repository):
     task = plan(client)
     revision = task["revisions"][-1]["id"]
     endpoint = f"/api/tasks/{task['id']}/implement"
@@ -742,12 +742,9 @@ def test_current_task_dirty_changes_can_continue_but_external_edits_cannot(clien
     task = complete(client, task)
     assert task["status"] == "idle"
     (repository / "hello.txt").write_text("external change\n")
-    assert (
-        client.post(endpoint, json={"operation_id": str(uuid4()), "revision_id": revision}).json()[
-            "code"
-        ]
-        == "workspace_changed"
-    )
+    response = client.post(endpoint, json={"operation_id": str(uuid4()), "revision_id": revision})
+    assert response.status_code == 200
+    assert (repository / "hello.txt").read_text() == "external change\n"
 
 
 def test_diff_blocks_secrets_and_symlink_escape(client, repository, tmp_path):
@@ -765,17 +762,6 @@ def test_diff_blocks_secrets_and_symlink_escape(client, repository, tmp_path):
         client.get(f"/api/tasks/{task['id']}/diff", params={"path": "../outside.txt"}).status_code
         != 200
     )
-
-
-def test_untracked_file_boundaries_are_included_in_workspace_fingerprint(repository):
-    from codex_console.git import fingerprint
-
-    (repository / "a.txt").write_bytes(b"a")
-    (repository / "b.txt").write_bytes(b"bc")
-    previous = fingerprint(repository)
-    (repository / "a.txt").write_bytes(b"ab")
-    (repository / "b.txt").write_bytes(b"c")
-    assert fingerprint(repository) != previous
 
 
 def test_failed_turn_never_becomes_success(client):

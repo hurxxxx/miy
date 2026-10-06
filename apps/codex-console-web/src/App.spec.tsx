@@ -722,6 +722,49 @@ it('retains retry identity on failed recovery and creates a new one only after s
   expect(attempts[2]).not.toBe(attempts[0]);
 });
 
+it('recovers implementation state without a Git confirmation or replaying a request', async () => {
+  detail = {
+    ...detail,
+    stage: 'implement',
+    status: 'uncertain',
+    error_code: 'codex_disconnected',
+  };
+  const confirmation = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  recover = async () => {
+    detail = {
+      ...detail,
+      status: 'interrupted',
+      stage: 'review',
+      error_code: null,
+    };
+    return detail;
+  };
+  try {
+    render(<App />);
+    fireEvent.click(
+      await screen.findByRole('button', { name: '실행 상태 확인' }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: '실행 상태 확인' }),
+      ).toBeNull(),
+    );
+    expect(confirmation).not.toHaveBeenCalled();
+    expect(
+      vi.mocked(api).mock.calls.some(([path]) => path.endsWith('/recover')),
+    ).toBe(true);
+    expect(
+      vi
+        .mocked(api)
+        .mock.calls.some(
+          ([path]) => path.endsWith('/messages') || path.endsWith('/implement'),
+        ),
+    ).toBe(false);
+  } finally {
+    confirmation.mockRestore();
+  }
+});
+
 it('executes an explicit prompt with selected model and YOLO without requiring a document', async () => {
   await openAndCompose();
   fireEvent.click(await screen.findByRole('button', { name: '설정 변경' }));

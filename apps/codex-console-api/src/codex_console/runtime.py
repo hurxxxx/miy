@@ -409,8 +409,8 @@ class Runtime:
                 )
             workspace = (
                 self.settings.worktree_root / f"codex-{task_id}"
-                if force_isolated
-                else await asyncio.to_thread(git.repository_root, root)
+                if force_isolated or selected.worktree_owned
+                else self.settings.workspace
             )
             with self.factory.begin() as db:
                 task = self.require_task(db, task_id, locked=True)
@@ -513,43 +513,22 @@ class Runtime:
                 store.changed(db, task, "turn.submitting")
             submitted = False
             try:
-                if stage == "implement" or force_isolated:
-                    with self.factory() as db:
-                        task = self.require_task(db, task_id)
-                        self.require_allowed_task(task)
-                        root, previous, owned = (
-                            Path(task.root),
-                            task.fingerprint,
-                            task.worktree_owned,
-                        )
-                    if not owned:
-                        root, isolated = await asyncio.to_thread(
-                            git.prepare_workspace,
-                            root,
-                            task_id,
-                            previous,
-                            base_ref=self.settings.worktree_base_ref,
-                            worktree_root=self.settings.worktree_root,
-                            validate_target=self.settings.require_allowed_paths,
-                            force_isolated=force_isolated,
-                        )
-                        with self.factory.begin() as db:
-                            task = self.require_task(db, task_id, locked=True)
-                            task.root, task.worktree_owned = str(root), isolated
-                    elif previous and await asyncio.to_thread(git.fingerprint, root) != previous:
-                        raise ConsoleError("workspace_changed")
-                    baseline = await asyncio.to_thread(git.fingerprint, root)
-                    workspace = await asyncio.to_thread(git.repository_root, root)
+                # Ordinary turns use Codex's native cwd/tool handling. Git state is a
+                # display concern, not a prerequisite for asking Codex to repair it.
+                # A template's explicitly requested isolation remains an input contract.
+                if force_isolated:
+                    root, isolated = await asyncio.to_thread(
+                        git.prepare_workspace,
+                        root,
+                        task_id,
+                        base_ref=self.settings.worktree_base_ref,
+                        worktree_root=self.settings.worktree_root,
+                        validate_target=self.settings.require_allowed_paths,
+                    )
                     with self.factory.begin() as db:
                         prepared = self.require_task(db, task_id, locked=True)
-                        prepared.fingerprint = baseline
-                        store.lease(
-                            db,
-                            task_id,
-                            workspace=workspace,
-                            stage=stage,
-                            limit=self.settings.max_active_tasks,
-                        )
+                        self.require_allowed_task(prepared)
+                        prepared.root, prepared.worktree_owned = str(root), isolated
                 result = await self.ensure_thread(task_id, rpc)
                 thread_id = result["thread"]["id"]
                 session_model = result["model"]
@@ -827,35 +806,6 @@ class Runtime:
                         )
             # Native completion or explicit reconciliation owns lease release.
 
-    def reset_removed_workspace(self, db, task):
-        self.require_allowed_task(task)
-        if not task.worktree_owned or Path(task.root).exists():
-            return False
-        if not self.settings.workspace.is_dir():
-            raise ConsoleError("workspace_unavailable")
-        target = Path(task.root)
-        relative = Path(".")
-        if task.template_snapshot:
-            relative = Path(task.template_snapshot["definition"]["directory"])
-            expected = self.settings.worktree_root / f"codex-{task.id}"
-            if target == expected / relative:
-                target = expected
-                if target.exists():
-                    # The checkout still exists; only the selected cwd was removed.
-                    raise ConsoleError("workspace_unavailable")
-        git.remove_missing_worktree(self.settings.workspace, target)
-        restored = self.settings.workspace / relative
-        self.settings.require_allowed_paths(restored)
-        if not restored.is_dir():
-            raise ConsoleError("workspace_unavailable")
-        task.root = str(restored)
-        task.worktree_owned = False
-        task.fingerprint = None
-        task.approved_revision = None
-        task.error_code = "workspace_removed"
-        store.changed(db, task, "workspace.relocated")
-        return True
-
     @staticmethod
     def submission_state(db, task):
         operation = (
@@ -895,9 +845,7 @@ class Runtime:
         with self.factory() as db:
             task = self.require_task(db, task_id)
             self.require_allowed_task(task)
-            uncertain = task.status == "uncertain"
-            missing = task.worktree_owned and not Path(task.root).exists()
-            if not uncertain and not missing:
+            if task.status != "uncertain":
                 return False
             expected = self.submission_state(db, task)
             thread_id = task.thread_id
@@ -914,7 +862,7 @@ class Runtime:
                 turns = [
                     turn for turn in thread.get("turns", []) if turn.get("status") == "inProgress"
                 ]
-                if missing or len(turns) != 1:
+                if len(turns) != 1:
                     raise ConsoleError("turn_not_finished")
                 async with self.task_gate(task_id):
                     with self.factory.begin() as db:
@@ -949,14 +897,10 @@ class Runtime:
                         task.error_code = None
                         store.changed(db, task, "thread.reconnected")
                 return turn["id"]
-        await self.recover(
-            task_id, confirm_workspace=True, expected_submission=expected, reset_missing=missing
-        )
+        await self.recover(task_id, expected_submission=expected)
         return False
 
-    async def recover(
-        self, task_id, *, confirm_workspace=False, expected_submission=None, reset_missing=False
-    ):
+    async def recover(self, task_id, *, expected_submission=None):
         async with self.task_gate(task_id):
             with self.factory.begin() as db:
                 task = self.require_task(db, task_id, locked=True)
@@ -966,8 +910,6 @@ class Runtime:
                         raise ConsoleError("task_busy")
                 if task.status in store.ACTIVE:
                     raise ConsoleError("task_busy")
-                if reset_missing:
-                    self.reset_removed_workspace(db, task)
                 if not task.thread_id:
                     # Thread identity is committed before turn submission. This also
                     # recovers pre-upgrade crashes with a legacy pending operation.
@@ -994,24 +936,11 @@ class Runtime:
                     store.changed(db, task, "submission.recovered")
                     return
                 implementation = task.stage in ("implement", "review")
-                root = Path(task.root)
-                relocated = bool(
-                    task.last_execution_root
-                    and task.last_execution_root != task.root
-                    and not task.worktree_owned
-                )
-                if implementation and not confirm_workspace:
-                    raise ConsoleError("workspace_confirmation_required")
             rpc = await self.authenticated_rpc()
             result = await self.ensure_thread(task_id, rpc)
             thread = result["thread"]
             if (thread.get("status") or {}).get("type") == "active":
                 raise ConsoleError("turn_not_finished")
-            baseline = (
-                await asyncio.to_thread(git.fingerprint, root)
-                if implementation and not relocated
-                else None
-            )
             with self.factory.begin() as db:
                 task = self.require_task(db, task_id, locked=True)
                 task.error_code = None
@@ -1025,7 +954,7 @@ class Runtime:
                 task.last_execution_root = result["cwd"]
                 task.previous_permissions = task.previous_execution_root = None
                 if implementation:
-                    task.fingerprint, task.stage = baseline, "review"
+                    task.fingerprint, task.stage = None, "review"
                 store.invalidate_pending(db, task_id)
                 store.reconcile_history(db, task, thread.get("turns", []))
                 store.release(db, task_id)
@@ -1173,9 +1102,6 @@ class Runtime:
                     and completed_turn != current.turn_id
                 ):
                     return
-                fingerprint_needed = (
-                    not child and method == "turn/completed" and current.stage == "implement"
-                )
             if child:
                 with self.factory.begin() as db:
                     current = self.require_task(db, task_id, locked=True)
@@ -1184,13 +1110,6 @@ class Runtime:
                         workbench.observe_usage(db, current, thread_id, params)
                 await self.finish_descendants(task_id)
                 return
-            fingerprint, fingerprint_error = None, None
-            if fingerprint_needed:
-                try:
-                    self.require_allowed_task(current)
-                    fingerprint = await asyncio.to_thread(git.fingerprint, Path(current.root))
-                except ConsoleError as exc:
-                    fingerprint_error = exc
             with self.factory.begin() as db:
                 task = self.require_task(db, task_id, locked=True)
                 turn_id = params.get("turnId") or (params.get("turn") or {}).get("id")
@@ -1278,20 +1197,7 @@ class Runtime:
                         )
                         store.project_plan(db, task, turn["id"], [r.payload for r in rows])
                     if task.stage == "implement":
-                        try:
-                            self.require_allowed_task(task)
-                            if fingerprint_error:
-                                raise fingerprint_error
-                            task.fingerprint = fingerprint
-                        except ConsoleError as exc:
-                            if exc.code == "path_denied":
-                                task.status, task.error_code = "interrupted", "path_denied"
-                            elif self.reset_removed_workspace(db, task):
-                                task.stage = "review"
-                            else:
-                                task.status, task.error_code = "uncertain", "workspace_changed"
-                        else:
-                            task.stage = "review"
+                        task.fingerprint, task.stage = None, "review"
                     store.invalidate_pending(db, task.id, thread_id=task.thread_id)
                     if task.status != "uncertain":
                         store.release(db, task.id)
@@ -1375,32 +1281,15 @@ class Runtime:
                 )
 
     async def finish_descendants(self, task_id):
-        # Caller holds task_gate, but never a database write lock across filesystem work.
-        with self.factory() as db:
-            task = self.require_task(db, task_id)
-            if task.status in (*store.ACTIVE, "uncertain") or agents.busy_descendants(db, task.id):
-                return
-        fingerprint, failed = None, False
-        if task.status == "idle" and task.stage == "review":
-            try:
-                self.require_allowed_task(task)
-                fingerprint = await asyncio.to_thread(git.fingerprint, Path(task.root))
-            except ConsoleError:
-                failed = True
+        # Native root/child state owns completion; Git inspection cannot hold the lease.
         with self.factory.begin() as db:
             current = self.require_task(db, task_id, locked=True)
-            if (
-                current.status != task.status
-                or current.root != task.root
-                or agents.busy_descendants(db, task_id)
+            if current.status in (*store.ACTIVE, "uncertain") or agents.busy_descendants(
+                db, task_id
             ):
                 return
-            if failed:
-                current.status, current.error_code = "uncertain", "workspace_changed"
-            else:
-                if fingerprint is not None:
-                    current.fingerprint = fingerprint
-                store.release(db, task_id)
+            current.fingerprint = None
+            store.release(db, task_id)
             store.changed(db, current, "agents.settled")
 
     async def register_thread(self, thread, *, generation=None):
