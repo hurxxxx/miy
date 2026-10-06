@@ -593,6 +593,8 @@ async def test_public_stop_keeps_a_lost_acceptance_recoverable(application_postg
 @pytest.mark.parametrize(
     "contract",
     [
+        "text",
+        "text_missing",
         "structured",
         "tool_request",
         "tool_result",
@@ -646,7 +648,7 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
         {"value": 42}
         if contract == "structured"
         else {"content": "Application result received"}
-        if contract in {"tool_result", "forced_final"}
+        if contract in {"text", "text_missing", "tool_result", "forced_final"}
         else {"tool_calls": [{"name": "fixture.lookup", "arguments": {"value": 42}}]}
     )
     try:
@@ -688,7 +690,10 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
                 return {"run_id": "run_native_fixture", "status": "running"}
 
             async def iter_run_events(self, profile, run_id):
-                for result in ({"value": "wrong type"}, expected_result):
+                results = () if contract == "text_missing" else (
+                    {"value": "wrong type"}, expected_result
+                )
+                for result in results:
                     body = json.dumps(
                         {
                             "jsonrpc": "2.0",
@@ -758,6 +763,7 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
         )
         if contract != "structured":
             options.pop("output_schema")
+        if contract not in {"text", "text_missing", "structured"}:
             payload["tools"] = [
                 {
                     "type": "function",
@@ -819,6 +825,19 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
                 assert len(runs) == (1 if contract == "execution_failure" else 0)
                 assert all(run.execution_claim_token is None for run in runs)
             return
+        if contract == "text_missing":
+            with pytest.raises(LlmProviderError, match="invalid_output"):
+                if mode == "sync":
+                    await asyncio.to_thread(
+                        workloads.complete_workload, context, resolved, payload, **options
+                    )
+                else:
+                    async for _ in workloads.stream_workload(context, resolved, payload, **options):
+                        pytest.fail("Unsubmitted text must not become successful output")
+            with factory() as db:
+                run = db.get(HermesRunProjection, attempts[0])
+                assert run.status == "invalid_output" and run.output_payload is None
+            return
         if mode == "sync":
             result = await asyncio.to_thread(
                 workloads.complete_workload, context, resolved, payload, **options
@@ -835,7 +854,7 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
                 assert chunks[1].tool_call_id == chunks[0].tool_call_id
                 assert json.loads(chunks[1].args_delta) == {"value": 42}
                 assert chunks[-1].finish_reason == "tool_calls"
-            elif contract in {"tool_result", "forced_final"}:
+            elif contract in {"text", "tool_result", "forced_final"}:
                 assert chunks[0].text == "Application result received"
                 assert chunks[-1].finish_reason == "stop"
         if mode == "sync" and contract == "tool_request":
@@ -844,7 +863,13 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
                 result["choices"][0]["message"]["tool_calls"][0]["function"]["name"]
                 == "fixture.lookup"
             )
-        assert result["structured_output"] == expected_result
+        if contract == "text":
+            assert result["structured_output"] is None
+            if mode == "sync":
+                assert result["choices"][0]["message"] == expected_result
+                assert result["choices"][0]["finish_reason"] == "stop"
+        else:
+            assert result["structured_output"] == expected_result
         assert result["usage"]["total_tokens"] == 10
         assert len(attempts) == 1
         assert [item["accepted"] for item in submissions] == [False, True]
@@ -928,6 +953,10 @@ async def test_nested_generation_respects_capacity_without_waiting_for_its_paren
                 return {"run_id": "native_nested", "status": "running"}
 
             async def iter_run_events(self, profile, run_id):
+                with factory() as db:
+                    run = db.get(HermesRunProjection, attempts[-1])
+                    run.output_payload = {"content": "nested result"}
+                    db.commit()
                 yield {"event": "run.completed", "output": "nested result"}
 
         monkeypatch.setattr(workloads, "ensure_profile_binding", ensure)
