@@ -92,6 +92,72 @@ class EnvContractScannerTest(unittest.TestCase):
             report = env_contract.build_report(root)
             self.assertTrue(report.ok, self.messages(report))
 
+    def test_rolling_cutover_accepts_peer_before_runtime_config_contract(self):
+        source = MODULE_PATH.parents[1]
+        with tempfile.TemporaryDirectory() as folder:
+            parent = Path(folder)
+            dev = parent / "dev"
+            dev.mkdir()
+            shutil.copytree(source / "config", dev / "config")
+            for relative_path in env_contract.SETTINGS_FILE_PARTS:
+                destination = dev / relative_path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source / relative_path, destination)
+            template = (source / ".env.example").read_text()
+            (dev / ".env.example").write_text(template)
+            (dev / ".env").write_text(template)
+
+            prod = parent / "prod"
+            api_settings = prod / env_contract.SETTINGS_FILE_PARTS[0]
+            worker_settings = prod / env_contract.SETTINGS_FILE_PARTS[1]
+            api_settings.parent.mkdir(parents=True)
+            worker_settings.parent.mkdir(parents=True)
+            api_settings.write_text(
+                "class Settings:\n"
+                '    model_config = SettingsConfigDict(env_prefix="LEGACY_")\n'
+                "    postgres_dsn: str\n"
+            )
+            worker_settings.write_text(
+                "class Settings:\n"
+                '    model_config = SettingsConfigDict(env_prefix="LEGACY_")\n'
+                "    worker_broker_url: str\n"
+            )
+            legacy_env = (
+                "LEGACY_APP_BIND_HOST=127.0.0.1\n"
+                "LEGACY_APP_FORWARDED_ALLOW_IPS=127.0.0.1\n"
+                "LEGACY_APP_PORT=8000\n"
+                "LEGACY_APP_PUBLIC_URL=https://example.test\n"
+                "LEGACY_POSTGRES_DSN=postgresql://example.test/app\n"
+                "LEGACY_WORKER_BROKER_URL=redis://example.test/0\n"
+            )
+            (prod / ".env.example").write_text(legacy_env)
+            (prod / ".env").write_text(legacy_env)
+            (prod / "scripts").mkdir()
+            legacy_contract = (
+                "from pathlib import Path\n"
+                f"SETTINGS_FILE_PARTS = [Path({str(env_contract.SETTINGS_FILE_PARTS[0])!r}), "
+                f"Path({str(env_contract.SETTINGS_FILE_PARTS[1])!r})]\n"
+                "DEPLOY_ENV_KEYS = frozenset(["
+                "'LEGACY_APP_BIND_HOST', 'LEGACY_APP_FORWARDED_ALLOW_IPS', "
+                "'LEGACY_APP_PORT', 'LEGACY_APP_PUBLIC_URL'])\n"
+                'FORBIDDEN_ENV_KEYS = frozenset(["OLD_RETIRED_KEY"])\n'
+                "SKIP_SETTINGS_KEYS = frozenset([])\n"
+            )
+            (prod / "scripts/check-env-contract.py").write_text(legacy_contract)
+
+            report = env_contract.build_report(dev)
+            self.assertTrue(report.ok, self.messages(report))
+
+            shutil.copyfile(MODULE_PATH, prod / "scripts/check-env-contract.py")
+            report = env_contract.build_report(dev)
+            self.assertIn("invalid_runtime_config", self.codes(report))
+
+            (prod / "scripts/check-env-contract.py").write_text(legacy_contract)
+            (prod / "config").mkdir()
+            (prod / "config/runtime.json").write_text("{}")
+            report = env_contract.build_report(dev)
+            self.assertIn("invalid_runtime_config", self.codes(report))
+
     def test_build_report_rejects_invalid_runtime_config_without_values(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

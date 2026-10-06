@@ -621,6 +621,7 @@ def _checkout_report(
     deploy_env_keys: Iterable[str] = DEPLOY_ENV_KEYS,
     skip_settings_keys: Iterable[str] = SKIP_SETTINGS_KEYS,
     scan_sources: bool,
+    allow_legacy_runtime_config: bool = False,
 ) -> EnvContractReport:
     sys.path.insert(0, str(ROOT / "apps/api/src"))
     from miy_api.core.runtime_config import (
@@ -628,13 +629,17 @@ def _checkout_report(
         load_runtime_document,
     )
 
+    runtime_paths = (root / "config/runtime.json", root / "config/runtime.schema.json")
     config_failure = None
-    try:
-        runtime_document = load_runtime_document(root)
-        public_keys = frozenset(runtime_document["defaults"])
-    except RuntimeConfigError as error:
+    if allow_legacy_runtime_config and not any(path.exists() for path in runtime_paths):
         public_keys = frozenset()
-        config_failure = EnvContractFailure(code="invalid_runtime_config", message=str(error))
+    else:
+        try:
+            runtime_document = load_runtime_document(root)
+            public_keys = frozenset(runtime_document["defaults"])
+        except RuntimeConfigError as error:
+            public_keys = frozenset()
+            config_failure = EnvContractFailure(code="invalid_runtime_config", message=str(error))
     env_name = current_env_name(root)
     env_files = tuple(
         load_env_file(name, path) for name, path in env_file_paths(root, env_name).items()
@@ -727,6 +732,15 @@ def _checkout_peer_contract(
     )
 
 
+def _checkout_uses_runtime_config(root: Path) -> bool:
+    """Inspect the peer contract without importing or executing peer code."""
+    tree = ast.parse((root / "scripts/check-env-contract.py").read_text())
+    return any(
+        isinstance(node, ast.Name) and node.id == "load_runtime_document"
+        for node in ast.walk(tree)
+    )
+
+
 def build_report(root: Path = ROOT) -> EnvContractReport:
     report = _checkout_report(root, forbidden_env_keys=FORBIDDEN_ENV_KEYS, scan_sources=True)
     # Dev can be ahead of production. Validate both, each against the template,
@@ -744,6 +758,7 @@ def build_report(root: Path = ROOT) -> EnvContractReport:
                 deploy_env_keys=deploy_env_keys,
                 skip_settings_keys=skip_settings_keys,
                 scan_sources=False,
+                allow_legacy_runtime_config=not _checkout_uses_runtime_config(peer),
             )
         except (OSError, ValueError, SyntaxError):
             failure = EnvContractFailure(
