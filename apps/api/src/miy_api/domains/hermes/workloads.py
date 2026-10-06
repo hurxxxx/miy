@@ -72,6 +72,17 @@ async def _run_workload(
         if output_schema is not None:
             raise LlmProviderError("Application tools and an explicit result schema cannot mix.")
         payload, output_schema = tool_decision
+    text_result = output_schema is None
+    if text_result:
+        # The shared native profile exposes the submission tool for every run.
+        # Give plain completions a valid result contract too; the agent's final
+        # acknowledgement or tool diagnostics are not the application's content.
+        output_schema = {
+            "type": "object",
+            "properties": {"content": {"type": "string"}},
+            "required": ["content"],
+            "additionalProperties": False,
+        }
     if output_schema is not None:
         Draft202012Validator.check_schema(output_schema)
     policy = HermesModelPolicy.from_pool(
@@ -86,6 +97,11 @@ async def _run_workload(
             "\n\nSubmit your result with miy_submit_result. The result must satisfy this JSON Schema: "
             + json.dumps(output_schema, ensure_ascii=False)
             + "\nIf validation fails, correct the result and submit it again before finishing."
+        )
+    if text_result:
+        instructions += (
+            "\nThe content field must contain the complete requested response, without "
+            "submission acknowledgements or internal tool diagnostics."
         )
     factory = get_session_factory()
     tool_context = current_tool_execution_context()
@@ -156,6 +172,8 @@ async def _run_workload(
                     message, finish_reason = (
                         decision_message(run.output_payload, output_schema)
                         if tool_decision is not None
+                        else ({"content": run.output_payload["content"]}, "stop")
+                        if text_result
                         else ({"content": run.output_text or ""}, "stop")
                     )
                     return {
@@ -167,7 +185,7 @@ async def _run_workload(
                             "completion_tokens": output_tokens,
                             "total_tokens": input_tokens + output_tokens,
                         },
-                        "structured_output": run.output_payload,
+                        "structured_output": None if text_result else run.output_payload,
                     }
             await asyncio.sleep(0.5)
     except (TimeoutError, asyncio.CancelledError) as error:

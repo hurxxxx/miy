@@ -26,10 +26,10 @@ def test_retained_profile_cannot_bypass_runtime_transport_policy(plugin, monkeyp
             plugin.module.runtime_transport()
 
 
-@pytest.fixture
-def plugin(monkeypatch):
+@pytest.fixture(params=["miy", "mty"])
+def plugin(monkeypatch, request):
     run = ContextVar("native_test_run", default="run_test")
-    profile = "miy-" + "a" * 32
+    profile = request.param + "-" + "a" * 32
     namespace = hashlib.sha256(profile.encode()).hexdigest()[:20]
     server = f"miy-mcp-{namespace}-internal"
     transport = {"url": "http://api.test/internal", "headers": {"Authorization": "Bearer fixture"}}
@@ -98,6 +98,66 @@ def test_parallel_internal_calls_bind_native_run_and_exact_arguments(plugin, mon
         ).hexdigest()
         assert any(digest in message[1] for message in plugin.consent)
     assert "X-Hermes-Run-Id" not in plugin.transport["headers"]
+
+
+@pytest.mark.parametrize("api_mode", ["chat_completions", "anthropic_messages"])
+def test_workload_requests_offer_only_admitted_native_schemas(plugin, monkeypatch, api_mode):
+    selected = []
+
+    def definitions(names, **kwargs):
+        selected.append(names)
+        return [{"type": "function", "function": {"name": name}} for name in sorted(names)]
+
+    registry = ModuleType("tools.registry")
+    registry.registry = SimpleNamespace(get_definitions=definitions)
+    monkeypatch.setitem(sys.modules, "tools.registry", registry)
+    adapter = ModuleType("agent.anthropic_adapter")
+    adapter.convert_tools_to_anthropic = lambda tools: [tool["function"] for tool in tools]
+    monkeypatch.setitem(sys.modules, "agent.anthropic_adapter", adapter)
+    monkeypatch.setattr(plugin.module, "_rpc", lambda *args: {
+        "allow_native_tools": False,
+        "native_tools": ["web_extract"],
+        "output_schema": {"type": "object"},
+    })
+    original = {"model": "unchanged", "messages": [], "tools": [
+        {"type": "function", "function": {"name": "tool_search"}},
+        {"type": "function", "function": {"name": "terminal"}},
+    ]}
+    result = plugin.module.prepare_llm_request(request=original, api_mode=api_mode)["request"]
+    assert selected == [{"miy_submit_result", "web_extract"}]
+    assert result["model"] == original["model"] and result["messages"] == original["messages"]
+    assert original["tools"][0]["function"]["name"] == "tool_search"
+    names = {tool.get("function", tool)["name"] for tool in result["tools"]}
+    assert names == {"miy_submit_result", "web_extract"}
+
+
+@pytest.mark.parametrize(
+    "admission", ["interactive", "legacy_text", "unavailable", "malformed", "missing_run"]
+)
+def test_request_tool_policy_preserves_interactive_and_fails_closed(plugin, monkeypatch, admission):
+    registry = ModuleType("tools.registry")
+    registry.registry = SimpleNamespace(get_definitions=lambda names, **kwargs: [])
+    monkeypatch.setitem(sys.modules, "tools.registry", registry)
+
+    def rpc(*args):
+        if admission == "unavailable":
+            raise OSError("Synthetic control outage")
+        if admission == "malformed":
+            return None
+        return {"allow_native_tools": admission == "interactive", "output_schema": None}
+
+    monkeypatch.setattr(plugin.module, "_rpc", rpc)
+    if admission == "missing_run":
+        plugin.run.set("")
+    original = {"tools": [{"function": {"name": "terminal"}}],
+                "tool_choice": "auto", "parallel_tool_calls": True}
+    result = plugin.module.prepare_llm_request(
+        request=original, api_mode="chat_completions"
+    )["request"]
+    if admission == "interactive":
+        assert result is original
+    else:
+        assert result == {"tools": []}
 
 
 def test_policy_import_transport_and_missing_run_fail_closed(plugin, monkeypatch):

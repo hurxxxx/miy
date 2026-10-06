@@ -966,6 +966,8 @@ curl --fail --silent --output /dev/null http://127.0.0.1:8001/readyz
 AI 보호 정책을 끄지 않는다. 추가 키·서버가 필요한 기능은 미설정 상태로 명시한다.
 별도의 사용자 요청 없이 준비 확인만을 위해 유료 추론을 실행하지 않는다.
 
+Hermes 애플리케이션 응답·도구 정책을 갱신할 때는 [기존 설치 갱신](docs/domains/ai/hermes.md#updating-an-existing-development-installation)에 따라 게이트웨이와 API·Worker를 갱신한다. 일반 텍스트 응답도 검증된 결과 제출을 사용하므로, 도구 노출·결과 제출·누락 시 실패 동작을 함께 확인한다.
+
 ## 6.1. Codex 콘솔 함께 설치
 
 여러 miy 서버를 발행 origin으로 구분하는 원격 자동 로그인은 miy 개발 사이트와 Console **양쪽의 HTTPS origin**을 사용한다.
