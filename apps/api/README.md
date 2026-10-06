@@ -95,6 +95,18 @@ uv run --python 3.12 --group dev python -m pytest \
 MLX_MODEL=org/local-model-id bash scripts/mlx-serve.sh
 ```
 
+## Document extraction
+
+The shared PDF/DOCX extractors retain bounded evidence and mark `metadata.truncated`
+when page, paragraph, table-row, cell, character, or time limits prevent a complete
+read. Reaching a budget is conservatively reported as incomplete. Consumers must
+check this metadata before treating the extracted evidence as the whole document.
+Malformed DOCX rows retain their separate `malformed_table_rows_skipped` count.
+
+```bash
+uv run --python 3.12 --group dev pytest tests/test_document_processing_extractors.py -q
+```
+
 ## Alembic
 
 - Alembic owns schema. Do not reintroduce `Base.metadata.create_all()` or hand SQL compatibility lists.
