@@ -44,7 +44,8 @@ explicitly verified test infrastructure below.
 
 Before database tests, configure `MIY_TEST_POSTGRES_TEMPLATE_DSN` for a dedicated
 non-production PostgreSQL instance with pgvector available and a role allowed to create/drop test
-databases and enable the extension. Use compatible `pg_dump`/`pg_restore` clients. The fixture also
+databases. For the non-superuser CI role, pre-provision the extension in its isolated test template
+as described in the installation guide below. Use compatible `pg_dump`/`pg_restore` clients. The fixture also
 accepts the verified development DSN from ignored env files, but never resets that database: each
 worker creates its own `miy_test_*` database, migrates it, and restores the seeded data
 between tests. A setup failure also removes the database created by that attempt. Keep production
@@ -93,6 +94,18 @@ uv run --python 3.12 --group dev python -m pytest \
 
 ```bash
 MLX_MODEL=org/local-model-id bash scripts/mlx-serve.sh
+```
+
+## Document extraction
+
+The shared PDF/DOCX extractors retain bounded evidence and mark `metadata.truncated`
+when page, paragraph, table-row, cell, character, or time limits prevent a complete
+read. Reaching a budget is conservatively reported as incomplete. Consumers must
+check this metadata before treating the extracted evidence as the whole document.
+Malformed DOCX rows retain their separate `malformed_table_rows_skipped` count.
+
+```bash
+uv run --python 3.12 --group dev pytest tests/test_document_processing_extractors.py -q
 ```
 
 ## Alembic

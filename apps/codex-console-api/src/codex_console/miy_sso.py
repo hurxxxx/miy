@@ -1,4 +1,5 @@
 import json
+import ssl
 from uuid import UUID
 
 import httpx
@@ -9,7 +10,12 @@ MAX_RESPONSE_BYTES = 4096
 
 def exchange_code(*, issuer: str, code: str) -> str | None:
     try:
-        with httpx.Client(timeout=5.0, follow_redirects=False, trust_env=False) as client:
+        with httpx.Client(
+            timeout=5.0,
+            follow_redirects=False,
+            trust_env=False,
+            verify=ssl.create_default_context(),
+        ) as client:
             with client.stream("POST", issuer + EXCHANGE_PATH, json={"code": code}) as response:
                 if response.status_code != 200:
                     return None

@@ -448,6 +448,9 @@ uv run --frozen codex-console serve
 `set-password`는 보호된 터미널 입력으로 비밀번호를 받으며 기존 웹 세션을 폐기한다.
 초기 계정도 이 명령으로 만든다. 세션 API는 `127.0.0.1:19365`, 관리 UI/API는
 `127.0.0.1:19367`, 템플릿 실행기는 `127.0.0.1:19368`에 수신한다. 세 포트는 달라야 한다.
+서버의 브라우저에서 `http://127.0.0.1:19365/`를 열면 설정한 콘솔 origin과 base path의
+화면으로 이동한다. API와 health 경로는 이동하지 않는다. 이동한 화면에서는 기존 세션 또는
+소유자 비밀번호로 로그인하며, miy 앱 링크의 자동 로그인 fragment도 브라우저가 그대로 전달한다.
 전용 HTTPS 주소는 `ops/codex-console/nginx.conf.example`을 참고해 기존 TLS 프록시에 연결한다.
 프록시가 원래 Host를 전달하고 SSE 응답을 버퍼링하지 않아야 한다.
 
@@ -477,11 +480,23 @@ MIY_CODEX_CONSOLE_LAUNCH_URL_BY_HOST='{"100.64.0.10:4200":"https://100.64.0.10:1
 매핑한 HTTPS 주소를 사용한다. 매핑 목적지도 기본 URL과 같은 검증을 거치며 원격 HTTP,
 사용자 정보, query, fragment는 허용하지 않는다.
 
+여러 miy 서버를 발행 origin으로 구분하는 자동 로그인에는 Console뿐 아니라 **링크를 발급하는 miy 사이트도 HTTPS**여야 한다.
+HTTP 원격 개발 origin은 자동 로그인 허용 목록에 등록할 수 없다. 기존 HTTP 개발 접속은
+유지하고, 기존 TLS 프록시에 충돌하지 않는 별도 HTTPS 포트를 추가해 개발 Web으로 전달한다.
+프록시는 `Host $http_host`와 WebSocket upgrade를 전달하고 API·DB는 loopback에 유지한다.
+HTTPS 개발 사이트의 `host:port`도 위 launch URL 매핑에 추가하고, 아래 허용 목록에는
+그 HTTPS origin과 실제 소유자 UUID를 등록한다. 사설 CA는 브라우저와 Console 서비스의
+Python 런타임이 모두 신뢰해야 한다. [HTTPS 신뢰 등록](../../domains/release/installation-operations.md#https-trust)을
+따르고 실제 공개 주소에서 인증 교환을 확인한다. 교환 클라이언트는 Python 기본 SSL 신뢰
+저장소를 사용하며 서버 인증서·호스트 검증을 유지하고 환경변수 HTTP 프록시는 사용하지 않는다.
+전용 CA 파일이 필요하면 서비스 환경의 `SSL_CERT_FILE`로 지정할 수 있다.
+실제 HTTPS issuer를 사용하는 TLS 회귀 테스트에는 `openssl` 실행 파일이 필요하다.
+
 콘솔 `.env`의 `MIY_CODEX_CONSOLE_SSO_SUBJECTS`에는 자동 로그인을 허용할 miy의
 정확한 origin과 그 환경에서 콘솔을 소유한 miy 사용자 UUID를 JSON 객체로 등록한다. miy 앱
 링크는 현재 miy 세션과 Codex Console 앱 권한을 확인해
 60초짜리 `cc1_` 코드를 만들고 URL fragment로 전달한다. 콘솔은 fragment를 즉시 지우고
-허용 목록의 origin에 있는 고정 교환 API만 호출한다. 코드는 한 번만 사용할 수 있으며 miy
+설정한 origin에 있는 고정 교환 API만 호출한다. 코드는 한 번만 사용할 수 있으며 miy
 세션이 종료되었거나 앱 권한이 회수되면 실패한다. 교환 응답의 안정적인 사용자 UUID가 해당
 origin에 설정된 소유자 UUID와 일치할 때만 콘솔 세션을 발급한다. miy bearer token과 사용자
 프로필은 콘솔에 전달하지 않는다. 직접 콘솔 주소를 열거나 교환이 실패하면 기존 소유자
@@ -490,6 +505,16 @@ origin에 설정된 소유자 UUID와 일치할 때만 콘솔 세션을 발급�
 | 설정 | 기본값 | 용도 |
 | --- | --- | --- |
 | `MIY_CODEX_CONSOLE_SSO_SUBJECTS` | `{}` | 자동 로그인을 허용할 개발·운영 miy HTTPS origin을 소유자 사용자 UUID에 연결한 JSON 객체. loopback HTTP는 로컬 개발에서만 허용한다. |
+
+**같은 miy 서버를 여러 주소로 여는 데모 설치**는 `SSO_SUBJECTS`에 그 서버의 HTTPS origin과
+소유자 UUID 한 쌍만 등록한다. 서버가 하나면 모든 로그인 코드를 그 서버에서 확인한다.
+브라우저의 `127.0.0.1`, `localhost`, 서버 IP·별칭·HTTP/HTTPS 주소를 개별 등록하지 않아도 된다.
+콘솔은 브라우저가 전달한 issuer 주소에 접속하지 않고 모든 코드를 설정한 서버에서 확인한다.
+다른 서버의 코드·잘못된 코드·다른 사용자 UUID는 거부하며 소유자 로그인과 CSRF 검증은 유지한다.
+miy의 기본 launch URL도 같은 Console HTTPS 주소로 설정하면 접속 호스트별 매핑이 필요 없다.
+
+둘 이상의 miy 서버를 등록한 구성은 기존의 정확한 발행 origin 허용 목록을 사용한다.
+이 경우 loopback HTTP 발행 origin도 각각 등록해야 하며 원격 HTTP origin은 등록할 수 없다.
 
 개발 Web 재시작과 무관하게 접속하려면 **전용 HTTPS 도메인**을 사용하고 앞단 프록시를
 콘솔에 직접 연결한다. DNS 등록뿐 아니라 프록시의 upstream 주소·포트도 준비해야 한다.
@@ -505,7 +530,8 @@ origin에 설정된 소유자 UUID와 일치할 때만 콘솔 세션을 발급�
 모든 UI·API 경로는 19367로 전달한다. 내부 실행기 포트는
 loopback에 유지한다. 다른 호스트의 TLS 프록시는 아래의 전용 연결 지점을 사용한다.
 로컬 브라우저 검증은 콘솔 origin을 `http://127.0.0.1:19366`으로 설정하고 세 API와
-콘솔 Vite를 실행한다. 관리 포트만 직접 열면 작업 API가 연결되지 않는다. HTTPS에는
+콘솔 Vite를 실행한다. 관리 포트만 직접 열면 작업 API가 연결되지 않는다. 서버에서 세션 API의
+`/`를 열면 설정한 콘솔 화면 주소로 이동한다. HTTPS에는
 Secure 쿠키를 사용하고 허용된 loopback HTTP에는 해당 호스트의 세션 쿠키를 발급한다.
 원격 PC에서는 공개 HTTPS 주소를 사용한다.
 
@@ -733,6 +759,15 @@ SQLite는 인증·승인·작업·템플릿·첨부 원본과 관측을 보관�
 ```bash
 .venv/bin/codex-console backup --destination /absolute/private/backups/console-before-update.sqlite3
 ```
+
+이전 도구가 지원하는 PostgreSQL 스키마는 `console_0009`~`console_0011`이다.
+더 오래된 설치는 원본 백업을 별도 비운영 DB에 복원하고, 새 릴리스의 고정 PostgreSQL
+migration과 SQLite import를 먼저 검증한다. 실제 이전에서는 기존 서비스와 작업을 모두
+중지하고 최신 백업을 보존한 뒤, 보호된 설정에서 읽은 원본 DB URL로
+`codex_console.cli.migrate(source_url)`을 실행해 `console_0011`로 올린다. URL·비밀번호는
+명령 인수나 출력에 남기지 않는다. 원본 스키마도 변경되므로 이 단계 이전으로 복구하려면
+원본 PostgreSQL 백업과 이전 릴리스·설정을 함께 복원해야 한다. import용 0600 설정 파일은
+기존 DB URL 값을 유지하되 키를 `MIY_CODEX_CONSOLE_DATABASE_URL`로 지정한다.
 
 기존 PostgreSQL `console_0009`/`console_0010`/`console_0011` 설치를 이전할 때:
 

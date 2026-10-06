@@ -654,6 +654,7 @@ def test_platform_validation_accepts_search_only_external_provider_adapter() -> 
         )
         settings = _test_settings(
             MIY_AI_ALLOWED_EXTERNAL_PROVIDERS="vendor-search",
+            MIY_AI_EXTERNAL_LLM_ENABLED=False,
             MIY_AI_DEFAULT_EXTERNAL_LLM_PROVIDER="openai",
             MIY_AI_DEFAULT_EXTERNAL_SEARCH_PROVIDER="vendor-search",
             MIY_AI_EXTERNAL_SEARCH_ENABLED=True,

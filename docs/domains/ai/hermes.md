@@ -218,6 +218,10 @@ Globally unique physical MCP names prevent Hermes' process-global connection reg
 
 Structured application workloads use `miy_submit_result`. JSON Schema and registered semantic validators return bounded errors to the same Hermes loop; an invalid result never becomes successful text fallback. Terminal completion without a required accepted object becomes `invalid_output`. Common results carry text, structured output and usage; app code consumes that contract rather than raw SDK tool calls. Authoritative text and structured results are bounded to 2 MB separately from the smaller retained event payloads; oversize text fails explicitly. Bento plan/document/edit and RAG/query rewrite use schemas. Mail/meeting/recording and graph LLM nodes use the same registered gateway. Execution owner is explicit for system tasks while the original audit actor is retained.
 
+Plain application completions also submit a validated `{ "content": string }` object through the same tool. The gateway exposes that accepted content as the normal text completion, without an application-visible structured payload. Native acknowledgements and tool diagnostics are not used as report content; missing submission fails closed. The pinned native run API has no per-run toolset selection, so a valid result contract is required even for text workloads sharing an interactive profile. No shared profile mutation, provider fallback, or output-text filtering is used.
+
+The official `llm_request` middleware offers application workloads only their admitted native tools and required result submission schema, using the native registry's public `get_definitions` and Anthropic schema converter. This also exposes the actual submission function when native Tool Search would otherwise defer it behind discovery/dispatch bridges that workloads cannot execute. Failed context/schema discovery offers no tools; execution middleware and server admission remain authoritative. Interactive requests retain their native tool assembly. Recreate the gateway after updating this plugin.
+
 Retained application tool/approval steps (including `/chatbot/chat/stream` and graph agent nodes) request a typed next-action object through the same `miy_submit_result` path. The pinned native run API has no raw provider-turn response, so `tool_decisions.py` translates only this existing application contract: eligible tool names, argument schemas, required/named/disabled choice and parallel limits constrain the result. Prior tool exchanges remain role-labelled conversation data. The existing application dispatcher retains ACL, write consent, checkpoints and budgets; the translator never executes a tool. Missing or invalid results fail closed. Remove this translation when those callers adopt native interactive runs and approval events. Native `/agent` chat continues to use Hermes' own tool loop directly.
 
 Session pagination orders local activity by accepted user run admission, with a stable ID tie-breaker. Listing sessions and replaying an idempotent request do not advance activity timestamps.
@@ -520,6 +524,8 @@ Use the repository's explicit non-production PostgreSQL test configuration for i
 - [Pinned implementation](https://github.com/NousResearch/hermes-agent/tree/v2026.8.31): inspect matching profile config, plugins/middleware, terminal environment provider, approval context and iron-proxy implementation before an upgrade.
 - [Gemini OpenAI compatibility](https://ai.google.dev/gemini-api/docs/openai).
 
+## Naming cutover
+
 The miy naming cutover changes plugin/module paths and typed keys only in source.
 Keep configured profile/workspace/CA volumes, network names, runner namespace and
 MCP URLs aligned with the installation until the coordinated resource cutover in
@@ -529,5 +535,8 @@ Compose project against empty volumes. Recreate the gateway with the matching
 the pinned Hermes image, provider policy and isolation controls are unchanged.
 Existing `mty-<user-id>` profile names are durable binding identities and remain
 supported by the same authenticated admission, MCP bridge and tool policy checks.
-Bootstrap replaces their known `mty_runtime` plugin setting with `miy_runtime`
-without changing model policy, credentials, profile directories or session data.
+Bootstrap removes retired `owh_runtime` and `mty_runtime` entries from both enabled
+and disabled plugin lists and enables `miy_runtime`. Unrelated plugins, model policy,
+credentials, profile directories and session data remain unchanged; reconciliation is
+idempotent. This only cleans persisted plugin configuration and does not restore retired
+module aliases or rename durable profile identities.

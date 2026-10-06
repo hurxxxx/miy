@@ -17,6 +17,40 @@ from codex_console.config import MonitoredService
 from codex_console.models import ResourceLease, ServiceObservation, now
 
 
+@pytest.mark.parametrize("client_role", ["session"], indirect=True)
+@pytest.mark.parametrize(
+    "origin,base_path",
+    [
+        ("https://console.example.test", ""),
+        ("https://console.example.test", "/codex-console"),
+        ("http://127.0.0.1:19366", ""),
+    ],
+)
+def test_session_entry_opens_configured_console_without_redirecting_apis(
+    client, origin, base_path
+):
+    settings = client.app.state.settings
+    settings.origin = origin
+    settings.base_path = base_path
+    client.app.root_path = base_path
+    browser = TestClient(client.app, base_url=settings.local_origin)
+    try:
+        for method in ("GET", "HEAD"):
+            response = browser.request(method, f"{base_path}/", follow_redirects=False)
+            assert response.status_code == 307
+            assert response.headers["location"] == f"{origin}{base_path}/"
+            assert response.headers["cache-control"] == "no-store"
+        assert browser.get(f"{base_path}/healthz").json() == {"ok": True}
+        assert browser.get(f"{base_path}/api/session").json() == {"authenticated": False}
+        assert browser.get(f"{base_path}/api/tasks").status_code == 401
+        assert browser.get(f"{base_path}/missing", follow_redirects=False).status_code == 404
+        assert (
+            browser.get(f"{base_path}/", headers={"host": "evil.invalid"}).status_code == 403
+        )
+    finally:
+        browser.close()
+
+
 def execute(client, task):
     return client.post(
         f"/api/tasks/{task['id']}/implement",
