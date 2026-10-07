@@ -1,7 +1,7 @@
 # Web Agent Rules
 
 - Start with current UI code/tests plus `docs/agents/ui-components.md` and `docs/product/ui-design-principles.md` when UI behavior changes.
-- Keep app surfaces under `apps/web/src/app-modules/<appId>/`; cross-app access uses manifest, `public-api.ts`, or bootstrap DTO only.
+- Existing shell adapters live under `apps/web/src/app-modules/<appId>/`. Official business UI moves to its declared owner in `packages/official-suite-web`; use its public entrypoints and keep compatibility adapters thin. Cross-app access uses manifest, `public-api.ts`, or bootstrap DTO. Independent app frontends follow their own runtime contract.
 - Search existing app, shared components, platform helpers, and `packages/ui` before adding UI abstractions.
 - Keep authoritative/shared state on the server; browser state may hold only ephemeral presentation state.
 - User-facing copy adds aligned `ko-KR` and `en-US`; preserve interpolation variables and accessible names.

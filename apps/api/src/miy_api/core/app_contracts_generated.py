@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Final
 
-APP_CONTRACT_REVISION: Final = "sha256:a77dc81f85a4281fc312bd8b7af04036c5f210eb163ba8439f858eae7cd1890d"
+APP_CONTRACT_REVISION: Final = "sha256:2b033df33d968a6f7ca323d0a9c909d07b448dc3bdbfd5baf3beae1230fe1661"
+OFFICIAL_APP_IDS: Final = frozenset(["pms","docs","files","mail","community","whiteboard","diagrams","bento","planner","meeting","video-chat","recording"])
 APP_CONTRACTS: Final = [
   {
     "app_id": "home",
@@ -35,6 +36,10 @@ APP_CONTRACTS: Final = [
         "apps/web/src/app-modules/home"
       ],
       "release_unit": "miy-app"
+    },
+    "title_translations": {
+      "ko-KR": "홈",
+      "en-US": "Home"
     }
   },
   {
@@ -71,6 +76,10 @@ APP_CONTRACTS: Final = [
         "apps/api/src/miy_api/domains/agent_terminal"
       ],
       "release_unit": "miy-app"
+    },
+    "title_translations": {
+      "ko-KR": "Codex 터미널",
+      "en-US": "Codex Terminal"
     }
   },
   {
@@ -109,6 +118,10 @@ APP_CONTRACTS: Final = [
         "apps/codex-console-api/src/codex_console"
       ],
       "release_unit": "miy-workbench"
+    },
+    "title_translations": {
+      "ko-KR": "MIY Workbench",
+      "en-US": "MIY Workbench"
     }
   },
   {
@@ -138,11 +151,16 @@ APP_CONTRACTS: Final = [
         "research"
       ],
       "source_paths": [
+        "packages/platform-web/src/chatbot",
         "apps/web/src/app-modules/chatbot",
         "apps/api/src/miy_api/domains/conversations",
         "apps/api/src/miy_api/domains/ai"
       ],
       "release_unit": "miy-app"
+    },
+    "title_translations": {
+      "ko-KR": "AI 어시스턴트 챗봇",
+      "en-US": "AI Assistant Chatbot"
     }
   },
   {
@@ -212,10 +230,17 @@ APP_CONTRACTS: Final = [
         "workflow"
       ],
       "source_paths": [
+        "packages/official-suite-web/src/pms",
+        "packages/official-suite-web/public/help/pms/user-guide.html",
+        "packages/official-suite-web/vite/fixed-assets.mts",
         "apps/web/src/app-modules/pms",
         "apps/api/src/miy_api/domains/pms"
       ],
       "release_unit": "miy-app"
+    },
+    "title_translations": {
+      "ko-KR": "PMS",
+      "en-US": "PMS"
     }
   },
   {
@@ -264,10 +289,15 @@ APP_CONTRACTS: Final = [
         "collaboration"
       ],
       "source_paths": [
+        "packages/official-suite-web/src/docs",
         "apps/web/src/app-modules/docs",
         "apps/api/src/miy_api/domains/docs"
       ],
       "release_unit": "miy-app"
+    },
+    "title_translations": {
+      "ko-KR": "문서",
+      "en-US": "Docs"
     }
   },
   {
@@ -301,10 +331,15 @@ APP_CONTRACTS: Final = [
         "storage"
       ],
       "source_paths": [
+        "packages/official-suite-web/src/files",
         "apps/web/src/app-modules/files",
         "apps/api/src/miy_api/domains/files"
       ],
       "release_unit": "miy-app"
+    },
+    "title_translations": {
+      "ko-KR": "파일",
+      "en-US": "Files"
     }
   },
   {
@@ -333,10 +368,15 @@ APP_CONTRACTS: Final = [
         "communication"
       ],
       "source_paths": [
+        "packages/official-suite-web/src/mail",
         "apps/web/src/app-modules/mail",
         "apps/api/src/miy_api/domains/mail"
       ],
       "release_unit": "miy-app"
+    },
+    "title_translations": {
+      "ko-KR": "메일",
+      "en-US": "Mail"
     }
   },
   {
@@ -370,10 +410,15 @@ APP_CONTRACTS: Final = [
         "discussion"
       ],
       "source_paths": [
+        "packages/official-suite-web/src/community",
         "apps/web/src/app-modules/community",
         "apps/api/src/miy_api/domains/community"
       ],
       "release_unit": "miy-app"
+    },
+    "title_translations": {
+      "ko-KR": "커뮤니티",
+      "en-US": "Community"
     }
   },
   {
@@ -412,10 +457,15 @@ APP_CONTRACTS: Final = [
         "collaboration"
       ],
       "source_paths": [
+        "packages/official-suite-web/src/whiteboard",
         "apps/web/src/app-modules/whiteboard",
         "apps/api/src/miy_api/domains/whiteboard"
       ],
       "release_unit": "miy-app"
+    },
+    "title_translations": {
+      "ko-KR": "화이트보드",
+      "en-US": "Whiteboard"
     }
   },
   {
@@ -450,9 +500,14 @@ APP_CONTRACTS: Final = [
       ],
       "source_paths": [
         "apps/web/src/app-modules/diagrams",
+        "packages/official-suite-web/src/diagrams",
         "apps/api/src/miy_api/domains/diagrams"
       ],
       "release_unit": "miy-app"
+    },
+    "title_translations": {
+      "ko-KR": "다이어그램",
+      "en-US": "Diagrams"
     }
   },
   {
@@ -480,16 +535,21 @@ APP_CONTRACTS: Final = [
       }
     ],
     "management": {
-      "summary": "Structured tables and collaborative documents",
+      "summary": "Presentation editing and sharing",
       "capabilities": [
-        "tables",
-        "data"
+        "presentation",
+        "slides"
       ],
       "source_paths": [
         "apps/web/src/app-modules/bento",
+        "packages/official-suite-web/src/bento",
         "apps/api/src/miy_api/domains/bento"
       ],
       "release_unit": "miy-app"
+    },
+    "title_translations": {
+      "ko-KR": "bento/slides",
+      "en-US": "bento/slides"
     }
   },
   {
@@ -518,10 +578,18 @@ APP_CONTRACTS: Final = [
         "calendar"
       ],
       "source_paths": [
+        "packages/official-suite-web/src/planner",
+        "packages/official-suite-web/src/calendar",
         "apps/web/src/app-modules/planner",
-        "apps/api/src/miy_api/domains/planner"
+        "apps/web/src/platform/calendar",
+        "apps/api/src/miy_api/domains/planner",
+        "apps/api/src/miy_api/domains/calendar"
       ],
       "release_unit": "miy-app"
+    },
+    "title_translations": {
+      "ko-KR": "플래너",
+      "en-US": "Planner"
     }
   },
   {
@@ -555,10 +623,15 @@ APP_CONTRACTS: Final = [
         "minutes"
       ],
       "source_paths": [
+        "packages/official-suite-web/src/meeting",
         "apps/web/src/app-modules/meeting",
         "apps/api/src/miy_api/domains/meeting"
       ],
       "release_unit": "miy-app"
+    },
+    "title_translations": {
+      "ko-KR": "회의",
+      "en-US": "Meeting"
     }
   },
   {
@@ -592,10 +665,15 @@ APP_CONTRACTS: Final = [
         "communication"
       ],
       "source_paths": [
+        "packages/official-suite-web/src/video-chat",
         "apps/web/src/app-modules/video-chat",
         "apps/api/src/miy_api/domains/video_chat"
       ],
       "release_unit": "miy-app"
+    },
+    "title_translations": {
+      "ko-KR": "화상채팅",
+      "en-US": "Video Chat"
     }
   },
   {
@@ -629,10 +707,17 @@ APP_CONTRACTS: Final = [
         "transcription"
       ],
       "source_paths": [
+        "packages/official-suite-web/src/recording",
+        "packages/official-suite-web/public/recording-sync-sw.js",
+        "packages/official-suite-web/vite/recording-sync-asset.mts",
         "apps/web/src/app-modules/recording",
         "apps/api/src/miy_api/domains/recording"
       ],
       "release_unit": "miy-app"
+    },
+    "title_translations": {
+      "ko-KR": "녹음",
+      "en-US": "Recording"
     }
   },
   {
@@ -665,6 +750,10 @@ APP_CONTRACTS: Final = [
         "apps/api/src/miy_api/domains/retrieval"
       ],
       "release_unit": "miy-app"
+    },
+    "title_translations": {
+      "ko-KR": "Retrieval 진단 검색",
+      "en-US": "Retrieval Diagnostics"
     }
   },
   {
@@ -696,6 +785,10 @@ APP_CONTRACTS: Final = [
         "apps/api/src/miy_api/domains/tetris"
       ],
       "release_unit": "miy-app"
+    },
+    "title_translations": {
+      "ko-KR": "테트리스",
+      "en-US": "Tetris"
     }
   }
 ]

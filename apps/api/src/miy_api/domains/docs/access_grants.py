@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from miy_api.domains.auth.security import new_id
 from miy_api.domains.docs.models import DocMeetingAccess
-from miy_api.domains.search.hooks import enqueue_doc_search_index_by_id
+from miy_api.domains.docs.rag_sync import enqueue_native_doc_visibility
 
 
 def _utcnow() -> datetime:
@@ -57,8 +57,8 @@ def _mutate_doc_grants(
         mutation(grant)
         db.add(grant)
     db.flush()
-    for grant in mutated:
-        enqueue_doc_search_index_by_id(db, doc_id=grant.doc_id, operation="upsert")
+    for doc_id in sorted({grant.doc_id for grant in mutated}):
+        enqueue_native_doc_visibility(db, doc_id=doc_id)
     return mutated
 
 
@@ -104,7 +104,7 @@ def grant_doc_access(
         existing.updated_at = _utcnow()
         db.add(existing)
         db.flush()
-        enqueue_doc_search_index_by_id(db, doc_id=doc_id, operation="upsert")
+        enqueue_native_doc_visibility(db, doc_id=doc_id)
         return existing
 
     access = DocMeetingAccess(
@@ -119,7 +119,7 @@ def grant_doc_access(
     )
     db.add(access)
     db.flush()
-    enqueue_doc_search_index_by_id(db, doc_id=doc_id, operation="upsert")
+    enqueue_native_doc_visibility(db, doc_id=doc_id)
     return access
 
 

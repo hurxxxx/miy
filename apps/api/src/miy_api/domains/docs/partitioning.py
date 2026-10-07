@@ -3,7 +3,11 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from miy_api.domains.docs.models import NativeDoc
+from miy_api.domains.official_apps.projection_delivery import is_prepared_source_projection
 from miy_api.domains.retrieval.models import RetrievalPartition, RetrievalPartitionState
+from miy_api.domains.retrieval.prepared_company_partitions import (
+    assign_company_projection_partition,
+)
 from miy_api.domains.retrieval.partitioning import (
     RetrievalPartitionConflict,
     RetrievalPartitionId,
@@ -17,6 +21,8 @@ def ensure_native_doc_partition(db: Session, *, doc: NativeDoc) -> RetrievalPart
     Keeping the candidate partition stable makes a newly shared personal document
     discoverable without re-embedding and never grants company ownership or access.
     """
+    if is_prepared_source_projection(db):
+        return assign_company_projection_partition(db, target=doc, source_namespace="docs")
     if doc.retrieval_partition_id:
         partition = db.get(RetrievalPartition, doc.retrieval_partition_id)
         if (

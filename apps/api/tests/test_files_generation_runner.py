@@ -173,6 +173,7 @@ def _loaded_source_snapshot(
     metadata_version: int = 1,
     access_scope_kind: str = "company",
     source_title: str | None = None,
+    extracted_at: datetime = datetime(2026, 1, 1, tzinfo=UTC),
 ) -> FilesSourceProjectionSnapshot:
     external = source_title is not None
     row = SimpleNamespace(
@@ -193,6 +194,7 @@ def _loaded_source_snapshot(
             }
         ],
         extraction_metadata={"parser_version": "test-v1"},
+        extracted_at=extracted_at,
         file_partition_id=_PARTITION_ID,
         projection_version=1,
         head_partition_id=_PARTITION_ID,
@@ -293,6 +295,18 @@ def test_source_snapshot_separates_acl_transitions_from_projection_content() -> 
 def test_source_snapshot_includes_safe_external_metadata_in_projection_contracts() -> None:
     first = _loaded_source_snapshot(source_title="Source title v1")
     updated = _loaded_source_snapshot(source_title="Source title v2")
+
+    assert first.unavailable_count == updated.unavailable_count == 0
+    assert first.identity_sha256 == updated.identity_sha256
+    assert first.artifact_sha256 == updated.artifact_sha256
+    assert first.acl_envelope_sha256 == updated.acl_envelope_sha256
+    assert first.opensearch_projection_sha256 != updated.opensearch_projection_sha256
+    assert first.qdrant_projection_sha256 != updated.qdrant_projection_sha256
+
+
+def test_source_snapshot_projection_contracts_include_extraction_result_stamp() -> None:
+    first = _loaded_source_snapshot(extracted_at=datetime(2026, 1, 1, tzinfo=UTC))
+    updated = _loaded_source_snapshot(extracted_at=datetime(2026, 1, 2, tzinfo=UTC))
 
     assert first.unavailable_count == updated.unavailable_count == 0
     assert first.identity_sha256 == updated.identity_sha256
@@ -1023,6 +1037,49 @@ def _ready_empty_pair(
         allow_empty_non_production=True,
     )
     return runner
+
+
+@pytest.mark.parametrize("keyword_remaining,vector_remaining", [(1, 0), (0, 1)])
+def test_empty_prepared_generation_refuses_unresolved_effects_before_validation(
+    generation_session_factory: sessionmaker[Session],
+    keyword_remaining: int,
+    vector_remaining: int,
+) -> None:
+    """Deleting the final Source cannot hide an unresolved target operation."""
+    backends = _FakeBackends()
+
+    class PreparedObserver(_FakeMaterializer):
+        requires_empty_reconciliation = True
+        observations = 0
+
+        def inspect_reconciliation(self, *, through_event_sequence: int) -> object:
+            self.observations += 1
+            return SimpleNamespace(
+                current_event_sequence=through_event_sequence,
+                keyword_remaining=keyword_remaining,
+                vector_remaining=vector_remaining,
+                caught_up=False,
+            )
+
+    materializer = PreparedObserver(backends=backends, target_resources=0)
+    runner = _runner(generation_session_factory, backends, materializer=materializer)
+    runner.prepare(
+        generation_key="empty-unresolved", baseline_mode=FilesGenerationBaselineMode.EMPTY
+    )
+
+    with pytest.raises(FilesGenerationError, match="projection_queues_not_drained"):
+        runner.validate(
+            generation_key="empty-unresolved",
+            writes_quiesced=True,
+            reconciliation_watermark=0,
+            allow_empty_non_production=True,
+        )
+
+    assert materializer.observations == 1
+    assert backends.alias_operations == []
+    with generation_session_factory() as db:
+        states = set(db.scalars(select(RetrievalProjectionGeneration.state)))
+    assert states == {RetrievalProjectionGenerationState.REPLAYING.value}
 
 
 def test_validation_requires_explicit_reconciliation_watermark(

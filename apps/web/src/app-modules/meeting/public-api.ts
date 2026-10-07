@@ -1,16 +1,3 @@
-export * from './api/meeting-api';
-export * from './api/meeting-insights-api';
-export * from './api/meeting-permissions';
-export {
-  INITIAL_MEETING_PICKER_STATE,
-  MEETING_PICKER_RESULT_LIMIT,
-  filterMeetingsForPicker,
-  meetingPickerReducer,
-  sortMeetingsForPicker,
-  type MeetingPickerAction,
-  type MeetingPickerState,
-} from './views/meeting-picker-model';
-export {
-  MeetingPickerModal,
-  type MeetingPickerModalProps,
-} from './views/MeetingPickerModal';
+/** Compatibility entry; the owned library supplies this implementation. */
+import '@/src/platform/i18n';
+export * from '@miy/official-suite-web/meeting/public-api';

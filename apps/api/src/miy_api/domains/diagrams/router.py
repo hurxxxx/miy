@@ -18,6 +18,7 @@ from miy_api.domains.auth.models import User
 from miy_api.domains.content_access.ownership import record_ownership_transition
 from miy_api.domains.diagrams.app_catalog import DIAGRAMS_APP
 from miy_api.domains.diagrams.models import Diagram
+from miy_api.domains.official_apps.source_guard import lock_source_writer
 from miy_api.domains.diagrams.storage import (
     DIAGRAM_PNG_CONTENT_TYPE,
     DIAGRAM_PREVIEW_MAX_BYTES,
@@ -169,8 +170,9 @@ def _load_diagram_or_404(
     *,
     diagram_id: str,
     current_user: User,
+    for_update: bool = False,
 ) -> Diagram:
-    diagram = db.scalar(
+    statement = (
         select(Diagram)
         .options(selectinload(Diagram.owner))
         .where(
@@ -178,6 +180,9 @@ def _load_diagram_or_404(
             _diagram_access_clause(current_user),
         )
     )
+    if for_update:
+        statement = statement.with_for_update().execution_options(populate_existing=True)
+    diagram = db.scalar(statement)
     if diagram is None:
         raise localized_http_exception(status_code=404, code="diagrams.not_found")
     return diagram
@@ -295,6 +300,7 @@ def create_diagram_item(
     )
     source_key = diagram_source_storage_key(diagram_id=diagram_id)
     xml_data = _validate_xml_size(payload.xml)
+    lock_source_writer(db, "diagrams")
     _put_object_or_503(
         storage_key=source_key,
         data=xml_data,
@@ -373,6 +379,12 @@ def update_diagram_item(
     )
     if diagram.owner_id != current_user.id:
         raise localized_http_exception(status_code=403, code="diagrams.manage_access_required")
+    lock_source_writer(db, "diagrams")
+    diagram = _load_diagram_or_404(
+        db, diagram_id=item_id, current_user=current_user, for_update=True
+    )
+    if diagram.owner_id != current_user.id:
+        raise localized_http_exception(status_code=403, code="diagrams.manage_access_required")
     record_ownership_transition(
         db,
         actor_user_id=current_user.id,
@@ -404,30 +416,35 @@ def update_diagram_item(
             changed = True
 
     source_xml: str | None = None
+    retired_keys: list[str] = []
+    version_id = uuid.uuid4().hex
     if "xml" in payload.model_fields_set and payload.xml is not None:
         source_xml = payload.xml
+        source_key = diagram_source_storage_key(diagram_id=diagram.id, version_id=version_id)
         _put_object_or_503(
-            storage_key=diagram.source_storage_key,
+            storage_key=source_key,
             data=_validate_xml_size(payload.xml),
             content_type=DIAGRAM_XML_CONTENT_TYPE,
         )
+        retired_keys.append(diagram.source_storage_key)
+        diagram.source_storage_key = source_key
         changed = True
 
     if "preview_png_data_url" in payload.model_fields_set:
         if payload.preview_png_data_url is None:
             if diagram.preview_storage_key:
-                remove_diagram_object(storage_key=diagram.preview_storage_key)
+                retired_keys.append(diagram.preview_storage_key)
             diagram.preview_storage_key = None
         else:
             preview_data = _preview_payload_from_data_url(payload.preview_png_data_url)
-            preview_key = diagram.preview_storage_key or diagram_preview_storage_key(
-                diagram_id=diagram.id,
-            )
+            preview_key = diagram_preview_storage_key(diagram_id=diagram.id, version_id=version_id)
             _put_object_or_503(
                 storage_key=preview_key,
                 data=preview_data or b"",
                 content_type=DIAGRAM_PNG_CONTENT_TYPE,
             )
+            if diagram.preview_storage_key:
+                retired_keys.append(diagram.preview_storage_key)
             diagram.preview_storage_key = preview_key
         changed = True
 
@@ -436,6 +453,13 @@ def update_diagram_item(
         diagram.updated_at = _utcnow()
         db.add(diagram)
         db.commit()
+        # Old bytes remain intact through failures and unknown commit outcomes.
+        # Only an acknowledged new pointer permits best-effort retirement.
+        for storage_key in retired_keys:
+            try:
+                remove_diagram_object(storage_key=storage_key)
+            except Exception:
+                pass
         db.refresh(diagram)
 
     if source_xml is None:

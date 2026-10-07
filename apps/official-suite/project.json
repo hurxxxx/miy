@@ -1,0 +1,66 @@
+{
+  "name": "official-suite",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/official-suite/src",
+  "projectType": "application",
+  "tags": ["scope:official-suite", "type:app"],
+  "implicitDependencies": ["web", "api", "worker"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/apps/official-suite"],
+      "options": {
+        "command": "pnpm exec vite build --config apps/official-suite/vite.config.mts",
+        "cwd": "."
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "pnpm exec vite --config apps/official-suite/vite.config.mts",
+        "cwd": "."
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "env NODE_OPTIONS=--no-experimental-webstorage pnpm exec vitest run --config apps/official-suite/vite.config.mts",
+        "cwd": "."
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec tsc --noEmit -p apps/official-suite/tsconfig.json",
+        "cwd": "."
+      }
+    },
+    "ownership": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node scripts/check-official-suite-ownership.mjs",
+        "cwd": "."
+      }
+    },
+    "api-contract": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "uv run --frozen --directory apps/api pytest -q tests/test_api_composition.py tests/test_openapi_contract.py",
+        "cwd": "."
+      }
+    },
+    "api-build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/apps/official-suite-api"],
+      "options": {
+        "commands": [
+          "uv build --wheel --directory apps/api --out-dir ../../dist/apps/official-suite-api",
+          "uv build --wheel --directory apps/official-suite/api --out-dir ../../../dist/apps/official-suite-api"
+        ],
+        "parallel": false,
+        "cwd": "."
+      }
+    }
+  }
+}

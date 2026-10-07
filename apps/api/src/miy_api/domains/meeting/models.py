@@ -18,6 +18,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from miy_api.core.db import Base
+from miy_api.domains.official_apps.writer_contracts import OfficialWriterSource
 
 JSONB_COMPAT = JSONB(astext_type=Text()).with_variant(JSON(), "sqlite")
 
@@ -26,7 +27,7 @@ def utcnow_naive() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
-class Meeting(Base):
+class Meeting(OfficialWriterSource, Base):
     __tablename__ = "meetings"
     __table_args__ = (
         Index("ix_meetings_organizer_created", "organizer_id", "created_at"),
@@ -88,7 +89,7 @@ class Meeting(Base):
     )
 
 
-class MeetingAttendee(Base):
+class MeetingAttendee(OfficialWriterSource, Base):
     __tablename__ = "meeting_attendees"
     __table_args__ = (UniqueConstraint("meeting_id", "user_id", name="uq_meeting_attendee"),)
 
@@ -103,7 +104,7 @@ class MeetingAttendee(Base):
     user = relationship("User")
 
 
-class MeetingTaskLink(Base):
+class MeetingTaskLink(OfficialWriterSource, Base):
     __tablename__ = "meeting_task_links"
     __table_args__ = (
         UniqueConstraint("meeting_id", "task_id", name="uq_meeting_task_link"),
@@ -120,7 +121,7 @@ class MeetingTaskLink(Base):
     added_by = relationship("User")
 
 
-class MeetingDocLink(Base):
+class MeetingDocLink(OfficialWriterSource, Base):
     __tablename__ = "meeting_doc_links"
     __table_args__ = (
         UniqueConstraint("meeting_id", "doc_id", name="uq_meeting_doc_link"),
@@ -139,7 +140,7 @@ class MeetingDocLink(Base):
     added_by = relationship("User")
 
 
-class MeetingFileAttachment(Base):
+class MeetingFileAttachment(OfficialWriterSource, Base):
     """A binary file attached to a meeting (uploaded by organizer or any
     attendee). Stored in MinIO under ``meeting/<meeting_id>/<id>/<filename>``.
 
@@ -164,7 +165,7 @@ class MeetingFileAttachment(Base):
     added_by = relationship("User")
 
 
-class MeetingRecording(Base):
+class MeetingRecording(OfficialWriterSource, Base):
     __tablename__ = "meeting_recordings"
     __table_args__ = (
         UniqueConstraint("meeting_id", "idempotency_key", name="uq_recording_idempotency"),
@@ -217,7 +218,7 @@ class MeetingRecording(Base):
         return bool((self.summary_text or "").strip())
 
 
-class MeetingInsight(Base):
+class MeetingInsight(OfficialWriterSource, Base):
     __tablename__ = "meeting_insights"
     __table_args__ = (
         Index(
@@ -266,7 +267,7 @@ class MeetingInsight(Base):
     recording: Mapped["MeetingRecording | None"] = relationship(back_populates="insights")
 
 
-class MeetingRecordingStaging(Base):
+class MeetingRecordingStaging(OfficialWriterSource, Base):
     __tablename__ = "meeting_recording_staging"
     __table_args__ = (
         UniqueConstraint("meeting_id", "idempotency_key", name="uq_recording_staging_idempotency"),

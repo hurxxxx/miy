@@ -14,13 +14,14 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from miy_api.core.db import Base
+from miy_api.domains.official_apps.writer_contracts import OfficialWriterSource
 
 
 def utcnow_naive() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
-class Diagram(Base):
+class Diagram(OfficialWriterSource, Base):
     __tablename__ = "diagrams"
     __table_args__ = (
         CheckConstraint(

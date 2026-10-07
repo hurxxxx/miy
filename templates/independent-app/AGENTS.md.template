@@ -1,0 +1,9 @@
+# Independent MIY app
+
+- `app.manifest.json` owns this app's ID, display, source and requested capabilities. Use the supported versioned contract; installation, audience, grants and release state are platform authority.
+- Keep this app's UI, API, data and tests in its own project. Do not add imports or routers to MIY's built-in application bundle to register it.
+- Use the SDK's exact-origin, window-bound session exchange. Never pass the portal bearer to the app or store app tokens in URLs, logs or browser storage. Every protected endpoint revalidates the app session and its own resource ACL.
+- Use only the supported capabilities requested in this app's manifest, with server resource authorization on every operation. New capabilities require a registered common contract and server enforcement. Product AI must use the platform's registered gateway, without app-held provider credentials or ad hoc model routing.
+- App code and manifests cannot grant host commands, mounts, Docker socket access, privileged mode or production credentials. Source, private development data and production data remain separate; never commit `.env`.
+- Validate changed behavior with `pnpm test`, `pnpm build`, and affected API tests. Report unexecuted checks accurately. A release candidate or generated success message is not verification or a completed deployment.
+- Deploy or recover only the user's explicit target and scope through the trusted platform release service. If that service is unconfigured, report the missing connection instead of inventing success or mutating the core platform.

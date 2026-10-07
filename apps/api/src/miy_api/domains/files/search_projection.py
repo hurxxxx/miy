@@ -4,10 +4,15 @@ from collections.abc import Sequence
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload, undefer
+from sqlalchemy.orm import Session, joinedload, load_only, undefer
 
 from miy_api.core.app_routes import InternalAppLocation, build_app_href
 from miy_api.domains.files.app_catalog import FILES_APP
+from miy_api.domains.files.current_content import (
+    file_candidate_matches_current_content,
+    file_extraction_result_marker,
+    load_current_file_content,
+)
 from miy_api.domains.files.external_projection import (
     external_source_date_markers,
     external_source_keywords,
@@ -17,7 +22,11 @@ from miy_api.domains.files.external_projection import (
     refresh_safe_external_source_metadata,
     safe_external_source_metadata,
 )
-from miy_api.domains.files.models import FileManagerFile
+from miy_api.domains.files.models import (
+    FileManagerCorpus,
+    FileManagerFile,
+    FileManagerFileSourceMetadata,
+)
 from miy_api.domains.files.retrieval_contract import (
     FILES_RAG_SOURCE_KIND,
     FILES_RETRIEVAL_ACTIVE,
@@ -133,6 +142,7 @@ def build_file_search_document(
             "content_type": file.content_type,
             "size_bytes": file.size_bytes,
             "content_checksum": file.extraction_content_checksum,
+            "extracted_at": file_extraction_result_marker(file.extracted_at),
             "extraction": dict(file.extraction_metadata or {}),
             **safe_external_source_metadata(file),
         },
@@ -157,7 +167,7 @@ def hydrate_file_search_rows_from_source(
     *,
     rows: Sequence[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Replace Files response-routing/ACL hints with current source metadata.
+    """Keep current-content candidates and refresh response-routing/ACL hints.
 
     Indexed fields remain retrieval candidates only. This helper never grants
     access and never adds a row; the caller must run the source-owned ACL after
@@ -172,24 +182,60 @@ def hydrate_file_search_rows_from_source(
             and str(row.get("entity_id") or "")
         )
     )
-    files_by_id = (
-        {
-            file.id: file
-            for file in db.scalars(
-                select(FileManagerFile)
-                .options(
-                    joinedload(FileManagerFile.corpus),
-                    joinedload(FileManagerFile.source_metadata),
+    if not file_ids:
+        return [
+            row for row in rows if str(row.get("entity_type") or "") != SearchEntityType.FILE.value
+        ]
+    with db.no_autoflush:
+        files_by_id = (
+            {
+                file.id: file
+                for file in db.scalars(
+                    select(FileManagerFile)
+                    .options(
+                        load_only(
+                            FileManagerFile.id,
+                            FileManagerFile.owner_id,
+                            FileManagerFile.filename,
+                            FileManagerFile.folder_id,
+                            FileManagerFile.corpus_id,
+                            FileManagerFile.content_type,
+                            FileManagerFile.size_bytes,
+                            FileManagerFile.visibility,
+                            FileManagerFile.updated_at,
+                            raiseload=True,
+                        ),
+                        joinedload(FileManagerFile.corpus).load_only(
+                            FileManagerCorpus.id,
+                            FileManagerCorpus.access_scope_kind,
+                            raiseload=True,
+                        ),
+                        joinedload(FileManagerFile.source_metadata).load_only(
+                            FileManagerFileSourceMetadata.file_id,
+                            FileManagerFileSourceMetadata.source_kind,
+                            FileManagerFileSourceMetadata.title,
+                            FileManagerFileSourceMetadata.author,
+                            FileManagerFileSourceMetadata.authored_at,
+                            FileManagerFileSourceMetadata.department,
+                            FileManagerFileSourceMetadata.document_type,
+                            FileManagerFileSourceMetadata.source_updated_at,
+                            FileManagerFileSourceMetadata.content_checksum,
+                            raiseload=True,
+                        ),
+                    )
+                    .where(
+                        FileManagerFile.id.in_(file_ids),
+                        FileManagerFile.deleted_at.is_(None),
+                    )
+                    .execution_options(populate_existing=True)
                 )
-                .where(
-                    FileManagerFile.id.in_(file_ids),
-                    FileManagerFile.deleted_at.is_(None),
-                )
-            )
-        }
-        if file_ids
-        else {}
-    )
+            }
+            if file_ids
+            else {}
+        )
+    # This witness follows routing reads: a mutation during hydration cannot
+    # pass an earlier content identity into rerank or the response.
+    current_content = load_current_file_content(db, file_ids=file_ids)
 
     hydrated: list[dict[str, Any]] = []
     for row in rows:
@@ -197,13 +243,18 @@ def hydrate_file_search_rows_from_source(
             hydrated.append(row)
             continue
         file = files_by_id.get(str(row.get("entity_id") or ""))
-        if file is None:
+        candidate_metadata = dict(row.get("metadata") or {})
+        if file is None or not file_candidate_matches_current_content(
+            current_content.get(file.id),
+            candidate_checksum=candidate_metadata.get("content_checksum"),
+            candidate_partition_id=row.get("retrieval_partition_id"),
+            candidate_extracted_at=candidate_metadata.get("extracted_at"),
+        ):
             continue
         corpus = file.corpus
         access_scope_kind = corpus.access_scope_kind if corpus is not None else "company"
 
         fresh = dict(row)
-        fresh["retrieval_partition_id"] = file.retrieval_partition_id
         fresh["visibility"] = access_scope_kind if corpus is not None else file.visibility
         fresh["deep_link"] = _file_deep_link(
             file=file,
@@ -217,7 +268,7 @@ def hydrate_file_search_rows_from_source(
         )
         fresh["date_markers"] = external_source_date_markers(file)
         metadata = refresh_safe_external_source_metadata(
-            dict(row.get("metadata") or {}),
+            candidate_metadata,
             file=file,
         )
         metadata.update(
@@ -230,6 +281,11 @@ def hydrate_file_search_rows_from_source(
                 "folder_id": file.folder_id,
                 "content_type": file.content_type,
                 "size_bytes": file.size_bytes,
+                # Response conversion drops the top-level partition; retain
+                # the admitted candidate envelope rather than manufacture it.
+                "content_checksum": candidate_metadata["content_checksum"],
+                "retrieval_partition_id": row.get("retrieval_partition_id"),
+                "extracted_at": candidate_metadata["extracted_at"],
             }
         )
         fresh["metadata"] = metadata

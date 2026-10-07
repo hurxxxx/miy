@@ -1,9 +1,2 @@
-import { videoChatManifest } from './manifest';
-import { videoChatAppRoutes } from './routes';
-
-export { videoChatAppRoutes, videoChatManifest };
-
-export const videoChatModule = {
-  manifest: videoChatManifest,
-  appRoutes: videoChatAppRoutes,
-} as const;
+/** Compatibility entry; the official suite owns this implementation. */
+export * from '@miy/official-suite-web/video-chat/module';

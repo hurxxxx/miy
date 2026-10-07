@@ -85,6 +85,7 @@ def test_enqueue_task_search_index_by_id_delegates_to_search_outbox(monkeypatch:
         db,
         task_id="task-1",
         operation="delete",
+        projection_event=_projection_event("task-1", deleted=True),
     )
 
     assert calls == [
@@ -98,7 +99,7 @@ def test_enqueue_task_search_index_by_id_delegates_to_search_outbox(monkeypatch:
 
 
 def test_enqueue_label_task_search_recompute_filters_and_sorts_task_ids(monkeypatch: Any) -> None:
-    calls = _record_enqueues(monkeypatch)
+    calls = []
     db = cast(
         Session,
         SimpleNamespace(
@@ -113,7 +114,7 @@ def test_enqueue_label_task_search_recompute_filters_and_sorts_task_ids(monkeypa
     monkeypatch.setattr(
         pms_search_hooks,
         "_record_task_projection_event",
-        lambda db, *, task, operation: _projection_event(task.id),
+        lambda db, *, task, operation: calls.append((task.id, operation)),
     )
 
     pms_search_hooks.enqueue_label_task_search_recompute(
@@ -122,20 +123,7 @@ def test_enqueue_label_task_search_recompute_filters_and_sorts_task_ids(monkeypa
         task_ids=task_ids,
     )
 
-    assert calls == [
-        (
-            SearchEntityType.PMS_TASK,
-            "task-a",
-            "upsert",
-            _projection_event("task-a"),
-        ),
-        (
-            SearchEntityType.PMS_TASK,
-            "task-b",
-            "upsert",
-            _projection_event("task-b"),
-        ),
-    ]
+    assert calls == [("task-a", "upsert"), ("task-b", "upsert")]
 
 
 def test_task_projection_event_assigns_missing_source_binding(monkeypatch: Any) -> None:
@@ -155,7 +143,7 @@ def test_task_projection_event_assigns_missing_source_binding(monkeypatch: Any) 
 
     def fake_record_projection_event(db: Session, **kwargs: Any) -> ProjectionEventRef:
         del db
-        captured.update(kwargs)
+        captured.update(kwargs["intent"].model_dump(mode="json"))
         return _projection_event("task-unbound")
 
     monkeypatch.setattr(
@@ -165,7 +153,7 @@ def test_task_projection_event_assigns_missing_source_binding(monkeypatch: Any) 
     )
     monkeypatch.setattr(
         pms_search_hooks,
-        "record_projection_event",
+        "emit_and_accept_projection",
         fake_record_projection_event,
     )
 
@@ -211,7 +199,7 @@ def test_meeting_projection_event_assigns_missing_source_binding(monkeypatch: An
 
     def fake_record_projection_event(db: Session, **kwargs: Any) -> ProjectionEventRef:
         del db
-        captured.update(kwargs)
+        captured.update(kwargs["intent"].model_dump(mode="json"))
         return projection_event
 
     monkeypatch.setattr(
@@ -221,7 +209,7 @@ def test_meeting_projection_event_assigns_missing_source_binding(monkeypatch: An
     )
     monkeypatch.setattr(
         meeting_search_hooks,
-        "record_projection_event",
+        "emit_and_accept_projection",
         fake_record_projection_event,
     )
 

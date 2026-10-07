@@ -54,12 +54,6 @@ class EnvHelperTest(unittest.TestCase):
         (self.root / '.env').symlink_to(self.root / '.env.example')
         self.assertNotEqual(self.run_helper('install', '--force').returncode, 0)
 
-    def test_reproduction_template_requires_task_configuration_and_has_safe_help(self):
-        script = ROOT / '.agents/skills/diagnose/scripts/hitl-loop.template.sh'
-        plain = subprocess.run(['bash', str(script)], text=True, capture_output=True, timeout=5)
-        self.assertEqual(plain.returncode, 2)
-        help_result = subprocess.run(['bash', str(script), '--help'], text=True, capture_output=True, timeout=5)
-        self.assertEqual(help_result.returncode, 0)
 
 
 if __name__ == '__main__':

@@ -1539,7 +1539,9 @@ class FilesGenerationRunner:
         self,
         snapshot: FilesSourceProjectionSnapshot,
     ) -> dict[str, object]:
-        if snapshot.resource_count == 0:
+        if snapshot.resource_count == 0 and not getattr(
+            self._materializer, "requires_empty_reconciliation", False
+        ):
             return {
                 "files_event_watermark": snapshot.files_event_watermark,
                 "keyword_remaining": 0,
@@ -2104,6 +2106,7 @@ def load_files_source_snapshot(db: Session) -> FilesSourceProjectionSnapshot:
             FileManagerFile.extraction_text,
             FileManagerFile.extraction_blocks,
             FileManagerFile.extraction_metadata,
+            FileManagerFile.extracted_at,
             FileManagerFile.retrieval_partition_id.label("file_partition_id"),
             User.display_name.label("owner_display_name"),
             User.full_name.label("owner_full_name"),
@@ -2241,6 +2244,7 @@ def load_files_source_snapshot(db: Session) -> FilesSourceProjectionSnapshot:
                 extraction_content_checksum=str(row.extraction_content_checksum),
                 extraction_text=str(row.extraction_text),
                 extraction_metadata=dict(row.extraction_metadata or {}),
+                extracted_at=row.extracted_at,
                 retrieval_partition_id=str(row.file_partition_id),
                 corpus=corpus,
                 owner=owner,

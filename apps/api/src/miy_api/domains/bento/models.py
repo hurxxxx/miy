@@ -6,13 +6,14 @@ from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, St
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from miy_api.core.db import Base
+from miy_api.domains.official_apps.writer_contracts import OfficialWriterSource
 
 
 def utcnow_naive() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
-class BentoDocument(Base):
+class BentoDocument(OfficialWriterSource, Base):
     __tablename__ = "bento_documents"
     __table_args__ = (
         CheckConstraint(
@@ -47,7 +48,7 @@ class BentoDocument(Base):
     owner = relationship("User")
 
 
-class BentoAiJob(Base):
+class BentoAiJob(OfficialWriterSource, Base):
     __tablename__ = "bento_ai_jobs"
     __table_args__ = (
         CheckConstraint("kind IN ('create', 'edit')", name="ck_bento_ai_jobs_kind"),
@@ -118,7 +119,7 @@ class BentoAiJob(Base):
     )
 
 
-class BentoAiJobInput(Base):
+class BentoAiJobInput(OfficialWriterSource, Base):
     __tablename__ = "bento_ai_job_inputs"
 
     job_id: Mapped[str] = mapped_column(

@@ -53,7 +53,7 @@ def build_file_content_url(
     now: float | None = None,
     expires_seconds: int = FILE_CONTENT_URL_EXPIRES_SECONDS,
 ) -> str:
-    corpus_id, acl_epoch = _file_content_acl_binding(file)
+    corpus_id, acl_epoch = file_content_acl_binding(file)
     return build_content_grant_url(
         resource_kind="files.file",
         resource_id=file.id,
@@ -63,7 +63,7 @@ def build_file_content_url(
         route_id=None,
         source_type="file_corpus",
         source_id=corpus_id,
-        object_identity=_file_content_object_identity(file),
+        object_identity=file_content_object_identity(file),
         resource_version=str(acl_epoch),
         disposition=disposition,
         expires_seconds=expires_seconds,
@@ -82,12 +82,12 @@ def open_file_content_grant(db: Session, *, claims: ContentGrantClaims) -> Conte
     )
     if file is None:
         raise InvalidContentGrant("resource")
-    corpus_id, acl_epoch = _file_content_acl_binding(file)
+    corpus_id, acl_epoch = file_content_acl_binding(file)
     if (
         claims.owner_app_id != "files"
         or claims.source_type != "file_corpus"
         or claims.source_id != corpus_id
-        or claims.object_identity != _file_content_object_identity(file)
+        or claims.object_identity != file_content_object_identity(file)
         or claims.resource_version != str(acl_epoch)
     ):
         raise InvalidContentGrant("binding")
@@ -181,7 +181,7 @@ def _open_file_stream(
     )
 
 
-def _file_content_acl_binding(file: FileManagerFile) -> tuple[str, int | str]:
+def file_content_acl_binding(file: FileManagerFile) -> tuple[str, int | str]:
     if file.corpus_id is None:
         updated_at = file.updated_at
         return (
@@ -196,7 +196,7 @@ def _file_content_acl_binding(file: FileManagerFile) -> tuple[str, int | str]:
     return corpus.id, corpus.metadata_version
 
 
-def _file_content_object_identity(file: FileManagerFile) -> str:
+def file_content_object_identity(file: FileManagerFile) -> str:
     updated_at = file.updated_at
     identity = json.dumps(
         {

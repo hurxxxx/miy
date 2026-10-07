@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 import subprocess
+from tempfile import TemporaryDirectory
 import time
 import uuid
 from typing import Literal
@@ -30,9 +31,7 @@ from integration_infra import (
     stale_resource_cutoff,
 )
 
-TEST_POSTGRES_DSN = (
-    "postgresql+psycopg://miy_test:miy_test@127.0.0.1:5432/miy_test"
-)
+TEST_POSTGRES_DSN = "postgresql+psycopg://miy_test:miy_test@127.0.0.1:5432/miy_test"
 TEST_SETTINGS_ENV = {
     "MIY_POSTGRES_DSN": TEST_POSTGRES_DSN,
     "MIY_MAIL_CREDENTIAL_ENCRYPTION_KEY": "test-mail-credential-key",
@@ -142,25 +141,61 @@ def _truncate_test_database(engine) -> None:
     configured_database = engine.url.database or ""
     if not configured_database.startswith("miy_test_"):
         raise RuntimeError(f"Refusing to truncate non-test database {configured_database!r}.")
-
     with engine.begin() as connection:
-        connection.exec_driver_sql("SET LOCAL lock_timeout = '5s'")
-        connection.exec_driver_sql("SET LOCAL statement_timeout = '30s'")
-        database = connection.exec_driver_sql("SELECT current_database()").scalar_one()
-        if database != configured_database or not database.startswith("miy_test_"):
-            raise RuntimeError(f"Refusing to truncate non-test database {database!r}.")
+        for statement in _truncate_test_database_statements(connection):
+            connection.exec_driver_sql(statement)
 
-        preparer = connection.dialect.identifier_preparer
-        schema = preparer.quote_schema("public")
-        table_names = [
-            table_name
-            for table_name in inspect(connection).get_table_names(schema="public")
-            if table_name != "alembic_version"
-        ]
-        if not table_names:
-            return
-        tables = ", ".join(f"{schema}.{preparer.quote(table_name)}" for table_name in table_names)
-        connection.exec_driver_sql(f"TRUNCATE TABLE {tables} RESTART IDENTITY CASCADE")
+
+def _truncate_test_database_statements(connection) -> list[str]:
+    """Generate reset SQL only after verifying this exact disposable database."""
+    configured_database = connection.engine.url.database or ""
+    database = connection.exec_driver_sql("SELECT current_database()").scalar_one()
+    if database != configured_database or not database.startswith("miy_test_"):
+        raise RuntimeError(f"Refusing to truncate non-test database {database!r}.")
+    preparer = connection.dialect.identifier_preparer
+    schema = preparer.quote_schema("public")
+    table_names = [
+        table_name
+        for table_name in inspect(connection).get_table_names(schema="public")
+        if table_name != "alembic_version"
+    ]
+    if not table_names:
+        return []
+    tables = ", ".join(f"{schema}.{preparer.quote(table_name)}" for table_name in table_names)
+    # Only the verified disposable reset may retire these exact history guards;
+    # Original writer/identity/admission guards remain active. The fixed inactive
+    # Files table additionally denies even empty Core TRUNCATE, so its exact
+    # statement guard is retired only here in this owned atomic reset. DDL rolls
+    # back on failure; no production empty-statement exception is introduced.
+    immutable_tables = connection.exec_driver_sql("""
+        SELECT c.relname,t.tgname FROM pg_catalog.pg_trigger t
+        JOIN pg_catalog.pg_class c ON c.oid=t.tgrelid
+        JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+        WHERE n.nspname='public'
+          AND ((c.relname IN ('official_projection_outbox','official_projection_receipts')
+                AND t.tgname='miy_official_projection_immutable')
+            OR (c.relname IN ('docs_legacy_projection_repairs','docs_legacy_projection_repair_targets')
+                AND t.tgname='miy_docs_repair_immutable')
+            OR (c.relname IN ('recording_stage_commands','core_recording_publications')
+                AND t.tgname='miy_recording_history')
+            OR (c.relname='file_extraction_requests'
+                AND t.tgname IN ('miy_file_extraction_history','miy_file_extraction_writer'))
+            OR (c.relname='core_file_materialization_operations'
+                AND t.tgname='miy_file_materialization_effect_writer'))
+    """).all()
+    return [
+        "SET LOCAL lock_timeout = '5s'",
+        "SET LOCAL statement_timeout = '30s'",
+        *(
+            f"ALTER TABLE {schema}.{preparer.quote(table)} DISABLE TRIGGER {preparer.quote(trigger)}"
+            for table, trigger in immutable_tables
+        ),
+        f"TRUNCATE TABLE {tables} RESTART IDENTITY CASCADE",
+        *(
+            f"ALTER TABLE {schema}.{preparer.quote(table)} ENABLE TRIGGER {preparer.quote(trigger)}"
+            for table, trigger in immutable_tables
+        ),
+    ]
 
 
 def _wait_for_postgres(dsn: str, timeout_seconds: int = 45) -> None:
@@ -226,8 +261,7 @@ def _native_postgres_template_dsn() -> str:
         )
     if not configured:
         raise RuntimeError(
-            "Native PostgreSQL tests require MIY_POSTGRES_DSN or "
-            "MIY_TEST_POSTGRES_TEMPLATE_DSN."
+            "Native PostgreSQL tests require MIY_POSTGRES_DSN or MIY_TEST_POSTGRES_TEMPLATE_DSN."
         )
     assert_non_production_postgres_dsn(configured)
     return configured
@@ -335,9 +369,7 @@ def _initialize_application_test_database(dsn: str) -> None:
         monkeypatch.setenv("MIY_POSTGRES_DSN", dsn)
         monkeypatch.setenv("MIY_API_AUTO_MIGRATE", "0")
         monkeypatch.setenv("MIY_API_SEED_DEV_LOGIN_ACCOUNT", "0")
-        monkeypatch.setenv(
-            "MIY_MAIL_CREDENTIAL_ENCRYPTION_KEY", "test-mail-credential-key"
-        )
+        monkeypatch.setenv("MIY_MAIL_CREDENTIAL_ENCRYPTION_KEY", "test-mail-credential-key")
         monkeypatch.setenv(
             "MIY_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY",
             "test-ai-model-credential-key",
@@ -407,6 +439,15 @@ def _run_postgres_cli(command: list[str], *, dsn: str) -> None:
 
 
 def _capture_application_postgres_state(dsn: str, baseline_path: Path) -> ApplicationPostgresState:
+    # These inactive protocol tables have no canonical application seed.
+    # pg_restore COPY invokes statement-level admission even for zero rows;
+    # skip only their asserted-empty data rather than disable Core authority.
+    empty_protocol_tables = (
+        "recording_stage_commands",
+        "core_recording_publications",
+        "file_extraction_requests",
+        "core_file_materialization_operations",
+    )
     engine = create_engine(dsn)
     try:
         with engine.connect() as connection:
@@ -414,6 +455,16 @@ def _capture_application_postgres_state(dsn: str, baseline_path: Path) -> Applic
             head_revision = connection.exec_driver_sql(
                 "SELECT version_num FROM alembic_version"
             ).scalar_one()
+            for table in empty_protocol_tables:
+                if (
+                    table in table_names
+                    and connection.exec_driver_sql(
+                        f"SELECT EXISTS(SELECT 1 FROM public.{table})"
+                    ).scalar_one()
+                ):
+                    raise RuntimeError(
+                        "Inactive Source/Core protocol fixture baseline must be empty."
+                    )
     finally:
         engine.dispose()
 
@@ -424,6 +475,11 @@ def _capture_application_postgres_state(dsn: str, baseline_path: Path) -> Applic
             "--format=custom",
             "--data-only",
             "--exclude-table-data=public.alembic_version",
+            *(
+                f"--exclude-table-data=public.{table}"
+                for table in empty_protocol_tables
+                if table in table_names
+            ),
             "--file",
             str(baseline_path),
         ],
@@ -441,21 +497,43 @@ def _capture_application_postgres_state(dsn: str, baseline_path: Path) -> Applic
 def _restore_application_postgres_state(state: ApplicationPostgresState) -> None:
     engine = create_engine(state.dsn)
     try:
-        _truncate_test_database(engine)
+        with engine.connect() as connection:
+            statements = _truncate_test_database_statements(connection)
     finally:
         engine.dispose()
 
-    _run_postgres_cli(
-        [
-            "pg_restore",
-            *_postgres_cli_args(state.dsn),
-            "--data-only",
-            "--single-transaction",
-            "--exit-on-error",
-            str(state.baseline_path),
-        ],
-        dsn=state.dsn,
-    )
+    # One transaction owns reset plus COPY restore. Any restore failure rolls
+    # back data and exact history-trigger DDL, including the ownership seed.
+    with TemporaryDirectory(prefix="atomic-restore-", dir=state.baseline_path.parent) as temporary:
+        reset_sql, restore_sql = Path(temporary) / "reset.sql", Path(temporary) / "restore.sql"
+        reset_sql.write_text("\n".join(f"{statement};" for statement in statements) + "\n")
+        reset_sql.chmod(0o600)
+        _run_postgres_cli(
+            [
+                "pg_restore",
+                "--data-only",
+                "--exit-on-error",
+                "--file",
+                str(restore_sql),
+                str(state.baseline_path),
+            ],
+            dsn=state.dsn,
+        )
+        restore_sql.chmod(0o600)
+        _run_postgres_cli(
+            [
+                "psql",
+                *_postgres_cli_args(state.dsn),
+                "--no-psqlrc",
+                "--set=ON_ERROR_STOP=on",
+                "--single-transaction",
+                "--file",
+                str(reset_sql),
+                "--file",
+                str(restore_sql),
+            ],
+            dsn=state.dsn,
+        )
 
     engine = create_engine(state.dsn)
     try:
@@ -928,7 +1006,8 @@ def configured_local_llm_control_plane(client: TestClient) -> None:
         from miy_api.domains.ai.model_settings_models import AiModelPolicyDefault
 
         db.merge(
-            AiModelPolicyDefault(model_family="generation",
+            AiModelPolicyDefault(
+                model_family="generation",
                 app_id="",
                 route_mode="local",
                 provider_id="local",

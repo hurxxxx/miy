@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 from fastapi import status
 from sqlalchemy import exists, false, or_, select
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy.orm import Session, joinedload, load_only, selectinload
 
 from miy_api.core.i18n import localized_http_exception
 from miy_api.domains.auth.access import is_platform_admin_user
@@ -388,7 +388,12 @@ def accessible_space_ids_query(db: Session, *, user_id: str):
     query = select(Team.id).where(Team.active.is_(True), Team.trashed_at.is_(None))
     if not can_use_app(db, user_id=user_id, app_id="pms"):
         return query.where(false())
-    user = db.get(User, user_id)
+    user = db.scalar(
+        select(User)
+        .options(load_only(User.id, raiseload=True))
+        .where(User.id == user_id)
+        .execution_options(populate_existing=True)
+    )
     if user is not None and is_platform_admin_user(user, db):
         return query
     return query.where(

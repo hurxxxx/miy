@@ -1910,6 +1910,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/apps/{app_id}/installations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Installations */
+        get: operations["app_integrations_read_installations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/apps/{app_id}/usage": {
         parameters: {
             query?: never;
@@ -1919,6 +1936,572 @@ export interface paths {
         };
         /** Read Usage */
         get: operations["app_integrations_read_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/_data/{collection}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Records */
+        get: operations["independent_apps_list_records_get"];
+        put?: never;
+        /** Create Record */
+        post: operations["independent_apps_create_record_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/_data/{collection}/{record_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Record */
+        get: operations["independent_apps_read_record_get"];
+        /** Update Record */
+        put: operations["independent_apps_update_record_put"];
+        post?: never;
+        /** Delete Record */
+        delete: operations["independent_apps_delete_record_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/{app_id}/installations/{installation_id}/delegations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Issued */
+        get: operations["independent_apps_issued_get"];
+        put?: never;
+        /** Issue */
+        post: operations["independent_apps_issue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/{app_id}/installations/{installation_id}/delegations/{grant_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke */
+        delete: operations["independent_apps_revoke_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/delegated/{app_id}/installations/{installation_id}/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current Context */
+        get: operations["independent_apps_current_context_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/delegated/{app_id}/installations/{installation_id}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sync */
+        post: operations["independent_apps_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/delegated/{app_id}/installations/{installation_id}/builds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Build */
+        post: operations["independent_apps_request_build_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/delegated/{app_id}/installations/{installation_id}/builds/{build_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Build Status */
+        get: operations["independent_apps_build_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/delegated/{app_id}/installations/{installation_id}/deployments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Delegated Deployment */
+        post: operations["independent_apps_request_delegated_deployment_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/delegated/{app_id}/installations/{installation_id}/deployments/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Delegated Deployment Status */
+        get: operations["independent_apps_delegated_deployment_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/bootstrap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bootstrap Independent App */
+        post: operations["independent_apps_bootstrap_independent_app_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/bootstrap/{operation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Independent App Bootstrap Receipt */
+        get: operations["independent_apps_independent_app_bootstrap_receipt_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/bootstrap-authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Authorize Registration */
+        post: operations["independent_apps_authorize_registration_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/bootstrap-authorizations/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Exchange Registration Authorization */
+        post: operations["independent_apps_exchange_registration_authorization_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/bootstrap-authorizations/{authorization_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Registration Authorization */
+        delete: operations["independent_apps_revoke_registration_authorization_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/bootstrap-authorizations/{authorization_id}/bootstrap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bootstrap With Registration Authorization */
+        post: operations["independent_apps_bootstrap_with_registration_authorization_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/bootstrap-authorizations/{authorization_id}/receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Registration Authorization Receipt */
+        get: operations["independent_apps_read_registration_authorization_receipt_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/{app_id}/installations/{installation_id}/owner-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Owner Preview */
+        get: operations["independent_apps_read_owner_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Configure Owner Preview */
+        patch: operations["independent_apps_configure_owner_preview_patch"];
+        trace?: never;
+    };
+    "/api/v1/independent-apps/_files/selection-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request File Selection */
+        post: operations["independent_apps_request_file_selection_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/_files/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** List File Selection Candidates */
+        post: operations["independent_apps_list_file_selection_candidates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/_files/authorize-selection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Authorize Selected File */
+        post: operations["independent_apps_authorize_selected_file_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/_files/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Selected File */
+        get: operations["independent_apps_read_selected_file_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/{app_id}/deployments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Deployment */
+        post: operations["independent_apps_request_deployment_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/{app_id}/deployments/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Deployment Status */
+        get: operations["independent_apps_deployment_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catalog */
+        get: operations["independent_apps_catalog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/{app_id}/company-control": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Company Control */
+        put: operations["independent_apps_set_company_control_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/definitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Register Definition */
+        put: operations["independent_apps_register_definition_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/{app_id}/releases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register Release */
+        post: operations["independent_apps_register_release_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/{app_id}/installations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Installation */
+        post: operations["independent_apps_create_installation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/{app_id}/installations/{installation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Installation */
+        put: operations["independent_apps_update_installation_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/launch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Issue Launch */
+        post: operations["independent_apps_issue_launch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Exchange Launch */
+        post: operations["independent_apps_exchange_launch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/independent-apps/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Session */
+        get: operations["independent_apps_read_session_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8939,6 +9522,82 @@ export interface components {
             /** Pinned App Ids */
             pinned_app_ids?: string[];
         };
+        /** AppDefinition */
+        AppDefinition: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /** App Id */
+            app_id: string;
+            display: components["schemas"]["Display"];
+            source: components["schemas"]["Source"];
+            /**
+             * Ownership
+             * @default personal
+             * @enum {string}
+             */
+            ownership: "personal" | "official";
+            /**
+             * Sdk Version
+             * @default 1
+             * @constant
+             */
+            sdk_version: 1;
+            /**
+             * Runtime Profile
+             * @default web-api-v1
+             * @enum {string}
+             */
+            runtime_profile: "web-api-v1" | "web-api-postgres-v1";
+            entrypoints?: components["schemas"]["Entrypoints"];
+            /** Requested Permissions */
+            requested_permissions?: ("identity:read" | "data:read" | "data:write" | "files:read-selected")[];
+        };
+        /** AppIdentityOut */
+        AppIdentityOut: {
+            /** User Id */
+            user_id: string;
+            /** Display Name */
+            display_name: string;
+            /** App Id */
+            app_id: string;
+            /** Installation Id */
+            installation_id: string;
+            /**
+             * Environment
+             * @enum {string}
+             */
+            environment: "development" | "production";
+            /** Audience */
+            audience: string;
+            /** Permissions */
+            permissions: ("identity:read" | "data:read" | "data:write" | "files:read-selected")[];
+            /** Expires At */
+            expires_at: string | null;
+        };
+        /** AppSessionOut */
+        AppSessionOut: {
+            /** Token */
+            token: string;
+            /** Expires At */
+            expires_at: string | null;
+            /** Installation Id */
+            installation_id: string;
+            /** App Id */
+            app_id: string;
+            /**
+             * Environment
+             * @enum {string}
+             */
+            environment: "development" | "production";
+            /** Audience */
+            audience: string;
+            /** Permissions */
+            permissions: ("identity:read" | "data:read" | "data:write" | "files:read-selected")[];
+        };
         /** AppUsageResponse */
         AppUsageResponse: {
             /**
@@ -9507,6 +10166,21 @@ export interface components {
             /** Nav Items */
             nav_items: components["schemas"]["BootstrapNavItemResponse"][];
         };
+        /** BootstrapInput */
+        BootstrapInput: {
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            definition: components["schemas"]["AppDefinition"];
+            /** Source Revision */
+            source_revision: string;
+            /** Origin */
+            origin: string;
+            /** Granted Permissions */
+            granted_permissions?: ("identity:read" | "data:read" | "data:write" | "files:read-selected")[];
+        };
         /** BootstrapKeywordSearchEntityTypeResponse */
         BootstrapKeywordSearchEntityTypeResponse: {
             /** Value */
@@ -9545,6 +10219,27 @@ export interface components {
              */
             coming_soon: boolean;
         };
+        /** BootstrapReceipt */
+        BootstrapReceipt: {
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /** App Id */
+            app_id: string;
+            /**
+             * Installation Id
+             * Format: uuid
+             */
+            installation_id: string;
+            /** Definition Digest */
+            definition_digest: string;
+            /** Source Revision */
+            source_revision: string;
+            /** Created At */
+            created_at: string | null;
+        };
         /** BootstrapStatusResponse */
         BootstrapStatusResponse: {
             /** Requires Setup */
@@ -9556,6 +10251,40 @@ export interface components {
             dev_admin_login_available: boolean;
             /** Dev Login Accounts */
             dev_login_accounts?: components["schemas"]["DevLoginAccountResponse"][];
+        };
+        /** BuildInput */
+        BuildInput: {
+            /**
+             * Request Id
+             * Format: uuid
+             */
+            request_id: string;
+            /** Source Revision */
+            source_revision: string;
+            /** Definition Digest */
+            definition_digest: string;
+        };
+        /** BuildOut */
+        BuildOut: {
+            /** Id */
+            id: string;
+            /** App Id */
+            app_id: string;
+            /** Source Revision */
+            source_revision: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "queued" | "running" | "succeeded" | "failed" | "unknown";
+            /** Failure Code */
+            failure_code: string | null;
+            /** Release Id */
+            release_id: string | null;
+            /** Created At */
+            created_at: string | null;
+            /** Updated At */
+            updated_at: string | null;
         };
         /** BulkUpdateRequest */
         BulkUpdateRequest: {
@@ -9656,6 +10385,25 @@ export interface components {
         CalendarEventsResponse: {
             /** Items */
             items: components["schemas"]["CalendarEventOut"][];
+        };
+        /** CatalogItem */
+        CatalogItem: {
+            definition: components["schemas"]["DefinitionOut"];
+            /** Installations */
+            installations: components["schemas"]["InstallationSummary"][];
+        };
+        /** CatalogOut */
+        CatalogOut: {
+            /** Items */
+            items: components["schemas"]["CatalogItem"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Catalog Revision */
+            catalog_revision: string;
         };
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
@@ -10220,6 +10968,11 @@ export interface components {
             /** Items */
             items: components["schemas"]["CompanyAppControlUpdateItem"][];
         };
+        /** CompanyControl */
+        CompanyControl: {
+            /** Enabled */
+            enabled: boolean;
+        };
         /** CompanyDirectoryPeopleResponse */
         CompanyDirectoryPeopleResponse: {
             /** Items */
@@ -10732,6 +11485,196 @@ export interface components {
             /** Next Due Date */
             next_due_date: string | null;
         };
+        /** DefinitionOut */
+        DefinitionOut: {
+            definition: components["schemas"]["AppDefinition"];
+            /** Definition Digest */
+            definition_digest: string;
+            /** Source Revision */
+            source_revision: string;
+            /** Owner User Id */
+            owner_user_id: string;
+            /** Updated At */
+            updated_at: string | null;
+        };
+        /** DelegatedContext */
+        DelegatedContext: {
+            /** App Id */
+            app_id: string;
+            /** Allowed Actions */
+            allowed_actions: ("read" | "sync" | "build" | "deploy" | "rollback")[];
+            definition: components["schemas"]["AppDefinition"];
+            /** Definition Digest */
+            definition_digest: string;
+            /** Source Revision */
+            source_revision: string;
+            installation: components["schemas"]["DelegatedInstallation"];
+            /** Releases */
+            releases: components["schemas"]["DelegatedRelease"][];
+            pending_deployment?: components["schemas"]["PendingDeployment"] | null;
+        };
+        /** DelegatedInstallation */
+        DelegatedInstallation: {
+            /** Id */
+            id: string;
+            /**
+             * Environment
+             * @constant
+             */
+            environment: "development";
+            /** Origin */
+            origin: string;
+            /** Generation */
+            generation: number;
+            /** Release Id */
+            release_id: string | null;
+            /** State */
+            state: string;
+            /** Enabled */
+            enabled: boolean;
+        };
+        /** DelegatedRelease */
+        DelegatedRelease: {
+            /** Id */
+            id: string;
+            /** Source Revision */
+            source_revision: string;
+            /** Artifact */
+            artifact: string;
+            /** Definition Digest */
+            definition_digest: string;
+            /** Verified At */
+            verified_at: string | null;
+            /** Rollback Allowed */
+            rollback_allowed: boolean;
+        };
+        /** DelegationInput */
+        DelegationInput: {
+            /** Actions */
+            actions: ("read" | "sync" | "build" | "deploy" | "rollback")[];
+            /**
+             * Expires In Seconds
+             * @default 86400
+             */
+            expires_in_seconds: number;
+        };
+        /** DelegationOut */
+        DelegationOut: {
+            /** Id */
+            id: string;
+            /** App Id */
+            app_id: string;
+            /** Installation Id */
+            installation_id: string;
+            /**
+             * Environment
+             * @constant
+             */
+            environment: "development";
+            /** Actions */
+            actions: ("read" | "sync" | "build" | "deploy" | "rollback")[];
+            /** Expires At */
+            expires_at: string | null;
+        };
+        /** DelegationSecretOut */
+        DelegationSecretOut: {
+            /** Id */
+            id: string;
+            /** App Id */
+            app_id: string;
+            /** Installation Id */
+            installation_id: string;
+            /**
+             * Environment
+             * @constant
+             */
+            environment: "development";
+            /** Actions */
+            actions: ("read" | "sync" | "build" | "deploy" | "rollback")[];
+            /** Expires At */
+            expires_at: string | null;
+            /** Token */
+            token: string;
+        };
+        /** DeploymentInput */
+        DeploymentInput: {
+            /**
+             * Request Id
+             * Format: uuid
+             */
+            request_id: string;
+            /**
+             * Installation Id
+             * Format: uuid
+             */
+            installation_id: string;
+            /**
+             * Release Id
+             * Format: uuid
+             */
+            release_id: string;
+            /**
+             * Action
+             * @default deploy
+             * @enum {string}
+             */
+            action: "deploy" | "rollback";
+            /** Expected Generation */
+            expected_generation: number;
+            /** Expected Release Id */
+            expected_release_id?: string | null;
+        };
+        /** DeploymentObservationResponse */
+        DeploymentObservationResponse: {
+            /** Request Id */
+            request_id: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "deploy" | "rollback";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "queued" | "running" | "cleanup" | "succeeded" | "failed" | "unknown";
+            /** Failure Code */
+            failure_code: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** DeploymentOut */
+        DeploymentOut: {
+            /** Id */
+            id: string;
+            /** Installation Id */
+            installation_id: string;
+            /** Release Id */
+            release_id: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "deploy" | "rollback";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "queued" | "running" | "cleanup" | "succeeded" | "failed" | "unknown";
+            /** Failure Code */
+            failure_code: string | null;
+            /** Previous Release Id */
+            previous_release_id: string | null;
+            /** Observed Image Id */
+            observed_image_id: string | null;
+            /** Created At */
+            created_at: string | null;
+            /** Updated At */
+            updated_at: string | null;
+        };
         /** DesktopSessionLinkExchangeRequest */
         DesktopSessionLinkExchangeRequest: {
             /** Code */
@@ -10948,6 +11891,20 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** Display */
+        Display: {
+            /** Name */
+            name: string;
+            /** Translations */
+            translations?: {
+                [key: string]: string;
+            };
+            /**
+             * Icon
+             * @default app-window
+             */
+            icon: string;
         };
         /** DmAddParticipantsRequest */
         DmAddParticipantsRequest: {
@@ -11652,6 +12609,24 @@ export interface components {
             /** Count */
             count: number;
         };
+        /** Entrypoints */
+        Entrypoints: {
+            /**
+             * Ui
+             * @default /
+             */
+            ui: string;
+            /**
+             * Api
+             * @default /api
+             */
+            api: string;
+            /**
+             * Health
+             * @default /healthz
+             */
+            health: string;
+        };
         /** ErrorResponse */
         ErrorResponse: {
             /**
@@ -11674,6 +12649,15 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** ExchangeInput */
+        ExchangeInput: {
+            /** Installation Id */
+            installation_id: string;
+            /** Code */
+            code: string;
+            /** Code Verifier */
+            code_verifier: string;
+        };
         /** FavoriteDocItem */
         FavoriteDocItem: {
             /** Id */
@@ -11686,6 +12670,35 @@ export interface components {
              * @constant
              */
             source_type: "native_doc";
+        };
+        /** FileAuthorizeInput */
+        FileAuthorizeInput: {
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Installation Id
+             * Format: uuid
+             */
+            installation_id: string;
+            /** Audience */
+            audience: string;
+            /**
+             * Selection Id
+             * Format: uuid
+             */
+            selection_id: string;
+            /** Selection Request */
+            selection_request: string;
+            /**
+             * File Id
+             * Format: uuid
+             */
+            file_id: string;
+            /** Expected Version */
+            expected_version: string;
         };
         /** FileBrowseResponse */
         FileBrowseResponse: {
@@ -11705,6 +12718,66 @@ export interface components {
             file_ids?: string[];
             /** Folder Ids */
             folder_ids?: string[];
+        };
+        /** FileCandidatesInput */
+        FileCandidatesInput: {
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Installation Id
+             * Format: uuid
+             */
+            installation_id: string;
+            /** Audience */
+            audience: string;
+            /**
+             * Selection Id
+             * Format: uuid
+             */
+            selection_id: string;
+            /** Selection Request */
+            selection_request: string;
+            /**
+             * Query
+             * @default
+             */
+            query: string;
+            /** Cursor */
+            cursor?: string | null;
+            /**
+             * Limit
+             * @default 25
+             */
+            limit: number;
+        };
+        /** FileCandidatesOut */
+        FileCandidatesOut: {
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Installation Id
+             * Format: uuid
+             */
+            installation_id: string;
+            /** Audience */
+            audience: string;
+            /**
+             * Selection Id
+             * Format: uuid
+             */
+            selection_id: string;
+            /** Items */
+            items: components["schemas"]["FileSelectionMetadata"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+            /** Incomplete */
+            incomplete: boolean;
         };
         /** FileCorpusCreateRequest */
         FileCorpusCreateRequest: {
@@ -11956,6 +13029,72 @@ export interface components {
          * @enum {string}
          */
         FileSearchStrategy: "keyword" | "semantic" | "hybrid";
+        /** FileSelectionContext */
+        FileSelectionContext: {
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Installation Id
+             * Format: uuid
+             */
+            installation_id: string;
+            /** Audience */
+            audience: string;
+            /**
+             * Selection Id
+             * Format: uuid
+             */
+            selection_id: string;
+        };
+        /** FileSelectionMetadata */
+        FileSelectionMetadata: {
+            /**
+             * File Id
+             * Format: uuid
+             */
+            file_id: string;
+            /** Name */
+            name: string;
+            /** Content Type */
+            content_type: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Version */
+            version: string;
+        };
+        /** FileSelectionRequestOut */
+        FileSelectionRequestOut: {
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Installation Id
+             * Format: uuid
+             */
+            installation_id: string;
+            /** Audience */
+            audience: string;
+            /**
+             * Selection Id
+             * Format: uuid
+             */
+            selection_id: string;
+            /** Selection Request */
+            selection_request: string;
+            /** Expires At */
+            expires_at: string | null;
+            /**
+             * Max Bytes
+             * @default 10485760
+             * @constant
+             */
+            max_bytes: 10485760;
+        };
         /** FolderCreateRequest */
         FolderCreateRequest: {
             /** Name */
@@ -12718,6 +13857,149 @@ export interface components {
              */
             updated_at: string;
         };
+        /** InstallationInput */
+        InstallationInput: {
+            /**
+             * Environment
+             * @enum {string}
+             */
+            environment: "development" | "production";
+            /** Origin */
+            origin: string;
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * Audience
+             * @default selected
+             * @enum {string}
+             */
+            audience: "selected" | "all";
+            /** User Ids */
+            user_ids?: string[];
+            /** Group Ids */
+            group_ids?: string[];
+            /** Granted Permissions */
+            granted_permissions?: ("identity:read" | "data:read" | "data:write" | "files:read-selected")[];
+        };
+        /** InstallationObservationResponse */
+        InstallationObservationResponse: {
+            /** Id */
+            id: string;
+            /**
+             * Environment
+             * @enum {string}
+             */
+            environment: "development" | "production";
+            /** Origin */
+            origin: string;
+            /** Enabled */
+            enabled: boolean;
+            /** State */
+            state: string;
+            /** Generation */
+            generation: number;
+            /** Release Id */
+            release_id: string | null;
+            /** Source Revision */
+            source_revision: string | null;
+            /** Artifact Digest */
+            artifact_digest: string | null;
+            deployment: components["schemas"]["DeploymentObservationResponse"] | null;
+        };
+        /** InstallationObservationsResponse */
+        InstallationObservationsResponse: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /** App Id */
+            app_id: string;
+            /** Items */
+            items: components["schemas"]["InstallationObservationResponse"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Catalog Revision */
+            catalog_revision: string;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+        };
+        /** InstallationOut */
+        InstallationOut: {
+            /**
+             * Environment
+             * @enum {string}
+             */
+            environment: "development" | "production";
+            /** Origin */
+            origin: string;
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * Audience
+             * @default selected
+             * @enum {string}
+             */
+            audience: "selected" | "all";
+            /** User Ids */
+            user_ids?: string[];
+            /** Group Ids */
+            group_ids?: string[];
+            /** Granted Permissions */
+            granted_permissions?: ("identity:read" | "data:read" | "data:write" | "files:read-selected")[];
+            /** Id */
+            id: string;
+            /** App Id */
+            app_id: string;
+            /** Release Id */
+            release_id: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "configured" | "ready" | "disabled";
+            /** Generation */
+            generation: number;
+        };
+        /** InstallationSummary */
+        InstallationSummary: {
+            /** Id */
+            id: string;
+            /** App Id */
+            app_id: string;
+            /** Environment */
+            environment: string;
+            /** Origin */
+            origin: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Release Id */
+            release_id: string | null;
+            /** State */
+            state: string;
+            /** Generation */
+            generation: number;
+            /** Granted Permissions */
+            granted_permissions: string[];
+            /** Launchable */
+            launchable: boolean;
+            /** Ui Entrypoint */
+            ui_entrypoint: string | null;
+        };
         /** KeywordSearchRequest */
         KeywordSearchRequest: {
             /**
@@ -12806,6 +14088,22 @@ export interface components {
             name?: string | null;
             /** Color */
             color?: string | null;
+        };
+        /** LaunchInput */
+        LaunchInput: {
+            /** Installation Id */
+            installation_id: string;
+            /** Code Challenge */
+            code_challenge: string;
+        };
+        /** LaunchOut */
+        LaunchOut: {
+            /** Code */
+            code: string;
+            /** Expires At */
+            expires_at: string | null;
+            /** App Origin */
+            app_origin: string;
         };
         /** LlmDualHealthResponse */
         LlmDualHealthResponse: {
@@ -13184,11 +14482,28 @@ export interface components {
             /** Enabled */
             enabled: boolean;
             /** Release Unit */
-            release_unit: string;
+            release_unit: string | null;
             /** Installed Revision */
             installed_revision: string | null;
+            /** Registered Source Revision */
+            registered_source_revision?: string | null;
             /** Runtime Ai */
             runtime_ai: boolean;
+            /** Title Translations */
+            title_translations?: {
+                [key: string]: string;
+            };
+            /**
+             * Icon Key
+             * @default layout-grid
+             */
+            icon_key: string;
+            /** Source Repository */
+            source_repository?: string | null;
+            /** Source Directory */
+            source_directory?: string | null;
+            /** Definition Digest */
+            definition_digest?: string | null;
         };
         /** ManagedAppsResponse */
         ManagedAppsResponse: {
@@ -13198,6 +14513,12 @@ export interface components {
              * @constant
              */
             schema_version: 1;
+            /**
+             * Registration Status Version
+             * @default 1
+             * @constant
+             */
+            registration_status_version: 1;
             /** Items */
             items: components["schemas"]["ManagedAppResponse"][];
             /** Total */
@@ -13206,6 +14527,8 @@ export interface components {
             page: number;
             /** Page Size */
             page_size: number;
+            /** Catalog Revision */
+            catalog_revision: string;
             /**
              * Generated At
              * Format: date-time
@@ -13798,6 +15121,78 @@ export interface components {
             /** Head User Id */
             head_user_id?: string | null;
         };
+        /** OwnerPreviewOut */
+        OwnerPreviewOut: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /** App Id */
+            app_id: string;
+            /** Installation Id */
+            installation_id: string;
+            /** Owner User Id */
+            owner_user_id: string;
+            /** Display Name */
+            display_name: string;
+            /** Origin */
+            origin: string;
+            /** Generation */
+            generation: number;
+            /** Definition Digest */
+            definition_digest: string;
+            /** Source Revision */
+            source_revision: string;
+            /**
+             * Runtime Profile
+             * @enum {string}
+             */
+            runtime_profile: "web-api-v1" | "web-api-postgres-v1";
+            /** Requested Permissions */
+            requested_permissions: ("identity:read" | "data:read" | "data:write" | "files:read-selected")[];
+            /** Granted Permissions */
+            granted_permissions: ("identity:read" | "data:read" | "data:write" | "files:read-selected")[];
+            /** Enabled */
+            enabled: boolean;
+            /** Company Enabled */
+            company_enabled: boolean;
+            /** Can Configure */
+            can_configure: boolean;
+            /** Unavailable Reason */
+            unavailable_reason: ("already_deployed" | "delivery_in_progress" | "build_in_progress" | "already_verified" | "company_disabled" | "origin_configuration_required" | "invalid_origin") | null;
+        };
+        /** OwnerPreviewPatch */
+        OwnerPreviewPatch: {
+            /** Expected Generation */
+            expected_generation: number;
+            /** Expected Definition Digest */
+            expected_definition_digest: string;
+            /** Expected Source Revision */
+            expected_source_revision: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Granted Permissions */
+            granted_permissions: ("identity:read" | "data:read" | "data:write" | "files:read-selected")[];
+        };
+        /** PendingDeployment */
+        PendingDeployment: {
+            /** Id */
+            id: string;
+            /** Release Id */
+            release_id: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "deploy" | "rollback";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "queued" | "running" | "cleanup" | "unknown";
+        };
         /** PersonalMemoOut */
         PersonalMemoOut: {
             /** Id */
@@ -14328,6 +15723,31 @@ export interface components {
              */
             last_viewed_at: string;
         };
+        /** RecordList */
+        RecordList: {
+            /** Items */
+            items: components["schemas"]["RecordOut"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** RecordOut */
+        RecordOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Version */
+            version: number;
+            /** Created At */
+            created_at: string | null;
+            /** Updated At */
+            updated_at: string | null;
+        };
         /** RecordViewRequest */
         RecordViewRequest: {
             /** Page Id */
@@ -14684,6 +16104,149 @@ export interface components {
             /** Completed At */
             completed_at: string | null;
         };
+        /** RegisterDefinition */
+        RegisterDefinition: {
+            definition: components["schemas"]["AppDefinition"];
+            /** Source Revision */
+            source_revision: string;
+            /** Expected Digest */
+            expected_digest?: string | null;
+            /** Expected Source Revision */
+            expected_source_revision?: string | null;
+        };
+        /** RegistrationAuthorizationInput */
+        RegistrationAuthorizationInput: {
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Request Id
+             * Format: uuid
+             */
+            request_id: string;
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /** Audience */
+            audience: string;
+            /** Code Challenge */
+            code_challenge: string;
+            policy: components["schemas"]["RegistrationPolicy"];
+        };
+        /** RegistrationCodeOut */
+        RegistrationCodeOut: {
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Request Id
+             * Format: uuid
+             */
+            request_id: string;
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /**
+             * Actor User Id
+             * Format: uuid
+             */
+            actor_user_id: string;
+            /** Audience */
+            audience: string;
+            policy: components["schemas"]["RegistrationPolicy"];
+            /** Expires At */
+            expires_at: string | null;
+            /** Callback Url */
+            callback_url: string;
+            /** Code */
+            code: string;
+            /**
+             * Code Expires At
+             * Format: date-time
+             */
+            code_expires_at: string;
+        };
+        /** RegistrationExchangeInput */
+        RegistrationExchangeInput: {
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Request Id
+             * Format: uuid
+             */
+            request_id: string;
+            /** Audience */
+            audience: string;
+            /** Code */
+            code: string;
+            /** Code Verifier */
+            code_verifier: string;
+        };
+        /** RegistrationPolicy */
+        RegistrationPolicy: {
+            /** App Id */
+            app_id: string;
+            /** Origin */
+            origin: string;
+            /**
+             * Runtime Profile
+             * @enum {string}
+             */
+            runtime_profile: "web-api-v1" | "web-api-postgres-v1";
+            /** Requested Permissions */
+            requested_permissions: ("identity:read" | "data:read" | "data:write" | "files:read-selected")[];
+        };
+        /** RegistrationTokenOut */
+        RegistrationTokenOut: {
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Request Id
+             * Format: uuid
+             */
+            request_id: string;
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /**
+             * Actor User Id
+             * Format: uuid
+             */
+            actor_user_id: string;
+            /** Audience */
+            audience: string;
+            policy: components["schemas"]["RegistrationPolicy"];
+            /** Expires At */
+            expires_at: string | null;
+            /** Token */
+            token: string;
+        };
         /** RelatedPmsTaskAttachRequest */
         RelatedPmsTaskAttachRequest: {
             /** Task Id */
@@ -14724,6 +16287,15 @@ export interface components {
             /** Items */
             items: components["schemas"]["RelatedPmsTaskItem"][];
         };
+        /** ReleaseCandidate */
+        ReleaseCandidate: {
+            /** Definition Digest */
+            definition_digest: string;
+            /** Source Revision */
+            source_revision: string;
+            /** Artifact */
+            artifact: string;
+        };
         /** ReleaseNoteOut */
         ReleaseNoteOut: {
             /** Id */
@@ -14748,6 +16320,25 @@ export interface components {
         ReleaseNotesResponse: {
             /** Items */
             items: components["schemas"]["ReleaseNoteOut"][];
+        };
+        /** ReleaseOut */
+        ReleaseOut: {
+            /** Definition Digest */
+            definition_digest: string;
+            /** Source Revision */
+            source_revision: string;
+            /** Artifact */
+            artifact: string;
+            /** Id */
+            id: string;
+            /** App Id */
+            app_id: string;
+            /** Created At */
+            created_at: string | null;
+            /** Verification Id */
+            verification_id: string | null;
+            /** Verified At */
+            verified_at: string | null;
         };
         /** ResetPasswordRequest */
         ResetPasswordRequest: {
@@ -15145,6 +16736,31 @@ export interface components {
             /** Id */
             id: string;
         };
+        /** SelectedFileReadOut */
+        SelectedFileReadOut: {
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Installation Id
+             * Format: uuid
+             */
+            installation_id: string;
+            /** Audience */
+            audience: string;
+            /**
+             * Selection Id
+             * Format: uuid
+             */
+            selection_id: string;
+            file: components["schemas"]["FileSelectionMetadata"];
+            /** Read Grant */
+            read_grant: string;
+            /** Expires At */
+            expires_at: string | null;
+        };
         /** SessionListItemResponse */
         SessionListItemResponse: {
             /** Id */
@@ -15227,6 +16843,16 @@ export interface components {
             password: string;
             /** Password Confirm */
             password_confirm: string;
+        };
+        /** Source */
+        Source: {
+            /** Repository */
+            repository: string;
+            /**
+             * Directory
+             * @default .
+             */
+            directory: string;
         };
         /** SpaceCreateRequest */
         SpaceCreateRequest: {
@@ -22847,6 +24473,40 @@ export interface operations {
             };
         };
     };
+    app_integrations_read_installations_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstallationObservationsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     app_integrations_read_usage_get: {
         parameters: {
             query?: {
@@ -22867,6 +24527,1337 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppUsageResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_list_records_get: {
+        parameters: {
+            query: {
+                after?: string | null;
+                limit?: number;
+                installation_id: string;
+                audience: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                collection: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_create_record_post: {
+        parameters: {
+            query: {
+                installation_id: string;
+                audience: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                collection: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Payload */
+                    payload: {
+                        [key: string]: unknown;
+                    };
+                    /** Expected Version */
+                    expected_version?: number | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_read_record_get: {
+        parameters: {
+            query: {
+                installation_id: string;
+                audience: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                collection: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_update_record_put: {
+        parameters: {
+            query: {
+                installation_id: string;
+                audience: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                collection: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Payload */
+                    payload: {
+                        [key: string]: unknown;
+                    };
+                    /** Expected Version */
+                    expected_version?: number | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_delete_record_delete: {
+        parameters: {
+            query: {
+                expected_version: number;
+                installation_id: string;
+                audience: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                collection: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_issued_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+                installation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DelegationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_issue_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+                installation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DelegationInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DelegationSecretOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_revoke_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+                installation_id: string;
+                grant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_current_context_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                app_id: string;
+                installation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DelegatedContext"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_sync_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                app_id: string;
+                installation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterDefinition"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DefinitionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_request_build_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                app_id: string;
+                installation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BuildInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuildOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_build_status_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                app_id: string;
+                installation_id: string;
+                build_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuildOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_request_delegated_deployment_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                app_id: string;
+                installation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeploymentInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_delegated_deployment_status_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                app_id: string;
+                installation_id: string;
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_bootstrap_independent_app_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BootstrapInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BootstrapReceipt"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_independent_app_bootstrap_receipt_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BootstrapReceipt"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_authorize_registration_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegistrationAuthorizationInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistrationCodeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_exchange_registration_authorization_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegistrationExchangeInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistrationTokenOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_revoke_registration_authorization_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                authorization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_bootstrap_with_registration_authorization_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                authorization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BootstrapInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BootstrapReceipt"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_read_registration_authorization_receipt_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                authorization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BootstrapReceipt"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_read_owner_preview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+                installation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnerPreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_configure_owner_preview_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+                installation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OwnerPreviewPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnerPreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_request_file_selection_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileSelectionContext"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileSelectionRequestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_list_file_selection_candidates_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileCandidatesInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileCandidatesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_authorize_selected_file_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileAuthorizeInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelectedFileReadOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_read_selected_file_get: {
+        parameters: {
+            query: {
+                installation_id: string;
+                audience: string;
+            };
+            header: {
+                "X-MIY-Selected-File": string;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_request_deployment_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeploymentInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_deployment_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_catalog_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_set_company_control_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompanyControl"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyControl"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_register_definition_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterDefinition"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DefinitionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_register_release_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReleaseCandidate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReleaseOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_create_installation_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstallationInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstallationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_update_installation_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+                installation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstallationInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstallationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_issue_launch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LaunchInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LaunchOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_exchange_launch_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                origin?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExchangeInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppSessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_apps_read_session_get: {
+        parameters: {
+            query: {
+                installation_id: string;
+                audience: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppIdentityOut"];
                 };
             };
             /** @description Validation Error */

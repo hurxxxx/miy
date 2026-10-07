@@ -1,7 +1,12 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { AgentActivity } from './agent-activity';
-import { activityGroup } from './agent-state';
+import {
+  activityGroup,
+  executionCount,
+  hasFinished,
+  running,
+} from './agent-state';
 import type { Task } from './api';
 import type { Agent } from './agent-state';
 import { translate } from './i18n';
@@ -106,7 +111,9 @@ it('keeps completed work visible, groups parallel children, and opens its origin
   });
   const { rerender } = render(<AgentActivity {...props} tasks={[running]} />);
   fireEvent.click(
-    screen.getByRole('button', { name: /Agent activity.*Running agents: 2/ }),
+    screen.getByRole('button', {
+      name: /Agent activity.*Last reported running agents: 2/,
+    }),
   );
   const dialog = await screen.findByRole('dialog', { name: 'Agent activity' });
   expect(within(dialog).getByText('Inspect changes')).toBeTruthy();
@@ -131,7 +138,9 @@ it('keeps completed work visible, groups parallel children, and opens its origin
     'Reviewing the final diff',
   );
   expect(
-    screen.getByRole('button', { name: /Agent activity.*Running agents: 1/ }),
+    screen.getByRole('button', {
+      name: /Agent activity.*Last reported running agents: 1/,
+    }),
   ).toBeTruthy();
   rerender(
     <AgentActivity
@@ -147,7 +156,7 @@ it('keeps completed work visible, groups parallel children, and opens its origin
   );
   expect(
     screen.getByRole('button', {
-      name: /Agent activity.*Running agents: 0.*Recently finished: 1/,
+      name: /Agent activity.*Last reported running agents: 0.*Recently finished: 1/,
     }),
   ).toBeTruthy();
   const finished = within(dialog).getByRole('region', {
@@ -200,4 +209,76 @@ it('marks stale data and limits recent results without hiding attention', async 
   ).toBeTruthy();
   fireEvent.click(within(dialog).getByRole('button', { name: 'All sessions' }));
   expect(openSessions).toHaveBeenCalledOnce();
+});
+
+it('keeps observation freshness separate from saved execution and action eligibility', () => {
+  const observation: NonNullable<Agent['observation']> = {
+    freshness: 'unavailable',
+    thread_status: 'notLoaded',
+    thread_checked_at: '2026-10-06T12:00:00Z',
+    attempted_at: '2026-10-06T12:01:00Z',
+    error_code: 'read_failed',
+    last_turn: {
+      id: 'prior-turn',
+      status: 'completed',
+      observed_at: '2026-10-06T11:59:00Z',
+    },
+  };
+  const busy = task({
+    agents: [agent('completed'), child('active', { observation })],
+  });
+  expect(activityGroup(busy)).toBe('running');
+  expect(executionCount(busy)).toBe(1);
+  expect(hasFinished(busy)).toBe(false);
+  expect(running(busy)).toBe(true);
+  const complete = task({ agents: [agent('completed', { observation })] });
+  expect(activityGroup(complete)).toBe('finished');
+  expect(hasFinished(complete)).toBe(true);
+  expect(running(complete)).toBe(false);
+});
+
+it('a fresh overview reload cannot turn stale native metadata into a current observation', async () => {
+  const stale = task({
+    status: 'review',
+    agents: [
+      agent('completed', {
+        observation: {
+          freshness: 'stale',
+          thread_status: 'idle',
+          thread_checked_at: '2026-10-06T12:00:00Z',
+          attempted_at: '2026-10-06T12:00:00Z',
+          error_code: null,
+          last_turn: {
+            id: 'prior-turn',
+            status: 'completed',
+            observed_at: '2026-10-06T11:59:00Z',
+          },
+        },
+      }),
+    ],
+  });
+  const props = {
+    tasks: [stale],
+    t: translate('en-US'),
+    failed: false,
+    openTask: vi.fn(),
+    openSessions: vi.fn(),
+  };
+  const view = render(<AgentActivity {...props} checkedAt={100000} />);
+  fireEvent.click(screen.getByRole('button', { name: /Agent activity/ }));
+  fireEvent.click(screen.getByText('Agent details'));
+  const summary = screen.getByText('Codex').closest('summary');
+  if (!summary) throw new Error('Expected agent summary');
+  expect(summary.textContent).toContain('Current state unknown');
+  view.rerender(<AgentActivity {...props} checkedAt={Date.now()} />);
+  expect(summary.textContent).toContain('Current state unknown');
+  expect(summary.textContent).toContain('Stored state: Completed');
+  expect(
+    screen.getByText(
+      'Counts use stored reports. Refreshing this list does not check native agent state.',
+    ),
+  ).toBeTruthy();
+  expect(
+    screen.getByRole('region', { name: 'Recently finished' }),
+  ).toBeTruthy();
 });

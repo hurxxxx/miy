@@ -12,6 +12,11 @@ from opentelemetry.trace import SpanKind
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from miy_api.api_registry import register_api_routers
+from miy_api.api_composition import (
+    ApiComposition,
+    InactiveCompositionMiddleware,
+    require_composition,
+)
 from miy_api.client_build import ClientBuildGuardMiddleware, read_frontend_build_id
 from miy_api.core.db import get_session_factory, init_db
 from miy_api.core.i18n import (
@@ -120,12 +125,22 @@ def create_app(
     *,
     initialize_runtime: bool = True,
     external_runtime: ApiExternalRuntime | None = None,
+    composition: ApiComposition = "legacy",
 ) -> FastAPI:
+    selected_composition = require_composition(composition)
+    if selected_composition != "legacy" and initialize_runtime:
+        raise RuntimeError("Split API runtime activation requires the writer cutover contract")
     install_sensitive_http_logging_guard()
     settings = get_settings()
-    frontend_build_id = read_frontend_build_id(settings.frontend_dist_dir)
-    miy_desktop_update_dirs = prepare_miy_desktop_update_dirs(settings)
-    telemetry_enabled = bootstrap_telemetry(
+    frontend_build_id = (
+        read_frontend_build_id(settings.frontend_dist_dir)
+        if selected_composition == "legacy"
+        else None
+    )
+    miy_desktop_update_dirs = (
+        prepare_miy_desktop_update_dirs(settings) if selected_composition == "legacy" else {}
+    )
+    telemetry_enabled = selected_composition == "legacy" and bootstrap_telemetry(
         service_name="miy-api",
         service_version=APP_VERSION,
         enabled=settings.otel_enabled,
@@ -198,7 +213,11 @@ def create_app(
             close_rag_runtime_resources()
 
     app = FastAPI(
-        title=settings.app_name,
+        title=(
+            settings.app_name
+            if selected_composition == "legacy"
+            else f"{settings.app_name} {selected_composition} API"
+        ),
         version=APP_VERSION,
         docs_url="/docs",
         redoc_url="/redoc",
@@ -210,6 +229,7 @@ def create_app(
         expected_build_id=frontend_build_id,
     )
     app.state.frontend_build_id = frontend_build_id
+    app.state.api_composition = selected_composition
     app.state.telemetry_enabled = telemetry_enabled
     app.add_exception_handler(
         RuntimeRegistryValidationError,
@@ -256,6 +276,14 @@ def create_app(
 
     @app.get("/healthz", tags=["system"])
     def healthz() -> dict[str, str]:
+        if selected_composition != "legacy":
+            return {
+                "status": "ok",
+                "composition": selected_composition,
+                "activation": "inactive",
+                "version": APP_VERSION,
+                "runtime_revision": RUNTIME_REVISION,
+            }
         return {
             "status": "ok",
             "version": APP_VERSION,
@@ -266,6 +294,15 @@ def create_app(
 
     @app.get("/readyz", tags=["system"])
     def readyz(request: Request, response: Response) -> dict[str, object]:
+        if selected_composition != "legacy":
+            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+            return {
+                "status": "not_ready",
+                "composition": selected_composition,
+                "code": "service_not_activated",
+                "version": APP_VERSION,
+                "runtime_revision": RUNTIME_REVISION,
+            }
         with get_session_factory()() as session:
             llm_status = inspect_registered_llm_runtime(
                 session,
@@ -316,7 +353,10 @@ def create_app(
             "realtime": realtime,
         }
 
-    register_api_routers(app, settings)
-    mount_miy_desktop_update_feeds(app, settings, miy_desktop_update_dirs)
-    mount_frontend(app, settings)
+    register_api_routers(app, settings, composition=selected_composition)
+    if selected_composition == "legacy":
+        mount_miy_desktop_update_feeds(app, settings, miy_desktop_update_dirs)
+        mount_frontend(app, settings)
+    else:
+        app.add_middleware(InactiveCompositionMiddleware)
     return app

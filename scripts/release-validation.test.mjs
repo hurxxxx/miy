@@ -134,6 +134,75 @@ test('bounded app-local changes select only their affected suites', () => {
   );
 });
 
+test('relocated web owner source selects the required web gate', () => {
+  for (const file of [
+    'packages/platform-web/src/chatbot/views/ChatbotView.tsx',
+    'packages/official-suite-web/src/files/views/FilesView.spec.tsx',
+    'apps/official-suite/src/OfficialSuiteRoot.tsx',
+  ]) {
+    const plan = planFor([change(file)]);
+    assert.equal(plan.mode, 'fast');
+    assert.deepEqual(plan.checks, ['ci:web']);
+  }
+});
+
+test('required web CI executes typed owner tests and both application builds', () => {
+  const manifest = JSON.parse(
+    fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+  );
+  const commands = [];
+  const visited = new Set();
+  function visit(name) {
+    if (visited.has(name)) return;
+    visited.add(name);
+    assert.equal(typeof manifest.scripts[name], 'string', `missing ${name}`);
+    for (const command of manifest.scripts[name].split('&&')) {
+      const nested = /^\s*pnpm\s+(ci:[\w:-]+)\s*$/.exec(command);
+      if (nested) visit(nested[1]);
+      else commands.push(command.trim());
+    }
+  }
+  visit('ci:all');
+  assert.ok(visited.has('ci:web'));
+  for (const [project, directory] of [
+    ['platform-web', 'packages/platform-web'],
+    ['official-suite-web', 'packages/official-suite-web'],
+    ['official-suite', 'apps/official-suite'],
+  ]) {
+    const config = JSON.parse(
+      fs.readFileSync(
+        new URL(`../${directory}/project.json`, import.meta.url),
+        'utf8',
+      ),
+    );
+    for (const target of ['typecheck', 'test']) {
+      assert.ok(config.targets[target], `${project}:${target} target missing`);
+      assert.ok(
+        commands.some((command) => command === `pnpm nx ${target} ${project}`),
+        `required CI does not execute ${project}:${target}`,
+      );
+    }
+  }
+  for (const project of ['web', 'official-suite']) {
+    assert.ok(commands.includes(`pnpm nx build ${project}`));
+  }
+  assert.ok(commands.includes('pnpm nx ownership official-suite'));
+  const contractCommand = manifest.scripts['ci:app-web-contracts'];
+  const projects = / -p ([\w,-]+) /.exec(contractCommand)?.[1].split(',');
+  const targets = / -t ([\w,-]+) /.exec(contractCommand)?.[1].split(',');
+  for (const project of [
+    'web',
+    'platform-web',
+    'official-suite-web',
+    'official-suite',
+  ]) {
+    assert.ok(projects?.includes(project), `contract CI omits ${project}`);
+  }
+  for (const target of ['typecheck', 'test', 'ownership']) {
+    assert.ok(targets?.includes(target), `contract CI omits ${target}`);
+  }
+});
+
 test('mixed focused surfaces run the stable union without unrelated suites', () => {
   const plan = planFor([
     change('docs/apps/web.md'),

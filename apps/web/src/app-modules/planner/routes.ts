@@ -1,22 +1,2 @@
-import {
-  getAppRouteChrome,
-  getAppRoutePattern,
-} from '@miy/contracts/app-routes';
-import { createElement, lazy } from 'react';
-
-import { lazyRoute } from '@/src/app/shell/lazy-route';
-import type { StaticRouteDefinition } from '@/src/app/shell/navigation-types';
-
-const PlannerView = lazy(() =>
-  import('./views/PlannerView').then((module) => ({
-    default: module.PlannerView,
-  })),
-);
-
-export const plannerGlobalRoutes: StaticRouteDefinition[] = [
-  {
-    chrome: getAppRouteChrome('planner.root'),
-    path: getAppRoutePattern('planner.root'),
-    element: lazyRoute(createElement(PlannerView)),
-  },
-];
+/** Compatibility entry; the owned library supplies this implementation. */
+export * from '@miy/official-suite-web/planner/routes';

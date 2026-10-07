@@ -1,20 +1,11 @@
 ---
 name: miy-docs-reader
-description: Use when reading native local Docs links or recent Docs updates. Extracts pages and optional media from verified dev storage; excludes repository Markdown, remote/production access, and database writes.
+description: Read native local MIY Docs pages or recent updates through verified development storage. Excludes repository Markdown, remote/production data, and database writes.
 ---
 
-# Docs Reader
+# Local Docs Reader
 
-Read-only helper for local PostgreSQL-backed Docs data.
-
-## Rules
-
-- Loads `MIY_POSTGRES_DSN` and MinIO metadata without printing credentials.
-- Verifies dev profile, loopback DSN/dev database, dev Compose labels, and dev bucket before querying. Normal local DB is `127.0.0.1:55433`; remote/prod identities fail closed.
-- Never query production or mutate rows.
-- Copy media only when required, into an explicitly selected empty directory; report paths/metadata only. Limits are 20 files, 50 MiB each, and 30 seconds per subprocess. Temporary media and private mc config are cleaned up on success/failure; existing files are never overwritten.
-
-## Commands
+[read_miy_doc.py](scripts/read_miy_doc.py) reads local PostgreSQL-backed Docs. It verifies development profile, loopback DSN/database, Compose labels, and bucket before querying; remote/production identities fail closed. Credentials stay private and database operations stay read-only.
 
 ```bash
 python3 .agents/skills/miy-docs-reader/scripts/read_miy_doc.py '/apps/docs/<doc_id>?page=<page_id>'
@@ -22,4 +13,4 @@ python3 .agents/skills/miy-docs-reader/scripts/read_miy_doc.py --updates --limit
 python3 .agents/skills/miy-docs-reader/scripts/read_miy_doc.py --copy-media /tmp/miy-doc-media '/apps/docs/<doc_id>?page=<page_id>'
 ```
 
-Report env label, content owner/ownership, doc/page IDs/titles, timestamps, extracted content, and media metadata.
+Copy media only when needed into an explicitly selected empty directory. Limits: 20 files, 50 MiB per file, 30 seconds per subprocess. The helper cleans temporary media/private config on success or failure and never overwrites existing files. Report source identity, ownership, page IDs/timestamps, extracted content, and media metadata within the requested scope.

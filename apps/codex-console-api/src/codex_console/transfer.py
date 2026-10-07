@@ -165,14 +165,22 @@ def import_postgres(source_url, destination_url):
                 .all()
             )
             if len(versions) != 1 or versions[0] not in (
-                "console_0009", "console_0010", "console_0011"
+                "console_0009",
+                "console_0010",
+                "console_0011",
             ):
                 raise ValueError("Import supports PostgreSQL console_0009 through console_0011")
             revision = versions[0]
             names = set(inspect(reader).get_table_names()) - {"console_alembic_version"}
             expected = set(Base.metadata.tables) - {
-                "console_projects", "console_maintenance", "console_app_budgets",
-                "console_development_usage", "console_development_usage_months",
+                "console_projects",
+                "console_maintenance",
+                "console_app_budgets",
+                "console_app_sources",
+                "console_app_source_setups",
+                "console_registration_intents",
+                "console_development_usage",
+                "console_development_usage_months",
                 "console_workbench_observations",
             }
             if revision == "console_0009":
@@ -185,6 +193,8 @@ def import_postgres(source_url, destination_url):
             legacy.reflect(bind=reader, only=sorted(names))
             for name in names:
                 expected_columns = set(Base.metadata.tables[name].c.keys())
+                if name == "console_agents":
+                    expected_columns -= {"observation"}
                 if name == "console_tasks" and revision == "console_0009":
                     expected_columns -= {"executor", "template_snapshot", "launch_id"}
                 if set(legacy.tables[name].c.keys()) != expected_columns:

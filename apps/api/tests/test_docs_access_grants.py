@@ -27,8 +27,8 @@ def test_revoke_doc_grants_for_meeting_attendee_updates_active_grants_and_enqueu
     enqueued_doc_ids: list[str] = []
     monkeypatch.setattr(
         access_grants,
-        "enqueue_doc_search_index_by_id",
-        lambda db, *, doc_id, operation: enqueued_doc_ids.append(doc_id),
+        "enqueue_native_doc_visibility",
+        lambda db, *, doc_id: enqueued_doc_ids.append(doc_id),
     )
 
     with get_session_factory()() as db:
@@ -64,8 +64,8 @@ def test_bump_doc_grant_expiry_for_meeting_ignores_revoked_grants(
     enqueued_doc_ids: list[str] = []
     monkeypatch.setattr(
         access_grants,
-        "enqueue_doc_search_index_by_id",
-        lambda db, *, doc_id, operation: enqueued_doc_ids.append(doc_id),
+        "enqueue_native_doc_visibility",
+        lambda db, *, doc_id: enqueued_doc_ids.append(doc_id),
     )
     new_end_at = datetime(2026, 5, 20, 9, 0, tzinfo=UTC).replace(tzinfo=None)
 
@@ -102,12 +102,8 @@ def _create_docs_meeting_access_context(
     dev_login(client, "delivery-hub-member")
 
     with get_session_factory()() as db:
-        owner = db.scalar(
-            select(User).where(User.email == "delivery-hub-admin@miy.local")
-        )
-        recipient = db.scalar(
-            select(User).where(User.email == "delivery-hub-member@miy.local")
-        )
+        owner = db.scalar(select(User).where(User.email == "delivery-hub-admin@miy.local"))
+        recipient = db.scalar(select(User).where(User.email == "delivery-hub-member@miy.local"))
         assert owner is not None
         assert recipient is not None
 

@@ -18,6 +18,7 @@ from miy_api.domains.files.models import (
     FileManagerFileSourceMetadata,
 )
 from miy_api.domains.files import search as file_search
+from miy_api.domains.files.current_content import file_extraction_result_marker
 from miy_api.domains.files.external_projection import safe_external_source_metadata
 from miy_api.domains.files.router import require_file_search_runtime
 from miy_api.domains.files.search import FileSearchRuntime
@@ -437,6 +438,7 @@ def test_keyword_file_search_returns_ranked_source_fresh_snippet(
         file = db.get(FileManagerFile, uploaded["id"])
         assert file is not None
         file.extraction_status = "ready"
+        file.extracted_at = datetime(2026, 10, 7, 10, tzinfo=UTC)
         file.extraction_content_checksum = "a" * 64
         file.extraction_text = extraction_text
         file.extraction_blocks = [{"text": extraction_text}]
@@ -525,6 +527,7 @@ def test_keyword_file_search_drops_a_file_deleted_after_page_source_load(
         file = db.get(FileManagerFile, uploaded["id"])
         assert file is not None
         file.extraction_status = "ready"
+        file.extracted_at = datetime(2026, 10, 7, 10, tzinfo=UTC)
         file.extraction_content_checksum = "d" * 64
         file.extraction_text = secret_text
         file.extraction_blocks = [{"text": secret_text}]
@@ -621,6 +624,7 @@ def test_keyword_file_search_refills_page_after_concurrent_revoke_and_recomputes
             file = db.get(FileManagerFile, uploaded["id"])
             assert file is not None
             file.extraction_status = "ready"
+            file.extracted_at = datetime(2026, 10, 7, 10, tzinfo=UTC)
             file.extraction_content_checksum = str(index + 1) * 64
             file.extraction_text = f"access control evidence {index}"
             file.extraction_blocks = [{"text": file.extraction_text}]
@@ -725,6 +729,7 @@ def test_keyword_file_search_recomputes_has_more_after_off_page_revoke(
             file = db.get(FileManagerFile, uploaded["id"])
             assert file is not None
             file.extraction_status = "ready"
+            file.extracted_at = datetime(2026, 10, 7, 10, tzinfo=UTC)
             file.extraction_content_checksum = str(index + 4) * 64
             file.extraction_text = f"access control evidence {index}"
             file.extraction_blocks = [{"text": file.extraction_text}]
@@ -826,6 +831,7 @@ def test_keyword_file_search_drops_hits_when_app_is_disabled_after_page_source_l
         file = db.get(FileManagerFile, uploaded["id"])
         assert file is not None
         file.extraction_status = "ready"
+        file.extracted_at = datetime(2026, 10, 7, 10, tzinfo=UTC)
         file.extraction_content_checksum = "e" * 64
         file.extraction_text = secret_text
         file.extraction_blocks = [{"text": secret_text}]
@@ -918,6 +924,7 @@ def test_keyword_file_search_pages_over_a_bounded_deterministic_ranking(
             file = db.get(FileManagerFile, uploaded["id"])
             assert file is not None
             file.extraction_status = "ready"
+            file.extracted_at = datetime(2026, 10, 7, 10, tzinfo=UTC)
             file.extraction_content_checksum = str(index) * 64
             file.extraction_text = f"common evidence {index}"
             file.extraction_blocks = [{"text": file.extraction_text}]
@@ -1014,6 +1021,7 @@ def test_file_search_has_more_matches_final_authorized_window_for_each_strategy(
             file = db.get(FileManagerFile, uploaded["id"])
             assert file is not None
             file.extraction_status = "ready"
+            file.extracted_at = datetime(2026, 10, 7, 10, tzinfo=UTC)
             file.extraction_content_checksum = str(index + 4) * 64
             file.extraction_text = content
             file.extraction_blocks = [{"text": content}]
@@ -1035,7 +1043,12 @@ def test_file_search_has_more_matches_final_authorized_window_for_each_strategy(
                     summary=content,
                     text_content=content,
                     visibility_refs=["company_public"],
-                    metadata={"filename": file.filename, "content_modality": "text"},
+                    metadata={
+                        "filename": file.filename,
+                        "content_modality": "text",
+                        "content_checksum": file.extraction_content_checksum,
+                        "extracted_at": file_extraction_result_marker(file.extracted_at),
+                    },
                     chunks=[
                         RagChunk(
                             chunk_id=f"{file.id}:text:0",
@@ -1140,6 +1153,7 @@ def test_external_authored_range_reaches_fake_semantic_and_hybrid_backends(
         file = db.get(FileManagerFile, uploaded["id"])
         assert file is not None
         file.extraction_status = "ready"
+        file.extracted_at = datetime(2026, 10, 7, 10, tzinfo=UTC)
         file.extraction_content_checksum = "a" * 64
         file.extraction_text = content
         file.extraction_blocks = [{"text": content}]
@@ -1182,6 +1196,8 @@ def test_external_authored_range_reaches_fake_semantic_and_hybrid_backends(
                 "filename": file.filename,
                 "content_modality": "text",
                 **safe_external_source_metadata(file),
+                "content_checksum": file.extraction_content_checksum,
+                "extracted_at": file_extraction_result_marker(file.extracted_at),
             },
             chunks=[
                 RagChunk(
@@ -1281,6 +1297,7 @@ def test_hybrid_file_search_rechecks_user_admission_without_reindexing(
         file = db.get(FileManagerFile, uploaded["id"])
         assert file is not None
         file.extraction_status = "ready"
+        file.extracted_at = datetime(2026, 10, 7, 10, tzinfo=UTC)
         file.extraction_content_checksum = "b" * 64
         file.extraction_text = "서비스 장애 진단 사양"
         file.extraction_blocks = [{"text": file.extraction_text}]
@@ -1302,7 +1319,12 @@ def test_hybrid_file_search_rechecks_user_admission_without_reindexing(
             summary="서비스 장애 진단 사양",
             text_content="서비스 장애 진단 사양",
             visibility_refs=["company_public"],
-            metadata={"filename": file.filename, "content_modality": "text"},
+            metadata={
+                "filename": file.filename,
+                "content_modality": "text",
+                "content_checksum": file.extraction_content_checksum,
+                "extracted_at": file_extraction_result_marker(file.extracted_at),
+            },
             chunks=[
                 RagChunk(
                     chunk_id=f"{file.id}:text:0",
@@ -1422,6 +1444,7 @@ def test_company_user_grant_changes_reuse_projections_and_revoke_download_capabi
         assert file is not None
         stable_partition_id = str(file.retrieval_partition_id)
         file.extraction_status = "ready"
+        file.extracted_at = datetime(2026, 10, 7, 10, tzinfo=UTC)
         file.extraction_content_checksum = "c" * 64
         file.extraction_text = content
         file.extraction_blocks = [{"text": content}]
@@ -1444,7 +1467,12 @@ def test_company_user_grant_changes_reuse_projections_and_revoke_download_capabi
             summary=content,
             text_content=content,
             visibility_refs=["company_public"],
-            metadata={"filename": file.filename, "content_modality": "text"},
+            metadata={
+                "filename": file.filename,
+                "content_modality": "text",
+                "content_checksum": file.extraction_content_checksum,
+                "extracted_at": file_extraction_result_marker(file.extracted_at),
+            },
             chunks=[
                 RagChunk(
                     chunk_id=f"{file.id}:text:0",

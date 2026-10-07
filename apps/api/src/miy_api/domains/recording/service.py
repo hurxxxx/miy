@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from miy_api.domains.official_apps.source_guard import lock_source_writer
+
 import hashlib
 import socket
 from datetime import UTC, datetime, timedelta
@@ -27,6 +29,7 @@ from miy_api.domains.docs.minutes import build_minutes_blocks
 from miy_api.domains.docs.models import NativeDoc
 from miy_api.domains.docs.service import create_native_doc_for_user
 from miy_api.domains.meeting.models import Meeting
+from miy_api.domains.meeting.permissions import ensure_meeting_participant
 from miy_api.domains.recording import blob_store
 from miy_api.domains.recording.chunk_sequence import plan_chunk_assembly
 from miy_api.domains.recording.initial_target import resolve_initial_recording_target
@@ -247,52 +250,65 @@ def _recording_has_meeting_target(recording: Recording) -> bool:
     )
 
 
+def _commit_processing_state(db: Session) -> None:
+    try:
+        db.commit()
+    except Exception:
+        # A failed acknowledgement does not prove rollback. Do not publish or
+        # overwrite the attempt after an uncertain source commit.
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise localized_http_exception(
+            status_code=500, code="recording.processing_update_unknown"
+        ) from None
+
+
 def _enqueue_pipeline_or_mark_failed(db: Session, *, recording: Recording) -> None:
     recording_id = recording.id
     broker_reachable = _broker_is_reachable()
+    lock_source_writer(db, "recordings")
     locked = db.scalar(
         select(Recording)
         .where(Recording.id == recording_id)
         .with_for_update()
         .execution_options(populate_existing=True)
     )
-    if locked is None or locked.celery_task_id:
-        db.commit()
+    if locked is None:
+        _commit_processing_state(db)
+        return
+    _submit_locked_recording(db, recording=locked, broker_reachable=broker_reachable)
+
+
+def _submit_locked_recording(db: Session, *, recording: Recording, broker_reachable: bool) -> None:
+    """Commit source changes and attempt together after caller fence/row/ACL checks."""
+    recording_id = recording.id
+    if recording.celery_task_id:
+        _commit_processing_state(db)
         return
     if not broker_reachable:
-        locked.transcript_status = "failed"
-        locked.failure_reason = ENQUEUE_FAILURE_REASON
-        locked.updated_at = _utcnow()
-        db.add(locked)
-        db.commit()
+        recording.transcript_status = "failed"
+        recording.failure_reason = ENQUEUE_FAILURE_REASON
+        recording.updated_at = _utcnow()
+        db.add(recording)
+        _commit_processing_state(db)
         return
     attempt_id = new_recording_attempt_id(recording_id)
-    locked.celery_task_id = attempt_id
-    locked.transcript_status = "pending"
-    locked.failure_reason = None
-    locked.updated_at = _utcnow()
-    db.add(locked)
-    db.commit()
+    recording.celery_task_id = attempt_id
+    recording.transcript_status = "pending"
+    recording.failure_reason = None
+    recording.updated_at = _utcnow()
+    db.add(recording)
+    _commit_processing_state(db)
     try:
         enqueue_recording_pipeline(recording_id, attempt_id)
     except Exception:
-        db.rollback()
-        locked = db.scalar(
-            select(Recording)
-            .where(
-                Recording.id == recording_id,
-                Recording.celery_task_id == attempt_id,
-            )
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
-        if locked is not None:
-            locked.transcript_status = "failed"
-            locked.failure_reason = ENQUEUE_FAILURE_REASON
-            locked.celery_task_id = None
-            locked.updated_at = _utcnow()
-            db.add(locked)
-        db.commit()
+        # The broker may have accepted the chain. Preserve the committed source
+        # and any concurrent worker progress; never revoke, clear or resubmit.
+        raise localized_http_exception(
+            status_code=500, code="recording.processing_submission_unknown"
+        ) from None
 
 
 def _failed_filter():
@@ -555,6 +571,7 @@ def init_staging(
 
     staging_id = new_id()
     started_at = _utcnow()
+    lock_source_writer(db, "recording_staging")
     spool_store = blob_store.default_spool_store()
     spool_dir = spool_store.allocate(staging_id)
     meta: dict[str, str] = {}
@@ -701,6 +718,7 @@ def _store_chunk_bytes(
             highest_seq=staging.highest_seq,
         )
 
+    lock_source_writer(db, "recording_staging")
     blob_store.default_spool_store().write_chunk(
         spool_path=staging.spool_path,
         seq=seq,
@@ -849,9 +867,10 @@ def discard_staging(
             status_code=status.HTTP_409_CONFLICT,
             code="recording.finalized_staging_discard_denied",
         )
-    blob_store.default_spool_store().cleanup(staging.spool_path)
+    spool_path = staging.spool_path
     db.delete(staging)
     db.commit()
+    blob_store.default_spool_store().cleanup(spool_path)
 
 
 def _assert_contiguous_chunks(staging: RecordingStaging) -> list[int]:
@@ -893,6 +912,7 @@ def complete_staging(
     staging.duration_sec_estimate = payload.duration_sec_estimate
     db.add(staging)
     db.commit()
+    lock_source_writer(db, "recording_staging")
     spool_store = blob_store.default_spool_store()
     assembled_path = spool_store.assemble_chunks(
         spool_path=staging.spool_path,
@@ -908,6 +928,7 @@ def complete_staging(
     db.add(staging)
     db.commit()
 
+    lock_source_writer(db, "recording_staging")
     blob_store.put_recording_file(
         storage_key=staging.storage_key,
         path=assembled_path,
@@ -1162,6 +1183,7 @@ def delete_recording(
     recording = _load_recording_or_404(db, recording_id)
     _ensure_recording_owner(user=user, recording=recording)
     if recording.celery_task_id:
+        lock_source_writer(db, "recordings")
         revoke_recording_task(recording.celery_task_id)
     recording.trashed_at = _utcnow()
     recording.updated_at = recording.trashed_at
@@ -1226,6 +1248,7 @@ def import_recording(
         started_at=resolved_started_at,
         file_extension=_extension_for_mime(mime_type),
     )
+    lock_source_writer(db, "recordings")
     blob_store.put_recording_bytes(
         storage_key=storage_key,
         data=data,
@@ -1263,18 +1286,51 @@ def import_recording(
     return _serialize_recording(db, fresh)
 
 
+def _lock_recording_for_retry(db: Session, *, recording_id: str) -> Recording:
+    lock_source_writer(db, "recordings")
+    recording = db.scalar(
+        select(Recording)
+        .options(
+            selectinload(Recording.targets),
+            selectinload(Recording.result),
+            selectinload(Recording.publications),
+        )
+        .where(Recording.id == recording_id, Recording.trashed_at.is_(None))
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if recording is None:
+        raise localized_http_exception(status_code=404, code="recording.not_found")
+    return recording
+
+
+def _require_retry_app(db: Session, *, user: User, app_id: str) -> None:
+    if not can_use_app(db, user_id=user.id, app_id=app_id):
+        raise localized_http_exception(status_code=403, code="app.access_required")
+
+
+def _require_no_processing_attempt(recording: Recording) -> None:
+    if recording.celery_task_id:
+        # Pending also includes unknown broker acceptance; revoke is not proof
+        # that no queued/native/remote work exists for the original attempt.
+        raise localized_http_exception(status_code=409, code="recording.processing_in_progress")
+
+
 def retry_recording(
     db: Session,
     *,
     user: User,
     recording_id: str,
 ) -> RecordingDetailOut:
-    recording = _load_recording_or_404(db, recording_id)
+    broker_reachable = _broker_is_reachable()
+    recording = _lock_recording_for_retry(db, recording_id=recording_id)
+    _require_retry_app(db, user=user, app_id="recording")
     _ensure_recording_owner(user=user, recording=recording)
     if recording.audio_status != "saved" or not recording.storage_key:
         raise localized_http_exception(
             status_code=status.HTTP_409_CONFLICT, code="recording.audio_unavailable"
         )
+    _require_no_processing_attempt(recording)
     if recording.transcript_status == "transcribing" or recording.summary_status in {
         "analyzing",
         "verifying",
@@ -1287,9 +1343,6 @@ def retry_recording(
             status_code=status.HTTP_409_CONFLICT, code="recording.processing_already_done"
         )
 
-    if recording.celery_task_id:
-        revoke_recording_task(recording.celery_task_id)
-    recording.celery_task_id = None
     recording.failure_reason = None
     if recording.transcript_status != "done":
         recording.transcript_status = "pending"
@@ -1306,10 +1359,8 @@ def retry_recording(
     recording.meeting_insight_status = "none"
     recording.updated_at = _utcnow()
     db.add(recording)
-    db.commit()
-    fresh = _load_recording_or_404(db, recording.id)
-    _enqueue_pipeline_or_mark_failed(db, recording=fresh)
-    fresh = _load_recording_or_404(db, recording.id)
+    _submit_locked_recording(db, recording=recording, broker_reachable=broker_reachable)
+    fresh = _load_recording_or_404(db, recording_id)
     return _serialize_recording(db, fresh)
 
 
@@ -1617,12 +1668,19 @@ def retry_meeting_recording(
     meeting: Meeting,
     recording_id: str,
 ) -> RecordingDetailOut:
-    recording = load_meeting_recording_or_404(
-        db,
-        meeting_id=meeting.id,
-        recording_id=recording_id,
-        for_update=True,
+    meeting_id = meeting.id
+    broker_reachable = _broker_is_reachable()
+    recording = _lock_recording_for_retry(db, recording_id=recording_id)
+    _require_retry_app(db, user=user, app_id="meeting")
+    meeting = db.scalar(
+        select(Meeting)
+        .options(selectinload(Meeting.attendees))
+        .where(Meeting.id == meeting_id)
+        .execution_options(populate_existing=True)
     )
+    if meeting is None or _meeting_target(recording, meeting_id=meeting_id) is None:
+        raise localized_http_exception(status_code=404, code="meeting.recording_not_found")
+    ensure_meeting_participant(db, user, meeting)
     if recording.owner_id != user.id and meeting.organizer_id != user.id:
         raise localized_http_exception(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -1633,14 +1691,12 @@ def retry_meeting_recording(
             status_code=status.HTTP_409_CONFLICT,
             code="recording.audio_unavailable",
         )
+    _require_no_processing_attempt(recording)
     if _meeting_recording_status(recording) != "failed":
         raise localized_http_exception(
             status_code=status.HTTP_409_CONFLICT,
             code="meeting.only_failed_recordings_retry",
         )
-    if recording.celery_task_id:
-        revoke_recording_task(recording.celery_task_id)
-    recording.celery_task_id = None
     recording.failure_reason = None
     if recording.transcript_status != "done":
         recording.transcript_status = "pending"
@@ -1657,10 +1713,8 @@ def retry_meeting_recording(
     recording.meeting_insight_status = "none"
     recording.updated_at = _utcnow()
     db.add(recording)
-    db.commit()
-    fresh = _load_recording_or_404(db, recording.id)
-    _enqueue_pipeline_or_mark_failed(db, recording=fresh)
-    fresh = _load_recording_or_404(db, recording.id)
+    _submit_locked_recording(db, recording=recording, broker_reachable=broker_reachable)
+    fresh = _load_recording_or_404(db, recording_id)
     return _serialize_recording(db, fresh)
 
 
@@ -1682,6 +1736,7 @@ def archive_meeting_recording(
             code="meeting.recording_delete_permission",
         )
     if recording.celery_task_id:
+        lock_source_writer(db, "recordings")
         revoke_recording_task(recording.celery_task_id)
     recording.trashed_at = _utcnow()
     recording.updated_at = recording.trashed_at

@@ -19,6 +19,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from miy_api.core.db import Base
+from miy_api.domains.official_apps.writer_contracts import OfficialWriterSource
 
 
 def utcnow_naive() -> datetime:
@@ -29,7 +30,7 @@ def empty_scene() -> dict[str, Any]:
     return {"elements": [], "appState": {}, "files": {}}
 
 
-class Whiteboard(Base):
+class Whiteboard(OfficialWriterSource, Base):
     __tablename__ = "whiteboards"
     __table_args__ = (
         CheckConstraint(
@@ -84,7 +85,7 @@ class Whiteboard(Base):
     )
 
 
-class WhiteboardTarget(Base):
+class WhiteboardTarget(OfficialWriterSource, Base):
     __tablename__ = "whiteboard_targets"
     __table_args__ = (
         Index(
@@ -149,7 +150,7 @@ class WhiteboardTarget(Base):
     created_by = relationship("User")
 
 
-class WhiteboardUserShare(Base):
+class WhiteboardUserShare(OfficialWriterSource, Base):
     __tablename__ = "whiteboard_user_shares"
     __table_args__ = (
         UniqueConstraint("whiteboard_id", "user_id", name="uq_whiteboard_user_share"),
@@ -167,7 +168,7 @@ class WhiteboardUserShare(Base):
     created_by = relationship("User", foreign_keys=[created_by_id])
 
 
-class WhiteboardLinkShare(Base):
+class WhiteboardLinkShare(OfficialWriterSource, Base):
     __tablename__ = "whiteboard_link_shares"
     __table_args__ = (UniqueConstraint("whiteboard_id", name="uq_whiteboard_link_share_board"),)
 
@@ -189,7 +190,7 @@ class WhiteboardLinkShare(Base):
     created_by = relationship("User")
 
 
-class WhiteboardCollabDocument(Base):
+class WhiteboardCollabDocument(OfficialWriterSource, Base):
     __tablename__ = "whiteboard_collab_documents"
     __table_args__ = (
         UniqueConstraint("room_key", name="uq_whiteboard_collab_documents_room_key"),
@@ -213,7 +214,7 @@ class WhiteboardCollabDocument(Base):
     whiteboard = relationship("Whiteboard")
 
 
-class WhiteboardUserItemPref(Base):
+class WhiteboardUserItemPref(OfficialWriterSource, Base):
     __tablename__ = "whiteboard_user_item_prefs"
     __table_args__ = (
         UniqueConstraint("user_id", "whiteboard_id", name="uq_whiteboard_user_item_pref"),
@@ -228,7 +229,7 @@ class WhiteboardUserItemPref(Base):
     whiteboard = relationship("Whiteboard")
 
 
-class WhiteboardGroupShare(Base):
+class WhiteboardGroupShare(OfficialWriterSource, Base):
     __tablename__ = "whiteboard_group_shares"
     __table_args__ = (
         CheckConstraint(

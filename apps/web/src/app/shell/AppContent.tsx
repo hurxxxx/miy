@@ -9,6 +9,7 @@ import {
 } from 'motion/react';
 import {
   Suspense,
+  lazy,
   useCallback,
   useEffect,
   useMemo,
@@ -58,6 +59,14 @@ import {
   type BootstrapNavItem,
 } from '@/src/platform/apps/apps-api';
 import {
+  independentAppName,
+  useIndependentApps,
+} from '@/src/platform/apps/independent-apps-api';
+import {
+  independentAppPath,
+  INDEPENDENT_APP_ROUTE,
+} from '@/src/platform/apps/independent-app-host';
+import {
   ReleaseNoteBody,
   formatReleaseNoteDate,
 } from '@/src/platform/auth/ReleaseNotesSettingsSection';
@@ -93,7 +102,7 @@ import {
 import { AccessRefreshBoundary } from './AccessRefreshBoundary';
 import { AppLauncherView } from './AppLauncherView';
 import { AppSubSidebar } from './AppSubSidebar';
-import { HelpCenterModal } from './HelpCenterPage';
+import { HelpCenterModal, type HelpGuide } from './HelpCenterPage';
 import { createAccessProjectionKey } from './access-projection-key';
 import {
   EMPTY_FEATURE_GUIDE_TOOL_IDS,
@@ -111,8 +120,13 @@ import {
   type ShellAppRouteDefinition,
 } from './app-route-registry';
 import { projectShellAppsBootstrap } from './apps-bootstrap-model';
+import {
+  needsIndependentAppCatalog,
+  scopeIndependentAppItems,
+} from './app-scope';
+import { ScopedIndependentAppHost } from './ScopedIndependentAppHost';
 import { resolveShellDocumentTitle } from './document-title-model';
-import { LazyRouteErrorBoundary } from './lazy-route';
+import { LazyRouteErrorBoundary, lazyRoute } from './lazy-route';
 import { projectMobileNavigationItems } from './mobile-navigation-model';
 import {
   applyMobileAppMenuOpenChange,
@@ -151,6 +165,15 @@ export type ShellRealtimeProviderComponent = ComponentType<{
 }>;
 
 const getNoopAppModuleManifest = () => null;
+const IndependentAppRegistration = lazy(
+  () => import('@/src/platform/apps/IndependentAppRegistration'),
+);
+const RegistrationAuthorization = lazy(
+  () => import('@/src/platform/apps/RegistrationAuthorization'),
+);
+const OwnerPreviewSetup = lazy(
+  () => import('@/src/platform/apps/OwnerPreviewSetup'),
+);
 const getNoopAppSidebarConfig = () => null;
 
 function NoopShellRealtimeProvider({
@@ -181,6 +204,7 @@ export interface AppContentRuntimeConfig {
   getAppSidebarConfig?: (appId: string) => AppSidebarConfig | null;
   hasAdminSectionAccess?: AdminSectionAccessResolver;
   hasAnyAdminReadPermission?: (systemRoles: readonly string[]) => boolean;
+  helpGuides?: readonly HelpGuide[];
   helpRoutes?: readonly ShellStaticRouteDefinition[];
   launcherGlobalPaths?: LauncherGlobalPaths;
   navItems?: readonly NavItem[];
@@ -571,6 +595,7 @@ function AuthenticatedShell({
   getAppSidebarConfig,
   hasAdminSectionAccess,
   hasAnyAdminReadPermission,
+  helpGuides,
   helpRoutes,
   launcherGlobalPaths,
   navItems,
@@ -601,6 +626,7 @@ function AuthenticatedShell({
   getAppSidebarConfig: (appId: string) => AppSidebarConfig | null;
   hasAdminSectionAccess: AdminSectionAccessResolver;
   hasAnyAdminReadPermission: (systemRoles: readonly string[]) => boolean;
+  helpGuides: readonly HelpGuide[];
   helpRoutes: readonly ShellStaticRouteDefinition[] | undefined;
   launcherGlobalPaths: LauncherGlobalPaths;
   navItems: readonly NavItem[];
@@ -690,6 +716,13 @@ function AuthenticatedShell({
   const themePreference = currentUser?.theme_preference ?? 'system';
   const resolvedTheme = resolveThemePreference(themePreference, systemDarkMode);
   const appsBootstrap = useAppsBootstrap(auth.token, currentUserId);
+  const independentCatalog = useIndependentApps(
+    needsIndependentAppCatalog(appScope?.appIds) ? auth.token : null,
+  );
+  const independentApps = {
+    ...independentCatalog,
+    items: scopeIndependentAppItems(independentCatalog.items, appScope?.appIds),
+  };
   const scopedBootstrapData = useMemo(
     () => scopeBootstrapData(appsBootstrap.data, appScope),
     [appsBootstrap.data, appScope],
@@ -844,12 +877,29 @@ function AuthenticatedShell({
     },
     [clearSubSidebarCloseTimer],
   );
-  const documentTitle = resolveShellDocumentTitle({
-    activeAppId,
-    appBarItems,
-    t,
-    apps: scopedBootstrap.data?.apps ?? [],
-  });
+  const activeIndependentApp = independentApps.items.find((item) =>
+    item.installations.some(
+      (installation) =>
+        installation.launchable &&
+        independentAppPath(
+          item.definition.definition.app_id,
+          installation.id,
+        ) === locationPathname,
+    ),
+  );
+  const documentTitle = activeIndependentApp
+    ? t('documentTitle.app', {
+        app: independentAppName(
+          activeIndependentApp,
+          currentUser?.locale ?? 'ko-KR',
+        ),
+      })
+    : resolveShellDocumentTitle({
+        activeAppId,
+        appBarItems,
+        t,
+        apps: scopedBootstrap.data?.apps ?? [],
+      });
   const usageRoutePath = useMemo(
     () => normalizeUsageRoutePath(locationPathname),
     [locationPathname],
@@ -1165,9 +1215,12 @@ function AuthenticatedShell({
                       path="/"
                       element={
                         <AppLauncherView
-                          data={appsBootstrap.data}
+                          data={scopedBootstrap.data}
                           error={appsBootstrap.error}
                           loading={appsBootstrap.loading}
+                          independentApps={independentApps}
+                          canRegisterApp={!appScope}
+                          ownerUserId={!appScope ? auth.user?.id : undefined}
                         />
                       }
                     />
@@ -1177,6 +1230,30 @@ function AuthenticatedShell({
                       bootstrapLoading: appsBootstrap.loading,
                       appRoutes,
                     })}
+                    {!appScope && (
+                      <Route
+                        path="/apps/register"
+                        element={lazyRoute(<IndependentAppRegistration />)}
+                      />
+                    )}
+                    {!appScope && (
+                      <Route
+                        path="/apps/authorize-registration"
+                        element={lazyRoute(<RegistrationAuthorization />)}
+                      />
+                    )}
+                    <Route
+                      path={INDEPENDENT_APP_ROUTE}
+                      element={
+                        <ScopedIndependentAppHost appIds={appScope?.appIds} />
+                      }
+                    />
+                    {!appScope && (
+                      <Route
+                        path="/apps/:appId/installed/:installationId/setup"
+                        element={lazyRoute(<OwnerPreviewSetup />)}
+                      />
+                    )}
                     {StaticRouteElements({
                       adminLandingRoute,
                       adminRedirectRoutes,
@@ -1192,6 +1269,7 @@ function AuthenticatedShell({
                       featureGuideToolIds,
                       getDefaultAdminPath,
                       hasAdminSectionAccess,
+                      helpGuides,
                       helpRoutes,
                     })}
                     <Route path="*" element={<NotFoundView />} />
@@ -1290,6 +1368,7 @@ function AuthenticatedShell({
             {helpOpen ? (
               <HelpCenterModal
                 closeLabel={t('common:actions.close')}
+                guides={helpGuides}
                 onClose={() => setHelpOpen(false)}
               />
             ) : null}
@@ -1329,6 +1408,7 @@ export function AppContent({
   getAppSidebarConfig = getNoopAppSidebarConfig,
   hasAdminSectionAccess = hasConfiguredAdminSectionAccess,
   hasAnyAdminReadPermission = hasAnyPlatformAdminReadPermission,
+  helpGuides = [],
   helpRoutes,
   launcherGlobalPaths = EMPTY_LAUNCHER_GLOBAL_PATHS,
   navItems = [],
@@ -1370,6 +1450,7 @@ export function AppContent({
                   getAppSidebarConfig={getAppSidebarConfig}
                   hasAdminSectionAccess={hasAdminSectionAccess}
                   hasAnyAdminReadPermission={hasAnyAdminReadPermission}
+                  helpGuides={helpGuides}
                   helpRoutes={helpRoutes}
                   launcherGlobalPaths={launcherGlobalPaths}
                   navItems={navItems}

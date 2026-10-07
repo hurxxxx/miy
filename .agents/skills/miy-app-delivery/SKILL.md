@@ -1,41 +1,12 @@
 ---
 name: miy-app-delivery
-description: Use when creating/porting an app or changing protected platform scaffold. Excludes routine UI, copy, tests, and fixes within existing app extension points.
+description: MIY app registration and platform extension contracts for new or ported apps. Routine app UI and fixes need no delivery workflow.
 ---
 
-# App Delivery
+# App Integration
 
-Start with code/tests and `docs/domains/app-platform/README.md`.
+[App Platform](../../../docs/domains/app-platform/README.md) owns current registration, admission, and extension contracts. [Platform redesign](../../../platform-redesign/README.md) records the approved transition; do not force a new independent app back into legacy shell/API composition.
 
-## Route
+Inspect the target app's definition and supported integration points. Keep discovery separate from source configuration, runtime installation, and release readiness; missing management metadata cannot hide an app. Never infer write or deployment authority from registration.
 
-- Existing scaffold + app-local behavior: normal implementation.
-- Missing/changed protected scaffold: make enablement explicit before app-local work.
-
-Protected scaffold: identity/registration, entitlement/bootstrap, shell/API composition, OpenAPI/client, RBAC/data scope, worker runtime, file/network service, AI workload/capability.
-
-## Enablement Brief
-
-```text
-- outcome:
-- app/feature id and owner:
-- missing protected extension points:
-- data scope:
-- roles/write ops:
-- API/OpenAPI/worker/file/network/AI needs:
-- app-owned paths after enablement:
-- activation owner/default-disabled behavior:
-- acceptance/negative tests:
-```
-
-## Invariants
-
-- Server enforces entitlement/RBAC.
-- Authoritative state uses DB/object storage with transactions, retention, retry/idempotency, cleanup.
-- Files/URLs validate type, size, redirects, TLS, SSRF, active content, cleanup.
-- Generative AI uses registered workloads/common execution; app never selects provider/raw model key/pool/fallback. Explicit catalog selection follows the [common gateway contract](../../../docs/domains/ai/gateway.md#user-model-selection).
-- Worker task is complete only when deployed bootstrap/routing discovers it.
-- Migrations build from current head and preserve supported rows/workflows.
-- Search/retrieval uses source ACL, partition/projection lifecycle, backfill/cutover/rollback evidence.
-
-Use [Vibe Harness](../../../docs/agents/vibe-coding-harness.md). MR templates apply only when publication is requested.
+Server admission/ACL, registered AI execution, durable app state, and generated contracts remain required. Workers must be discovered by the deployed runtime; migrations must preserve supported data and rollback compatibility. Implement missing integration points at their owner and verify both accepted and denied behavior.

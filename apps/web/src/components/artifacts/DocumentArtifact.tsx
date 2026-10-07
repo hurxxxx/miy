@@ -1,9 +1,2 @@
-import { MarkdownContent } from './MarkdownContent';
-
-export interface DocumentArtifactProps {
-  content: string;
-}
-
-export function DocumentArtifact({ content }: DocumentArtifactProps) {
-  return <MarkdownContent content={content} unwrapMarkdownFence />;
-}
+/** Compatibility entry; the declared source owner supplies the same objects. */
+export * from '@miy/platform-web/ai/artifacts/DocumentArtifact';

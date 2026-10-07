@@ -1,0 +1,42 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+}
+:root[data-theme='light'] {
+  --app-background: #ffffff;
+  --app-foreground: #172033;
+  --app-muted: #526174;
+}
+:root[data-theme='dark'] {
+  --app-background: #141b28;
+  --app-foreground: #e5ebf5;
+  --app-muted: #a4b2c6;
+}
+body {
+  background: var(--app-background, Canvas);
+  color: var(--app-foreground, CanvasText);
+  margin: 0;
+  padding: 2rem;
+}
+main {
+  max-width: 48rem;
+  margin: 3rem auto;
+  line-height: 1.7;
+}
+.eyebrow {
+  color: var(--app-muted, #64748b);
+  font-size: 0.85rem;
+}
+button {
+  font: inherit;
+  padding: 0.65rem 1rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+button:focus-visible {
+  outline: 3px solid #3b82f6;
+  outline-offset: 3px;
+}
+button:disabled {
+  cursor: wait;
+}

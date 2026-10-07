@@ -9,6 +9,9 @@ from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from miy_api.core.runtime_config_source import RuntimeConfigSettingsSource
+from miy_api.core.app_origins import exact_origin
+from miy_api.core.independent_delivery_settings import IndependentDeliveryTarget, validate_targets
+from miy_api.core.registration_audience import registration_audience
 
 from miy_api.miy_desktop_update_manifest import (
     miy_desktop_update_dir_values,
@@ -308,6 +311,19 @@ class Settings(BaseSettings):
         default_factory=dict,
         validation_alias="MIY_CODEX_CONSOLE_LAUNCH_URL_BY_HOST",
     )
+    codex_console_registration_audiences: list[str] = Field(
+        default_factory=list,
+        max_length=32,
+        validation_alias="MIY_CODEX_CONSOLE_REGISTRATION_AUDIENCES",
+    )
+
+    @field_validator("codex_console_registration_audiences")
+    @classmethod
+    def _registration_audiences(cls, values: list[str]) -> list[str]:
+        validated = [registration_audience(value) for value in values]
+        if len(set(validated)) != len(validated):
+            raise ValueError("Duplicate Workbench registration audience")
+        return validated
 
     @field_validator("codex_console_launch_url")
     @classmethod
@@ -382,6 +398,65 @@ class Settings(BaseSettings):
         default=False,
         validation_alias="MIY_API_SERVE_FRONTEND",
     )
+    independent_app_platform_origins: list[str] = Field(
+        default_factory=list, max_length=20,
+        validation_alias="MIY_INDEPENDENT_APP_PLATFORM_ORIGINS",
+    )
+    independent_app_delivery_targets: list[IndependentDeliveryTarget] = Field(
+        default_factory=list, max_length=32,
+        validation_alias="MIY_INDEPENDENT_APP_DELIVERY_TARGETS",
+    )
+
+    @model_validator(mode="after")
+    def validate_independent_delivery_targets(self) -> "Settings":
+        if self.independent_app_delivery_targets and self.environment != "development":
+            raise ValueError("The independent delivery consumer supports development only")
+        validate_targets(
+            self.independent_app_delivery_targets,
+            platform_root=WORKSPACE_ROOT,
+            platform_origins=self.independent_app_platform_origins,
+        )
+        return self
+
+    independent_app_data_postgres_dsn: SecretStr = Field(
+        default=SecretStr(""), validation_alias="MIY_INDEPENDENT_APP_DATA_POSTGRES_DSN"
+    )
+    independent_app_data_credential_key: SecretStr = Field(
+        default=SecretStr(""), validation_alias="MIY_INDEPENDENT_APP_DATA_CREDENTIAL_KEY"
+    )
+    independent_app_file_selection_signing_key: SecretStr = Field(
+        default=SecretStr(""),
+        validation_alias="MIY_INDEPENDENT_APP_FILE_SELECTION_SIGNING_KEY",
+    )
+    independent_app_file_selection_storage_region: str = Field(
+        default="us-east-1", min_length=1, max_length=64, pattern=r"^[A-Za-z0-9-]+$",
+        validation_alias="MIY_INDEPENDENT_APP_FILE_SELECTION_STORAGE_REGION",
+    )
+
+    @field_validator("independent_app_file_selection_signing_key")
+    @classmethod
+    def validate_file_selection_key(cls, value: SecretStr) -> SecretStr:
+        key = value.get_secret_value()
+        if key and (
+            len(key.encode("utf-8")) < 32
+            or key != key.strip()
+            or re.match(r"^(dev|development|example|placeholder|change[-_]?me)", key, re.I)
+        ):
+            raise ValueError("Selected-file signing requires a non-placeholder secret of at least 32 bytes")
+        return value
+
+    @field_validator("independent_app_data_credential_key")
+    @classmethod
+    def validate_independent_app_data_key(cls, value: SecretStr) -> SecretStr:
+        if value.get_secret_value() and len(value.get_secret_value()) < 32:
+            raise ValueError("Independent app data credential key needs at least 32 characters")
+        return value
+
+    @field_validator("independent_app_platform_origins")
+    @classmethod
+    def validate_independent_app_platform_origins(cls, values: list[str]) -> list[str]:
+        return sorted({exact_origin(value) for value in values})
+
     frontend_dist_dir: str = Field(
         default=DEFAULT_FRONTEND_DIST_DIR,
         validation_alias="MIY_API_FRONTEND_DIST_DIR",

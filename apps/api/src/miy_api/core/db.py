@@ -6,8 +6,10 @@ from collections.abc import Generator
 from functools import lru_cache
 
 from sqlalchemy import Engine, create_engine
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
+from miy_api.core.i18n import localized_http_exception
 from miy_api.core.model_registry import import_all_models
 from miy_api.core.settings import WORKSPACE_ROOT, get_settings
 
@@ -70,8 +72,37 @@ def get_db_session() -> Generator[Session, None, None]:
     session = get_session_factory()()
     try:
         yield session
+    except DBAPIError as error:
+        if not is_official_writer_guard_error(error):
+            raise
+        # The statement trigger aborts the transaction, including services that
+        # commit internally. Roll it back before returning a retryable response.
+        session.rollback()
+        raise official_writer_unavailable() from None
     finally:
         session.close()
+
+
+def official_writer_unavailable():
+    """Stable public failure envelope shared by HTTP and Docs collaboration."""
+    return localized_http_exception(
+        status_code=503,
+        code="official_apps.writer_unavailable",
+        headers={"Retry-After": "5"},
+    )
+
+
+def is_official_writer_guard_error(error: Exception) -> bool:
+    """Recognize only the migrated guard's exact diagnostic, never SQL/error text."""
+    if not isinstance(error, DBAPIError):
+        return False
+    original = error.orig
+    sqlstate = getattr(original, "sqlstate", None) or getattr(original, "pgcode", None)
+    diagnostic = getattr(original, "diag", None)
+    return sqlstate == "55000" and getattr(diagnostic, "message_primary", None) in {
+        "official_writer_fenced",
+        "official_writer_control_missing",
+    }
 
 
 def _alembic_config():

@@ -154,6 +154,74 @@ test('composer uploads select files, attachment-only messages work, and tasks do
   ).toBe(true);
 });
 
+test('restores unsent files and an explicit skill across tasks without repeating sent input', async ({
+  page,
+}) => {
+  await page
+    .getByRole('navigation', { name: 'Workbench 메뉴' })
+    .getByRole('button', { name: '지침·스킬', exact: true })
+    .click();
+  await page.getByRole('button', { name: '문서 만들기', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('문서 종류').selectOption('skill');
+  const skill = `composer-review-${Date.now()}`;
+  await dialog.getByLabel('문서 경로').fill(`.agents/skills/${skill}/SKILL.md`);
+  await dialog.getByRole('button', { name: '문서 열기' }).click();
+  await page.getByRole('button', { name: '문서 저장', exact: true }).click();
+  await expect(
+    page.getByRole('status').filter({ hasText: '저장했습니다' }),
+  ).toBeVisible();
+  await newTask(page, '선택을 보존할 작업');
+  await page.getByLabel('작업 절차 사용').selectOption(skill);
+  await page.getByLabel('요청 내용 입력').fill('검토 초안');
+  await page.getByRole('button', { name: '파일 첨부', exact: true }).click();
+  await dialog.locator('input[type=file]').setInputFiles({
+    name: '참고.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('Reference fixture'),
+  });
+  await expect(
+    dialog.getByRole('checkbox', { name: /참고.txt/ }),
+  ).toBeChecked();
+  await page.getByRole('button', { name: '선택 완료' }).click();
+  await newTask(page, '선택이 독립된 작업');
+  await expect(page.locator('.composer .attachment-badge')).toHaveCount(0);
+  await expect(page.getByLabel('작업 절차 사용')).toHaveValue('');
+  await expect(page.getByLabel('요청 내용 입력')).toHaveValue('');
+  await page.getByLabel('요청 내용 입력').fill('다른 초안');
+  const selectTask = async (name: string) => {
+    await page.getByRole('button', { name: '세션 목록으로' }).click();
+    await page
+      .getByRole('list', { name: '세션', exact: true })
+      .getByRole('button', { name: new RegExp(name) })
+      .click();
+    await expect(page.getByRole('heading', { name })).toBeVisible();
+  };
+  await selectTask('선택을 보존할 작업');
+  await expect(page.getByLabel('작업 절차 사용')).toHaveValue(skill);
+  await expect(page.getByLabel('요청 내용 입력')).toHaveValue('검토 초안');
+  await expect(page.locator('.composer .attachment-badge')).toContainText(
+    '참고.txt',
+  );
+  const sent = page.waitForResponse(
+    (r) =>
+      r.request().method() === 'POST' &&
+      /\/tasks\/[^/]+\/messages$/.test(new URL(r.url()).pathname),
+  );
+  await page.getByRole('button', { name: '보내기', exact: true }).click();
+  const response = await sent;
+  expect(response.status()).toBe(200);
+  expect(response.request().postDataJSON().skill_names).toEqual([skill]);
+  expect(response.request().postDataJSON().attachment_ids).toHaveLength(1);
+  await expect(page.locator('.composer .attachment-badge')).toHaveCount(0);
+  await expect(page.getByLabel('요청 내용 입력')).toHaveValue('');
+  await selectTask('선택이 독립된 작업');
+  await expect(page.getByLabel('요청 내용 입력')).toHaveValue('다른 초안');
+  await selectTask('선택을 보존할 작업');
+  await expect(page.locator('.composer .attachment-badge')).toHaveCount(0);
+  await expect(page.getByLabel('요청 내용 입력')).toHaveValue('');
+});
+
 test('many selected files scroll inside the composer without hiding its controls', async ({
   page,
 }) => {

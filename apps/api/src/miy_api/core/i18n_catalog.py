@@ -56,6 +56,86 @@ MESSAGE_PARAM_VALUE_TRANSLATIONS: dict[tuple[str, str], str] = {
 
 
 MESSAGES: dict[str, dict[str, str]] = {
+    "official_apps.writer_unavailable": {
+        "ko-KR": "현재 변경 내용을 저장할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+        "en-US": "Changes cannot be saved right now. Please try again shortly.",
+    },
+    "independent_apps.origin_configuration_required": {
+        "ko-KR": "독립 앱을 사용하려면 서버에 플랫폼의 브라우저 출처를 설정해야 합니다.",
+        "en-US": "Configure the platform browser origins on the server before using independent apps.",
+    },
+    "independent_apps.not_found": {
+        "ko-KR": "앱 또는 설치를 찾을 수 없거나 접근 권한이 없습니다.",
+        "en-US": "The app or installation was not found or is not accessible.",
+    },
+    "independent_apps.forbidden": {
+        "ko-KR": "이 앱 설정이나 동작에 대한 권한이 없습니다.",
+        "en-US": "You do not have permission for this app configuration or action.",
+    },
+    "independent_apps.conflict": {
+        "ko-KR": "앱 정의나 설치가 변경되었거나 이미 등록되어 있습니다. 현재 상태를 다시 확인해 주세요.",
+        "en-US": "The app definition or installation changed or already exists. Read its current state again.",
+    },
+    "independent_apps.bootstrap_busy": {
+        "ko-KR": "앱 등록이 다른 요청을 기다리다 중단되었습니다. 같은 요청 ID로 결과를 확인한 뒤 다시 시도해 주세요.",
+        "en-US": "App registration stopped while waiting for another request. Check the same request ID before retrying.",
+    },
+    "independent_apps.preview_busy": {
+        "ko-KR": "미리보기 설정이 다른 요청을 기다리다 중단되었습니다. 현재 설정을 확인한 뒤 다시 시도해 주세요.",
+        "en-US": "Preview settings stopped while waiting for another request. Read the current settings before retrying.",
+    },
+    "independent_apps.invalid_origin": {
+        "ko-KR": "독립 앱은 플랫폼과 다른 출처에서 실행해야 합니다.",
+        "en-US": "An independent app must run on a different origin from the platform.",
+    },
+    "independent_apps.invalid_audience": {
+        "ko-KR": "사용 대상에 존재하지 않는 사용자 또는 그룹이 포함되어 있습니다.",
+        "en-US": "The audience includes a user or group that does not exist.",
+    },
+    "independent_apps.verification_required": {
+        "ko-KR": "이 릴리스에 일치하는 신뢰된 빌드 검증이 필요합니다.",
+        "en-US": "This release requires matching evidence from a trusted build executor.",
+    },
+    "independent_apps.local_delivery_only": {
+        "ko-KR": "현재 배포 실행기는 로컬 개발 설치만 지원합니다.",
+        "en-US": "The current delivery executor supports local development installations only.",
+    },
+    "independent_apps.data_unavailable": {
+        "ko-KR": "앱 데이터 저장소를 사용할 수 없습니다.",
+        "en-US": "The app data store is unavailable.",
+    },
+    "independent_apps.file_access_invalid": {
+        "ko-KR": "선택한 파일이나 앱의 현재 읽기 권한을 확인할 수 없습니다. 플랫폼에서 파일을 다시 선택해 주세요.",
+        "en-US": "The selected file or current app access is no longer valid. Select the file again in the platform.",
+    },
+    "independent_apps.file_size_exceeded": {
+        "ko-KR": "파일은 10 MiB 이하여야 합니다.",
+        "en-US": "The file must be no larger than 10 MiB.",
+    },
+    "independent_apps.file_request_invalid": {
+        "ko-KR": "파일 선택 요청의 형식이나 크기가 올바르지 않습니다.",
+        "en-US": "The file selection request has an invalid format or size.",
+    },
+    "independent_apps.file_picker_unavailable": {
+        "ko-KR": "이 플랫폼에서 앱의 파일 선택 기능을 사용할 수 없습니다.",
+        "en-US": "App file selection is unavailable on this platform.",
+    },
+    "independent_apps.file_query_unavailable": {
+        "ko-KR": "파일 목록을 제한 시간 안에 확인하지 못했습니다. 검색어를 좁혀 다시 조회해 주세요.",
+        "en-US": "The file list could not be checked within its limit. Narrow the search and try again.",
+    },
+    "independent_apps.file_read_unavailable": {
+        "ko-KR": "선택한 파일을 제한 시간과 크기 안에 읽지 못했습니다. 파일을 확인한 뒤 다시 시도해 주세요.",
+        "en-US": "The selected file could not be read within its time and size limits. Check the file before trying again.",
+    },
+    "independent_apps.data_payload_invalid": {
+        "ko-KR": "앱 데이터의 형식이나 크기가 허용된 범위를 벗어났습니다.",
+        "en-US": "The app data format or size is outside the allowed limits.",
+    },
+    "independent_apps.session_invalid": {
+        "ko-KR": "앱 세션이 만료되었거나 유효하지 않습니다. 플랫폼에서 앱을 다시 열어 주세요.",
+        "en-US": "The app session is expired or invalid. Open the app from the platform again.",
+    },
     "hermes.model_unavailable": {
         "ko-KR": "선택된 모델을 Hermes에서 사용할 수 없습니다. 관리자 모델 설정을 확인해 주세요.",
         "en-US": "The selected model is unavailable in Hermes. Check the administrator model settings.",
@@ -1280,6 +1360,18 @@ MESSAGES: dict[str, dict[str, str]] = {
         "ko-KR": "DM 첨부파일 정보를 저장하지 못했습니다.",
         "en-US": "Could not save DM attachment metadata.",
     },
+    "dm.attachment_save_unknown": {
+        "ko-KR": "DM 첨부파일 저장 결과를 확인할 수 없습니다. 파일은 보존되며 자동으로 다시 업로드하지 않습니다.",
+        "en-US": "The DM attachment save result is unknown. The file is retained and is not uploaded again automatically.",
+    },
+    "files.metadata_save_failed": {
+        "ko-KR": "파일 정보를 저장하지 못했습니다.",
+        "en-US": "Could not save file metadata.",
+    },
+    "files.metadata_save_unknown": {
+        "ko-KR": "파일 저장 결과를 확인할 수 없습니다. 업로드한 파일은 보존되며 자동으로 다시 업로드하지 않습니다.",
+        "en-US": "The file save result is unknown. Uploaded bytes are retained and are not uploaded again automatically.",
+    },
     "dm.attachment_already_sent": {
         "ko-KR": "이미 전송된 DM 첨부파일입니다.",
         "en-US": "This DM attachment has already been sent.",
@@ -2247,6 +2339,14 @@ MESSAGES: dict[str, dict[str, str]] = {
     "recording.processing_in_progress": {
         "ko-KR": "녹음 후속 처리가 이미 진행 중입니다.",
         "en-US": "Recording background processing is already in progress.",
+    },
+    "recording.processing_submission_unknown": {
+        "ko-KR": "원본 음성은 저장되어 있지만 후속 처리 요청 결과를 확인할 수 없습니다. 자동으로 다시 요청하지 않았습니다. 녹음 상태를 확인해 주세요.",
+        "en-US": "The original audio is saved, but background processing submission could not be confirmed. It was not submitted again automatically. Check the recording status.",
+    },
+    "recording.processing_update_unknown": {
+        "ko-KR": "녹음 처리 상태의 저장 결과를 확인할 수 없습니다. 원본 음성을 삭제하거나 후속 처리를 다시 요청하지 않았습니다. 녹음 상태를 확인해 주세요.",
+        "en-US": "The recording processing state update could not be confirmed. Original audio was retained and processing was not submitted again. Check the recording status.",
     },
     "recording.processing_already_done": {
         "ko-KR": "녹음 후속 처리가 이미 완료되었습니다.",

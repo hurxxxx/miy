@@ -23,6 +23,7 @@ from . import (
     instructions,
     miy_sso,
     monitor,
+    registration,
     routing,
     store,
     templates,
@@ -146,20 +147,26 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
                 )
             yield
         finally:
-            if host_observer:
-                host_observer.cancel()
+
+            async def stop_observer(task):
+                task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
-                    await host_observer
-            if observer:
-                observer.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await observer
-            if runtime:
-                await runtime.close()
-            if template_runtime:
-                await template_runtime.close()
-            guard.close()
-            engine.dispose()
+                    await task
+
+            # Closing one runtime can fail while persisting uncertain state. Keep
+            # that error visible, but always close the other runtime and release
+            # process ownership/database resources as well.
+            async with contextlib.AsyncExitStack() as closing:
+                closing.callback(engine.dispose)
+                closing.callback(guard.close)
+                if template_runtime:
+                    closing.push_async_callback(template_runtime.close)
+                if runtime:
+                    closing.push_async_callback(runtime.close)
+                if observer:
+                    closing.push_async_callback(stop_observer, observer)
+                if host_observer:
+                    closing.push_async_callback(stop_observer, host_observer)
 
     app = FastAPI(
         title="MIY Workbench",
@@ -196,7 +203,10 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
             if not host or host not in (allowed_host, "127.0.0.1", "localhost", "::1"):
                 raise ConsoleError("host_denied", 403)
             mutation = request.method not in ("GET", "HEAD", "OPTIONS")
-            if mutation:
+            registration_callback = (
+                mutation and request.method == "POST" and path == registration.CALLBACK
+            )
+            if mutation and not registration_callback:
                 origin = request.headers.get("origin", "")
                 if origin not in (cfg.origin, cfg.local_origin) or (
                     request.headers.get("host", "").lower() != urlsplit(origin).netloc.lower()
@@ -279,13 +289,15 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
             with app.state.factory() as db:
                 executor = store.require_task(db, str(task_id)).executor
         if executor == "templates" and role == "combined":
-            return app.state.template_runtime
+            runtime = app.state.template_runtime
+            return runtime.for_task(task_id) if task_id else runtime
         runtime = app.state.runtime
         if executor and runtime.executor != executor:
             raise ConsoleError("executor_mismatch", 409)
-        return runtime
+        return runtime.for_task(task_id) if task_id else runtime
 
     templates.register(app, owner, runtime_for)
+    registration.install(app, owner)
     secured = [Depends(owner)]
     instructions.install(app, secured)
     workbench.install(app, secured)
@@ -357,6 +369,9 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
                     auth.WebSession.token_hash == auth.digest(request.cookies[auth.COOKIE])
                 )
             )
+        registration.logout(
+            app.state.settings, app.state.factory, auth.digest(request.cookies[auth.COOKIE])
+        )
         response = JSONResponse({"ok": True})
         response.delete_cookie(auth.COOKIE, path=app.state.settings.base_path or "/")
         response.delete_cookie(auth.CSRF_COOKIE, path=app.state.settings.base_path or "/")
@@ -516,7 +531,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
             ]
 
     @app.post("/api/tasks", dependencies=secured, response_model=TaskDetail)
-    def new_task(body: NewTask):
+    def new_task(body: NewTask, request: Request):
         context = body.context.model_dump(mode="json") if body.context else None
         if context and context.get("service_id"):
             service = next(
@@ -533,16 +548,22 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
             )
         with app.state.factory.begin() as db:
             context = workbench.validate_context(app.state.settings, db, context)
-            task = Task(title=body.title, root=str(app.state.settings.workspace), context=context)
+            selected_root = workbench.context_root(app.state.settings, context)
+            if (context or {}).get("source_binding") and body.isolate:
+                raise ConsoleError("app_executor_worktree_unsupported", 422)
+            task = Task(title=body.title, root=str(selected_root), context=context)
             db.add(task)
             db.flush()
             workbench.link_task(db, task)
+            registration.create(db, task, request.cookies.get(auth.COOKIE))
             if body.isolate:
                 cfg = app.state.settings
                 root, isolated = git.prepare_workspace(
-                    cfg.workspace,
+                    selected_root,
                     task.id,
-                    base_ref=cfg.worktree_base_ref,
+                    base_ref=(context or {})
+                    .get("source_binding", {})
+                    .get("revision", cfg.worktree_base_ref),
                     worktree_root=cfg.worktree_root,
                     validate_target=cfg.require_allowed_paths,
                 )
@@ -678,7 +699,8 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
         return store.detail(app.state.factory, task_id, app.state.settings)
 
     @app.post("/api/tasks/{task_id}/messages", dependencies=secured, response_model=TaskDetail)
-    async def message(task_id: str, body: Message):
+    async def message(task_id: str, body: Message, request: Request):
+        registration.session_gate(app.state.factory, task_id, request.cookies.get(auth.COOKIE))
         await runtime_for(task_id).submit(
             task_id,
             body.operation_id,
@@ -689,11 +711,13 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
             effort=body.effort,
             permissions=body.permissions,
             skill_names=body.skill_names,
+            registration_session_hash=auth.digest(request.cookies.get(auth.COOKIE) or ""),
         )
         return store.detail(app.state.factory, task_id, app.state.settings)
 
     @app.post("/api/tasks/{task_id}/implement", dependencies=secured, response_model=TaskDetail)
-    async def implement(task_id: str, body: Implement):
+    async def implement(task_id: str, body: Implement, request: Request):
+        registration.session_gate(app.state.factory, task_id, request.cookies.get(auth.COOKIE))
         await runtime_for(task_id).submit(
             task_id,
             body.operation_id,
@@ -705,13 +729,20 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
             effort=body.effort,
             permissions=body.permissions,
             skill_names=body.skill_names,
+            registration_session_hash=auth.digest(request.cookies.get(auth.COOKIE) or ""),
         )
         return store.detail(app.state.factory, task_id, app.state.settings)
 
     @app.post("/api/tasks/{task_id}/steer", dependencies=secured, response_model=TaskDetail)
-    async def steer(task_id: str, body: MessageBody):
+    async def steer(task_id: str, body: MessageBody, request: Request):
+        registration.session_gate(app.state.factory, task_id, request.cookies.get(auth.COOKIE))
         await runtime_for(task_id).steer(
-            task_id, body.operation_id, body.text, body.attachment_ids, skill_names=body.skill_names
+            task_id,
+            body.operation_id,
+            body.text,
+            body.attachment_ids,
+            skill_names=body.skill_names,
+            registration_session_hash=auth.digest(request.cookies.get(auth.COOKIE) or ""),
         )
         return store.detail(app.state.factory, task_id, app.state.settings)
 
@@ -721,8 +752,11 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
         return {"ok": True}
 
     @app.post("/api/tasks/{task_id}/recover", dependencies=secured, response_model=TaskDetail)
-    async def recover(task_id: str, body: Recover):
-        await runtime_for(task_id).recover(task_id)
+    async def recover(task_id: str, body: Recover, request: Request):
+        registration.recovery_gate(app.state.factory, task_id, request.cookies.get(auth.COOKIE))
+        await runtime_for(task_id).recover(
+            task_id, registration_session_hash=auth.digest(request.cookies.get(auth.COOKIE) or "")
+        )
         return store.detail(app.state.factory, task_id, app.state.settings)
 
     @app.post(
@@ -730,8 +764,14 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
         dependencies=secured,
         response_model=TaskDetail,
     )
-    async def answer(task_id: str, request_id: str, body: Answer):
-        await runtime_for(task_id).answer(task_id, request_id, body)
+    async def answer(task_id: str, request_id: str, body: Answer, request: Request):
+        registration.session_gate(app.state.factory, task_id, request.cookies.get(auth.COOKIE))
+        await runtime_for(task_id).answer(
+            task_id,
+            request_id,
+            body,
+            registration_session_hash=auth.digest(request.cookies.get(auth.COOKIE) or ""),
+        )
         return store.detail(app.state.factory, task_id, app.state.settings)
 
     @app.get("/api/tasks/{task_id}/changes", dependencies=secured, response_model=list[ChangeOut])
@@ -814,6 +854,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
                     "/api/templates",
                     "/api/instructions",
                     "/api/workbench",
+                    "/api/registration-authorizations",
                 )
             )
         ]

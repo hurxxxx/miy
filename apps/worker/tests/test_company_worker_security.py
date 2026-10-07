@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from miy_worker.tasks import meeting, rag_sync, recording, search_index
 
 from miy_api.core.db import Base
+from miy_api.domains.official_apps.writer_models import RuntimeOwnership
 from miy_api.domains.auth.app_access_models import (
     AppAccessPolicy,
     AppGroupGrant,
@@ -30,6 +31,7 @@ def company_db():
         tables=[
             model.__table__
             for model in (
+                RuntimeOwnership,
                 User,
                 UserSystemRole,
                 CompanyAppControl,
@@ -44,6 +46,15 @@ def company_db():
         ],
     )
     with Session(engine) as db:
+        db.add(
+            RuntimeOwnership(
+                scope="official.suite",
+                active_owner="legacy",
+                generation=1,
+                state="active",
+                artifact=None,
+            )
+        )
         db.add(
             User(
                 id="user-1",
@@ -150,9 +161,11 @@ def test_recording_worker_discards_provider_result_after_admission_revocation(
     failures = []
     monkeypatch.setattr(recording, "_db_session", lambda: company_db)
     monkeypatch.setattr(recording, "_load_active_recording", lambda *args: current)
-    monkeypatch.setattr(recording, "_lock_current_recording_attempt", lambda *args: current)
+    # This SQLite test owns current ACL behavior; actual phase/result locking
+    # is covered by the owned PostgreSQL gateway tests.
+    monkeypatch.setattr(recording, "_lock_summary_claim", lambda *args: current)
     monkeypatch.setattr(recording, "_heartbeat", lambda *args, **kwargs: None)
-    monkeypatch.setattr(recording, "_mark_failed", lambda *args, **kwargs: failures.append(args[2]))
+    monkeypatch.setattr(recording, "_fail_summary_phase", lambda *args: failures.append(args[2]))
 
     def provider(_db, **kwargs):
         assert kwargs["actor_user_id"] == "user-1"

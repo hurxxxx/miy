@@ -9,7 +9,15 @@
       ],
       "@miy/contracts/*": ["./packages/contracts/src/*"],
       "@miy/ui": ["./packages/ui/src/index.ts"],
-      "@miy/ui/styles.css": ["./packages/ui/styles.css"]
+      "@miy/ui/styles.css": ["./packages/ui/styles.css"],
+      "@miy/official-suite-web": ["./packages/official-suite-web/src/index.ts"],
+      "@miy/official-suite-web/*": ["./packages/official-suite-web/src/*"],
+      "@miy/core-web/*": ["./packages/core-web/src/*"],
+      "@miy/web-official-suite-bridge": [
+        "./apps/web/src/official-suite-bridge.ts"
+      ],
+      "@miy/platform-web": ["./packages/platform-web/src/index.ts"],
+      "@miy/platform-web/*": ["./packages/platform-web/src/*"]
     }
   },
   "include": ["apps/web/src/**/*.ts", "apps/web/src/**/*.tsx"]

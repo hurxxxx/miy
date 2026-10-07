@@ -9,7 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from miy_worker.celery_app import celery_app
+from miy_worker.task_binding import task_app
+
 from miy_worker.runtime import db_session as _db_session
 from miy_worker.queue_contract import (
     SEARCH_INDEX_REALTIME_QUEUE,
@@ -45,6 +46,7 @@ from miy_api.domains.retrieval.runtime_binding import (  # noqa: E402
     PartitionedRetrievalRuntimeUnavailable,
     resolve_active_partitioned_generation_pair,
 )
+from miy_api.domains.retrieval.docs_legacy_repair_contracts import DocsLegacyRepairError  # noqa: E402
 from miy_api.domains.search.backend_contracts import KeywordSearchClient  # noqa: E402
 from miy_api.domains.search.backend_factory import (  # noqa: E402
     build_keyword_search_client,  # noqa: E402
@@ -66,6 +68,8 @@ from miy_api.domains.search.schemas import SearchEntityType  # noqa: E402
 from miy_api.domains.source_access.resource_types import (  # noqa: E402
     FILE_MANAGER_FILE_RESOURCE_TYPE,
 )
+
+celery_app = task_app(__name__)
 
 logger = logging.getLogger(__name__)
 OUTBOX_REPUBLISH_BATCH_SIZE = 100
@@ -159,6 +163,10 @@ def index_resource(self, job_id: str) -> str:
             client_factory=_search_client_for_job,
             execution_allowed=_search_job_app_enabled,
         )
+    except DocsLegacyRepairError:
+        # Same-origin Core reconciliation only: never generic retry/merge or
+        # new business work after an unconfirmed repair transaction.
+        raise
     except Exception as error:
         return _handle_job_failure(session, task=self, job_id=job_id, error=error)
     finally:

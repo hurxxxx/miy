@@ -254,6 +254,21 @@ test.describe('AI-friendly app boundary smoke', () => {
     page,
   }) => {
     await stubFullShell(page);
+    let creations = 0;
+    // This smoke owns shell composition and routing. Keep the external editor
+    // out of its network boundary; bridge behavior has its own protocol tests.
+    await page.route('**/*', (route) => {
+      const request = route.request();
+      if (
+        request.resourceType() === 'document' &&
+        request.frame().parentFrame()
+      )
+        return route.fulfill({
+          contentType: 'text/html',
+          body: '<!doctype html><title>Editor fixture</title>',
+        });
+      return route.fallback();
+    });
     const document = {
       id: 'presentation-1',
       title: 'Untitled Presentation',
@@ -280,6 +295,7 @@ test.describe('AI-friendly app boundary smoke', () => {
         return route.fulfill({ json: [] });
       }
       if (pathname.endsWith('/bento/items') && request.method() === 'POST') {
+        creations++;
         return route.fulfill({ json: document });
       }
       if (pathname.endsWith('/bento/items/presentation-1')) {
@@ -302,6 +318,68 @@ test.describe('AI-friendly app boundary smoke', () => {
         name: /페이지를 찾을 수 없습니다|Page not found/,
       }),
     ).toHaveCount(0);
+    await expect(
+      page.getByRole('heading', { name: document.title, exact: true }),
+    ).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { name: document.title, exact: true }),
+    ).toHaveText(document.title);
+    await test.info().attach('mobile-toolbar-layout', {
+      body: JSON.stringify(
+        await page
+          .getByRole('heading', { name: document.title, exact: true })
+          .evaluate((heading) => ({
+            heading: heading.getBoundingClientRect().toJSON(),
+            toolbar: heading.parentElement?.getBoundingClientRect().toJSON(),
+            children: Array.from(heading.parentElement?.children ?? []).map(
+              (child) => ({
+                tag: child.tagName,
+                box: child.getBoundingClientRect().toJSON(),
+              }),
+            ),
+          })),
+      ),
+      contentType: 'application/json',
+    });
+    await expect(
+      page.getByRole('heading', { name: document.title, exact: true }),
+    ).toBeVisible();
+    const toolbar = page
+      .getByRole('heading', { name: document.title, exact: true })
+      .locator('..');
+    await expect
+      .poll(() =>
+        page
+          .getByRole('heading', { name: document.title, exact: true })
+          .evaluate((heading) => heading.getBoundingClientRect().width),
+      )
+      .toBeGreaterThan(80);
+    expect(
+      await toolbar.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBe(true);
+    expect(creations).toBe(1);
+  });
+
+  test('keeps Bento admission ahead of its moved business data', async ({
+    page,
+  }) => {
+    await stubAppDataBackend(page);
+    await stubShellBackend(page, { enabledAppIds: ['home'] });
+    await stubConversationsApi(page);
+    let reads = 0;
+    await page.route('**/api/v1/bento/**', (route) => {
+      reads++;
+      return route.fulfill({ status: 403, json: { detail: 'denied' } });
+    });
+    await page.goto('/apps/bento/presentations/private-presentation');
+    await expect(
+      page.getByRole('heading', { name: '접근 권한 없음' }),
+    ).toBeVisible();
+    expect(reads).toBe(0);
   });
 
   test('keeps denied apps blocked before their data loads', async ({

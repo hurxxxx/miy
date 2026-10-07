@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
+import { officialFixedAssets } from '../../packages/official-suite-web/vite/fixed-assets.mjs';
 
 const apiProxyTarget = process.env.MIY_WEB_API_PROXY_TARGET ?? 'http://127.0.0.1:8001';
 const drawioProxyTarget =
@@ -120,10 +121,14 @@ export default defineConfig(() => ({
   resolve: {
     alias: {
       '@miy/ui/styles.css': path.resolve(import.meta.dirname, '../../packages/ui/styles.css'),
+      // These source-only libraries have no package exports. Keep dev resolution
+      // explicit: Nx snapshots tsconfig paths when a long-running server starts.
+      '@miy/official-suite-web': path.resolve(import.meta.dirname, '../../packages/official-suite-web/src'),
+      '@miy/platform-web': path.resolve(import.meta.dirname, '../../packages/platform-web/src'),
       '@/src': path.resolve(import.meta.dirname, 'src'),
     },
   },
-  plugins: [react(), tailwindcss(), nxViteTsPaths(), nxCopyAssetsPlugin(['*.md'])],
+  plugins: [react(), tailwindcss(), nxViteTsPaths(), nxCopyAssetsPlugin(['*.md']), officialFixedAssets()],
   optimizeDeps: {
     include: ['@hyunbinseo/holidays-kr/all'],
   },

@@ -15,13 +15,14 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from miy_api.core.db import Base
+from miy_api.domains.official_apps.writer_contracts import OfficialWriterSource
 
 
 def utcnow_naive() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
-class PersonalTodoItem(Base):
+class PersonalTodoItem(OfficialWriterSource, Base):
     __tablename__ = "personal_todo_items"
     __table_args__ = (
         Index(
@@ -48,7 +49,7 @@ class PersonalTodoItem(Base):
     user = relationship("User")
 
 
-class PersonalMemo(Base):
+class PersonalMemo(OfficialWriterSource, Base):
     __tablename__ = "personal_memos"
     __table_args__ = (UniqueConstraint("user_id", name="uq_personal_memos_user"),)
 

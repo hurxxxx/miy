@@ -62,6 +62,7 @@ def enqueue_search_index_job(
     operation: str = "upsert",
     trace_context: dict[str, Any] | None = None,
     projection_event: ProjectionEventRef | None = None,
+    publish_after_commit: bool = True,
 ) -> SearchIndexJob:
     resolved_entity_type, resolved_trace_context = _normalize_job_request(
         entity_type=entity_type,
@@ -83,7 +84,8 @@ def enqueue_search_index_job(
         trace_context=resolved_trace_context,
         projection_snapshot=projection_snapshot,
     )
-    _schedule_publish_after_commit(db, job_id=job.id)
+    if publish_after_commit:
+        _schedule_publish_after_commit(db, job_id=job.id)
     return job
 
 

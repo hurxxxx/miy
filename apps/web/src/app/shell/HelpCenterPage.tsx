@@ -1,12 +1,9 @@
-import { ArrowLeft, X, type LucideIcon } from 'lucide-react';
+import type { HelpGuide } from '@miy/core-web/help-guide';
+import { ArrowLeft, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
-import {
-  getPmsHelpGuideSrc,
-  pmsHelpGuideRegistration,
-} from '@/src/app-modules/pms';
 import { NotFoundView } from '@/src/platform/auth/settings-pages';
 
 import {
@@ -16,23 +13,19 @@ import {
   type FeatureGuideToolIds,
 } from './ai-feature-guides';
 
-type HelpGuide = {
-  key: string;
-  descriptionKey: string;
-  icon: LucideIcon;
-  src: string;
-  titleKey: string;
-};
-
-// Always-available guides that are not gated by feature-specific runtime availability.
-const COMMON_GUIDES: readonly HelpGuide[] = [pmsHelpGuideRegistration] as const;
+export type { HelpGuide } from '@miy/core-web/help-guide';
 
 type HelpCenterPageProps = {
+  guides?: readonly HelpGuide[];
   onOpenGuide?: (guide: HelpGuide) => void;
 };
 
-export function HelpCenterPage({ onOpenGuide }: HelpCenterPageProps = {}) {
+export function HelpCenterPage({
+  guides = [],
+  onOpenGuide,
+}: HelpCenterPageProps = {}) {
   const { i18n, t } = useTranslation(['shell', 'common']);
+  const locale = i18n.resolvedLanguage ?? i18n.language;
   const [modalGuide, setModalGuide] = useState<HelpGuide | null>(null);
   const openGuide = onOpenGuide ?? ((guide: HelpGuide) => setModalGuide(guide));
 
@@ -43,16 +36,7 @@ export function HelpCenterPage({ onOpenGuide }: HelpCenterPageProps = {}) {
         className="group rounded-lg border border-app-border bg-app-surface p-5 text-left shadow-sm transition-colors hover:border-app-accent/50 hover:bg-app-surface-hover"
         key={guide.key}
         onClick={() =>
-          openGuide(
-            guide.key === pmsHelpGuideRegistration.key
-              ? {
-                  ...guide,
-                  src: getPmsHelpGuideSrc(
-                    i18n.resolvedLanguage ?? i18n.language,
-                  ),
-                }
-              : guide,
-          )
+          openGuide({ ...guide, src: guide.getSrc?.(locale) ?? guide.src })
         }
         type="button"
       >
@@ -91,7 +75,7 @@ export function HelpCenterPage({ onOpenGuide }: HelpCenterPageProps = {}) {
           {t('helpCenter.sectionLabel')}
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {COMMON_GUIDES.map(renderCard)}
+          {guides.map(renderCard)}
         </div>
       </section>
 
@@ -99,7 +83,7 @@ export function HelpCenterPage({ onOpenGuide }: HelpCenterPageProps = {}) {
         <HelpGuideModal
           closeLabel={t('common:actions.close')}
           onClose={() => setModalGuide(null)}
-          src={modalGuide.src}
+          src={modalGuide.getSrc?.(locale) ?? modalGuide.src}
           title={t(modalGuide.titleKey)}
         />
       ) : null}
@@ -107,14 +91,16 @@ export function HelpCenterPage({ onOpenGuide }: HelpCenterPageProps = {}) {
   );
 }
 
-export function HelpPmsGuidePage() {
+export function HelpGuidePage({ guide }: { guide: HelpGuide }) {
   const { i18n, t } = useTranslation('shell');
 
   return (
     <div className="flex h-full min-h-screen">
       <HelpGuideFrame
-        src={getPmsHelpGuideSrc(i18n.resolvedLanguage ?? i18n.language)}
-        title={t('helpCenter.pmsGuideTitle')}
+        src={
+          guide.getSrc?.(i18n.resolvedLanguage ?? i18n.language) ?? guide.src
+        }
+        title={t(guide.titleKey)}
       />
     </div>
   );
@@ -142,12 +128,14 @@ export function HelpAiGuidePage({
 
 export function HelpCenterModal({
   closeLabel,
+  guides = [],
   onClose,
 }: {
   closeLabel: string;
+  guides?: readonly HelpGuide[];
   onClose: () => void;
 }) {
-  const { t } = useTranslation(['shell', 'common']);
+  const { i18n, t } = useTranslation(['shell', 'common']);
   const [activeGuide, setActiveGuide] = useState<HelpGuide | null>(null);
   const title = activeGuide ? t(activeGuide.titleKey) : t('helpCenter.title');
 
@@ -210,10 +198,19 @@ export function HelpCenterModal({
         </header>
 
         {activeGuide ? (
-          <HelpGuideFrame src={activeGuide.src} title={title} />
+          <HelpGuideFrame
+            src={
+              activeGuide.getSrc?.(i18n.resolvedLanguage ?? i18n.language) ??
+              activeGuide.src
+            }
+            title={title}
+          />
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <HelpCenterPage onOpenGuide={(guide) => setActiveGuide(guide)} />
+            <HelpCenterPage
+              guides={guides}
+              onOpenGuide={(guide) => setActiveGuide(guide)}
+            />
           </div>
         )}
       </div>

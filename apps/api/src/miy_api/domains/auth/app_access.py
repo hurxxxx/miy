@@ -46,11 +46,11 @@ def allowed_app_ids(db: Session, *, user_id: str) -> frozenset[str]:
         statement = statement.where(
             or_(
                 AppAccessPolicy.audience == "all",
-                exists().where(
+                exists(AppUserGrant.app_id).where(
                     AppUserGrant.app_id == AppAccessPolicy.app_id,
                     AppUserGrant.user_id == user_id,
                 ),
-                exists().where(
+                exists(AppGroupGrant.app_id).where(
                     AppGroupGrant.app_id == AppAccessPolicy.app_id,
                     AppGroupGrant.group_id.in_(user_group_ids_query(user_id)),
                 ),

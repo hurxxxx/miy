@@ -33,3 +33,4 @@ export * from './lib/feedback/status-slot';
 export * from './lib/feedback/confirm-dialog';
 export * from './lib/feedback/prompt-dialog';
 export * from './lib/editor';
+export * from './lib/app-icons';

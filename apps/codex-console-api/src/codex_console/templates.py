@@ -10,7 +10,7 @@ from fastapi import Depends, Query
 from pydantic import Field, model_validator
 from sqlalchemy import select
 
-from . import git, store
+from . import git, store, workbench
 from .errors import ConsoleError
 from .models import Task, TaskTemplate, now
 from .schemas import Input, ModelOut, SkillOut, TaskDetail
@@ -26,6 +26,9 @@ class TemplateVariable(Input):
 class TemplateDefinition(Input):
     name: str = Field(min_length=1, max_length=100)
     description: str = Field(default="", max_length=1000)
+    app_id: str | None = Field(default=None, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=80)
+    installation_id: UUID | None = None
+    purpose: Literal["inspection", "deployment", "recovery"] | None = None
     directory: str = Field(default=".", min_length=1, max_length=1000)
     context: str = Field(default="", max_length=16000)
     references: list[str] = Field(default_factory=list, max_length=30)
@@ -88,12 +91,40 @@ def output(row):
     )
 
 
-def directory(settings, relative):
-    root = settings.workspace if relative == "." else git.safe_path(settings.workspace, relative)
+def directory(settings, relative, *, base=None):
+    base = base if base is not None else settings.workspace
+    root = base if relative == "." else git.safe_path(base, relative)
     settings.require_allowed_paths(root)
     if not root.is_dir():
         raise ConsoleError("workspace_unavailable", 422)
     return root
+
+
+def source_context(settings, factory, app_id):
+    if app_id is None:
+        return {}
+    # Selecting an app is explicit source targeting, even for a read-only review.
+    # A catalog-only registration must never fall back to the platform checkout.
+    with factory() as db:
+        return workbench.validate_context(
+            settings, db, {"app_id": app_id, "purpose": "development"}
+        )
+
+
+def template_directory(settings, factory, definition):
+    context = source_context(settings, factory, definition.app_id)
+    context["purpose"] = definition.purpose or (
+        "inspection" if definition.shared_resources else "development"
+    )
+    if definition.installation_id:
+        from .delivery_tools import validate_target
+
+        context["installation_id"] = str(definition.installation_id)
+        validate_target(settings, context)
+    elif definition.purpose in ("deployment", "recovery"):
+        raise ConsoleError("app_delivery_unconfigured", 422)
+    base = workbench.context_root(settings, context)
+    return directory(settings, definition.directory, base=base), context
 
 
 def seed(factory):
@@ -105,7 +136,60 @@ def seed(factory):
             "mr",
             "MR 번호 또는 URL",
             "Review {{mr}}. Report findings here; do not publish comments or merge.",
-            ["miy-mr-review"],
+            [],
+        ),
+        (
+            "코드 검토",
+            "요청한 변경을 검토하고 근거와 개선점을 보고합니다.",
+            "request",
+            "검토할 변경이나 범위",
+            "Review {{request}}. Inspect the actual changes and relevant contracts and tests. "
+            "Report actionable findings with evidence. Do not modify code or publish comments.",
+            [],
+        ),
+        (
+            "테스트",
+            "요청한 동작을 검증하고 실패와 미검증 범위를 보고합니다.",
+            "request",
+            "검증할 앱·변경·동작",
+            "Validate {{request}} using relevant behavior and contract checks. Report commands, "
+            "results and anything not verified. Do not weaken checks, publish or deploy changes.",
+            [],
+        ),
+        (
+            "앱 미리보기 배포",
+            "선택한 개발 설치 환경의 검증·배포 계획을 만들고 승인된 실행에 연결합니다.",
+            "request",
+            "미리보기에서 확인할 동작",
+            "Plan the requested development preview: {{request}}. Use miy_app_delivery context "
+            "and existing request status for this template's selected installation. Identify "
+            "source changes, verification and the exact release. An approved implementation "
+            "may create a local app checkpoint, sync its definition, queue a core build and "
+            "deploy its verified release. Publishing and production are outside this request. "
+            "Inspect existing unknown requests instead of creating replacements.",
+            [],
+        ),
+        (
+            "앱 설치 점검",
+            "선택한 앱의 설치 버전과 배포 요청 상태를 조회합니다.",
+            "request",
+            "점검할 현상",
+            "Inspect {{request}} for this template's selected development installation using "
+            "miy_app_delivery. Read existing request status and distinguish deployment records "
+            "from current health. Do not modify source, registration or deployments.",
+            [],
+        ),
+        (
+            "앱 복구",
+            "선택한 개발 설치 환경의 기존 요청과 호환 가능한 이전 릴리스를 확인합니다.",
+            "request",
+            "복구할 동작이나 이전 버전",
+            "Plan recovery for {{request}} on this template's selected development installation. "
+            "Use miy_app_delivery to inspect existing requests and verified previous releases. "
+            "Clarify an ambiguous target, distinguish image rollback from database recovery, "
+            "and do not downgrade data or replay unknown requests. An approved implementation "
+            "may request rollback only within the selected installation.",
+            [],
         ),
         (
             "MR 개선·병합",
@@ -181,8 +265,16 @@ def seed(factory):
                 references=["AGENTS.md"],
                 skills=skills,
                 variables=[TemplateVariable(name=key, label=label)] if key else [],
+                stage="plan"
+                if name in ("코드 검토", "앱 미리보기 배포", "앱 설치 점검", "앱 복구")
+                else "implement",
+                purpose={
+                    "앱 미리보기 배포": "deployment",
+                    "앱 설치 점검": "inspection",
+                    "앱 복구": "recovery",
+                }.get(name),
             )
-            db.add(TaskTemplate(id=ident, definition=definition.model_dump()))
+            db.add(TaskTemplate(id=ident, definition=definition.model_dump(mode="json")))
 
 
 def register(app, owner, runtime_for):
@@ -202,16 +294,16 @@ def register(app, owner, runtime_for):
 
     @app.post("/api/templates", dependencies=secured, response_model=TemplateOut)
     def create(body: TemplateDefinition):
-        directory(app.state.settings, body.directory)
+        template_directory(app.state.settings, app.state.factory, body)
         with app.state.factory.begin() as db:
-            row = TaskTemplate(definition=body.model_dump())
+            row = TaskTemplate(definition=body.model_dump(mode="json"))
             db.add(row)
             db.flush()
             return output(row)
 
     @app.put("/api/templates/{template_id}", dependencies=secured, response_model=TemplateOut)
     def edit(template_id: UUID, body: TemplateUpdate):
-        directory(app.state.settings, body.definition.directory)
+        template_directory(app.state.settings, app.state.factory, body.definition)
         with app.state.factory.begin() as db:
             row = db.scalar(
                 select(TaskTemplate).where(TaskTemplate.id == str(template_id)).with_for_update()
@@ -220,20 +312,34 @@ def register(app, owner, runtime_for):
                 raise ConsoleError("template_not_found", 404)
             if row.version != body.version:
                 raise ConsoleError("stale_template", 409)
-            row.definition, row.archived = body.definition.model_dump(), body.archived
+            row.definition, row.archived = body.definition.model_dump(mode="json"), body.archived
             row.version += 1
             row.updated_at = now()
             db.flush()
             return output(row)
 
     @app.get("/api/templates/catalog", dependencies=secured, response_model=TemplateCatalog)
-    async def catalog(directory_name: str = Query(default=".", max_length=1000)):
-        root = directory(app.state.settings, directory_name)
+    async def catalog(
+        directory_name: str = Query(default=".", max_length=1000),
+        app_id: str | None = Query(
+            default=None, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=80
+        ),
+    ):
+        cfg = app.state.settings
+        context = source_context(cfg, app.state.factory, app_id)
+        root = directory(cfg, directory_name, base=workbench.context_root(cfg, context))
         runtime = runtime_for(executor="templates")
         rpc = await runtime.authenticated_rpc()
-        result = await rpc.call("skills/list", {"cwds": [str(root)], "forceReload": True})
+        # App tasks discover skills inside their selected remote environment only.
+        # The template picker may read the subscription's model catalog, but must
+        # not read host skills using an app-controlled working directory.
+        result = (
+            {"data": []}
+            if context.get("source_binding")
+            else await rpc.call("skills/list", {"cwds": [str(root)], "forceReload": True})
+        )
         return dict(
-            workspace=str(app.state.settings.workspace),
+            workspace=str(root),
             models=await runtime.models(rpc),
             skills=[
                 {"name": s["name"], "description": s.get("description", "")[:500]}
@@ -274,7 +380,7 @@ def register(app, owner, runtime_for):
             if row.version != body.version:
                 raise ConsoleError("stale_template", 409)
             definition = TemplateDefinition.model_validate(row.definition)
-        source = directory(cfg, definition.directory)
+        source, task_context = template_directory(cfg, factory, definition)
         variables = {v.name: body.values.get(v.name, v.default) for v in definition.variables}
         if (
             set(body.values) - set(variables)
@@ -301,8 +407,10 @@ def register(app, owner, runtime_for):
             request_text += "\n".join(definition.references)
         if len(request_text) > 32000:
             raise ConsoleError("input_too_large", 422)
-        rpc = await runtime.authenticated_rpc()
-        skill_inputs = await runtime.skill_inputs(rpc, str(source), definition.skills)
+        skill_inputs = []
+        if not task_context.get("source_binding"):
+            rpc = await runtime.authenticated_rpc()
+            skill_inputs = await runtime.skill_inputs(rpc, str(source), definition.skills)
         with factory.begin() as db:
             # Serialize admission with the existing cross-executor resource gate.
             previous = db.scalar(select(Task).where(Task.launch_id == str(body.launch_id)))
@@ -325,13 +433,11 @@ def register(app, owner, runtime_for):
                     status="starting",
                     executor="templates",
                     launch_id=str(body.launch_id),
-                    context={
-                        "purpose": "inspection" if definition.shared_resources else "development"
-                    },
+                    context=task_context,
                     template_snapshot=dict(
                         template_id=str(template_id),
                         version=body.version,
-                        definition=definition.model_dump(),
+                        definition=definition.model_dump(mode="json"),
                         values=body.values,
                         resolved_values=variables,
                         text=request_text,
@@ -345,6 +451,13 @@ def register(app, owner, runtime_for):
                 task_id, created = task.id, True
         if created:
             try:
+                runtime = runtime.for_task(task_id)
+                if task_context.get("source_binding"):
+                    rpc = await runtime.authenticated_rpc()
+                    skill_inputs = await runtime.skill_inputs(rpc, str(source), definition.skills)
+                    with factory.begin() as db:
+                        task = store.require_task(db, task_id, locked=True)
+                        task.template_snapshot = {**task.template_snapshot, "skills": skill_inputs}
                 await runtime.submit(
                     task_id,
                     body.launch_id,

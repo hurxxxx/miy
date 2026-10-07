@@ -15,10 +15,33 @@ MAX_BYTES = 2 * 1024 * 1024
 
 
 def git(root: Path, *args: str, limit: int = MAX_BYTES) -> bytes:
-    env = {k: os.environ[k] for k in ("HOME", "PATH", "LANG") if k in os.environ}
-    env.update(GIT_TERMINAL_PROMPT="0", GIT_OPTIONAL_LOCKS="0")
+    env = {k: os.environ[k] for k in ("PATH", "LANG") if k in os.environ}
+    env.update(
+        GIT_TERMINAL_PROMPT="0",
+        GIT_OPTIONAL_LOCKS="0",
+        GIT_ALLOW_PROTOCOL="",
+        GIT_CONFIG_GLOBAL="/dev/null",
+        GIT_CONFIG_SYSTEM="/dev/null",
+        GIT_CONFIG_NOSYSTEM="1",
+        GIT_NO_LAZY_FETCH="1",
+        GIT_NO_REPLACE_OBJECTS="1",
+    )
     process = subprocess.Popen(
-        ["git", "--no-pager", "-C", str(root), *args],
+        [
+            "git",
+            "--no-pager",
+            "-c",
+            "core.hooksPath=/dev/null",
+            "-c",
+            "core.fsmonitor=false",
+            "-c",
+            "diff.external=",
+            "-c",
+            "log.showSignature=false",
+            "-C",
+            str(root),
+            *args,
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         env=env,

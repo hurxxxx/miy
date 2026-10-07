@@ -13,13 +13,16 @@ from miy_api.domains.hermes.maintenance import maintain_headless_hermes_once
 from miy_api.domains.hermes.files import cleanup_files
 from miy_api.domains.hermes.publication import publish_pending_hermes_dispatches
 
-from miy_worker.celery_app import celery_app
+from miy_worker.task_binding import task_app
+
 from miy_worker.queue_contract import (
     HERMES_REPUBLISH_TASK_NAME,
     HERMES_RUN_TASK_NAME,
 )
 from miy_worker.runtime import db_session
 from miy_worker.settings import get_settings
+
+celery_app = task_app(__name__)
 
 
 class HermesTerminalFailure(RuntimeError):

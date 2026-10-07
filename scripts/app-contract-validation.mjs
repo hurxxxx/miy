@@ -49,4 +49,7 @@ export function validateAppContracts(source, schema) {
       routePaths.add(routePath);
     }
   }
+  for (const id of source.official_app_ids) {
+    if (!appIds.has(id)) throw new Error(`Unknown official app id: ${id}`);
+  }
 }

@@ -7,10 +7,19 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from miy_api.domains.pms.models import Task, TaskLabel, TaskList
-from miy_api.domains.retrieval.partitioning import assign_default_partition
+from miy_api.domains.official_apps.projection_contracts import (
+    ProjectionIntent,
+    ProjectionOutboxError,
+)
+from miy_api.domains.official_apps.projection_delivery import (
+    deliver_projection_intent,
+    is_prepared_source_projection,
+)
+from miy_api.domains.retrieval.prepared_company_partitions import (
+    assign_company_projection_partition,
+)
 from miy_api.domains.retrieval.projection_fencing import (
     ProjectionEventRef,
-    record_projection_event,
 )
 from miy_api.domains.search.outbox import enqueue_search_index_job
 from miy_api.domains.search.schemas import SearchEntityType
@@ -24,16 +33,16 @@ def enqueue_task_search_index(
     operation: str = "upsert",
     projection_event: ProjectionEventRef | None = None,
 ) -> None:
-    resolved_projection_event = projection_event or _record_task_projection_event(
-        db,
-        task=task,
-        operation=operation,
-    )
+    if projection_event is None:
+        _record_task_projection_event(db, task=task, operation=operation)
+        return
+    if is_prepared_source_projection(db):
+        raise ProjectionOutboxError("projection_core_reference_in_source_composition")
     _enqueue_search_target(
         db,
         entity_id=task.id,
         operation=operation,
-        projection_event=resolved_projection_event,
+        projection_event=projection_event,
     )
 
 
@@ -47,16 +56,16 @@ def enqueue_task_search_index_by_id(
     task = db.get(Task, task_id)
     if task is None:
         return
-    resolved_projection_event = projection_event or _record_task_projection_event(
-        db,
-        task=task,
-        operation=operation,
-    )
+    if projection_event is None:
+        _record_task_projection_event(db, task=task, operation=operation)
+        return
+    if is_prepared_source_projection(db):
+        raise ProjectionOutboxError("projection_core_reference_in_source_composition")
     _enqueue_search_target(
         db,
         entity_id=task_id,
         operation=operation,
-        projection_event=resolved_projection_event,
+        projection_event=projection_event,
     )
 
 
@@ -115,16 +124,7 @@ def _enqueue_pms_task_targets(
         task = db.get(Task, task_id)
         if task is None:
             continue
-        _enqueue_search_target(
-            db,
-            entity_id=task_id,
-            operation=operation,
-            projection_event=_record_task_projection_event(
-                db,
-                task=task,
-                operation=operation,
-            ),
-        )
+        _record_task_projection_event(db, task=task, operation=operation)
 
 
 def _enqueue_search_target(
@@ -148,25 +148,27 @@ def _record_task_projection_event(
     *,
     task: Any,
     operation: str,
-) -> ProjectionEventRef | None:
+) -> None:
     if operation not in {"upsert", "delete"}:
         raise ValueError(f"Unsupported search index operation: {operation}")
     partition_id = str(getattr(task, "retrieval_partition_id", None) or "").strip()
-    if not partition_id:
-        partition_id = assign_default_partition(
+    if not partition_id or is_prepared_source_projection(db):
+        partition_id = assign_company_projection_partition(
             db,
             target=task,
             source_namespace="pms",
-            candidate_scope_kind="company",
         )
     deleted = operation == "delete"
-    return record_projection_event(
+    deliver_projection_intent(
         db,
-        resource_type=PMS_TASK_RESOURCE_TYPE,
-        resource_id=task.id,
-        retrieval_partition_id=partition_id,
-        change_kind="delete" if deleted else "content",
-        desired_state="deleted" if deleted else "active",
+        intent=ProjectionIntent(
+            resource_type=PMS_TASK_RESOURCE_TYPE,
+            resource_id=task.id,
+            retrieval_partition_id=partition_id,
+            change_kind="delete" if deleted else "content",
+            desired_state="deleted" if deleted else "active",
+            operation=operation,
+        ),
     )
 
 

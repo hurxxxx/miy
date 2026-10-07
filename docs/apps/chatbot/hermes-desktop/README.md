@@ -4,16 +4,16 @@ Hermes Desktop의 대화·도구 내역·결과 패널 구성을 miy 챗봇에 �
 
 ## 제공 기능
 
-| 영역 | 동작 |
-| --- | --- |
-| 대화 탐색 | 공통 서브사이드바에 새 대화·최근/고정/보관 대화·제목 검색을 배치한다. 대화 메뉴에서 고정·보관·이름 변경·삭제를 처리한다. 검색은 불러온 제목 범위이며 더 보기로 범위를 늘린다. |
+| 영역      | 동작                                                                                                                                                                                                                                                          |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 대화 탐색 | 공통 서브사이드바에 새 대화·최근/고정/보관 대화·제목 검색을 배치한다. 대화 메뉴에서 고정·보관·이름 변경·삭제를 처리한다. 검색은 불러온 제목 범위이며 더 보기로 범위를 늘린다.                                                                                 |
 | 실행 표시 | 한 질문 뒤의 native assistant 도구 단계들을 한 답변으로 표시한다. 도구 내역은 답변 안에서 기본 접기이며 도구 오류·승인 거절·결과 미확인을 구분해 보존한다. 개별 시도의 오류 개수는 전체 실행 실패를 뜻하지 않는다. 진행 표시는 현재 실행이 종료되면 사라진다. |
-| 전송·복원 | 기존 서버 실행을 관찰하고 sequence 중복을 제거한다. 중지는 서버 종료 이벤트까지 기다리며 실패하면 재시도할 수 있다. 연결 실패를 새 동기 실행으로 자동 재전송하지 않는다. |
-| 승인 | 승인 참조·소유 대화·기존 승인 정책을 보존한다. 중복 클릭과 대화 전환 후 늦은 응답은 새 대화의 상태를 변경하지 않는다. |
-| 입력·읽기 | 한국어 IME 조합 Enter를 전송으로 처리하지 않는다. Shift+Enter 줄바꿈, 질문 편집·재응답, 복사, 읽기 위치와 하단 이동을 지원한다. native 편집·재응답은 기존 새 세션 분기 동작을 따른다. |
-| 결과 패널 | 넓은 화면에서는 대화 옆에, 1024px 미만에서는 공용 모달에 표시한다. 데스크톱은 폭 확대·브라우저 전체 화면·복귀를 지원하며 미리보기를 다시 마운트하지 않는다. 닫기·Escape·포커스 복귀와 기존 graph/custom renderer를 유지한다. |
-| 파일 | 진행 중인 실행 수와 현재 대화 파일 수를 구분한다. 입력창 첨부, 파일 목록, 미리보기·소스·다운로드, 저장 버전 선택, 생성 작업 출력 조회를 제공한다. 실행 중 업로드는 차단한다. |
-| 생성 결과 | 접힌 실행·파일 목록 밖에 HTML·SVG·이미지·Markdown 미리보기 카드를 표시한다. 카드는 서버에 기록된 정확한 저장 버전을 연다. |
+| 전송·복원 | 기존 서버 실행을 관찰하고 sequence 중복을 제거한다. 중지는 서버 종료 이벤트까지 기다리며 실패하면 재시도할 수 있다. 연결 실패를 새 동기 실행으로 자동 재전송하지 않는다.                                                                                      |
+| 승인      | 승인 참조·소유 대화·기존 승인 정책을 보존한다. 중복 클릭과 대화 전환 후 늦은 응답은 새 대화의 상태를 변경하지 않는다.                                                                                                                                         |
+| 입력·읽기 | 한국어 IME 조합 Enter를 전송으로 처리하지 않는다. Shift+Enter 줄바꿈, 질문 편집·재응답, 복사, 읽기 위치와 하단 이동을 지원한다. native 편집·재응답은 기존 새 세션 분기 동작을 따른다.                                                                         |
+| 결과 패널 | 넓은 화면에서는 대화 옆에, 1024px 미만에서는 공용 모달에 표시한다. 데스크톱은 폭 확대·브라우저 전체 화면·복귀를 지원하며 미리보기를 다시 마운트하지 않는다. 닫기·Escape·포커스 복귀와 기존 graph/custom renderer를 유지한다.                                  |
+| 파일      | 진행 중인 실행 수와 현재 대화 파일 수를 구분한다. 입력창 첨부, 파일 목록, 미리보기·소스·다운로드, 저장 버전 선택, 생성 작업 출력 조회를 제공한다. 실행 중 업로드는 차단한다.                                                                                  |
+| 생성 결과 | 접힌 실행·파일 목록 밖에 HTML·SVG·이미지·Markdown 미리보기 카드를 표시한다. 카드는 서버에 기록된 정확한 저장 버전을 연다.                                                                                                                                     |
 
 전체 이력·본문 검색, 버전 간 diff·결과 편집, Office 전용 뷰어, 전체 결과 갤러리, 메시지 대기열, 컨텍스트 상세 수치·수동 압축, 자식 에이전트 개별 제어·음성은 현재 제공 범위에 포함되지 않는다. 해당 기능에는 별도 서버/뷰어 계약이 필요하다. Desktop의 Electron·호스트 터미널·Git·개인 provider 설정·YOLO는 웹에 이식하지 않는다.
 
@@ -35,11 +35,11 @@ Hermes Desktop의 대화·도구 내역·결과 패널 구성을 miy 챗봇에 �
 
 자동 열기는 대화 화면에서 명시적으로 켜는 임시 설정이며 기본값은 끔이다. 최초 실행 목록 이후 새로 확인하거나 진행 중에 관찰한 실행이 `completed`가 된 경우에만 한 번 연다. 기존 결과 패널·작성 중 입력·다른 활성 실행·숨겨진 탭을 방해하지 않고, 실패·중지된 실행이나 새로고침한 과거 이력을 자동으로 열지 않는다. 서버 파일·revision·실행 상태는 4초 간격으로 조회하며, 대화/사용자 전환 후 이전 응답과 조회 실패 시 결과를 숨긴다.
 
-| 형식 | 미리보기 경계 |
-| --- | --- |
-| PNG·JPEG·GIF·WebP | 최대 10 MiB, 인증된 바이트를 임시 object URL로 표시하고 전환/닫기 때 해제 |
+| 형식                          | 미리보기 경계                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PNG·JPEG·GIF·WebP             | 최대 10 MiB, 인증된 바이트를 임시 object URL로 표시하고 전환/닫기 때 해제                                                                                                                                                                                                                                                                                                                                                                                                  |
 | HTML·SVG·Markdown·텍스트·코드 | 최대 2 MiB. HTML은 인증된 저장 버전의 로컬 JS/CSS/이미지를 `esbuild-wasm 0.28.1`로 묶은 뒤 `allow-scripts`만 허용한 중첩 opaque-origin iframe과 CSP로 외부 리소스/fetch/자기 탐색을 제한한다. 바깥 신뢰 문서의 `frame-src`가 안쪽 결과 문서의 외부 이동을 차단한다. 의존 파일은 각 2 MiB, 총 10 MiB·100개로 제한한다. 순환 import와 import-map 접두사를 지원한다. 누락 파일·스크립트/CSP 오류는 미리보기 실패로 표시하며 소스 탭은 유지한다. SVG는 기존 정화기를 사용한다. |
-| 기타 형식 또는 크기 초과 | 미리보기 대신 인증된 다운로드 제공 |
+| 기타 형식 또는 크기 초과      | 미리보기 대신 인증된 다운로드 제공                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 HTML 의존 파일은 선택한 HTML 버전의 스냅샷 시점에 저장된 버전으로 조회하며 다른 대화·미래 버전·만료/권한 없는 파일로 대체하지 않는다. JS/CSS만 수정해도 런타임 체크포인트가 새 HTML 프리뷰 버전을 발행하므로 변경된 결과와 이전 결과를 구분할 수 있다. 런타임의 오프라인 Chromium 검사는 [정적 프리뷰 실행 계약](../../../domains/ai/hermes.md#static-preview-execution)을 따른다.
 
@@ -51,13 +51,15 @@ Hermes는 도구 결과를 받은 뒤 새 호출을 선택해 작업을 계속�
 
 ## 유지보수 위치
 
-| 변경 대상 | 진입점 |
-| --- | --- |
-| 기본 화면·임베딩·서브사이드바 | [ChatbotView.tsx](../../../../apps/web/src/app-modules/chatbot/views/ChatbotView.tsx), [sidebar.tsx](../../../../apps/web/src/app-modules/chatbot/sidebar.tsx) |
-| assistant-ui·도구 묶음·스크롤 | [ChatThreadRuntime.tsx](../../../../apps/web/src/app-modules/chatbot/views/chat/ChatThreadRuntime.tsx), [ChatThread.tsx](../../../../apps/web/src/app-modules/chatbot/views/chat/ChatThread.tsx) |
-| 전송·중지·native history | [useChatStream.ts](../../../../apps/web/src/app-modules/chatbot/api/useChatStream.ts), [conversations-api.ts](../../../../apps/web/src/app-modules/chatbot/api/conversations-api.ts) |
-| 생성 결과·파일 UI | [HermesGeneratedResults.tsx](../../../../apps/web/src/app-modules/chatbot/views/chat/HermesGeneratedResults.tsx), [ChatResultSurface.tsx](../../../../apps/web/src/app-modules/chatbot/views/chat/ChatResultSurface.tsx), [HermesFilePanel.tsx](../../../../apps/web/src/app-modules/chatbot/views/chat/HermesFilePanel.tsx) |
-| 파일 저장·revision·API | [files.py](../../../../apps/api/src/miy_api/domains/hermes/files.py), [file_router.py](../../../../apps/api/src/miy_api/domains/hermes/file_router.py) |
+| 변경 대상                     | 진입점                                                                                                                                                                                                                                                                                                                          |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 기본 화면·임베딩·서브사이드바 | [ChatbotView.tsx](../../../../packages/platform-web/src/chatbot/views/ChatbotView.tsx), [sidebar.tsx](../../../../packages/platform-web/src/chatbot/sidebar.tsx)                                                                                                                                                                |
+| assistant-ui·도구 묶음·스크롤 | [ChatThreadRuntime.tsx](../../../../packages/platform-web/src/chatbot/views/chat/ChatThreadRuntime.tsx), [ChatThread.tsx](../../../../packages/platform-web/src/chatbot/views/chat/ChatThread.tsx)                                                                                                                              |
+| 전송·중지·native history      | [useChatStream.ts](../../../../packages/platform-web/src/chatbot/api/useChatStream.ts), [conversations-api.ts](../../../../packages/platform-web/src/ai/conversations-api.ts)                                                                                                                                                   |
+| 생성 결과·파일 UI             | [HermesGeneratedResults.tsx](../../../../packages/platform-web/src/chatbot/views/chat/HermesGeneratedResults.tsx), [ChatResultSurface.tsx](../../../../packages/platform-web/src/chatbot/views/chat/ChatResultSurface.tsx), [HermesFilePanel.tsx](../../../../packages/platform-web/src/chatbot/views/chat/HermesFilePanel.tsx) |
+| 파일 저장·revision·API        | [files.py](../../../../apps/api/src/miy_api/domains/hermes/files.py), [file_router.py](../../../../apps/api/src/miy_api/domains/hermes/file_router.py)                                                                                                                                                                          |
+
+공통 Chatbot 구현은 `@miy/platform-web/chatbot`의 기존 임베딩 계약과 단일 컴포넌트이며, 전체 앱 조합은 `/chatbot/module`로 구분한다. Files의 스코프·아티팩트 렌더러는 전사 앱 소유다. 이전 웹 경로는 같은 객체를 내보내며 호스트의 i18next 초기화, AuthProvider, 사이드바 Portal 저장소와 HTML 번들 캐시는 유지한다. 번역은 `/chatbot/messages`의 기존 `apps.ai`·`apps.hermesWorkspace` 네임스페이스를 루트에서 조합한다.
 
 참고한 Desktop 소스는 [고정 커밋의 chat 구성](https://github.com/NousResearch/hermes-agent/tree/98a3324821c64b78c13d5d0f105508da0ab71cee/apps/desktop/src/app/chat)과 [thread 구성](https://github.com/NousResearch/hermes-agent/tree/98a3324821c64b78c13d5d0f105508da0ab71cee/apps/desktop/src/components/assistant-ui/thread)이다. 연결 방식은 [공식 ExternalStoreRuntime API](https://www.assistant-ui.com/docs/runtimes/custom/external-store)를 사용한다.
 
@@ -66,7 +68,9 @@ Hermes는 도구 결과를 받은 뒤 새 호출을 선택해 작업을 계속�
 저장소 루트에서 실행한다. UI 테스트는 production `NODE_ENV`를 상속하지 않는다.
 
 ```bash
-env -u NODE_ENV pnpm exec vitest run --root apps/web src/app-modules/chatbot
+env -u NODE_ENV NODE_OPTIONS=--no-experimental-webstorage pnpm exec vitest run --config packages/platform-web/vite.config.mts src/chatbot src/ai/hermes-terminal-api.spec.ts
+env -u NODE_ENV NODE_OPTIONS=--no-experimental-webstorage pnpm exec vitest run --config apps/web/vite.config.mts src/app-modules/chatbot/api/shared-ai-transport.spec.ts src/app-modules/files/ownership.spec.tsx
+pnpm nx typecheck platform-web
 pnpm nx typecheck web
 env -u NODE_ENV pnpm exec tsc -p apps/web/tsconfig.spec.json --noEmit
 pnpm check:web-architecture
