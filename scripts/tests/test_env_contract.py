@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "check-env-contract.py"
 SPEC = importlib.util.spec_from_file_location("check_env_contract", MODULE_PATH)
@@ -290,6 +291,25 @@ class Settings:
             (root / ".env").symlink_to(external)
 
             scanned = env_contract.source_files(root)
+
+        self.assertEqual(scanned, [source])
+
+    def test_source_files_prune_ignored_trees_before_reading_their_entries(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "src" / "app.py"
+            source.parent.mkdir()
+            source.write_text("print('source')\n", encoding="utf-8")
+            ignored = root / ".runtime"
+            ignored.mkdir()
+            original_scandir = env_contract.os.scandir
+
+            def guarded_scandir(path):
+                self.assertNotEqual(Path(path), ignored)
+                return original_scandir(path)
+
+            with patch.object(env_contract.os, "scandir", side_effect=guarded_scandir):
+                scanned = env_contract.source_files(root)
 
         self.assertEqual(scanned, [source])
 

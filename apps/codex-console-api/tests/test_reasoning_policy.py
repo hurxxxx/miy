@@ -110,7 +110,7 @@ def test_disallowed_advertised_efforts_are_hidden_and_never_submitted(client, mo
         f"/api/tasks/{task['id']}/messages",
         json={"operation_id": str(uuid4()), "text": "Inspect", "effort": effort},
     )
-    assert result.status_code == 422
+    assert result.status_code == 422, result.json()
     assert result.json()["code"] == "effort_unavailable"
     assert not any(method == "turn/start" for method, _ in rpc.calls)
     assert send_message(client, new_task(client)).status_code == 200
@@ -141,7 +141,7 @@ def test_new_turn_resolves_only_allowed_defaults(
             "effort": explicit,
         },
     )
-    assert response.status_code == 200
+    assert response.status_code == 200, response.json()
     assert response.json()["effort"] == expected
     turn = next(params for method, params in rpc.calls if method == "turn/start")
     assert turn["effort"] == expected

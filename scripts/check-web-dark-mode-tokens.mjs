@@ -4,7 +4,12 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 const ROOT = process.cwd();
-const TARGETS = ['apps/web/src', 'packages/ui/src'];
+const TARGETS = [
+  'apps/web/src',
+  'packages/ui/src',
+  'packages/platform-web/src',
+  'packages/official-suite-web/src',
+];
 const EXTENSIONS = new Set(['.css', '.ts', '.tsx']);
 
 const highRiskAccentForeground = [
@@ -61,7 +66,10 @@ for (const target of TARGETS) {
         }
       }
 
-      if (relativePath.startsWith('packages/ui/src/') && exactBgWhite.test(line)) {
+      if (
+        relativePath.startsWith('packages/ui/src/') &&
+        exactBgWhite.test(line)
+      ) {
         findings.push({
           file: relativePath,
           line: index + 1,

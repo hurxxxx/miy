@@ -11,7 +11,8 @@ from fastapi import HTTPException
 from sqlalchemy import exists, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from miy_worker.celery_app import celery_app
+from miy_worker.task_binding import task_app
+
 from miy_worker.runtime import (
     db_session as _db_session,
 )
@@ -52,6 +53,8 @@ from miy_api.domains.meeting.models import (  # noqa: E402
     MeetingRecording,
 )
 from miy_api.domains.pms.models import TaskComment  # noqa: E402
+
+celery_app = task_app(__name__)
 
 logger = logging.getLogger(__name__)
 

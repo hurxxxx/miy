@@ -28,12 +28,12 @@ projection을 읽는 경계를 소유한다. 조직·임직원 디렉터리와 �
 
 ## Scope와 endpoint
 
-| Scope               | Method and path                                         | Projection                            |
-| ------------------- | ------------------------------------------------------- | ------------------------------------- |
-| `organization:read` | `GET /api/v1/integrations/directory/organization-units` | 조직 계층과 활성 상태                 |
-| `people:read`       | `GET /api/v1/integrations/directory/people`             | 사용자 식별·프로필·주 소속 메타데이터 |
-| `app-catalog:read` | `GET /api/v1/integrations/apps` | 앱 식별자·회사 활성화·설치 버전·운영 AI 등록 여부 |
-| `app-usage:read` | `GET /api/v1/integrations/apps/{app_id}/usage` | 앱별 월간 실행·AI 토큰 집계 |
+| Scope               | Method and path                                         | Projection                                        |
+| ------------------- | ------------------------------------------------------- | ------------------------------------------------- |
+| `organization:read` | `GET /api/v1/integrations/directory/organization-units` | 조직 계층과 활성 상태                             |
+| `people:read`       | `GET /api/v1/integrations/directory/people`             | 사용자 식별·프로필·주 소속 메타데이터             |
+| `app-catalog:read`  | `GET /api/v1/integrations/apps`                         | 앱 식별자·회사 활성화·설치 버전·운영 AI 등록 여부 |
+| `app-usage:read`    | `GET /api/v1/integrations/apps/{app_id}/usage`          | 앱별 월간 실행·AI 토큰 집계                       |
 
 Scope registry는 코드의 고정 allowlist이며 임의 문자열 scope를 발급할 수 없다. 각 route는
 OpenAPI의 `x-miy-platform-api-scopes` extension으로 요구 scope를 선언한다. 관리자
@@ -86,10 +86,27 @@ tombstone, webhook과 exactly-once 전달은 현재 제공하지 않는다. 장�
 ## 앱 관리 조회
 
 앱 집계 응답은 `schema_version: 1`과 생성 시각을 포함한다. 카탈로그는 canonical 앱 계약,
-회사 앱 활성화 설정, 등록된 AI workload, 실행 프로세스의 고정된 runtime revision을 읽는다.
+회사 앱 활성화 설정, 등록된 AI workload, 실행 프로세스의 고정된 runtime revision과 독립 앱 등록·설치를 읽는다.
 `enabled`는 회사의 앱 활성화 여부이며 개별 사용자의 실행 권한을 의미하지 않는다.
 MIY Web/API/Worker의 앱은 `miy-app` 배포 단위를 공유한다. 별도 서비스인 MIY Workbench의
 설치 버전은 MIY API에서 추정하지 않고 `null`로 반환한다.
+관리 메타데이터가 없어도 앱은 포함하며 배포 단위·설치 버전을 임의로 채우지 않는다.
+독립 앱의 활성 표시는 production 설치가 ready인 경우이며 개별 사용자 admission은 별도로 검사한다.
+`page`(1부터), `page_size`(1~200)로 전체를 조회하며 총 앱 수에는 200개 제한이 없다.
+표시 정체성(`title`, `title_translations`, `icon_key`)도 같은 등록 정의에서 제공한다.
+독립 앱은 해당 정의의 `source_repository`, `source_directory`, `definition_digest`를 포함하며
+Workbench가 소유자 지정 체크아웃을 검증하는 데 사용한다. 저장소 URL은 정의의 비밀 없는 HTTPS
+정체성이며 자격 증명·소유자/그룹 목록·호스트 실행 명령은 반환하지 않는다.
+`catalog_revision`은 전체 projection의 해시로 페이지 사이의 앱·활성 상태·설치 변경을 감지한다.
+소비자는 모든 페이지의 revision·총 개수와 중복·누락을 검증한 뒤 완전한 관측으로 취급한다.
+
+독립 앱의 `GET /api/v1/integrations/apps/{app_id}/installations`도 `app-catalog:read`로
+조회한다. 같은 페이지·revision 계약으로 환경·주소·활성 여부·generation과 실제 설치된
+release/revision/digest, 각 설치의 최신 배포 요청 ID·상태·안전한 실패 코드를 반환한다.
+아직 반영되지 않은 queued/unknown 요청을 설치 성공으로 해석하지 않는다. 이 값은 내구성 있는
+배포 기록이며 서비스의 현재 HTTP 응답이나 자원 상태를 측정한 health check가 아니다.
+사용자·그룹·승인 권한 목록, 런타임 설정·자격 증명은 포함하지 않으며 이 키로 배포 요청을
+생성하거나 실행할 수 없다. 지원하지 않는 기존 내장 앱 ID 또는 미등록 ID는 404다.
 
 사용량의 선택적 `month=YYYY-MM-DD`는 해당 날짜가 속한 UTC 월을 지정한다. 앱 열기는
 `app.open` 이벤트, 운영 AI 호출은 같은 앱·월의 `llm_call` 감사 기록에서 집계한다.

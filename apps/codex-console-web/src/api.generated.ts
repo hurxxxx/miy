@@ -69,6 +69,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tasks/{task_id}/registration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Registration Status */
+        get: operations["registration_status_api_tasks__task_id__registration_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{task_id}/registration/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Registration Authorize */
+        post: operations["registration_authorize_api_tasks__task_id__registration_authorize_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{task_id}/registration/receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Registration Receipt */
+        post: operations["registration_receipt_api_tasks__task_id__registration_receipt_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/registration-authorizations/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Registration Callback */
+        post: operations["registration_callback_api_registration_authorizations_callback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/instructions": {
         parameters: {
             query?: never;
@@ -121,6 +189,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workbench/apps/{app_id}/source": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Bind Source */
+        put: operations["bind_source_api_workbench_apps__app_id__source_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workbench/source-setup/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Source Setup Options */
+        get: operations["source_setup_options_api_workbench_source_setup_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workbench/projects/{project_id}/source-setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Source Setup Status */
+        get: operations["source_setup_status_api_workbench_projects__project_id__source_setup_get"];
+        put?: never;
+        /** Source Setup Prepare */
+        post: operations["source_setup_prepare_api_workbench_projects__project_id__source_setup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/workbench/projects": {
         parameters: {
             query?: never;
@@ -138,6 +258,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workbench/projects/{project_id}/registration-draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Registration Draft */
+        get: operations["registration_draft_api_workbench_projects__project_id__registration_draft_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workbench/projects/{project_id}/registration-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Registration Status */
+        get: operations["registration_status_api_workbench_projects__project_id__registration_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/workbench/runtime": {
         parameters: {
             query?: never;
@@ -147,6 +301,23 @@ export interface paths {
         };
         /** Read Runtime */
         get: operations["read_runtime_api_workbench_runtime_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workbench/apps/{app_id}/installations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Installations */
+        get: operations["read_installations_api_workbench_apps__app_id__installations_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -852,6 +1023,7 @@ export interface components {
             } | null;
             /** Updated At */
             updated_at: string;
+            observation?: components["schemas"]["NativeObservationOut"] | null;
         };
         /** Answer */
         Answer: {
@@ -868,21 +1040,69 @@ export interface components {
             app_id: string;
             /** Title */
             title: string;
-            /** Summary */
+            /** Title Translations */
+            title_translations?: {
+                [key: string]: string;
+            };
+            /**
+             * Icon Key
+             * @default layout-grid
+             */
+            icon_key: string;
+            /**
+             * Summary
+             * @default
+             */
             summary: string;
             /** Capabilities */
-            capabilities: string[];
+            capabilities?: string[];
             /** Source Paths */
-            source_paths: string[];
-            /**
-             * Release Unit
-             * @enum {string}
-             */
-            release_unit: "miy-app" | "miy-workbench";
+            source_paths?: string[];
+            /** Release Unit */
+            release_unit?: string | null;
             /** Route Base */
             route_base: string;
             /** Preview Url */
             preview_url?: string | null;
+            /**
+             * Source Status
+             * @default unconfigured
+             * @enum {string}
+             */
+            source_status: "ready" | "unconfigured" | "missing" | "invalid";
+            /**
+             * Discovery
+             * @default checkout
+             * @enum {string}
+             */
+            discovery: "checkout" | "runtime" | "source";
+            /** Source Root */
+            source_root?: string | null;
+            /**
+             * Source Version
+             * @default 0
+             */
+            source_version: number;
+            /**
+             * Execution Status
+             * @default unconfigured
+             * @enum {string}
+             */
+            execution_status: "platform" | "configured" | "unconfigured";
+            /**
+             * Preview Status
+             * @default unconfigured
+             * @enum {string}
+             */
+            preview_status: "configured" | "unconfigured";
+            /**
+             * Deployment Status
+             * @default unconfigured
+             * @enum {string}
+             */
+            deployment_status: "configured" | "unconfigured";
+            /** Limitations */
+            limitations?: ("source_not_configured" | "source_missing" | "source_invalid" | "executor_not_configured" | "preview_not_configured" | "release_not_configured")[];
         };
         /** AttachmentLimits */
         AttachmentLimits: {
@@ -906,6 +1126,17 @@ export interface components {
             /** Deleted */
             deleted: boolean;
         };
+        /** AuthorizationStart */
+        AuthorizationStart: {
+            status: components["schemas"]["Status"];
+            /** Authorization Url */
+            authorization_url: string;
+        };
+        /** Begin */
+        Begin: {
+            /** Origin */
+            origin: string;
+        };
         /** BudgetInput */
         BudgetInput: {
             /** Development Tokens */
@@ -927,6 +1158,11 @@ export interface components {
         };
         /** CatalogOut */
         CatalogOut: {
+            /**
+             * Registration Authorization Available
+             * @default false
+             */
+            registration_authorization_available: boolean;
             /** Items */
             items: components["schemas"]["AppDescriptor"][];
             /** Projects */
@@ -956,6 +1192,31 @@ export interface components {
             revision: string;
             /** Subject */
             subject: string;
+        };
+        /** DeploymentObservation */
+        DeploymentObservation: {
+            /**
+             * Request Id
+             * Format: uuid
+             */
+            request_id: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "deploy" | "rollback";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "queued" | "running" | "cleanup" | "succeeded" | "failed" | "unknown";
+            /** Failure Code */
+            failure_code?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** DeviceLoginOut */
         DeviceLoginOut: {
@@ -1223,6 +1484,59 @@ export interface components {
              */
             confirm_inactive: true;
         };
+        /** InstallationObservation */
+        InstallationObservation: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Environment
+             * @enum {string}
+             */
+            environment: "development" | "production";
+            /** Origin */
+            origin: string;
+            /** Enabled */
+            enabled: boolean;
+            /** State */
+            state: string;
+            /** Generation */
+            generation: number;
+            /** Release Id */
+            release_id: string | null;
+            /** Source Revision */
+            source_revision?: string | null;
+            /** Artifact Digest */
+            artifact_digest?: string | null;
+            deployment: components["schemas"]["DeploymentObservation"] | null;
+            /**
+             * Delivery Configured
+             * @default false
+             */
+            delivery_configured: boolean;
+        };
+        /** InstallationsOut */
+        InstallationsOut: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "ready" | "unconfigured" | "unavailable" | "unsupported" | "denied";
+            /** Checked At */
+            checked_at?: string | null;
+            /**
+             * Stale
+             * @default true
+             */
+            stale: boolean;
+            /**
+             * Items
+             * @default []
+             */
+            items: components["schemas"]["InstallationObservation"][];
+        };
         /** LoginInput */
         LoginInput: {
             /** Password */
@@ -1397,6 +1711,35 @@ export interface components {
             /** Efforts */
             efforts: string[];
         };
+        /** NativeObservationOut */
+        NativeObservationOut: {
+            /** Thread Status */
+            thread_status?: ("notLoaded" | "idle" | "active" | "systemError") | null;
+            /** Thread Checked At */
+            thread_checked_at?: string | null;
+            last_turn?: components["schemas"]["NativeTurnObservation"] | null;
+            /** Attempted At */
+            attempted_at?: string | null;
+            /** Error Code */
+            error_code?: ("unavailable" | "read_failed" | "identity_mismatch") | null;
+            /**
+             * Freshness
+             * @enum {string}
+             */
+            freshness: "fresh" | "stale" | "unavailable" | "unknown";
+        };
+        /** NativeTurnObservation */
+        NativeTurnObservation: {
+            /** Id */
+            id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "inProgress" | "completed" | "interrupted" | "failed";
+            /** Observed At */
+            observed_at: string;
+        };
         /** NewTask */
         NewTask: {
             /** Title */
@@ -1425,6 +1768,20 @@ export interface components {
             worktrees: string[];
             gitlab: components["schemas"]["GitLabOut"];
             workbench_release?: components["schemas"]["ReleaseIdentity"] | null;
+        };
+        /** Policy */
+        Policy: {
+            /** App Id */
+            app_id: string;
+            /** Origin */
+            origin: string;
+            /**
+             * Runtime Profile
+             * @enum {string}
+             */
+            runtime_profile: "web-api-v1" | "web-api-postgres-v1";
+            /** Requested Permissions */
+            requested_permissions: ("identity:read" | "data:read" | "data:write" | "files:read-selected")[];
         };
         /** ProjectInput */
         ProjectInput: {
@@ -1459,6 +1816,30 @@ export interface components {
             reuse_notes: string;
             /** Id */
             id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** Receipt */
+        Receipt: {
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /** App Id */
+            app_id: string;
+            /**
+             * Installation Id
+             * Format: uuid
+             */
+            installation_id: string;
+            /** Definition Digest */
+            definition_digest: string;
+            /** Source Revision */
+            source_revision: string;
             /**
              * Created At
              * Format: date-time
@@ -1514,15 +1895,29 @@ export interface components {
             title: string;
             /** Enabled */
             enabled: boolean;
-            /**
-             * Release Unit
-             * @enum {string}
-             */
-            release_unit: "miy-app" | "miy-workbench";
+            /** Release Unit */
+            release_unit?: string | null;
             /** Installed Revision */
             installed_revision?: string | null;
+            /** Registered Source Revision */
+            registered_source_revision?: string | null;
             /** Runtime Ai */
             runtime_ai: boolean;
+            /** Title Translations */
+            title_translations?: {
+                [key: string]: string;
+            };
+            /**
+             * Icon Key
+             * @default layout-grid
+             */
+            icon_key: string;
+            /** Source Repository */
+            source_repository?: string | null;
+            /** Source Directory */
+            source_directory?: string | null;
+            /** Definition Digest */
+            definition_digest?: string | null;
         };
         /** RuntimeOut */
         RuntimeOut: {
@@ -1543,6 +1938,10 @@ export interface components {
              * @default []
              */
             items: components["schemas"]["RuntimeApp"][];
+            /** Catalog Revision */
+            catalog_revision?: string | null;
+            /** Registration Status Version */
+            registration_status_version?: number | null;
         };
         /** RuntimeUsage */
         RuntimeUsage: {
@@ -1624,6 +2023,211 @@ export interface components {
             /** Description */
             description: string;
         };
+        /** SourceBindingInput */
+        SourceBindingInput: {
+            /** Repository Root */
+            repository_root: string;
+            /**
+             * Version
+             * @default 0
+             */
+            version: number;
+        };
+        /** SourceCreationRoot */
+        SourceCreationRoot: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+        };
+        /** SourceRegistrationDraftOut */
+        SourceRegistrationDraftOut: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Binding Version */
+            binding_version: number;
+            /** App Id */
+            app_id: string;
+            /** Source Revision */
+            source_revision: string;
+            /** Source Manifest Digest */
+            source_manifest_digest: string;
+            /** Definition Digest */
+            definition_digest: string;
+            /** Definition */
+            definition: {
+                [key: string]: unknown;
+            };
+        };
+        /** SourceRegistrationStatusOut */
+        SourceRegistrationStatusOut: {
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** App Id */
+            app_id: string;
+            /** Binding Version */
+            binding_version: number;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "unregistered" | "matching" | "different" | "collision" | "unknown";
+            /** Source Revision */
+            source_revision: string;
+            /** Definition Digest */
+            definition_digest: string;
+            /**
+             * Platform State
+             * @enum {string}
+             */
+            platform_state: "ready" | "unconfigured" | "unavailable" | "unsupported" | "denied";
+            /** Platform Checked At */
+            platform_checked_at: string | null;
+            /** Registered Source Revision */
+            registered_source_revision: string | null;
+            /** Registered Definition Digest */
+            registered_definition_digest: string | null;
+            /** Definition Matches */
+            definition_matches: boolean | null;
+            /** Revision Matches */
+            revision_matches: boolean | null;
+        };
+        /** SourceSetupInput */
+        SourceSetupInput: {
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /** Repository */
+            repository: string;
+            /** Root Id */
+            root_id: string;
+            /**
+             * Template Id
+             * @enum {string}
+             */
+            template_id: "basic" | "private-notes";
+            /** Expected Bundle Digest */
+            expected_bundle_digest: string;
+        };
+        /** SourceSetupOptions */
+        SourceSetupOptions: {
+            /** Roots */
+            roots: components["schemas"]["SourceCreationRoot"][];
+            /** Templates */
+            templates: components["schemas"]["SourceStarter"][];
+        };
+        /** SourceSetupOut */
+        SourceSetupOut: {
+            /** Operation Id */
+            operation_id: string;
+            /** Project Id */
+            project_id: string;
+            /** App Id */
+            app_id: string;
+            /** Root Id */
+            root_id: string;
+            /**
+             * Template Id
+             * @enum {string}
+             */
+            template_id: "basic" | "private-notes";
+            /** Repository */
+            repository: string;
+            /** Bundle Digest */
+            bundle_digest: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "preparing" | "ready" | "failed" | "conflict";
+            /** Source Root */
+            source_root: string | null;
+            /** Source Revision */
+            source_revision: string | null;
+            /** Source Version */
+            source_version: number | null;
+            /** Failure Code */
+            failure_code: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** SourceSetupStatus */
+        SourceSetupStatus: {
+            setup: components["schemas"]["SourceSetupOut"] | null;
+        };
+        /** SourceStarter */
+        SourceStarter: {
+            /**
+             * Id
+             * @enum {string}
+             */
+            id: "basic" | "private-notes";
+            /** Name */
+            name: string;
+            /** Runtime Profile */
+            runtime_profile: string;
+            /** Bundle Digest */
+            bundle_digest: string;
+            /** Sdk Version */
+            sdk_version: string;
+        };
+        /** Status */
+        Status: {
+            /**
+             * Task Id
+             * Format: uuid
+             */
+            task_id: string;
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Authorization Origin */
+            authorization_origin: string | null;
+            /**
+             * Authorization State
+             * @enum {string}
+             */
+            authorization_state: "required" | "pending" | "exchanging" | "ready" | "failed" | "expired" | "other_session";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "unsubmitted" | "unknown" | "registered" | "rejected";
+            /** Expires At */
+            expires_at: string | null;
+            policy: components["schemas"]["Policy"] | null;
+            receipt: components["schemas"]["Receipt"] | null;
+            /** Failure Code */
+            failure_code: string | null;
+            /** Source Revision */
+            source_revision: string | null;
+        };
         /** TaskContext */
         TaskContext: {
             /**
@@ -1631,7 +2235,7 @@ export interface components {
              * @default development
              * @enum {string}
              */
-            purpose: "development" | "inspection" | "deployment" | "recovery";
+            purpose: "development" | "inspection" | "deployment" | "recovery" | "registration";
             /** Service Id */
             service_id?: string | null;
             /** Area */
@@ -1642,8 +2246,10 @@ export interface components {
             project_id?: string | null;
             /** Maintenance Id */
             maintenance_id?: string | null;
+            /** Installation Id */
+            installation_id?: string | null;
             /** Release Unit */
-            release_unit?: ("miy-app" | "miy-workbench") | null;
+            release_unit?: string | null;
         };
         /** TaskDetail */
         TaskDetail: {
@@ -1821,6 +2427,12 @@ export interface components {
              * @default
              */
             description: string;
+            /** App Id */
+            app_id?: string | null;
+            /** Installation Id */
+            installation_id?: string | null;
+            /** Purpose */
+            purpose?: ("inspection" | "deployment" | "recovery") | null;
             /**
              * Directory
              * @default .
@@ -2125,6 +2737,7 @@ export interface operations {
         parameters: {
             query?: {
                 directory_name?: string;
+                app_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -2183,6 +2796,123 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    registration_status_api_tasks__task_id__registration_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Status"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    registration_authorize_api_tasks__task_id__registration_authorize_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Begin"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthorizationStart"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    registration_receipt_api_tasks__task_id__registration_receipt_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Status"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    registration_callback_api_registration_authorizations_callback_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };
@@ -2304,6 +3034,127 @@ export interface operations {
             };
         };
     };
+    bind_source_api_workbench_apps__app_id__source_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceBindingInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppDescriptor"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    source_setup_options_api_workbench_source_setup_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceSetupOptions"];
+                };
+            };
+        };
+    };
+    source_setup_status_api_workbench_projects__project_id__source_setup_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceSetupStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    source_setup_prepare_api_workbench_projects__project_id__source_setup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceSetupInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceSetupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_project_api_workbench_projects_post: {
         parameters: {
             query?: never;
@@ -2337,6 +3188,68 @@ export interface operations {
             };
         };
     };
+    registration_draft_api_workbench_projects__project_id__registration_draft_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceRegistrationDraftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    registration_status_api_workbench_projects__project_id__registration_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceRegistrationStatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_runtime_api_workbench_runtime_get: {
         parameters: {
             query?: never;
@@ -2353,6 +3266,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RuntimeOut"];
+                };
+            };
+        };
+    };
+    read_installations_api_workbench_apps__app_id__installations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstallationsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -32,6 +32,7 @@ from miy_api.domains.pms.access import (
 from miy_api.domains.pms.models import Attachment, Task, TaskActivityLog
 from miy_api.domains.pms.projections import task_reference
 from miy_api.domains.source_access import can_read_pms_task
+from miy_api.domains.official_apps.source_guard import lock_source_writer
 
 MAX_TASK_ATTACHMENT_UPLOAD_SIZE = 50 * 1024 * 1024
 DEFAULT_TASK_ATTACHMENT_FILENAME = "unnamed"
@@ -139,6 +140,7 @@ def upload_task_attachment(
 
     attachment_id = new_id()
     storage_key = f"pms/{task.task_list.id}/{task.id}/{attachment_id}/{filename}"
+    lock_source_writer(db, "pms_attachments")
     resolved_store = store or task_attachment_object_store()
     resolved_store.put(
         storage_key=storage_key,
@@ -189,11 +191,7 @@ def delete_task_attachment(
     if attachment is None:
         raise localized_http_exception(status_code=404, code="pms.attachment_not_found")
     _ensure_list_editor(db, user, attachment.task.list_id)
-    try:
-        (store or task_attachment_object_store()).remove(storage_key=attachment.storage_key)
-    except Exception:
-        pass
-
+    storage_key = attachment.storage_key
     _log_task_attachment_activity(
         db,
         task=attachment.task,
@@ -203,6 +201,12 @@ def delete_task_attachment(
     )
     db.delete(attachment)
     db.commit()
+    # Never delete bytes before their source deletion is confirmed. An unknown
+    # commit leaves bytes intact; accepted cleanup may finish after drain.
+    try:
+        (store or task_attachment_object_store()).remove(storage_key=storage_key)
+    except Exception:
+        pass
 
 
 def serialize_task_attachment(

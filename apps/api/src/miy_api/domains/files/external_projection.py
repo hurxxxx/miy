@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from hashlib import sha256
 from typing import Any
 
+from miy_api.domains.files.artifact_contract import EXTERNAL_SOURCE_SAFE_METADATA_KEYS
 from miy_api.domains.files.models import FileManagerFile
 from miy_api.domains.files.retrieval_contract import FILES_RAG_SOURCE_KIND
 
@@ -14,21 +15,6 @@ EXTERNAL_SOURCE_TARGET_TYPES = {
     "department": "file_department",
     "document_type": "file_document_type",
 }
-EXTERNAL_SOURCE_SAFE_METADATA_KEYS = frozenset(
-    {
-        "origin_source_kind",
-        "origin_source_kind_filter",
-        "source_title",
-        "author",
-        "author_filter",
-        "authored_at",
-        "department",
-        "department_filter",
-        "document_type",
-        "document_type_filter",
-        "source_updated_at",
-    }
-)
 
 
 def external_source_kind(file: FileManagerFile) -> str:

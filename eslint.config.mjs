@@ -1,5 +1,11 @@
 import nx from '@nx/eslint-plugin';
 
+const moduleBoundaryOptions = {
+  enforceBuildableLibDependency: true,
+  allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
+  depConstraints: [{ sourceTag: '*', onlyDependOnLibsWithTags: ['*'] }],
+};
+
 export default [
   ...nx.configs['flat/base'],
   ...nx.configs['flat/typescript'],
@@ -15,16 +21,24 @@ export default [
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
     rules: {
+      '@nx/enforce-module-boundaries': ['error', moduleBoundaryOptions],
+    },
+  },
+  {
+    files: [
+      'apps/official-suite/src/**/*.ts',
+      'apps/official-suite/src/**/*.tsx',
+    ],
+    rules: {
+      // OFF-002 stage zero: one named public source bridge, never arbitrary app imports.
+      // Remove with the shared UI/business source extraction described by the suite owner.
       '@nx/enforce-module-boundaries': [
         'error',
         {
-          enforceBuildableLibDependency: true,
-          allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
-          depConstraints: [
-            {
-              sourceTag: '*',
-              onlyDependOnLibsWithTags: ['*'],
-            },
+          ...moduleBoundaryOptions,
+          allow: [
+            ...moduleBoundaryOptions.allow,
+            '@miy/web-official-suite-bridge',
           ],
         },
       ],

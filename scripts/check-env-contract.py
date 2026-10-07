@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import os
 import re
 import sys
 from collections.abc import Iterable, Mapping
@@ -404,15 +405,18 @@ def source_files(
     resolved_root = root.resolve()
     excluded = {path.resolve() for path in excluded_paths}
     result: list[Path] = []
-    for path in root.rglob("*"):
-        if not path.is_file():
-            continue
-        # A linked runtime config outside the checkout is not repository source.
-        if not path.resolve().is_relative_to(resolved_root):
-            continue
-        if path.resolve() in excluded:
-            continue
-        if should_scan_source_file(path, root):
+    for directory, directories, filenames in os.walk(root, followlinks=False):
+        # Prune before traversal: local runtimes and vendor trees can contain
+        # millions of files, none of which belong to this source contract.
+        directories[:] = [name for name in directories if name not in SKIP_DIRS]
+        for filename in filenames:
+            path = Path(directory) / filename
+            if not should_scan_source_file(path, root) or not path.is_file():
+                continue
+            resolved = path.resolve()
+            # A linked runtime config outside the checkout is not repository source.
+            if not resolved.is_relative_to(resolved_root) or resolved in excluded:
+                continue
             result.append(path)
     return result
 

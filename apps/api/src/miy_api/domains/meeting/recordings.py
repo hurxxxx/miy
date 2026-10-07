@@ -26,6 +26,7 @@ from miy_api.domains.meeting.schemas import (
     RecordingStagingInitRequest,
     RecordingStagingItem,
 )
+from miy_api.domains.official_apps.source_guard import lock_source_writer
 from miy_api.domains.pms.access import _ensure_task_readable as ensure_task_readable
 from miy_api.domains.recording import blob_store as recording_blob_store
 from miy_api.domains.recording import service as canonical_recording_service
@@ -355,7 +356,8 @@ def delete_recording(
     return fresh
 
 
-def cleanup_meeting_recordings(db: Session, *, meeting: Meeting) -> None:
+def cleanup_meeting_recordings(db: Session, *, meeting: Meeting) -> tuple[str, ...]:
+    """Stage source deletion; caller removes returned spools only after commit ACK."""
     from miy_api.domains.recording.models import (
         Recording,
         RecordingStaging,
@@ -374,6 +376,7 @@ def cleanup_meeting_recordings(db: Session, *, meeting: Meeting) -> None:
     ).all()
     for recording in recordings:
         if recording.celery_task_id:
+            lock_source_writer(db, "recordings")
             canonical_recording_service.revoke_recording_task(recording.celery_task_id)
         recording.trashed_at = _utcnow()
         recording.updated_at = recording.trashed_at
@@ -387,10 +390,11 @@ def cleanup_meeting_recordings(db: Session, *, meeting: Meeting) -> None:
             RecordingStaging.completed_at.is_(None),
         )
     ).all()
+    spool_paths = tuple(staging.spool_path for staging in staging_rows)
     for staging in staging_rows:
-        recording_blob_store.cleanup_spool_dir(staging.spool_path)
         db.delete(staging)
     db.flush()
+    return spool_paths
 
 
 def cleanup_stale_staging_once(db: Session) -> dict[str, int]:
@@ -403,13 +407,13 @@ def cleanup_stale_staging_once(db: Session) -> dict[str, int]:
             RecordingStaging.last_chunk_at < cutoff,
         )
     ).all()
-    deleted = 0
+    spool_paths = tuple(staging.spool_path for staging in rows)
     for staging in rows:
-        recording_blob_store.cleanup_spool_dir(staging.spool_path)
         db.delete(staging)
-        deleted += 1
     db.commit()
-    return {"deleted": deleted}
+    for spool_path in spool_paths:
+        recording_blob_store.cleanup_spool_dir(spool_path)
+    return {"deleted": len(spool_paths)}
 
 
 def fetch_local_recording_blob(

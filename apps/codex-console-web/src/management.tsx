@@ -1,5 +1,5 @@
 import { Button } from '@miy/ui';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, apiBasePath, type Task } from './api';
 import type { components } from './api.generated';
 import { type Copy, type Translate } from './i18n';
@@ -11,8 +11,14 @@ import {
   agentWorking,
   executing,
   needsAttention,
+  currentNativeStatus,
+  nativeObservationStatus,
+  nativeThreadStatus,
+  observationFailure,
+  observedTurnStatus,
   sortTasks,
   type Agent,
+  type NativeFreshness,
 } from './agent-state';
 export type Service = components['schemas']['ServiceOut'];
 
@@ -67,6 +73,7 @@ export function useOverview(enabled: boolean, changed: () => void) {
 }
 
 export function AgentTree({ agents, t }: { agents: Agent[]; t: Translate }) {
+  const freshness = useObservationFreshness(agents);
   if (!agents.length)
     return <p className="muted">{t('No agent activity yet')}</p>;
   const ids = new Set(agents.map((a) => a.thread_id));
@@ -81,38 +88,153 @@ export function AgentTree({ agents, t }: { agents: Agent[]; t: Translate }) {
           : !a.parent_thread_id || !ids.has(a.parent_thread_id),
       )
       .filter((a) => !visited.has(a.thread_id))
-      .map((a) => (
-        <li key={a.thread_id}>
-          <details className="agent-card">
-            <summary>
-              <strong>{a.name}</strong> {a.role && <span>{a.role}</span>}{' '}
-              <span className="status-badge">{t(agentStatus(a))}</span>
-            </summary>
-            <p>{activity(a.activity, t) || t('No current step reported')}</p>
-            {Array.isArray(a.progress?.steps) && (
-              <ol>
-                {(a.progress.steps as { step: string; status: string }[]).map(
-                  (s, i) => (
-                    <li key={i}>
-                      {s.status === 'completed'
-                        ? '✓ '
-                        : s.status === 'inProgress'
-                          ? '→ '
-                          : ''}
-                      {s.step}
-                    </li>
-                  ),
+      .map((a) => {
+        const issue = observationFailure(a);
+        const observedFreshness = freshness.get(a.thread_id);
+        return (
+          <li key={a.thread_id}>
+            <details className="agent-card">
+              <summary>
+                <strong>{a.name}</strong> {a.role && <span>{a.role}</span>}{' '}
+                <span className="status-badge">
+                  {t('Stored state')}: {t(agentStatus(a))}
+                </span>
+                <span className="status-badge">
+                  {t('Native state')}:{' '}
+                  {t(currentNativeStatus(a, observedFreshness))}
+                </span>
+              </summary>
+              <p role="status">
+                {t(nativeObservationStatus(a, observedFreshness))}
+              </p>
+              <dl className="version-list">
+                <dt>{t('Stored state')}</dt>
+                <dd>{t(agentStatus(a))}</dd>
+                <dt>{t('Record updated')}</dt>
+                <dd>
+                  <AgentTime value={a.updated_at} t={t} />
+                </dd>
+                <dt>{t('Last observed thread state')}</dt>
+                <dd>{t(nativeThreadStatus(a))}</dd>
+                <dt>{t('Native state checked')}</dt>
+                <dd>
+                  <AgentTime value={a.observation?.thread_checked_at} t={t} />
+                </dd>
+                <dt>{t('Last observed turn')}</dt>
+                <dd>
+                  {a.observation?.last_turn ? (
+                    <>
+                      {t(observedTurnStatus(a))}{' '}
+                      <code>{a.observation.last_turn.id}</code>
+                    </>
+                  ) : (
+                    t('No turn observed')
+                  )}
+                </dd>
+                <dt>{t('Turn observed')}</dt>
+                <dd>
+                  <AgentTime
+                    value={a.observation?.last_turn?.observed_at}
+                    t={t}
+                  />
+                </dd>
+                <dt>{t('Last check attempted')}</dt>
+                <dd>
+                  <AgentTime value={a.observation?.attempted_at} t={t} />
+                </dd>
+                {issue && (
+                  <>
+                    <dt>{t('Observation issue')}</dt>
+                    <dd>{t(issue)}</dd>
+                  </>
                 )}
-              </ol>
-            )}
-            <small>
-              {t('Checked')}: {new Date(a.updated_at).toLocaleString()}
-            </small>
-          </details>
-          <ul>{branch(a.thread_id, new Set([...visited, a.thread_id]))}</ul>
-        </li>
-      ));
+              </dl>
+              <p className="muted">
+                {t(
+                  'Stored results remain available when current state is unknown.',
+                )}
+              </p>
+              <strong>{t('Last recorded activity')}</strong>
+              <p>{activity(a.activity, t) || t('No activity recorded')}</p>
+              {Array.isArray(a.progress?.steps) && (
+                <ol>
+                  {(a.progress.steps as { step: string; status: string }[]).map(
+                    (s, i) => (
+                      <li key={i}>
+                        {s.status === 'completed'
+                          ? '✓ '
+                          : s.status === 'inProgress'
+                            ? '→ '
+                            : ''}
+                        {s.step}
+                      </li>
+                    ),
+                  )}
+                </ol>
+              )}
+            </details>
+            <ul>{branch(a.thread_id, new Set([...visited, a.thread_id]))}</ul>
+          </li>
+        );
+      });
   return <ul className="agent-tree">{branch(null, new Set())}</ul>;
+}
+
+function useObservationFreshness(agents: Agent[]) {
+  const deadlines = useRef(
+    new Map<string, { checkedAt: string | null; expires: number }>(),
+  );
+  const [expiryTick, expire] = useState(0);
+  const result = new Map<string, NativeFreshness>();
+  const now = performance.now();
+  const wallNow = Date.now();
+  let next = Infinity;
+  const ids = new Set(agents.map((agent) => agent.thread_id));
+  for (const id of deadlines.current.keys()) {
+    if (!ids.has(id)) deadlines.current.delete(id);
+  }
+  for (const agent of agents) {
+    const observation = agent.observation;
+    let freshness = observation?.freshness ?? 'unknown';
+    if (freshness === 'fresh' && observation) {
+      let deadline = deadlines.current.get(agent.thread_id);
+      const checkedAt = observation.thread_checked_at ?? null;
+      if (!deadline || deadline.checkedAt !== checkedAt) {
+        const timestamp = Date.parse(checkedAt ?? '');
+        // Match the native projection's 30s lifetime. A future server clock
+        // receives at most 30s locally; repeating the same observation cannot
+        // renew it, even if the browser wall clock moves backwards.
+        const remaining = Number.isFinite(timestamp)
+          ? Math.max(0, Math.min(30_000, timestamp + 30_000 - wallNow))
+          : 0;
+        deadline = {
+          checkedAt,
+          expires: now + remaining,
+        };
+        deadlines.current.set(agent.thread_id, deadline);
+      }
+      if (deadline.expires <= now) freshness = 'stale';
+      else next = Math.min(next, deadline.expires);
+    }
+    result.set(agent.thread_id, freshness);
+  }
+  useEffect(() => {
+    if (!Number.isFinite(next)) return;
+    const timer = window.setTimeout(
+      () => expire((value) => value + 1),
+      Math.ceil(Math.max(0, next - performance.now())),
+    );
+    return () => window.clearTimeout(timer);
+  }, [next, expiryTick]);
+  return result;
+}
+
+function AgentTime({ value, t }: { value?: string | null; t: Translate }) {
+  return value && Number.isFinite(Date.parse(value)) ? (
+    <time dateTime={value}>{new Date(value).toLocaleString()}</time>
+  ) : (
+    <>{t('Not observed')}</>
+  );
 }
 
 export function ManagementView({
@@ -190,11 +312,11 @@ export function ManagementView({
           <strong>{tasks.filter(needsAttention).length}</strong>
         </div>
         <div>
-          <span>{t('Running')}</span>
+          <span>{t('Last reported running tasks')}</span>
           <strong>{tasks.filter(executing).length}</strong>
         </div>
         <div>
-          <span>{t('Active agents')}</span>
+          <span>{t('Last reported running agents')}</span>
           <strong>
             {
               new Set(
@@ -208,6 +330,11 @@ export function ManagementView({
           </strong>
         </div>
       </div>
+      <p className="muted">
+        {t(
+          'Counts use stored reports. Refreshing this list does not check native agent state.',
+        )}
+      </p>
       {unavailable && (
         <p className="monitor-notice" role="status">
           {t(
@@ -322,6 +449,9 @@ export function ManagementView({
                 <div>
                   <strong>{service.name}</strong>
                   <small>{service.environment}</small>
+                  <small>
+                    {t('Observed version')}: {service.version ?? t('Unknown')}
+                  </small>
                 </div>
                 <span className="status-badge">
                   {t(

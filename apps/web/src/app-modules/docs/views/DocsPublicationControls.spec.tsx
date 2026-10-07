@@ -1,3 +1,4 @@
+import type * as DocsApi from '@miy/official-suite-web/docs/api/docs-api';
 import {
   act,
   fireEvent,
@@ -15,7 +16,7 @@ import {
   updateDocsCompanySharing,
   updateDocTarget,
   type DocsHubItem,
-} from '../api/docs-api';
+} from '@miy/official-suite-web/docs/api/docs-api';
 import { DocsPublicationControls } from './DocsPublicationControls';
 
 const feedback = vi.hoisted(() => ({
@@ -28,8 +29,8 @@ vi.mock('@miy/ui', async (original) => ({
   useFeedback: () => feedback,
   useConfirm: () => ({ confirm: feedback.confirm, confirmDialog: null }),
 }));
-vi.mock('../api/docs-api', async (original) => ({
-  ...(await original<typeof import('../api/docs-api')>()),
+vi.mock('@miy/official-suite-web/docs/api/docs-api', async (original) => ({
+  ...(await original<typeof DocsApi>()),
   deleteDocTarget: vi.fn(),
   updateDocsCompanySharing: vi.fn(),
   updateDocTarget: vi.fn(),

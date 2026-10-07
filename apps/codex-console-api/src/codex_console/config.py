@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, m
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
+from .app_sources import APP_ID_PATTERN
 from .errors import ConsoleError
 
 
@@ -49,6 +50,48 @@ class MonitoredService(BaseModel):
         return self
 
 
+class AppExecutionEnvironment(BaseModel):
+    """An operator-owned executor, never configuration supplied by an app manifest."""
+
+    model_config = ConfigDict(extra="forbid")
+    key: str = Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")
+    source_root: Path
+    exec_server_url: str
+    auth_bearer_token: SecretStr = Field(min_length=32, max_length=512)
+
+    @field_validator("source_root")
+    @classmethod
+    def canonical_source(cls, value):
+        if not value.is_absolute() or value.resolve() != value:
+            raise ValueError("Executor source must be a canonical absolute path")
+        return value
+
+    @field_validator("exec_server_url")
+    @classmethod
+    def loopback_executor(cls, value):
+        parsed = urlsplit(value)
+        if (
+            parsed.scheme != "ws"
+            or parsed.hostname != "127.0.0.1"
+            or parsed.port is None
+            or not 1024 <= parsed.port <= 65535
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path not in ("", "/")
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError("The development executor requires a loopback WebSocket endpoint")
+        return value.rstrip("/")
+
+
+class DeliveryGrant(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    app_id: str = Field(pattern=APP_ID_PATTERN, max_length=80)
+    installation_id: UUID
+    token: SecretStr = Field(min_length=16, max_length=256)
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
@@ -70,6 +113,59 @@ class Settings(BaseSettings):
         default_factory=list,
         validation_alias="MIY_CODEX_CONSOLE_PROTECTED_WORKSPACES",
     )
+    app_source_roots: list[Path] = Field(
+        default_factory=list,
+        max_length=32,
+        validation_alias="MIY_CODEX_CONSOLE_APP_SOURCE_ROOTS",
+    )
+    app_creation_roots: list[Path] = Field(
+        default_factory=list,
+        max_length=32,
+        validation_alias="MIY_CODEX_CONSOLE_APP_CREATION_ROOTS",
+    )
+    app_execution_environments: list[AppExecutionEnvironment] = Field(
+        default_factory=list,
+        max_length=32,
+        validation_alias="MIY_CODEX_CONSOLE_APP_EXECUTION_ENVIRONMENTS",
+    )
+    app_delivery_grants: list[DeliveryGrant] = Field(
+        default_factory=list,
+        max_length=32,
+        validation_alias="MIY_CODEX_CONSOLE_APP_DELIVERY_GRANTS",
+    )
+
+    @field_validator("app_delivery_grants")
+    @classmethod
+    def unique_delivery_grants(cls, values):
+        if len({item.installation_id for item in values}) != len(values):
+            raise ValueError("Each development installation has one delivery delegation")
+        return values
+
+    @field_validator("app_execution_environments")
+    @classmethod
+    def unique_app_executors(cls, values):
+        for field in ("key", "source_root", "exec_server_url"):
+            if len({getattr(value, field) for value in values}) != len(values):
+                raise ValueError("App executor keys, source roots and endpoints must be unique")
+        return values
+
+    @field_validator("app_source_roots", "app_creation_roots")
+    @classmethod
+    def canonical_app_source_roots(cls, values):
+        for value in values:
+            if not value.is_absolute() or value.resolve() != value:
+                raise ValueError("App source roots must be canonical absolute paths")
+        return values
+
+    @model_validator(mode="after")
+    def creation_roots_are_source_roots(self):
+        if len(set(self.app_creation_roots)) != len(self.app_creation_roots) or any(
+            not any(root.is_relative_to(allowed) for allowed in self.app_source_roots)
+            for root in self.app_creation_roots
+        ):
+            raise ValueError("App creation roots must be unique and contained in app source roots")
+        return self
+
     binary: str = Field(default="codex", validation_alias="MIY_CODEX_CONSOLE_BINARY")
     allowed_reasoning_efforts: list[
         Annotated[str, Field(min_length=1, max_length=40, pattern=r"^\S+$")]
@@ -129,6 +225,9 @@ class Settings(BaseSettings):
         default_factory=dict,
         validation_alias="MIY_CODEX_CONSOLE_SSO_SUBJECTS",
     )
+    registration_authorization_enabled: bool = Field(
+        default=False, validation_alias="MIY_CODEX_CONSOLE_REGISTRATION_AUTHORIZATION_ENABLED"
+    )
     miy_api_origin: str | None = Field(
         default=None, validation_alias="MIY_CODEX_CONSOLE_MIY_API_ORIGIN"
     )
@@ -154,6 +253,7 @@ class Settings(BaseSettings):
         if bool(self.miy_api_origin) != bool(self.miy_api_key):
             raise ValueError("Configure both the MIY API origin and its read-only API key")
         return self
+
     attachment_cache: Path = Field(
         default_factory=lambda: Path.home() / ".local/share/miy-codex-console/attachments",
         validation_alias="MIY_CODEX_CONSOLE_ATTACHMENT_CACHE",

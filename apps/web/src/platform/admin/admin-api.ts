@@ -1,7 +1,7 @@
 import { apiFetchJsonWithMappedError } from '@/src/platform/api/client';
 import type { ApiSchema } from '@/src/platform/api/types';
 import type { AuthUser } from '@/src/platform/auth/auth-api';
-import { emitCommunityChannelsChanged } from '@/src/platform/community/community-channel-events';
+import { emitCommunityChannelsChanged } from '@miy/official-suite-web/community/events';
 import { i18n } from '@/src/platform/i18n';
 export type AuditLogItem = ApiSchema<'AuditLogItemResponse'>;
 export type AuditLogsResponse = ApiSchema<'AuditLogsResponse'>;

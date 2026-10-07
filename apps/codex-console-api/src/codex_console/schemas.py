@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .app_sources import APP_ID_PATTERN
+
 DOCUMENT_CHAR_LIMIT = 100000
 MESSAGE_CHAR_LIMIT = 32000
 
@@ -22,13 +24,16 @@ class MIYSessionInput(Input):
 
 
 class TaskContext(Input):
-    purpose: Literal["development", "inspection", "deployment", "recovery"] = "development"
+    purpose: Literal["development", "inspection", "deployment", "recovery", "registration"] = (
+        "development"
+    )
     service_id: str | None = Field(default=None, max_length=100)
     area: Literal["studio", "apps", "platform"] | None = None
-    app_id: str | None = Field(default=None, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=80)
+    app_id: str | None = Field(default=None, pattern=APP_ID_PATTERN, max_length=80)
     project_id: UUID | None = None
     maintenance_id: UUID | None = None
-    release_unit: Literal["miy-app", "miy-workbench"] | None = None
+    installation_id: UUID | None = None
+    release_unit: str | None = Field(default=None, max_length=120)
 
 
 class NewTask(Input):
@@ -39,6 +44,21 @@ class NewTask(Input):
 
 class TaskPreferences(Input):
     pinned: bool
+
+
+class NativeTurnObservation(BaseModel):
+    id: str
+    status: Literal["inProgress", "completed", "interrupted", "failed"]
+    observed_at: str
+
+
+class NativeObservationOut(BaseModel):
+    thread_status: Literal["notLoaded", "idle", "active", "systemError"] | None = None
+    thread_checked_at: str | None = None
+    last_turn: NativeTurnObservation | None = None
+    attempted_at: str | None = None
+    error_code: Literal["unavailable", "read_failed", "identity_mismatch"] | None = None
+    freshness: Literal["fresh", "stale", "unavailable", "unknown"]
 
 
 class AgentOut(BaseModel):
@@ -52,6 +72,7 @@ class AgentOut(BaseModel):
     activity: str | None = None
     progress: dict[str, Any] | None = None
     updated_at: str
+    observation: NativeObservationOut | None = None
 
 
 class ServiceOut(BaseModel):

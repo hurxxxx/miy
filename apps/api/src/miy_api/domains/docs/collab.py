@@ -4,19 +4,27 @@ import asyncio
 import base64
 import json
 import logging
-from dataclasses import dataclass
+from contextlib import contextmanager
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from time import monotonic
 from typing import Any
 
+from fastapi import HTTPException
 import y_py as Y
-from sqlalchemy import delete, select
+from sqlalchemy import delete, event, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session, joinedload, selectinload
 from ypy_websocket.yroom import YRoom
 from ypy_websocket.yutils import YMessageType
 
-from miy_api.core.db import get_session_factory
-from miy_api.core.i18n import localized_http_exception
+from miy_api.core.db import (
+    get_session_factory,
+    is_official_writer_guard_error,
+    official_writer_unavailable,
+)
+from miy_api.core.i18n import LocalizedApiMessage, localized_http_exception
 from miy_api.core.settings import get_settings
 from miy_api.domains.auth.models import User
 from miy_api.domains.auth.security import new_id
@@ -40,12 +48,36 @@ from miy_api.domains.docs.rag_sync import enqueue_native_doc_rag_sync
 from miy_api.domains.docs.timestamps import touch_native_doc
 from miy_api.domains.media.service import sync_embedded_media
 from miy_api.domains.rag.contracts import RagSyncOperation
+from miy_api.domains.official_apps.writer import (
+    WriterIdentity,
+    bind_transaction,
+    require_active_writer,
+)
+from miy_api.domains.official_apps.writer_contracts import SUITE_SCOPE
 
 logger = logging.getLogger(__name__)
 
 PAGE_SOURCE_NATIVE_DOC = "native_doc_page"
 
 COLLAB_RELAY_CHANNEL_PREFIX = "docs-collab"
+# Pinned composition identity. Never adopt a database generation at reconnect.
+DOCS_WRITER_IDENTITY = WriterIdentity(SUITE_SCOPE, "legacy", 1)
+
+
+def writer_close_choice(error: HTTPException) -> tuple[int, str] | None:
+    if (
+        error.status_code == 503
+        and isinstance(error.detail, LocalizedApiMessage)
+        and error.detail.code == "official_apps.writer_unavailable"
+    ):
+        return (1013, "official_writer_unavailable")
+    return None
+
+
+def _is_writer_unavailable(error: Exception) -> bool:
+    return is_official_writer_guard_error(error) or (
+        isinstance(error, HTTPException) and writer_close_choice(error) is not None
+    )
 
 
 def _utcnow() -> datetime:
@@ -432,6 +464,53 @@ def materialize_collab_room_state(
     )
 
 
+class DocsPersistenceDeadline(TimeoutError):
+    """The current background snapshot exhausted its SQL transaction budget."""
+
+
+@contextmanager
+def _docs_persistence_sql_deadline(db: Session, seconds: float):
+    """Budget this Connection only; never change engine/pool or session defaults.
+
+    Python cancellation cannot stop a SQL thread. PostgreSQL must cancel a
+    blocked statement itself. Remaining time is applied before every statement
+    so a sequence of locks cannot reset the snapshot's entire budget each time.
+    Pool acquisition/connection establishment still use the existing DB policy.
+    """
+    deadline = monotonic() + seconds
+    connection = db.connection()
+
+    def before_statement(_conn, cursor, _statement, _parameters, _context, _executemany):
+        remaining_ms = int((deadline - monotonic()) * 1000)
+        if remaining_ms <= 0:
+            raise DocsPersistenceDeadline("docs_snapshot_sql_deadline")
+        # Raw cursor avoids recursively dispatching SQLAlchemy's event. Values
+        # are bound parameters, and true makes both settings transaction-local.
+        cursor.execute(
+            "SELECT set_config('statement_timeout', %s, true), "
+            "set_config('lock_timeout', %s, true)",
+            (str(remaining_ms), str(remaining_ms)),
+        )
+
+    event.listen(connection, "before_cursor_execute", before_statement)
+    try:
+        yield
+    finally:
+        event.remove(connection, "before_cursor_execute", before_statement)
+
+
+def _is_persistence_timeout(error: Exception) -> bool:
+    if isinstance(error, DocsPersistenceDeadline):
+        return True
+    if isinstance(error, DBAPIError):
+        original = error.orig
+        return (getattr(original, "sqlstate", None) or getattr(original, "pgcode", None)) in {
+            "57014",  # PostgreSQL cancelled the statement (including its timeout).
+            "55P03",  # The transaction-local lock timeout expired.
+        }
+    return False
+
+
 def _persist_docs_runtime_state_sync(
     session_factory: Any,
     *,
@@ -441,19 +520,32 @@ def _persist_docs_runtime_state_sync(
     fallback_actor_user_id: str,
     yjs_state: bytes,
     actor_user_id: str,
+    writer_identity: WriterIdentity = DOCS_WRITER_IDENTITY,
+    timeout_seconds: float | None = None,
 ) -> None:
     db = session_factory()
     try:
-        materialize_collab_room_state(
-            db,
-            source_type=source_type,
-            source_page_id=source_page_id,
-            room_key=room_key,
-            yjs_state=yjs_state,
-            actor_user_id=actor_user_id,
-            fallback_actor_user_id=fallback_actor_user_id,
+        seconds = (
+            timeout_seconds
+            if timeout_seconds is not None
+            else get_settings().collab_cleanup_timeout_seconds
         )
-        db.commit()
+        with _docs_persistence_sql_deadline(db, seconds):
+            require_active_writer(db, writer_identity)
+            bind_transaction(db, writer_identity)
+            materialize_collab_room_state(
+                db,
+                source_type=source_type,
+                source_page_id=source_page_id,
+                room_key=room_key,
+                yjs_state=yjs_state,
+                actor_user_id=actor_user_id,
+                fallback_actor_user_id=fallback_actor_user_id,
+            )
+            # commit() is a DBAPI operation rather than a cursor event. Refresh
+            # the remaining PostgreSQL budget immediately before COMMIT too.
+            db.execute(select(1))
+            db.commit()
     except Exception:
         db.rollback()
         raise
@@ -472,6 +564,8 @@ class DocsCollabHub:
         self._lock = asyncio.Lock()
         self._rooms: dict[str, CollabRoomRuntime] = {}
         self._session_factory = get_session_factory()
+        self.writer_identity = DOCS_WRITER_IDENTITY
+        self._disposals: set[asyncio.Task[None]] = set()
         self._instance_id = instance_id or self._settings.instance_id or new_id()
         self._bus = bus
         if self._bus is None:
@@ -519,13 +613,10 @@ class DocsCollabHub:
                     "source_page_id": context.source_page_id,
                 },
             )
-            room.on_message = lambda message, room_key=context.room_key: self._handle_room_message(
-                room_key,
-                message,
-            )
+            room.on_message = lambda message: self._handle_room_message(runtime, message)
             room.ydoc.observe_after_transaction(
-                lambda event, room_key=context.room_key: self._handle_room_update(
-                    room_key,
+                lambda event: self._handle_room_update(
+                    runtime,
                     event.get_update(),
                 )
             )
@@ -541,6 +632,8 @@ class DocsCollabHub:
         user_id: str,
     ) -> None:
         async with self._lock:
+            if runtime.metadata.get("writer_fenced"):
+                raise official_writer_unavailable()
             if self._rooms.get(runtime.room_key) is not runtime:
                 raise RuntimeError("Collaboration room is no longer active.")
             if runtime.active_connection_count >= self._settings.collab_max_room_clients:
@@ -580,13 +673,46 @@ class DocsCollabHub:
                 runtime.active_user_connections.get(user_id, 0),
             )
 
-    async def cleanup_room(self, room_key: str) -> None:
+    def fence_runtime(self, runtime: CollabRoomRuntime) -> None:
+        """Invalidate immediately; dispose on a separate task, outside client send locks."""
+        runtime.metadata["writer_fenced"] = "true"
+        if self._rooms.get(runtime.room_key) is runtime:
+            self._rooms.pop(runtime.room_key)
+        self._start_disposal(runtime, persist=False, close_code=1013)
+
+    def _start_disposal(
+        self, runtime: CollabRoomRuntime, *, persist: bool, close_code: int | None = None
+    ) -> asyncio.Task[None] | None:
+        if runtime.metadata.get("disposing"):
+            return None
+        runtime.metadata["disposing"] = "true"
+        task = asyncio.create_task(
+            self._dispose_runtime(runtime, persist=persist, close_code=close_code)
+        )
+        self._disposals.add(task)
+        task.add_done_callback(self._disposals.discard)
+        return task
+
+    async def cleanup_room(
+        self, room_key: str, *, expected_runtime: CollabRoomRuntime | None = None
+    ) -> None:
         async with self._lock:
             runtime = self._rooms.get(room_key)
-            if runtime is None or runtime.room.clients or runtime.active_connection_count:
+            if (
+                runtime is None
+                or (expected_runtime is not None and runtime is not expected_runtime)
+                or runtime.room.clients
+                or runtime.active_connection_count
+            ):
                 return
-            self._rooms.pop(room_key, None)
+            self._rooms.pop(room_key)
+        task = self._start_disposal(runtime, persist=True)
+        if task is not None:
+            await asyncio.shield(task)
 
+    async def _dispose_runtime(
+        self, runtime: CollabRoomRuntime, *, persist: bool, close_code: int | None
+    ) -> None:
         if runtime.flush_task is not None:
             runtime.flush_task.cancel()
             await self._run_cleanup_step(
@@ -594,7 +720,24 @@ class DocsCollabHub:
                 "flush task cancellation",
                 asyncio.gather(runtime.flush_task, return_exceptions=True),
             )
-        await self._run_cleanup_step(runtime, "flush", self._flush_runtime(runtime))
+        if persist and not runtime.metadata.get("writer_fenced"):
+            await self._run_cleanup_step(runtime, "flush", self._flush_runtime(runtime))
+        if runtime.metadata.get("writer_fenced"):
+            close_code = 1013
+        if close_code is not None:
+            for client in list(runtime.room.clients):
+                await self._run_cleanup_step(
+                    runtime,
+                    "client close",
+                    client.close(
+                        code=close_code,
+                        reason=(
+                            "official_writer_unavailable"
+                            if close_code == 1013
+                            else "Server shutdown."
+                        ),
+                    ),
+                )
         if runtime.relay_task is not None:
             runtime.relay_task.cancel()
             await self._run_cleanup_step(
@@ -620,40 +763,16 @@ class DocsCollabHub:
         async with self._lock:
             runtimes = list(self._rooms.values())
             self._rooms.clear()
-
         for runtime in runtimes:
-            if runtime.flush_task is not None:
-                runtime.flush_task.cancel()
-                await self._run_cleanup_step(
-                    runtime,
-                    "flush task cancellation",
-                    asyncio.gather(runtime.flush_task, return_exceptions=True),
-                )
-            await self._run_cleanup_step(runtime, "flush", self._flush_runtime(runtime))
-            for client in list(runtime.room.clients):
-                await client.close(code=1001, reason="Server shutdown.")
-            if runtime.relay_task is not None:
-                runtime.relay_task.cancel()
-                await self._run_cleanup_step(
-                    runtime,
-                    "relay task cancellation",
-                    asyncio.gather(runtime.relay_task, return_exceptions=True),
-                )
-            if runtime.relay_pubsub is not None:
-                await self._run_cleanup_step(
-                    runtime,
-                    "relay pubsub close",
-                    self._bus.close_pubsub(runtime.relay_pubsub, runtime.room_key),
-                )
-            self._stop_room(runtime)
-            await self._run_cleanup_step(
-                runtime,
-                "room task stop",
-                asyncio.gather(runtime.room_task, return_exceptions=True),
-            )
-            self._release_room_state(runtime)
-
+            self._start_disposal(runtime, persist=True, close_code=1001)
+        # Includes rooms already retired by a frame, relay or background flush.
+        while self._disposals:
+            await asyncio.gather(*tuple(self._disposals))
         await self._bus.shutdown()
+
+    def require_writer(self) -> None:
+        with self._session_factory() as db:
+            require_active_writer(db, self.writer_identity)
 
     async def _run_cleanup_step(
         self,
@@ -715,12 +834,38 @@ class DocsCollabHub:
         runtime: CollabRoomRuntime,
         raw_payload: object,
     ) -> None:
+        if runtime.metadata.get("disposing"):
+            return
         if not isinstance(raw_payload, (bytes, bytearray)):
             return
         payload = json.loads(raw_payload.decode("utf-8"))
         if payload.get("instance_id") == self._instance_id:
             return
         if payload.get("room_key") != runtime.room_key:
+            return
+        # A peer cannot bless an old update by relaying it under a new owner.
+        if "writer" not in payload:
+            # The original relay had no identity tag. Its sole compatibility
+            # window is the initial, unattested legacy generation. Never infer
+            # a current generation for an old producer or accept explicit null.
+            if self.writer_identity != DOCS_WRITER_IDENTITY:
+                return
+        else:
+            wire_identity = payload["writer"]
+            if (
+                not isinstance(wire_identity, dict)
+                or type(wire_identity.get("generation")) is not int
+                or wire_identity != asdict(self.writer_identity)
+            ):
+                return
+        try:
+            await asyncio.to_thread(self.require_writer)
+        except HTTPException as exc:
+            if writer_close_choice(exc) is None:
+                raise
+            self.fence_runtime(runtime)
+            return
+        if runtime.metadata.get("disposing"):
             return
 
         encoded_data = payload.get("data")
@@ -743,16 +888,17 @@ class DocsCollabHub:
             for client in list(runtime.room.clients):
                 await client.send(data)
 
-    def _handle_room_message(self, room_key: str, message: bytes) -> bool:
+    def _handle_room_message(self, runtime: CollabRoomRuntime, message: bytes) -> bool:
+        if self._rooms.get(runtime.room_key) is not runtime:
+            return True
         if not message or not self._bus.available:
             return False
         if message[0] == YMessageType.AWARENESS:
-            asyncio.create_task(self._publish_awareness(room_key, message))
+            asyncio.create_task(self._publish_awareness(runtime, message))
         return False
 
-    def _handle_room_update(self, room_key: str, update: bytes) -> None:
-        runtime = self._rooms.get(room_key)
-        if runtime is None:
+    def _handle_room_update(self, runtime: CollabRoomRuntime, update: bytes) -> None:
+        if self._rooms.get(runtime.room_key) is not runtime:
             return
         update_hash = hash_bytes(update)
         should_publish = not runtime.consume_remote_update_hash(update_hash)
@@ -766,6 +912,8 @@ class DocsCollabHub:
         update: bytes,
         update_hash: str,
     ) -> None:
+        if runtime.metadata.get("disposing"):
+            return
         try:
             await self._bus.publish(
                 runtime.room_key,
@@ -773,6 +921,7 @@ class DocsCollabHub:
                     "instance_id": self._instance_id,
                     "room_key": runtime.room_key,
                     "type": "yjs_update",
+                    "writer": asdict(self.writer_identity),
                     "hash": update_hash,
                     "actor_user_id": runtime.last_editor_user_id,
                     "data": base64.b64encode(update).decode("ascii"),
@@ -781,7 +930,10 @@ class DocsCollabHub:
         except Exception as exc:
             await self._handle_relay_failure(exc)
 
-    async def _publish_awareness(self, room_key: str, message: bytes) -> None:
+    async def _publish_awareness(self, runtime: CollabRoomRuntime, message: bytes) -> None:
+        if runtime.metadata.get("disposing"):
+            return
+        room_key = runtime.room_key
         try:
             await self._bus.publish(
                 room_key,
@@ -789,6 +941,7 @@ class DocsCollabHub:
                     "instance_id": self._instance_id,
                     "room_key": room_key,
                     "type": "awareness",
+                    "writer": asdict(self.writer_identity),
                     "data": base64.b64encode(message).decode("ascii"),
                 },
             )
@@ -807,12 +960,14 @@ class DocsCollabHub:
         except asyncio.CancelledError:
             return
 
-    async def _flush_runtime(self, runtime: CollabRoomRuntime) -> None:
+    async def _flush_runtime(self, runtime: CollabRoomRuntime) -> bool:
         async with runtime.flush_lock:
+            if runtime.metadata.get("writer_fenced"):
+                return False
             yjs_state = bytes(Y.encode_state_as_update(runtime.room.ydoc))
             actor_user_id = runtime.last_editor_user_id or runtime.default_actor_user_id
-            try:
-                await asyncio.to_thread(
+            persistence = asyncio.create_task(
+                asyncio.to_thread(
                     _persist_docs_runtime_state_sync,
                     self._session_factory,
                     source_type=runtime.metadata["source_type"],
@@ -821,11 +976,39 @@ class DocsCollabHub:
                     fallback_actor_user_id=runtime.default_actor_user_id,
                     yjs_state=yjs_state,
                     actor_user_id=actor_user_id,
+                    writer_identity=self.writer_identity,
+                    timeout_seconds=self._settings.collab_cleanup_timeout_seconds,
                 )
+            )
+            cancelled = False
+            try:
+                while True:
+                    try:
+                        await asyncio.shield(persistence)
+                        break
+                    except asyncio.CancelledError:
+                        # Cancelling a debounce/cleanup task cannot stop SQL in
+                        # a thread. Repeated cancellation must not release the
+                        # flush lock before its transaction has finished.
+                        cancelled = True
+                        if persistence.cancelled():
+                            raise
             except Exception as exc:
-                logger.exception(
-                    "Failed to persist docs collaboration room %s: %s", runtime.room_key, exc
-                )
+                if _is_writer_unavailable(exc):
+                    self.fence_runtime(runtime)
+                elif _is_persistence_timeout(exc):
+                    logger.warning(
+                        "Docs collaboration persistence timed out: room_key=%s", runtime.room_key
+                    )
+                else:
+                    logger.exception(
+                        "Failed to persist docs collaboration room %s", runtime.room_key
+                    )
+                return False
+            finally:
+                if cancelled:
+                    raise asyncio.CancelledError
+            return True
 
     async def _handle_relay_failure(self, exc: Exception) -> None:
         if not self._bus.available:

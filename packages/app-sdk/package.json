@@ -1,0 +1,16 @@
+{
+  "name": "@miy/app-sdk",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Versioned browser handshake for independent MIY apps",
+  "exports": {
+    ".": "./src/index.mjs"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test src/index.test.mjs"
+  }
+}

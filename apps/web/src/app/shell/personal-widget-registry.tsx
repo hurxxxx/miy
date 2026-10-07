@@ -12,16 +12,16 @@ import {
   FloatingTodayPlannerWidget,
   plannerManifest,
   useFloatingTodayPlannerCount,
-} from '@/src/app-modules/planner';
+} from '@miy/official-suite-web/planner/module';
 import {
   FloatingPmsWidget,
   pmsManifest,
   useFloatingPmsAssignedSummary,
   type FloatingPmsWidgetOpenRequest,
-} from '@/src/app-modules/pms';
-import { useAppBootstrapContext } from '@/src/platform/apps/app-bootstrap-context';
-import { useAuth } from '@/src/platform/auth/auth-provider';
-import { CALENDAR_EVENTS_CHANGED_EVENT } from '@/src/platform/calendar/calendar-events-changed';
+} from '@miy/official-suite-web/pms/module';
+import { useAppBootstrapContext } from '@miy/platform-web/apps';
+import { useAuth } from '@miy/platform-web/auth-context';
+import { CALENDAR_EVENTS_CHANGED_EVENT } from '@miy/official-suite-web/calendar/calendar-events-changed';
 import {
   PersonalWidgetHost,
   type PersonalWidgetSecondaryPanelAdapter,
@@ -32,9 +32,9 @@ import {
   FLOATING_PMS_OPEN_EVENT,
   type FloatingDmOpenEventDetail,
   type FloatingPmsOpenEventDetail,
-} from '@/src/platform/personal-widgets/floating-panel-events';
+} from '@miy/platform-web/personal-widgets/floating-panel-events';
 import type { PersonalTodoItem } from '@/src/platform/personal-widgets/personal-widgets-api';
-import { normalizeTimeZone } from '@/src/platform/time/time-utils';
+import { normalizeTimeZone } from '@miy/platform-web/time/time-utils';
 import { resolvePersonalWidgetDockPanels } from './personal-widget-registry-model';
 
 export function ShellPersonalWidgetHost() {

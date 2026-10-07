@@ -68,6 +68,16 @@ COMPATIBILITY_SCHEMA_NAMES = (
     "McpServerElicitationRequestResponse",
 )
 _STABLE_VERSION = re.compile(r"codex-cli (0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
+REMOTE_SCHEMA_NAMES = (
+    "EnvironmentAddParams",
+    "EnvironmentAddResponse",
+    "EnvironmentInfoParams",
+    "EnvironmentInfoResponse",
+    "EnvironmentStatusParams",
+    "EnvironmentStatusResponse",
+    "DynamicToolCallParams",
+    "DynamicToolCallResponse",
+)
 
 
 def supports_contract_version(output: str, minimum: str) -> bool:
@@ -127,6 +137,23 @@ def render_contract(version: str, source: Path) -> str:
 def schemas_are_compatible(contract: dict, source: Path) -> bool:
     try:
         current = build_contract(contract["codexVersion"], source)
+    except (json.JSONDecodeError, KeyError, OSError, StopIteration, TypeError):
+        return False
+    return current["compatibilityHashes"] == contract.get("compatibilityHashes")
+
+
+def build_remote_contract(version: str, source: Path) -> dict:
+    schemas = {name: _read_schema(source, name) for name in REMOTE_SCHEMA_NAMES}
+    return {
+        "codexVersion": version,
+        "compatibilityHashes": {name: _fingerprint(schema) for name, schema in schemas.items()},
+        "schemas": schemas,
+    }
+
+
+def remote_schemas_are_compatible(contract: dict, source: Path) -> bool:
+    try:
+        current = build_remote_contract(contract["codexVersion"], source)
     except (json.JSONDecodeError, KeyError, OSError, StopIteration, TypeError):
         return False
     return current["compatibilityHashes"] == contract.get("compatibilityHashes")

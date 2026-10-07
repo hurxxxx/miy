@@ -385,12 +385,14 @@ class FastAPIYjsWebsocket:
         user_id: str,
         *,
         authorize: Callable[[], Awaitable[bool | None]],
+        authorization_error_close: Callable[[HTTPException], tuple[int, str] | None] | None = None,
     ):
         self._websocket = websocket
         self._path = path
         self._room_runtime: CollabRoomRuntime | None = room_runtime
         self._user_id = user_id
         self._authorize = authorize
+        self._authorization_error_close = authorization_error_close
         self._send_lock = asyncio.Lock()
         self._closed = False
 
@@ -417,9 +419,10 @@ class FastAPIYjsWebsocket:
         payload = message.get("bytes")
         if payload is None:
             raise RuntimeError("Unexpected non-binary WebSocket frame.")
-        if not await self._authorize_frame():
-            await self.close(code=1008, reason="access_revoked")
-            raise WebSocketDisconnect(code=1008)
+        denial = await self._authorize_frame()
+        if denial is not None:
+            await self.close(code=denial[0], reason=denial[1])
+            raise WebSocketDisconnect(code=denial[0])
         if payload and payload[0] == YMessageType.SYNC and self._room_runtime is not None:
             self._room_runtime.last_editor_user_id = self._user_id
         return payload
@@ -439,8 +442,8 @@ class FastAPIYjsWebsocket:
             if not self._is_connected():
                 self._mark_closed()
                 return
-            allowed = await self._authorize_frame()
-            if allowed:
+            denial = await self._authorize_frame()
+            if denial is None:
                 try:
                     await self._websocket.send_bytes(message)
                 except (
@@ -453,16 +456,22 @@ class FastAPIYjsWebsocket:
                         self._mark_closed()
                         return
                     raise
-        if not allowed:
+        if denial is not None:
             # close() owns the same send lock. Do not reenter it or fail the
             # YRoom broadcast task group for other, still-authorized clients.
-            await self.close(code=1008, reason="access_revoked")
+            await self.close(code=denial[0], reason=denial[1])
 
-    async def _authorize_frame(self) -> bool:
+    async def _authorize_frame(self) -> tuple[int, str] | None:
+        # The optional callback chooses a close frame only; it must not close or
+        # await anything (send calls authorization while holding its send lock).
         try:
-            return await self._authorize() is not False
-        except HTTPException:
-            return False
+            return (1008, "access_revoked") if await self._authorize() is False else None
+        except HTTPException as exc:
+            if self._authorization_error_close is not None:
+                choice = self._authorization_error_close(exc)
+                if choice is not None:
+                    return choice
+            return (1008, "access_revoked")
 
     async def close(self, code: int = 1000, reason: str | None = None) -> None:
         if self._closed:

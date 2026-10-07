@@ -1,12 +1,94 @@
 """Bounded projections of native 0.158 thread trees. No agent orchestration."""
 
 import json
+from datetime import datetime
 
 from sqlalchemy import select, update
 
 from .models import Agent, PendingRequest, Task, now
 
 TERMINAL = ("completed", "interrupted", "errored", "shutdown")
+THREAD_STATES = ("notLoaded", "idle", "active", "systemError")
+TURN_STATES = ("inProgress", "completed", "interrupted", "failed")
+
+
+def observation_base(row, generation):
+    value = dict(row.observation or {})
+    if value.get("generation") != generation:
+        # Retain historical evidence, but never transfer a live connection claim.
+        if value.get("thread_checked_at"):
+            value["error_code"] = "unavailable"
+        value["generation"] = generation
+    return value
+
+
+def valid_turn(turn):
+    return (
+        isinstance(turn, dict)
+        and isinstance(turn.get("id"), str)
+        and 0 < len(turn["id"]) <= 160
+        and turn.get("status") in TURN_STATES
+    )
+
+
+def observe_turn(row, turn, generation):
+    if not valid_turn(turn):
+        return
+    value = observation_base(row, generation)
+    value["last_turn"] = {
+        "id": turn["id"],
+        "status": turn["status"],
+        "observed_at": now().isoformat(),
+    }
+    row.observation = value
+
+
+def observe_status(row, status, generation, *, direct=False):
+    if not isinstance(status, dict) or status.get("type") not in THREAD_STATES:
+        return False
+    value = observation_base(row, generation)
+    value.update(thread_status=status["type"], thread_checked_at=now().isoformat())
+    if direct:
+        value.update(attempted_at=value["thread_checked_at"], error_code=None)
+    row.observation = value
+    return True
+
+
+def observe_thread(row, thread, generation):
+    if not observe_status(row, thread.get("status"), generation, direct=True):
+        return False
+    for turn in thread.get("turns", [])[-1:]:
+        observe_turn(row, turn, generation)
+    return True
+
+
+def observation_failed(row, generation, code="read_failed"):
+    value = observation_base(row, generation)
+    value.update(attempted_at=now().isoformat(), error_code=code)
+    row.observation = value
+
+
+def invalidate_observation(row, generation=None):
+    if row.observation and (generation is None or row.observation.get("generation") == generation):
+        row.observation = {**row.observation, "error_code": "unavailable"}
+
+
+def observation_out(row):
+    value = row.observation
+    if not value:
+        return None
+    result = {
+        key: value.get(key)
+        for key in ("thread_status", "thread_checked_at", "last_turn", "attempted_at", "error_code")
+    }
+    if value.get("error_code"):
+        freshness = "unavailable"
+    elif value.get("thread_checked_at"):
+        checked = datetime.fromisoformat(value["thread_checked_at"])
+        freshness = "fresh" if 0 <= (now() - checked).total_seconds() <= 30 else "stale"
+    else:
+        freshness = "unknown"
+    return {**result, "freshness": freshness}
 
 
 def busy_descendants(db, task_id):
@@ -89,7 +171,7 @@ def state(row, value):
         ]
 
 
-def project(db, task, thread_id, method, params):
+def project(db, task, thread_id, method, params, *, generation=None):
     from . import store
 
     row = db.get(Agent, thread_id)
@@ -108,6 +190,8 @@ def project(db, task, thread_id, method, params):
     turn_id = params.get("turnId") or params.get("turn", {}).get("id")
     if method == "thread/status/changed":
         state(row, params.get("status", {}))
+        if generation:
+            observe_status(row, params.get("status"), generation)
     elif method == "serverRequest/resolved":
         db.execute(
             update(PendingRequest)
@@ -121,6 +205,8 @@ def project(db, task, thread_id, method, params):
         row.flags = []
     elif method == "turn/started":
         row.turn_id, row.status, row.flags = turn_id, "active", []
+        if generation:
+            observe_turn(row, {"id": turn_id, "status": "inProgress"}, generation)
     elif turn_id and row.turn_id and turn_id != row.turn_id:
         return
     elif method == "turn/completed":
@@ -128,6 +214,8 @@ def project(db, task, thread_id, method, params):
         if result not in ("completed", "interrupted", "failed"):
             return
         row.status = "errored" if result == "failed" else result
+        if generation:
+            observe_turn(row, params["turn"], generation)
         row.flags = []
         store.invalidate_pending(db, task.id, thread_id=thread_id)
     elif method == "turn/plan/updated":

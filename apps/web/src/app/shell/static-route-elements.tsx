@@ -2,8 +2,6 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Route } from 'react-router-dom';
 
-import { pmsHelpGuideRegistration } from '@/src/app-modules/pms';
-
 import {
   getDefaultAdminPath as getPlatformDefaultAdminPath,
   hasConfiguredAdminSectionAccess,
@@ -19,7 +17,8 @@ import { AdminGate } from './gates';
 import {
   HelpAiGuidePage,
   HelpCenterPage,
-  HelpPmsGuidePage,
+  HelpGuidePage,
+  type HelpGuide,
 } from './HelpCenterPage';
 import type { StaticRouteDefinition } from './navigation-types';
 import { AdminLandingRedirect } from './redirects';
@@ -80,13 +79,14 @@ export function resolveGlobalAppGateState({
 
 export function createDefaultHelpRoutes(
   featureGuideToolIds: FeatureGuideToolIds,
+  guides: readonly HelpGuide[] = [],
 ): readonly ShellStaticRouteDefinition[] {
   return [
-    { path: '/help', element: <HelpCenterPage /> },
-    {
-      path: pmsHelpGuideRegistration.routePath,
-      element: <HelpPmsGuidePage />,
-    },
+    { path: '/help', element: <HelpCenterPage guides={guides} /> },
+    ...guides.map((guide) => ({
+      path: guide.routePath,
+      element: <HelpGuidePage guide={guide} />,
+    })),
     {
       path: '/help/ai/:feature',
       element: <HelpAiGuidePage featureGuideToolIds={featureGuideToolIds} />,
@@ -143,6 +143,7 @@ export function StaticRouteElements({
   featureGuideToolIds = EMPTY_FEATURE_GUIDE_TOOL_IDS,
   getDefaultAdminPath = getPlatformDefaultAdminPath,
   hasAdminSectionAccess = hasConfiguredAdminSectionAccess,
+  helpGuides = [],
   helpRoutes,
   enabledAppIds,
 }: {
@@ -155,11 +156,12 @@ export function StaticRouteElements({
   featureGuideToolIds?: FeatureGuideToolIds;
   getDefaultAdminPath?: DefaultAdminPathResolver;
   hasAdminSectionAccess?: AdminSectionAccessResolver;
+  helpGuides?: readonly HelpGuide[];
   helpRoutes?: readonly ShellStaticRouteDefinition[];
   enabledAppIds: readonly string[] | null;
 }) {
   const resolvedHelpRoutes =
-    helpRoutes ?? createDefaultHelpRoutes(featureGuideToolIds);
+    helpRoutes ?? createDefaultHelpRoutes(featureGuideToolIds, helpGuides);
 
   return (
     <>

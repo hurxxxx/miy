@@ -19,13 +19,14 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from miy_api.core.db import Base
+from miy_api.domains.official_apps.writer_contracts import OfficialWriterSource
 
 
 def utcnow_naive() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
-class NativeDoc(Base):
+class NativeDoc(OfficialWriterSource, Base):
     __tablename__ = "docs_native_docs"
     __table_args__ = (
         CheckConstraint("ownership_kind IN ('personal', 'company')", name="ck_docs_ownership"),
@@ -112,7 +113,7 @@ class NativeDoc(Base):
     )
 
 
-class DocsCollection(Base):
+class DocsCollection(OfficialWriterSource, Base):
     __tablename__ = "docs_collections"
     __table_args__ = (
         CheckConstraint("scope IN ('company', 'private')", name="ck_docs_collections_scope"),
@@ -140,7 +141,7 @@ class DocsCollection(Base):
     docs: Mapped[list[NativeDoc]] = relationship(back_populates="collection")
 
 
-class NativeDocTarget(Base):
+class NativeDocTarget(OfficialWriterSource, Base):
     __tablename__ = "docs_doc_targets"
     __table_args__ = (
         Index(
@@ -182,7 +183,7 @@ class NativeDocTarget(Base):
     doc: Mapped[NativeDoc] = relationship(back_populates="targets")
 
 
-class NativeDocPage(Base):
+class NativeDocPage(OfficialWriterSource, Base):
     __tablename__ = "docs_native_doc_pages"
     __table_args__ = (
         CheckConstraint(
@@ -230,7 +231,7 @@ class NativeDocPage(Base):
     )
 
 
-class NativeDocUserShare(Base):
+class NativeDocUserShare(OfficialWriterSource, Base):
     __tablename__ = "docs_native_doc_user_shares"
     __table_args__ = (UniqueConstraint("doc_id", "user_id", name="uq_docs_native_doc_user_share"),)
 
@@ -249,7 +250,7 @@ class NativeDocUserShare(Base):
     created_by = relationship("User", foreign_keys=[created_by_id])
 
 
-class NativeDocLinkShare(Base):
+class NativeDocLinkShare(OfficialWriterSource, Base):
     __tablename__ = "docs_native_doc_link_shares"
     __table_args__ = (UniqueConstraint("doc_id", name="uq_docs_native_doc_link_share_doc"),)
 
@@ -274,7 +275,7 @@ class NativeDocLinkShare(Base):
     created_by = relationship("User")
 
 
-class DocMeetingAccess(Base):
+class DocMeetingAccess(OfficialWriterSource, Base):
     __tablename__ = "docs_meeting_access"
     __table_args__ = (
         Index("ix_docs_meeting_access_user_revoked", "user_id", "revoked_at"),
@@ -335,7 +336,7 @@ class DocMeetingAccess(Base):
     revoked_by_user = relationship("User", foreign_keys=[revoked_by_user_id])
 
 
-class DocsUserItemPref(Base):
+class DocsUserItemPref(OfficialWriterSource, Base):
     __tablename__ = "docs_user_item_prefs"
     __table_args__ = (
         UniqueConstraint("user_id", "source_type", "source_doc_id", name="uq_docs_user_item_pref"),
@@ -352,7 +353,7 @@ class DocsUserItemPref(Base):
     user = relationship("User")
 
 
-class DocsCollabDocument(Base):
+class DocsCollabDocument(OfficialWriterSource, Base):
     __tablename__ = "docs_collab_documents"
     __table_args__ = (
         UniqueConstraint("room_key", name="uq_docs_collab_documents_room_key"),
@@ -388,7 +389,7 @@ class DocsCollabDocument(Base):
     )
 
 
-class NativeDocGroupShare(Base):
+class NativeDocGroupShare(OfficialWriterSource, Base):
     __tablename__ = "docs_group_shares"
     __table_args__ = (
         CheckConstraint("access_level IN ('read', 'edit')", name="ck_docs_group_share_access"),

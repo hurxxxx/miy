@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "env -u NODE_ENV vitest run",
-    "e2e": "playwright test"
+    "e2e": "playwright test && playwright test --config registration.playwright.config.ts",
+    "e2e:registration": "playwright test --config registration.playwright.config.ts"
   }
 }

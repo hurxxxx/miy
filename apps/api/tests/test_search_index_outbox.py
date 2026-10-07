@@ -78,6 +78,27 @@ def _projection_session() -> Session:
     return session
 
 
+def _fence_docs_job(session: Session, job: SearchIndexJob) -> None:
+    """Ordinary indexing tests use actual persisted events, not legacy repair."""
+    updated_at = job.updated_at
+    event = record_projection_event(
+        session,
+        resource_type="docs_native_doc",
+        resource_id=job.entity_id,
+        retrieval_partition_id=_PROJECTION_PARTITION_ID,
+        change_kind="delete" if job.operation == "delete" else "content",
+        desired_state="deleted" if job.operation == "delete" else "active",
+    )
+    job.resource_type = event.resource_type
+    job.retrieval_partition_id = event.retrieval_partition_id
+    job.projection_event_sequence = event.event_sequence
+    job.projection_version = event.projection_version
+    job.desired_state = event.desired_state
+    session.flush()
+    job.updated_at = updated_at
+    session.commit()
+
+
 def _stub_celery(monkeypatch, published: list[tuple[str, list[str], str]]) -> None:
     class _FakeSignature:
         def __init__(self, task_name: str, args: list[str]) -> None:
@@ -104,7 +125,7 @@ def _reset_search_registries() -> None:
 
 @pytest.mark.parametrize("operation", ["upsert", "delete"])
 def test_search_index_rechecks_app_after_loading_before_backend_mutation(monkeypatch, operation):
-    session = _session()
+    session = _projection_session()
     enabled = True
     writes = []
     published = []
@@ -139,6 +160,7 @@ def test_search_index_rechecks_app_after_loading_before_backend_mutation(monkeyp
             session, entity_type="doc", entity_id="revoked-doc", operation=operation
         )
         session.commit()
+        _fence_docs_job(session, job)
         result = process_search_index_job(
             session, job.id, client_factory=client_factory, execution_allowed=lambda *args: enabled
         )
@@ -518,13 +540,14 @@ def test_docs_hook_forwards_optional_projection_event(monkeypatch) -> None:
         lambda db, **kwargs: captured.append(kwargs),
     )
 
-    docs_search_hooks.enqueue_doc_search_index(
-        object(),
-        doc=SimpleNamespace(
-            id="doc-hook",
-        ),
-        projection_event=projection_event,
-    )
+    with Session() as session:
+        docs_search_hooks.enqueue_doc_search_index(
+            session,
+            doc=SimpleNamespace(
+                id="doc-hook",
+            ),
+            projection_event=projection_event,
+        )
 
     assert captured == [
         {
@@ -536,35 +559,27 @@ def test_docs_hook_forwards_optional_projection_event(monkeypatch) -> None:
     ]
 
 
-def test_meeting_search_only_hook_records_event_from_source_binding(monkeypatch) -> None:
-    published: list[tuple[str, list[str], str]] = []
+def test_meeting_source_producer_requires_postgresql_transaction(monkeypatch) -> None:
+    from miy_api.domains.official_apps.projection_contracts import ProjectionOutboxError
+
+    published = []
     _stub_celery(monkeypatch, published)
     session = _projection_session()
     try:
-        with session.begin():
+        with session.begin(), pytest.raises(ProjectionOutboxError, match="requires_read_committed"):
             meeting_search_hooks.enqueue_meeting_search_index(
                 session,
                 meeting=SimpleNamespace(
-                    id="meeting-hook",
-                    retrieval_partition_id=_PROJECTION_PARTITION_ID,
+                    id="meeting-hook", retrieval_partition_id=_PROJECTION_PARTITION_ID
                 ),
             )
-
-        job = session.scalar(
-            select(SearchIndexJob).where(SearchIndexJob.entity_id == "meeting-hook")
-        )
-        event = session.scalar(
-            select(RetrievalProjectionEvent).where(
-                RetrievalProjectionEvent.resource_id == "meeting-hook"
-            )
-        )
-        assert job is not None
-        assert event is not None
-        assert job.resource_type == "meeting"
-        assert job.projection_event_sequence == event.event_sequence
-        assert job.projection_version == event.projection_version == 1
+        assert session.scalar(select(SearchIndexJob)) is None
+        assert session.scalar(select(RetrievalProjectionEvent)) is None
+        assert published == []
     finally:
         session.close()
+    # The four-hook PostgreSQL integration verifies the positive path with
+    # actual source rows, append-only intent and Core receipt in one transaction.
 
 
 def test_enqueue_search_index_job_accepts_extension_resource_keys(monkeypatch) -> None:
@@ -712,7 +727,7 @@ def test_enqueue_search_index_job_keeps_publish_after_nested_rollback(monkeypatc
 
 
 def test_process_search_index_job_upserts_loaded_projection(monkeypatch) -> None:
-    session = _session()
+    session = _projection_session()
     calls: list[tuple[str, object]] = []
     published: list[tuple[str, list[str], str]] = []
     _stub_celery(monkeypatch, published)
@@ -745,6 +760,7 @@ def test_process_search_index_job_upserts_loaded_projection(monkeypatch) -> None
                 trace_context={},
             )
 
+        _fence_docs_job(session, job)
         result = process_search_index_job(session, job.id, client=_FakeClient())
         stored = session.get(SearchIndexJob, job.id)
         assert result == "upserted"
@@ -768,7 +784,7 @@ def test_process_search_index_job_upserts_loaded_projection(monkeypatch) -> None
 def test_process_search_index_job_rechecks_policy_after_claim_before_client_resolution(
     monkeypatch,
 ) -> None:
-    session = _session()
+    session = _projection_session()
     published: list[tuple[str, list[str], str]] = []
     _stub_celery(monkeypatch, published)
     try:
@@ -781,6 +797,7 @@ def test_process_search_index_job_rechecks_policy_after_claim_before_client_reso
                 trace_context={},
             )
 
+        _fence_docs_job(session, job)
         result = process_search_index_job(
             session,
             job.id,
@@ -1095,7 +1112,7 @@ def test_partitioned_keyword_generation_rejects_mismatched_files_identity(
 
 
 def test_process_search_index_job_rejects_mismatched_projection_identity(monkeypatch) -> None:
-    session = _session()
+    session = _projection_session()
     published: list[tuple[str, list[str], str]] = []
     _stub_celery(monkeypatch, published)
 
@@ -1128,6 +1145,7 @@ def test_process_search_index_job_rejects_mismatched_projection_identity(monkeyp
                 trace_context={},
             )
 
+        _fence_docs_job(session, job)
         with pytest.raises(search_indexing.SearchProjectionIdentityError):
             process_search_index_job(session, job.id, client=_FakeClient())
 
@@ -1179,7 +1197,7 @@ def test_process_search_index_job_deletes_when_projection_missing(monkeypatch) -
 def test_process_search_index_job_respects_delete_operation_when_projection_exists(
     monkeypatch,
 ) -> None:
-    session = _session()
+    session = _projection_session()
     calls: list[tuple[str, object]] = []
     published: list[tuple[str, list[str], str]] = []
     _stub_celery(monkeypatch, published)
@@ -1211,6 +1229,7 @@ def test_process_search_index_job_respects_delete_operation_when_projection_exis
                 trace_context={},
             )
 
+        _fence_docs_job(session, job)
         result = process_search_index_job(session, job.id, client=_FakeClient())
         stored = session.get(SearchIndexJob, job.id)
         assert result == "deleted"
@@ -1260,7 +1279,7 @@ def test_process_search_index_job_fails_unregistered_upsert_entity_type() -> Non
 
 
 def test_process_search_index_job_ignores_fresh_processing_delivery() -> None:
-    session = _session()
+    session = _projection_session()
     calls: list[str] = []
 
     class _FakeClient:
@@ -1287,6 +1306,7 @@ def test_process_search_index_job_ignores_fresh_processing_delivery() -> None:
                 )
             )
 
+        _fence_docs_job(session, session.get(SearchIndexJob, "job-processing-fresh"))
         result = process_search_index_job(
             session,
             "job-processing-fresh",
@@ -1304,7 +1324,7 @@ def test_process_search_index_job_ignores_fresh_processing_delivery() -> None:
 
 
 def test_process_search_index_job_reclaims_stale_processing_delivery() -> None:
-    session = _session()
+    session = _projection_session()
     calls: list[tuple[str, object]] = []
 
     class _FakeClient:
@@ -1329,6 +1349,7 @@ def test_process_search_index_job_reclaims_stale_processing_delivery() -> None:
                 )
             )
 
+        _fence_docs_job(session, session.get(SearchIndexJob, "job-processing-stale"))
         result = process_search_index_job(
             session,
             "job-processing-stale",

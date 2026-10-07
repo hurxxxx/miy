@@ -106,7 +106,23 @@ def test_observer_writer_errors_preserve_data_and_only_busy_refreshes(
     async def run():
         first = asyncio.Event()
         refreshed = asyncio.Event()
+        poll_waiting = asyncio.Event()
+        allow_poll = asyncio.Event()
+        intervals = []
         loop = asyncio.get_running_loop()
+
+        class ObserverAsyncio:
+            def __getattr__(self, name):
+                return getattr(asyncio, name)
+
+            async def sleep(self, delay):
+                # Control only this observer's cadence, not global asyncio or
+                # its real worker-thread SQLite transaction.
+                intervals.append(delay)
+                assert delay == 10
+                poll_waiting.set()
+                await allow_poll.wait()
+                allow_poll.clear()
 
         def save(*args):
             nonlocal calls
@@ -120,19 +136,34 @@ def test_observer_writer_errors_preserve_data_and_only_busy_refreshes(
             loop.call_soon_threadsafe(refreshed.set)
 
         monkeypatch.setattr(module, "_save_observation", save)
+        monkeypatch.setattr(module, "asyncio", ObserverAsyncio())
         observer = asyncio.create_task(module.observe(settings, factory))
         ready = asyncio.create_task(refreshed.wait())
+        polling = asyncio.create_task(poll_waiting.wait())
         try:
             await asyncio.wait_for(first.wait(), 3)
-            with factory() as db:
-                assert db.get(model, key).checked_at == previous
             if error_code != sqlite3.SQLITE_BUSY:
                 with pytest.raises(OperationalError):
-                    await observer
+                    await asyncio.wait_for(observer, 3)
                 assert calls == 1
+                assert intervals == []
+                with factory() as db:
+                    assert db.get(model, key).checked_at == previous
                 return
             done, _ = await asyncio.wait(
-                (observer, ready), timeout=12, return_when=asyncio.FIRST_COMPLETED
+                (observer, polling), timeout=3, return_when=asyncio.FIRST_COMPLETED
+            )
+            if observer in done:
+                await observer
+            assert polling in done
+            assert intervals == [10]
+            assert calls == 1
+            assert not refreshed.is_set()
+            with factory() as db:
+                assert db.get(model, key).checked_at == previous
+            allow_poll.set()
+            done, _ = await asyncio.wait(
+                (observer, ready), timeout=3, return_when=asyncio.FIRST_COMPLETED
             )
             if observer in done:
                 await observer
@@ -143,7 +174,8 @@ def test_observer_writer_errors_preserve_data_and_only_busy_refreshes(
         finally:
             observer.cancel()
             ready.cancel()
-            await asyncio.gather(observer, ready, return_exceptions=True)
+            polling.cancel()
+            await asyncio.gather(observer, ready, polling, return_exceptions=True)
 
     try:
         asyncio.run(run())

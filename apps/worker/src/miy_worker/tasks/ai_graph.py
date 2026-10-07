@@ -3,12 +3,15 @@ from __future__ import annotations
 from miy_api.domains.ai_graph.execution_registry import execute_registered_ai_graph
 from miy_api.domains.ai_graph.publication import publish_pending_graph_dispatches
 
-from miy_worker.celery_app import celery_app
+from miy_worker.task_binding import task_app
+
 from miy_worker.queue_contract import (
     AI_GRAPH_REPUBLISH_TASK_NAME,
     AI_GRAPH_RUN_TASK_NAME,
 )
 from miy_worker.runtime import db_session as _db_session
+
+celery_app = task_app(__name__)
 
 _RETRYABLE_EXECUTION_RESULTS = frozenset({"active_lease", "already_running", "lease_lost"})
 

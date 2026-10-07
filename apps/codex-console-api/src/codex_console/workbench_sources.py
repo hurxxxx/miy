@@ -14,7 +14,15 @@ from sqlalchemy.exc import OperationalError
 from . import git
 from .errors import ConsoleError
 from .models import WorkbenchObservation, now
-from .workbench_schemas import GitLabItem, GitLabOut, RuntimeCatalog, RuntimeOut, RuntimeUsage
+from .workbench_schemas import (
+    GitLabItem,
+    GitLabOut,
+    InstallationCatalog,
+    InstallationsOut,
+    RuntimeCatalog,
+    RuntimeOut,
+    RuntimeUsage,
+)
 
 MAX_BYTES = 1024 * 1024
 TTL = 15
@@ -70,15 +78,13 @@ async def runtime_catalog(settings, factory, *, fresh=False):
         return RuntimeOut(state="unconfigured")
     stored = None if fresh else cached(factory, key)
     if not stored or stored.get("origin") != settings.miy_api_origin:
-        state, data = await miy_get(settings, "?page_size=200")
         try:
-            parsed = RuntimeCatalog.model_validate(data) if state == "ready" else None
-            if parsed and (
-                parsed.total != len(parsed.items)
-                or len({a.app_id for a in parsed.items}) != len(parsed.items)
-            ):
-                raise ValueError("Incomplete catalog")
-            normalized = parsed.model_dump(mode="json") if parsed else None
+            # Each response is bounded; aggregate retrieval has a deadline and byte
+            # budget rather than silently treating the first page as the catalog.
+            async with asyncio.timeout(30):
+                state, normalized = await complete_catalog(settings)
+        except TimeoutError:
+            state, normalized = "unavailable", None
         except (ValueError, ValidationError):
             state, normalized = "unsupported", None
         stored = await save_scoped(factory, key, settings.miy_api_origin, state, normalized)
@@ -87,6 +93,89 @@ async def runtime_catalog(settings, factory, *, fresh=False):
         checked_at=stored.get("checked_at"),
         stale=stored["state"] != "ready",
         items=(stored.get("data") or {}).get("items", []),
+        catalog_revision=(stored.get("data") or {}).get("catalog_revision"),
+        registration_status_version=(stored.get("data") or {}).get("registration_status_version"),
+    )
+
+
+async def complete_catalog(settings):
+    return await complete_pages(settings, "", RuntimeCatalog)
+
+
+async def complete_pages(settings, suffix, schema, *, app_id=None):
+    items, seen = [], set()
+    first = None
+    page = 1
+    size = 0
+    while True:
+        state, data = await miy_get(settings, f"{suffix}?page={page}&page_size=200")
+        if state != "ready":
+            return state, None
+        size += len(json.dumps(data).encode())
+        if size > 16 * MAX_BYTES:
+            return "unavailable", None
+        parsed = schema.model_validate(data)
+        if first is None:
+            first = parsed
+        if (
+            (app_id is not None and parsed.app_id != app_id)
+            or parsed.page != page
+            or parsed.page_size != 200
+            or parsed.total != first.total
+            or parsed.catalog_revision != first.catalog_revision
+            or getattr(parsed, "registration_status_version", None)
+            != getattr(first, "registration_status_version", None)
+            or (parsed.total > parsed.page_size and not parsed.catalog_revision)
+            or len(parsed.items) != min(200, max(0, parsed.total - len(items)))
+        ):
+            raise ValueError("Incomplete or changed catalog")
+        for item in parsed.items:
+            identity = item.id if app_id is not None else item.app_id
+            if identity in seen:
+                raise ValueError("Duplicate catalog app")
+            seen.add(identity)
+            items.append(item.model_dump(mode="json"))
+        if len(items) == parsed.total:
+            normalized = {"items": items, "catalog_revision": parsed.catalog_revision}
+            if isinstance(first, RuntimeCatalog):
+                normalized["registration_status_version"] = first.registration_status_version
+            return "ready", normalized
+        page += 1
+
+
+async def runtime_installations(settings, factory, app_id):
+    if not settings.miy_api_origin:
+        return InstallationsOut(state="unconfigured")
+    key = "installations:" + app_id
+    stored = cached(factory, key)
+    if not stored or stored.get("origin") != settings.miy_api_origin:
+        try:
+            async with asyncio.timeout(30):
+                state, normalized = await complete_pages(
+                    settings,
+                    "/" + quote(app_id, safe="") + "/installations",
+                    InstallationCatalog,
+                    app_id=app_id,
+                )
+        except TimeoutError:
+            state, normalized = "unavailable", None
+        except (ValueError, ValidationError):
+            state, normalized = "unsupported", None
+        stored = await save_scoped(factory, key, settings.miy_api_origin, state, normalized)
+    return InstallationsOut(
+        state=stored["state"],
+        checked_at=stored.get("checked_at"),
+        stale=stored["state"] != "ready",
+        items=[
+            {
+                **item,
+                "delivery_configured": any(
+                    grant.app_id == app_id and str(grant.installation_id) == str(item["id"])
+                    for grant in settings.app_delivery_grants
+                ),
+            }
+            for item in (stored.get("data") or {}).get("items", [])
+        ],
     )
 
 

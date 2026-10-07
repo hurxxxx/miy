@@ -39,6 +39,14 @@
     "./app-access": {
       "types": "./dist/app-access.d.ts",
       "import": "./dist/app-access.js"
+    },
+    "./navigation-types": {
+      "types": "./dist/navigation-types.d.ts",
+      "import": "./dist/navigation-types.js"
+    },
+    "./help-guide": {
+      "types": "./dist/help-guide.d.ts",
+      "import": "./dist/help-guide.js"
     }
   },
   "scripts": {

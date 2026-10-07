@@ -155,6 +155,7 @@ def test_file_projection_survives_default_text_modality_filter(qdrant_client) ->
         content_type=("application/vnd.openxmlformats-officedocument.presentationml.presentation"),
         size_bytes=128,
         visibility="private",
+        extracted_at=datetime(2026, 10, 7, tzinfo=UTC),
     )
     text = "히터 시스템의 정상 작동 전압 범위는 9V에서 16V입니다."
     projection = build_file_rag_projection(

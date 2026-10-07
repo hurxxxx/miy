@@ -1,22 +1,12 @@
 ---
 name: miy-release
-description: Use when explicitly preparing or validating dev-to-main promotion. Covers release evidence and the protected branch contract; does not include updating prod or deploying.
+description: MIY dev-to-main release promotion evidence and protected branch contract. Excludes production checkout updates and deployment.
 ---
 
 # Release Promotion
 
-- Authorization lives in root `AGENTS.md`; never trigger this workflow automatically.
-- Inspecting, creating an MR, merging, updating the production checkout, and deploying are separate actions and must each be in scope.
-- Never push directly to protected `main`.
-- Before creating or merging `dev -> main`, verify remote `dev` exists and is protected. Never request or allow source-branch removal for this release MR.
-- Evidence binds to latest source SHA or equivalent merge result.
-- Default to full release validation. For an explicit simplified/urgent/fast request, use the [release owner's opt-in procedure](../../../docs/domains/release/README.md#impact-based-release-validation); inspect the complete release diff, record selected/skipped checks, and let the selector fall back to full for higher impact. Do not parse prompt keywords or edit CI to bypass a failing check.
-- Application rollout uses the guarded `pnpm app:prod:deploy` entrypoint from the production checkout, but promotion and deployment remain separately authorized actions.
+The [release owner](../../../docs/domains/release/README.md) defines required evidence and rollout compatibility. Root authorization applies separately to MR creation, merge, source update, and deployment.
 
-```bash
-git rev-parse HEAD
-glab mr view <id-or-branch> --output json
-glab ci list -r main
-```
+Protect remote `dev` and `main`; never remove `dev` as a release MR source. Evidence must match the latest source SHA or equivalent merge result. Verify mergeability, required checks, env/migration compatibility, image evidence, and rollback compatibility.
 
-Required: affected checks, mergeability, configured GitLab checks, env/migration/data compatibility, image build evidence, rollback compatibility, and known limitations. Fast validation changes test selection only; production rollout gates remain intact. After an explicitly authorized production-checkout update, hand deployment to the production-operations workflow.
+Full validation is the default. An explicit simplified/urgent/fast request may select the owner's [impact-based validation](../../../docs/domains/release/README.md#impact-based-release-validation); unsupported scope falls back to full checks. Failed checks and production rollout gates remain binding.

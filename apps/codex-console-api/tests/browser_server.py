@@ -1,6 +1,7 @@
 """Browser-test entrypoint. No fake runtime or password is installed in the application."""
 
 import asyncio
+import json
 import os
 import re
 import subprocess
@@ -15,7 +16,7 @@ from codex_console import instructions
 from codex_console.app import create_app
 from codex_console.auth import password_hash
 from codex_console.cli import migrate
-from codex_console.config import Settings
+from codex_console.config import AppExecutionEnvironment, Settings
 from codex_console.models import Owner, database
 
 
@@ -130,7 +131,7 @@ class BrowserRPC(FakeRPC):
         await super().close()
 
 
-def main():
+def main(*, configure=None, install_fixture=None):
     port = int(os.environ.get("MIY_CODEX_CONSOLE_PORT", "19365"))
     with tempfile.TemporaryDirectory(prefix="codex-console-browser-") as directory:
         target = "sqlite+pysqlite:///" + str(Path(directory).resolve() / "console.sqlite3")
@@ -158,6 +159,13 @@ def main():
                 Path(__file__).resolve().parents[3] / "packages/contracts/app-contracts.json"
             ).read_bytes()
         )
+        # Catalog-linked development requires a real source path. Keep disposable
+        # placeholders rather than claiming copied metadata is an available checkout.
+        for row in json.loads(contract.read_text())["apps"]:
+            for source_path in row.get("management", {}).get("source_paths", []):
+                source = root / source_path
+                source.mkdir(parents=True, exist_ok=True)
+                (source / "README.md").write_text("Browser source fixture\n")
         subprocess.run(["git", "-C", str(root), "add", "."], check=True)
         subprocess.run(
             ["git", "-C", str(root), "commit", "-m", "fixture"],
@@ -169,15 +177,45 @@ def main():
             check=True,
             capture_output=True,
         )
+        app_source = directory / "apps/sample-app"
+        app_source.mkdir(parents=True)
+        (app_source / "app.manifest.json").write_bytes(
+            (
+                Path(__file__).resolve().parents[3] / "templates/independent-app/app.manifest.json"
+            ).read_bytes()
+        )
+        (app_source / "README.md").write_text("Independent app browser fixture")
+        for args in (
+            ("init", "-b", "main"),
+            ("config", "user.name", "Console Test"),
+            ("config", "user.email", "console@test.invalid"),
+            ("remote", "add", "origin", "https://example.test/team/sample-app.git"),
+            ("add", "."),
+            ("commit", "-m", "fixture"),
+        ):
+            subprocess.run(["git", "-C", str(app_source), *args], check=True, capture_output=True)
         settings = Settings(
             database_url=target,
             origin=f"http://127.0.0.1:{port}",
             base_path=os.environ.get("MIY_CODEX_CONSOLE_BASE_PATH", ""),
             workspace=root,
+            app_source_roots=[app_source.parent],
+            app_creation_roots=[app_source.parent],
+            # BrowserRPC owns this synthetic endpoint; it never opens a transport.
+            app_execution_environments=[
+                AppExecutionEnvironment(
+                    key="browser-sample-app",
+                    source_root=app_source,
+                    exec_server_url="ws://127.0.0.1:19391",
+                    auth_bearer_token="synthetic-browser-executor-token-only",
+                )
+            ],
             attachment_cache=directory / "attachments",
             web_dist=Path(__file__).resolve().parents[2] / "codex-console-web/dist",
             _env_file=None,
         )
+        if configure is not None:
+            settings = configure(settings)
         instructions.roots = lambda cfg: {
             "project": cfg.workspace,
             "personal": directory / "personal",
@@ -193,8 +231,15 @@ def main():
             "\n# Installed review\n"
         )
         app = create_app(settings, rpc_factory=BrowserRPC)
+        if install_fixture is not None:
+            install_fixture(app, settings, app_source)
+
         # Only this disposable browser fixture has completion controls. Product
         # code and the real app-server transport never install these endpoints.
+        @app.get(f"{settings.base_path}/__test__/app-source")
+        def app_source_fixture():
+            return {"repository_root": str(app_source)}
+
         gate_id = None
 
         @app.post(f"{settings.base_path}/__test__/hold-completion")

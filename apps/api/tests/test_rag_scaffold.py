@@ -1035,6 +1035,95 @@ def test_rag_hydrates_source_metadata_before_final_acl_and_grounding() -> None:
     assert response.grounded_answer.citations[0].resource_id == "file-1"
 
 
+@pytest.mark.parametrize("transition", ["before_rerank", "during_rerank"])
+def test_file_content_hydration_precedes_rerank_and_rechecks_after_it(monkeypatch, transition):
+    from miy_api.domains.files.current_content import (
+        CurrentFileContent,
+        file_candidate_matches_current_content,
+    )
+
+    current = {"checksum": "b" * 64 if transition == "before_rerank" else "a" * 64}
+    hit = RagVectorSearchHit(
+        chunk_id="file-1:1",
+        text="synthetic indexed bytes",
+        score=1.0,
+        projection=RagProjection(
+            resource_type="file_manager_file",
+            resource_id="file-1",
+            source_kind="files",
+            metadata={"content_checksum": "a" * 64},
+        ),
+    )
+    rerank_inputs = []
+    hydration_calls = []
+
+    def hydrate(hits):
+        hydration_calls.append(current["checksum"])
+        return [
+            candidate
+            for candidate in hits
+            if file_candidate_matches_current_content(
+                CurrentFileContent(current["checksum"], None, "2026-10-07T00:00:00.000000+00:00"),
+                candidate_checksum=candidate.projection.metadata.get("content_checksum"),
+                candidate_partition_id=candidate.projection.retrieval_partition_id,
+                candidate_extracted_at="2026-10-07T00:00:00.000000+00:00",
+            )
+        ]
+
+    def rerank(*, query, hits, timeout_seconds=None):
+        rerank_inputs.extend(candidate.text for candidate in hits)
+        current["checksum"] = "b" * 64
+        return list(hits)
+
+    service = RagQueryService(
+        vector_index=object(),
+        embedding_client=SimpleNamespace(embed_query=lambda text, timeout_seconds=None: [1.0]),
+        rerank_client=SimpleNamespace(rerank=rerank),
+    )
+    monkeypatch.setattr(service, "_query_collections", lambda **kwargs: [hit])
+    response = service.query(
+        RagQueryRequest(collection="synthetic-legacy-files", query="synthetic", top_k=1),
+        hit_hydrator=hydrate,
+    )
+    assert response.hits == []
+    assert rerank_inputs == ([] if transition == "before_rerank" else [hit.text])
+    assert len(hydration_calls) == 2
+
+
+def test_hydration_only_refills_within_existing_candidate_budget(monkeypatch):
+    requests = []
+    hit = RagVectorSearchHit(
+        chunk_id="file-valid:1",
+        text="synthetic current content",
+        score=1.0,
+        projection=RagProjection(
+            resource_type="file_manager_file", resource_id="file-valid", source_kind="files"
+        ),
+    )
+
+    def candidates(**kwargs):
+        count = kwargs["top_k"]
+        requests.append(count)
+        rejected = [
+            hit.model_copy(update={"chunk_id": f"rejected-{number}"}) for number in range(count)
+        ]
+        return rejected if len(requests) == 1 else [*rejected[:-1], hit]
+
+    service = RagQueryService(
+        vector_index=object(),
+        embedding_client=SimpleNamespace(embed_query=lambda text, timeout_seconds=None: [1.0]),
+    )
+    monkeypatch.setattr(service, "_query_collections", candidates)
+    response = service.query(
+        RagQueryRequest(collection="synthetic-refill", query="synthetic", top_k=1),
+        hit_hydrator=lambda hits: [
+            candidate for candidate in hits if candidate.chunk_id == hit.chunk_id
+        ],
+    )
+    assert [item.resource_id for item in response.hits] == ["file-valid"]
+    assert len(requests) == 2 and requests[0] < requests[1] <= 400
+
+
 def test_company_rag_filter_requires_source_owned_acl(monkeypatch) -> None:
     calls: list[set[tuple[str, str]]] = []
     user = SimpleNamespace(id="user-1", status="active", login_blocked=False)

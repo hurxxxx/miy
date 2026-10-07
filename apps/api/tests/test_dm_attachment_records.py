@@ -129,7 +129,7 @@ def test_create_attachment_rolls_back_when_object_upload_fails(
     assert db.committed is False
 
 
-def test_create_attachment_removes_object_when_commit_fails(
+def test_create_attachment_preserves_object_when_commit_result_is_unknown(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     db = _FakeDb(commit_error=RuntimeError("commit"))
@@ -148,8 +148,9 @@ def test_create_attachment_removes_object_when_commit_fails(
         )
 
     assert excinfo.value.status_code == 500
+    assert excinfo.value.detail.code == "dm.attachment_save_unknown"
     assert db.rollback_count == 1
-    assert storage.remove_calls == ["dm/conversation-1/attachment-1/file.txt"]
+    assert storage.remove_calls == []
 
 
 def test_require_attachment_access_loads_attachment_and_checks_conversation(

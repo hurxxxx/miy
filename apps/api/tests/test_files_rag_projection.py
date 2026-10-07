@@ -6,8 +6,12 @@ from types import SimpleNamespace
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 import pytest
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
+from uuid import uuid4
 
 from miy_api.domains.document_processing import DocumentExtractBundle, EvidenceBlock
+from miy_api.domains.auth.models import User
 from miy_api.domains.files.models import (
     FileManagerCorpus,
     FileManagerFile,
@@ -37,6 +41,51 @@ from miy_api.domains.search.projection_identity import ensure_search_document_id
 
 
 _FIXED_ZIP_TIMESTAMP = (2020, 1, 1, 0, 0, 0)
+
+
+def test_legacy_loader_refreshes_stored_output_marker(application_postgres_dsn, monkeypatch):
+    engine = create_engine(application_postgres_dsn)
+    try:
+        with Session(engine) as db:
+            _assert_legacy_loader_stored_output_marker(db, monkeypatch)
+    finally:
+        engine.dispose()
+
+
+def _assert_legacy_loader_stored_output_marker(db_session, monkeypatch):
+    from miy_api.domains.files.current_content import file_extraction_result_marker
+
+    owner = User(
+        id=str(uuid4()),
+        login_id=str(uuid4()),
+        email="synthetic-marker@example.invalid",
+        full_name="Synthetic",
+        password_hash="synthetic",
+    )
+    db_session.add(owner)
+    db_session.flush()
+    file = _file(
+        id=str(uuid4()),
+        folder_id=None,
+        owner_id=owner.id,
+        filename="Synthetic.txt",
+        content_type="text/plain",
+        storage_key="synthetic-marker/" + str(uuid4()),
+        extraction_status="pending",
+        extracted_at=None,
+    )
+    db_session.add(file)
+    db_session.flush()
+    monkeypatch.setattr(rag_projection, "read_file_content", lambda _: b"Synthetic local text")
+    runtime = SimpleNamespace(ocr_provider_name="unused")
+    projection = rag_projection.load_file_rag_projection(
+        db_session, file_id=file.id, rag_service=runtime
+    )
+    stored_time = db_session.scalar(
+        select(FileManagerFile.extracted_at).where(FileManagerFile.id == file.id)
+    )
+    assert stored_time is not None and file.extracted_at == stored_time
+    assert projection.metadata["extracted_at"] == file_extraction_result_marker(stored_time)
 
 
 def _file(**overrides) -> FileManagerFile:
@@ -826,91 +875,30 @@ def test_large_extraction_artifacts_are_deferred_and_purged_on_soft_delete() -> 
     assert file.extracted_at is None
 
 
-def test_file_retrieval_hook_obeys_named_activation_gate(
+def test_file_retrieval_hook_emits_owned_intent_before_core_dispatch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    calls: list[tuple[str, dict]] = []
-    projection_events: list[dict] = []
-    monkeypatch.setattr(
-        rag_sync,
-        "enqueue_rag_sync_job",
-        lambda db, **kwargs: calls.append(("rag", kwargs)),
-    )
-    monkeypatch.setattr(
-        rag_sync,
-        "enqueue_file_search_index_by_id",
-        lambda db, **kwargs: calls.append(("search", kwargs)),
-    )
-    monkeypatch.setattr(
-        rag_sync,
-        "get_settings",
-        lambda: SimpleNamespace(rag_enabled=True),
-    )
+    intents = []
     envelope = rag_sync._FileProjectionEnvelope(
         retrieval_partition_id="a3b6638a-7547-45f8-81f2-973bfa6080d6",
         scope_kind=RagScopeKind.COMPANY,
     )
-    projection_event = ProjectionEventRef(
-        event_sequence=1,
-        resource_type="file_manager_file",
-        resource_id="file-1",
-        projection_version=1,
-        retrieval_partition_id=envelope.retrieval_partition_id,
-        change_kind="delete",
-        desired_state="deleted",
-        content_checksum=None,
-        visibility_checksum=None,
-    )
+    monkeypatch.setattr(rag_sync, "_resolve_file_projection_envelope", lambda db, *, file: envelope)
     monkeypatch.setattr(
-        rag_sync,
-        "_resolve_file_projection_envelope",
-        lambda db, *, file: envelope,
+        rag_sync, "emit_and_accept_projection", lambda db, *, intent: intents.append(intent)
     )
-    monkeypatch.setattr(
-        rag_sync,
-        "record_projection_event",
-        lambda db, **kwargs: projection_events.append(kwargs) or projection_event,
-    )
-
     file = _file()
-    monkeypatch.setattr(rag_sync, "FILES_RETRIEVAL_ACTIVE", False)
-    rag_sync.enqueue_file_retrieval_sync(
-        SimpleNamespace(),
-        file=file,
-        operation=RagSyncOperation.UPSERT,
+    for operation in (RagSyncOperation.UPSERT, RagSyncOperation.DELETE):
+        rag_sync.enqueue_file_retrieval_sync(SimpleNamespace(), file=file, operation=operation)
+    assert [intent.operation for intent in intents] == ["upsert", "delete"]
+    assert [intent.desired_state for intent in intents] == ["active", "deleted"]
+    assert all(
+        intent.resource_id == file.id
+        and str(intent.retrieval_partition_id) == envelope.retrieval_partition_id
+        for intent in intents
     )
-    assert calls == []
-    assert projection_events == [
-        {
-            "resource_type": "file_manager_file",
-            "resource_id": file.id,
-            "retrieval_partition_id": envelope.retrieval_partition_id,
-            "change_kind": rag_sync.RetrievalProjectionChangeKind.CONTENT,
-            "desired_state": rag_sync.RetrievalProjectionDesiredState.ACTIVE,
-            "content_checksum": file.extraction_content_checksum,
-        }
-    ]
-
-    monkeypatch.setattr(rag_sync, "FILES_RETRIEVAL_ACTIVE", True)
-    rag_sync.enqueue_file_retrieval_sync(
-        SimpleNamespace(),
-        file=file,
-        operation=RagSyncOperation.DELETE,
-    )
-
-    assert calls[0] == (
-        "search",
-        {
-            "file_id": file.id,
-            "operation": "delete",
-            "projection_event": projection_event,
-        },
-    )
-    assert calls[1][0] == "rag"
-    assert calls[1][1]["resource_type"] == "file_manager_file"
-    assert calls[1][1]["operation"] == RagSyncOperation.DELETE
-    assert calls[1][1]["projection_event"] == projection_event
-    assert len(projection_events) == 2
+    # Both gate states and extraction-before-keyword ordering are verified on
+    # actual PostgreSQL in test_official_projection_outbox's four-hook case.
 
 
 def test_file_keyword_projection_is_enqueued_when_extraction_is_prepared(
@@ -935,11 +923,13 @@ def test_file_keyword_projection_is_enqueued_when_extraction_is_prepared(
         visibility_checksum=None,
     )
     file = _file(extraction_content_checksum="a" * 64)
-    rag_sync.mark_file_projection_prepared(
-        SimpleNamespace(get=lambda model, file_id, **kwargs: file if file_id == file.id else None),
-        file_id="file-1",
-        projection_event=projection_event,
-    )
+    with Session() as db:
+        monkeypatch.setattr(
+            db, "get", lambda model, file_id, **kwargs: file if file_id == file.id else None
+        )
+        rag_sync.mark_file_projection_prepared(
+            db, file_id="file-1", projection_event=projection_event
+        )
 
     assert calls == [
         {
@@ -954,7 +944,10 @@ def test_file_extraction_checksum_change_advances_projection_before_backend_writ
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     file = _file(extraction_content_checksum="b" * 64)
-    db = SimpleNamespace(get=lambda model, file_id, **kwargs: file if file_id == file.id else None)
+    db = Session()
+    monkeypatch.setattr(
+        db, "get", lambda model, file_id, **kwargs: file if file_id == file.id else None
+    )
     search_calls: list[dict] = []
     rag_calls: list[dict] = []
     monkeypatch.setattr(
@@ -984,6 +977,7 @@ def test_file_extraction_checksum_change_advances_projection_before_backend_writ
         file_id=file.id,
         projection_event=stale_event,
     )
+    db.close()
 
     assert search_calls == []
     assert rag_calls == [
@@ -1011,7 +1005,8 @@ def test_rag_delete_completion_only_purges_artifacts_without_duplicate_search_jo
         ),
     )
 
-    rag_sync.mark_file_projection_deleted(SimpleNamespace(), file_id="file-1")
+    with Session() as db:
+        rag_sync.mark_file_projection_deleted(db, file_id="file-1")
 
     assert purged == ["file-1"]
 
@@ -1060,20 +1055,14 @@ def test_vector_provider_failure_does_not_overwrite_ready_extraction_status(
         lambda db, **kwargs: calls.append(kwargs),
     )
 
-    rag_sync.mark_file_projection_failed(
-        SimpleNamespace(),
-        file_id="file-1",
-        error="embedding provider unavailable",
-        phase="rag",
-    )
-    assert calls == []
-
-    rag_sync.mark_file_projection_failed(
-        SimpleNamespace(),
-        file_id="file-1",
-        error="document parser failed",
-        phase="extraction",
-    )
+    with Session() as db:
+        rag_sync.mark_file_projection_failed(
+            db, file_id="file-1", error="embedding provider unavailable", phase="rag"
+        )
+        assert calls == []
+        rag_sync.mark_file_projection_failed(
+            db, file_id="file-1", error="document parser failed", phase="extraction"
+        )
     assert calls == [
         {
             "file_id": "file-1",

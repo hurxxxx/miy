@@ -57,6 +57,7 @@ from miy_api.domains.retrieval.models import (
     RetrievalProjectionHead,
 )
 from miy_api.domains.retrieval.projection_fencing import ProjectionEventRef
+from miy_api.domains.retrieval.docs_legacy_repair import dispatch_docs_legacy_repair
 from miy_api.domains.retrieval.runtime_binding import (
     PartitionedRetrievalRuntimeUnavailable,
     resolve_active_partitioned_generation_pair,
@@ -69,9 +70,12 @@ from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from miy_worker.celery_app import celery_app
+from miy_worker.task_binding import task_app
+
 from miy_worker.runtime import db_session as _db_session
 from miy_worker.settings import get_settings
+
+celery_app = task_app(__name__)
 
 logger = logging.getLogger(__name__)
 OUTBOX_REPUBLISH_BATCH_SIZE = 100
@@ -90,6 +94,20 @@ class RagAppDisabled(RuntimeError):
     def __init__(self, app_id: str) -> None:
         super().__init__(app_id)
         self.app_id = app_id
+
+
+class _PreparedFileArtifactHold(RuntimeError):
+    def __init__(self, code: str) -> None:
+        self.code = code
+        super().__init__(code)
+
+
+class _PreparedFileHoldCommitUnknown(RuntimeError):
+    code = "file_projection_hold_commit_unknown"
+
+    def __init__(self, identity: tuple[str, int | None, int | None, int]) -> None:
+        self.identity = identity
+        super().__init__(self.code)
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,6 +216,8 @@ def _run_sync_job(
     session = _db_session()
     try:
         job, claim_outcome = _claim_sync_job(session, job_id)
+        if claim_outcome.startswith("docs-repair-"):
+            return claim_outcome
         if claim_outcome == "missing":
             logger.warning("RAG sync job not found: %s", job_id)
             record_sync_job_result(status="missing", job_kind=job_kind)
@@ -251,6 +271,10 @@ def _execute_sync_job(
     job_kind: str,
     rag_enabled: bool,
 ) -> str:
+    # Inactive task discovery must not import Files' configured legacy runtime.
+    # Actual execution has already crossed the task profile's runtime gate.
+    from miy_api.domains.files.core_projection import FileArtifactControlError
+
     record_sync_job_lag(
         lag_ms=_job_lag_ms(job.created_at),
         resource_type=job.resource_type,
@@ -331,6 +355,45 @@ def _execute_sync_job(
                 return "superseded"
             try:
                 result = _process_sync_job(session, job)
+            except _PreparedFileArtifactHold as error:
+                # FAILED is deliberately not claimable by Beat. Retain this job
+                # for explicit Source readiness/reconciliation, without a busy
+                # retry, provider effect or Source extraction failure callback.
+                _hold_prepared_file_job(
+                    session,
+                    job,
+                    code=error.code,
+                    refund_attempt=True,
+                )
+                record_sync_job_result(
+                    status=error.code,
+                    resource_type=job.resource_type,
+                    resource_id=job.resource_id,
+                    operation=job.operation,
+                    job_lane=job.lane,
+                    job_kind=job_kind,
+                )
+                return error.code
+            except FileArtifactControlError:
+                # Provider construction/effects may already have occurred. Do
+                # not relabel a later control outcome as a known no-effect hold.
+                # Preserve the attempt and identity for explicit reconciliation.
+                outcome = "file_projection_effect_unknown"
+                _hold_prepared_file_job(
+                    session,
+                    job,
+                    code=outcome,
+                    refund_attempt=False,
+                )
+                record_sync_job_result(
+                    status=outcome,
+                    resource_type=job.resource_type,
+                    resource_id=job.resource_id,
+                    operation=job.operation,
+                    job_lane=job.lane,
+                    job_kind=job_kind,
+                )
+                return outcome
             except RagAppDisabled as error:
                 job.attempts = max(job.attempts - 1, 0)
                 _mark_sync_job(
@@ -418,6 +481,11 @@ def _execute_sync_job(
                 ),
             )
             return result
+        except _PreparedFileHoldCommitUnknown as error:
+            # The hold may have committed or the processing claim may remain.
+            # Never turn an unobserved hold into a fresh attempt or provider retry.
+            # Live Beat ownership/recovery still needs an explicit cutover gate.
+            return error.code
         except Exception as error:
             return _handle_sync_job_failure(
                 session,
@@ -440,6 +508,8 @@ def recompute_visibility(self, job_id: str) -> str:
     session = _db_session()
     try:
         job, claim_outcome = _claim_visibility_job(session, job_id)
+        if claim_outcome.startswith("docs-repair-"):
+            return claim_outcome
         if claim_outcome == "missing":
             logger.warning("RAG visibility recompute job not found: %s", job_id)
             record_sync_job_result(status="missing", job_kind="visibility_recompute")
@@ -537,6 +607,16 @@ def _process_sync_job(session: Session, job: RagSyncJob) -> str:
     disabled_app_id = _disabled_app_id_for_job(session, job)
     if disabled_app_id is not None:
         raise RagAppDisabled(disabled_app_id)
+    from miy_api.domains.files.core_projection import (
+        FileArtifactControlError,
+        is_prepared_core_file_projection,
+    )
+
+    if is_prepared_core_file_projection(session):
+        try:
+            _preflight_prepared_file_projection(session, job)
+        except FileArtifactControlError as error:
+            raise _PreparedFileArtifactHold(error.code) from None
     runtime = _rag_runtime_for_job(session, job)
     collection = runtime.collection
     service = runtime.service
@@ -618,6 +698,30 @@ def _process_sync_job(session: Session, job: RagSyncJob) -> str:
         adapter.on_projection_synced(session, job.resource_id, sync_result.chunk_count)
     logger.info("Synced RAG projection for %s:%s", job.resource_type, job.resource_id)
     return "succeeded"
+
+
+def _preflight_prepared_file_projection(session: Session, job: RagSyncJob) -> None:
+    from miy_api.domains.files.core_projection import (
+        FileArtifactInvalid,
+        load_ready_file_rag_projection,
+        require_prepared_core_file_projection_event,
+    )
+
+    if job.resource_type != FILE_MANAGER_FILE_RESOURCE_TYPE:
+        raise FileArtifactInvalid("file_projection_resource_mismatch")
+    event = _projection_event_ref_for_job(session, job)
+    if event is None:
+        raise FileArtifactInvalid("file_projection_event_required")
+    require_prepared_core_file_projection_event(
+        session, projection_event=event, file_id=job.resource_id
+    )
+    if (job.operation == RagSyncOperation.DELETE.value) != (event.desired_state == "deleted"):
+        raise FileArtifactInvalid("file_job_operation_event_mismatch")
+    if job.operation != RagSyncOperation.DELETE.value:
+        # Pending/invalid artifacts are observed before provider construction.
+        load_ready_file_rag_projection(
+            session, file_id=job.resource_id, expected_checksum=event.content_checksum
+        )
 
 
 def _rag_runtime_for_job(
@@ -823,6 +927,31 @@ def _enqueue_resource_sync_jobs(
         )
 
 
+def _hold_prepared_file_job(
+    session: Session,
+    job: RagSyncJob,
+    *,
+    code: str,
+    refund_attempt: bool,
+) -> None:
+    identity = (
+        job.id,
+        job.projection_event_sequence,
+        job.projection_version,
+        job.attempts,
+    )
+    if refund_attempt:
+        job.attempts = max(job.attempts - 1, 0)
+    try:
+        _mark_sync_job(session, job, status=RagJobStatus.FAILED.value, last_error=code)
+    except Exception:
+        try:
+            session.rollback()
+        except Exception:
+            pass
+        raise _PreparedFileHoldCommitUnknown(identity) from None
+
+
 def _mark_sync_job(
     session: Session,
     job: RagSyncJob,
@@ -1012,6 +1141,9 @@ def _claim_sync_job(
     session: Session,
     job_id: str,
 ) -> tuple[RagSyncJob | None, str]:
+    converted = dispatch_docs_legacy_repair(session, kind="rag", job_id=job_id)
+    if converted is not None:
+        return None, converted
     existing = session.get(RagSyncJob, job_id)
     if (
         existing is not None
@@ -1080,6 +1212,9 @@ def _claim_visibility_job(
     session: Session,
     job_id: str,
 ) -> tuple[RagVisibilityRecomputeJob | None, str]:
+    converted = dispatch_docs_legacy_repair(session, kind="scope", job_id=job_id)
+    if converted is not None:
+        return None, converted
     existing = session.get(RagVisibilityRecomputeJob, job_id)
     if (
         existing is not None

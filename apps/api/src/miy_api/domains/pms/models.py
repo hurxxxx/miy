@@ -19,6 +19,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, foreign, mapped_column, relationship
 
 from miy_api.core.db import Base
+from miy_api.domains.official_apps.writer_contracts import OfficialWriterSource
 
 
 def utcnow_naive() -> datetime:
@@ -31,7 +32,7 @@ def _native_doc_model() -> type[object]:
     return NativeDoc
 
 
-class Folder(Base):
+class Folder(OfficialWriterSource, Base):
     """Intermediate grouping: Space > Folder > List."""
 
     __tablename__ = "pms_folders"
@@ -50,7 +51,7 @@ class Folder(Base):
     task_lists: Mapped[list["TaskList"]] = relationship(back_populates="folder")
 
 
-class PmsViewPreference(Base):
+class PmsViewPreference(OfficialWriterSource, Base):
     """Personal PMS presentation preferences for one user."""
 
     __tablename__ = "pms_view_preferences"
@@ -83,7 +84,7 @@ class PmsViewPreference(Base):
     )
 
 
-class SpaceStatus(Base):
+class SpaceStatus(OfficialWriterSource, Base):
     """Default workflow statuses for a PMS Space."""
 
     __tablename__ = "pms_space_statuses"
@@ -105,7 +106,7 @@ class SpaceStatus(Base):
     )
 
 
-class TaskList(Base):
+class TaskList(OfficialWriterSource, Base):
     __tablename__ = "pms_task_lists"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -167,7 +168,7 @@ class TaskList(Base):
     )
 
 
-class TaskListStatus(Base):
+class TaskListStatus(OfficialWriterSource, Base):
     """Custom workflow statuses per task list."""
 
     __tablename__ = "pms_task_list_statuses"
@@ -190,7 +191,7 @@ class TaskListStatus(Base):
     task_list: Mapped[TaskList] = relationship(back_populates="statuses")
 
 
-class Milestone(Base):
+class Milestone(OfficialWriterSource, Base):
     __tablename__ = "pms_milestones"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -216,7 +217,7 @@ class Milestone(Base):
     tasks: Mapped[list["Task"]] = relationship(back_populates="milestone")
 
 
-class Label(Base):
+class Label(OfficialWriterSource, Base):
     __tablename__ = "pms_labels"
     __table_args__ = (UniqueConstraint("list_id", "name", name="uq_pms_label_name"),)
 
@@ -236,7 +237,7 @@ class Label(Base):
     )
 
 
-class Task(Base):
+class Task(OfficialWriterSource, Base):
     __tablename__ = "pms_tasks"
     __table_args__ = (
         UniqueConstraint("list_id", "task_number", name="uq_pms_task_number"),
@@ -344,7 +345,7 @@ class Task(Base):
     )
 
 
-class TaskLabel(Base):
+class TaskLabel(OfficialWriterSource, Base):
     __tablename__ = "pms_task_labels"
     __table_args__ = (
         UniqueConstraint("task_id", "label_id", name="uq_pms_task_label"),
@@ -358,7 +359,7 @@ class TaskLabel(Base):
     label: Mapped[Label] = relationship(back_populates="task_links")
 
 
-class TaskComment(Base):
+class TaskComment(OfficialWriterSource, Base):
     __tablename__ = "pms_task_comments"
     __table_args__ = (Index("ix_pms_task_comments_author_created", "author_id", "created_at"),)
 
@@ -376,7 +377,7 @@ class TaskComment(Base):
     author = relationship("User")
 
 
-class TaskActivityLog(Base):
+class TaskActivityLog(OfficialWriterSource, Base):
     __tablename__ = "pms_task_activity_logs"
     __table_args__ = (Index("ix_pms_task_activity_logs_actor_created", "actor_id", "created_at"),)
 
@@ -397,7 +398,7 @@ class TaskActivityLog(Base):
     actor = relationship("User")
 
 
-class Attachment(Base):
+class Attachment(OfficialWriterSource, Base):
     __tablename__ = "pms_attachments"
     __table_args__ = (Index("ix_pms_attachments_uploaded_created", "uploaded_by_id", "created_at"),)
 
@@ -417,7 +418,7 @@ class Attachment(Base):
     uploaded_by = relationship("User")
 
 
-class ChecklistItem(Base):
+class ChecklistItem(OfficialWriterSource, Base):
     __tablename__ = "pms_checklist_items"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -433,7 +434,7 @@ class ChecklistItem(Base):
     task: Mapped[Task] = relationship(back_populates="checklist_items")
 
 
-class Notification(Base):
+class Notification(OfficialWriterSource, Base):
     __tablename__ = "pms_notifications"
     __table_args__ = (
         Index(
@@ -478,7 +479,7 @@ class Notification(Base):
     )
 
 
-class TaskTemplate(Base):
+class TaskTemplate(OfficialWriterSource, Base):
     """Reusable task templates per task list."""
 
     __tablename__ = "pms_task_templates"
@@ -498,7 +499,7 @@ class TaskTemplate(Base):
     task_list: Mapped[TaskList] = relationship(back_populates="task_templates")
 
 
-class CustomField(Base):
+class CustomField(OfficialWriterSource, Base):
     """Custom fields per task list (text, number, date, select)."""
 
     __tablename__ = "pms_custom_fields"
@@ -517,7 +518,7 @@ class CustomField(Base):
     task_list: Mapped[TaskList] = relationship(back_populates="custom_fields")
 
 
-class CustomFieldValue(Base):
+class CustomFieldValue(OfficialWriterSource, Base):
     """Custom field values per task."""
 
     __tablename__ = "pms_custom_field_values"
@@ -529,7 +530,7 @@ class CustomFieldValue(Base):
     value: Mapped[str] = mapped_column(Text, default="")
 
 
-class TaskAssignee(Base):
+class TaskAssignee(OfficialWriterSource, Base):
     """Multiple assignees per task (junction table)."""
 
     __tablename__ = "pms_task_assignees"
@@ -544,7 +545,7 @@ class TaskAssignee(Base):
     user = relationship("User")
 
 
-class TaskFollower(Base):
+class TaskFollower(OfficialWriterSource, Base):
     """Users following an task for updates."""
 
     __tablename__ = "pms_task_followers"
@@ -556,7 +557,7 @@ class TaskFollower(Base):
     user = relationship("User")
 
 
-class TaskUserAccess(Base):
+class TaskUserAccess(OfficialWriterSource, Base):
     __tablename__ = "pms_task_user_access"
     __table_args__ = (
         Index("ix_pms_task_user_access_user_revoked", "user_id", "revoked_at"),
@@ -617,7 +618,7 @@ class TaskUserAccess(Base):
     revoked_by_user = relationship("User", foreign_keys=[revoked_by_user_id])
 
 
-class TaskDocLink(Base):
+class TaskDocLink(OfficialWriterSource, Base):
     __tablename__ = "pms_task_doc_links"
     __table_args__ = (
         UniqueConstraint("task_id", "doc_id", name="uq_pms_task_doc_link"),

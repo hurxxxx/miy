@@ -16,9 +16,13 @@ import { EmptyState, PageLayout } from './page-layout';
 type Definition = components['schemas']['TemplateDefinition'];
 type Template = components['schemas']['TemplateOut'];
 type Catalog = components['schemas']['TemplateCatalog'];
+type AppCatalog = components['schemas']['CatalogOut'];
 const fresh = (): Definition => ({
   name: '',
   description: '',
+  app_id: null,
+  installation_id: null,
+  purpose: null,
   directory: '.',
   context: '',
   references: [],
@@ -53,6 +57,12 @@ export function Templates({
   const [definition, setDefinition] = useState<Definition>(fresh);
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [catalogError, setCatalogError] = useState(false);
+  const [appCatalog, setAppCatalog] = useState<AppCatalog | null>(null);
+  const [appCatalogError, setAppCatalogError] = useState(false);
+  const [installations, setInstallations] = useState<
+    components['schemas']['InstallationsOut'] | null
+  >(null);
+  const [installationError, setInstallationError] = useState(false);
   const [running, setRunning] = useState<Template | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -88,16 +98,56 @@ export function Templates({
   useEffect(() => {
     if (!editing) return;
     const controller = new AbortController();
+    setAppCatalog(null);
+    setAppCatalogError(false);
+    void api<AppCatalog>(
+      '/workbench/catalog',
+      undefined,
+      'GET',
+      controller.signal,
+    )
+      .then((value) => {
+        if (!controller.signal.aborted) setAppCatalog(value);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setAppCatalogError(true);
+      });
+    return () => controller.abort();
+  }, [editing]);
+  useEffect(() => {
+    setInstallations(null);
+    setInstallationError(false);
+    if (!editing || !definition.app_id || !definition.purpose) return;
+    const controller = new AbortController();
+    void api<components['schemas']['InstallationsOut']>(
+      `/workbench/apps/${encodeURIComponent(definition.app_id)}/installations`,
+      undefined,
+      'GET',
+      controller.signal,
+    )
+      .then((value) => {
+        if (!controller.signal.aborted) setInstallations(value);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setInstallationError(true);
+      });
+    return () => controller.abort();
+  }, [editing, definition.app_id, definition.purpose]);
+  useEffect(() => {
+    if (!editing) return;
+    const controller = new AbortController();
     setCatalog(null);
     setCatalogError(false);
     const timer = window.setTimeout(() => {
       void api<Catalog>(
-        `/templates/catalog?directory_name=${encodeURIComponent(definition.directory ?? '.')}`,
+        `/templates/catalog?directory_name=${encodeURIComponent(definition.directory ?? '.')}${definition.app_id ? `&app_id=${encodeURIComponent(definition.app_id)}` : ''}`,
         undefined,
         'GET',
         controller.signal,
       )
-        .then(setCatalog)
+        .then((result) => {
+          if (!controller.signal.aborted) setCatalog(result);
+        })
         .catch(() => {
           if (!controller.signal.aborted) setCatalogError(true);
         });
@@ -106,7 +156,7 @@ export function Templates({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [editing, definition.directory]);
+  }, [editing, definition.directory, definition.app_id]);
   const change = <K extends keyof Definition>(key: K, value: Definition[K]) =>
     setDefinition((d) => ({ ...d, [key]: value }));
   const edit = (row: Template | null, copy = false) => {
@@ -285,10 +335,22 @@ export function Templates({
                   <Button
                     size="dense"
                     disabled={busy}
-                    onClick={() => chooseRun(row)}
+                    onClick={() =>
+                      row.definition.purpose &&
+                      (!row.definition.app_id ||
+                        !row.definition.installation_id)
+                        ? edit(row)
+                        : chooseRun(row)
+                    }
                   >
                     <Play size={14} aria-hidden="true" />
-                    {t('Run template')}
+                    {t(
+                      row.definition.purpose &&
+                        (!row.definition.app_id ||
+                          !row.definition.installation_id)
+                        ? 'Select an installation'
+                        : 'Run template',
+                    )}
                   </Button>
                 )}
                 <Button variant="ghost" onClick={() => openHistory(row.id)}>
@@ -442,6 +504,108 @@ export function Templates({
               onChange={(e) => change('description', e.target.value)}
             />
           </label>
+          <label>
+            {t('Application source')}
+            <select
+              value={definition.app_id ?? ''}
+              onChange={(event) =>
+                setDefinition((value) => ({
+                  ...value,
+                  app_id: event.target.value || null,
+                  installation_id: null,
+                }))
+              }
+            >
+              <option value="">{t('Platform workspace')}</option>
+              {(appCatalog?.items ?? []).map((item) => (
+                <option
+                  key={item.app_id}
+                  value={item.app_id}
+                  disabled={
+                    item.source_status !== 'ready' ||
+                    (item.discovery === 'source' &&
+                      item.execution_status !== 'configured')
+                  }
+                >
+                  {item.title_translations?.[t.locale ?? 'ko-KR'] ?? item.title}{' '}
+                  · {item.app_id}
+                </option>
+              ))}
+              {definition.app_id &&
+                !(appCatalog?.items ?? []).some(
+                  (item) => item.app_id === definition.app_id,
+                ) && (
+                  <option value={definition.app_id}>{definition.app_id}</option>
+                )}
+            </select>
+          </label>
+          <label>
+            {t('App delivery purpose')}
+            <select
+              value={definition.purpose ?? ''}
+              onChange={(event) =>
+                setDefinition((value) => ({
+                  ...value,
+                  purpose: (event.target.value ||
+                    null) as Definition['purpose'],
+                  installation_id: null,
+                }))
+              }
+            >
+              <option value="">{t('General task')}</option>
+              <option value="inspection">{t('Inspect installation')}</option>
+              <option value="deployment">{t('Plan preview deployment')}</option>
+              <option value="recovery">{t('Plan app recovery')}</option>
+            </select>
+          </label>
+          {definition.purpose && (
+            <label>
+              {t('Development installation')}
+              <select
+                required
+                value={definition.installation_id ?? ''}
+                onChange={(event) =>
+                  change('installation_id', event.target.value || null)
+                }
+              >
+                <option value="">{t('Select an installation')}</option>
+                {(installations?.items ?? [])
+                  .filter(
+                    (item) =>
+                      item.environment === 'development' &&
+                      item.delivery_configured,
+                  )
+                  .map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.origin} · {item.id}
+                    </option>
+                  ))}
+                {definition.installation_id &&
+                  !(installations?.items ?? []).some(
+                    (item) =>
+                      item.id === definition.installation_id &&
+                      item.delivery_configured &&
+                      item.environment === 'development',
+                  ) && (
+                    <option value={definition.installation_id} disabled>
+                      {definition.installation_id} · {t('Unavailable')}
+                    </option>
+                  )}
+              </select>
+            </label>
+          )}
+          {definition.purpose &&
+            (installationError ||
+              (installations && installations.state !== 'ready')) && (
+              <p role="alert">{t('Installation access needs attention.')}</p>
+            )}
+          {appCatalogError && (
+            <p role="alert">
+              {t(
+                'The app catalog is unavailable. Check the registered app contracts.',
+              )}
+            </p>
+          )}
           <label>
             {t('Working directory relative to project')}
             <Input
@@ -618,6 +782,16 @@ export function Templates({
                   }
                 />
                 {name}
+                {catalog &&
+                  !catalog.skills.some((skill) => skill.name === name) && (
+                    <span role="status">
+                      {' '}
+                      —{' '}
+                      {t(
+                        'Unavailable skill; remove or replace it before running.',
+                      )}
+                    </span>
+                  )}
               </label>
             ))}
           </fieldset>

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -54,6 +55,8 @@ class FilesCachedProjectionMaterializer:
     the caller must additionally keep source writers and normal workers stopped.
     """
 
+    requires_empty_reconciliation = False
+
     def __init__(
         self,
         *,
@@ -92,31 +95,14 @@ class FilesCachedProjectionMaterializer:
             through_event_sequence=through_event_sequence,
             limit=limit,
         )
-        keyword_client = _require_partitioned_keyword_generation_client(
-            self._keyword_client_factory(spec.opensearch_physical_name)
-        )
-        rag_service = self._rag_service_factory(spec.qdrant_physical_name)
-        keyword_succeeded = 0
-        vector_succeeded = 0
-        for event_sequence in events:
-            outcome = self._materialize_event(
-                event_sequence=event_sequence,
-                keyword_client=keyword_client,
-                rag_service=rag_service,
-                spec=spec,
-            )
-            if outcome is None:
-                continue
-            keyword_succeeded += 1
-            vector_succeeded += 1
-
         complete = not has_more
-        if complete:
-            keyword_client.refresh_partitioned_index()
+        keyword_succeeded, vector_succeeded = self._materialize_events(
+            spec=spec, events=events, complete=complete
+        )
         next_event_sequence = events[-1] if events else through_event_sequence
-        with self._session_factory() as db:
+        with self._open_session() as db:
             current = capture_file_retrieval_event_watermark(db)
-            keyword_remaining, vector_remaining = _outstanding_file_projection_jobs(db)
+            keyword_remaining, vector_remaining = self._outstanding_jobs(db)
         return FilesGenerationMaterializationBatch(
             target_event_sequence=through_event_sequence,
             next_event_sequence=next_event_sequence,
@@ -135,9 +121,9 @@ class FilesCachedProjectionMaterializer:
         )
 
     def inspect_reconciliation(self, *, through_event_sequence: int) -> object:
-        with self._session_factory() as db:
+        with self._open_session() as db:
             current = capture_file_retrieval_event_watermark(db)
-            keyword_remaining, vector_remaining = _outstanding_file_projection_jobs(db)
+            keyword_remaining, vector_remaining = self._outstanding_jobs(db)
         return _MaterializationReconciliationStatus(
             target_event_sequence=through_event_sequence,
             current_event_sequence=current,
@@ -150,6 +136,38 @@ class FilesCachedProjectionMaterializer:
             ),
         )
 
+    def _open_session(self) -> AbstractContextManager[Session]:
+        """Prepared compositions can admit owned Sessions before every query."""
+        return self._session_factory()
+
+    def _outstanding_jobs(self, db: Session) -> tuple[int, int]:
+        return _outstanding_file_projection_jobs(db)
+
+    def _materialize_events(
+        self, *, spec: FilesGenerationPairSpec, events: list[int], complete: bool
+    ) -> tuple[int, int]:
+        """Keep batch discovery/progress separate from per-operation effects."""
+        keyword_client = _require_partitioned_keyword_generation_client(
+            self._keyword_client_factory(spec.opensearch_physical_name)
+        )
+        rag_service = self._rag_service_factory(spec.qdrant_physical_name)
+        keyword_succeeded = 0
+        vector_succeeded = 0
+        for event_sequence in events:
+            outcome = self._materialize_event(
+                event_sequence=event_sequence,
+                keyword_client=keyword_client,
+                rag_service=rag_service,
+                spec=spec,
+            )
+            if outcome is None:
+                continue
+            keyword_succeeded += 1
+            vector_succeeded += 1
+        if complete:
+            keyword_client.refresh_partitioned_index()
+        return keyword_succeeded, vector_succeeded
+
     def _events(
         self,
         *,
@@ -157,7 +175,7 @@ class FilesCachedProjectionMaterializer:
         through_event_sequence: int,
         limit: int,
     ) -> tuple[list[int], bool]:
-        with self._session_factory() as db:
+        with self._open_session() as db:
             rows = list(
                 db.scalars(
                     select(RetrievalProjectionEvent.event_sequence)
@@ -180,7 +198,7 @@ class FilesCachedProjectionMaterializer:
         rag_service: RagService,
         spec: FilesGenerationPairSpec,
     ) -> str | None:
-        with self._session_factory() as db:
+        with self._open_session() as db:
             event = db.get(RetrievalProjectionEvent, event_sequence)
             if event is None or event.resource_type != FILE_MANAGER_FILE_RESOURCE_TYPE:
                 raise RuntimeError("Files materialization event is missing")

@@ -653,6 +653,30 @@ bash .agents/skills/miy-env-contracts/scripts/local-env-files.sh install --sourc
 템플릿으로 덮어쓸 이유가 아니다. 필요한 키만 기존 값을 보존하여 맞춘다.
 환경 파일 취급은 [환경설정 절차](.agents/skills/miy-env-contracts/references/env-files.md)를 따른다.
 
+독립 앱을 시범 사용할 때는 `MIY_INDEPENDENT_APP_PLATFORM_ORIGINS`에 플랫폼의 실제 브라우저 출처를 JSON 배열로 설정한다. 예를 들어 API와 Vite가 분리된 로컬 구성은 `["http://127.0.0.1:4200", "http://127.0.0.1:8001"]`처럼 실제 사용하는 값을 지정한다. 기본값 `[]`에서는 독립 앱 설치·세션 발급이 닫히며 기존 내장 앱에는 영향을 주지 않는다. 출처 경계·등록·SDK·아직 연결하지 않은 운영 배포 단계는 [독립 앱 계약](apps/api/src/miy_api/domains/independent_apps/README.md), 별도 저장소 생성과 앱 서버의 공개 설정은 [독립 앱 템플릿](templates/independent-app/README.md)을 따른다.
+
+최초 등록에는 최소 `independent_bootstrap_20261006`을 포함한 현재 Alembic head를 적용한 코어 API와 해당 포털 UI가 필요하다. Workbench의 등록 초안 JSON을 MIY 포털 `/apps/register`에서 현재 소유자 로그인으로 확인하면 personal 정의와 소유자만 대상으로 하는 비활성 development 설치를 원자적으로 만든다. 기존 앱을 덮어쓰거나 개발 서버·executor를 기동하지 않는다. 파일 인계와 응답 유실 복구는 [최초 앱 등록 절차](docs/apps/codex-console/README.md#등록-초안-파일로-최초-앱-등록)를 따른다.
+
+Workbench에서 파일 없이 최초 등록을 이어갈 설치는 `registration_auth_20261007`을 포함한 현재 head·포털 승인 화면을 함께 준비한다. Core의 `MIY_CODEX_CONSOLE_REGISTRATION_AUDIENCES`에는 정확한 Workbench base URL을 JSON 배열로 지정한다(하위 경로가 있으면 포함, 끝 `/` 없음, 기본 `[]`는 비활성). HTTPS 또는 로컬 loopback HTTP만 허용한다. 별도 브라우저 CSP를 설정한 경우 포털의 `form-action`이 해당 callback을 허용해야 한다. 기존 metadata key나 identity-only SSO에 쓰기 권한을 추가하지 않는다. [최초 등록 위임 계약](apps/api/src/miy_api/domains/independent_apps/README.md#optional-workbench-first-registration-authorization)의 별도 짧은 승인은 비활성 개인 앱 등록만 허용하며 실행·배포와 구분한다.
+
+독립 앱의 사용자 선택 파일 읽기는 별도 선택 기능이다. 코어에만 `MIY_INDEPENDENT_APP_FILE_SELECTION_SIGNING_KEY`를 설치하며 기본 빈 값은 이 기능을 비활성화한다. 키는 비기본·비placeholder 32바이트 이상이어야 하고 앱 소스·Workbench·브라우저에 전달하지 않는다. `MIY_INDEPENDENT_APP_FILE_SELECTION_STORAGE_REGION`은 기존 객체 저장소의 실제 region과 맞춘다(기본 `us-east-1`). 앱은 `identity:read`와 `files:read-selected`를 요청하고 설치에서 명시적으로 허용받아야 한다. 기존 앱 권한은 자동 확대하지 않는다. 사용자가 고른 최대 10 MiB 파일 하나만 짧은 유효기간 안에 현재 세션·원본 권한·버전을 재확인해 읽으며 이미 전달한 bytes는 회수할 수 없다. 계약과 검증 범위는 [선택 파일 읽기 계약](apps/api/src/miy_api/domains/independent_apps/README.md#selected-platform-files)를 따른다. 실제 키 설정이나 서비스 활성화는 소스 구현에 포함되지 않는다.
+
+로컬 독립 앱 배포 실행기는 별도 선택 기능이다. 기존 마이그레이션 명령으로 현재 Alembic head까지 적용하고, 코어 운영자가 승인한 로컬 빌드·nginx 이미지 ID, Docker 접근, 권한 `0700`의 전용 상태 디렉터리를 준비한다. 플랫폼 체크아웃에서만 [코어 배포 CLI](apps/api/src/miy_api/domains/independent_apps/README.md#local-development-delivery)를 실행한다. 앱 작업 디렉터리에는 플랫폼 DB·로그인·Docker 자격을 넣지 않는다. 앱 세션 교환에는 컨테이너에서 도달 가능한 플랫폼 API 경로가 필요하며, 호스트 loopback 전용 API는 자동으로 외부 수신으로 변경하지 않는다. 현재 실행기는 loopback 개발 설치만 지원하고 운영 배포를 활성화하지 않는다.
+
+Workbench의 위임된 요청을 자동 소비하려면 코어 설정의 `MIY_INDEPENDENT_APP_DELIVERY_TARGETS`에 앱·설치·독립 소스 경로·전용 scratch/state·승인된 이미지·플랫폼 출처를 명시한다. 기본값 `[]`는 비활성이다. [설정 계약과 명령](apps/api/src/miy_api/domains/independent_apps/README.md#optional-core-queue-consumer)의 `poll-once`는 요청 하나만, `serve`는 foreground 반복 소비를 수행한다. 예시 service 파일만 제공하며 설치·기동은 자동 수행하지 않는다. 중단된 running/unknown/cleanup 요청은 같은 ID로 기존 runtime을 관측하고 확인된 정리를 이어간다. 불확실한 배포를 새로 재실행하지 않으며, 저장된 관측 근거가 부족하면 상태를 유지하고 운영자 확인을 기다린다.
+
+DB가 필요한 독립 앱에는 `web-api-postgres-v1` 프로파일과 [개인 메모 템플릿](templates/independent-app-data/README.md)을 사용한다. 별도의 앱 데이터 PostgreSQL 클러스터를 준비하고 코어 API·실행기 설정에만 `MIY_INDEPENDENT_APP_DATA_POSTGRES_DSN`과 `MIY_INDEPENDENT_APP_DATA_CREDENTIAL_KEY`를 설치한다. 기본 빈 값은 비활성이다. 기존 코어·개발 DB에 대한 권한을 자동 변경하지 않으며, 클러스터의 `PUBLIC CONNECT` 제한을 확인하지 못하면 프로비저닝을 거부한다. 앱 DB·역할 분리, 고정 v1 마이그레이션, 설치별 백업과 키 변경 절차는 [데이터 계약](apps/api/src/miy_api/domains/independent_apps/DATA.md)이 소유한다. 이 키를 바꾸는 것은 자동 회전이 아니며 기존 로그인 실패로 드러난다. 데이터 경계 검사는 기존 개발 DB 대신 로컬 PostgreSQL 17 이미지로 만든 일회용 컨테이너를 사용한다.
+
+공식 업무 앱의 별도 UI 조립·빌드 대상은 [공식 suite](apps/official-suite/README.md)가 소유한다. 루트에서 `pnpm nx dev official-suite`로 포트 4201의 UI를 실행하고 `pnpm nx build official-suite`로 `dist/apps/official-suite`에 별도 산출물을 만든다. 현재는 기존 웹의 공용 UI·인증 클라이언트·설정과 기존 개발 API를 사용하는 0단계이며 별도 API·worker·마이그레이션을 기동하지 않는다. 운영 배포 대상·공식 앱 ID 실행 소유자·DB writer를 전환하지 않는다.
+
+공식 API 분리 기반은 `pnpm nx api-contract official-suite`로 검사하고 `pnpm nx api-build official-suite`로 공식 entry wheel과 같은 checkout의 MIY API 호환 wheel을 `dist/apps/official-suite-api`에 만든다. [공식 API](apps/official-suite/api/README.md)의 `miy_official_api.main:app`과 `miy_api.platform_main:app`은 아직 inactive이며 업무 HTTP/WS를 거부하고 readiness는 503이다. health 200이나 wheel 생성은 서비스 활성화 완료가 아니다. 기존 `miy_api.main:app`·worker·Beat만 현재 실행 체계를 유지하며 [writer 전환 계약](platform-redesign/OFFICIAL_API_CUTOVER.md)의 후속 검증 전에는 새 서비스로 교체하지 않는다.
+
+별도 [비활성 API 이미지](ops/official-suite-api/README.md)는 명시한 소스 입력을 먼저 고정한 뒤 같은 checkout의 두 wheel과 기존 고정 의존성을 포장한다. 해당 문서의 네트워크 없는 일회성 검사로 실제 설치 wheel·리소스·코덱과 inactive 응답을 확인한다. 이 검사는 포트를 열거나 서비스를 설치하지 않으며 기존 운영 Compose·배포 절차를 변경하지 않는다.
+
+공식 HTTP의 [인증 위임 bridge](apps/api/src/miy_api/domains/official_apps/README.md)는 코어가 승인한 검증 artifact·설치 generation의 앱 세션만 기존 사용자/입장/원본 ACL에 연결한다. `official_auth_binding_20261006` migration은 승인 테이블만 추가하며 자동 binding이나 활성화를 만들지 않는다. 현재 공통 DB에서 권한을 조회하는 내부 adapter 단계이며 별도 서비스 실행·DB role 변경·WS 위임은 아직 제공하지 않는다.
+
+공식 writer source는 현재 19개이며 기존 Personal Widgets의 할 일·메모, Planner 일정과 DM 대화·참여자·메시지·첨부를 포함한다. `official_widget_writer_20261006`과 뒤이은 `official_planner_writer_20261006`은 새 revision으로 범위를 확장하고 과거 migration snapshot을 보존한다. 이후 `registration_auth_20261007` 뒤의 `official_dm_writer_20261007`은 DM 네 원본을 추가한다. [DM 보호·첨부 commit 경계](platform-redesign/OFFICIAL_API_CUTOVER.md#dm-4개-원본-보호와-첨부-commit-경계--로컬-검증-완료)와 미완료 범위를 함께 확인한다. 기존 cooperative guard는 그대로 유지한다. 이미 역할 guard를 설치한 DB는 [강화된 DB 업그레이드 순서](platform-redesign/OFFICIAL_API_CUTOVER.md#personal-widgets-두-원본-추가와-강화된-db의-업그레이드)와 뒤의 Planner 계약에 따라 writer drain/중단 → migration → 새 generation의 새 principal 명시 준비와 현재 19-table 검증 → 이전 principal 회수 → exact CAS 순서로 준비한다. migration이나 기존 principal 재조회는 권한을 자동 확대하지 않는다. 이 내부 준비 경계는 운영 전환·공식 서비스 활성화 명령이 아니며 인증·ACL·partition·감사 등 전체 API 실행 권한도 아직 완성되지 않았다. role guard 사용 중 schema downgrade는 명시 retirement 없이 거부되며 호환 image rollback과 구분한다.
+
 챗봇에서 PMS 등 앱의 승인 기반 쓰기를 사용하려면 [앱 도구 활성화와 실제 동작 검증](docs/domains/ai/hermes.md#app-tool-enablement-and-verification)을 따른다. 기본 설치는 읽기 전용이며, 코드 갱신만으로 쓰기 도구가 켜지지는 않는다. 기능 플래그, 프로세스의 도구 목록 갱신, PMS 편집 권한, 건별 승인을 함께 확인한다.
 
 앱 도구 등록·입력 스키마·쓰기 플래그를 변경했다면 진행 중인 개발 작업을 정리하고,
@@ -693,6 +717,12 @@ Claude Code를 사용할 때 공통 스킬 연결도 확인한다.
 pnpm setup:claude-skills
 pnpm check:skills
 ```
+
+프로젝트 스킬은 MIY 전용 기능만 제공하며 일반 개발 절차는 강제하지 않는다.
+Codex 프로젝트 훅은 Git 메타데이터·생성 계약의 직접 패치를 막는 `PreToolUse`만 사용한다.
+기존 세션은 카탈로그와 훅 변경을 반영하려면 새로 시작하고, 네이티브 `/hooks`에서 실제 정의를 확인·신뢰한다.
+세션 시작·종료 때 자동 검사는 실행되지 않으므로 변경 범위에 맞는 테스트를 직접 실행한다.
+훅 신뢰 기록을 자동으로 만들지 않는다. 설치 확인과 검증 범위는 [에이전트 계약](docs/agents/vibe-coding-harness.md#local-codex-hooks)을 따른다.
 
 ## 4. 최소 환경으로 첫 로그인 확인
 
@@ -997,6 +1027,12 @@ HTTP 개발 사이트를 유지하면서 별도 TLS 프록시 포트를 연결�
   자동 시작을 완료한다. [서비스와 작업 현황](docs/apps/codex-console/README.md#서비스와-작업-현황)의
   세 포트·management 단일 프록시 경로·읽기 전용 모니터·병렬 작업 제한을 설정한다. 템플릿 실행기는 별도 고정 CLI와 `template-current` 릴리스를 사용한다.
 - 앱 운영 집계를 제공할 설치는 [운영 조회와 개발 화면 연결](docs/apps/codex-console/README.md#운영-조회와-개발-화면-연결)에 따라 MIY 조회 API를 먼저 배포하고 전용 키·origin을 Workbench 환경 파일에 설치한다. `glab`은 서비스 OS 사용자로 내부 GitLab에 인증한다. Studio·앱 관리·플랫폼 화면, 미설정/권한 거부 표시, 기존 작업, SQLite 백업·복원을 확인한다.
+- 독립 앱 소스를 연결하려면 Console의 별도 환경 파일에 `MIY_CODEX_CONSOLE_APP_SOURCE_ROOTS`를 절대 경로 JSON 배열로 설치한다. 기본 `[]`는 비활성이다. 운영·자격 증명·Console 저장소를 제외하고, 앱 목록의 **앱 소스 연결**에서 `app.manifest.json`이 있는 실제 체크아웃을 선택한다. `console_sqlite_0005` 마이그레이션과 기존 작업 경로 보존 규칙은 [독립 앱 소스 연결](docs/apps/codex-console/README.md#독립-앱-소스-연결)을 따른다. 환경 파일 설치와 별도 서비스 전환은 각각 해당 설치·배포 절차를 따른다.
+- 새 프로젝트에서 템플릿 앱 소스를 준비하려면 `MIY_CODEX_CONSOLE_APP_CREATION_ROOTS`를 명시한다. 기본 `[]`는 생성 비활성이고, 각 경로는 `APP_SOURCE_ROOTS` 안의 서비스 사용자 소유·그룹/다른 사용자 쓰기 불가 디렉터리여야 한다. 현재 스키마 `console_sqlite_0008`까지 적용한 뒤 Studio 프로젝트의 **앱 소스 준비**에서 템플릿과 저장소 주소를 선택한다. `0006`은 소스 준비 기록, `0007`은 기존 결과와 분리된 nullable native agent 관측을 추가한다. 기존 파일을 덮지 않고 첫 로컬 Git revision과 소스 연결을 만들며, 중단·응답 유실은 저장된 같은 요청으로 조회·재개한다. 이 단계는 플랫폼 등록·설치·원격 Git 게시·executor 설치를 수행하지 않는다. 스키마 변경 전 서비스 중지·백업은 [저장소 계약](docs/apps/codex-console/README.md#독립-저장소와-백업), 준비 절차는 [프로젝트에서 새 앱 소스 준비](docs/apps/codex-console/README.md#프로젝트에서-새-앱-소스-준비)의 계약을 따른다.
+- 최초 플랫폼 등록은 **앱 등록 초안 내려받기** → MIY 포털 `/apps/register`의 파일 가져오기·현재 소유자 확인으로 진행할 수 있다. 원본 manifest는 64 KiB, 인계 파일은 256 KiB 상한이다. 응답 유실은 같은 operation UUID로 조회하며 불명확한 요청을 자동 재실행하지 않는다. receipt는 최초 등록 기록으로 현재 실행 준비 완료를 뜻하지 않는다. [파일 등록 절차](docs/apps/codex-console/README.md#등록-초안-파일로-최초-앱-등록)는 COOP·토큰 경계를 유지하며, 아래 선택 기능을 켜지 않은 서버에서도 유지한다.
+- 파일 없는 등록 연결은 `console_sqlite_0008`과 별도 Workbench release를 준비한 뒤 `MIY_CODEX_CONSOLE_REGISTRATION_AUTHORIZATION_ENABLED=true`로 명시 활성화한다(기본 false). Core audience allowlist와 현재 MIY issuer/소유자 UUID 설정이 일치해야 한다. 새 등록 작업에서 현재 MIY 사용자가 한 번 승인하고, Codex 구현 승인 아래 실제 저장된 앱 정의를 등록한다. 서버 credential 디렉터리는 SQLite 파일 옆 `registration-credentials`이며 앱 작업 경로 밖에 둔다. 0700 디렉터리·0600 단일 링크 파일, 원래 Workbench 세션/Task binding, 응답 유실의 같은 operation 조회·만료 후 명시 재연결은 [Workbench 최초 등록 위임](docs/apps/codex-console/README.md#workbench에서-최초-등록-한-번-허용)을 따른다. 기존 Task에 도구가 자동 추가되거나 등록으로 executor·배포 권한이 생기지 않는다. 서비스 중지·백업·migration·독립 release 검증은 기존 저장/배포 계약을 적용한다.
+- 최초 등록 후에는 MIY 소유자로 로그인해 등록 결과·앱 목록의 **내 개발 설치** 또는 Workbench 등록 기록의 **MIY에서 내 개발 미리보기 설정**을 연다. 초기 개발 설치의 사용 허용과 요청된 접근 권한을 명시적으로 저장한다. 원본 주소·대상 사용자·소스는 이 화면에서 바꾸지 않으며, 배포/검증이 시작된 설치는 읽기 전용이다. 저장 응답을 확인하지 못하면 자동 재저장 대신 현재 설정을 다시 읽는다. 이 설정은 앱 서버 실행·데이터 저장소 준비·배포를 수행하지 않는다. 자세한 범위는 [소유자 최초 개발 미리보기 설정](apps/api/src/miy_api/domains/independent_apps/README.md#owner-only-initial-development-preview-settings)을 따른다.
+- 독립 앱의 실제 Codex 실행은 소스 연결 외에 검증된 원격 executor가 필요하다. 같은 소유 문서의 `prepare-independent-app-workspace.py`와 `verify-independent-app-executor.py`로 자격 증명 없는 별도 checkout과 읽기 전용·편집 정책을 확인한 뒤 `MIY_CODEX_CONSOLE_APP_EXECUTION_ENVIRONMENTS`를 설정한다. 기본 Docker 환경에서 내부 sandbox가 실패하면 설정을 발급하지 않으며, 계획 정책을 무제한 실행으로 바꾸지 않는다. 미연결 새 앱 프로젝트는 계획만 가능하다. 개발 설치별 위임과 큐 소비자는 [독립 앱 배포 도구](docs/apps/codex-console/README.md#독립-앱-배포-도구)의 별도 선택 기능이다.
 - 지침·스킬에서는 프로젝트 폴더와 스킬 참고 문서의 탐색·내부 링크, 관리자·시스템·플러그인 스킬의 읽기 전용 표시를 확인한다. `MIY_CODEX_CONSOLE_WORKSPACE`는 대상 Git 저장소이며 MIY 저장소에 한정되지 않는다. **Codex 스킬 발견 상태**와 **지침 탐색 설정**으로 작업 경로별 native 결과·대체 파일명·합산 제한을 확인한다. 설치 파일 목록과 실제 실행 가능 범위는 [지침·스킬 계약](docs/apps/codex-console/README.md#서비스와-작업-현황)을 따른다.
 - [중단 후 계속하기](docs/apps/codex-console/README.md#실행-설정과-중단-후-계속하기)를 확인한다. 일반 실행과 상태 확인에는 Git 사전 검사가 없으며, 삭제된 작업 경로나 명령 실패는 같은 대화에서 Codex가 판단한다. 새 작업·템플릿의 명시적 격리를 사용할 때만 [작업 공간 설정](docs/apps/codex-console/README.md#브랜치와-작업-공간)의 기준 ref와 워크트리 경로를 준비한다.
 - 설치 호스트의 콘솔 Vite와 공개 HTTPS 주소에서 각각 작업실 로그인을 확인한다.
