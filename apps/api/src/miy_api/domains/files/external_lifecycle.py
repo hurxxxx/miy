@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from hashlib import sha256
 from typing import BinaryIO, Literal
 
 from sqlalchemy import delete, event, func, select
+from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session, SessionTransaction
 
 from miy_api.domains.auth.models import User
@@ -77,6 +78,8 @@ class ExternalFileDeleteResult:
 class _StorageCompensationState:
     storage_keys_by_transaction: dict[SessionTransaction, set[str]]
     committed_transactions: set[SessionTransaction]
+    commit_attempted_transactions: set[SessionTransaction]
+    root_commit_observers: dict[SessionTransaction, tuple[Connection, Callable]]
 
 
 def upsert_external_file(
@@ -108,8 +111,9 @@ def upsert_external_file(
 
     Success joins the caller's transaction. A storage or outbox failure rolls
     back that joined unit of work and compensates any newly written object. A
-    newly written object also remains compensatable until the caller's outer
-    transaction commits successfully.
+    newly written object remains compensatable on explicit rollback before a
+    root COMMIT attempt. An unacknowledged COMMIT preserves bytes because its
+    outcome cannot be inferred from a later Session rollback or close.
     Replaced objects are recorded in the existing durable Files cleanup queue
     in the same transaction; ``obsolete_storage_keys`` is diagnostic and
     requires no caller cleanup.
@@ -473,9 +477,33 @@ def _register_storage_compensation(db: Session, storage_key: str) -> None:
         state = _StorageCompensationState(
             storage_keys_by_transaction={},
             committed_transactions=set(),
+            commit_attempted_transactions=set(),
+            root_commit_observers={},
         )
         db.info[_PENDING_STORAGE_COMPENSATIONS_KEY] = state
     state.storage_keys_by_transaction.setdefault(transaction, set()).add(storage_key)
+    root = db.get_transaction()
+    if root is not None and root not in state.root_commit_observers:
+        connection = db.connection()
+
+        def attempted(_connection: Connection) -> None:
+            state.commit_attempted_transactions.add(root)
+
+        # Connection.commit excludes RELEASE SAVEPOINT and identifies a root
+        # COMMIT even if the caller uses its transaction handle with an open
+        # savepoint. This is an attempt, not proof of acceptance by PostgreSQL.
+        event.listen(connection, "commit", attempted)
+        state.root_commit_observers[root] = (connection, attempted)
+
+
+@event.listens_for(Session, "before_commit")
+def _mark_storage_compensation_savepoint_attempt(session: Session) -> None:
+    state = session.info.get(_PENDING_STORAGE_COMPENSATIONS_KEY)
+    if not isinstance(state, _StorageCompensationState):
+        return
+    nested = session.get_nested_transaction()
+    if nested is not None:
+        state.commit_attempted_transactions.add(nested)
 
 
 @event.listens_for(Session, "after_commit")
@@ -497,20 +525,30 @@ def _settle_storage_compensations(
     if not isinstance(state, _StorageCompensationState):
         return
 
-    # ``after_transaction_end`` also runs when a failed commit is subsequently
-    # rolled back or the Session is closed. Only ``after_commit`` proves that a
-    # transaction completed successfully.
+    # Missing after_commit does not prove rollback: the server may have
+    # committed before the connection lost its acknowledgement.
     storage_keys = state.storage_keys_by_transaction.pop(transaction, set())
     committed = transaction in state.committed_transactions
     state.committed_transactions.discard(transaction)
-    if committed and transaction.parent is not None:
-        # A released savepoint still depends on its outer transaction.
+    attempted = transaction in state.commit_attempted_transactions
+    state.commit_attempted_transactions.discard(transaction)
+    observer = state.root_commit_observers.pop(transaction, None)
+    if observer is not None:
+        event.remove(observer[0], "commit", observer[1])
+    if (committed or attempted) and transaction.parent is not None:
+        # RELEASE (including an uncertain RELEASE) cannot commit the root.
+        # A subsequent explicit outer rollback can still compensate its keys.
         state.storage_keys_by_transaction.setdefault(transaction.parent, set()).update(storage_keys)
-    elif not committed:
+    elif not committed and not attempted:
         for storage_key in sorted(storage_keys):
             files_service.remove_storage_object_immediately(storage_key)
 
-    if not state.storage_keys_by_transaction and not state.committed_transactions:
+    if (
+        not state.storage_keys_by_transaction
+        and not state.committed_transactions
+        and not state.commit_attempted_transactions
+        and not state.root_commit_observers
+    ):
         session.info.pop(_PENDING_STORAGE_COMPENSATIONS_KEY, None)
 
 

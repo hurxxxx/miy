@@ -72,6 +72,17 @@ class CheckPythonSourceIntegrityTest(unittest.TestCase):
             ),
         )
 
+    def test_detects_duplicate_public_composition_router_spec(self) -> None:
+        self.assertIn(
+            "duplicate-router-spec",
+            self.codes(
+                "SPECS = [\n"
+                '    RouterSpec(report_router, "protected", 1, "official", "reports"),\n'
+                '    RouterSpec(report_router, "public", 2, "official", "reports"),\n'
+                "]\n"
+            ),
+        )
+
     def test_detects_aliased_direct_core_llm_import(self) -> None:
         self.assertIn(
             "direct-core-llm-import",

@@ -1,33 +1,17 @@
 import { apiFetchJsonWithMappedError } from '@/src/platform/api/client';
-import type { ApiSchema } from '@/src/platform/api/types';
+import type { AppsBootstrapResponse } from '@miy/platform-web/apps/bootstrap-types';
 import { i18n } from '@/src/platform/i18n';
 import { useCallback, useEffect, useReducer, useRef } from 'react';
-export type BootstrapNavItem = ApiSchema<'BootstrapNavItemResponse'>;
-export type BootstrapApp = ApiSchema<'BootstrapAppResponse'>;
-export type BootstrapAppBarCategoryItem =
-  ApiSchema<'BootstrapAppBarCategoryItemResponse'>;
-export type BootstrapAppBarCategory =
-  ApiSchema<'BootstrapAppBarCategoryResponse'> & {
-    pinnable?: boolean;
-    contextLabel?: string;
-  };
-export type BootstrapKeywordSearchEntityType =
-  ApiSchema<'BootstrapKeywordSearchEntityTypeResponse'>;
-export type BootstrapKeywordSearch =
-  ApiSchema<'BootstrapKeywordSearchResponse'>;
-export type AppsBootstrapResponse = Omit<
-  ApiSchema<'AppsBootstrapResponse'>,
-  'app_bar_categories'
-> & {
-  app_bar_categories: BootstrapAppBarCategory[];
-};
-export type AppsBootstrapApp = AppsBootstrapResponse['apps'][number];
+export type * from '@miy/platform-web/apps/bootstrap-types';
 
-async function getAppsBootstrap(token: string): Promise<AppsBootstrapResponse> {
+export async function getAppsBootstrap(
+  token: string,
+  signal?: AbortSignal,
+): Promise<AppsBootstrapResponse> {
   return apiFetchJsonWithMappedError<AppsBootstrapResponse>(
     '/api/v1/apps/bootstrap',
     token,
-    {},
+    { signal },
     (error) =>
       new Error(
         error.message ||

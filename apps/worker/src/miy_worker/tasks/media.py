@@ -5,9 +5,12 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
 
-from miy_worker.celery_app import celery_app
+from miy_worker.task_binding import task_app
+
 from miy_worker.runtime import db_session
 from miy_worker.settings import get_settings
+
+celery_app = task_app(__name__)
 
 
 def _get_db_session():

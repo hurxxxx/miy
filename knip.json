@@ -1,10 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "ignoreFiles": [
-    "coverage/**",
-    "dist/**",
-    "node_modules/**"
-  ],
+  "ignoreFiles": ["coverage/**", "dist/**", "node_modules/**"],
   "rules": {
     "dependencies": "off",
     "devDependencies": "off",
@@ -28,34 +24,23 @@
         "scripts/check-contracts-publish-tag.mjs",
         "scripts/check-web-app-boundaries.mjs",
         "scripts/check-web-app-boundaries.test.mjs",
+        "scripts/check-official-suite-ownership.mjs",
         "scripts/dev-login-browser-smoke.mjs",
-        "scripts/web-i18n-message-checker.test.mjs"
+        "scripts/web-i18n-message-checker.test.mjs",
+        "packages/official-suite-web/src/index.ts",
+        "packages/platform-web/src/index.ts"
       ],
       "paths": {
-        "@/src/*": [
-          "apps/web/src/*"
-        ],
-        "@miy/ui": [
-          "packages/ui/src/index.ts"
-        ],
-        "@miy/ui/styles.css": [
-          "packages/ui/styles.css"
-        ],
-        "@miy/web-shell": [
-          "apps/web/src/app/shell/AppContent.tsx"
-        ],
-        "@miy/web/styles.css": [
-          "apps/web/src/index.css"
-        ],
+        "@/src/*": ["apps/web/src/*"],
+        "@miy/ui": ["packages/ui/src/index.ts"],
+        "@miy/ui/styles.css": ["packages/ui/styles.css"],
+        "@miy/web-shell": ["apps/web/src/app/shell/AppContent.tsx"],
+        "@miy/web/styles.css": ["apps/web/src/index.css"],
         "@miy/web/fullcalendar-theme.css": [
           "apps/web/src/styles/fullcalendar-theme.css"
         ]
       },
-      "project": [
-        "*.cjs",
-        "*.mjs",
-        "scripts/**/*.mjs"
-      ]
+      "project": ["*.cjs", "*.mjs", "scripts/**/*.mjs"]
     },
     "apps/web": {
       "entry": [
@@ -72,21 +57,11 @@
         "tests/**"
       ],
       "paths": {
-        "@/src/*": [
-          "src/*"
-        ],
-        "@miy/ui": [
-          "../../packages/ui/src/index.ts"
-        ],
-        "@miy/ui/styles.css": [
-          "../../packages/ui/styles.css"
-        ],
-        "@miy/web-shell": [
-          "../web/src/app/shell/AppContent.tsx"
-        ],
-        "@miy/web/styles.css": [
-          "../web/src/index.css"
-        ],
+        "@/src/*": ["src/*"],
+        "@miy/ui": ["../../packages/ui/src/index.ts"],
+        "@miy/ui/styles.css": ["../../packages/ui/styles.css"],
+        "@miy/web-shell": ["../web/src/app/shell/AppContent.tsx"],
+        "@miy/web/styles.css": ["../web/src/index.css"],
         "@miy/web/fullcalendar-theme.css": [
           "../web/src/styles/fullcalendar-theme.css"
         ]
@@ -99,15 +74,17 @@
         "vite.config.mts"
       ]
     },
+    "apps/official-suite": {
+      "entry": ["src/main.tsx", "vite.config.mts"],
+      "ignore": ["src/**/*.spec.{ts,tsx}"],
+      "paths": {
+        "@/src/*": ["../web/src/*"]
+      },
+      "project": ["src/**/*.{ts,tsx}", "vite.config.mts"]
+    },
     "packages/ui": {
-      "entry": [
-        "src/index.ts",
-        "styles.css"
-      ],
-      "project": [
-        "src/**/*.{ts,tsx}",
-        "styles.css"
-      ]
+      "entry": ["src/index.ts", "styles.css"],
+      "project": ["src/**/*.{ts,tsx}", "styles.css"]
     }
   }
 }

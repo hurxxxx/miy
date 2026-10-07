@@ -1,4 +1,4 @@
-import type { Page, Route } from '@playwright/test';
+import type { BrowserContext, Page, Route } from '@playwright/test';
 import { APP_CONTRACTS } from '@miy/contracts/app-contracts';
 import {
   REALTIME_CLIENT_EVENT_TYPES,
@@ -545,6 +545,7 @@ export async function stubAppDataBackend(page: Page): Promise<void> {
 interface ShellBackendOptions {
   enabledAppIds?: readonly string[];
   user?: E2EUser;
+  onRealtimeConnection?: () => void;
   onUpdatePreferences?: (
     payload: Record<string, unknown>,
     user: E2EUser,
@@ -572,7 +573,7 @@ const LLM_HEALTH = {
  * first page.goto().
  */
 export async function stubShellBackend(
-  page: Page,
+  page: Page | BrowserContext,
   options: ShellBackendOptions = {},
 ): Promise<void> {
   let user: E2EUser = {
@@ -587,6 +588,7 @@ export async function stubShellBackend(
   const appsBootstrap = buildAppsBootstrap(enabledAppIds, user);
 
   await page.routeWebSocket('**/api/v1/realtime/ws', (webSocket) => {
+    options.onRealtimeConnection?.();
     webSocket.onMessage((message) => {
       if (typeof message !== 'string') {
         return;
@@ -632,6 +634,17 @@ export async function stubShellBackend(
   await page.route('**/api/v1/apps/bootstrap', (route: Route) =>
     route.fulfill({ json: appsBootstrap }),
   );
+  await page.route('**/api/v1/independent-apps/catalog**', (route: Route) =>
+    route.fulfill({
+      json: {
+        items: [],
+        total: 0,
+        page: 1,
+        page_size: 200,
+        catalog_revision: 'empty',
+      },
+    }),
+  );
 
   // Chatbot health: drives the ChatTopBar model pill and shield icon. The frontend
   await page.route('**/chatbot/health', (route: Route) =>
@@ -676,14 +689,21 @@ export async function stubShellBackend(
 
   // Seed the auth token so AuthProvider hydrates without a login redirect.
   await page.addInitScript(
-    ({ token, key }) => {
+    ({ token, key, origin }) => {
+      if (window.location.origin !== origin) return;
       try {
         window.localStorage.setItem(key, token);
       } catch {
         // Private browsing or quota issues — test will surface the failure.
       }
     },
-    { token: FAKE_TOKEN, key: AUTH_TOKEN_STORAGE_KEY },
+    {
+      token: FAKE_TOKEN,
+      key: AUTH_TOKEN_STORAGE_KEY,
+      origin: new URL(
+        process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4200',
+      ).origin,
+    },
   );
 }
 

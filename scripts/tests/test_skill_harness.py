@@ -36,12 +36,19 @@ class SkillHarnessScannerTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "duplicate key"):
             skill_harness.parse_frontmatter("---\nname: first\nname: second\n---\n")
 
-    def test_trigger_must_be_in_description_not_other_metadata(self):
+    def test_description_has_no_mandatory_trigger_phrase(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             write_text(root / '.agents/skills/sample/SKILL.md', '---\nname: sample\ndescription: A capability.\nnote: Use when testing.\n---\n')
             report = self.evaluate(root, required_skills={'sample'})
-        self.assertIn('missing_use_when_trigger', self.codes(report))
+        self.assertTrue(report.ok, self.messages(report))
+
+    def test_actual_catalog_is_not_a_fixed_skill_inventory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_text(root / '.agents/skills/new-capability/SKILL.md', valid_skill_text('new-capability'))
+            report = skill_harness.evaluate_skill_harness(self.snapshot(root), require_tool_bridges=False)
+            self.assertTrue(report.ok, self.messages(report))
 
     def test_aggregate_discovery_budget(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -148,7 +155,6 @@ class SkillHarnessScannerTest(unittest.TestCase):
             report = self.evaluate(root, required_skills={"example"})
 
         self.assertIn("skill_name_mismatch", self.codes(report))
-        self.assertIn("missing_use_when_trigger", self.codes(report))
         self.assertIn(
             ".agents/skills/example/SKILL.md: name must be 'example'",
             self.messages(report),
@@ -214,11 +220,11 @@ class SkillHarnessScannerTest(unittest.TestCase):
             report = self.evaluate(root, required_skills={"clean"})
 
         codes = self.codes(report)
-        self.assertIn("unexpected_agent_instruction", codes)
+        self.assertNotIn("unexpected_agent_instruction", codes)
         self.assertIn("agent_instruction_too_long", codes)
         self.assertIn("invalid_scoped_claude_bridge", codes)
         messages = self.messages(report)
-        self.assertIn("packages/extra/AGENTS.md", messages)
+        self.assertNotIn("packages/extra/AGENTS.md", messages)
         self.assertIn("AGENTS.md: 61 lines", messages)
         self.assertIn("apps/api/AGENTS.md: 25 lines", messages)
 

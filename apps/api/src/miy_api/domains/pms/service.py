@@ -100,7 +100,9 @@ from miy_api.domains.pms.workflow import (
     status_label,
 )
 from miy_api.domains.rag.contracts import RagSyncOperation
-from miy_api.domains.retrieval.partitioning import assign_default_partition
+from miy_api.domains.retrieval.prepared_company_partitions import (
+    assign_company_projection_partition,
+)
 
 
 def _normalize_task_status(status_value: str) -> str:
@@ -1693,11 +1695,10 @@ def create_task(
     )
     if task_list.team_id is None:
         raise ValueError("PMS task list must belong to an active PMS space")
-    assign_default_partition(
+    assign_company_projection_partition(
         db,
         target=task,
         source_namespace="pms",
-        candidate_scope_kind="company",
     )
     db.add(task)
     db.flush()

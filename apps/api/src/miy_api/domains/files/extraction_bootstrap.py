@@ -79,7 +79,9 @@ def bootstrap_file_extraction_artifacts(
     materializer sees an immutable artifact checksum at its fixed watermark.
     """
 
-    if files_rag_sync.FILES_RETRIEVAL_ACTIVE:
+    from miy_api.domains.files.retrieval_contract import FILES_RETRIEVAL_ACTIVE
+
+    if FILES_RETRIEVAL_ACTIVE:
         raise ValueError("Files extraction bootstrap requires a disabled gate")
     batch_limit = int(limit)
     if batch_limit < 1 or batch_limit > 1_000:

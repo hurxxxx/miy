@@ -165,3 +165,39 @@ def test_yjs_queued_send_rechecks_after_waiting_for_send_lock():
         assert probe.close_codes == [1008]
 
     asyncio.run(exercise())
+
+
+@pytest.mark.parametrize("direction", ["receive", "send"])
+@pytest.mark.parametrize("custom_close", [False, True])
+def test_yjs_optional_pure_close_choice_does_not_reenter_send_lock(direction, custom_close):
+    async def exercise():
+        probe = _RevocationProbeWebSocket()
+        runtime = _runtime_stub()
+
+        async def authorize():
+            raise HTTPException(status_code=503)
+
+        transport = FastAPIYjsWebsocket(
+            probe,
+            "docs:doc-1",
+            runtime,
+            "editor",
+            authorize=authorize,
+            authorization_error_close=(lambda exc: (1013, "writer_unavailable"))
+            if custom_close
+            else None,
+        )
+        runtime.room.clients.append(transport)
+        if direction == "send":
+            await asyncio.wait_for(transport.send(b"must-not-leak"), timeout=1)
+        else:
+            probe.incoming.put_nowait({"type": "websocket.receive", "bytes": b"\x00update"})
+            with pytest.raises(WebSocketDisconnect) as denied:
+                await asyncio.wait_for(transport.recv(), timeout=1)
+            assert denied.value.code == (1013 if custom_close else 1008)
+        assert probe.close_codes == [1013 if custom_close else 1008]
+        assert not probe.sent_messages
+        assert runtime.last_editor_user_id is None
+        assert runtime.room.clients == []
+
+    asyncio.run(exercise())

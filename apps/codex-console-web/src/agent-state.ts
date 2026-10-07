@@ -2,6 +2,71 @@ import { active, record, string, type Task } from './api';
 import type { components } from './api.generated';
 import { statusCopy, type Copy, type Translate } from './i18n';
 export type Agent = components['schemas']['AgentOut'];
+export type NativeFreshness = NonNullable<Agent['observation']>['freshness'];
+
+/** Observation metadata explains execution records; it never grants action eligibility. */
+export function nativeThreadStatus(agent: Agent): Copy {
+  return (
+    (
+      {
+        active: 'Running',
+        idle: 'Idle',
+        notLoaded: 'Not loaded',
+        systemError: 'Needs recovery',
+      } as Record<string, Copy>
+    )[agent.observation?.thread_status ?? ''] ?? 'Unknown'
+  );
+}
+
+export function currentNativeStatus(
+  agent: Agent,
+  freshness = agent.observation?.freshness,
+): Copy {
+  return freshness === 'fresh' && agent.observation?.thread_status
+    ? nativeThreadStatus(agent)
+    : 'Current state unknown';
+}
+
+export function nativeObservationStatus(
+  agent: Agent,
+  freshness = agent.observation?.freshness,
+): Copy {
+  return (
+    (
+      {
+        fresh: 'Recent native observation',
+        stale: 'Stale observation',
+        unavailable: 'Native observation unavailable',
+        unknown: 'No native observation yet',
+      } as Record<string, Copy>
+    )[freshness ?? 'unknown'] ?? 'No native observation yet'
+  );
+}
+
+export function observedTurnStatus(agent: Agent): Copy {
+  return (
+    (
+      {
+        inProgress: 'Running',
+        completed: 'Completed',
+        interrupted: 'Interrupted',
+        failed: 'Failed',
+      } as Record<string, Copy>
+    )[agent.observation?.last_turn?.status ?? ''] ?? 'Unknown'
+  );
+}
+
+export function observationFailure(agent: Agent): Copy | null {
+  return (
+    (
+      {
+        unavailable: 'Native connection unavailable',
+        read_failed: 'Native state read failed',
+        identity_mismatch: 'Native observation identity could not be verified',
+      } as Record<string, Copy>
+    )[agent.observation?.error_code ?? ''] ?? null
+  );
+}
 
 const terminal = new Set(['completed', 'interrupted', 'errored', 'shutdown']);
 export const agentWorking = (agent: Agent) =>

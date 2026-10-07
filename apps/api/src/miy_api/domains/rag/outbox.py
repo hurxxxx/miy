@@ -71,6 +71,7 @@ def enqueue_rag_sync_job(
     trace_context: RagTraceContext | dict[str, Any] | None = None,
     supersede_delete: bool = False,
     projection_event: ProjectionEventRef | None = None,
+    publish_after_commit: bool = True,
 ) -> RagSyncJob:
     scope_kind = _normalize_rag_scope_kind(scope_kind)
     operation = _normalize_rag_sync_operation(operation)
@@ -116,10 +117,11 @@ def enqueue_rag_sync_job(
         )
         db.add(existing)
         db.flush()
-        schedule_rag_job_publication_after_commit(
-            db,
-            RagJobPublication.sync(job_id=existing.id, lane=existing.lane),
-        )
+        if publish_after_commit:
+            schedule_rag_job_publication_after_commit(
+                db,
+                RagJobPublication.sync(job_id=existing.id, lane=existing.lane),
+            )
         _record_sync_queue_depth(
             db,
             scope_kind=scope_kind.value,
@@ -154,10 +156,11 @@ def enqueue_rag_sync_job(
         with db.begin_nested():
             db.add(job)
             db.flush()
-        schedule_rag_job_publication_after_commit(
-            db,
-            RagJobPublication.sync(job_id=job.id, lane=job.lane),
-        )
+        if publish_after_commit:
+            schedule_rag_job_publication_after_commit(
+                db,
+                RagJobPublication.sync(job_id=job.id, lane=job.lane),
+            )
         _record_sync_queue_depth(
             db,
             scope_kind=scope_kind.value,
@@ -188,10 +191,11 @@ def enqueue_rag_sync_job(
         )
         db.add(existing)
         db.flush()
-        schedule_rag_job_publication_after_commit(
-            db,
-            RagJobPublication.sync(job_id=existing.id, lane=existing.lane),
-        )
+        if publish_after_commit:
+            schedule_rag_job_publication_after_commit(
+                db,
+                RagJobPublication.sync(job_id=existing.id, lane=existing.lane),
+            )
         _record_sync_queue_depth(
             db,
             scope_kind=scope_kind.value,

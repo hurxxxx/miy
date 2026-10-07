@@ -1,11 +1,2 @@
-import { chatbotManifest } from './manifest';
-import { chatbotAppRoutes } from './routes';
-import { chatbotSidebarConfig } from './sidebar';
-
-export { chatbotAppRoutes, chatbotManifest };
-
-export const chatbotModule = {
-  manifest: chatbotManifest,
-  appRoutes: chatbotAppRoutes,
-  sidebarConfig: chatbotSidebarConfig,
-} as const;
+/** Compatibility entry; the declared source owner supplies the same objects. */
+export * from '@miy/platform-web/chatbot/module';

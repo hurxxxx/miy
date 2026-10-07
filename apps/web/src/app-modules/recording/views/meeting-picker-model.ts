@@ -6,4 +6,4 @@ export {
   sortMeetingsForPicker,
   type MeetingPickerAction,
   type MeetingPickerState,
-} from '@/src/app-modules/meeting/public-api';
+} from '@miy/official-suite-web/meeting';

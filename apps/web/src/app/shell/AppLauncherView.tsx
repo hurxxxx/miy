@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 
 import { appIconForKey } from '@/src/platform/apps/app-icons';
 import type { AppsBootstrapResponse } from '@/src/platform/apps/apps-api';
+import { IndependentAppLauncher } from '@/src/platform/apps/IndependentAppLauncher';
+import type { IndependentApp } from '@/src/platform/apps/independent-apps-api';
 import {
   appLaunchLinkProps,
   resolveAppLaunchDestination,
@@ -20,13 +22,38 @@ export function AppLauncherView({
   data,
   error,
   loading,
+  independentApps,
+  canRegisterApp = false,
+  ownerUserId,
 }: {
   data: AppsBootstrapResponse | null;
   error: string | null;
   loading: boolean;
+  canRegisterApp?: boolean;
+  ownerUserId?: string;
+  independentApps?: {
+    items: IndependentApp[];
+    loading: boolean;
+    failed: boolean;
+  };
 }) {
   const { t } = useTranslation('shell');
-  const hasNoApps = Boolean(data && !data.apps.some((app) => app.enabled));
+  const hasNoApps = Boolean(
+    data &&
+      !data.apps.some((app) => app.enabled) &&
+      !independentApps?.loading &&
+      !independentApps?.failed &&
+      !independentApps?.items.some((item) =>
+        item.installations.some(
+          (installation) =>
+            installation.launchable ||
+            (ownerUserId &&
+              item.definition.owner_user_id === ownerUserId &&
+              item.definition.definition.ownership === 'personal' &&
+              installation.environment === 'development'),
+        ),
+      ),
+  );
   const sections = LAUNCHER_SECTIONS.map((section) => ({
     ...section,
     apps: (data?.apps ?? []).filter((app) => {
@@ -47,6 +74,11 @@ export function AppLauncherView({
       <p className="app-text-body mt-2 max-w-2xl text-app-ink/60">
         {t('launcher.description')}
       </p>
+      {canRegisterApp && (
+        <Link to="/apps/register" className="mt-4 inline-block text-app-accent">
+          {t('independentApps.registration.title')}
+        </Link>
+      )}
 
       {loading && !data ? (
         <div
@@ -116,6 +148,12 @@ export function AppLauncherView({
           </div>
         </section>
       ))}
+      {independentApps && (
+        <IndependentAppLauncher
+          {...independentApps}
+          ownerUserId={ownerUserId}
+        />
+      )}
     </div>
   );
 }

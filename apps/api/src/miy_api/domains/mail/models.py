@@ -19,12 +19,13 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from miy_api.core.db import Base
+from miy_api.domains.official_apps.writer_contracts import OfficialWriterSource
 from miy_api.domains.auth.models import utcnow_naive
 
 JSONB_COMPAT = JSONB(astext_type=Text()).with_variant(JSON(), "sqlite")
 
 
-class MailAccount(Base):
+class MailAccount(OfficialWriterSource, Base):
     __tablename__ = "mail_accounts"
     __table_args__ = (
         UniqueConstraint(
@@ -96,7 +97,7 @@ class MailAccount(Base):
     )
 
 
-class MailMailbox(Base):
+class MailMailbox(OfficialWriterSource, Base):
     __tablename__ = "mail_mailboxes"
     __table_args__ = (
         UniqueConstraint(
@@ -139,7 +140,7 @@ class MailMailbox(Base):
     )
 
 
-class MailMessage(Base):
+class MailMessage(OfficialWriterSource, Base):
     __tablename__ = "mail_messages"
     __table_args__ = (
         UniqueConstraint(
@@ -222,7 +223,7 @@ class MailMessage(Base):
     )
 
 
-class MailMessageBody(Base):
+class MailMessageBody(OfficialWriterSource, Base):
     __tablename__ = "mail_message_bodies"
 
     message_id: Mapped[str] = mapped_column(
@@ -242,7 +243,7 @@ class MailMessageBody(Base):
     message: Mapped[MailMessage] = relationship(back_populates="body")
 
 
-class MailAttachment(Base):
+class MailAttachment(OfficialWriterSource, Base):
     __tablename__ = "mail_attachments"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -265,7 +266,7 @@ class MailAttachment(Base):
     message: Mapped[MailMessage] = relationship(back_populates="attachments")
 
 
-class MailDraft(Base):
+class MailDraft(OfficialWriterSource, Base):
     __tablename__ = "mail_drafts"
     __table_args__ = (
         Index(
@@ -309,7 +310,7 @@ class MailDraft(Base):
     )
 
 
-class MailSendAttempt(Base):
+class MailSendAttempt(OfficialWriterSource, Base):
     __tablename__ = "mail_send_attempts"
     __table_args__ = (Index("ix_mail_send_attempts_draft_created", "draft_id", "created_at"),)
 
@@ -330,7 +331,7 @@ class MailSendAttempt(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow_naive, nullable=False)
 
 
-class MailSyncState(Base):
+class MailSyncState(OfficialWriterSource, Base):
     __tablename__ = "mail_sync_states"
     __table_args__ = (
         UniqueConstraint("mailbox_id", name="uq_mail_sync_states_mailbox"),
@@ -368,7 +369,7 @@ class MailSyncState(Base):
     mailbox: Mapped[MailMailbox] = relationship(back_populates="sync_state")
 
 
-class MailSyncJob(Base):
+class MailSyncJob(OfficialWriterSource, Base):
     __tablename__ = "mail_sync_jobs"
     __table_args__ = (
         CheckConstraint(

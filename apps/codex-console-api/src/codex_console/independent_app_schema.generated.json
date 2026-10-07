@@ -1,0 +1,154 @@
+{
+  "$defs": {
+    "Display": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "translations": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "maxProperties": 20,
+          "title": "Translations",
+          "type": "object",
+          "default": {}
+        },
+        "icon": {
+          "default": "app-window",
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "title": "Icon",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Display",
+      "type": "object"
+    },
+    "Entrypoints": {
+      "additionalProperties": false,
+      "properties": {
+        "ui": {
+          "default": "/",
+          "title": "Ui",
+          "type": "string"
+        },
+        "api": {
+          "default": "/api",
+          "title": "Api",
+          "type": "string"
+        },
+        "health": {
+          "default": "/healthz",
+          "title": "Health",
+          "type": "string"
+        }
+      },
+      "title": "Entrypoints",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "repository": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Repository",
+          "type": "string"
+        },
+        "directory": {
+          "default": ".",
+          "maxLength": 200,
+          "title": "Directory",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository"
+      ],
+      "title": "Source",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "app_id": {
+      "pattern": "^[a-z][a-z0-9-]{1,63}$",
+      "title": "App Id",
+      "type": "string"
+    },
+    "display": {
+      "$ref": "#/$defs/Display"
+    },
+    "source": {
+      "$ref": "#/$defs/Source"
+    },
+    "ownership": {
+      "default": "personal",
+      "enum": [
+        "personal",
+        "official"
+      ],
+      "title": "Ownership",
+      "type": "string"
+    },
+    "sdk_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Sdk Version",
+      "type": "integer"
+    },
+    "runtime_profile": {
+      "default": "web-api-v1",
+      "enum": [
+        "web-api-v1",
+        "web-api-postgres-v1"
+      ],
+      "title": "Runtime Profile",
+      "type": "string"
+    },
+    "entrypoints": {
+      "$ref": "#/$defs/Entrypoints",
+      "default": {
+        "ui": "/",
+        "api": "/api",
+        "health": "/healthz"
+      }
+    },
+    "requested_permissions": {
+      "items": {
+        "enum": [
+          "identity:read",
+          "data:read",
+          "data:write",
+          "files:read-selected"
+        ],
+        "type": "string"
+      },
+      "maxItems": 4,
+      "title": "Requested Permissions",
+      "type": "array",
+      "default": []
+    }
+  },
+  "required": [
+    "app_id",
+    "display",
+    "source"
+  ],
+  "title": "AppDefinition",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

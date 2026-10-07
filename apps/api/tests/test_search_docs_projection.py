@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from miy_api.core.db import Base
+from miy_api.domains.official_apps.writer_models import RuntimeOwnership
 from miy_api.domains.auth.models import User
 from miy_api.domains.pms.space_models import Team
 from miy_api.domains.docs.models import (
@@ -36,6 +37,7 @@ def _session() -> Session:
     Base.metadata.create_all(
         engine,
         tables=[
+            RuntimeOwnership.__table__,
             User.__table__,
             Team.__table__,
             Folder.__table__,
@@ -56,7 +58,14 @@ def _session() -> Session:
             FileManagerFileSourceMetadata.__table__,
         ],
     )
-    return Session(engine)
+    session = Session(engine)
+    session.add(
+        RuntimeOwnership(
+            scope="official.suite", active_owner="legacy", generation=1, state="active"
+        )
+    )
+    session.commit()
+    return session
 
 
 def _add_user(session: Session) -> None:

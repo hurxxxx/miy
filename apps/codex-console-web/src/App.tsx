@@ -1,6 +1,8 @@
+import { RegistrationAuthorization } from './registration-authorization';
 import { AgentTree, ManagementView, useOverview } from './management';
 import { PageLayout } from './page-layout';
 import { SessionsView, type SessionFilters } from './sessions';
+import { useConversationViewport } from './conversation-viewport';
 import { Button, Dialog, Input } from '@miy/ui';
 import {
   Activity,
@@ -147,6 +149,9 @@ export function App() {
   const [page, setPage] = useState<ConsolePage>(() => readRoute().page);
   const [isolate, setIsolate] = useState(false);
   const drafts = useRef(new Map<string, string>());
+  const selectionDrafts = useRef(
+    new Map<string, { attachmentIds: string[]; skillNames: string[] }>(),
+  );
   const workspaceHeading = useRef<HTMLHeadingElement>(null);
   const focusSession = useRef(false);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -194,10 +199,15 @@ export function App() {
   const [newOpen, setNewOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
-  const [skills, setSkills] = useState<{ name: string; description: string }[]>(
-    [],
+  const [skillCatalog, setSkillCatalog] = useState<{
+    taskId: string;
+    items: Skill[];
+  } | null>(null);
+  const skills = skillCatalog?.taskId === selected ? skillCatalog.items : [];
+  const [selectedSkillNames, setSkillNames] = useState<string[]>([]);
+  const skillNames = selectedSkillNames.filter((name) =>
+    skills.some((skill) => skill.name === name),
   );
-  const [skillNames, setSkillNames] = useState<string[]>([]);
   const [stage, setStage] = useState<'plan' | 'implement'>('plan');
   const git = useGitState(task);
   const [models, setModels] = useState<Model[]>([]);
@@ -240,7 +250,14 @@ export function App() {
   const [approvalText, setApprovalText] = useState('');
   const initializedTask = useRef<string | null>(null);
   const [planToApprove, setPlanToApprove] = useState<Revision | null>(null);
-  const [attachmentIds, setAttachmentIds] = useState<string[]>([]);
+  const [selectedAttachmentIds, setAttachmentIds] = useState<string[]>([]);
+  // Only current server metadata may supply executable inputs. Keep selections
+  // in memory while loading, without sending removed or another task's files.
+  const attachmentIds = selectedAttachmentIds.filter(
+    (id) =>
+      task?.id === selected &&
+      task.attachments.some((file) => file.id === id && !file.deleted),
+  );
   const [attachmentPicker, setAttachmentPicker] = useState(false);
   const [approvalFiles, setApprovalFiles] = useState<Attachment[]>([]);
   const [fileToDelete, setFileToDelete] = useState<Attachment | null>(null);
@@ -254,9 +271,28 @@ export function App() {
   const [usageOpen, setUsageOpen] = useState(false);
   const requestKeys = useRef(new Map<string, string>());
   const sessionInitialization = useRef<Promise<void> | null>(null);
-  const chatEnd = useRef<HTMLDivElement>(null);
-  const scroller = useRef<HTMLDivElement>(null);
-  const nearBottom = useRef(true);
+  const conversationViewport = useConversationViewport(
+    task?.id ?? null,
+    task?.event_id,
+    authenticated === true,
+    `${page}:${sessionTab}:${mobileView}`,
+  );
+  const rememberComposer = useCallback(() => {
+    if (!selected) return;
+    drafts.current.set(selected, message);
+    selectionDrafts.current.set(selected, {
+      attachmentIds: selectedAttachmentIds,
+      skillNames: selectedSkillNames,
+    });
+  }, [selected, message, selectedAttachmentIds, selectedSkillNames]);
+  useEffect(() => {
+    if (authenticated !== false) return;
+    drafts.current.clear();
+    selectionDrafts.current.clear();
+    setMessage('');
+    setAttachmentIds([]);
+    setSkillNames([]);
+  }, [authenticated]);
 
   const onError = useCallback((value: unknown) => {
     const code = value instanceof ApiError ? value.code : 'request_failed';
@@ -405,6 +441,18 @@ export function App() {
           operation_id: id,
         });
         requestKeys.current.delete(key);
+        const saved = selectionDrafts.current.get(taskId);
+        if (saved) {
+          const submitted = new Set(payload.attachment_ids);
+          selectionDrafts.current.set(taskId, {
+            ...saved,
+            attachmentIds: saved.attachmentIds.filter(
+              (id) => !submitted.has(id),
+            ),
+          });
+        }
+        if (drafts.current.get(taskId) === data.text)
+          drafts.current.delete(taskId);
         if (selectedRef.current === taskId) {
           setTask((current) =>
             current?.id === taskId && current.event_id > detail.event_id
@@ -436,15 +484,16 @@ export function App() {
 
   const toggleAttachment = (id: string) => {
     if (attachmentIds.includes(id))
-      setAttachmentIds((ids) => ids.filter((value) => value !== id));
+      setAttachmentIds(attachmentIds.filter((value) => value !== id));
     else if (attachmentIds.length < (task?.attachment_limits.selection ?? 20))
-      setAttachmentIds((ids) => [...ids, id]);
+      setAttachmentIds([...attachmentIds, id]);
     else setError('attachment_selection_limit');
   };
   const uploadFiles = async (files: File[], select: boolean) => {
     const taskId = selectedRef.current;
     if (!taskId || !files.length) return;
     await act(async () => {
+      setAttachmentIds(attachmentIds);
       const controller = new AbortController();
       uploadAbort.current = controller;
       try {
@@ -580,18 +629,20 @@ export function App() {
     initializedTask.current = null;
     setTask(null);
     setMessage(selected ? (drafts.current.get(selected) ?? '') : '');
-    setSkills([]);
-    setSkillNames([]);
+    setSkillCatalog(null);
+    const savedSelection = selected
+      ? selectionDrafts.current.get(selected)
+      : undefined;
+    setSkillNames(savedSelection?.skillNames ?? []);
     if (selected) drafts.current.delete(selected);
     uploadAbort.current?.abort();
     setUploads([]);
-    setAttachmentIds([]);
+    setAttachmentIds(savedSelection?.attachmentIds ?? []);
     setAttachmentPicker(false);
     setFileToDelete(null);
     setApprovalFiles([]);
     setConnected(false);
     setPlanToApprove(null);
-    nearBottom.current = true;
     if (!selected || !authenticated) return;
     const controller = new AbortController();
     void api<Skill[]>(
@@ -601,7 +652,8 @@ export function App() {
       controller.signal,
     )
       .then((value) => {
-        if (!controller.signal.aborted) setSkills(value);
+        if (!controller.signal.aborted)
+          setSkillCatalog({ taskId: selected, items: value });
       })
       .catch(() => {
         /* The model connection control already displays connection failures. */
@@ -641,10 +693,6 @@ export function App() {
     };
   }, [selected, authenticated, refreshTask, refreshTasks, onError]);
   useEffect(() => {
-    if (nearBottom.current) chatEnd.current?.scrollIntoView({ block: 'end' });
-  }, [task?.event_id]);
-
-  useEffect(() => {
     if (!task || initializedTask.current === task.id) return;
     initializedTask.current = task.id;
     setStage(
@@ -672,7 +720,7 @@ export function App() {
   };
   const choose = (id: string) => {
     focusSession.current = true;
-    if (selected) drafts.current.set(selected, message);
+    rememberComposer();
     setPage('workspace');
     setSessionTab(null);
     window.history.pushState(null, '', `?task=${encodeURIComponent(id)}`);
@@ -699,7 +747,7 @@ export function App() {
     tab: SessionTab = null,
     template: string | null = null,
   ) => {
-    if (selected) drafts.current.set(selected, message);
+    rememberComposer();
     setPage(next);
     setSessionTab(next === 'sessions' ? (tab ?? 'sessions') : null);
     if (template !== templateId) sessionScroll.current = 0;
@@ -747,7 +795,7 @@ export function App() {
   }, [authenticated, page, sessionTab, onError]);
   useEffect(() => {
     const pop = () => {
-      if (selected) drafts.current.set(selected, message);
+      rememberComposer();
       const route = readRoute();
       setPage(route.page);
       setSidebarOpen(false);
@@ -758,7 +806,7 @@ export function App() {
     };
     window.addEventListener('popstate', pop);
     return () => window.removeEventListener('popstate', pop);
-  }, [selected, message, templateId]);
+  }, [rememberComposer, templateId]);
   const sessionNavigation = (
     <div className="history-tabs" role="group" aria-label={t('Session views')}>
       <button
@@ -1294,18 +1342,13 @@ export function App() {
             </details>
             <div
               className="messages"
-              ref={scroller}
+              ref={conversationViewport.ref}
               tabIndex={0}
-              onScroll={() => {
-                const element = scroller.current;
-                if (element)
-                  nearBottom.current =
-                    element.scrollHeight -
-                      element.scrollTop -
-                      element.clientHeight <
-                    120;
-              }}
+              onScroll={conversationViewport.onScroll}
             >
+              {task.context?.purpose === 'registration' && (
+                <RegistrationAuthorization key={task.id} task={task} t={t} />
+              )}
               {!task.items.length && (
                 <div className="conversation-empty">
                   <Code2 size={26} />
@@ -1351,7 +1394,6 @@ export function App() {
                   />
                 </div>
               ))}
-              <div ref={chatEnd} />
             </div>
             <form
               className="composer"

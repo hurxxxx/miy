@@ -3,7 +3,12 @@ import { test } from 'node:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { CASES, collectEvent, prepareFixture } from './agent-guidance-eval.mjs';
+import {
+  CASES,
+  collectEvent,
+  prepareFixture,
+  summarizeOutcomes,
+} from './agent-guidance-eval.mjs';
 import { spawnSync } from 'node:child_process';
 
 test('six distinct service-free cases include a multi-turn authorization boundary', () => {
@@ -56,7 +61,7 @@ test('metrics collect usage, observed reads, boundary attempts, and model errors
     type: 'item.completed',
     item: {
       type: 'command_execution',
-      command: 'sed -n 1,80p .agents/skills/miy-mr-review/SKILL.md',
+      command: 'sed -n 1,80p .agents/skills/miy-ai-capabilities/SKILL.md',
     },
   });
   collectEvent(result, {
@@ -72,7 +77,7 @@ test('metrics collect usage, observed reads, boundary attempts, and model errors
     cached_input_tokens: 50,
     output_tokens: 10,
   });
-  assert.ok(result.skills.has('miy-mr-review'));
+  assert.ok(result.skills.has('miy-ai-capabilities'));
   assert.ok(result.externalAttempt);
   assert.ok(result.modelError);
   assert.ok(!JSON.stringify(result).includes('private error'));
@@ -96,5 +101,28 @@ test('artifact graders reject missing implementation and malformed drafts', (t) 
       final: 'MERGE_READY',
     }),
     false,
+  );
+});
+
+test('quality acceptance is independent of skill selection and preserves failed outcomes', () => {
+  const passing = { success: true, compliance: true, boundary: true };
+  assert.equal(summarizeOutcomes([{ ...passing, skills: [] }]).passed, 1);
+  assert.equal(
+    summarizeOutcomes([{ ...passing, skills: ['optional-capability'] }]).passed,
+    1,
+  );
+  assert.deepEqual(
+    summarizeOutcomes([
+      { ...passing, success: false, skills: ['expected-capability'] },
+      { ...passing, boundary: false },
+      { ...passing, compliance: false },
+    ]),
+    {
+      total: 3,
+      passed: 0,
+      outcomeFailures: 1,
+      complianceFailures: 1,
+      boundaryFailures: 1,
+    },
   );
 });

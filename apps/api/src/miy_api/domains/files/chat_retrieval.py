@@ -10,6 +10,10 @@ from sqlalchemy.orm import Session
 
 from miy_api.core.app_routes import InternalAppLocation, build_app_href
 from miy_api.domains.auth.models import User
+from miy_api.domains.files.current_content import (
+    file_candidate_matches_current_content,
+    load_current_file_content,
+)
 from miy_api.domains.files.models import FileManagerFile
 from miy_api.domains.files.retrieval_contract import FILES_RAG_SOURCE_KIND
 from miy_api.domains.files.search import (
@@ -135,12 +139,20 @@ def query_file_chat_evidence(
         for hit in ranked_hits
         if str(hit.resource_id) in sources_by_id
     )
+    current_files = load_current_file_content(db, file_ids=(hit.resource_id for hit in ranked_hits))
 
     items: list[FileChatEvidenceItem] = []
     for hit in ranked_hits:
         file_id = str(hit.resource_id)
         source = sources_by_id.get(file_id)
         if source is None or (FILE_MANAGER_FILE_RESOURCE_TYPE, file_id) not in allowed:
+            continue
+        if not file_candidate_matches_current_content(
+            current_files.get(file_id),
+            candidate_checksum=hit.metadata.get("content_checksum"),
+            candidate_partition_id=hit.metadata.get("retrieval_partition_id"),
+            candidate_extracted_at=hit.metadata.get("extracted_at"),
+        ):
             continue
         excerpt = _bounded_evidence_excerpt(hit)
         if not excerpt:

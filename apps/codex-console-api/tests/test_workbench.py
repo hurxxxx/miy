@@ -1,5 +1,6 @@
 import json
 from datetime import timedelta
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
@@ -66,6 +67,14 @@ def test_catalog_and_project_to_task_preserve_existing_work(client, app_catalog)
     )
     assert task.status_code == 200
     assert task.json()["context"]["project_summary"] == body["summary"]
+    assert task.json()["context"]["app_execution_boundary"] == "planning_only"
+    denied = client.post(
+        f"/api/tasks/{task.json()['id']}/implement",
+        json={"operation_id": str(uuid4()), "text": "Implement this app"},
+    )
+    assert denied.status_code == 409
+    assert denied.json()["code"] == "app_source_planning_only"
+    assert send_message(client, task.json(), text="Plan this app").status_code == 200
     assert client.get("/api/tasks/" + old["id"]).json()["context"] is None
     assert (
         client.post("/api/workbench/projects", json={**body, "app_id": "docs"}).status_code == 422
@@ -90,6 +99,247 @@ def test_catalog_rejects_paths_outside_checkout(client, app_catalog):
     source["apps"][0]["management"]["source_paths"] = ["../private"]
     app_catalog.write_text(json.dumps(source))
     assert client.get("/api/workbench/catalog").status_code == 403
+
+
+def test_catalog_discovers_unmanaged_apps_and_preserves_manifest_identity(client, app_catalog):
+    data = json.loads(app_catalog.read_text())
+    data["apps"].append(
+        {
+            "app_id": "candidate-review",
+            "title": "Candidate review",
+            "title_translations": {"ko-KR": "지원서 검토", "en-US": "Candidate review"},
+            "icon_key": "clipboard-check",
+            "route_base": "/apps/candidate-review",
+        }
+    )
+    app_catalog.write_text(json.dumps(data))
+    result = client.get("/api/workbench/catalog").json()["items"][-1]
+    assert result["app_id"] == "candidate-review"
+    assert result["title_translations"] == data["apps"][-1]["title_translations"]
+    assert result["icon_key"] == "clipboard-check"
+    assert result["source_paths"] == [] and result["release_unit"] is None
+    assert result["source_status"] == result["deployment_status"] == "unconfigured"
+    assert "source_not_configured" in result["limitations"]
+    assert "release_not_configured" in result["limitations"]
+    inspection = client.post(
+        "/api/tasks",
+        json={
+            "title": "Inspect",
+            "context": {"app_id": "candidate-review", "purpose": "inspection"},
+        },
+    )
+    assert inspection.status_code == 200
+    assert inspection.json()["context"]["release_unit"] is None
+    assert (
+        client.post(
+            "/api/tasks",
+            json={
+                "title": "Develop",
+                "context": {"app_id": "candidate-review", "purpose": "development"},
+            },
+        ).status_code
+        == 422
+    )
+
+
+def test_catalog_has_no_200_app_discovery_limit_and_reports_missing_source(client, app_catalog):
+    data = json.loads(app_catalog.read_text())
+    template = data["apps"][0]
+    data["apps"] = [
+        {**template, "app_id": f"app-{i}", "route_base": f"/apps/app-{i}"} for i in range(205)
+    ]
+    data["apps"][-1]["management"] = {**template["management"], "source_paths": ["missing-source"]}
+    app_catalog.write_text(json.dumps(data))
+    result = client.get("/api/workbench/catalog").json()["items"]
+    assert len(result) == 205
+    assert result[0]["source_status"] == "ready"
+    assert result[-1]["source_status"] == "missing"
+    assert "source_missing" in result[-1]["limitations"]
+
+
+def test_unmanaged_duplicate_app_ids_are_rejected(client, app_catalog):
+    data = json.loads(app_catalog.read_text())
+    data["apps"].append({k: v for k, v in data["apps"][0].items() if k != "management"})
+    app_catalog.write_text(json.dumps(data))
+    assert client.get("/api/workbench/catalog").status_code == 503
+
+
+def test_runtime_catalog_traverses_all_pages_atomically(client, monkeypatch):
+    client.app.state.settings.miy_api_origin = "https://miy.example.test"
+    items = [
+        {
+            "app_id": f"app-{i}",
+            "title": f"App {i}",
+            "enabled": True,
+            "release_unit": None,
+            "runtime_ai": False,
+        }
+        for i in range(405)
+    ]
+    paths = []
+
+    async def answer(settings, path):
+        from urllib.parse import parse_qs
+
+        page = int(parse_qs(path[1:])["page"][0])
+        paths.append(path)
+        return "ready", {
+            "schema_version": 1,
+            "items": items[(page - 1) * 200 : page * 200],
+            "total": len(items),
+            "page": page,
+            "page_size": 200,
+            "catalog_revision": "catalog-a",
+            "generated_at": now().isoformat(),
+        }
+
+    monkeypatch.setattr(sources, "miy_get", answer)
+    result = client.get("/api/workbench/runtime").json()
+    assert result["state"] == "ready" and not result["stale"]
+    assert len(result["items"]) == 405
+    assert len(paths) == 3
+
+
+@pytest.mark.parametrize("failure", ["revision", "duplicate", "truncated", "denied"])
+def test_runtime_catalog_rejects_partial_or_changed_pages(client, monkeypatch, failure):
+    client.app.state.settings.miy_api_origin = "https://miy.example.test"
+
+    async def answer(settings, path):
+        page = 1 if "page=1&" in path else 2
+        if page == 2 and failure == "denied":
+            return "denied", None
+        items = [
+            {
+                "app_id": f"app-{i}",
+                "title": "App",
+                "enabled": True,
+                "release_unit": None,
+                "runtime_ai": False,
+            }
+            for i in (range(200) if page == 1 else [200])
+        ]
+        if page == 2 and failure == "duplicate":
+            items[0]["app_id"] = "app-0"
+        if page == 2 and failure == "truncated":
+            items = []
+        return "ready", {
+            "schema_version": 1,
+            "items": items,
+            "total": 201,
+            "page": page,
+            "page_size": 200,
+            "generated_at": now().isoformat(),
+            "catalog_revision": "changed" if page == 2 and failure == "revision" else "first",
+        }
+
+    monkeypatch.setattr(sources, "miy_get", answer)
+    result = client.get("/api/workbench/runtime").json()
+    assert result["state"] == ("denied" if failure == "denied" else "unsupported")
+    assert result["stale"] and result["items"] == []
+
+
+def installation_observation(index):
+    return {
+        "id": str(UUID(int=index + 1)),
+        "environment": "development",
+        "origin": f"https://preview-{index}.example.test",
+        "enabled": True,
+        "state": "configured",
+        "generation": 1,
+        "release_id": None,
+        "source_revision": None,
+        "artifact_digest": None,
+        "deployment": {
+            "request_id": str(UUID(int=index + 1000)),
+            "action": "deploy",
+            "state": "unknown",
+            "failure_code": "executor_unavailable",
+            "updated_at": now().isoformat(),
+        },
+    }
+
+
+def installation_page(items, page=1, **changes):
+    return {
+        "schema_version": 1,
+        "app_id": "planner",
+        "items": items[(page - 1) * 200 : page * 200],
+        "total": len(items),
+        "page": page,
+        "page_size": 200,
+        "catalog_revision": "a" * 64,
+        "generated_at": now().isoformat(),
+        **changes,
+    }
+
+
+def test_installation_observation_reads_complete_snapshot_and_retains_stale_evidence(
+    client, app_catalog, monkeypatch
+):
+    cfg = client.app.state.settings
+    cfg.miy_api_origin = "https://miy.example.test"
+    items = [installation_observation(i) for i in range(205)]
+    calls = []
+
+    async def answer(settings, path):
+        calls.append(path)
+        assert path.startswith("/planner/installations?")
+        return "ready", installation_page(items, 1 if "page=1&" in path else 2)
+
+    monkeypatch.setattr(sources, "miy_get", answer)
+    url = "/api/workbench/apps/planner/installations"
+    initial = client.get(url)
+    assert initial.status_code == 200
+    before = initial.json()
+    assert before["state"] == "ready" and not before["stale"]
+    assert len(before["items"]) == 205 and len(calls) == 2
+    assert before["items"][0]["deployment"]["state"] == "unknown"
+    assert before["items"][0]["source_revision"] is None
+    with client.app.state.factory.begin() as db:
+        db.get(WorkbenchObservation, "installations:planner").checked_at = now() - timedelta(
+            seconds=60
+        )
+
+    async def denied(*args):
+        return "denied", None
+
+    monkeypatch.setattr(sources, "miy_get", denied)
+    after = client.get(url).json()
+    assert after["state"] == "denied" and after["stale"]
+    assert after["items"] == before["items"]
+    assert after["checked_at"] == before["checked_at"]
+    cfg.miy_api_origin = "https://another.example.test"
+    changed = client.get(url).json()
+    assert changed["items"] == [] and changed["checked_at"] is None
+    assert client.get("/api/workbench/apps/missing/installations").status_code == 404
+
+
+@pytest.mark.parametrize("failure", ["app", "origin", "revision", "duplicate", "truncated"])
+def test_installation_observation_rejects_unsafe_or_partial_snapshot(
+    client, app_catalog, monkeypatch, failure
+):
+    client.app.state.settings.miy_api_origin = "https://miy.example.test"
+    items = [installation_observation(i) for i in range(201)]
+    if failure == "origin":
+        items[0]["origin"] = "https://user:password@preview.example.test"
+    if failure == "duplicate":
+        items[200]["id"] = items[0]["id"]
+
+    async def answer(settings, path):
+        page = 1 if "page=1&" in path else 2
+        data = installation_page(items, page)
+        if failure == "app":
+            data["app_id"] = "docs"
+        if page == 2 and failure == "revision":
+            data["catalog_revision"] = "b" * 64
+        if page == 2 and failure == "truncated":
+            data["items"] = []
+        return "ready", data
+
+    monkeypatch.setattr(sources, "miy_get", answer)
+    result = client.get("/api/workbench/apps/planner/installations").json()
+    assert result["state"] == "unsupported" and result["stale"]
+    assert result["items"] == [] and result["checked_at"] is None
 
 
 @pytest.mark.anyio
@@ -443,3 +693,35 @@ def test_catalog_rejects_symlink(client, app_catalog, repository):
     app_catalog.rename(target)
     app_catalog.symlink_to(target)
     assert client.get("/api/workbench/catalog").status_code == 403
+
+
+def test_connected_catalog_uses_platform_display_identity_for_checkout_apps(client, app_catalog):
+    settings = client.app.state.settings
+    settings.miy_api_origin = "https://platform.example.test"
+    with client.app.state.factory.begin() as db:
+        db.add(
+            WorkbenchObservation(
+                key="runtime-catalog",
+                payload={
+                    "origin": settings.miy_api_origin,
+                    "state": "ready",
+                    "data": {
+                        "items": [
+                            {
+                                "app_id": "planner",
+                                "title": "Registered planner",
+                                "title_translations": {"ko-KR": "동일한 앱 이름"},
+                                "icon_key": "puzzle",
+                                "enabled": True,
+                                "runtime_ai": False,
+                                "release_unit": "miy-app",
+                            }
+                        ]
+                    },
+                },
+            )
+        )
+    item = client.get("/api/workbench/catalog").json()["items"][0]
+    assert item["title"] == "Registered planner"
+    assert item["title_translations"] == {"ko-KR": "동일한 앱 이름"}
+    assert item["icon_key"] == "puzzle" and item["source_status"] == "ready"

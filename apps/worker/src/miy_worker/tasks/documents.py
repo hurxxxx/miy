@@ -1,4 +1,6 @@
-from miy_worker.celery_app import celery_app
+from miy_worker.task_binding import task_app
+
+celery_app = task_app(__name__)
 
 
 @celery_app.task(name="documents.sync")

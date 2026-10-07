@@ -8,12 +8,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Protocol
 from urllib.parse import urlencode
 from zipfile import BadZipFile, ZipFile
 
 from sqlalchemy import select, update
-from sqlalchemy.orm import Session, joinedload, undefer
+from sqlalchemy.orm import Session, joinedload, load_only, undefer
 
 from miy_api.core.app_routes import (
     app_entry_href,
@@ -28,12 +28,26 @@ from miy_api.domains.document_processing.html_extractor import (
     validate_html_signature,
 )
 from miy_api.domains.files import storage_adapter as file_storage
+from miy_api.domains.files.artifact_contract import (
+    MAX_FILES_RAG_EXTRACTED_CHARS,
+    FileExtractionArtifact,
+)
+from miy_api.domains.files.extraction_contracts import FileExtractionNeedsOcr
 from miy_api.domains.files.external_projection import (
     external_source_title,
     refresh_safe_external_source_metadata,
     safe_external_source_metadata,
 )
-from miy_api.domains.files.models import FileManagerFile
+from miy_api.domains.files.current_content import (
+    file_candidate_matches_current_content,
+    file_extraction_result_marker,
+    load_current_file_content,
+)
+from miy_api.domains.files.models import (
+    FileManagerCorpus,
+    FileManagerFile,
+    FileManagerFileSourceMetadata,
+)
 from miy_api.domains.files.retrieval_contract import FILES_RAG_SOURCE_KIND
 from miy_api.domains.rag.chunking import (
     build_contextual_index_text,
@@ -54,7 +68,6 @@ FILES_MIN_STRUCTURED_TEXT_CHARS = 128
 FILES_RAG_CHUNKING_STRATEGY_VERSION = "files-retrieval-chunk-v2"
 MAX_FILES_RAG_CHUNKS = 512
 MAX_FILES_RAG_SOURCE_BYTES = 120 * 1024 * 1024
-MAX_FILES_RAG_EXTRACTED_CHARS = 240_000
 MAX_OFFICE_ARCHIVE_ENTRIES = 1_000
 MAX_OFFICE_ARCHIVE_UNCOMPRESSED_BYTES = 240 * 1024 * 1024
 MAX_OFFICE_ARCHIVE_ENTRY_BYTES = 120 * 1024 * 1024
@@ -137,14 +150,6 @@ class FileExtractionRuntime(Protocol):
 
 
 @dataclass(frozen=True)
-class FileExtractionArtifact:
-    content_checksum: str
-    text: str
-    blocks: list[EvidenceBlock]
-    metadata: dict[str, Any]
-
-
-@dataclass(frozen=True)
 class _FileChunkingResult:
     chunks: list[RagChunk]
     generated_count: int
@@ -190,6 +195,9 @@ def load_file_rag_projection(
             raise
         if not _store_artifact_if_active(db, file_id=file.id, artifact=artifact):
             return None
+        # The owned UPDATE deliberately bypasses ORM synchronization. Build
+        # the output marker from its actual stored time, not the stale File.
+        db.refresh(file, attribute_names=["extracted_at"])
     return build_file_rag_projection(
         file=file,
         artifact=artifact,
@@ -231,6 +239,7 @@ def extract_file_artifact(
     file: FileManagerFile,
     content: bytes,
     rag_service: FileExtractionRuntime,
+    allow_ocr: bool = True,
 ) -> FileExtractionArtifact:
     if not content:
         raise UnsupportedFileForRetrieval("empty_source")
@@ -306,6 +315,10 @@ def extract_file_artifact(
             ocr_status = "skipped_structured_sufficient"
 
     if ocr_fallback_reason is not None:
+        if not allow_ocr:
+            # This control precedes provider inspection and the degradation
+            # catch: missing OCR must never masquerade as a ready local result.
+            raise FileExtractionNeedsOcr("ocr_required")
         ocr_attempted = True
         ocr_provider = rag_service.ocr_provider_name
         try:
@@ -416,6 +429,9 @@ def build_file_rag_projection(
             "content_checksum": artifact.content_checksum,
             **safe_external_source_metadata(file),
             **artifact.metadata,
+            # Input SHA may stay the same across distinct parser/OCR results.
+            # Artifact metadata cannot replace the Source result stamp.
+            "extracted_at": file_extraction_result_marker(file.extracted_at),
             "chunking": {
                 "strategy_version": FILES_RAG_CHUNKING_STRATEGY_VERSION,
                 "hard_limit": MAX_FILES_RAG_CHUNKS,
@@ -921,11 +937,11 @@ def hydrate_file_rag_hits_from_source(
     *,
     hits: Sequence[RagVectorSearchHit],
 ) -> list[RagVectorSearchHit]:
-    """Hydrate Files response scope from PostgreSQL without granting access.
+    """Keep current-content Files hits and hydrate scope without granting access.
 
     The vector payload is only a candidate envelope. The RAG query service
-    invokes this before its final source-owned ACL pass, so stale scope,
-    visibility, and origin metadata cannot flow into grounding or citations.
+    invokes this before rerank and its final source-owned ACL pass, so stale
+    content, scope and routing cannot flow into providers or citations.
     """
 
     file_ids = tuple(
@@ -935,24 +951,58 @@ def hydrate_file_rag_hits_from_source(
             if hit.projection.resource_type == FILE_MANAGER_FILE_RESOURCE_TYPE
         )
     )
-    files_by_id = (
-        {
-            file.id: file
-            for file in db.scalars(
-                select(FileManagerFile)
-                .options(
-                    joinedload(FileManagerFile.corpus),
-                    joinedload(FileManagerFile.source_metadata),
+    if not file_ids:
+        return list(hits)
+    with db.no_autoflush:
+        files_by_id = (
+            {
+                file.id: file
+                for file in db.scalars(
+                    select(FileManagerFile)
+                    .options(
+                        load_only(
+                            FileManagerFile.id,
+                            FileManagerFile.owner_id,
+                            FileManagerFile.filename,
+                            FileManagerFile.folder_id,
+                            FileManagerFile.corpus_id,
+                            FileManagerFile.content_type,
+                            FileManagerFile.size_bytes,
+                            FileManagerFile.visibility,
+                            FileManagerFile.updated_at,
+                            raiseload=True,
+                        ),
+                        joinedload(FileManagerFile.corpus).load_only(
+                            FileManagerCorpus.id,
+                            FileManagerCorpus.access_scope_kind,
+                            raiseload=True,
+                        ),
+                        joinedload(FileManagerFile.source_metadata).load_only(
+                            FileManagerFileSourceMetadata.file_id,
+                            FileManagerFileSourceMetadata.source_kind,
+                            FileManagerFileSourceMetadata.title,
+                            FileManagerFileSourceMetadata.author,
+                            FileManagerFileSourceMetadata.authored_at,
+                            FileManagerFileSourceMetadata.department,
+                            FileManagerFileSourceMetadata.document_type,
+                            FileManagerFileSourceMetadata.source_updated_at,
+                            FileManagerFileSourceMetadata.content_checksum,
+                            raiseload=True,
+                        ),
+                    )
+                    .where(
+                        FileManagerFile.id.in_(file_ids),
+                        FileManagerFile.deleted_at.is_(None),
+                    )
+                    .execution_options(populate_existing=True)
                 )
-                .where(
-                    FileManagerFile.id.in_(file_ids),
-                    FileManagerFile.deleted_at.is_(None),
-                )
-            )
-        }
-        if file_ids
-        else {}
-    )
+            }
+            if file_ids
+            else {}
+        )
+    # This witness follows routing reads: a mutation during hydration cannot
+    # pass an earlier content identity into rerank or the response.
+    current_content = load_current_file_content(db, file_ids=file_ids)
 
     hydrated: list[RagVectorSearchHit] = []
     for hit in hits:
@@ -961,7 +1011,12 @@ def hydrate_file_rag_hits_from_source(
             hydrated.append(hit)
             continue
         file = files_by_id.get(projection.resource_id)
-        if file is None:
+        if file is None or not file_candidate_matches_current_content(
+            current_content.get(file.id),
+            candidate_checksum=projection.metadata.get("content_checksum"),
+            candidate_partition_id=projection.retrieval_partition_id,
+            candidate_extracted_at=projection.metadata.get("extracted_at"),
+        ):
             continue
         corpus = file.corpus
         if corpus is not None and corpus.access_scope_kind == "company":
@@ -993,18 +1048,30 @@ def hydrate_file_rag_hits_from_source(
                 "corpus_id": file.corpus_id,
                 "access_scope_kind": access_scope_kind,
                 "folder_id": file.folder_id,
+                "content_checksum": projection.metadata["content_checksum"],
+                "retrieval_partition_id": projection.retrieval_partition_id,
+                "extracted_at": projection.metadata["extracted_at"],
             }
         )
         fresh_projection = projection.model_copy(
             update={
-                "retrieval_partition_id": file.retrieval_partition_id,
                 "scope_kind": scope_kind,
                 "title": external_source_title(file),
                 "visibility_refs": visibility_refs,
                 "metadata": metadata,
             }
         )
-        hydrated.append(hit.model_copy(update={"projection": fresh_projection}))
+        # Query-hit conversion retains chunk metadata, not projection metadata.
+        # A chunk cannot replace the admitted File content identity.
+        hit_metadata = dict(hit.metadata)
+        hit_metadata.update(
+            content_checksum=projection.metadata["content_checksum"],
+            retrieval_partition_id=projection.retrieval_partition_id,
+            extracted_at=projection.metadata["extracted_at"],
+        )
+        hydrated.append(
+            hit.model_copy(update={"projection": fresh_projection, "metadata": hit_metadata})
+        )
     return hydrated
 
 

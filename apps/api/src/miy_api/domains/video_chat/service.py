@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from miy_api.domains.official_apps.source_guard import lock_source_writer
+
 import re
 from datetime import UTC, datetime, timedelta
 from ipaddress import ip_address
@@ -287,6 +289,8 @@ def create_join_token(
         )
     _ensure_session_access(db, user=user, session=session)
 
+    # A new join capability is an external authority effect even without DML.
+    lock_source_writer(db, "video_chat_sessions")
     identity = f"{user.id}:{new_id()}"
     display_name = _display_name(user)
     expires_at = _utcnow() + timedelta(seconds=settings.video_chat_token_ttl_seconds)

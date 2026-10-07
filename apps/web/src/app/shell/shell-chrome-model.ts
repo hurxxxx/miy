@@ -1,9 +1,10 @@
-import { routePathMatchesPathname } from '@/src/app-shell-navigation-model';
+import { routePathMatchesPathname } from '@miy/platform-web/routing/shell-navigation-model';
 import {
   getAppIdFromPath,
   type ShellAppId,
-} from '@/src/platform/apps/app-links';
-import type { AuthUser } from '@/src/platform/auth/auth-api';
+} from '@miy/platform-web/apps/app-links';
+import type { AuthUser } from '@miy/platform-web/auth-api';
+import { INDEPENDENT_APP_ROUTE } from '@/src/platform/apps/independent-app-host';
 import type {
   ShellRouteChrome,
   ShellRouteSubSidebar,
@@ -57,6 +58,7 @@ const SHELL_OWNED_ROUTE_OPTIONS: Array<{
   { path: '/', subSidebar: 'hidden' },
   { path: '/help', subSidebar: 'hidden' },
   { path: '/help/pms', subSidebar: 'hidden' },
+  { path: INDEPENDENT_APP_ROUTE, chrome: 'fullSurface', subSidebar: 'hidden' },
 ];
 
 const DEFAULT_SHELL_ACTIVE_STATE: ShellActiveState = {
@@ -136,11 +138,13 @@ export function resolveShellChromeState({
   appRoutes,
 }: ResolveShellChromeStateInput): ShellChromeState {
   const routeShellAppId = getAppIdFromPath(pathname);
-  const shellState = resolveShellStateForPath(
-    `${pathname}${search}`,
-    user,
-    enabledShellAppIds ?? undefined,
-  );
+  const shellState = routePathMatchesPathname(INDEPENDENT_APP_ROUTE, pathname)
+    ? { activeAppId: 'launcher', activeNavItemId: '' }
+    : resolveShellStateForPath(
+        `${pathname}${search}`,
+        user,
+        enabledShellAppIds ?? undefined,
+      );
   const showSubSidebar =
     shellState.activeAppId !== 'launcher' &&
     shouldShowSubSidebar({

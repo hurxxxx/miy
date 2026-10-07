@@ -1,0 +1,23 @@
+{
+  "name": "official-suite-web",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/official-suite-web/src",
+  "projectType": "library",
+  "tags": ["scope:official-suite", "type:lib", "domain:official"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec tsc --noEmit -p packages/official-suite-web/tsconfig.json",
+        "cwd": "."
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "env NODE_OPTIONS=--no-experimental-webstorage pnpm exec vitest run --config packages/official-suite-web/vite.config.mts",
+        "cwd": "."
+      }
+    }
+  }
+}

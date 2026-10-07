@@ -4,6 +4,14 @@ from miy_worker.tasks import mail
 from miy_api.domains.mail.sync_policy import MailSyncAccessRevoked
 
 
+def test_mail_tasks_use_actual_celery_execution_deadlines() -> None:
+    for task in (mail.sync_mail_job, mail.sync_mail_account):
+        assert task.time_limit == mail._MAIL_SYNC_TASK_TIME_LIMIT
+        assert task.soft_time_limit == mail._MAIL_SYNC_SOFT_TIME_LIMIT
+        assert task._get_exec_options()["time_limit"] == mail._MAIL_SYNC_TASK_TIME_LIMIT
+        assert task._get_exec_options()["soft_time_limit"] == mail._MAIL_SYNC_SOFT_TIME_LIMIT
+
+
 class _Session:
     def __init__(self) -> None:
         self.closed = False

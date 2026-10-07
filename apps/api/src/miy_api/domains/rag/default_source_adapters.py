@@ -55,6 +55,10 @@ def ensure_rag_source_adapters_registered() -> None:
         load_file_rag_projection,
         file_resource_ids,
     )
+    from miy_api.domains.files.core_projection import (
+        is_prepared_core_file_projection,
+        load_ready_file_rag_projection,
+    )
     from miy_api.domains.files.rag_sync import (
         mark_file_projection_deleted,
         mark_file_projection_failed,
@@ -84,10 +88,14 @@ def ensure_rag_source_adapters_registered() -> None:
             resource_type=FILE_MANAGER_FILE_RESOURCE_TYPE,
             app_id=FILES_APP.app_id,
             partition_adapter_id=FILES_RETRIEVAL_PARTITION_ADAPTER_ID,
-            load_projection=lambda db, resource_id, rag_service: load_file_rag_projection(
-                db,
-                file_id=resource_id,
-                rag_service=rag_service,
+            load_projection=lambda db, resource_id, rag_service: (
+                load_ready_file_rag_projection(db, file_id=resource_id)
+                if is_prepared_core_file_projection(db)
+                else load_file_rag_projection(
+                    db,
+                    file_id=resource_id,
+                    rag_service=rag_service,
+                )
             ),
             company_resource_ids=file_resource_ids,
             include_in_default_query=FILES_RETRIEVAL_ACTIVE,
@@ -254,9 +262,7 @@ def resolve_rag_resource_types_for_source_kinds(source_kinds: list[str]) -> tupl
     return resource_types_for_rag_source_kinds(source_kinds)
 
 
-def list_registered_rag_sources(
-    policy, enabled_app_ids: set[str]
-) -> list[dict[str, str]]:
+def list_registered_rag_sources(policy, enabled_app_ids: set[str]) -> list[dict[str, str]]:
     ensure_rag_source_adapters_registered()
     sources: list[dict[str, str]] = []
     visible_native_doc_source_kinds = _visible_rag_native_doc_source_kinds(policy)

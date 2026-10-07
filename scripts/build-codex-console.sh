@@ -18,6 +18,7 @@ v = sqlite3.sqlite_version_info
 assert v >= (3, 51, 3) or (3, 50, 7) <= v < (3, 51, 0) or (3, 44, 6) <= v < (3, 45, 0), 'Use SQLite with the WAL-reset fix (3.51.3+ recommended)'
 PY
 
+"$PYTHON_BIN" "$ROOT_DIR/scripts/generate-app-starters.py" --check
 pnpm --dir "$ROOT_DIR/apps/codex-console-web" build
 mkdir -p "$RELEASE_DIR/apps/codex-console-api" "$RELEASE_DIR/apps/codex-console-web"
 cp -a "$ROOT_DIR/apps/codex-console-web/dist" "$RELEASE_DIR/apps/codex-console-web/"

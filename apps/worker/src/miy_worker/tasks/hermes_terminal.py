@@ -6,8 +6,11 @@ from miy_api.domains.hermes_terminal.maintenance import (
     maintain_hermes_terminal_once,
 )
 
-from miy_worker.celery_app import celery_app
+from miy_worker.task_binding import task_app
+
 from miy_worker.queue_contract import HERMES_TERMINAL_MAINTENANCE_TASK_NAME
+
+celery_app = task_app(__name__)
 
 
 @celery_app.task(

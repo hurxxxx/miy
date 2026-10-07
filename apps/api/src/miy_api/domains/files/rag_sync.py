@@ -5,17 +5,24 @@ from dataclasses import dataclass
 from sqlalchemy import and_, exists, func, select
 from sqlalchemy.orm import Session
 
-from miy_api.core.settings import get_settings
 from miy_api.domains.files.models import FileManagerCorpus, FileManagerFile
+from miy_api.domains.files.core_projection import (
+    FileArtifactInvalid,
+    FileArtifactNotReady,
+    is_prepared_core_file_projection,
+    load_ready_file_rag_projection,
+    require_prepared_core_file_projection_event,
+)
 from miy_api.domains.files.rag_projection import (
     mark_file_extraction_failed,
     purge_deleted_file_retrieval_artifact,
 )
-from miy_api.domains.files.retrieval_contract import FILES_RETRIEVAL_ACTIVE
 from miy_api.domains.files.search_hooks import (
     enqueue_file_search_index_by_id,
     stage_file_search_reconciliation_job,
 )
+from miy_api.domains.official_apps.projection_contracts import ProjectionIntent
+from miy_api.domains.official_apps.projection_outbox import emit_and_accept_projection
 from miy_api.domains.rag.contracts import RagScopeKind, RagSyncOperation
 from miy_api.domains.rag.models import RagSyncJob
 from miy_api.domains.rag.outbox import enqueue_rag_sync_job
@@ -33,6 +40,8 @@ from miy_api.domains.retrieval.projection_fencing import (
     record_projection_event,
 )
 from miy_api.domains.search.models import SearchIndexJob
+from miy_api.domains.search.outbox import enqueue_search_index_job
+from miy_api.domains.search.schemas import SearchEntityType
 from miy_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOURCE_TYPE
 
 
@@ -76,45 +85,23 @@ def enqueue_file_retrieval_sync(
     operation: RagSyncOperation,
 ) -> None:
     envelope = _resolve_file_projection_envelope(db, file=file)
-    projection_event = record_projection_event(
+    emit_and_accept_projection(
         db,
-        resource_type=FILE_MANAGER_FILE_RESOURCE_TYPE,
-        resource_id=file.id,
-        retrieval_partition_id=envelope.retrieval_partition_id,
-        change_kind=(
-            RetrievalProjectionChangeKind.DELETE
-            if operation == RagSyncOperation.DELETE
-            else (
-                RetrievalProjectionChangeKind.VISIBILITY
+        intent=ProjectionIntent(
+            resource_type=FILE_MANAGER_FILE_RESOURCE_TYPE,
+            resource_id=file.id,
+            retrieval_partition_id=envelope.retrieval_partition_id,
+            change_kind=(
+                "delete"
+                if operation == RagSyncOperation.DELETE
+                else "visibility"
                 if operation == RagSyncOperation.VISIBILITY_UPDATE
-                else RetrievalProjectionChangeKind.CONTENT
-            )
+                else "content"
+            ),
+            desired_state="deleted" if operation == RagSyncOperation.DELETE else "active",
+            operation=operation.value,
+            content_checksum=file.extraction_content_checksum,
         ),
-        desired_state=(
-            RetrievalProjectionDesiredState.DELETED
-            if operation == RagSyncOperation.DELETE
-            else RetrievalProjectionDesiredState.ACTIVE
-        ),
-        content_checksum=file.extraction_content_checksum,
-    )
-    if not FILES_RETRIEVAL_ACTIVE:
-        return
-    if operation == RagSyncOperation.DELETE:
-        enqueue_file_search_index_by_id(
-            db,
-            file_id=file.id,
-            operation="delete",
-            projection_event=projection_event,
-        )
-    if not get_settings().rag_enabled:
-        return
-    enqueue_rag_sync_job(
-        db,
-        scope_kind=envelope.scope_kind,
-        resource_type=FILE_MANAGER_FILE_RESOURCE_TYPE,
-        resource_id=file.id,
-        operation=operation,
-        projection_event=projection_event,
     )
 
 
@@ -348,6 +335,28 @@ def mark_file_projection_prepared(
     file_id: str,
     projection_event: ProjectionEventRef | None = None,
 ) -> None:
+    if is_prepared_core_file_projection(db):
+        if projection_event is None:
+            raise FileArtifactInvalid("file_projection_event_required")
+        event = require_prepared_core_file_projection_event(
+            db, projection_event=projection_event, file_id=file_id
+        )
+        if event.desired_state != "active":
+            raise FileArtifactInvalid("file_projection_event_not_active")
+        projection = load_ready_file_rag_projection(
+            db, file_id=file_id, expected_checksum=event.content_checksum
+        )
+        if projection is None:
+            raise FileArtifactNotReady("file_source_missing")
+        enqueue_search_index_job(
+            db,
+            entity_type=SearchEntityType.FILE,
+            entity_id=file_id,
+            operation="upsert",
+            projection_event=event,
+            publish_after_commit=False,
+        )
+        return
     if projection_event is not None:
         if projection_event.resource_id != file_id:
             raise ValueError("Files prepared projection event does not match file_id")
@@ -371,6 +380,9 @@ def mark_file_projection_prepared(
 
 
 def mark_file_projection_deleted(db: Session, *, file_id: str) -> None:
+    if is_prepared_core_file_projection(db):
+        require_prepared_core_file_projection_event(db, file_id=file_id)
+        return
     purge_deleted_file_retrieval_artifact(db, file_id=file_id)
 
 
@@ -381,6 +393,9 @@ def mark_file_projection_failed(
     error: str,
     phase: str,
 ) -> None:
+    if is_prepared_core_file_projection(db):
+        # Core job failure cannot alter Source extraction or manufacture an intent.
+        return
     if phase not in {"extraction", "ocr", "parser"}:
         return
     normalized_error = " ".join(str(error).split())

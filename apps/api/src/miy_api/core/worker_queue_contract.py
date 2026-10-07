@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Mapping
+from typing import Literal
 
 DEFAULT_QUEUE = "celery"
 MEETING_TRANSCRIBE_QUEUE = "meeting_transcribe"
@@ -58,6 +59,121 @@ TASK_QUEUE_ROUTES: Mapping[str, str] = {
     "mail.sync_account": MAIL_SYNC_QUEUE,
     "mail.dispatch_due_sync_jobs": DEFAULT_QUEUE,
 }
+
+
+WorkerProfile = Literal["legacy", "platform", "official"]
+WORKER_PROFILES = ("legacy", "platform", "official")
+
+# The producer and consumer share this exact inventory. Module ownership is
+# explicit (files/rag/search module names differ from their public task prefix).
+WORKER_TASK_MODULES: Mapping[str, tuple[str, tuple[str, ...]]] = {
+    "miy_worker.tasks.ai_graph": (
+        "platform",
+        (AI_GRAPH_RUN_TASK_NAME, AI_GRAPH_REPUBLISH_TASK_NAME),
+    ),
+    "miy_worker.tasks.documents": ("platform", ("documents.sync",)),
+    "miy_worker.tasks.file_storage_cleanup": (
+        "official",
+        (FILE_STORAGE_CLEANUP_TASK_NAME, FILE_STORAGE_CLEANUP_REPUBLISH_TASK_NAME),
+    ),
+    "miy_worker.tasks.hermes": ("platform", (HERMES_RUN_TASK_NAME, HERMES_REPUBLISH_TASK_NAME)),
+    "miy_worker.tasks.hermes_terminal": ("platform", (HERMES_TERMINAL_MAINTENANCE_TASK_NAME,)),
+    "miy_worker.tasks.mail": (
+        "official",
+        (MAIL_SYNC_TASK_NAME, "mail.sync_account", "mail.dispatch_due_sync_jobs"),
+    ),
+    "miy_worker.tasks.media": ("platform", ("media.cleanup_orphans",)),
+    "miy_worker.tasks.meeting": (
+        "official",
+        (
+            "meeting.transcribe",
+            "meeting.summarize",
+            "meeting.extract_insights",
+            "meeting.generate_doc",
+            "meeting.cleanup_stale_staging",
+        ),
+    ),
+    "miy_worker.tasks.ocr": ("platform", ("ocr.normalize",)),
+    "miy_worker.tasks.rag_sync": (
+        "platform",
+        (
+            RAG_SYNC_RESOURCE_TASK_NAME,
+            RAG_SYNC_BACKFILL_RESOURCE_TASK_NAME,
+            RAG_VISIBILITY_RECOMPUTE_TASK_NAME,
+            "rag.republish_pending_jobs",
+        ),
+    ),
+    "miy_worker.tasks.recording": (
+        "official",
+        (
+            "recording.transcribe",
+            "recording.analyze_transcript",
+            "recording.verify_transcript_summary",
+            "recording.persist_result",
+        ),
+    ),
+    "miy_worker.tasks.search_index": (
+        "platform",
+        (SEARCH_INDEX_RESOURCE_TASK_NAME, "search.republish_pending_index_jobs"),
+    ),
+}
+
+
+class WorkerProfileUnavailable(RuntimeError):
+    """The split artifact has no authority to consume, schedule or publish."""
+
+
+def worker_profile(profile: str) -> WorkerProfile:
+    if profile not in WORKER_PROFILES:
+        raise ValueError("Unsupported worker ownership")
+    return profile  # type: ignore[return-value]
+
+
+def worker_profile_modules(profile: str = "legacy") -> tuple[str, ...]:
+    selected = worker_profile(profile)
+    return tuple(
+        name
+        for name, (owner, _) in WORKER_TASK_MODULES.items()
+        if selected == "legacy" or owner == selected
+    )
+
+
+def worker_profile_task_names(profile: str = "legacy") -> tuple[str, ...]:
+    return tuple(
+        task
+        for module in worker_profile_modules(profile)
+        for task in WORKER_TASK_MODULES[module][1]
+    )
+
+
+def worker_profile_task_routes(profile: str = "legacy") -> dict[str, dict[str, str]]:
+    selected = worker_profile(profile)
+    owned = set(worker_profile_task_names(selected))
+    return {
+        task: {"queue": queue if selected == "legacy" else f"miy.{selected}.{queue}"}
+        for task, queue in TASK_QUEUE_ROUTES.items()
+        if task in owned
+    }
+
+
+def worker_profile_queues(profile: str = "legacy") -> tuple[str, ...]:
+    return tuple(
+        dict.fromkeys(route["queue"] for route in worker_profile_task_routes(profile).values())
+    )
+
+
+def worker_profile_publication_route(profile: str, task_name: str) -> dict[str, str]:
+    """Validate intended ownership without granting permission to publish."""
+    route = worker_profile_task_routes(profile).get(task_name)
+    if route is None:
+        raise ValueError("worker_task_not_owned")
+    return route
+
+
+def require_worker_profile_active(profile: str) -> None:
+    if worker_profile(profile) != "legacy":
+        raise WorkerProfileUnavailable("worker_profile_not_activated")
+
 
 WORKER_QUEUE_NAMES = tuple(dict.fromkeys((DEFAULT_QUEUE, *TASK_QUEUE_ROUTES.values())))
 WORKER_QUEUE_GROUPS: Mapping[str, tuple[str, ...]] = {
@@ -168,6 +284,17 @@ if __name__ == "__main__":
 
 
 __all__ = [
+    "WorkerProfile",
+    "WorkerProfileUnavailable",
+    "WORKER_PROFILES",
+    "WORKER_TASK_MODULES",
+    "worker_profile",
+    "worker_profile_modules",
+    "worker_profile_task_names",
+    "worker_profile_task_routes",
+    "worker_profile_queues",
+    "worker_profile_publication_route",
+    "require_worker_profile_active",
     "AI_GRAPH_QUEUE",
     "AI_GRAPH_REPUBLISH_TASK_NAME",
     "AI_GRAPH_RUN_TASK_NAME",

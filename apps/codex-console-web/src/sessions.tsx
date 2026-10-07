@@ -291,7 +291,7 @@ export function SessionsView({
             {loading
               ? t('Searching')
               : `${t('Matching tasks')}: ${visible.length}`}{' '}
-            · {t('Running agents')}:{' '}
+            · {t('Last reported running agents')}:{' '}
             {rows.reduce((sum, task) => sum + executionCount(task), 0)}
           </p>
           {lastChecked && (

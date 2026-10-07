@@ -1,0 +1,19 @@
+{
+  "name": "miy-independent-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@miy/app-sdk": "file:./vendor/miy-app-sdk",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "vite": "7.3.1"
+  }
+}

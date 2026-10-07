@@ -7,19 +7,16 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-from sqlalchemy import create_engine, event, func, select
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 
-from miy_api.core.db import Base
 from miy_api.domains.auth.models import User
-from miy_api.domains.groups.models import Group
-from miy_api.domains.files import rag_projection, rag_sync
+from miy_api.domains.files import rag_projection, rag_sync, retrieval_contract
 from miy_api.domains.files.extraction_bootstrap import bootstrap_file_extraction_artifacts
-from miy_api.domains.files.models import (
-    FileManagerCorpus,
-    FileManagerFile,
-    FileManagerFileSourceMetadata,
-    FileManagerFolder,
+from miy_api.domains.files.models import FileManagerFile
+from miy_api.domains.official_apps.projection_models import (
+    OfficialProjectionOutbox,
+    OfficialProjectionReceipt,
 )
 from miy_api.domains.rag.contracts import RagSyncOperation
 from miy_api.domains.rag.models import RagSyncJob
@@ -56,31 +53,11 @@ class _ExtractionRuntime:
         raise AssertionError("plain text bootstrap must not invoke OCR")
 
 
-def _session() -> Session:
-    engine = create_engine("sqlite:///:memory:")
-
-    @event.listens_for(engine, "connect")
-    def _enable_foreign_keys(dbapi_connection, _connection_record) -> None:
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
-
-    Base.metadata.create_all(
-        engine,
-        tables=[
-            Group.__table__,
-            User.__table__,
-            RetrievalPartition.__table__,
-            FileManagerCorpus.__table__,
-            FileManagerFolder.__table__,
-            FileManagerFile.__table__,
-            FileManagerFileSourceMetadata.__table__,
-            RetrievalProjectionHead.__table__,
-            RetrievalProjectionEvent.__table__,
-            SearchIndexJob.__table__,
-            RagSyncJob.__table__,
-        ],
-    )
+@pytest.fixture
+def db(application_postgres_dsn):
+    # The canonical hook now owns real Source outbox + Core acceptance SQL.
+    # Reuse the migrated disposable PG schema instead of a partial SQLite copy.
+    engine = create_engine(application_postgres_dsn)
     session = Session(engine)
     session.add_all(
         [
@@ -100,7 +77,11 @@ def _session() -> Session:
         ]
     )
     session.flush()
-    return session
+    try:
+        yield session
+    finally:
+        session.close()
+        engine.dispose()
 
 
 def _pending_file(file_id: str) -> FileManagerFile:
@@ -121,13 +102,13 @@ def _pending_file(file_id: str) -> FileManagerFile:
 
 def test_gate_closed_bootstrap_extracts_and_refences_source_without_backend_jobs(
     monkeypatch: pytest.MonkeyPatch,
+    db: Session,
 ) -> None:
-    db = _session()
     try:
         file = _pending_file("file-1")
         db.add(file)
         db.flush()
-        monkeypatch.setattr(rag_sync, "FILES_RETRIEVAL_ACTIVE", False)
+        monkeypatch.setattr(retrieval_contract, "FILES_RETRIEVAL_ACTIVE", False)
         rag_sync.enqueue_file_retrieval_sync(
             db,
             file=file,
@@ -166,6 +147,8 @@ def test_gate_closed_bootstrap_extracts_and_refences_source_without_backend_jobs
         assert head is not None
         assert head.projection_version == 2
         assert head.content_checksum == stored.extraction_content_checksum
+        assert db.scalar(select(func.count()).select_from(OfficialProjectionOutbox)) == 2
+        assert db.scalar(select(func.count()).select_from(OfficialProjectionReceipt)) == 2
         assert db.scalar(select(SearchIndexJob)) is None
         assert db.scalar(select(RagSyncJob)) is None
     finally:
@@ -174,12 +157,12 @@ def test_gate_closed_bootstrap_extracts_and_refences_source_without_backend_jobs
 
 def test_bootstrap_is_resumable_and_does_not_duplicate_current_ready_head(
     monkeypatch: pytest.MonkeyPatch,
+    db: Session,
 ) -> None:
-    db = _session()
     try:
         db.add_all([_pending_file("file-1"), _pending_file("file-2")])
         db.flush()
-        monkeypatch.setattr(rag_sync, "FILES_RETRIEVAL_ACTIVE", False)
+        monkeypatch.setattr(retrieval_contract, "FILES_RETRIEVAL_ACTIVE", False)
         monkeypatch.setattr(
             rag_projection,
             "read_file_content",
@@ -237,14 +220,14 @@ def test_bootstrap_is_resumable_and_does_not_duplicate_current_ready_head(
 
 def test_bootstrap_tombstones_unsupported_source_and_keeps_failure_retryable(
     monkeypatch: pytest.MonkeyPatch,
+    db: Session,
 ) -> None:
-    db = _session()
     try:
         unsupported = _pending_file("file-unsupported")
         failed = _pending_file("file-failed")
         db.add_all([failed, unsupported])
         db.flush()
-        monkeypatch.setattr(rag_sync, "FILES_RETRIEVAL_ACTIVE", False)
+        monkeypatch.setattr(retrieval_contract, "FILES_RETRIEVAL_ACTIVE", False)
 
         def content(file: FileManagerFile) -> bytes:
             if file.id == unsupported.id:
@@ -295,10 +278,10 @@ def test_bootstrap_tombstones_unsupported_source_and_keeps_failure_retryable(
 
 def test_bootstrap_refuses_to_run_when_files_retrieval_gate_is_open(
     monkeypatch: pytest.MonkeyPatch,
+    db: Session,
 ) -> None:
-    db = _session()
     try:
-        monkeypatch.setattr(rag_sync, "FILES_RETRIEVAL_ACTIVE", True)
+        monkeypatch.setattr(retrieval_contract, "FILES_RETRIEVAL_ACTIVE", True)
 
         with pytest.raises(ValueError, match="disabled gate"):
             bootstrap_file_extraction_artifacts(

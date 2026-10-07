@@ -18,13 +18,14 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from miy_api.core.db import Base
+from miy_api.domains.official_apps.writer_contracts import OfficialWriterSource
 
 
 def utcnow_naive() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
-class Recording(Base):
+class Recording(OfficialWriterSource, Base):
     __tablename__ = "recordings"
     __table_args__ = (Index("ix_recordings_owner_started", "owner_id", "started_at"),)
 
@@ -79,7 +80,7 @@ class Recording(Base):
     )
 
 
-class RecordingResult(Base):
+class RecordingResult(OfficialWriterSource, Base):
     __tablename__ = "recording_results"
     __table_args__ = (CheckConstraint("version >= 1", name="ck_recording_results_version"),)
 
@@ -103,7 +104,7 @@ class RecordingResult(Base):
     recording: Mapped[Recording] = relationship(back_populates="result")
 
 
-class RecordingPublication(Base):
+class RecordingPublication(OfficialWriterSource, Base):
     __tablename__ = "recording_publications"
     __table_args__ = (
         UniqueConstraint(
@@ -139,7 +140,7 @@ class RecordingPublication(Base):
     published_by = relationship("User")
 
 
-class RecordingStaging(Base):
+class RecordingStaging(OfficialWriterSource, Base):
     __tablename__ = "recording_staging"
     __table_args__ = (
         UniqueConstraint(
@@ -185,7 +186,7 @@ class RecordingStaging(Base):
     promoted_recording = relationship("Recording")
 
 
-class RecordingTarget(Base):
+class RecordingTarget(OfficialWriterSource, Base):
     __tablename__ = "recording_targets"
     __table_args__ = (
         Index(

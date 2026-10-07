@@ -30,15 +30,19 @@ def user_group_ids_query(user_id: str):
     """Read current direct HR membership and manual grants in one statement."""
     return select(Group.id).where(
         active_group_predicate(),
-        exists().where(User.id == user_id, User.status == "active", User.login_blocked.is_(False)),
+        exists(User.id).where(
+            User.id == user_id, User.status == "active", User.login_blocked.is_(False)
+        ),
         or_(
             and_(
                 Group.source == "local",
-                exists().where(GroupMember.group_id == Group.id, GroupMember.user_id == user_id),
+                exists(GroupMember.user_id).where(
+                    GroupMember.group_id == Group.id, GroupMember.user_id == user_id
+                ),
             ),
             and_(
                 Group.source == "hr",
-                exists().where(
+                exists(User.id).where(
                     User.id == user_id,
                     User.primary_organization_unit_id == Group.id,
                 ),

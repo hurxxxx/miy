@@ -13,14 +13,21 @@ import tempfile
 from pathlib import Path
 
 from jsonschema import Draft7Validator
+from jsonschema.exceptions import ValidationError
 
+from . import remote_environments
 from .errors import ConsoleError
 from .models import uid
-from .protocol_contract import schemas_are_compatible, supports_contract_version
+from .protocol_contract import (
+    remote_schemas_are_compatible,
+    schemas_are_compatible,
+    supports_contract_version,
+)
 
 MAX_MESSAGE_BYTES = 4 * 1024 * 1024
 
 CONTRACT = json.loads(Path(__file__).with_name("protocol.json").read_text())
+REMOTE_CONTRACT = json.loads(Path(__file__).with_name("remote_protocol.generated.json").read_text())
 METHOD_SCHEMAS = {
     "thread/list": "ThreadListParams",
     "thread/read": "ThreadReadParams",
@@ -49,6 +56,9 @@ class CodexRPC:
         self.write_lock = asyncio.Lock()
         self.closing = False
         self.failure_task = None
+        self.remote_environment = None
+        self.startup_overrides = {}
+        self.dynamic_requests = set()
 
     @property
     def connected(self):
@@ -60,6 +70,11 @@ class CodexRPC:
             for k in ("HOME", "PATH", "USER", "LOGNAME", "LANG", "LC_ALL", "SHELL", "CODEX_HOME")
             if k in os.environ
         }
+        if self.remote_environment:
+            remote_environments.require_provider_boundary()
+            # The default provider must expose no local environment. The one
+            # authenticated remote endpoint is added after the native handshake.
+            environment["CODEX_EXEC_SERVER_URL"] = "none"
         version = await asyncio.create_subprocess_exec(
             self.binary,
             "--version",
@@ -77,6 +92,11 @@ class CodexRPC:
             output.decode(), CONTRACT["codexVersion"]
         ):
             raise ConsoleError("codex_version_mismatch", 503)
+        if (
+            self.remote_environment
+            and output.decode().strip() != f"codex-cli {remote_environments.REMOTE_VERSION}"
+        ):
+            raise ConsoleError("app_executor_version_mismatch", 503)
         with tempfile.TemporaryDirectory(prefix="codex-console-schema-") as directory:
             schema = await asyncio.create_subprocess_exec(
                 self.binary,
@@ -98,6 +118,26 @@ class CodexRPC:
                 raise ConsoleError("codex_version_mismatch", 503) from None
             if schema.returncode or not schemas_are_compatible(CONTRACT, Path(directory)):
                 raise ConsoleError("codex_version_mismatch", 503)
+            if self.remote_environment and not remote_schemas_are_compatible(
+                REMOTE_CONTRACT, Path(directory)
+            ):
+                raise ConsoleError("app_executor_version_mismatch", 503)
+        if self.remote_environment:
+            from .executor_probe import ProbeFailure, preflight
+
+            try:
+                await preflight(self.remote_environment)
+            except ProbeFailure as exc:
+                if str(exc) == "executor_version_mismatch":
+                    raise ConsoleError("app_executor_version_mismatch", 503) from None
+                if str(exc) == "executor_root_mismatch":
+                    raise ConsoleError("app_executor_changed", 409) from None
+                raise ConsoleError("app_executor_unavailable", 503) from None
+            except Exception:
+                raise ConsoleError("app_executor_unavailable", 503) from None
+        arguments = []
+        for name, value in self.startup_overrides.items():
+            arguments.extend(["-c", name + "=" + json.dumps(value)])
         self.process = await asyncio.create_subprocess_exec(
             self.binary,
             "app-server",
@@ -109,6 +149,7 @@ class CodexRPC:
             "apps",
             "--disable",
             "plugins",
+            *arguments,
             cwd=self.cwd,
             env=environment,
             stdin=asyncio.subprocess.PIPE,
@@ -126,6 +167,31 @@ class CodexRPC:
             },
         )
         await self.send({"method": "initialized", "params": {}})
+        if self.remote_environment:
+            selected = self.remote_environment
+            config = await self.call("config/read", {"cwd": str(self.cwd), "includeLayers": False})
+            remote_environments.verify_overrides(config["config"])
+            await self.call(
+                "environment/add",
+                {
+                    "environmentId": remote_environments.ENVIRONMENT_ID,
+                    "execServerUrl": selected.exec_server_url,
+                    "authBearerToken": selected.auth_bearer_token.get_secret_value(),
+                    "connectTimeoutMs": 5000,
+                },
+            )
+            info = await self.call(
+                "environment/info", {"environmentId": remote_environments.ENVIRONMENT_ID}
+            )
+            if info.get("cwd") != selected.source_root.as_uri():
+                raise ConsoleError("app_executor_changed", 409)
+            try:
+                await self.call("environment/info", {"environmentId": "local"})
+            except ConsoleError as exc:
+                if exc.code != "codex_request_failed":
+                    raise
+            else:
+                raise ConsoleError("app_executor_configuration", 503)
 
     async def send(self, message):
         if not self.connected:
@@ -141,6 +207,15 @@ class CodexRPC:
         schema = METHOD_SCHEMAS.get(method)
         if schema:
             Draft7Validator(CONTRACT["schemas"][schema]).validate(params)
+        if self.remote_environment and method.startswith("environment/"):
+            name = {
+                "environment/add": "EnvironmentAddParams",
+                "environment/info": "EnvironmentInfoParams",
+                "environment/status": "EnvironmentStatusParams",
+            }.get(method)
+            if name is None:
+                raise ConsoleError("app_executor_configuration", 503)
+            Draft7Validator(REMOTE_CONTRACT["schemas"][name]).validate(params)
         self.sequence += 1
         request_id = self.sequence
         future = asyncio.get_running_loop().create_future()
@@ -154,7 +229,10 @@ class CodexRPC:
             self.pending.pop(request_id, None)
 
     async def respond(self, request_id, result):
+        if request_id in self.dynamic_requests:
+            Draft7Validator(REMOTE_CONTRACT["schemas"]["DynamicToolCallResponse"]).validate(result)
         await self.send({"id": request_id, "result": result})
+        self.dynamic_requests.discard(request_id)
 
     async def _read(self):
         reason = "codex_disconnected"
@@ -173,6 +251,15 @@ class CodexRPC:
                         or "error" in message
                     ):
                         raise TypeError("Invalid protocol method envelope")
+                    if self.remote_environment and message["method"] == "item/tool/call":
+                        if "id" not in message:
+                            raise TypeError("Dynamic tools require a request identity")
+                        Draft7Validator(
+                            REMOTE_CONTRACT["schemas"]["DynamicToolCallParams"]
+                        ).validate(message.get("params"))
+                        if len(self.dynamic_requests) >= 2048:
+                            raise TypeError("Too many dynamic tool requests")
+                        self.dynamic_requests.add(message["id"])
                 elif "id" not in message or ("result" in message) == ("error" in message):
                     raise TypeError("Invalid protocol response envelope")
                 if "method" not in message and "id" in message:
@@ -185,7 +272,13 @@ class CodexRPC:
                             future.set_result(message.get("result", {}))
                 else:
                     self.events.put_nowait(message)
-        except (json.JSONDecodeError, UnicodeDecodeError, RecursionError, TypeError):
+        except (
+            json.JSONDecodeError,
+            UnicodeDecodeError,
+            RecursionError,
+            TypeError,
+            ValidationError,
+        ):
             reason = "codex_protocol_error"
         except ValueError:
             reason = "codex_output_limit"

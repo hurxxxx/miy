@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from importlib.util import find_spec
 from collections.abc import Iterator
 from contextlib import contextmanager
 from functools import lru_cache
@@ -22,6 +23,9 @@ def workspace_root() -> Path:
 
 
 def ensure_api_src_on_path() -> None:
+    # Installed artifacts use their matching API wheel; dev keeps source fallback.
+    if find_spec("miy_api") is not None:
+        return
     api_src = workspace_root() / "apps" / "api" / "src"
     if str(api_src) not in sys.path:
         sys.path.insert(0, str(api_src))

@@ -1,4 +1,4 @@
 export {
   MeetingPickerModal,
   type MeetingPickerModalProps,
-} from '@/src/app-modules/meeting/public-api';
+} from '@miy/official-suite-web/meeting';

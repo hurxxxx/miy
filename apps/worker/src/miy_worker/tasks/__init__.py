@@ -1,20 +1,8 @@
-"""Background tasks for the worker app."""
+"""Tasks for the single selected Celery process profile (legacy by default)."""
 
 from miy_worker.runtime import ensure_api_src_on_path
+from miy_worker.task_binding import selected_profile
+from miy_worker.task_catalog import load_profile_tasks
 
 ensure_api_src_on_path()
-
-from miy_worker.tasks import (  # noqa: E402, F401
-    ai_graph,
-    documents,
-    file_storage_cleanup,
-    hermes,
-    hermes_terminal,
-    mail,
-    media,
-    meeting,
-    ocr,
-    rag_sync,
-    recording,
-    search_index,
-)
+load_profile_tasks(selected_profile())

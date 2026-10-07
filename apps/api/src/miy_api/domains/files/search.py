@@ -8,9 +8,13 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, load_only
 
 from miy_api.domains.auth.models import User
+from miy_api.domains.files.current_content import (
+    file_candidate_matches_current_content,
+    load_current_file_content,
+)
 from miy_api.domains.files.external_projection import (
     EXTERNAL_SOURCE_TARGET_APP,
     EXTERNAL_SOURCE_TARGET_TYPES,
@@ -19,7 +23,7 @@ from miy_api.domains.files.external_projection import (
     external_source_target_id,
     external_source_title,
 )
-from miy_api.domains.files.models import FileManagerFile
+from miy_api.domains.files.models import FileManagerFile, FileManagerFileSourceMetadata
 from miy_api.domains.files.retrieval_contract import FILES_RETRIEVAL_ACTIVE
 from miy_api.domains.rag.query_service import RagQueryService
 from miy_api.domains.retrieval.application import query_retrieval
@@ -264,11 +268,18 @@ def query_files(
     window_allowed = window_policy.authorize_many_resources(
         (FILE_MANAGER_FILE_RESOURCE_TYPE, file_id) for file_id in file_ids
     )
+    current_files = load_current_file_content(db, file_ids=file_ids)
     final_authorized_hits = [
         hit
         for hit in ranked_hits
         if (FILE_MANAGER_FILE_RESOURCE_TYPE, hit.resource_id) in window_allowed
         and hit.resource_id in candidate_sources_by_id
+        and file_candidate_matches_current_content(
+            current_files.get(hit.resource_id),
+            candidate_checksum=hit.metadata.get("content_checksum"),
+            candidate_partition_id=hit.metadata.get("retrieval_partition_id"),
+            candidate_extracted_at=hit.metadata.get("extracted_at"),
+        )
     ]
 
     # Keep the response-bound metadata, snippet source, and has_more window fresh.
@@ -303,6 +314,9 @@ def query_files(
         refreshed_window_allowed = refreshed_window_policy.authorize_many_resources(
             (FILE_MANAGER_FILE_RESOURCE_TYPE, hit.resource_id) for hit in final_authorized_hits
         )
+        current_files = load_current_file_content(
+            db, file_ids=(hit.resource_id for hit in final_authorized_hits)
+        )
         valid_page_file_ids = {
             file_id
             for file_id in page_file_ids
@@ -313,6 +327,12 @@ def query_files(
             hit.resource_id
             for hit in final_authorized_hits
             if (FILE_MANAGER_FILE_RESOURCE_TYPE, hit.resource_id) not in refreshed_window_allowed
+            or not file_candidate_matches_current_content(
+                current_files.get(hit.resource_id),
+                candidate_checksum=hit.metadata.get("content_checksum"),
+                candidate_partition_id=hit.metadata.get("retrieval_partition_id"),
+                candidate_extracted_at=hit.metadata.get("extracted_at"),
+            )
         } | (set(page_file_ids) - valid_page_file_ids)
         if not invalid_window_file_ids:
             final_page_hits = page_hits
@@ -436,11 +456,33 @@ def _load_file_search_sources(
         )
         for row in db.scalars(
             select(FileManagerFile)
-            .options(joinedload(FileManagerFile.source_metadata))
+            .options(
+                load_only(
+                    FileManagerFile.id,
+                    FileManagerFile.filename,
+                    FileManagerFile.folder_id,
+                    FileManagerFile.content_type,
+                    FileManagerFile.size_bytes,
+                    FileManagerFile.updated_at,
+                    raiseload=True,
+                ),
+                joinedload(FileManagerFile.source_metadata).load_only(
+                    FileManagerFileSourceMetadata.file_id,
+                    FileManagerFileSourceMetadata.source_kind,
+                    FileManagerFileSourceMetadata.title,
+                    FileManagerFileSourceMetadata.author,
+                    FileManagerFileSourceMetadata.authored_at,
+                    FileManagerFileSourceMetadata.department,
+                    FileManagerFileSourceMetadata.document_type,
+                    FileManagerFileSourceMetadata.source_updated_at,
+                    raiseload=True,
+                ),
+            )
             .where(
                 FileManagerFile.id.in_(file_ids),
                 FileManagerFile.deleted_at.is_(None),
             )
+            .execution_options(populate_existing=True)
         )
         if _file_source_matches_request(row, request=request)
     }

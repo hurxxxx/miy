@@ -17,6 +17,10 @@ from miy_api.domains.auth.app_availability import (
     resolve_company_enabled_app_ids,
 )
 from miy_api.domains.auth.models import User
+from miy_api.domains.files.current_content import (
+    file_candidate_matches_current_content,
+    load_current_file_content,
+)
 from miy_api.domains.rag import application as rag_application
 from miy_api.domains.rag.contracts import (
     RagAnswerMode,
@@ -67,6 +71,7 @@ from miy_api.domains.search.entity_adapter_registry import (
 from miy_api.domains.search.resource_mapping import resource_type_for_search_entity
 from miy_api.domains.search.schemas import KeywordSearchRequest, KeywordSearchResponse
 from miy_api.domains.source_access import SourceAclPolicy
+from miy_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOURCE_TYPE
 
 _PRIMARY_BACKEND_TIMEOUT_SECONDS = 5.0
 logger = logging.getLogger(__name__)
@@ -806,7 +811,7 @@ def _keyword_response_to_hits(response: KeywordSearchResponse) -> list[Retrieval
 def _filter_current_retrieval_hits(
     db: Session, *, user: User, hits: list[RetrievalHit]
 ) -> list[RetrievalHit]:
-    """Recheck source ACL and live app admission before each use, including AI input."""
+    """Recheck app admission, source ACL and File content before each use."""
     policy = SourceAclPolicy.for_user(db, user=user)
     keyword_allowed = policy.authorize_many_resources(
         (hit.resource_type, hit.resource_id) for hit in hits if not _hit_requires_rag_acl(hit)
@@ -814,11 +819,30 @@ def _filter_current_retrieval_hits(
     rag_allowed = policy.authorize_many_rag_resources(
         (hit.resource_type, hit.resource_id) for hit in hits if _hit_requires_rag_acl(hit)
     )
-    return [
+    authorized_hits = [
         hit
         for hit in hits
         if (hit.resource_type, hit.resource_id)
         in (rag_allowed if _hit_requires_rag_acl(hit) else keyword_allowed)
+    ]
+    current_files = load_current_file_content(
+        db,
+        file_ids=(
+            hit.resource_id
+            for hit in authorized_hits
+            if hit.resource_type == FILE_MANAGER_FILE_RESOURCE_TYPE
+        ),
+    )
+    return [
+        hit
+        for hit in authorized_hits
+        if hit.resource_type != FILE_MANAGER_FILE_RESOURCE_TYPE
+        or file_candidate_matches_current_content(
+            current_files.get(hit.resource_id),
+            candidate_checksum=hit.metadata.get("content_checksum"),
+            candidate_partition_id=hit.metadata.get("retrieval_partition_id"),
+            candidate_extracted_at=hit.metadata.get("extracted_at"),
+        )
     ]
 
 

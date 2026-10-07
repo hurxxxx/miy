@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Input } from '@miy/ui';
+import { appIconForKey, Button, Input } from '@miy/ui';
 import { Boxes, Code2, ExternalLink, Plus, RefreshCw } from 'lucide-react';
 import { api, record, type Task } from './api';
 import type { components } from './api.generated';
@@ -7,6 +7,9 @@ import { type Copy, type Translate, errorCopy, korean } from './i18n';
 import { ApiError } from './api';
 import { PageLayout, EmptyState } from './page-layout';
 import { useServices } from './management';
+import { SourcePrepare } from './source-prepare';
+import { SourceRegistrationExport } from './source-registration-export';
+import { SourceRegistrationStatus } from './source-registration-status';
 
 type S = components['schemas'];
 type App = S['AppDescriptor'];
@@ -15,6 +18,21 @@ type Maintenance = S['MaintenanceOut'];
 type Budget = S['BudgetInput'];
 const catalogText = (value: string, t: Translate) =>
   Object.hasOwn(korean, value) ? t(value as Copy) : value;
+const appTitle = (app: App, t: Translate) =>
+  app.title_translations?.[t.locale ?? 'en-US'] ?? app.title;
+const limitationLabels: Record<string, Copy> = {
+  source_not_configured: 'Source is not configured.',
+  source_missing: 'Configured source paths are missing in this checkout.',
+  source_invalid: 'Connected source requires attention.',
+  executor_not_configured:
+    'Configure an isolated execution environment for this app.',
+  preview_not_configured: 'Preview is not configured.',
+  release_not_configured: 'Release unit is not configured.',
+};
+function AppIcon({ app }: { app: App }) {
+  const Icon = appIconForKey(app.icon_key ?? 'layout-grid');
+  return <Icon size={18} aria-hidden="true" />;
+}
 export type WorkbenchContext = S['TaskContext'];
 export type StartWorkbenchTask = (
   context: WorkbenchContext,
@@ -127,9 +145,15 @@ export function WorkbenchApps({
   );
   const [query, setQuery] = useState('');
   const [newProject, setNewProject] = useState(false);
+  const [connectingSource, setConnectingSource] = useState(false);
+  const [preparingSource, setPreparingSource] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const app = data?.items.find((item) => item.app_id === selected);
+  const executorMissing =
+    app?.discovery === 'source' &&
+    app.source_status === 'ready' &&
+    app.execution_status !== 'configured';
   const detailRef = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!app) return;
@@ -149,7 +173,7 @@ export function WorkbenchApps({
     }
   };
   const filtered = (data?.items ?? []).filter((item) =>
-    `${item.title} ${item.app_id} ${item.summary} ${item.capabilities.join(' ')}`
+    `${appTitle(item, t)} ${item.title} ${item.app_id} ${item.summary} ${(item.capabilities ?? []).join(' ')}`
       .toLocaleLowerCase()
       .includes(query.toLocaleLowerCase()),
   );
@@ -169,6 +193,9 @@ export function WorkbenchApps({
             onClick={() => setRefresh((v) => v + 1)}
           >
             <RefreshCw size={16} />
+          </Button>
+          <Button onClick={() => setConnectingSource((value) => !value)}>
+            {t('Connect app source')}
           </Button>
           {area === 'studio' && (
             <>
@@ -197,6 +224,16 @@ export function WorkbenchApps({
             {data.source_dirty && t('Uncommitted changes')}
             {error && <> · {t('Current state not verified')}</>}
           </p>
+          {connectingSource && (
+            <SourceBindingForm
+              t={t}
+              onSaved={(appId) => {
+                setSelected(appId);
+                setConnectingSource(false);
+                setRefresh((value) => value + 1);
+              }}
+            />
+          )}
           {newProject && (
             <ProjectForm
               t={t}
@@ -218,7 +255,7 @@ export function WorkbenchApps({
                       app_id: project.app_id,
                     },
                     project.title,
-                    `${project.summary}\n\nReuse decision: ${project.reuse_decision}\n${project.reuse_notes}\n\nRead the repository instructions and use the existing MIY app registration and delivery contracts. Propose a plan before implementation.`,
+                    `${project.summary}\n\nReuse decision: ${project.reuse_decision}\n${project.reuse_notes}\n\nPlan this app using the versioned independent app manifest and supported runtime profiles. Identify an isolated app source and execution environment before implementation. An unconnected project is planning only; do not implement its business code in the platform checkout.`,
                   );
                 })
               }
@@ -270,13 +307,15 @@ export function WorkbenchApps({
                       window.history.replaceState(null, '', `?${params}`);
                     }}
                   >
-                    <Boxes size={18} />
-                    <strong>{item.title}</strong>
+                    <AppIcon app={item} />
+                    <strong>{appTitle(item, t)}</strong>
                     <small>{catalogText(item.summary, t)}</small>
                     <span>
-                      {item.release_unit === 'miy-app'
-                        ? 'MIY'
-                        : 'MIY Workbench'}
+                      {t(
+                        item.source_status === 'ready'
+                          ? 'Source available'
+                          : 'Registered app',
+                      )}
                     </span>
                   </button>
                 ))}
@@ -300,29 +339,38 @@ export function WorkbenchApps({
               >
                 <div className="wb-heading">
                   <div>
-                    <h2>{app.title}</h2>
+                    <h2>{appTitle(app, t)}</h2>
                     <p>{catalogText(app.summary, t)}</p>
                   </div>
                   <div className="actions">
                     <Button
                       variant="primary"
-                      disabled={busy}
+                      disabled={busy || executorMissing}
                       onClick={() =>
                         void run(() =>
                           startTask(
                             {
                               area,
-                              purpose: 'development',
+                              purpose:
+                                app.source_status === 'ready'
+                                  ? 'development'
+                                  : 'inspection',
                               app_id: app.app_id,
                             },
-                            `${app.title}: ${t('Develop app')}`,
-                            `Inspect the ${app.app_id} app and its repository instructions. Ask for the requested change and acceptance criteria, then prepare a plan.`,
+                            `${appTitle(app, t)}: ${t(app.source_status === 'ready' ? 'Develop app' : 'Inspect app registration')}`,
+                            app.source_status === 'ready'
+                              ? `Inspect the ${app.app_id} app and its repository instructions. Ask for the requested change and acceptance criteria, then prepare a plan.`
+                              : `Inspect registration of ${app.app_id}. Its development source is unavailable. Find authoritative source and release configuration; do not guess paths or deployment targets. Report the evidence and propose the missing configuration. This is a read-only planning task.`,
                           ),
                         )
                       }
                     >
                       <Code2 size={16} />
-                      {t('Develop app')}
+                      {t(
+                        app.source_status === 'ready'
+                          ? 'Develop app'
+                          : 'Inspect app registration',
+                      )}
                     </Button>
                     {app.preview_url && (
                       <a
@@ -335,15 +383,37 @@ export function WorkbenchApps({
                     )}
                   </div>
                 </div>
+                {(app.limitations ?? []).map((reason) => (
+                  <p key={reason} className="muted">
+                    {t(limitationLabels[reason])}
+                  </p>
+                ))}
+                {app.execution_status === 'configured' && (
+                  <p className="muted">
+                    {t(
+                      'Execution environment configured; availability checked when starting work.',
+                    )}
+                  </p>
+                )}
+                {app.preview_status === 'configured' && (
+                  <p className="muted">
+                    {t('Preview configured; availability not verified')}
+                  </p>
+                )}
+                {app.deployment_status === 'configured' && (
+                  <p className="muted">
+                    {t('Release configured; deployment not verified')}
+                  </p>
+                )}
                 <dl className="wb-facts">
                   <div>
                     <dt>{t('Release unit')}</dt>
-                    <dd>{app.release_unit}</dd>
+                    <dd>{app.release_unit ?? t('Not configured')}</dd>
                   </div>
                   <div>
                     <dt>{t('Source paths')}</dt>
                     <dd>
-                      {app.source_paths.map((path) => (
+                      {(app.source_paths ?? []).map((path) => (
                         <code key={path}>
                           {path}
                           <br />
@@ -352,6 +422,14 @@ export function WorkbenchApps({
                     </dd>
                   </div>
                 </dl>
+                {app.discovery !== 'checkout' && app.discovery && (
+                  <SourceBindingForm
+                    key={app.app_id}
+                    app={app}
+                    t={t}
+                    onSaved={() => setRefresh((value) => value + 1)}
+                  />
+                )}
                 {app.release_unit === 'miy-app' && (
                   <p className="muted">
                     {t(
@@ -375,6 +453,19 @@ export function WorkbenchApps({
                     tasks={tasks}
                   />
                 )}
+                {app.discovery && app.discovery !== 'checkout' && (
+                  <AppInstallations
+                    key={app.app_id}
+                    appId={app.app_id}
+                    refresh={refresh}
+                    t={t}
+                    startTask={
+                      app.source_status === 'ready' && !executorMissing
+                        ? startTask
+                        : undefined
+                    }
+                  />
+                )}
                 <h3>{t('Related work')}</h3>
                 <div className="wb-work-list">
                   {tasks
@@ -396,33 +487,114 @@ export function WorkbenchApps({
           {area === 'studio' && data.projects.length > 0 && (
             <section className="wb-panel">
               <h2>{t('App projects')}</h2>
-              {data.projects.map((project) => (
-                <div className="wb-heading" key={project.id}>
-                  <div>
-                    <strong>{project.title}</strong>
-                    <p className="muted">{project.summary}</p>
+              {data.projects.map((project) => {
+                const projectApp = data.items.find(
+                  (item) => item.app_id === project.app_id,
+                );
+                const needsExecutor =
+                  projectApp?.discovery === 'source' &&
+                  projectApp.source_status === 'ready' &&
+                  projectApp.execution_status !== 'configured';
+                return (
+                  <div className="stack" key={project.id}>
+                    <div className="wb-heading">
+                      <div>
+                        <strong>{project.title}</strong>
+                        <p className="muted">{project.summary}</p>
+                      </div>
+                      <div className="actions">
+                        {project.reuse_decision === 'new' && (
+                          <Button
+                            aria-expanded={preparingSource === project.id}
+                            onClick={() =>
+                              setPreparingSource((current) =>
+                                current === project.id ? null : project.id,
+                              )
+                            }
+                          >
+                            {t('Prepare app source')}
+                          </Button>
+                        )}
+                        <Button
+                          disabled={busy || needsExecutor}
+                          onClick={() =>
+                            void run(() =>
+                              startTask(
+                                {
+                                  area: 'studio',
+                                  purpose: 'development',
+                                  project_id: project.id,
+                                  app_id: project.app_id,
+                                },
+                                project.title,
+                                `${project.summary}\nReview existing work and propose the next development step using this task's source binding. If no isolated app source is connected, plan the setup before implementation.`,
+                              ),
+                            )
+                          }
+                        >
+                          {t('Continue development')}
+                        </Button>
+                        {data.registration_authorization_available &&
+                          projectApp?.discovery === 'source' &&
+                          projectApp.source_status === 'ready' &&
+                          projectApp.execution_status === 'configured' && (
+                            <Button
+                              disabled={busy}
+                              onClick={() =>
+                                void run(() =>
+                                  startTask(
+                                    {
+                                      area: 'studio',
+                                      purpose: 'registration',
+                                      project_id: project.id,
+                                      app_id: project.app_id,
+                                    },
+                                    project.title,
+                                    "Inspect this registration Task's committed app source. Explain the personal, inactive development registration and plan the next step. Use miy_app_registration context; registration requires the owner's MIY authorization and explicit implementation approval. Never treat a receipt as execution readiness or deployment.",
+                                  ),
+                                )
+                              }
+                            >
+                              {t('New registration task')}
+                            </Button>
+                          )}
+                      </div>
+                    </div>
+                    {needsExecutor && (
+                      <p className="muted">
+                        {t(
+                          'Configure an isolated execution environment for this app.',
+                        )}
+                      </p>
+                    )}
+                    {preparingSource === project.id && (
+                      <SourcePrepare
+                        key={project.id}
+                        projectId={project.id}
+                        t={t}
+                        onPrepared={() => setRefresh((value) => value + 1)}
+                      />
+                    )}
+                    {projectApp?.discovery === 'source' &&
+                      projectApp.source_status === 'ready' && (
+                        <SourceRegistrationExport
+                          key={project.id}
+                          projectId={project.id}
+                          t={t}
+                        />
+                      )}
+                    {projectApp?.discovery === 'source' &&
+                      projectApp.source_version > 0 && (
+                        <SourceRegistrationStatus
+                          projectId={project.id}
+                          appId={project.app_id}
+                          bindingVersion={projectApp.source_version}
+                          t={t}
+                        />
+                      )}
                   </div>
-                  <Button
-                    disabled={busy}
-                    onClick={() =>
-                      void run(() =>
-                        startTask(
-                          {
-                            area: 'studio',
-                            purpose: 'development',
-                            project_id: project.id,
-                            app_id: project.app_id,
-                          },
-                          project.title,
-                          `${project.summary}\nReview existing work and propose the next development step.`,
-                        ),
-                      )
-                    }
-                  >
-                    {t('Continue development')}
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </section>
           )}
           {area === 'apps' && runtime.error && (
@@ -431,6 +603,168 @@ export function WorkbenchApps({
         </>
       )}
     </PageLayout>
+  );
+}
+
+export function AppInstallations({
+  appId,
+  refresh,
+  t,
+  startTask,
+}: {
+  appId: string;
+  refresh: number;
+  t: Translate;
+  startTask?: StartWorkbenchTask;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const inspect = async (
+    item: S['InstallationObservation'],
+    purpose: 'inspection' | 'deployment' | 'recovery',
+  ) => {
+    if (!startTask || busy) return;
+    setBusy(true);
+    setActionError(null);
+    try {
+      const request =
+        purpose === 'inspection'
+          ? 'Inspect the selected development app installation and existing delivery requests with miy_app_delivery. Report verified records and unresolved state. Do not mutate source, registrations or deployments.'
+          : purpose === 'deployment'
+            ? 'Plan a development preview deployment for this selected app installation. Use miy_app_delivery context and existing request status. Identify source changes, the exact verified release, permissions and required checks. The implementation may create a local checkpoint in this app checkout, sync its definition, request a core build and deploy the verified release. Publication and production are outside this request. Never rerun an uncertain request as a new operation.'
+            : 'Plan recovery of this selected development app installation. Inspect its current release and existing requests with miy_app_delivery first. Identify a compatible verified previous release and distinguish image rollback from database recovery. Ask for the target only if ambiguous. Never replay unknown work or perform database downgrade.';
+      await startTask(
+        { app_id: appId, installation_id: item.id, purpose, area: 'apps' },
+        `${appId} · ${t(purpose === 'inspection' ? 'Inspect installation' : purpose === 'deployment' ? 'Plan preview deployment' : 'Plan app recovery')}`,
+        request,
+      );
+    } catch (reason) {
+      setActionError(
+        reason instanceof ApiError ? reason.code : 'request_failed',
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+  const { data, error, loading } = useResource<S['InstallationsOut']>(
+    `/workbench/apps/${encodeURIComponent(appId)}/installations`,
+    refresh,
+  );
+  const labels: Record<string, Copy> = {
+    configured: 'Configured',
+    ready: 'Ready',
+    queued: 'Queued',
+    running: 'Running',
+    cleanup: 'Cleanup required',
+    succeeded: 'Succeeded',
+    failed: 'Failed',
+    unknown: 'Unknown',
+  };
+  return (
+    <section className="stack" aria-label={t('App installations')}>
+      <h3>{t('App installations')}</h3>
+      <p className="muted">
+        {t('Deployment records are not live health checks.')}
+      </p>
+      {error && <ReadError code={error} t={t} />}
+      {actionError && <ReadError code={actionError} t={t} />}
+      {loading && !data && (
+        <p className="muted">{t('Loading app installations')}</p>
+      )}
+      {data && (
+        <Connection
+          state={error ? 'unavailable' : data.state}
+          stale={!!error || data.stale}
+          checkedAt={data.checked_at}
+          t={t}
+        />
+      )}
+      {data?.state === 'ready' && !data.items.length && (
+        <p>{t('No app installations')}</p>
+      )}
+      {data?.items.map((item) => (
+        <article className="wb-panel stack" key={item.id}>
+          <strong>
+            {t(
+              item.environment === 'development' ? 'Development' : 'Production',
+            )}{' '}
+            · {t(item.enabled ? 'Enabled' : 'Disabled')}
+          </strong>
+          <span>{t(labels[item.state] ?? 'Unknown')}</span>
+          <a href={item.origin} target="_blank" rel="noopener noreferrer">
+            {item.origin} <ExternalLink size={13} />
+          </a>
+          <small>
+            {t('Installation ID')}: <code>{item.id}</code>
+          </small>
+          {startTask &&
+            item.environment === 'development' &&
+            item.delivery_configured && (
+              <div className="wb-actions">
+                <Button
+                  disabled={busy}
+                  onClick={() => void inspect(item, 'inspection')}
+                >
+                  {t('Inspect installation')}
+                </Button>
+                <Button
+                  disabled={busy}
+                  onClick={() => void inspect(item, 'deployment')}
+                >
+                  {t('Plan preview deployment')}
+                </Button>
+                <Button
+                  disabled={busy}
+                  onClick={() => void inspect(item, 'recovery')}
+                >
+                  {t('Plan app recovery')}
+                </Button>
+              </div>
+            )}
+          <span>
+            {t('Installed revision')}:{' '}
+            <Revision value={item.source_revision} t={t} />
+          </span>
+          {item.artifact_digest && (
+            <code style={{ overflowWrap: 'anywhere' }}>
+              {item.artifact_digest}
+            </code>
+          )}
+          {item.deployment ? (
+            <>
+              <span>
+                {t(
+                  item.deployment.action === 'rollback'
+                    ? 'Rollback'
+                    : 'Deployment',
+                )}
+                : {t(labels[item.deployment.state] ?? 'Unknown')}
+              </span>
+              <small>
+                {t('Deployment request')}:{' '}
+                <code>{item.deployment.request_id}</code>
+              </small>
+              <small>
+                {t('Deployment record updated')}:{' '}
+                {new Date(item.deployment.updated_at).toLocaleString()}
+              </small>
+              {item.deployment.failure_code && (
+                <code>{item.deployment.failure_code}</code>
+              )}
+              {['unknown', 'running', 'cleanup'].includes(
+                item.deployment.state,
+              ) && (
+                <p className="muted">
+                  {t('Check the existing request before retrying.')}
+                </p>
+              )}
+            </>
+          ) : (
+            <span className="muted">{t('No deployment evidence')}</span>
+          )}
+        </article>
+      ))}
+    </section>
   );
 }
 
@@ -507,15 +841,16 @@ function ProjectForm({
             <option value="">{t('Choose an app')}</option>
             {catalog.items.map((app) => (
               <option key={app.app_id} value={app.app_id}>
-                {app.title}
+                {appTitle(app, t)}
               </option>
             ))}
           </select>
         ) : (
           <Input
             value={appId}
-            maxLength={80}
-            pattern="[a-z0-9]+(-[a-z0-9]+)*"
+            maxLength={64}
+            minLength={2}
+            pattern="[a-z](?:[a-z0-9]|-){1,63}"
             required
             onChange={(e) => setAppId(e.target.value)}
           />
@@ -532,6 +867,73 @@ function ProjectForm({
       </label>
       <Button variant="primary" disabled={busy} type="submit">
         {t('Create project and plan')}
+      </Button>
+    </form>
+  );
+}
+
+function SourceBindingForm({
+  app,
+  t,
+  onSaved,
+}: {
+  app?: App;
+  t: Translate;
+  onSaved: (appId: string) => void;
+}) {
+  const [appId, setAppId] = useState(app?.app_id ?? '');
+  const [root, setRoot] = useState(app?.source_root ?? '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <form
+      className="wb-form"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (busy) return;
+        setBusy(true);
+        setError(null);
+        void api(
+          `/workbench/apps/${encodeURIComponent(appId)}/source`,
+          { repository_root: root, version: app?.source_version ?? 0 },
+          'PUT',
+        )
+          .then(() => onSaved(appId))
+          .catch((reason) =>
+            setError(
+              reason instanceof ApiError ? reason.code : 'request_failed',
+            ),
+          )
+          .finally(() => setBusy(false));
+      }}
+    >
+      <h3>{t('Application source')}</h3>
+      <p className="muted">
+        {t(
+          'Use an owner-approved checkout containing the matching app.manifest.json.',
+        )}
+      </p>
+      {!app && (
+        <label>
+          {t('App identifier')}
+          <Input
+            required
+            value={appId}
+            onChange={(event) => setAppId(event.target.value)}
+          />
+        </label>
+      )}
+      <label>
+        {t('Repository checkout path')}
+        <Input
+          required
+          value={root}
+          onChange={(event) => setRoot(event.target.value)}
+        />
+      </label>
+      {error && <ReadError code={error} t={t} />}
+      <Button type="submit" disabled={busy || !appId || !root}>
+        {t('Connect app source')}
       </Button>
     </form>
   );
@@ -637,18 +1039,19 @@ function AppManagement({
           <p className="muted">{t('Current state not verified')}</p>
         </>
       )}
-      {evidence.data && (
-        <p className="muted">
-          {t('Development revision CI')}:{' '}
-          {evidence.error || evidence.data.gitlab.stale
-            ? t('Not verified')
-            : (evidence.data.gitlab.pipelines?.find(
-                (p) => p.revision === evidence.data?.git?.head,
-              )?.status ?? t('Not verified'))}{' '}
-          · {t('Development revision')}:{' '}
-          <Revision value={evidence.data.git?.head} t={t} />
-        </p>
-      )}
+      {evidence.data &&
+        ['miy-app', 'miy-workbench'].includes(app.release_unit ?? '') && (
+          <p className="muted">
+            {t('Development revision CI')}:{' '}
+            {evidence.error || evidence.data.gitlab.stale
+              ? t('Not verified')
+              : (evidence.data.gitlab.pipelines?.find(
+                  (p) => p.revision === evidence.data?.git?.head,
+                )?.status ?? t('Not verified'))}{' '}
+            · {t('Development revision')}:{' '}
+            <Revision value={evidence.data.git?.head} t={t} />
+          </p>
+        )}
       {usage.error && <ReadError code={usage.error} t={t} />}
       {usage.loading && <p role="status">{t('Loading usage')}</p>}
       {usage.data && (
@@ -733,7 +1136,8 @@ function AppManagement({
             )}
           </div>
           <div className="actions">
-            {patch.target_revision &&
+            {['miy-app', 'miy-workbench'].includes(app.release_unit ?? '') &&
+              patch.target_revision &&
               patch.state !== 'verified' &&
               patch.state !== 'cancelled' && (
                 <Button
@@ -754,6 +1158,9 @@ function AppManagement({
             <Button
               disabled={
                 busy ||
+                app.source_status !== 'ready' ||
+                (app.discovery === 'source' &&
+                  app.execution_status !== 'configured') ||
                 patch.state === 'cancelled' ||
                 patch.state === 'verified'
               }

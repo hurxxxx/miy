@@ -77,3 +77,19 @@ def test_diff_cannot_read_a_hard_link_to_a_private_file(client, repository, tmp_
     assert response.json() == {"code": "path_denied"}
     assert "SYNTHETIC_PRIVATE_VALUE" not in response.text
     assert private.read_text() == "SYNTHETIC_PRIVATE_VALUE"
+
+
+def test_git_source_evidence_does_not_follow_replacement_objects(repository):
+    def local(*args, data=None):
+        return subprocess.run(
+            ["git", "-C", str(repository), *args],
+            input=data, check=True, capture_output=True,
+        ).stdout
+
+    original = local("show", "HEAD:hello.txt")
+    original_id = local("rev-parse", "HEAD:hello.txt").decode().strip()
+    replacement = b"Synthetic replacement that is not in the commit\n"
+    replacement_id = local("hash-object", "-w", "--stdin", data=replacement).decode().strip()
+    local("replace", original_id, replacement_id)
+    assert local("show", "HEAD:hello.txt") == replacement
+    assert git.git(repository, "show", "HEAD:hello.txt") == original

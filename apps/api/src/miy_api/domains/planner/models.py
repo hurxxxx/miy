@@ -6,13 +6,14 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from miy_api.core.db import Base
+from miy_api.domains.official_apps.writer_contracts import OfficialWriterSource
 
 
 def utcnow_naive() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
-class PlannerEvent(Base):
+class PlannerEvent(OfficialWriterSource, Base):
     __tablename__ = "planner_events"
     __table_args__ = (
         Index(

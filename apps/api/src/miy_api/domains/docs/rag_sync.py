@@ -1,33 +1,17 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from miy_api.core.settings import get_settings
 from miy_api.domains.docs.models import DocMeetingAccess, NativeDoc
 from miy_api.domains.docs.partitioning import ensure_native_doc_partition
 from miy_api.domains.meeting.models import Meeting, MeetingDocLink
 from miy_api.domains.rag.contracts import RagSyncOperation
 from miy_api.domains.rag.docs_projection import NATIVE_DOC_RESOURCE_TYPE
-from miy_api.domains.rag.outbox import (
-    enqueue_rag_sync_job,
-    enqueue_rag_visibility_recompute_job,
-)
-from miy_api.domains.retrieval.projection_fencing import record_projection_event
-from miy_api.domains.search.hooks import (
-    enqueue_doc_search_index,
-    enqueue_doc_search_index_by_id,
-)
+from miy_api.domains.official_apps.projection_contracts import ProjectionIntent
+from miy_api.domains.official_apps.projection_delivery import deliver_projection_intent
 
 MEETING_VISIBILITY_SCOPE = "meeting"
-
-
-@dataclass(frozen=True, slots=True)
-class _MeetingVisibilityTargets:
-    search_doc_ids: list[str]
-    cursor_doc_ids: list[str]
 
 
 def enqueue_native_doc_rag_sync(
@@ -37,29 +21,16 @@ def enqueue_native_doc_rag_sync(
     operation: RagSyncOperation,
 ) -> None:
     partition_id = ensure_native_doc_partition(db, doc=doc)
-    projection_event = record_projection_event(
+    deliver_projection_intent(
         db,
-        resource_type=NATIVE_DOC_RESOURCE_TYPE,
-        resource_id=doc.id,
-        retrieval_partition_id=partition_id,
-        change_kind=("delete" if operation == RagSyncOperation.DELETE else "content"),
-        desired_state=("deleted" if operation == RagSyncOperation.DELETE else "active"),
-    )
-    enqueue_doc_search_index(
-        db,
-        doc=doc,
-        operation=_search_operation(operation),
-        projection_event=projection_event,
-    )
-    if not get_settings().rag_enabled:
-        return
-
-    enqueue_rag_sync_job(
-        db,
-        resource_type=NATIVE_DOC_RESOURCE_TYPE,
-        resource_id=doc.id,
-        operation=operation,
-        projection_event=projection_event,
+        intent=ProjectionIntent(
+            resource_type=NATIVE_DOC_RESOURCE_TYPE,
+            resource_id=doc.id,
+            retrieval_partition_id=partition_id,
+            change_kind="delete" if operation == RagSyncOperation.DELETE else "content",
+            desired_state="deleted" if operation == RagSyncOperation.DELETE else "active",
+            operation=operation.value,
+        ),
     )
 
 
@@ -76,6 +47,36 @@ def enqueue_native_doc_rag_sync_by_id(
         db,
         doc=doc,
         operation=operation,
+    )
+
+
+def enqueue_native_doc_visibility(db: Session, *, doc_id: str) -> None:
+    """Keep ACL mutation and its current source intent in the caller transaction.
+
+    Refresh under the source row lock so a concurrent trash/content mutation
+    cannot leave a cached active document producing an event after a tombstone.
+    The legacy bridge still requires Core acceptance authority; this helper does
+    not provision a partition reader or activate a source-only runtime.
+    """
+    doc = db.scalar(
+        select(NativeDoc)
+        .where(NativeDoc.id == doc_id)
+        # PostgreSQL FOR NO KEY UPDATE: serialize content/trash changes without
+        # upgrading concurrent grant INSERTs' FK KEY SHARE locks into a cycle.
+        # This helper never changes the document's primary key.
+        .with_for_update(key_share=True)
+        .execution_options(populate_existing=True)
+    )
+    if doc is None:
+        return
+    enqueue_native_doc_rag_sync(
+        db,
+        doc=doc,
+        operation=(
+            RagSyncOperation.DELETE
+            if doc.trashed_at is not None
+            else RagSyncOperation.VISIBILITY_UPDATE
+        ),
     )
 
 
@@ -108,45 +109,12 @@ def enqueue_meeting_visibility_recompute(
     meeting_id: str,
     doc_ids: list[str] | None = None,
 ) -> None:
-    targets = _meeting_visibility_targets(db, meeting_id=meeting_id, doc_ids=doc_ids)
-    for doc_id in targets.search_doc_ids:
-        enqueue_doc_search_index_by_id(
-            db,
-            doc_id=doc_id,
-            operation="upsert",
-        )
-    if not get_settings().rag_enabled:
-        return
-
-    cursor = {"doc_ids": targets.cursor_doc_ids} if targets.cursor_doc_ids else None
-    enqueue_rag_visibility_recompute_job(
-        db,
-        scope_type=MEETING_VISIBILITY_SCOPE,
-        scope_id=meeting_id,
-        cursor=cursor,
+    # Explicit IDs survive detach/delete of the meeting's source relationships.
+    # Existing queued scope jobs remain a separate legacy compatibility boundary.
+    targets = (
+        collect_meeting_visibility_doc_ids(db, meeting_id=meeting_id)
+        if doc_ids is None
+        else sorted({doc_id for doc_id in doc_ids if doc_id})
     )
-
-
-def _meeting_visibility_targets(
-    db: Session,
-    *,
-    meeting_id: str,
-    doc_ids: list[str] | None,
-) -> _MeetingVisibilityTargets:
-    if doc_ids is None:
-        return _MeetingVisibilityTargets(
-            search_doc_ids=collect_meeting_visibility_doc_ids(db, meeting_id=meeting_id),
-            cursor_doc_ids=[],
-        )
-    return _MeetingVisibilityTargets(
-        search_doc_ids=doc_ids,
-        cursor_doc_ids=_normalize_doc_ids(doc_ids),
-    )
-
-
-def _normalize_doc_ids(doc_ids: list[str]) -> list[str]:
-    return sorted({doc_id for doc_id in doc_ids if doc_id})
-
-
-def _search_operation(operation: RagSyncOperation) -> str:
-    return "delete" if operation == RagSyncOperation.DELETE else "upsert"
+    for doc_id in targets:
+        enqueue_native_doc_visibility(db, doc_id=doc_id)

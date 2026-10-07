@@ -5,13 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import {
-  handleEvent,
-  patchViolation,
-  workspaceSnapshot,
-  selectChecks,
-  runChecks,
-} from './codex-hooks.mjs';
+import { handleEvent, patchViolation } from './codex-hooks.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const git = (root, args) =>
@@ -68,6 +62,10 @@ test('patch policy blocks Git metadata and generated contracts, permits source c
     null,
   );
   assert.throws(() => patchViolation(root, {}));
+  assert.throws(() => patchViolation(root, 'unrecognized patch'));
+  assert.throws(() =>
+    patchViolation(root, '*** Begin Patch\n*** Delete File: file.txt'),
+  );
 });
 
 test('patch uses session cwd and resolves existing symlink ancestors and rename destinations', (t) => {
@@ -113,156 +111,43 @@ test('PreToolUse returns the documented deny schema; no guessed shell parsing', 
   );
 });
 
-test('snapshot covers staged, unstaged, untracked, deleted, and symlink changes without env values', (t) => {
+test('retired lifecycle events cannot run checks, create cache, or block completion', (t) => {
   const root = fixture(t);
-  fs.writeFileSync(path.join(root, 'file.txt'), 'edited\n');
-  git(root, ['add', 'file.txt']);
-  fs.writeFileSync(path.join(root, 'new.txt'), 'new\n');
-  fs.writeFileSync(
-    path.join(root, '.env'),
-    'SENSITIVE=synthetic-private-value\n',
-  );
-  fs.symlinkSync('/nonexistent-sensitive-target', path.join(root, 'link'));
-  let snapshot = workspaceSnapshot(root);
-  assert.deepEqual(Object.keys(snapshot), ['file.txt', 'link', 'new.txt']);
-  assert.ok(!JSON.stringify(snapshot).includes('synthetic-private-value'));
-  fs.unlinkSync(path.join(root, 'file.txt'));
-  snapshot = workspaceSnapshot(root);
-  assert.equal(snapshot['file.txt'], 'deleted');
+  fs.writeFileSync(path.join(root, 'file.txt'), 'pre-existing change \n');
+  for (const name of ['SessionStart', 'PostToolUse', 'Stop']) {
+    assert.deepEqual(
+      handleEvent(event(root, name), {
+        resolveRoot: () => {
+          throw Error('retired events must not inspect the workspace');
+        },
+      }),
+      {},
+    );
+  }
+  assert.equal(fs.existsSync(path.join(root, '.runtime')), false);
 });
 
-test('startup/resume is idempotent and pre-existing dirty work is not attributed to the session', (t) => {
+test('invalid patch input fails closed without exposing input or command errors', (t) => {
   const root = fixture(t);
-  fs.writeFileSync(path.join(root, 'file.txt'), 'pre-existing\n');
-  handleEvent(event(root, 'SessionStart'));
-  let calls = 0;
-  const dependencies = {
-    run: () => {
-      calls++;
-    },
-  };
-  assert.deepEqual(handleEvent(event(root, 'Stop'), dependencies), {});
-  assert.equal(calls, 0);
-  fs.writeFileSync(path.join(root, 'new.txt'), 'new\n');
-  handleEvent(event(root, 'SessionStart', { source: 'resume' }));
-  handleEvent(event(root, 'Stop'), dependencies);
-  assert.ok(calls > 0);
-});
-
-test('Stop blocks once for failure and never loops on stop_hook_active', (t) => {
-  const root = fixture(t);
-  handleEvent(event(root, 'SessionStart'));
-  fs.writeFileSync(path.join(root, 'file.txt'), 'changed\n');
-  const dependencies = {
-    run: () => {
-      throw Error('sensitive stderr must not propagate');
-    },
-  };
-  assert.equal(
-    handleEvent(event(root, 'Stop'), dependencies).decision,
-    'block',
-  );
-  const second = handleEvent(
-    event(root, 'Stop', { stop_hook_active: true }),
-    dependencies,
-  );
-  assert.equal(second.decision, undefined);
-  assert.ok(second.systemMessage);
-  assert.ok(!JSON.stringify(second).includes('sensitive stderr'));
-});
-
-test('only successful checks cache; edited files invalidate cached results', (t) => {
-  const root = fixture(t);
-  handleEvent(event(root, 'SessionStart'));
-  fs.writeFileSync(path.join(root, 'file.txt'), 'changed\n');
-  let calls = 0;
-  const dependencies = {
-    run: () => {
-      calls++;
-    },
-  };
-  handleEvent(event(root, 'Stop'), dependencies);
-  const first = calls;
-  handleEvent(event(root, 'Stop'), dependencies);
-  assert.equal(calls, first);
-  fs.writeFileSync(path.join(root, 'file.txt'), 'another\n');
-  handleEvent(event(root, 'Stop'), dependencies);
-  assert.ok(calls > first);
-});
-
-test('failed checks retry and post feedback is deduplicated without hiding original tool output', (t) => {
-  const root = fixture(t);
-  handleEvent(event(root, 'SessionStart'));
-  fs.writeFileSync(path.join(root, 'file.txt'), 'changed \n');
-  const failed = {
-    run: () => {
-      throw Error('failure');
-    },
-  };
-  const post = handleEvent(event(root, 'PostToolUse'), failed);
-  assert.ok(post.hookSpecificOutput.additionalContext);
-  assert.equal(post.decision, undefined);
-  assert.deepEqual(handleEvent(event(root, 'PostToolUse'), failed), {});
-  assert.equal(handleEvent(event(root, 'Stop'), failed).decision, 'block');
-  assert.deepEqual(handleEvent(event(root, 'Stop'), { run: () => {} }), {});
-});
-
-test('missing baseline warns without attributing dirty work or blocking completion', (t) => {
-  const root = fixture(t);
-  fs.writeFileSync(path.join(root, 'file.txt'), 'changed\n');
-  assert.ok(handleEvent(event(root, 'Stop')).systemMessage);
-  assert.equal(handleEvent(event(root, 'Stop')).decision, undefined);
-});
-
-test('unsafe cache links fail closed and active Stop errors return a warning', (t) => {
-  const root = fixture(t);
-  fs.symlinkSync(os.tmpdir(), path.join(root, '.runtime'));
-  assert.throws(() => handleEvent(event(root, 'SessionStart')), /unsafe cache/);
-  const response = spawnSync(
-    'node',
-    [path.join(ROOT, 'scripts/codex-hooks.mjs')],
-    {
-      input: JSON.stringify(event(root, 'Stop', { stop_hook_active: true })),
-      encoding: 'utf8',
-    },
-  );
-  assert.equal(response.status, 0);
-  assert.ok(JSON.parse(response.stdout).systemMessage);
-  const invalid = spawnSync(
-    'node',
-    [path.join(ROOT, 'scripts/codex-hooks.mjs')],
-    { input: 'not JSON', encoding: 'utf8' },
-  );
-  assert.equal(invalid.status, 2);
-  assert.ok(!invalid.stderr.includes('not JSON'));
-});
-
-test('routing is focused; unavailable checks and timeouts remain visible', () => {
-  assert.deepEqual(
-    selectChecks(['docs/README.md']).map((c) => c.id),
-    ['diff'],
-  );
-  assert.deepEqual(
-    selectChecks(['.codex/hooks.json']).map((c) => c.id),
-    ['diff', 'skills', 'hooks'],
-  );
-  assert.ok(
-    selectChecks(['apps/web/src/locales/ko.json']).some((c) => c.id === 'i18n'),
-  );
-  assert.ok(selectChecks(['.env.example']).some((c) => c.id === 'env'));
-  const commands = [{ id: 'probe', args: ['unavailable'] }];
-  assert.equal(
-    runChecks(ROOT, commands, () => {
-      throw Object.assign(Error(), { code: 'ENOENT' });
-    })[0].status,
-    'unavailable',
-  );
-  assert.equal(
-    runChecks(ROOT, commands, () => {
-      throw Object.assign(Error(), { code: 'ETIMEDOUT' });
-    })[0].status,
-    'timeout',
-  );
+  for (const input of [
+    'private malformed input',
+    JSON.stringify(
+      event(root, 'PreToolUse', {
+        tool_name: 'apply_patch',
+        tool_input: { command: { private: 'sensitive-value' } },
+      }),
+    ),
+  ]) {
+    const result = spawnSync(
+      'node',
+      [path.join(ROOT, 'scripts/codex-hooks.mjs')],
+      { input, encoding: 'utf8' },
+    );
+    assert.equal(result.status, 2);
+    assert.equal(result.stdout, '');
+    assert.ok(!result.stderr.includes('private'));
+    assert.ok(!result.stderr.includes('sensitive-value'));
+  }
 });
 
 test('native execpolicy rules allow PR operations and retain unrelated mutation denials', (t) => {
@@ -287,24 +172,9 @@ test('native execpolicy rules allow PR operations and retain unrelated mutation 
     [['git', 'push', 'upstream', 'HEAD:main'], true],
     [['git', 'fetch', 'upstream'], false],
     [['git', 'push', 'origin', 'dev'], false],
+    [['docker', 'compose', '-f', 'ops/compose/miy-prod.app.yml', 'up'], true],
     [
-      [
-        'docker',
-        'compose',
-        '-f',
-        'ops/compose/miy-prod.app.yml',
-        'up',
-      ],
-      true,
-    ],
-    [
-      [
-        'docker',
-        'compose',
-        '-f',
-        'ops/compose/miy-prod.app.yml',
-        'config',
-      ],
+      ['docker', 'compose', '-f', 'ops/compose/miy-prod.app.yml', 'config'],
       false,
     ],
   ]) {
@@ -333,17 +203,13 @@ test('checked-in hook config uses native synchronous events, bounded timeouts, a
   const config = JSON.parse(
     fs.readFileSync(path.join(ROOT, '.codex/hooks.json'), 'utf8'),
   );
-  assert.deepEqual(Object.keys(config.hooks).sort(), [
-    'PostToolUse',
-    'PreToolUse',
-    'SessionStart',
-    'Stop',
-  ]);
+  assert.deepEqual(Object.keys(config.hooks), ['PreToolUse']);
+  assert.equal(config.hooks.PreToolUse[0].matcher, 'apply_patch');
   for (const groups of Object.values(config.hooks))
     for (const group of groups)
       for (const hook of group.hooks) {
         assert.equal(hook.type, 'command');
-        assert.ok(hook.timeout > 0 && hook.timeout <= 60);
+        assert.ok(hook.timeout > 0 && hook.timeout <= 5);
         assert.ok(!hook.async);
         assert.ok(hook.command.includes('scripts/codex-hooks.mjs'));
         assert.ok(!hook.command.includes('bypass'));

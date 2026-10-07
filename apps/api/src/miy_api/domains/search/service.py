@@ -117,6 +117,7 @@ def query_keyword_search(
             client=resolved_client,
         )
         accessible_rows = _load_authorized_ranked_candidates(
+            db,
             acl_filter=(
                 None if retrieval_partition_ids is not None else policy.build_keyword_acl_filter()
             ),
@@ -136,11 +137,6 @@ def query_keyword_search(
             code="search.keyword_backend_unavailable",
             reason=str(error),
         ) from error
-    if retrieval_partition_ids is not None:
-        accessible_rows = hydrate_file_search_rows_from_source(
-            db,
-            rows=accessible_rows,
-        )
     # Recompute app, partition, role, and source policy immediately before
     # facets/counts/highlights so a concurrent revoke cannot leak derivatives.
     final_scope = resolve_keyword_search_scope(
@@ -166,6 +162,7 @@ def query_keyword_search(
         allowed_entity_types=final_allowed_entity_types,
         authorized_partition_ids=final_partition_ids,
     )
+    accessible_rows = hydrate_file_search_rows_from_source(db, rows=accessible_rows)
     page_rows = accessible_rows[
         effective_request.offset : effective_request.offset + effective_request.limit
     ]
@@ -233,6 +230,7 @@ def _load_ranked_candidates(
 
 
 def _load_authorized_ranked_candidates(
+    db: Session,
     *,
     acl_filter: KeywordAclFilter | None,
     policy: SourceAclPolicy,
@@ -281,11 +279,14 @@ def _load_authorized_ranked_candidates(
                 seen.add(identity)
                 new_rows.append(row)
             accessible_rows.extend(
-                _filter_accessible_search_rows(
-                    new_rows,
-                    policy,
-                    allowed_entity_types=allowed_entity_types,
-                    authorized_partition_ids=retrieval_partition_ids,
+                hydrate_file_search_rows_from_source(
+                    db,
+                    rows=_filter_accessible_search_rows(
+                        new_rows,
+                        policy,
+                        allowed_entity_types=allowed_entity_types,
+                        authorized_partition_ids=retrieval_partition_ids,
+                    ),
                 )
             )
             if len(accessible_rows) >= required_count or exhausted:

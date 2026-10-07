@@ -72,7 +72,7 @@ test('failed refreshes retain observations and drafts while invalidating current
     .getByLabel('본인 전용 비밀번호')
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await page.getByRole('button', { name: /^Planner 개인 계획/ }).click();
+  await page.getByRole('button', { name: /^플래너 개인 계획/ }).click();
   await expect(page.getByText(/^개발 리비전 CI: success/)).toBeVisible();
   await expect(page.getByText(/^연결됨/)).toHaveCount(2);
   await page.getByRole('button', { name: '예산 편집', exact: true }).click();
@@ -120,14 +120,14 @@ test('budget polling preserves the draft and original version across concurrent 
     .getByLabel('본인 전용 비밀번호')
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await page.getByRole('button', { name: /^Planner 개인 계획/ }).click();
+  await page.getByRole('button', { name: /^플래너 개인 계획/ }).click();
   await page.getByRole('button', { name: '예산 편집', exact: true }).click();
   const draft = page.getByLabel('개발 토큰 예산', { exact: true });
   await draft.fill('2345');
 
   const other = await context.newPage();
   await other.goto('./?view=apps');
-  await other.getByRole('button', { name: /^Planner 개인 계획/ }).click();
+  await other.getByRole('button', { name: /^플래너 개인 계획/ }).click();
   await other.getByRole('button', { name: '예산 편집', exact: true }).click();
   await other.getByLabel('개발 토큰 예산', { exact: true }).fill('6789');
   await other.getByRole('button', { name: '저장', exact: true }).click();
@@ -175,7 +175,7 @@ test('Workbench connects app maintenance to Studio without granting deployment a
   await navigation
     .getByRole('button', { name: '앱 관리 센터', exact: true })
     .click();
-  await page.getByRole('button', { name: /^Planner 개인 계획/ }).click();
+  await page.getByRole('button', { name: /^플래너 개인 계획/ }).click();
   await expect(page.getByText('금액 미제공', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '문제 등록', exact: true }).click();
   const title = `일정 패치 ${Date.now()}`;
@@ -202,7 +202,7 @@ test('Workbench connects app maintenance to Studio without granting deployment a
   await page.getByRole('button', { name: '저장', exact: true }).click();
   await page.reload();
   await expect(
-    page.getByRole('heading', { name: 'Planner', exact: true }),
+    page.getByRole('heading', { name: '플래너', exact: true }),
   ).toBeVisible();
   await expect(page.getByText(title, { exact: true })).toBeVisible();
   await expect(
@@ -266,4 +266,211 @@ test('new app project records reuse rationale and opens a plan with its own cont
   expect(task.context.project_id).toBeTruthy();
   expect(task.context.reuse_decision).toBe('new');
   expect(task.thread_id).toBeNull();
+});
+
+test('owner connects an independent checkout and develops it after catalog reload', async ({
+  page,
+}) => {
+  await page.goto('./?view=studio');
+  await page
+    .getByLabel('본인 전용 비밀번호')
+    .fill('console-tests-only-password');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  const source = await (await page.request.get('__test__/app-source')).json();
+  await page.getByRole('button', { name: '앱 소스 연결', exact: true }).click();
+  await page.getByLabel('앱 식별자', { exact: true }).fill('sample-app');
+  await page
+    .getByLabel('저장소 작업 경로', { exact: true })
+    .fill(source.repository_root);
+  const form = page
+    .locator('form')
+    .filter({ has: page.getByLabel('저장소 작업 경로') });
+  await form.getByRole('button', { name: '앱 소스 연결', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^My app/ })).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: /^My app/ }).click();
+  await expect(page.getByLabel('저장소 작업 경로')).toHaveValue(
+    source.repository_root,
+  );
+  await page.getByRole('button', { name: '수정 개발', exact: true }).click();
+  await expect(page).toHaveURL(/task=/);
+  const taskId = new URL(page.url()).searchParams.get('task');
+  const task = await (await page.request.get(`api/tasks/${taskId}`)).json();
+  expect(task.root).toBe(source.repository_root);
+  expect(task.context.source_binding.app_id).toBe('sample-app');
+  expect(task.context.release_unit).toBeNull();
+  await expect(page.getByLabel('실행 모드')).toHaveValue('plan');
+});
+
+test('new project prepares an app source and recovers its result without enabling unconfigured execution', async ({
+  page,
+}) => {
+  await page.goto('./?view=studio');
+  await page
+    .getByLabel('본인 전용 비밀번호')
+    .fill('console-tests-only-password');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await page
+    .getByRole('button', { name: '새 앱 프로젝트', exact: true })
+    .click();
+  await page.getByLabel('프로젝트 이름', { exact: true }).fill('내 메모 준비');
+  await page
+    .getByLabel('요구사항과 완료 기준')
+    .fill('나만 볼 수 있는 업무 메모를 관리한다.');
+  const appId = `notes-${Date.now()}`;
+  await page.getByLabel('앱 식별자').fill(appId);
+  await page
+    .getByLabel('검토한 기존 앱과 결정 근거')
+    .fill('독립 앱의 개인 데이터 계약으로 메모 기능을 개발한다.');
+  await page.getByRole('button', { name: '프로젝트 생성·계획 시작' }).click();
+  await expect(page).toHaveURL(/task=/);
+  const taskId = new URL(page.url()).searchParams.get('task');
+  const task = await (await page.request.get(`api/tasks/${taskId}`)).json();
+  const projectId = task.context.project_id;
+  expect(task.context.app_execution_boundary).toBe('planning_only');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('./?view=studio');
+  let project = page
+    .locator('.stack')
+    .filter({ has: page.getByText('내 메모 준비', { exact: true }) })
+    .first();
+  await project
+    .getByRole('button', { name: '앱 소스 준비', exact: true })
+    .click();
+  let form = page.getByRole('form', { name: '앱 소스 준비' });
+  await form.getByLabel('시작 템플릿').selectOption('private-notes');
+  await form
+    .getByLabel('앱 저장소 주소')
+    .fill(`https://example.test/team/${appId}.git`);
+  expect(
+    await form.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+  ).toBe(true);
+  // The actual server prepares a disposable source, but its response is lost.
+  // Wait for the injected transport failure, since real Git/source preparation
+  // can take longer than a UI assertion timeout under parallel test load.
+  const lostResponse = page.waitForEvent('requestfailed', {
+    predicate: (request) =>
+      request.method() === 'POST' &&
+      request.url().endsWith(`/projects/${projectId}/source-setup`),
+  });
+  await page.route(
+    `**/api/workbench/projects/${projectId}/source-setup`,
+    async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      const response = await route.fetch();
+      expect(response.ok()).toBe(true);
+      await route.abort('failed');
+    },
+  );
+  await form.getByLabel('앱 저장소 주소').press('Enter');
+  await lostResponse;
+  await expect(
+    form.getByText(
+      '준비 결과를 확인하지 못했습니다. 저장된 요청 상태를 먼저 확인하세요.',
+    ),
+  ).toBeVisible();
+  await form
+    .getByRole('button', { name: '준비 상태 확인', exact: true })
+    .click();
+  await expect(form.getByText('앱 소스가 준비되었습니다')).toBeVisible();
+  const status = await (
+    await page.request.get(`api/workbench/projects/${projectId}/source-setup`)
+  ).json();
+  expect(status.setup.state).toBe('ready');
+  expect(status.setup.app_id).toBe(appId);
+  expect(status.setup.template_id).toBe('private-notes');
+  expect(status.setup.source_revision).toMatch(/^[0-9a-f]{40}$/);
+  await expect(
+    project.getByRole('button', { name: '개발 이어가기', exact: true }),
+  ).toBeDisabled();
+  await expect(
+    project.getByText('이 앱의 격리 실행 환경을 연결하세요.'),
+  ).toBeVisible();
+  // Reload reads the durable result and does not start a native turn or new source operation.
+  await page.reload();
+  project = page
+    .locator('.stack')
+    .filter({ has: page.getByText('내 메모 준비', { exact: true }) })
+    .first();
+  await project
+    .getByRole('button', { name: '앱 소스 준비', exact: true })
+    .click();
+  form = page.getByRole('form', { name: '앱 소스 준비' });
+  await expect(form.getByText('앱 소스가 준비되었습니다')).toBeVisible();
+  const reloaded = await (
+    await page.request.get(`api/workbench/projects/${projectId}/source-setup`)
+  ).json();
+  expect(reloaded.setup.operation_id).toBe(status.setup.operation_id);
+  expect(reloaded.setup.source_revision).toBe(status.setup.source_revision);
+  const downloaded = page.waitForEvent('download');
+  await project.getByRole('button', { name: '앱 등록 초안 내려받기' }).click();
+  const stream = await (await downloaded).createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  const draft = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  expect(draft.schema_version).toBe(1);
+  expect(draft.app_id).toBe(appId);
+  expect(draft.source_revision).toBe(status.setup.source_revision);
+  expect(draft.definition.runtime_profile).toBe('web-api-postgres-v1');
+  expect(draft.definition_digest).toMatch(/^sha256:[a-f0-9]{64}$/);
+  expect(draft.source_manifest_digest).toMatch(/^sha256:[a-f0-9]{64}$/);
+  expect(draft).not.toHaveProperty('source_root');
+  expect(draft).not.toHaveProperty('token');
+  // The real local endpoint must not turn missing platform configuration into
+  // either an unregistered app or a successful registration observation.
+  const registration = project.getByRole('region', { name: '플랫폼 등록' });
+  const checked = page.waitForResponse((response) =>
+    response.url().endsWith(`/projects/${projectId}/registration-status`),
+  );
+  await registration
+    .getByRole('button', { name: '등록 상태 확인', exact: true })
+    .click();
+  const observed = await (await checked).json();
+  expect(observed.state).toBe('unknown');
+  expect(observed.platform_state).toBe('unconfigured');
+  expect(observed.source_revision).toBe(draft.source_revision);
+  await expect(registration.getByRole('status')).toHaveText(
+    '등록 상태를 확인할 수 없습니다.',
+  );
+  await expect(registration.getByRole('link')).toHaveCount(0);
+
+  // Supply only the platform observation for the UI handoff. Source preparation,
+  // the preceding unavailable read, and Task storage still use the real server.
+  await page.route(
+    `**/api/workbench/projects/${projectId}/registration-status`,
+    (route) =>
+      route.fulfill({
+        json: {
+          ...observed,
+          state: 'matching',
+          platform_state: 'ready',
+          platform_checked_at: new Date().toISOString(),
+          registered_source_revision: draft.source_revision,
+          registered_definition_digest: draft.definition_digest,
+          definition_matches: true,
+          revision_matches: true,
+        },
+      }),
+  );
+  await registration
+    .getByRole('button', { name: '등록 상태 확인', exact: true })
+    .click();
+  await expect(registration.getByRole('status')).toHaveText(
+    '확인 시점의 등록 정보가 일치합니다.',
+  );
+  await expect(
+    project.getByRole('button', { name: '개발 이어가기', exact: true }),
+  ).toBeDisabled();
+  await registration.getByRole('link', { name: '앱 설치 환경 보기' }).click();
+  await expect(page).toHaveURL(new RegExp(`view=apps&app=${appId}`));
+  await expect(
+    page.getByRole('region', { name: '앱 설치 환경' }),
+  ).toBeVisible();
+  const priorTask = await (
+    await page.request.get(`api/tasks/${taskId}`)
+  ).json();
+  expect(priorTask.thread_id).toBeNull();
+  expect(priorTask.context.app_execution_boundary).toBe('planning_only');
 });

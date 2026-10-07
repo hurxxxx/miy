@@ -20,12 +20,13 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from miy_api.core.db import Base
+from miy_api.domains.official_apps.writer_contracts import OfficialWriterSource
 from miy_api.domains.auth.models import utcnow_naive
 
 JSONB_COMPAT = JSONB(astext_type=Text()).with_variant(JSON(), "sqlite")
 
 
-class FileManagerCorpus(Base):
+class FileManagerCorpus(OfficialWriterSource, Base):
     __tablename__ = "file_manager_corpora"
     __table_args__ = (
         CheckConstraint(
@@ -117,7 +118,7 @@ class FileManagerCorpus(Base):
     )
 
 
-class FileManagerFolder(Base):
+class FileManagerFolder(OfficialWriterSource, Base):
     __tablename__ = "file_manager_folders"
     __table_args__ = (
         CheckConstraint(
@@ -162,7 +163,7 @@ class FileManagerFolder(Base):
     children: Mapped[list["FileManagerFolder"]] = relationship(back_populates="parent")
 
 
-class FileManagerFile(Base):
+class FileManagerFile(OfficialWriterSource, Base):
     __tablename__ = "file_manager_files"
     __table_args__ = (
         CheckConstraint(
@@ -235,7 +236,7 @@ class FileManagerFile(Base):
     )
 
 
-class FileManagerFileSourceMetadata(Base):
+class FileManagerFileSourceMetadata(OfficialWriterSource, Base):
     """Private source identity and sync state for one externally managed file."""
 
     __tablename__ = "file_manager_file_source_metadata"
@@ -301,7 +302,7 @@ class FileManagerFileSourceMetadata(Base):
     corpus: Mapped["FileManagerCorpus"] = relationship(back_populates="source_file_metadata")
 
 
-class FileManagerFileAccessGrant(Base):
+class FileManagerFileAccessGrant(OfficialWriterSource, Base):
     """Resolved explicit grant; raw upstream ACL payloads never leave source metadata."""
 
     __tablename__ = "file_manager_file_access_grants"
@@ -342,7 +343,7 @@ class FileManagerFileAccessGrant(Base):
     file: Mapped["FileManagerFile"] = relationship(back_populates="access_grants")
 
 
-class FileManagerStorageCleanupJob(Base):
+class FileManagerStorageCleanupJob(OfficialWriterSource, Base):
     __tablename__ = "file_manager_storage_cleanup_jobs"
     __table_args__ = (
         CheckConstraint(
@@ -372,7 +373,7 @@ class FileManagerStorageCleanupJob(Base):
     next_retry_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
 
 
-class FileManagerBulkIngestRun(Base):
+class FileManagerBulkIngestRun(OfficialWriterSource, Base):
     __tablename__ = "file_manager_bulk_ingest_runs"
     __table_args__ = (
         CheckConstraint(
@@ -443,7 +444,7 @@ class FileManagerBulkIngestRun(Base):
     entries: Mapped[list["FileManagerBulkIngestEntry"]] = relationship(back_populates="run")
 
 
-class FileManagerBulkIngestEntry(Base):
+class FileManagerBulkIngestEntry(OfficialWriterSource, Base):
     __tablename__ = "file_manager_bulk_ingest_entries"
     __table_args__ = (
         CheckConstraint(

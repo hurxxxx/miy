@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Button } from '@miy/ui';
 
-import { CommunityMarkdownEditor } from '@/src/platform/community/CommunityMarkdownEditor';
+import { CommunityMarkdownEditor } from '@miy/official-suite-web/community/editor';
 
 import {
   createCommunityAdminChannel,

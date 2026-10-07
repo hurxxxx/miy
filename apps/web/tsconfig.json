@@ -16,10 +16,18 @@
       "@miy/contracts/*": ["../../packages/contracts/src/*"],
       "@miy/core-web": ["../../packages/core-web/src/index.ts"],
       "@miy/core-web/*": ["../../packages/core-web/src/*"],
+      "@miy/web-shell": ["./src/app/shell/AppContent.tsx"],
+      "@miy/web-official-suite-bridge": ["./src/official-suite-bridge.ts"],
       "@miy/ui": ["../../packages/ui/src/index.ts"],
       "@miy/ui/*": ["../../packages/ui/src/lib/*"],
       "@miy/ui/styles.css": ["../../packages/ui/styles.css"],
-      "@/src/*": ["./src/*"]
+      "@/src/*": ["./src/*"],
+      "@miy/official-suite-web": [
+        "../../packages/official-suite-web/src/index.ts"
+      ],
+      "@miy/official-suite-web/*": ["../../packages/official-suite-web/src/*"],
+      "@miy/platform-web": ["../../packages/platform-web/src/index.ts"],
+      "@miy/platform-web/*": ["../../packages/platform-web/src/*"]
     }
   },
   "files": [],

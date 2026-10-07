@@ -38,12 +38,57 @@ def resolve_auth_context_from_token(
     now = datetime.now(UTC).replace(tzinfo=None)
     token_hash = hash_token(token)
     auth_session = db.scalar(
-        select(AuthSession).where(
+        select(AuthSession)
+        .where(
             AuthSession.token_hash == token_hash,
             AuthSession.revoked_at.is_(None),
             AuthSession.expires_at > now,
         )
+        .execution_options(populate_existing=True)
     )
+    return _resolve_session_context(
+        db,
+        auth_session,
+        now=now,
+        update_last_seen=update_last_seen,
+        allow_password_change=allow_password_change,
+    )
+
+
+def resolve_auth_context_from_session_id(db: Session, session_id: str) -> AuthContext:
+    """Core-only bridge after a delegated credential has been authenticated.
+
+    A session ID is not a credential. Never expose this resolver as an HTTP
+    authentication mechanism. It reuses current user/role checks without the
+    legacy login session's last-seen write or transaction commit.
+    """
+    now = datetime.now(UTC).replace(tzinfo=None)
+    auth_session = db.scalar(
+        select(AuthSession)
+        .where(
+            AuthSession.id == session_id,
+            AuthSession.revoked_at.is_(None),
+            AuthSession.expires_at > now,
+        )
+        .execution_options(populate_existing=True)
+    )
+    return _resolve_session_context(
+        db,
+        auth_session,
+        now=now,
+        update_last_seen=False,
+        allow_password_change=False,
+    )
+
+
+def _resolve_session_context(
+    db: Session,
+    auth_session: AuthSession | None,
+    *,
+    now: datetime,
+    update_last_seen: bool,
+    allow_password_change: bool,
+) -> AuthContext:
     if auth_session is None:
         raise localized_http_exception(
             status_code=status.HTTP_401_UNAUTHORIZED,

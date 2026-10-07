@@ -6,6 +6,7 @@ from datetime import datetime
 from fastapi import HTTPException
 import pytest
 from sqlalchemy import create_engine, select, update
+from sqlalchemy.exc import StatementError, TimeoutError as SqlAlchemyTimeoutError
 from sqlalchemy.orm import Session
 
 from miy_api.core.db import Base
@@ -79,11 +80,19 @@ def _message(message_id: str, account_id: str) -> MailMessage:
 
 
 @pytest.fixture
-def db() -> Session:
+def db(monkeypatch: pytest.MonkeyPatch) -> Session:
     engine = create_engine("sqlite://")
     from company_admission_fixture import company_authority_tables, seed_company_app_access
+    from miy_api.domains.mail import sync_jobs
+    from miy_api.domains.official_apps.writer_models import RuntimeOwnership
+
+    # SQLite exercises personal ACL behavior only; the statement/claim fence is
+    # tested against actual PostgreSQL in test_official_worker_mail.py.
+    monkeypatch.setattr(service, "lock_source_writer", lambda *_args: None)
+    monkeypatch.setattr(sync_jobs, "lock_source_writer", lambda *_args: None)
 
     tables = [
+        RuntimeOwnership.__table__,
         *company_authority_tables(),
         MailAccount.__table__,
         MailMailbox.__table__,
@@ -95,6 +104,15 @@ def db() -> Session:
     ]
     Base.metadata.create_all(engine, tables=tables)
     with Session(engine) as session:
+        session.add(
+            RuntimeOwnership(
+                scope="official.suite",
+                active_owner="legacy",
+                generation=1,
+                state="active",
+                artifact=None,
+            )
+        )
         seed_company_app_access(session, app_ids=["mail"])
         yield session
     Base.metadata.drop_all(engine, tables=tables)
@@ -473,3 +491,28 @@ def test_admitted_owner_sync_still_persists_messages_and_checkpoint(
     assert message.account_id == sync_job.account_id
     assert message.body.text_body == "Disposable mail fixture"
     assert db.scalar(select(MailSyncState)).cursor_json == {"highest_seen_uid": 1}
+
+
+@pytest.mark.parametrize("phase", ["account", "job"])
+@pytest.mark.parametrize("kind", ["pool", "statement"])
+def test_database_control_error_never_becomes_provider_retry(
+    db: Session, sync_job: MailSyncJob, monkeypatch: pytest.MonkeyPatch, phase: str, kind: str
+) -> None:
+    error = (
+        SqlAlchemyTimeoutError("Synthetic pool unavailable")
+        if kind == "pool"
+        else StatementError("Synthetic statement failure", None, None, None)
+    )
+
+    def failed(*_args, **_kwargs):
+        raise error
+
+    monkeypatch.setattr(
+        service, "sync_targets_for_account" if phase == "account" else "sync_account", failed
+    )
+    with pytest.raises(type(error)) as observed:
+        service.process_mail_sync_job(db, sync_job.id, client=SyncClient())
+    assert observed.value is error
+    db.refresh(sync_job)
+    assert sync_job.status == "processing" and sync_job.attempts == 1
+    assert sync_job.last_error is None and sync_job.next_retry_at is None

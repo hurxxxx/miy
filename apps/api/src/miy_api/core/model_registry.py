@@ -32,7 +32,21 @@ def import_all_models() -> None:
         models as hermes_terminal_models,
     )
     from miy_api.domains.integrations import models as integration_models  # noqa: F401
+    from miy_api.domains.independent_apps import models as independent_app_models  # noqa: F401
+    from miy_api.domains.independent_apps import delivery_models as independent_delivery_models  # noqa: F401
+    from miy_api.domains.independent_apps import bootstrap_models as independent_bootstrap_models  # noqa: F401
+    from miy_api.domains.independent_apps import (
+        registration_models as independent_registration_models,  # noqa: F401
+    )
     from miy_api.domains.mail import models as mail_models  # noqa: F401
+    from miy_api.domains.official_apps import models as official_app_models  # noqa: F401
+    from miy_api.domains.official_apps import writer_models as official_writer_models  # noqa: F401
+    from miy_api.domains.official_apps import writer_roles as official_writer_roles  # noqa: F401
+    from miy_api.domains.official_apps import projection_models as official_projection_models  # noqa: F401
+    from miy_api.domains.official_apps import file_extraction_models as file_extraction_models  # noqa: F401
+    from miy_api.domains.official_apps import (  # noqa: F401
+        file_materialization_effect_models,
+    )
     from miy_api.domains.media import models as media_models  # noqa: F401
     from miy_api.domains.meeting import models as meeting_models  # noqa: F401
     from miy_api.domains.personal_widgets import (
@@ -43,8 +57,11 @@ def import_all_models() -> None:
     from miy_api.domains.pms import space_models as pms_space_models  # noqa: F401
     from miy_api.domains.rag import models as rag_models  # noqa: F401
     from miy_api.domains.recording import models as recording_models  # noqa: F401
+    from miy_api.domains.recording import pipeline_models as recording_pipeline_models  # noqa: F401
+    from miy_api.domains.official_apps import recording_publication_models  # noqa: F401
     from miy_api.domains.release_notes import models as release_notes_models  # noqa: F401
     from miy_api.domains.retrieval import models as retrieval_models  # noqa: F401
+    from miy_api.domains.retrieval import docs_legacy_repair_models as docs_repair_models  # noqa: F401
     from miy_api.domains.search import models as search_models  # noqa: F401
     from miy_api.domains.usage import models as usage_models  # noqa: F401
     from miy_api.domains.video_chat import models as video_chat_models  # noqa: F401

@@ -32,7 +32,7 @@ This is the single owner for Hermes installation, image/configuration, profiles,
 | Controlled public egress                                      | `ops/hermes/terminal_egress.py`                                                                                              |
 | Retired PTY drain/archive/recovery                            | `domains/hermes_terminal/`                                                                                                   |
 | Runtime settings, limits and topology                         | API/worker settings, `.env.example`, both Compose files, `scripts/prod-app-config.mjs`                                       |
-| Chat controls/files/reconnection                              | `apps/web/src/app-modules/chatbot/`                                                                                          |
+| Chat controls/files/reconnection                              | `packages/platform-web/src/chatbot/`                                                                                         |
 
 Paths under `domains/` are relative to `apps/api/src/miy_api/`. Keep the pin in API constants, Compose, bootstrap and legacy broker aligned. Generate API/app contracts through repository commands.
 

@@ -9,6 +9,8 @@ protected_modules =
     miy_api.domains.auth.apps_router
 allowed_importers =
     miy_api.api_registry
+    miy_api.platform_api_registry
+    miy_api.official_api_registry
     miy_api.installed_extension_apps
 as_packages = false
 
@@ -21,3 +23,7 @@ forbidden_modules =
     miy_api.app
     miy_api.main
     miy_api.api_registry
+    miy_api.platform_api_registry
+    miy_api.official_api_registry
+    miy_api.platform_main
+    miy_api.official_auth

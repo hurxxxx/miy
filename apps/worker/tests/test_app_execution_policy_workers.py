@@ -202,6 +202,8 @@ def test_recording_worker_persists_result_without_publication_side_effect(
     )
     current_recording = SimpleNamespace(
         celery_task_id="task-1",
+        owner_id="owner-1",
+        storage_key="synthetic.wav",
         failure_reason="old failure",
         id="recording-1",
         meeting_insight_status="pending",
@@ -213,6 +215,9 @@ def test_recording_worker_persists_result_without_publication_side_effect(
     added: list[object] = []
 
     class FakeSession:
+        def __init__(self) -> None:
+            self.info = {}
+
         def add(self, value: object) -> None:
             added.append(value)
 
@@ -233,16 +238,16 @@ def test_recording_worker_persists_result_without_publication_side_effect(
     )
     monkeypatch.setattr(
         recording,
-        "_lock_current_recording_attempt",
-        lambda _session, recording_id, attempt_id: (
+        "_lock_source_claim",
+        lambda _session, claim: (
             current_recording
-            if recording_id == current_recording.id and attempt_id == "task-1"
+            if claim.recording_id == current_recording.id and claim.attempt_id == "task-1"
             else (_ for _ in ()).throw(recording.SupersededRecordingGeneration())
         ),
     )
     monkeypatch.setattr(
         recording,
-        "_ensure_recording_execution_allowed",
+        "_require_source_access",
         lambda *_args, **_kwargs: None,
     )
 
@@ -272,6 +277,8 @@ def test_recording_worker_persists_result_without_publication_side_effect(
 def test_recording_worker_rejects_stale_result_version(monkeypatch) -> None:
     current_recording = SimpleNamespace(
         celery_task_id="task-v4",
+        owner_id="owner-1",
+        storage_key="synthetic.wav",
         failure_reason=None,
         id="recording-1",
         result=SimpleNamespace(summary_text="Current summary", version=4),
@@ -295,19 +302,19 @@ def test_recording_worker_rejects_stale_result_version(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         recording,
-        "_lock_current_recording_attempt",
+        "_lock_source_claim",
         lambda *_args: current_recording,
     )
     monkeypatch.setattr(
         recording,
-        "_ensure_recording_execution_allowed",
+        "_require_source_access",
         lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(
         recording,
-        "_mark_failed",
-        lambda _session, recording_id, reason, *, stage, expected_attempt_id: marked.append(
-            (recording_id, reason, stage)
+        "_fail_source_phase",
+        lambda _session, claim, reason, *, stage: marked.append(
+            (claim.recording_id, reason, stage)
         ),
     )
 

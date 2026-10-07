@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import Protocol
@@ -21,9 +22,91 @@ from miy_api.domains.mail.sync_policy import (
     cancel_mail_sync_job,
     require_mail_sync_access,
 )
+from miy_api.domains.official_apps.source_guard import lock_source_writer
 
 logger = logging.getLogger(__name__)
 PENDING_MAIL_SYNC_PUBLISHES_KEY = "mail_sync_publish_after_commit"
+
+
+class MailSyncClaimLost(Exception):
+    """A prior processing attempt cannot adopt or finish a later claim."""
+
+
+class MailSyncCommitUnknown(Exception):
+    """Stop this invocation without guessing whether a phase COMMIT succeeded."""
+
+
+@dataclass(frozen=True)
+class MailSyncClaim:
+    job_id: str
+    account_id: str
+    mailbox_id: str
+    operation: str
+    attempt: int
+    lease_owner: str | None
+    lease_expires_at: datetime
+
+    @classmethod
+    def capture(cls, job: MailSyncJob) -> MailSyncClaim:
+        if job.status != "processing" or job.lease_expires_at is None:
+            raise MailSyncClaimLost("mail_sync_claim_lost")
+        return cls(
+            job.id,
+            job.account_id,
+            job.mailbox_id,
+            job.operation,
+            job.attempts,
+            job.lease_owner,
+            job.lease_expires_at,
+        )
+
+
+def commit_sync_phase(db: Session) -> None:
+    try:
+        db.commit()
+    except Exception:
+        # Neither a raised driver error nor rollback proves COMMIT was rejected.
+        # No failure write or provider retry may follow in this invocation.
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise MailSyncCommitUnknown("mail_sync_commit_unknown") from None
+
+
+def lock_sync_claim(db: Session, claim: MailSyncClaim, *, admit: bool = True) -> MailSyncJob:
+    """Retain source + exact processing row locks in this Session's transaction."""
+    with db.no_autoflush:
+        lock_source_writer(db, "mail_sync_jobs")
+        job = db.scalar(
+            select(MailSyncJob)
+            .where(MailSyncJob.id == claim.job_id)
+            .with_for_update(skip_locked=True)
+            .execution_options(populate_existing=True)
+        )
+        if (
+            job is None
+            or job.status != "processing"
+            or (
+                job.account_id,
+                job.mailbox_id,
+                job.operation,
+                job.attempts,
+                job.lease_owner,
+                job.lease_expires_at,
+            )
+            != (
+                claim.account_id,
+                claim.mailbox_id,
+                claim.operation,
+                claim.attempt,
+                claim.lease_owner,
+                claim.lease_expires_at,
+            )
+            or (admit and claim.lease_expires_at <= utcnow_naive())
+        ):
+            raise MailSyncClaimLost("mail_sync_claim_lost")
+        return job
 
 
 class MailSyncRetryScheduled(Exception):
@@ -77,7 +160,7 @@ def mark_sync_job_failed(db: Session, *, job: MailSyncJob, error_text: str) -> i
         job.next_retry_at = now + timedelta(seconds=countdown)
     job.updated_at = now
     db.add(job)
-    db.commit()
+    commit_sync_phase(db)
     return countdown
 
 
