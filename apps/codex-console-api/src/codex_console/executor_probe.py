@@ -279,7 +279,8 @@ async def check(peer, root, canary):
 
 async def probe(environment):
     url = environment.exec_server_url
-    # Native exec-server has no authentication. A confined operator proxy must enforce it.
+    # Pinned native capability-token auth or a confined operator proxy must
+    # reject unauthenticated connections before exposing the executor.
     try:
         async with connect(url, **SOCKET_OPTIONS):
             raise ProbeFailure("executor_unauthenticated")

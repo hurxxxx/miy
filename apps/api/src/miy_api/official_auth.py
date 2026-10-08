@@ -10,6 +10,7 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+from starlette.requests import HTTPConnection
 
 from miy_api.core.app_contracts_generated import OFFICIAL_APP_IDS
 from miy_api.core.db import get_db_session
@@ -121,7 +122,7 @@ def build_prepared_official_auth_dependency(
     limiter: CapacityLimiter | None = None
 
     async def require_prepared_official_auth_context(
-        request: Request,
+        request: HTTPConnection,
         credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     ) -> AuthContext:
         nonlocal limiter

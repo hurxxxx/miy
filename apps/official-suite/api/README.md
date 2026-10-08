@@ -13,7 +13,7 @@ pnpm nx api-build official-suite
 
 The build produces the official entry wheel and its matching MIY API compatibility wheel in `dist/apps/official-suite-api`. Both come from the same checkout; the shared dependency still contains existing platform/business source and the common runtime dependencies remain owned by `apps/api/uv.lock`. The separate [inactive image recipe and offline artifact check](../../../ops/official-suite-api/README.md) package both wheels, existing runtime configuration and the real collaboration codec from stable inputs. It is not added to the production compose/release contract. Source extraction, service authority and writer activation remain separate work.
 
-The [core identity bridge](../../api/src/miy_api/domains/official_apps/README.md) now connects explicitly approved app sessions to the original `AuthContext` for owned official HTTP app scopes. It binds the current verified artifact and installation generation, rechecks admission, preserves source ACLs and avoids login-session last-seen writes. Approval is an internal core operation with no app-facing endpoint. The bridge still reads shared core authority tables; remote introspection, service DB roles and WebSocket delegation remain pending. The inactive gate above remains in force.
+The [core identity bridge](../../api/src/miy_api/domains/official_apps/README.md) now connects explicitly approved app sessions to the original `AuthContext` for owned official HTTP app scopes. It binds the current verified artifact and installation generation, rechecks admission, preserves source ACLs and avoids login-session last-seen writes. Approval is an internal core operation with no app-facing endpoint. The bridge still reads shared core authority tables; remote introspection, service DB roles and operational WebSocket activation remain pending. The inactive gate above remains in force.
 
 An internal official router assembly can now explicitly supply a separate auth-only
 Session factory and its positive read budget. This selects the prepared
@@ -23,7 +23,18 @@ unchanged, and reader failure refuses without fallback. Actual Source app admiss
 and resource ACL still run on the business factory. The published ASGI entry does
 not supply these options; its inactive HTTP503/WS1013/readiness503 gates remain.
 No role/grant, environment selection, service activation or operational Source
-policy is provisioned by this HTTP seam.
+policy is provisioned by this assembly.
+
+The same prepared callable and read budget can now serve the fixed Docs and
+Whiteboard collaboration routes. The initial handshake reads delegated authority
+before business Source allocation. Existing Yjs receive/send callbacks and idle
+monitors recheck that authority and the real Source edit ACL; Docs retains its
+writer fence. Reader unavailability closes with private1013 and never switches to
+platform-token auth. Existing default collaboration helpers and the published
+inactive WS1013 gate remain unchanged. The focused native proof uses an isolated
+legacy business Source role and synthetic rooms/bus, so complete Source/hub roles,
+relay/persistence operations and deployed activation remain required. The reader
+owner above records this boundary and cancellation limits.
 
 | Artifact                  | Current state                                                                                        |
 | ------------------------- | ---------------------------------------------------------------------------------------------------- |

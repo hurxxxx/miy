@@ -397,9 +397,13 @@ checkpoint는 코어 broker의 좁은 동작으로만 수행한다. 새 앱/동�
   제한된 tmpfs·CPU·메모리·PID, 필요한 public Codex vendor 파일만 read-only 제공한다.
 - host root/home·인증·환경 파일·Docker socket·플랫폼 DB를 mount하지 않는다. 앱 실행 환경의
   외부/플랫폼 제어망 접근을 차단하고 exec-server는 내부망에만 바인딩한다.
-- 코어 소유 proxy만 `ws://127.0.0.1:<1024 이상 포트>`에 공개하며 별도 capability bearer token을
-  검증한다. native exec-server 자체에는 이 인증이 없으므로 loopback만으로 인증을 대신하지 않는다.
-  proxy 설정/토큰도 앱 컨테이너에서 읽을 수 없어야 한다.
+- 코어 소유 ingress만 `ws://127.0.0.1:<1024 이상 포트>`에 공개하며 별도 capability bearer token을
+  검증한다. 고정된 native exec-server0.160.1은 `--ws-auth capability-token`과
+  `--ws-token-sha256`으로 WebSocket 연결 시 인증할 수 있다. 기존 보호 proxy를 사용할 수도
+  있으며, 어느 구성에서도 인증 없는 연결 거부를 실제 검사한다. Loopback만으로 인증을 대신하지 않는다.
+  plaintext capability와 보호 ingress 설정은 앱 checkout·mount에서 읽을 수 없어야 한다.
+  토큰 변경은 이미 연결된 socket을 자동 회수하지 않으므로 기존 supervisor가 해당 연결과
+  executor를 종료해야 한다. 이 지원 옵션만으로 네트워크 격리·자원 제한·실제 turn을 인수하지 않는다.
 - bubblewrap의 nested user namespace와 mount를 허용하는 **별도 검토된 confinement profile**이
   필요하다. host kernel/daemon을 자동 변경하거나 privileged/SYS_ADMIN/unconfined로 우회하지 않는다.
 
@@ -408,6 +412,14 @@ bubblewrap namespace/mount 단계에서 실패한다. `--linux-sandbox-pid-names
 않으며 legacy Landlock은 upstream에서 socket 격리 때문에 거부한다. 따라서 기본 Docker 환경을
 지원 완료로 간주하지 않는다. 계획 모드를 yolo로 바꾸는 우회도 허용하지 않는다. 별도 confinement
 profile 설치와 실제 지원 환경의 검증은 운영 준비 작업으로 남아 있다.
+
+2026-10-08 별도 선행검사에서는 이 호스트의 기본 Docker profile을 변경하지 않고,
+owned transient systemd supervisor와 표준 `systemd-socket-proxyd` ingress, 선택된 vendor/library만
+보이는 outer bubblewrap을 사용해 위 native 정책과 인증·cwd·kernel 자원 한도를 실제 확인했다.
+Proxy는 executor의 private network namespace를 공유하며 caller의 host network를 공유하지 않는다.
+이 검사는 기존 provisioning verifier를 재사용했고 임시 unit·endpoint를 정리했다.
+현재 Workbench 설정/서비스에 적용한 운영 구성이나 실제 모델 Task의 전체 인수는 아니다.
+실행별 정확한 범위와 남은 단계는 [재설계 검증](../../../platform-redesign/VALIDATION.md)이 소유한다.
 
 운영자가 위 경계를 갖춘 endpoint를 별도로 준비한 후 다음 사전 검사를 수행한다. token 파일은
 서비스 소유자의 regular file/0600이어야 한다. 검사기는 인증 없는 연결 거부, 정확한 버전/cwd,
@@ -438,6 +450,7 @@ host worktree도 지원하지 않는다. native remote capability discovery와 �
 
 공식 근거: [0.160.1 exec-server](https://github.com/openai/codex/blob/rust-v0.160.1/codex-rs/exec-server/README.md),
 [환경 provider](https://github.com/openai/codex/blob/rust-v0.160.1/codex-rs/exec-server/src/environment_provider.rs),
+[고정 WebSocket 인증](https://github.com/openai/codex/blob/rust-v0.160.1/codex-rs/websocket-auth/src/lib.rs),
 [Docker seccomp](https://docs.docker.com/engine/security/seccomp/).
 
 ## 서비스와 작업 현황
