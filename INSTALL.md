@@ -396,6 +396,12 @@ OpenSearch는 앱의 최소 첫 실행에는 선택 사항이지만 현재 릴�
 
 리뷰 Runner의 **실제 실행 계정**에 Git·Node.js·Codex·Linux 샌드박스 선행 도구와 Codex 인증을 준비한다.
 개발 사용자의 로그인이나 nvm 설정이 Runner 서비스에 자동으로 전달된다고 가정하지 말고 서비스의 PATH를 맞춘다.
+Codex 로그인·재인증은 Runner 계정으로 전환한 뒤 그 계정의 홈이나 소유한 디렉터리로
+이동해 실행한다. `sudo -H`만 사용하면 현재 작업 디렉터리는 개발 사용자 홈에 남아
+해당 프로젝트의 `.codex/config.toml` 접근이 거부될 수 있다. 실제 계정·홈·CLI와
+선택된 `CODEX_HOME`을 확인하고 공식 `codex login --device-auth`의 브라우저 인증을
+완료한다. 다른 사용자의 인증 파일을 복사하거나 권한을 넓히지 않는다. `login status`의
+로그인 표시만으로 refresh 인증의 복구를 판단하지 말고 원래 필수 리뷰 job의 성공을 확인한다.
 shell executor의 로그인 셸이 서비스 PATH를 초기화할 수 있으므로, Runner 작업 계정에서도 도구 탐색을 확인한다.
 필요하면 해당 Runner의 `config.toml`에 지원되는 `environment = ["PATH=<검증한-도구-경로>:<기본-PATH>"]`를 지정하고 실제 job으로 재검사한다.
 실제 job이 `Prepare environment`에서 실패하면 [shell executor 준비 단계 복구](docs/domains/release/installation-operations.md#shell-executor-preparation-failures)를 따른다.
