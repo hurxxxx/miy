@@ -311,6 +311,7 @@ class Runtime:
                 revalidate(db, task)
             self.require_allowed_task(task)
             thread_id, root, prior_permissions = task.thread_id, task.root, task.permissions
+            prior_generation = task.runtime_generation
             prior_root = task.last_execution_root or root
             granted = [(prior_permissions, prior_root)]
             if task.previous_permissions and task.previous_execution_root:
@@ -330,6 +331,8 @@ class Runtime:
         }
         if thread_id:
             params["threadId"] = thread_id
+        if self.remote_task_id is not None:
+            params["runtimeWorkspaceRoots"] = [root]
         if self.remote_task_id is not None and not thread_id:
             params["environments"] = remote_environments.selectors(task)
             from . import delivery_tools, registration_tools
@@ -337,8 +340,19 @@ class Runtime:
             params["dynamicTools"] = delivery_tools.specs(task) + registration_tools.specs(task)
         result = await rpc.call("thread/resume" if thread_id else "thread/start", params)
         if self.remote_task_id is not None:
-            environments = result.get("thread", {}).get("environments") or []
-            if environments != remote_environments.selectors(task):
+            environments = result.get("thread", {}).get("environments")
+            # 0.160.1 cold resume restores no sticky selection with our disabled
+            # default provider. The next turn selects the exact remote endpoint.
+            cold_unselected = (
+                thread_id
+                and prior_generation
+                and prior_generation != rpc.generation
+                and environments == []
+                and result["thread"].get("id") == thread_id
+                and result.get("cwd") == root
+                and result.get("runtimeWorkspaceRoots") in ([], [root])
+            )
+            if environments != remote_environments.selectors(task) and not cold_unselected:
                 raise ConsoleError("app_executor_changed", 409)
         if result.get("modelProvider") != "openai":
             raise ConsoleError("subscription_provider_required")
