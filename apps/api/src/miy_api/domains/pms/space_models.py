@@ -14,10 +14,11 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from miy_api.core.db import Base
+from miy_api.domains.official_apps.writer_contracts import OfficialWriterSource
 from miy_api.domains.auth.models import User, utcnow_naive
 
 
-class Team(Base):
+class Team(OfficialWriterSource, Base):
     __tablename__ = "pms_spaces"
     __table_args__ = (UniqueConstraint("key", name="uq_pms_space_key"),)
 
@@ -40,7 +41,7 @@ class Team(Base):
     )
 
 
-class TeamMember(Base):
+class TeamMember(OfficialWriterSource, Base):
     __tablename__ = "pms_space_members"
     __table_args__ = (UniqueConstraint("team_id", "user_id", name="uq_pms_space_member"),)
 
@@ -55,7 +56,7 @@ class TeamMember(Base):
     user: Mapped[User] = relationship("User")
 
 
-class SpaceGroupBinding(Base):
+class SpaceGroupBinding(OfficialWriterSource, Base):
     __tablename__ = "pms_space_group_bindings"
     __table_args__ = (
         CheckConstraint("role IN ('viewer', 'member', 'admin')", name="ck_pms_space_group_role"),

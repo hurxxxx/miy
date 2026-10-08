@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from miy_api.core.transaction_outcome import commit_was_rejected
+
 from datetime import datetime
 from tempfile import SpooledTemporaryFile
 from typing import Literal
@@ -285,12 +287,21 @@ async def upload_file(
         except files_service.FileCorpusError as error:
             db.rollback()
             _raise_file_corpus_http_error(error)
+        storage_key = row.storage_key
         try:
             db.commit()
-        except Exception:
-            db.rollback()
-            files_service.remove_storage_object_immediately(row.storage_key)
-            raise
+        except Exception as error:
+            rejected = commit_was_rejected(error)
+            try:
+                db.rollback()
+            except Exception:
+                rejected = False
+            if rejected:
+                files_service.remove_storage_object_immediately(storage_key)
+            raise localized_http_exception(
+                status_code=500,
+                code="files.metadata_save_failed" if rejected else "files.metadata_save_unknown",
+            ) from None
     finally:
         upload_buffer.close()
     db.refresh(row)

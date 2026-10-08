@@ -1,10 +1,11 @@
+import { OFFICIAL_HELP_GUIDES } from '@miy/official-suite-web';
 import { NOTIFICATION_REALTIME_EVENT_TYPE_VALUES } from '@miy/contracts/notifications';
 import { FeedbackProvider } from '@miy/ui';
 import { lazy, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BrowserRouter as Router } from 'react-router-dom';
 
-import { pmsManifest } from '../app-modules/pms';
+import { pmsManifest } from '@miy/official-suite-web/manifests/pms';
 import { resolveShellState } from '../app-shell';
 import { NotificationPanel } from '../components/layout/NotificationPanel';
 import { getUnreadNotificationCount } from '../platform/notifications/notifications-api';
@@ -34,8 +35,14 @@ import {
 } from './shell/app-route-definitions';
 import { AppContent } from './shell/AppContent';
 import { ShellRealtimeProvider } from './shell/shell-realtime-context';
+import { createDefaultHelpRoutes } from './shell/static-route-elements';
 
 type RegisteredAppId = Parameters<typeof getAppModuleManifest>[0];
+const helpGuides = OFFICIAL_HELP_GUIDES;
+const helpRoutes = createDefaultHelpRoutes(
+  APP_FEATURE_GUIDE_TOOL_IDS,
+  helpGuides,
+);
 
 const DefaultShellPersonalWidgetHost = lazy(() =>
   import('./shell/personal-widget-registry').then((module) => ({
@@ -95,6 +102,8 @@ export default function AppRoot() {
           featureGuideToolIds={APP_FEATURE_GUIDE_TOOL_IDS}
           getAppModuleManifest={getDefaultAppModuleManifest}
           getAppSidebarConfig={getAppModuleSidebarConfig}
+          helpGuides={helpGuides}
+          helpRoutes={helpRoutes}
           launcherGlobalPaths={APP_LAUNCHER_GLOBAL_PATHS}
           navItems={NAV_ITEMS}
           notificationIssueAppId={pmsManifest.appBarItem.id}

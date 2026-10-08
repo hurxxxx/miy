@@ -21,12 +21,19 @@
       "@miy/core-web": ["./packages/core-web/src/index.ts"],
       "@miy/core-web/*": ["./packages/core-web/src/*"],
       "@miy/web-shell": ["./apps/web/src/app/shell/AppContent.tsx"],
+      "@miy/web-official-suite-bridge": [
+        "./apps/web/src/official-suite-bridge.ts"
+      ],
       "@miy/web/styles.css": ["./apps/web/src/index.css"],
       "@miy/web/fullcalendar-theme.css": [
         "./apps/web/src/styles/fullcalendar-theme.css"
       ],
       "@miy/ui": ["./packages/ui/src/index.ts"],
-      "@miy/ui/*": ["./packages/ui/src/lib/*"]
+      "@miy/ui/*": ["./packages/ui/src/lib/*"],
+      "@miy/official-suite-web": ["./packages/official-suite-web/src/index.ts"],
+      "@miy/official-suite-web/*": ["./packages/official-suite-web/src/*"],
+      "@miy/platform-web": ["./packages/platform-web/src/index.ts"],
+      "@miy/platform-web/*": ["./packages/platform-web/src/*"]
     }
   },
   "exclude": ["node_modules", "dist"]

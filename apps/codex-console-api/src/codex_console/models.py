@@ -77,6 +77,31 @@ class Task(Base):
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
 
 
+class RegistrationIntent(Base):
+    """One registration operation per explicit Task; credentials live outside SQLite."""
+
+    __tablename__ = "console_registration_intents"
+    task_id: Mapped[str] = mapped_column(
+        ForeignKey("console_tasks.id", ondelete="CASCADE"), primary_key=True
+    )
+    operation_id: Mapped[str] = mapped_column(String(36), unique=True)
+    web_session_hash: Mapped[str] = mapped_column(String(64))
+    request_id: Mapped[str | None] = mapped_column(String(36), unique=True)
+    issuer: Mapped[str | None] = mapped_column(Text)
+    audience: Mapped[str | None] = mapped_column(Text)
+    actor_user_id: Mapped[str | None] = mapped_column(String(36))
+    policy: Mapped[dict | None] = mapped_column(JSON)
+    authorization_state: Mapped[str] = mapped_column(String(24), default="required")
+    grant_id: Mapped[str | None] = mapped_column(String(36))
+    expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    request_body: Mapped[dict | None] = mapped_column(JSON)
+    state: Mapped[str] = mapped_column(String(24), default="unsubmitted")
+    receipt: Mapped[dict | None] = mapped_column(JSON)
+    failure_code: Mapped[str | None] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+
+
 class Revision(Base):
     __tablename__ = "console_revisions"
     __table_args__ = (
@@ -101,6 +126,39 @@ class WorkbenchProject(Base):
     reuse_decision: Mapped[str] = mapped_column(String(24))
     reuse_notes: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+
+
+class AppSourceBinding(Base):
+    __tablename__ = "console_app_sources"
+    app_id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    repository_root: Mapped[str] = mapped_column(Text)
+    manifest: Mapped[dict] = mapped_column(JSON)
+    manifest_digest: Mapped[str] = mapped_column(String(71))
+    version: Mapped[int] = mapped_column(default=1)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+
+
+class AppSourceSetup(Base):
+    __tablename__ = "console_app_source_setups"
+    operation_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("console_projects.id"), unique=True)
+    app_id: Mapped[str] = mapped_column(String(80), unique=True)
+    root_id: Mapped[str] = mapped_column(String(64))
+    root_path: Mapped[str] = mapped_column(Text)
+    template_id: Mapped[str] = mapped_column(String(32))
+    repository: Mapped[str] = mapped_column(Text)
+    bundle_digest: Mapped[str] = mapped_column(String(71))
+    input_digest: Mapped[str] = mapped_column(String(71))
+    title: Mapped[str] = mapped_column(String(200))
+    state: Mapped[str] = mapped_column(String(20), default="preparing")
+    stage_device: Mapped[str | None] = mapped_column(String(32))
+    stage_inode: Mapped[str | None] = mapped_column(String(32))
+    source_root: Mapped[str | None] = mapped_column(Text)
+    source_revision: Mapped[str | None] = mapped_column(String(40))
+    source_version: Mapped[int | None] = mapped_column(Integer)
+    failure_code: Mapped[str | None] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
 
 
 class Maintenance(Base):
@@ -246,6 +304,7 @@ class Agent(Base):
     turn_id: Mapped[str | None] = mapped_column(String(160))
     activity: Mapped[str | None] = mapped_column(String(500))
     progress: Mapped[dict | None] = mapped_column(JSON)
+    observation: Mapped[dict | None] = mapped_column(JSON)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
 
 

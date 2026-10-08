@@ -1,5 +1,2 @@
-export * from './api/pms-api';
-export * from './api/pms-filters';
-export * from './api/pms-permissions';
-export * from './api/pms-sidebar-reorder';
-export * from './views/TaskPickerModal';
+/** Compatibility entry; the official suite owns the public PMS surface. */
+export * from '@miy/official-suite-web/pms';

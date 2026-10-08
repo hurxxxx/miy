@@ -1,13 +1,14 @@
+import { OFFICIAL_APP_MANIFESTS } from '@miy/official-suite-web';
 import { codexConsoleManifest } from '@/src/app-modules/codex-console/manifest';
 import { tetrisManifest } from '@/src/app-modules/tetris/manifest';
 import { agentTerminalManifest } from '@/src/app-modules/agent-terminal/manifest';
 import { announcementsManifest } from '@/src/app-modules/announcements/manifest';
 import { bentoManifest } from '@/src/app-modules/bento/manifest';
-import { chatbotManifest } from '@/src/app-modules/chatbot/manifest';
+import { chatbotManifest } from '@miy/platform-web/chatbot/manifest';
 import { communityManifest } from '@/src/app-modules/community/manifest';
 import { diagramsManifest } from '@/src/app-modules/diagrams/manifest';
 import { docsManifest } from '@/src/app-modules/docs/manifest';
-import { filesManifest } from '@/src/app-modules/files/manifest';
+import { filesManifest } from '@miy/official-suite-web/manifests/files';
 import { homeManifest } from '@/src/app-modules/home/manifest';
 import { mailManifest } from '@/src/app-modules/mail/manifest';
 import { meetingManifest } from '@/src/app-modules/meeting/manifest';
@@ -16,7 +17,7 @@ import { pmsManifest } from '@/src/app-modules/pms/manifest';
 import { recordingManifest } from '@/src/app-modules/recording/manifest';
 import { retrievalSearchManifest } from '@/src/app-modules/retrieval-search/manifest';
 import { settingsManifest } from '@/src/app-modules/settings/manifest';
-import { videoChatManifest } from '@/src/app-modules/video-chat/manifest';
+import { videoChatManifest } from '@miy/official-suite-web/manifests/video-chat';
 import { whiteboardManifest } from '@/src/app-modules/whiteboard/manifest';
 
 export {
@@ -47,18 +48,7 @@ export const DEFAULT_APP_CONTRACT_MANIFESTS = [
   agentTerminalManifest,
   codexConsoleManifest,
   chatbotManifest,
-  pmsManifest,
-  docsManifest,
-  filesManifest,
-  mailManifest,
-  communityManifest,
-  whiteboardManifest,
-  diagramsManifest,
-  bentoManifest,
-  plannerManifest,
-  meetingManifest,
-  videoChatManifest,
-  recordingManifest,
+  ...OFFICIAL_APP_MANIFESTS,
   retrievalSearchManifest,
   tetrisManifest,
 ] as const;

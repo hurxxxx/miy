@@ -2,25 +2,134 @@ from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
+from .app_sources import APP_ID_PATTERN
 from .schemas import GitStatusOut, Input
 
-AppIdPattern = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
+AppIdPattern = APP_ID_PATTERN
 
 
 class AppDescriptor(BaseModel):
     app_id: str = Field(pattern=AppIdPattern, max_length=80)
     title: str = Field(max_length=200)
-    summary: str = Field(max_length=1000)
-    capabilities: list[str] = Field(max_length=20)
-    source_paths: list[str] = Field(max_length=20)
-    release_unit: Literal["miy-app", "miy-workbench"]
+    title_translations: dict[str, str] = Field(default_factory=dict)
+    icon_key: str = Field(default="layout-grid", max_length=100)
+    summary: str = Field(default="", max_length=1000)
+    capabilities: list[str] = Field(default_factory=list, max_length=20)
+    source_paths: list[str] = Field(default_factory=list, max_length=20)
+    release_unit: str | None = Field(default=None, max_length=120)
     route_base: str = Field(max_length=200)
     preview_url: str | None = None
+    source_status: Literal["ready", "unconfigured", "missing", "invalid"] = "unconfigured"
+    discovery: Literal["checkout", "runtime", "source"] = "checkout"
+    source_root: str | None = None
+    source_version: int = 0
+    execution_status: Literal["platform", "configured", "unconfigured"] = "unconfigured"
+    preview_status: Literal["configured", "unconfigured"] = "unconfigured"
+    deployment_status: Literal["configured", "unconfigured"] = "unconfigured"
+    limitations: list[
+        Literal[
+            "source_not_configured",
+            "source_missing",
+            "source_invalid",
+            "executor_not_configured",
+            "preview_not_configured",
+            "release_not_configured",
+        ]
+    ] = Field(default_factory=list)
 
 
-class ProjectInput(Input):
+class SourceBindingInput(Input):
+    repository_root: str = Field(min_length=1, max_length=4096)
+    version: int = Field(default=0, ge=0)
+
+
+class ProjectExecutionReadinessOut(BaseModel):
+    """Connection metadata at checked_at; not sandbox or Task authorization."""
+
+    project_id: str
+    app_id: str | None
+    source_version: int | None = Field(ge=1)
+    state: Literal["reachable", "unconfigured", "unavailable", "changed", "unsupported", "denied"]
+    failure_code: str | None = Field(max_length=80)
+    checked_at: datetime
+
+
+class SourceCreationRoot(BaseModel):
+    id: str
+    label: str
+
+
+class SourceStarter(BaseModel):
+    id: Literal["basic", "private-notes"]
+    name: str
+    runtime_profile: str
+    bundle_digest: str
+    sdk_version: str
+
+
+class SourceSetupOptions(BaseModel):
+    roots: list[SourceCreationRoot]
+    templates: list[SourceStarter]
+
+
+class SourceSetupInput(Input):
+    operation_id: UUID
+    repository: str = Field(min_length=1, max_length=2048, pattern=r"^https://")
+    root_id: str = Field(pattern=r"^[0-9a-f]{64}$")
+    template_id: Literal["basic", "private-notes"]
+    expected_bundle_digest: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+
+
+class SourceSetupOut(BaseModel):
+    operation_id: str
+    project_id: str
+    app_id: str
+    root_id: str
+    template_id: Literal["basic", "private-notes"]
+    repository: str
+    bundle_digest: str
+    state: Literal["preparing", "ready", "failed", "conflict"]
+    source_root: str | None
+    source_revision: str | None
+    source_version: int | None
+    failure_code: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class SourceSetupStatus(BaseModel):
+    setup: SourceSetupOut | None
+
+
+class SourceRegistrationDraftOut(BaseModel):
+    schema_version: Literal[1] = 1
+    project_id: UUID
+    binding_version: int = Field(ge=1)
+    app_id: str
+    source_revision: str = Field(pattern=r"^[0-9a-f]{40}$")
+    source_manifest_digest: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    definition_digest: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    definition: dict
+
+
+class SourceRegistrationStatusOut(BaseModel):
+    project_id: UUID
+    app_id: str
+    binding_version: int = Field(ge=1)
+    state: Literal["unregistered", "matching", "different", "collision", "unknown"]
+    source_revision: str = Field(pattern=r"^[0-9a-f]{40}$")
+    definition_digest: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    platform_state: Literal["ready", "unconfigured", "unavailable", "unsupported", "denied"]
+    platform_checked_at: datetime | None
+    registered_source_revision: str | None = Field(pattern=r"^[0-9a-f]{40}$")
+    registered_definition_digest: str | None = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    definition_matches: bool | None
+    revision_matches: bool | None
+
+
+class ProjectFields(Input):
     app_id: str = Field(pattern=AppIdPattern, max_length=80)
     title: str = Field(min_length=1, max_length=200)
     summary: str = Field(min_length=1, max_length=4000)
@@ -28,12 +137,33 @@ class ProjectInput(Input):
     reuse_notes: str = Field(min_length=1, max_length=4000)
 
 
-class ProjectOut(ProjectInput):
+class ProjectInput(ProjectFields):
+    @model_validator(mode="after")
+    def independent_app_id(self):
+        if self.reuse_decision == "new":
+            from jsonschema.exceptions import ValidationError
+
+            from .app_sources import validator
+
+            contract = validator()
+            try:
+                contract.evolve(schema=contract.schema["properties"]["app_id"]).validate(
+                    self.app_id
+                )
+            except ValidationError:
+                raise ValueError(
+                    "New projects require a valid independent app identifier"
+                ) from None
+        return self
+
+
+class ProjectOut(ProjectFields):
     id: str
     created_at: datetime
 
 
 class CatalogOut(BaseModel):
+    registration_authorization_available: bool = False
     items: list[AppDescriptor]
     projects: list[ProjectOut]
     source_revision: str | None
@@ -45,17 +175,25 @@ class RuntimeApp(BaseModel):
     app_id: str = Field(pattern=AppIdPattern, max_length=80)
     title: str = Field(max_length=200)
     enabled: bool
-    release_unit: Literal["miy-app", "miy-workbench"]
+    release_unit: str | None = None
     installed_revision: str | None = Field(default=None, pattern=r"^[0-9a-f]{40}$")
+    registered_source_revision: str | None = Field(default=None, pattern=r"^[0-9a-f]{40}$")
     runtime_ai: bool
+    title_translations: dict[str, str] = Field(default_factory=dict)
+    icon_key: str = "layout-grid"
+    source_repository: str | None = None
+    source_directory: str | None = None
+    definition_digest: str | None = None
 
 
 class RuntimeCatalog(BaseModel):
     schema_version: Literal[1]
+    registration_status_version: int | None = Field(default=None, strict=True, ge=1)
     items: list[RuntimeApp] = Field(max_length=200)
-    total: int = Field(ge=0, le=200)
-    page: Literal[1]
-    page_size: Literal[200]
+    total: int = Field(ge=0)
+    page: int = Field(ge=1)
+    page_size: int = Field(ge=1, le=200)
+    catalog_revision: str | None = None
     generated_at: datetime
 
 
@@ -64,6 +202,57 @@ class RuntimeOut(BaseModel):
     checked_at: datetime | None = None
     stale: bool = True
     items: list[RuntimeApp] = []
+    catalog_revision: str | None = None
+    registration_status_version: int | None = None
+
+
+class DeploymentObservation(BaseModel):
+    request_id: UUID
+    action: Literal["deploy", "rollback"]
+    state: Literal["queued", "running", "cleanup", "succeeded", "failed", "unknown"]
+    failure_code: str | None = Field(default=None, max_length=80)
+    updated_at: datetime
+
+
+class InstallationObservation(BaseModel):
+    id: UUID
+    environment: Literal["development", "production"]
+    origin: str = Field(max_length=300)
+    enabled: bool
+    state: str = Field(max_length=32)
+    generation: int = Field(ge=1)
+    release_id: UUID | None
+    source_revision: str | None = Field(default=None, pattern=r"^[0-9a-f]{40}$")
+    artifact_digest: str | None = Field(default=None, max_length=500)
+    deployment: DeploymentObservation | None
+    delivery_configured: bool = False
+
+    @field_validator("origin")
+    @classmethod
+    def origin_boundary(cls, value):
+        from .config import Settings
+
+        if "\\" in value or any(char.isspace() for char in value):
+            raise ValueError("Invalid app origin")
+        return Settings.validate_origin(value)
+
+
+class InstallationCatalog(BaseModel):
+    schema_version: Literal[1]
+    app_id: str = Field(pattern=AppIdPattern, max_length=80)
+    items: list[InstallationObservation] = Field(max_length=200)
+    total: int = Field(ge=0)
+    page: int = Field(ge=1)
+    page_size: int = Field(ge=1, le=200)
+    catalog_revision: str = Field(pattern=r"^[0-9a-f]{64}$")
+    generated_at: datetime
+
+
+class InstallationsOut(BaseModel):
+    state: Literal["ready", "unconfigured", "unavailable", "unsupported", "denied"]
+    checked_at: datetime | None = None
+    stale: bool = True
+    items: list[InstallationObservation] = []
 
 
 class RuntimeUsage(BaseModel):

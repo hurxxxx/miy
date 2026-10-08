@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import sys
+from importlib.util import find_spec
 from pathlib import Path
 
 from celery import Celery
+
+from miy_worker.task_binding import assert_profile_available, bind_task_app
+
 from celery.signals import (
     after_setup_logger,
     after_setup_task_logger,
@@ -14,12 +18,8 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 from miy_worker.beat_health import install_beat_health
+from miy_worker.task_catalog import legacy_beat_schedule
 from miy_worker.queue_contract import (
-    AI_GRAPH_REPUBLISH_TASK_NAME,
-    DEFAULT_QUEUE,
-    FILE_STORAGE_CLEANUP_REPUBLISH_TASK_NAME,
-    HERMES_REPUBLISH_TASK_NAME,
-    HERMES_TERMINAL_MAINTENANCE_TASK_NAME,
     assert_worker_queue_access,
     celery_task_routes,
     celery_worker_queue_argument,
@@ -38,6 +38,9 @@ def _workspace_root() -> Path:
 
 
 def _ensure_api_src_on_path() -> None:
+    # Installed artifacts use their matching API wheel; dev keeps source fallback.
+    if find_spec("miy_api") is not None:
+        return
     api_src = _workspace_root() / "apps" / "api" / "src"
     if str(api_src) not in sys.path:
         sys.path.insert(0, str(api_src))
@@ -51,6 +54,7 @@ from miy_api.core.logging_security import (  # noqa: E402
 from miy_api.core.telemetry import bootstrap_telemetry  # noqa: E402
 from miy_api.platform_extensions import initialize_platform_extensions  # noqa: E402
 
+assert_profile_available("legacy")
 settings = get_settings()
 install_sensitive_http_logging_guard()
 install_beat_health()
@@ -143,57 +147,12 @@ celery_app = Celery(
     broker=settings.broker_url,
     backend=settings.result_backend,
 )
+bind_task_app("legacy", celery_app)
 celery_app.autodiscover_tasks(["miy_worker.tasks"])
 celery_app.conf.timezone = "UTC"
 celery_app.conf.worker_concurrency = settings.concurrency
 
-celery_app.conf.beat_schedule = {
-    "republish-pending-hermes-runs": {
-        "task": HERMES_REPUBLISH_TASK_NAME,
-        "schedule": 30.0,
-        "options": {"queue": DEFAULT_QUEUE},
-    },
-    "maintain-hermes-terminal-sessions": {
-        "task": HERMES_TERMINAL_MAINTENANCE_TASK_NAME,
-        "schedule": 60.0,
-        "options": {"queue": DEFAULT_QUEUE},
-    },
-    "republish-pending-ai-graph-runs": {
-        "task": AI_GRAPH_REPUBLISH_TASK_NAME,
-        "schedule": 60.0,
-        "options": {"queue": DEFAULT_QUEUE},
-    },
-    "cleanup-orphan-media": {
-        "task": "media.cleanup_orphans",
-        "schedule": 3600.0,
-        "options": {"queue": DEFAULT_QUEUE},
-    },
-    "republish-files-storage-cleanup-jobs": {
-        "task": FILE_STORAGE_CLEANUP_REPUBLISH_TASK_NAME,
-        "schedule": 60.0,
-        "options": {"queue": DEFAULT_QUEUE},
-    },
-    "cleanup-stale-meeting-recording-staging": {
-        "task": "meeting.cleanup_stale_staging",
-        "schedule": 3600.0,
-        "options": {"queue": DEFAULT_QUEUE},
-    },
-    "dispatch-due-mail-sync-jobs": {
-        "task": "mail.dispatch_due_sync_jobs",
-        "schedule": 60.0,
-        "options": {"queue": DEFAULT_QUEUE},
-    },
-    "republish-pending-rag-jobs": {
-        "task": "rag.republish_pending_jobs",
-        "schedule": 60.0,
-        "options": {"queue": DEFAULT_QUEUE},
-    },
-    "republish-pending-search-index-jobs": {
-        "task": "search.republish_pending_index_jobs",
-        "schedule": 60.0,
-        "options": {"queue": DEFAULT_QUEUE},
-    },
-}
+celery_app.conf.beat_schedule = legacy_beat_schedule()
 celery_app.conf.task_routes = celery_task_routes()
 celery_app.conf.task_reject_on_worker_lost = True
 celery_app.conf.worker_graceful_shutdown_timeout = 3700

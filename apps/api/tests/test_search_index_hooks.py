@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from miy_api.core.db import get_session_factory
 from miy_api.domains.files import rag_sync as file_rag_sync
+from miy_api.domains.files import retrieval_contract as file_retrieval_contract
 from miy_api.domains.files import search_projection as file_search_projection
 from miy_api.domains.files import search_hooks as file_search_hooks
 from miy_api.domains.files.models import FileManagerFile
@@ -227,7 +228,7 @@ def test_file_extraction_and_delete_drive_search_projection_lifecycle(
     monkeypatch,
 ) -> None:
     _stub_search_publish(monkeypatch)
-    monkeypatch.setattr(file_rag_sync, "FILES_RETRIEVAL_ACTIVE", True)
+    monkeypatch.setattr(file_retrieval_contract, "FILES_RETRIEVAL_ACTIVE", True)
     monkeypatch.setattr(file_search_hooks, "FILES_RETRIEVAL_ACTIVE", True)
     active_file_adapter = replace(
         file_search_projection.FILES_KEYWORD_SEARCH_ADAPTER,

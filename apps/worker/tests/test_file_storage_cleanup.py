@@ -19,6 +19,7 @@ if str(API_SRC) not in sys.path:
     sys.path.insert(0, str(API_SRC))
 
 from miy_api.core.db import Base
+from miy_api.domains.official_apps.writer_models import RuntimeOwnership
 from miy_api.domains.files.models import FileManagerStorageCleanupJob
 
 
@@ -47,7 +48,19 @@ def _load_tasks(monkeypatch: pytest.MonkeyPatch):
 
 def _engine():
     engine = create_engine("sqlite+pysqlite:///:memory:")
-    Base.metadata.create_all(engine, tables=[FileManagerStorageCleanupJob.__table__])
+    Base.metadata.create_all(
+        engine, tables=[RuntimeOwnership.__table__, FileManagerStorageCleanupJob.__table__]
+    )
+    with engine.begin() as connection:
+        connection.execute(
+            RuntimeOwnership.__table__.insert().values(
+                scope="official.suite",
+                active_owner="legacy",
+                generation=1,
+                state="active",
+                artifact=None,
+            )
+        )
     return engine
 
 
@@ -76,6 +89,9 @@ def _add_job(
 
 
 def _configure_task_dependencies(monkeypatch, tasks, *, engine, client) -> None:
+    # These pre-existing SQLite business tests have no PostgreSQL statement
+    # triggers. The real fence/row-lock behavior is tested on owned PG separately.
+    monkeypatch.setattr(tasks, "lock_source_writer", lambda db, table: None)
     monkeypatch.setattr(tasks, "_db_session", lambda: Session(engine))
     monkeypatch.setattr(tasks, "_minio_client", lambda: client)
     monkeypatch.setattr(tasks, "get_settings", lambda: SimpleNamespace(minio_bucket="files"))
@@ -168,3 +184,11 @@ def test_republisher_includes_expired_leases_and_skips_live_leases(
 
     assert tasks.republish_file_storage_cleanup_jobs.run() == 1
     assert published == ["expired"]
+
+
+def test_cleanup_deadlines_use_supported_celery_execution_options(monkeypatch):
+    task = _load_tasks(monkeypatch).cleanup_file_storage_object
+    assert task.time_limit == 120
+    assert task.soft_time_limit == 90
+    options = task._get_exec_options()
+    assert options["time_limit"] == 120 and options["soft_time_limit"] == 90

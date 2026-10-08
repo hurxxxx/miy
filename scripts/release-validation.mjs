@@ -74,7 +74,11 @@ function surface(file) {
     /^(?:docs|adr|\.gitlab)\/.+\.md$/.test(file)
   )
     return 'docs';
-  if (/^(?:apps\/web\/(?:src|e2e)|packages\/core-web\/src)\//.test(file))
+  if (
+    /^(?:apps\/(?:web|official-suite)\/(?:src|e2e)|packages\/(?:core-web|platform-web|official-suite-web)\/src)\//.test(
+      file,
+    )
+  )
     return 'web';
   if (file === 'packages/ui/styles.css' || /^packages\/ui\/src\//.test(file))
     return 'sharedUi';

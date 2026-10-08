@@ -3,6 +3,7 @@
 Run directly; never part of pytest/CI or an automatic model upgrade.
 """
 
+import argparse
 import json
 import subprocess
 import tempfile
@@ -69,7 +70,13 @@ def main():
             account = client.get("/api/codex/account").json()
             assert account.get("auth_type") == "chatgpt", account.get("error_code")
             print("live: ChatGPT subscription authenticated", flush=True)
-            task = client.post("/api/tasks", json={"title": "Temporary subscription smoke"}).json()
+            context = None
+            created = client.post(
+                "/api/tasks", json={"title": "Temporary subscription smoke", "context": context}
+            )
+            assert created.status_code == 200, created.json().get("code")
+            task = created.json()
+            assert task["root"] == str(root)
             task_id = task["id"]
 
             def request(path, body):
@@ -153,4 +160,6 @@ def main():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.parse_args()
     main()

@@ -54,6 +54,17 @@ function resolveChrome(
 }
 
 describe('shell chrome model', () => {
+  it('hosts independent installations without inheriting an official app sidebar or usage identity', () => {
+    expect(
+      resolveChrome('/apps/candidate-review/installed/installation-id'),
+    ).toMatchObject({
+      activeAppId: 'launcher',
+      activeNavItemId: '',
+      canOpenMobileAppMenu: false,
+      showSubSidebar: false,
+      mainClassName: 'flex-1 overflow-hidden relative',
+    });
+  });
   it('keeps app context chrome on app surfaces', () => {
     expect(resolveChrome('/apps/whiteboard/boards/board-1')).toMatchObject({
       activeAppId: 'whiteboard',

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from sqlalchemy import and_, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 
 from miy_api.domains.auth.app_access import can_use_app
 from miy_api.domains.auth.models import User, UserSystemRole
@@ -21,7 +21,7 @@ def is_current_platform_admin(db: Session, user_id: str) -> bool:
     return (
         user is not None
         and db.scalar(
-            select(UserSystemRole.id).where(
+            select(UserSystemRole.user_id).where(
                 UserSystemRole.user_id == user_id, UserSystemRole.role == SYSTEM_PLATFORM_ADMIN
             )
         )
@@ -163,6 +163,7 @@ def _current_grant_conditions(db: Session, *, user: User) -> list[object]:
 def _load_current_active_user(db: Session, user_id: str) -> User | None:
     return db.scalar(
         select(User)
+        .options(load_only(User.id, User.status, User.login_blocked, raiseload=True))
         .where(
             User.id == user_id,
             User.status == "active",

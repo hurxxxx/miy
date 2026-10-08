@@ -90,6 +90,7 @@ class FakeRPC:
                     "turns": [],
                     "model": self.config_model or "account-default",
                     "reasoningEffort": self.config_effort or "medium",
+                    "environments": params.get("environments"),
                 },
             )
             return {
@@ -169,7 +170,10 @@ def legacy_database(client, postgres_database_url):
             for table in reversed(tables):
                 writer.execute(table.delete())
             for table in tables:
-                rows = list(reader.execute(select(table)).mappings())
+                columns = {c["name"] for c in inspect(writer).get_columns(table.name)}
+                rows = list(
+                    reader.execute(select(*(c for c in table.c if c.name in columns))).mappings()
+                )
                 if rows:
                     writer.execute(table.insert(), [dict(row) for row in rows])
                 if (
@@ -264,7 +268,7 @@ def send_message(client, task, stage="plan", text="Inspect the repository", oper
 
 def notify(client, task, method, extra):
     client.portal.call(
-        client.app.state.runtime.on_message,
+        client.app.state.runtime.for_task(task["id"]).on_message,
         {
             "method": method,
             "params": {"threadId": task["thread_id"], "turnId": task["turn_id"], **extra},

@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from miy_api.core.db import get_session_factory
 from miy_api.domains.auth.models import User
@@ -16,7 +17,7 @@ from miy_api.domains.retrieval.models import RetrievalPartition, RetrievalProjec
 from miy_api.domains.retrieval.partitioning import (
     RetrievalPartitionConflict,
 )
-from miy_api.domains.retrieval.projection_fencing import ProjectionEventRef
+from miy_api.domains.retrieval import official_projection_ingress as ingress
 from miy_api.domains.source_access import SourceAclPolicy
 from miy_api.domains.source_access.resource_types import NATIVE_DOC_RESOURCE_TYPE
 
@@ -44,68 +45,34 @@ def _visibility_job_rows() -> list[RagVisibilityRecomputeJob]:
 
 def _enable_docs_rag(monkeypatch) -> None:
     monkeypatch.setattr(
-        docs_rag_sync,
+        ingress,
         "get_settings",
         lambda: SimpleNamespace(rag_enabled=True),
     )
 
 
-def test_native_doc_sync_records_one_event_shared_by_search_and_rag(monkeypatch) -> None:
-    projection_event = ProjectionEventRef(
-        event_sequence=11,
-        resource_type="docs_native_doc",
-        resource_id="doc-1",
-        projection_version=2,
-        retrieval_partition_id="11111111-1111-1111-1111-111111111111",
-        change_kind="delete",
-        desired_state="deleted",
-        content_checksum=None,
-        visibility_checksum=None,
-    )
+def test_native_doc_sync_emits_one_canonical_intent(monkeypatch) -> None:
     recorded: list[dict] = []
-    search_deliveries: list[dict] = []
-    rag_deliveries: list[dict] = []
+    partition_id = "11111111-1111-1111-1111-111111111111"
     monkeypatch.setattr(
-        docs_rag_sync,
-        "ensure_native_doc_partition",
-        lambda *_args, **_kwargs: projection_event.retrieval_partition_id,
+        docs_rag_sync, "ensure_native_doc_partition", lambda *_a, **_k: partition_id
     )
     monkeypatch.setattr(
         docs_rag_sync,
-        "record_projection_event",
-        lambda *_args, **kwargs: recorded.append(kwargs) or projection_event,
+        "deliver_projection_intent",
+        lambda _db, *, intent: recorded.append(intent.model_dump(mode="json")),
     )
-    monkeypatch.setattr(
-        docs_rag_sync,
-        "enqueue_doc_search_index",
-        lambda *_args, **kwargs: search_deliveries.append(kwargs),
-    )
-    monkeypatch.setattr(
-        docs_rag_sync,
-        "enqueue_rag_sync_job",
-        lambda *_args, **kwargs: rag_deliveries.append(kwargs),
-    )
-    _enable_docs_rag(monkeypatch)
-
-    docs_rag_sync.enqueue_native_doc_rag_sync(
-        object(),
-        doc=SimpleNamespace(
-            id="doc-1",
-        ),
-        operation=RagSyncOperation.DELETE,
-    )
-
-    assert recorded == [
-        {
-            "resource_type": "docs_native_doc",
-            "resource_id": "doc-1",
-            "retrieval_partition_id": projection_event.retrieval_partition_id,
-            "change_kind": "delete",
-            "desired_state": "deleted",
-        }
-    ]
-    assert search_deliveries[0]["projection_event"] is projection_event
-    assert rag_deliveries[0]["projection_event"] is projection_event
+    with Session() as db:
+        docs_rag_sync.enqueue_native_doc_rag_sync(
+            db, doc=SimpleNamespace(id="doc-1"), operation=RagSyncOperation.DELETE
+        )
+    assert len(recorded) == 1
+    assert recorded[0]["resource_type"] == "docs_native_doc"
+    assert recorded[0]["resource_id"] == "doc-1"
+    assert recorded[0]["retrieval_partition_id"] == partition_id
+    assert recorded[0]["change_kind"] == "delete"
+    assert recorded[0]["desired_state"] == "deleted"
+    assert recorded[0]["operation"] == "delete"
 
 
 def test_native_doc_scope_changes_keep_partition_and_advance_one_event_stream(client) -> None:
@@ -200,8 +167,9 @@ def test_new_native_docs_use_company_candidates_for_every_rag_scope(monkeypatch)
         ),
     )
 
-    class _Session:
+    class _Session(Session):
         def __init__(self) -> None:
+            super().__init__()
             self.added: list[object] = []
 
         def add(self, value) -> None:
@@ -233,6 +201,7 @@ def test_new_native_docs_use_company_candidates_for_every_rag_scope(monkeypatch)
         ]
         * 3
     )
+    db.close()
 
 
 @pytest.mark.parametrize(
@@ -310,8 +279,10 @@ def test_existing_native_doc_partition_must_be_valid_or_fail_closed(
         lambda *_args, **_kwargs: pytest.fail("existing bindings must not be replaced"),
     )
 
-    class _Session:
-        added: list[object] = []
+    class _Session(Session):
+        def __init__(self) -> None:
+            super().__init__()
+            self.added: list[object] = []
 
         def get(self, model, partition_id):
             assert model is RetrievalPartition
@@ -334,9 +305,10 @@ def test_existing_native_doc_partition_must_be_valid_or_fail_closed(
 
     assert doc.retrieval_partition_id == "11111111-1111-1111-1111-111111111111"
     assert db.added == []
+    db.close()
 
 
-def test_meeting_doc_acl_changes_enqueue_rag_visibility_recompute_jobs(
+def test_meeting_doc_acl_changes_enqueue_versioned_visibility_jobs(
     client,
     monkeypatch,
 ) -> None:
@@ -389,17 +361,12 @@ def test_meeting_doc_acl_changes_enqueue_rag_visibility_recompute_jobs(
     assert create_meeting.status_code == 201, create_meeting.text
     meeting = create_meeting.json()
 
-    grant_jobs = [
-        job
-        for job in _visibility_job_rows()
-        if job.scope_type == "meeting" and job.scope_id == meeting["id"]
-    ]
-    assert grant_jobs
-    assert [
-        job
-        for job in _job_rows()
-        if job.resource_id == doc_id and job.operation == "visibility_update"
-    ] == []
+    assert _visibility_job_rows() == []
+    grant_jobs = [job for job in _job_rows() if job.resource_id == doc_id]
+    assert len(grant_jobs) == 1
+    assert grant_jobs[0].operation == "visibility_update"
+    assert grant_jobs[0].projection_event_sequence is not None
+    grant_version = grant_jobs[0].projection_version
 
     doc_lookup = client.get(
         f"/api/v1/docs/items/{doc['id']}",
@@ -413,11 +380,15 @@ def test_meeting_doc_acl_changes_enqueue_rag_visibility_recompute_jobs(
     )
     assert detach_response.status_code == 200, detach_response.text
 
-    revoke_jobs = [
-        job
-        for job in _visibility_job_rows()
-        if job.scope_type == "meeting" and job.scope_id == meeting["id"]
-    ]
+    assert _visibility_job_rows() == []
+    revoke_jobs = [job for job in _job_rows() if job.resource_id == doc_id]
     assert len(revoke_jobs) == 1
     assert revoke_jobs[0].id == grant_jobs[0].id
-    assert revoke_jobs[0].cursor == {"doc_ids": [doc_id]}
+    assert revoke_jobs[0].projection_version > grant_version
+    assert revoke_jobs[0].projection_event_sequence != grant_jobs[0].projection_event_sequence
+    assert (
+        client.get(
+            f"/api/v1/docs/items/{doc['id']}", headers=_auth_headers(attendee_token)
+        ).status_code
+        == 404
+    )

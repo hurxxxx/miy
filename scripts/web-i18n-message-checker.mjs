@@ -62,7 +62,12 @@ const NODE_FILE_SYSTEM = {
 };
 
 function defaultSourceDirs(root) {
-  return [path.join(root, 'apps/web/src'), path.join(root, 'packages/ui/src')];
+  return [
+    'apps/web/src',
+    'packages/ui/src',
+    'packages/platform-web/src',
+    'packages/official-suite-web/src',
+  ].map((source) => path.join(root, source));
 }
 
 function isAllowedValue(value) {

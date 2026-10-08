@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import hashlib
 import json
 import re
 import weakref
@@ -8,7 +9,7 @@ from pathlib import Path
 from jsonschema import Draft7Validator
 from sqlalchemy import or_, select, update
 
-from . import agents, attachments, git, planning, store, workbench
+from . import agents, app_sources, attachments, git, planning, remote_environments, store, workbench
 from .auth import digest
 from .errors import ConsoleError
 from .models import Agent, DevelopmentUsage, Item, Operation, PendingRequest, Task
@@ -37,7 +38,16 @@ working directory during a turn; finish the work first and perform cleanup from 
 
 
 class Runtime:
-    def __init__(self, settings, factory, rpc_factory=CodexRPC, *, executor="session"):
+    def __init__(
+        self,
+        settings,
+        factory,
+        rpc_factory=CodexRPC,
+        *,
+        executor="session",
+        remote_task_id=None,
+        control_runtime=None,
+    ):
         self.executor = executor
         self.settings, self.factory = settings, factory
         self.rpc_factory = rpc_factory
@@ -47,6 +57,52 @@ class Runtime:
         self.task_gates = weakref.WeakValueDictionary()
         self.observer = None
         self.error = None
+        self.remote_task_id = remote_task_id
+        self.control_runtime = control_runtime
+        self.app_runtimes = {}
+
+    def owns(self, task):
+        if task is None:
+            return False
+        if self.remote_task_id is not None:
+            return task.id == self.remote_task_id
+        return not bool((task.context or {}).get("source_binding"))
+
+    def invalidate_observations(self, generation=None):
+        # Includes completed tasks; management reads this durable state without
+        # sharing the native runtime's in-memory connection generation.
+        with self.factory.begin() as db:
+            for row, task in db.execute(
+                select(Agent, Task)
+                .join(Task, Agent.task_id == Task.id)
+                .where(Task.executor == self.executor)
+            ):
+                if self.owns(task):
+                    agents.invalidate_observation(row, generation)
+
+    def observation_current(self, rpc, generation):
+        return self.rpc is rpc and rpc.connected and rpc.generation == generation
+
+    def for_task(self, task_id):
+        if self.remote_task_id is not None:
+            if str(task_id) != self.remote_task_id:
+                raise ConsoleError("executor_mismatch", 409)
+            return self
+        with self.factory() as db:
+            task = self.require_task(db, str(task_id))
+            if not (task.context or {}).get("source_binding"):
+                return self
+            remote_environments.for_task(self.settings, task)
+        if str(task_id) not in self.app_runtimes:
+            self.app_runtimes[str(task_id)] = Runtime(
+                self.settings,
+                self.factory,
+                self.rpc_factory,
+                executor=self.executor,
+                remote_task_id=str(task_id),
+                control_runtime=self,
+            )
+        return self.app_runtimes[str(task_id)]
 
     def task_gate(self, task_id):
         gate = self.task_gates.get(task_id)
@@ -54,6 +110,18 @@ class Runtime:
             gate = asyncio.Lock()
             self.task_gates[task_id] = gate
         return gate
+
+    def require_stage(self, task, stage):
+        context = task.context or {}
+        unbound_project = (
+            context.get("project_id")
+            and context.get("reuse_decision") == "new"
+            and not context.get("source_binding")
+        )
+        if stage != "plan" and (
+            context.get("app_execution_boundary") == "planning_only" or unbound_project
+        ):
+            raise ConsoleError("app_source_planning_only", 409)
 
     def require_task(self, db, task_id, *, locked=False):
         task = (
@@ -63,11 +131,18 @@ class Runtime:
         )
         if getattr(task, "executor", "session") != self.executor:
             raise ConsoleError("executor_mismatch", 409)
+        if self.remote_task_id is not None and task.id != self.remote_task_id:
+            raise ConsoleError("executor_mismatch", 409)
         return task
 
     def require_allowed_task(self, task):
         if task.executor != self.executor:
             raise ConsoleError("executor_mismatch", 409)
+        if not self.owns(task):
+            raise ConsoleError("app_executor_required", 409)
+        app_sources.require_task_source(self.settings, task)
+        if self.remote_task_id is not None:
+            remote_environments.for_task(self.settings, task)
         self.settings.require_allowed_paths(
             task.root,
             task.last_execution_root,
@@ -80,6 +155,7 @@ class Runtime:
         async with self.connect_gate:
             if self.rpc and self.rpc.connected:
                 return self.rpc
+            self.invalidate_observations()
             if self.rpc:
                 await self.rpc.close()
 
@@ -89,9 +165,24 @@ class Runtime:
             async def disconnected(reason="codex_disconnected"):
                 await self.on_disconnect(reason, generation=rpc.generation)
 
-            rpc = self.rpc_factory(
-                self.settings.binary, self.settings.workspace, receive, disconnected
-            )
+            root = self.settings.workspace
+            environment = None
+            overrides = {}
+            if self.remote_task_id is not None:
+                with self.factory() as db:
+                    task = self.require_task(db, self.remote_task_id)
+                    self.require_allowed_task(task)
+                    environment = remote_environments.for_task(self.settings, task)
+                    root = Path(task.root)
+                control = await self.control_runtime.authenticated_rpc()
+                configuration = await control.call(
+                    "config/read", {"cwd": str(root), "includeLayers": False}
+                )
+                overrides = remote_environments.overrides(configuration["config"])
+            rpc = self.rpc_factory(self.settings.binary, root, receive, disconnected)
+            if environment is not None:
+                rpc.remote_environment = environment
+                rpc.startup_overrides = overrides
             try:
                 await rpc.start()
             except ConsoleError:
@@ -199,6 +290,8 @@ class Runtime:
         ]
         if (config.get("model_provider") or "openai") != "openai":
             raise ConsoleError("subscription_provider_required")
+        if self.remote_task_id is not None:
+            return remote_environments.overrides(config)
         # Disable configured MCP servers through the official per-thread overrides. Apps and
         # plugins are disabled on the private app-server process, not in the owner's config files.
         names = config.get("mcp_servers") or {}
@@ -211,9 +304,11 @@ class Runtime:
         )
         return overrides
 
-    async def ensure_thread(self, task_id, rpc):
+    async def ensure_thread(self, task_id, rpc, *, revalidate=None):
         with self.factory() as db:
             task = self.require_task(db, task_id)
+            if revalidate:
+                revalidate(db, task)
             self.require_allowed_task(task)
             thread_id, root, prior_permissions = task.thread_id, task.root, task.permissions
             prior_root = task.last_execution_root or root
@@ -222,6 +317,9 @@ class Runtime:
                 granted.append((task.previous_permissions, task.previous_execution_root))
         config = await self.configuration(rpc, root)
         await asyncio.to_thread(attachments.prepare, self.factory, self.settings, task_id)
+        if revalidate:
+            with self.factory() as db:
+                revalidate(db, self.require_task(db, task_id))
         params = {
             "cwd": root,
             "sandbox": "read-only",
@@ -232,7 +330,16 @@ class Runtime:
         }
         if thread_id:
             params["threadId"] = thread_id
+        if self.remote_task_id is not None and not thread_id:
+            params["environments"] = remote_environments.selectors(task)
+            from . import delivery_tools, registration_tools
+
+            params["dynamicTools"] = delivery_tools.specs(task) + registration_tools.specs(task)
         result = await rpc.call("thread/resume" if thread_id else "thread/start", params)
+        if self.remote_task_id is not None:
+            environments = result.get("thread", {}).get("environments") or []
+            if environments != remote_environments.selectors(task):
+                raise ConsoleError("app_executor_changed", 409)
         if result.get("modelProvider") != "openai":
             raise ConsoleError("subscription_provider_required")
         policy = result.get("sandbox") or {}
@@ -266,6 +373,8 @@ class Runtime:
             raise ConsoleError("codex_thread_mismatch")
         with self.factory.begin() as db:
             task = self.require_task(db, task_id, locked=True)
+            if revalidate:
+                revalidate(db, task)
             task.thread_id, task.model = result["thread"]["id"], result["model"]
             db.flush()
             agents.register(db, {**result["thread"], "cwd": task.root}, executor=self.executor)
@@ -316,7 +425,12 @@ class Runtime:
         effort=None,
         permissions="ask",
         skill_names=(),
+        registration_session_hash=None,
     ):
+        if self.remote_task_id is not None and attachment_ids:
+            raise ConsoleError("app_executor_attachments_unsupported", 422)
+        with self.factory() as db:
+            self.require_stage(self.require_task(db, task_id), stage)
         operation_digest = self.start_digest(
             task_id,
             text,
@@ -338,6 +452,7 @@ class Runtime:
             effort=effort,
             operation_id=str(operation_id),
             revision_id=revision_id,
+            registration_session_hash=registration_session_hash,
         )
         if self.accepted_start(task_id, operation_id, operation_digest):
             return
@@ -350,6 +465,7 @@ class Runtime:
                 expected_turn_id=turn_id,
                 submission_digest=operation_digest,
                 skill_names=skill_names,
+                registration_session_hash=registration_session_hash,
             )
         else:
             await self.start(
@@ -363,6 +479,7 @@ class Runtime:
                 effort=effort,
                 permissions=permissions,
                 skill_names=skill_names,
+                registration_session_hash=registration_session_hash,
             )
 
     async def start(
@@ -378,7 +495,12 @@ class Runtime:
         effort=None,
         permissions="ask",
         skill_names=(),
+        registration_session_hash=None,
     ):
+        if self.remote_task_id is not None and attachment_ids:
+            raise ConsoleError("app_executor_attachments_unsupported", 422)
+        with self.factory() as db:
+            self.require_stage(self.require_task(db, task_id), stage)
         operation_id = str(operation_id)
         attachment_ids = [str(id) for id in attachment_ids]
         operation_digest = self.start_digest(
@@ -407,13 +529,21 @@ class Runtime:
                     (selected.template_snapshot or {}).get("definition", {}).get("isolate")
                     and not selected.worktree_owned
                 )
+                isolation_revision = (
+                    (selected.context or {})
+                    .get("source_binding", {})
+                    .get("revision", self.settings.worktree_base_ref)
+                )
             workspace = (
                 self.settings.worktree_root / f"codex-{task_id}"
-                if force_isolated or selected.worktree_owned
-                else self.settings.workspace
+                if force_isolated
+                else app_sources.task_workspace(self.settings, selected)
             )
             with self.factory.begin() as db:
                 task = self.require_task(db, task_id, locked=True)
+                from .registration import turn_owner
+
+                turn_owner(db, task, registration_session_hash)
                 self.require_allowed_task(task)
                 previous = db.get(Operation, operation_id)
                 initial_launch = bool(
@@ -521,7 +651,7 @@ class Runtime:
                         git.prepare_workspace,
                         root,
                         task_id,
-                        base_ref=self.settings.worktree_base_ref,
+                        base_ref=isolation_revision,
                         worktree_root=self.settings.worktree_root,
                         validate_target=self.settings.require_allowed_paths,
                     )
@@ -598,22 +728,73 @@ class Runtime:
                     "model": chosen_model,
                     "effort": effort,
                 }
+                if self.remote_task_id is not None:
+                    params["environments"] = remote_environments.selectors(task)
                 selected_skills = await self.skill_inputs(rpc, root, skill_names)
                 params["input"].extend(selected_skills)
                 reference_hashes = None
                 with self.factory() as db:
                     snapshot = self.require_task(db, task_id).template_snapshot
-                if snapshot and operation_id == str(snapshot.get("launch_id", operation_id)):
-                    import hashlib
-
+                if snapshot and initial_launch:
                     reference_hashes = {}
                     for path in snapshot["definition"]["references"]:
-                        contents = await asyncio.to_thread(git.read_worktree_file, Path(root), path)
+                        contents = await asyncio.to_thread(
+                            git.read_worktree_file, Path(root), path, missing_ok=False
+                        )
                         reference_hashes[path] = hashlib.sha256(contents).hexdigest()
+                elif snapshot:
+                    # Resuming must not silently replay stale policy or rewrite the
+                    # historical launch snapshot. Native Codex receives the changes
+                    # as context for this turn, without adding another approval loop.
+                    changes = []
+                    for path, expected in snapshot.get("reference_hashes", {}).items():
+                        try:
+                            contents = await asyncio.to_thread(
+                                git.read_worktree_file, Path(root), path, missing_ok=False
+                            )
+                        except ConsoleError:
+                            changes.append({"reference": path, "state": "unavailable"})
+                        else:
+                            if hashlib.sha256(contents).hexdigest() != expected:
+                                changes.append({"reference": path, "state": "changed"})
+                    requested = snapshot.get("definition", {}).get("skills", [])
+                    if requested:
+                        discovered = await rpc.call(
+                            "skills/list", {"cwds": [root], "forceReload": True}
+                        )
+                        available = {
+                            skill["name"]
+                            for entry in discovered.get("data", [])
+                            if entry.get("cwd") == root
+                            for skill in entry.get("skills", [])
+                            if skill.get("enabled")
+                        }
+                        changes.extend(
+                            {"skill": name, "state": "unavailable"}
+                            for name in requested
+                            if name not in available
+                        )
+                    if changes:
+                        context["template_context_changes"] = {
+                            "kind": "application",
+                            "value": json.dumps(
+                                {
+                                    "changes": changes,
+                                    "instruction": (
+                                        "References or selected skills have changed since launch. "
+                                        "Use current applicable contracts and inspect available "
+                                        "references before continuing. Explain material changes; "
+                                        "do not treat retired guidance or historical authorization "
+                                        "as a new instruction. The launch snapshot is historical."
+                                    ),
+                                }
+                            ),
+                        }
                 # Commit the submission boundary before any turn can reach app-server.
                 with self.factory.begin() as db:
                     task = self.require_task(db, task_id, locked=True)
                     self.require_allowed_task(task)
+                    turn_owner(db, task, registration_session_hash)
                     task.model, task.effort = chosen_model, effort
                     if reference_hashes is not None:
                         task.template_snapshot = {
@@ -641,6 +822,8 @@ class Runtime:
                     native = db.get(Agent, task.thread_id)
                     if native:
                         native.turn_id, native.status, native.flags = task.turn_id, "active", []
+                        if self.observation_current(rpc, rpc.generation):
+                            agents.observe_turn(native, response["turn"], rpc.generation)
                     task.previous_permissions = task.previous_execution_root = None
                     db.get(Operation, operation_id).state = "accepted"
                     store.changed(db, task, "turn.accepted")
@@ -667,9 +850,12 @@ class Runtime:
         attachment_ids=(),
         *,
         skill_names=(),
+        registration_session_hash=None,
         expected_turn_id=None,
         submission_digest=None,
     ):
+        if self.remote_task_id is not None and attachment_ids:
+            raise ConsoleError("app_executor_attachments_unsupported", 422)
         async with self.task_gate(task_id):
             rpc = await self.authenticated_rpc()
             key = str(operation_id)
@@ -682,6 +868,9 @@ class Runtime:
             )
             with self.factory.begin() as db:
                 task = self.require_task(db, task_id, locked=True)
+                from .registration import turn_owner
+
+                turn_owner(db, task, registration_session_hash)
                 self.require_allowed_task(task)
                 if expected_turn_id is not None and task.turn_id != expected_turn_id:
                     raise ConsoleError("turn_not_active")
@@ -727,6 +916,7 @@ class Runtime:
                     root = self.require_task(db, task_id).root
                 params["input"].extend(await self.skill_inputs(rpc, root, skill_names))
                 with self.factory.begin() as db:
+                    turn_owner(db, self.require_task(db, task_id), registration_session_hash)
                     db.get(Operation, key).state = "submitting"
                 submitted = True
                 await rpc.call("turn/steer", params)
@@ -840,10 +1030,14 @@ class Runtime:
         effort=None,
         operation_id=None,
         revision_id=None,
+        registration_session_hash=None,
     ):
         """Reconcile uncertain delivery before accepting a new, explicit user message."""
         with self.factory() as db:
             task = self.require_task(db, task_id)
+            from .registration import turn_owner
+
+            turn_owner(db, task, registration_session_hash)
             self.require_allowed_task(task)
             if task.status != "uncertain":
                 return False
@@ -867,6 +1061,7 @@ class Runtime:
                 async with self.task_gate(task_id):
                     with self.factory.begin() as db:
                         task = self.require_task(db, task_id, locked=True)
+                        turn_owner(db, task, registration_session_hash)
                         self.require_allowed_task(task)
                         if self.submission_state(db, task) != expected or self.rpc is not rpc:
                             raise ConsoleError("task_busy")
@@ -897,13 +1092,42 @@ class Runtime:
                         task.error_code = None
                         store.changed(db, task, "thread.reconnected")
                 return turn["id"]
-        await self.recover(task_id, expected_submission=expected)
+        await self.recover(
+            task_id,
+            expected_submission=expected,
+            registration_session_hash=registration_session_hash,
+        )
         return False
 
-    async def recover(self, task_id, *, expected_submission=None):
+    async def recover(self, task_id, *, expected_submission=None, registration_session_hash=None):
+        def identity(db, task):
+            operation = (
+                db.get(Operation, task.current_operation_id) if task.current_operation_id else None
+            )
+            return (
+                task.executor,
+                task.root,
+                task.context,
+                task.thread_id,
+                task.stage,
+                task.status,
+                task.runtime_generation,
+                task.turn_id,
+                task.current_operation_id,
+                operation.state if operation else None,
+                task.permissions,
+                task.last_execution_root,
+                task.previous_execution_root,
+                task.previous_permissions,
+                task.worktree_owned,
+            )
+
         async with self.task_gate(task_id):
             with self.factory.begin() as db:
                 task = self.require_task(db, task_id, locked=True)
+                from .registration import recovery_owner
+
+                recovery_owner(db, task, registration_session_hash)
                 self.require_allowed_task(task)
                 if expected_submission is not None:
                     if self.submission_state(db, task) != expected_submission:
@@ -936,13 +1160,40 @@ class Runtime:
                     store.changed(db, task, "submission.recovered")
                     return
                 implementation = task.stage in ("implement", "review")
+                registration_recovery = (task.context or {}).get("purpose") == "registration"
+                expected_identity = identity(db, task) if registration_recovery else None
             rpc = await self.authenticated_rpc()
-            result = await self.ensure_thread(task_id, rpc)
+            captured_generation = rpc.generation if registration_recovery else None
+
+            def current(db, selected):
+                recovery_owner(db, selected, registration_session_hash)
+                if (
+                    self.rpc is not rpc
+                    or rpc.generation != captured_generation
+                    or not rpc.connected
+                    or identity(db, selected) != expected_identity
+                ):
+                    raise ConsoleError("thread_unavailable", 409)
+                self.require_allowed_task(selected)
+
+            result = (
+                await self.ensure_thread(task_id, rpc, revalidate=current)
+                if registration_recovery
+                else await self.ensure_thread(task_id, rpc)
+            )
             thread = result["thread"]
-            if (thread.get("status") or {}).get("type") == "active":
+            if (thread.get("status") or {}).get("type") == "active" or (
+                (task.context or {}).get("purpose") == "registration"
+                and (thread.get("status") or {}).get("type") != "idle"
+            ):
                 raise ConsoleError("turn_not_finished")
             with self.factory.begin() as db:
                 task = self.require_task(db, task_id, locked=True)
+                from .registration import recovery_owner
+
+                recovery_owner(db, task, registration_session_hash)
+                if registration_recovery:
+                    current(db, task)
                 task.error_code = None
                 store.recover_document(db, task, thread.get("turns", []))
                 task.status, task.turn_id = "interrupted", None
@@ -960,11 +1211,14 @@ class Runtime:
                 store.release(db, task_id)
                 store.changed(db, task, "thread.recovered")
 
-    async def answer(self, task_id, request_id, answer):
+    async def answer(self, task_id, request_id, answer, *, registration_session_hash=None):
         async with self.task_gate(task_id):
             rpc = await self.connect()
             with self.factory.begin() as db:
                 task = self.require_task(db, task_id, locked=True)
+                from .registration import turn_owner
+
+                turn_owner(db, task, registration_session_hash)
                 self.require_allowed_task(task)
                 request = db.get(PendingRequest, request_id)
                 if (
@@ -1028,6 +1282,9 @@ class Runtime:
             with self.factory.begin() as db:
                 db.get(PendingRequest, request_id).state = "answered"
                 task = self.require_task(db, task_id, locked=True)
+                from .registration import turn_owner
+
+                turn_owner(db, task, registration_session_hash)
                 if task.status == "waiting":
                     task.status = "running"
                 native = db.get(Agent, request.thread_id or task.thread_id)
@@ -1036,13 +1293,15 @@ class Runtime:
                 store.changed(db, task, "request.sent")
 
     async def on_disconnect(self, reason="codex_disconnected", *, generation=None):
+        self.invalidate_observations(generation)
         if not generation or (self.rpc and self.rpc.generation == generation):
             self.error = reason
         with self.factory() as db:
             ids = [
                 t.id
                 for t in db.scalars(select(Task).where(Task.executor == self.executor))
-                if (not generation or t.runtime_generation == generation)
+                if self.owns(t)
+                and (not generation or t.runtime_generation == generation)
                 and (t.status in store.ACTIVE or agents.busy_descendants(db, t.id))
             ]
         for task_id in ids:
@@ -1063,6 +1322,7 @@ class Runtime:
     async def on_message(self, message, *, generation=None):
         if generation and (not self.rpc or generation != self.rpc.generation):
             return
+        observed_generation = generation or (self.rpc.generation if self.rpc else None)
         method, params = message.get("method", ""), message.get("params") or {}
         thread_id = params.get("threadId")
         if "id" in message:
@@ -1075,7 +1335,9 @@ class Runtime:
             return
         with self.factory() as db:
             found = agents.task_for_thread(db, thread_id, executor=self.executor)
-            task_id = found.id if found and found.executor == self.executor else None
+            task_id = (
+                found.id if found and found.executor == self.executor and self.owns(found) else None
+            )
         if not task_id and self.rpc:
             try:
                 result = await self.rpc.call(
@@ -1105,7 +1367,9 @@ class Runtime:
             if child:
                 with self.factory.begin() as db:
                     current = self.require_task(db, task_id, locked=True)
-                    agents.project(db, current, thread_id, method, params)
+                    agents.project(
+                        db, current, thread_id, method, params, generation=observed_generation
+                    )
                     if method == "thread/tokenUsage/updated":
                         workbench.observe_usage(db, current, thread_id, params)
                 await self.finish_descendants(task_id)
@@ -1120,7 +1384,7 @@ class Runtime:
                     and turn_id != task.turn_id
                 ):
                     return
-                agents.project(db, task, thread_id, method, params)
+                agents.project(db, task, thread_id, method, params, generation=observed_generation)
                 turn_id = params.get("turnId") or (params.get("turn") or {}).get("id")
                 if turn_id and task.turn_id and turn_id != task.turn_id:
                     return
@@ -1209,9 +1473,16 @@ class Runtime:
         method, params, request_id = message["method"], message.get("params", {}), message["id"]
         if generation and (not self.rpc or generation != self.rpc.generation):
             return
+        if self.remote_task_id is not None and method == "item/tool/call":
+            from . import delivery_tools, registration_tools
+
+            if await registration_tools.handle(self, message, generation=generation):
+                return
+            if await delivery_tools.handle(self, message, generation=generation):
+                return
         with self.factory() as db:
             linked = agents.task_for_thread(db, params.get("threadId"), executor=self.executor)
-            task_id = linked.id if linked else None
+            task_id = linked.id if linked and self.owns(linked) else None
             native = db.get(Agent, params.get("threadId")) if task_id else None
             needs_read = not task_id or not native or native.turn_id != params.get("turnId")
         if needs_read and self.rpc and params.get("threadId"):
@@ -1299,7 +1570,9 @@ class Runtime:
                 task = agents.task_for_thread(
                     db, thread.get("parentThreadId"), executor=self.executor
                 )
-            task_id = task.id if task and task.executor == self.executor else None
+            task_id = (
+                task.id if task and task.executor == self.executor and self.owns(task) else None
+            )
         if not task_id:
             return None
         async with self.task_gate(task_id):
@@ -1309,6 +1582,11 @@ class Runtime:
                 row = agents.register(db, thread, executor=self.executor)
                 if not row:
                     return None
+                observed_generation = generation or (self.rpc.generation if self.rpc else None)
+                if observed_generation:
+                    agents.observe_status(row, thread.get("status"), observed_generation)
+                    for turn in thread.get("turns", [])[-1:]:
+                        agents.observe_turn(row, turn, observed_generation)
                 for turn in thread.get("turns", [])[-1:]:
                     if turn.get("status") == "inProgress":
                         row.turn_id, row.status = turn["id"], "active"
@@ -1318,6 +1596,10 @@ class Runtime:
     async def skill_inputs(self, rpc, root, names):
         if not names:
             return []
+        if self.remote_task_id is not None:
+            # Host skills/list is not a remote capability catalog. Native remote
+            # discovery remains available without importing host skill paths.
+            raise ConsoleError("skill_unavailable", 422)
         if any(not isinstance(n, str) or not n.strip() or len(n) > 200 for n in names):
             raise ConsoleError("invalid_input", 422)
         result = await rpc.call("skills/list", {"cwds": [root], "forceReload": True})
@@ -1340,11 +1622,65 @@ class Runtime:
             rpc = self.rpc
             if not rpc or not rpc.connected:
                 return
+            generation = rpc.generation
             with self.factory() as db:
                 task = self.require_task(db, task_id)
                 self.require_allowed_task(task)
+                if not self.owns(task):
+                    return
                 root_id = task.thread_id
             if not root_id:
+                return
+
+            def current_task(db):
+                if not self.observation_current(rpc, generation):
+                    return None
+                task = self.require_task(db, task_id, locked=True)
+                if not self.owns(task) or task.thread_id != root_id:
+                    return None
+                self.require_allowed_task(task)
+                return task
+
+            def failure(thread_id, code="read_failed"):
+                with self.factory.begin() as db:
+                    task = current_task(db)
+                    row = db.get(Agent, thread_id) if task else None
+                    if row and row.task_id == task_id:
+                        agents.observation_failed(row, generation, code)
+
+            # Quiet roots produce no activity events. This observes metadata only;
+            # it neither loads/resumes a saved thread nor hydrates its history.
+            try:
+                result = await rpc.call("thread/read", {"threadId": root_id, "includeTurns": False})
+            except ConsoleError:
+                failure(root_id)
+            else:
+                with self.factory.begin() as db:
+                    task = current_task(db)
+                    if not task:
+                        return
+                    row = db.get(Agent, root_id)
+                    thread = result.get("thread") if isinstance(result, dict) else None
+                    if row and row.task_id == task_id:
+                        if not isinstance(thread, dict):
+                            agents.observation_failed(row, generation)
+                            thread = None
+                        identity = (
+                            thread is not None
+                            and thread.get("id") == root_id
+                            and thread.get("cwd") == task.root
+                            and thread.get("parentThreadId") is None
+                            and (not row.session_id or thread.get("sessionId") == row.session_id)
+                        )
+                        if thread is None:
+                            pass
+                        elif not identity:
+                            agents.observation_failed(row, generation, "identity_mismatch")
+                        elif not agents.observe_status(
+                            row, thread.get("status"), generation, direct=True
+                        ):
+                            agents.observation_failed(row, generation)
+            if not self.observation_current(rpc, generation):
                 return
             cursor = None
             discovered = []
@@ -1358,6 +1694,14 @@ class Runtime:
                         "cursor": cursor,
                     },
                 )
+                if not self.observation_current(rpc, generation):
+                    return
+                if (
+                    not isinstance(result, dict)
+                    or not isinstance(result.get("data"), list)
+                    or any(not isinstance(thread, dict) for thread in result["data"])
+                ):
+                    raise ConsoleError("thread_unavailable")
                 discovered.extend(result.get("data", []))
                 cursor = result.get("nextCursor")
                 if not cursor:
@@ -1366,6 +1710,8 @@ class Runtime:
                 raise ConsoleError("output_too_large")
             # Parent-first discovery, even if paginated responses arrive child-first.
             with self.factory.begin() as db:
+                if not current_task(db):
+                    return
                 remaining = discovered
                 for _ in range(32):
                     pending = [
@@ -1386,19 +1732,65 @@ class Runtime:
                     )
                 )
             for child_id in ids:
-                result = await rpc.call("thread/read", {"threadId": child_id, "includeTurns": True})
-                thread = result.get("thread", {})
+                try:
+                    result = await rpc.call(
+                        "thread/read", {"threadId": child_id, "includeTurns": True}
+                    )
+                except ConsoleError:
+                    failure(child_id)
+                    raise
+                if not self.observation_current(rpc, generation):
+                    return
+                thread = result.get("thread") if isinstance(result, dict) else None
+                if not isinstance(thread, dict):
+                    failure(child_id)
+                    raise ConsoleError("thread_unavailable")
                 if thread.get("id") != child_id:
+                    failure(child_id, "identity_mismatch")
+                    raise ConsoleError("thread_unavailable")
+                with self.factory() as db:
+                    task = self.require_task(db, task_id)
+                    previous = db.get(Agent, child_id)
+                    identity = (
+                        previous
+                        and previous.task_id == task_id
+                        and thread.get("cwd") == task.root
+                        and thread.get("parentThreadId") == previous.parent_thread_id
+                        and (
+                            not previous.session_id
+                            or thread.get("sessionId") == previous.session_id
+                        )
+                    )
+                if not identity:
+                    failure(child_id, "identity_mismatch")
+                    raise ConsoleError("thread_unavailable")
+                if (
+                    not isinstance(thread.get("status"), dict)
+                    or thread["status"].get("type") not in agents.THREAD_STATES
+                    or not isinstance(thread.get("turns", []), list)
+                    or any(not agents.valid_turn(turn) for turn in thread.get("turns", [])[-1:])
+                ):
+                    failure(child_id)
                     raise ConsoleError("thread_unavailable")
                 with self.factory.begin() as db:
-                    task = self.require_task(db, task_id, locked=True)
+                    task = current_task(db)
+                    if not task:
+                        return
                     row = agents.register(db, thread, executor=self.executor)
                     if not row or row.task_id != task_id:
                         raise ConsoleError("thread_unavailable")
+                    agents.observe_thread(row, thread, generation)
                     for turn in thread.get("turns", [])[-1:]:
                         row.turn_id = turn["id"]
                         if turn.get("status") in ("completed", "failed", "interrupted"):
-                            agents.project(db, task, child_id, "turn/completed", {"turn": turn})
+                            agents.project(
+                                db,
+                                task,
+                                child_id,
+                                "turn/completed",
+                                {"turn": turn},
+                                generation=generation,
+                            )
                         else:
                             row.status = "active"
                     store.changed(db, task, "agents.refreshed")
@@ -1426,6 +1818,9 @@ class Runtime:
                     )
                 )
             for task_id in ids:
+                with self.factory() as db:
+                    if not self.owns(db.get(Task, task_id)):
+                        continue
                 try:
                     await self.refresh_agents(task_id)
                 except ConsoleError:
@@ -1433,10 +1828,18 @@ class Runtime:
                     continue
 
     async def close(self):
-        if self.observer:
-            self.observer.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self.observer
-        if self.rpc:
-            await self.rpc.close()
-        await self.on_disconnect()
+        async def stop_observer():
+            if self.observer:
+                self.observer.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await self.observer
+
+        # A child's durable-state failure must not keep sibling native processes
+        # or this runtime's transport alive after service shutdown.
+        async with contextlib.AsyncExitStack() as closing:
+            closing.push_async_callback(self.on_disconnect)
+            if self.rpc:
+                closing.push_async_callback(self.rpc.close)
+            closing.push_async_callback(stop_observer)
+            for child in reversed(list(self.app_runtimes.values())):
+                closing.push_async_callback(child.close)

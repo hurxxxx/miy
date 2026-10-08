@@ -5,8 +5,9 @@ from collections.abc import Mapping
 from datetime import timedelta
 from typing import Any
 
+from fastapi import HTTPException
 from sqlalchemy import event, func, or_, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
 from miy_api.core.i18n import localized_http_exception
@@ -73,8 +74,13 @@ from miy_api.domains.mail.sync_batch import (
     cursor_for_mailbox_sync,
 )
 from miy_api.domains.mail.sync_jobs import (
+    MailSyncClaim,
+    MailSyncClaimLost,
+    MailSyncCommitUnknown,
     MailSyncRetryScheduled,
     clear_pending_mail_sync_job_publications,
+    commit_sync_phase,
+    lock_sync_claim,
     mark_sync_job_failed,
     pop_pending_mail_sync_job_publications,
     publish_sync_job,
@@ -95,6 +101,7 @@ from miy_api.domains.mail.sync_policy import (
     cancel_mail_sync_job,
     require_mail_sync_access,
 )
+from miy_api.domains.official_apps.source_guard import lock_source_writer
 
 logger = logging.getLogger(__name__)
 MAIL_APP_ID = "mail"
@@ -367,6 +374,20 @@ def enqueue_account_sync(
     return MailAccountOut.model_validate(row), job.id
 
 
+def _require_sync_phase(
+    db: Session, *, account_id: str, claim: MailSyncClaim | None, admit: bool = True
+) -> None:
+    if claim is None:
+        require_mail_sync_access(db, account_id=account_id)
+        lock_source_writer(db, "mail_accounts")
+    else:
+        if claim.account_id != account_id:
+            raise MailSyncClaimLost("mail_sync_claim_lost")
+        lock_sync_claim(db, claim, admit=admit)
+    # Recheck after any lock wait; an identity-map user/account is not authority.
+    require_mail_sync_access(db, account_id=account_id)
+
+
 def sync_account(
     db: Session,
     *,
@@ -374,8 +395,9 @@ def sync_account(
     client: MailProtocolClient | None = None,
     limit: int | None = None,
     operation: str | None = None,
+    claim: MailSyncClaim | None = None,
 ) -> MailSyncResult:
-    require_mail_sync_access(db, account_id=account_id)
+    _require_sync_phase(db, account_id=account_id, claim=claim)
     row = db.get(MailAccount, account_id)
     if row is None or row.deleted_at is not None:
         raise MailSyncAccessRevoked("Mail sync target no longer exists.")
@@ -385,10 +407,10 @@ def sync_account(
     row.last_error = None
     row.updated_at = utcnow_naive()
     db.add(row)
-    db.commit()
+    commit_sync_phase(db)
     states: list[MailSyncState] = []
     try:
-        require_mail_sync_access(db, account_id=account_id)
+        _require_sync_phase(db, account_id=account_id, claim=claim)
         settings = settings_from_account(row)
         enforce_connection_profile(settings, incoming=True, smtp=False)
         targets = sync_targets_for_account(
@@ -397,15 +419,17 @@ def sync_account(
             settings=settings,
             client=mail_client,
         )
+        _require_sync_phase(db, account_id=account_id, claim=claim, admit=False)
         states = [state for _mailbox, state in targets]
         for state in states:
             state.status = "syncing"
             state.last_error = None
             state.updated_at = utcnow_naive()
             db.add(state)
-        db.commit()
+        commit_sync_phase(db)
         result = MailSyncResult(new_count=0, updated_count=0, deleted_count=0)
         for mailbox, state in targets:
+            _require_sync_phase(db, account_id=account_id, claim=claim)
             sync_operation = operation or ("initial" if not state.cursor_json else "incremental")
             sync_cursor = cursor_for_mailbox_sync(
                 db,
@@ -413,14 +437,13 @@ def sync_account(
                 mailbox=mailbox,
                 cursor=dict(state.cursor_json or {}),
             )
-            require_mail_sync_access(db, account_id=account_id)
             batch = mail_client.sync_mailbox(
                 settings,
                 mailbox=mailbox.provider_mailbox_id,
                 cursor=sync_cursor,
                 initial_limit=max_messages,
             )
-            require_mail_sync_access(db, account_id=account_id)
+            _require_sync_phase(db, account_id=account_id, claim=claim, admit=False)
             mailbox_result = apply_sync_batch(
                 db,
                 account=row,
@@ -451,11 +474,19 @@ def sync_account(
         row.last_sync_deleted_count = result.deleted_count
         row.updated_at = now
         db.add(row)
-        require_mail_sync_access(db, account_id=account_id)
-        db.commit()
+        _require_sync_phase(db, account_id=account_id, claim=claim, admit=False)
+        commit_sync_phase(db)
         return result
+    except MailSyncCommitUnknown:
+        raise
+    except (MailSyncClaimLost, MailSyncAccessRevoked, SQLAlchemyError, HTTPException):
+        db.rollback()
+        raise
     except Exception as exc:
         db.rollback()
+        # Fence/claim/authority failures do not reach this path and
+        # cannot become account errors or authorize a new retry attempt.
+        _require_sync_phase(db, account_id=account_id, claim=claim, admit=False)
         row = db.get(MailAccount, account_id)
         if row is not None:
             row.status = "failed"
@@ -468,9 +499,8 @@ def sync_account(
             state.updated_at = utcnow_naive()
             db.add(state)
         if row is not None or states:
-            db.commit()
-        if not isinstance(exc, MailSyncAccessRevoked):
-            logger.warning("mail sync failed for account %s", account_id, exc_info=exc)
+            commit_sync_phase(db)
+        logger.warning("mail sync failed for account %s", account_id, exc_info=exc)
         raise
 
 
@@ -781,7 +811,13 @@ def process_mail_sync_job(
     client: MailProtocolClient | None = None,
     lease_owner: str | None = None,
 ) -> str:
-    job = db.scalar(select(MailSyncJob).where(MailSyncJob.id == job_id).with_for_update())
+    lock_source_writer(db, "mail_sync_jobs")
+    job = db.scalar(
+        select(MailSyncJob)
+        .where(MailSyncJob.id == job_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if job is None:
         return "missing"
     if job.status not in {"pending", "processing"}:
@@ -795,7 +831,7 @@ def process_mail_sync_job(
         job.next_retry_at = None
         job.updated_at = now
         db.add(job)
-        db.commit()
+        commit_sync_phase(db)
         return "cancelled"
     if job.status == "pending" and job.next_retry_at and job.next_retry_at > now:
         raise MailSyncRetryScheduled(seconds_until(job.next_retry_at, now=now))
@@ -821,13 +857,13 @@ def process_mail_sync_job(
         job.next_retry_at = None
         job.updated_at = now
         db.add(job)
-        db.commit()
+        commit_sync_phase(db)
         return "cancelled"
     try:
         require_mail_sync_access(db, account_id=account.id)
     except MailSyncAccessRevoked as exc:
         cancel_mail_sync_job(db, job=job, error=str(exc))
-        db.commit()
+        commit_sync_phase(db)
         return "cancelled"
     job.status = "processing"
     job.attempts += 1
@@ -839,35 +875,18 @@ def process_mail_sync_job(
     )
     job.updated_at = now
     db.add(job)
-    db.commit()
+    claim = MailSyncClaim.capture(job)
+    commit_sync_phase(db)
     try:
         result = sync_account(
             db,
-            account_id=job.account_id,
+            account_id=claim.account_id,
             client=client,
-            operation=job.operation,
+            operation=claim.operation,
+            claim=claim,
         )
-    except MailSyncAccessRevoked as exc:
-        db.rollback()
-        job = db.get(MailSyncJob, job_id)
-        if job is not None:
-            cancel_mail_sync_job(db, job=job, error=str(exc))
-            db.commit()
-        return "cancelled"
-    except Exception as exc:
-        db.rollback()
-        job = db.get(MailSyncJob, job_id)
-        if job is not None:
-            retry_countdown = mark_sync_job_failed(
-                db,
-                job=job,
-                error_text=_public_error(exc),
-            )
-            if retry_countdown is not None:
-                raise MailSyncRetryScheduled(retry_countdown) from exc
-        raise
-    job = db.get(MailSyncJob, job_id)
-    if job is not None:
+        job = lock_sync_claim(db, claim, admit=False)
+        require_mail_sync_access(db, account_id=claim.account_id)
         job.status = "succeeded"
         job.last_error = None
         job.next_retry_at = None
@@ -875,8 +894,43 @@ def process_mail_sync_job(
         job.lease_expires_at = None
         job.updated_at = utcnow_naive()
         db.add(job)
-        db.commit()
-    return f"synced:{result.changed_count}"
+        commit_sync_phase(db)
+        return f"synced:{result.changed_count}"
+    except MailSyncClaimLost:
+        db.rollback()
+        return "lost_lease"
+    except MailSyncCommitUnknown:
+        raise
+    except (SQLAlchemyError, HTTPException):
+        db.rollback()
+        raise
+    except MailSyncAccessRevoked as exc:
+        db.rollback()
+        try:
+            job = lock_sync_claim(db, claim, admit=False)
+        except MailSyncClaimLost:
+            db.rollback()
+            return "lost_lease"
+        cancel_mail_sync_job(db, job=job, error=str(exc))
+        commit_sync_phase(db)
+        return "cancelled"
+    except Exception as exc:
+        db.rollback()
+        try:
+            job = lock_sync_claim(db, claim, admit=False)
+        except MailSyncClaimLost:
+            db.rollback()
+            return "lost_lease"
+        try:
+            require_mail_sync_access(db, account_id=claim.account_id)
+        except MailSyncAccessRevoked as revoked:
+            cancel_mail_sync_job(db, job=job, error=str(revoked))
+            commit_sync_phase(db)
+            return "cancelled"
+        retry_countdown = mark_sync_job_failed(db, job=job, error_text=_public_error(exc))
+        if retry_countdown is not None:
+            raise MailSyncRetryScheduled(retry_countdown) from exc
+        raise
 
 
 def publish_due_mail_sync_jobs(db: Session, *, limit: int = 50) -> int:

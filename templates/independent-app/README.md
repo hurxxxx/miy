@@ -1,0 +1,32 @@
+# Independent app starter
+
+This React/Vite + FastAPI starter runs independently of the MIY API and web bundle. Generate a new app from the MIY checkout:
+
+```bash
+uv run --frozen --python 3.12 --directory apps/api python ../../scripts/independent-app-env.py scaffold /absolute/new-app --app-id my-app --name 'My app' --repository https://git.example/team/my-app.git
+```
+
+The destination must not exist. The generated app contains a versioned `app.manifest.json` and the current SDK under `vendor/miy-app-sdk`; no existing directory is overwritten. Register the manifest using authenticated `PUT /api/v1/independent-apps/definitions` with a full Git source revision. Registration is metadata, not a successful deployment. Create a development installation for your user, keep its returned ID, and configure the app server with these public values:
+
+```bash
+export MIY_APP_ID=my-app
+export MIY_APP_INSTALLATION_ID=<returned-installation-id>
+export MIY_APP_ORIGIN=http://127.0.0.1:5173
+export MIY_APP_PLATFORM_ORIGIN=http://127.0.0.1:8001
+```
+
+Use your actual configured origins. HTTP is supported only on loopback; a shared development server requires HTTPS and a separate app origin. The platform login token, database credentials, Docker socket, Codex authentication and product AI credentials are never app settings. App admission uses the platform's existing opaque login sessions; no OIDC deployment is required.
+
+For a trusted local checkout, install this app's own dependencies with `pnpm install` and `uv sync`, retain its generated lockfiles, then run `uv run uvicorn api:app --host 127.0.0.1 --port 8000` and `pnpm dev` in separate terminals. Vite serves port 5173 and proxies this app's API to port 8000; the platform must use a different port/origin. `pnpm build` produces `dist/`, which the app's FastAPI server serves after restart. Tests are `pnpm test`; the MIY checkout additionally tests scaffold boundaries and the SDK. These host commands are for the owner explicitly operating a trusted checkout; an app manifest cannot invoke host installation or startup commands.
+
+The portal iframe and the standalone **플랫폼에 연결** button use the same exact-origin, window-bound handshake. The standalone button opens the platform's existing login flow in a popup. The public `/api/config` determines the trusted platform origin; query strings cannot override it. The app server exchanges a one-use code with PKCE and revalidates the app session on every `/api/me` request. Add resource authorization to every business endpoint; app admission does not authorize another person's data.
+
+The example opts into the SDK's optional `onUIContext` callback with a connection-owned `AbortSignal`. Validated host theme/language changes update this app's own `src/presentation.mjs` copy, `document.lang`, CSS variables and `color-scheme`; they never reissue login. Korean and English are included, with a Korean fallback for other languages. An earlier connection is aborted before reconnecting and on unmount. Closing a standalone login popup stops further host updates and keeps the last display values until reconnecting. Old hosts still authenticate normally and use this app's default presentation. The browser protocol and manifest remain version 1; this is not an automatic SDK upgrade for existing apps.
+
+Selected platform files are an optional capability. An app must explicitly declare `files:read-selected`, receive that permission for its installation, and use the SDK's optional file picker; this starter and the private-notes template do not request or grant it by default. The user chooses one file in the platform UI. This does not grant file listing, arbitrary file IDs, upload, deletion, or automatic AI processing. Existing apps require an explicit source/SDK update and permission review; source generation does not expand their access.
+
+The app API provides only `POST /api/platform-files/selection-request` with `{schema_version:1, selection_id}` and `GET /api/platform-files/content` with an app bearer plus `X-MIY-Selected-File`. The server supplies its configured installation and audience to the two fixed Core paths. Selection proofs are bounded and checked against that exact context. File reads accept at most 10 MiB within a 15-second total deadline, validate the full content length before returning bytes, and return an attachment as `application/octet-stream` with private/no-store, nosniff and no-referrer headers. No ranges, redirects, external proxy configuration, caller-selected URLs or persistent copies are supported by this adapter. The core-owned gateway exposes these two app-authorized paths in both web profiles; the portal-only candidate/selection-approval endpoints remain unreachable through it. Core rechecks the current app session, file ACL and selected file version on every read.
+
+This basic starter has no database or worker. For owner-scoped data, select the [private notes template](../independent-app-data/README.md) and its explicit `web-api-postgres-v1` profile; the core provisions a separate installation database and never supplies database credentials to app code. The production installation cannot be activated using a self-reported successful test or uploaded release candidate. The current trusted verifier/executor supports local development only; production delivery, worker/object-storage profiles and actual browser deployment-domain checks remain separate acceptance work. See [the current platform contract](../../apps/api/src/miy_api/domains/independent_apps/README.md) in the MIY source checkout.
+
+`scripts/independent-app-env.py plan` prints a constrained container profile using an explicitly supplied image digest and loopback port. It does not start Docker or claim that the image was verified. The app cannot supply host mounts, privileged mode, environment values or an `initializeCommand`. The core-owned local delivery CLI can build an exact registered commit, activate a verified local image, retain status and reconcile/roll back it; its operator-only setup and fixed offline dependency profile are documented in the platform contract above. It is not an app-workspace command. Production delivery and authenticated cross-site browser checks remain separate acceptance work.

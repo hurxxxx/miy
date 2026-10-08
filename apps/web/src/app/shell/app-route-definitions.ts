@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 
-import { docsManifest } from '@/src/app-modules/docs';
+import { docsManifest } from '@miy/official-suite-web/docs/module';
 import {
   adminRedirectRoutes,
   adminSectionRoutes,

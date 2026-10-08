@@ -1,1 +1,2 @@
-export const WHITEBOARD_PREVIEW_BACKGROUND_COLOR = '#ffffff';
+/** Compatibility entry; the official suite owns this implementation. */
+export * from '@miy/official-suite-web/whiteboard/views/whiteboard-colors';

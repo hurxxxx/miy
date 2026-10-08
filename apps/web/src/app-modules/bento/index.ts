@@ -1,11 +1,2 @@
-import { bentoAiBackgroundWorkSource } from './background-work';
-import { bentoManifest } from './manifest';
-import { bentoAppRoutes } from './routes';
-
-export { bentoAiBackgroundWorkSource, bentoAppRoutes, bentoManifest };
-
-export const bentoModule = {
-  backgroundWorkSources: [bentoAiBackgroundWorkSource],
-  manifest: bentoManifest,
-  appRoutes: bentoAppRoutes,
-} as const;
+/** Compatibility entry; the official suite owns this module composition. */
+export * from '@miy/official-suite-web/bento/module';

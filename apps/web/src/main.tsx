@@ -10,7 +10,7 @@ import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
-import './styles/fullcalendar-theme.css';
+import '@miy/official-suite-web/calendar/fullcalendar-theme.css';
 
 installStaleAssetReloadHandler();
 installClientBuildGuards();

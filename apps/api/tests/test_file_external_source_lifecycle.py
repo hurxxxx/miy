@@ -13,6 +13,7 @@ from starlette.exceptions import HTTPException
 from company_admission_fixture import company_authority_tables, seed_company_app_access
 
 from miy_api.core.db import Base
+from miy_api.domains.official_apps.writer_models import RuntimeOwnership
 from miy_api.domains.auth.models import User, UserSystemRole
 from miy_api.domains.pms.space_models import Team, TeamMember, SpaceGroupBinding
 from miy_api.domains.groups.models import Group, GroupMember
@@ -63,6 +64,7 @@ def db() -> Session:
         engine,
         tables=[
             *company_authority_tables(),
+            RuntimeOwnership.__table__,
             Team.__table__,
             TeamMember.__table__,
             SpaceGroupBinding.__table__,
@@ -76,6 +78,16 @@ def db() -> Session:
         ],
     )
     with Session(engine) as session:
+        session.add(
+            RuntimeOwnership(
+                scope="official.suite",
+                active_owner="legacy",
+                generation=1,
+                artifact=None,
+                state="active",
+            )
+        )
+        session.flush()
         seed_company_app_access(session)
         session.flush()
         session.add_all(
@@ -656,7 +668,7 @@ def test_external_upsert_removes_object_when_caller_rolls_back(
     assert db.scalar(select(func.count()).select_from(FileManagerFile)) == 0
 
 
-def test_external_upsert_removes_object_after_outer_commit_failure(
+def test_external_upsert_preserves_object_after_unknown_outer_commit_failure(
     db: Session,
     lifecycle_spies: SimpleNamespace,
 ) -> None:
@@ -677,12 +689,12 @@ def test_external_upsert_removes_object_after_outer_commit_failure(
             db.commit()
         except Exception:
             # SQLAlchemy requires callers to roll back a failed commit before
-            # the Session can be reused. Compensation follows that contract.
+            # the Session can be reused. This does not prove COMMIT was rejected.
             db.rollback()
             raise
 
-    assert lifecycle_spies.stored == {}
-    assert lifecycle_spies.removed_storage_keys == [storage_key]
+    assert lifecycle_spies.stored[storage_key] == b"must-be-compensated"
+    assert lifecycle_spies.removed_storage_keys == []
     assert db.scalar(select(func.count()).select_from(FileManagerFile)) == 0
 
 

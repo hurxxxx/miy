@@ -18,12 +18,14 @@ PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 PNG_DATA_URL_PREFIX = "data:image/png;base64,"
 
 
-def diagram_source_storage_key(*, diagram_id: str) -> str:
-    return f"diagrams/{diagram_id}/source.drawio.xml"
+def diagram_source_storage_key(*, diagram_id: str, version_id: str | None = None) -> str:
+    version_path = f"versions/{version_id}/" if version_id is not None else ""
+    return f"diagrams/{diagram_id}/{version_path}source.drawio.xml"
 
 
-def diagram_preview_storage_key(*, diagram_id: str) -> str:
-    return f"diagrams/{diagram_id}/preview.png"
+def diagram_preview_storage_key(*, diagram_id: str, version_id: str | None = None) -> str:
+    version_path = f"versions/{version_id}/" if version_id is not None else ""
+    return f"diagrams/{diagram_id}/{version_path}preview.png"
 
 
 def decode_preview_data_url(value: str) -> bytes | None:

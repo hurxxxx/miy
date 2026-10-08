@@ -23,7 +23,9 @@ class Stream extends EventTarget {
     super();
     Stream.current = this;
   }
-  close() {}
+  close() {
+    // This in-memory event source owns no transport resources.
+  }
 }
 
 const taskId = '00000000-0000-4000-8000-000000000001';
@@ -136,7 +138,7 @@ it.each([false, true])(
   async (failed) => {
     render(<App />);
     await screen.findByRole('button', {
-      name: /에이전트 활동.*실행 중 에이전트: 0/,
+      name: /에이전트 활동.*마지막 보고 기준 실행 에이전트: 0/,
     });
     const original = vi.mocked(api).getMockImplementation()!;
     const requests: {
@@ -166,7 +168,7 @@ it.each([false, true])(
       screen.getByRole('button', {
         name: failed
           ? /에이전트 활동.*상태 갱신 지연/
-          : /에이전트 활동.*실행 중 에이전트: 1/,
+          : /에이전트 활동.*마지막 보고 기준 실행 에이전트: 1/,
       }),
     ).toBeTruthy();
   },
@@ -179,6 +181,157 @@ async function openAndCompose() {
     target: { value: 'Same request' },
   });
 }
+
+async function openComposerSelection() {
+  const other = {
+    ...detail,
+    id: '00000000-0000-4000-8000-000000000002',
+    title: 'Another task',
+  };
+  detail.attachments = [
+    { id: 'file-a', name: 'Reference A.txt', size: 10, deleted: false },
+  ];
+  const availableSkills = [{ name: 'review-change', description: 'Review' }];
+  const original = vi.mocked(api).getMockImplementation();
+  if (!original) throw new Error('Expected the test API fixture');
+  vi.mocked(api).mockImplementation(async (path, ...args) => {
+    if (path === '/overview') return [detail, other];
+    if (path === `/tasks/${other.id}`) return other;
+    if (path === `/tasks/${other.id}/git`) return gitState;
+    if (path === `/tasks/${other.id}/skills`) return [];
+    if (path === `/tasks/${taskId}/skills`) return availableSkills;
+    if (path === '/session/login') return { authenticated: true };
+    return original(path, ...args);
+  });
+  await openAndCompose();
+  fireEvent.change(await screen.findByLabelText('작업 절차 사용'), {
+    target: { value: 'review-change' },
+  });
+  fireEvent.click(
+    within(screen.getByRole('navigation', { name: '결과물' })).getByRole(
+      'button',
+      { name: '파일' },
+    ),
+  );
+  fireEvent.click(screen.getByRole('checkbox', { name: /Reference A.txt/ }));
+  return { other, availableSkills };
+}
+
+async function switchComposerTask(title: string) {
+  fireEvent.click(screen.getByRole('button', { name: '세션 목록으로' }));
+  fireEvent.click(
+    within(screen.getByRole('list', { name: '세션' })).getByRole('button', {
+      name: new RegExp(title),
+    }),
+  );
+  await screen.findByRole('heading', { name: title });
+}
+
+it('restores task-specific composer selections and excludes inputs no longer available', async () => {
+  const { other, availableSkills } = await openComposerSelection();
+  await switchComposerTask(other.title);
+  expect(
+    screen.queryByRole('group', { name: '이번 메시지에 첨부할 파일' }),
+  ).toBeNull();
+  expect(
+    (screen.getByLabelText('요청 내용 입력') as HTMLTextAreaElement).value,
+  ).toBe('');
+  fireEvent.change(screen.getByLabelText('요청 내용 입력'), {
+    target: { value: 'Draft B' },
+  });
+  await switchComposerTask(detail.title);
+  expect(
+    ((await screen.findByLabelText('작업 절차 사용')) as HTMLSelectElement)
+      .value,
+  ).toBe('review-change');
+  expect(
+    screen.getByRole('group', { name: '이번 메시지에 첨부할 파일' })
+      .textContent,
+  ).toContain('Reference A.txt');
+  expect(
+    (screen.getByLabelText('요청 내용 입력') as HTMLTextAreaElement).value,
+  ).toBe('Same request');
+  await switchComposerTask(other.title);
+  expect(
+    (screen.getByLabelText('요청 내용 입력') as HTMLTextAreaElement).value,
+  ).toBe('Draft B');
+  detail.attachments = detail.attachments.map((file) => ({
+    ...file,
+    deleted: true,
+  }));
+  availableSkills.splice(0);
+  await switchComposerTask(detail.title);
+  expect(
+    screen.queryByRole('group', { name: '이번 메시지에 첨부할 파일' }),
+  ).toBeNull();
+  expect(screen.queryByLabelText('작업 절차 사용')).toBeNull();
+  const submitted = vi.fn(async () => detail);
+  submit = submitted;
+  fireEvent.click(screen.getByRole('button', { name: '보내기' }));
+  await waitFor(() =>
+    expect(submitted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'Same request',
+        attachment_ids: [],
+        skill_names: [],
+      }),
+    ),
+  );
+});
+
+it('does not restore sent attachments or text when submission finishes on another task', async () => {
+  const { other } = await openComposerSelection();
+  let complete!: (value: Detail) => void;
+  submit = () =>
+    new Promise((resolve) => {
+      complete = resolve;
+    });
+  fireEvent.click(screen.getByRole('button', { name: '보내기' }));
+  await waitFor(() => expect(complete).toBeTypeOf('function'));
+  await switchComposerTask(other.title);
+  await act(async () => {
+    complete(detail);
+  });
+  await switchComposerTask(detail.title);
+  expect(
+    screen.queryByRole('group', { name: '이번 메시지에 첨부할 파일' }),
+  ).toBeNull();
+  expect(
+    (screen.getByLabelText('요청 내용 입력') as HTMLTextAreaElement).value,
+  ).toBe('');
+  expect(
+    ((await screen.findByLabelText('작업 절차 사용')) as HTMLSelectElement)
+      .value,
+  ).toBe('review-change');
+});
+
+it('clears saved composer selections and text when the owner signs out', async () => {
+  const { other } = await openComposerSelection();
+  await switchComposerTask(other.title);
+  fireEvent.click(screen.getByRole('button', { name: '로그아웃' }));
+  fireEvent.change(await screen.findByLabelText('본인 전용 비밀번호'), {
+    target: { value: 'test-password-only' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '로그인' }));
+  fireEvent.click(await screen.findByRole('button', { name: '세션' }));
+  fireEvent.click(
+    within(await screen.findByRole('list', { name: '세션' })).getByRole(
+      'button',
+      { name: /Test task/ },
+    ),
+  );
+  await screen.findByRole('heading', { name: detail.title });
+  expect(
+    screen.queryByRole('group', { name: '이번 메시지에 첨부할 파일' }),
+  ).toBeNull();
+  expect(
+    (screen.getByLabelText('요청 내용 입력') as HTMLTextAreaElement).value,
+  ).toBe('');
+  expect(
+    ((await screen.findByLabelText('작업 절차 사용')) as HTMLSelectElement)
+      .value,
+  ).toBe('');
+});
 
 async function openPlanConfirmation() {
   detail.revisions = [

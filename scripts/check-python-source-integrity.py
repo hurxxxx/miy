@@ -109,7 +109,7 @@ def _duplicate_router_specs(tree: ast.Module, path: Path) -> list[Finding]:
     findings: list[Finding] = []
     seen: dict[str, int] = {}
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Call) or _call_name(node.func) != "_RouterSpec":
+        if not isinstance(node, ast.Call) or _call_name(node.func) not in {"_RouterSpec", "RouterSpec"}:
             continue
         router_node = node.args[0] if node.args else next(
             (keyword.value for keyword in node.keywords if keyword.arg == "router"),
@@ -128,7 +128,7 @@ def _duplicate_router_specs(tree: ast.Module, path: Path) -> list[Finding]:
                     line=node.lineno,
                     code="duplicate-router-spec",
                     message=(
-                        f"_RouterSpec registers {router_name!r} again; first registration "
+                        f"{_call_name(node.func)} registers {router_name!r} again; first registration "
                         f"is on line {previous_line}."
                     ),
                 )

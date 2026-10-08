@@ -48,4 +48,14 @@ class ASRBackend(Protocol):
         *,
         language_hint: str | None = None,
         on_progress: Callable[[float], None] | None = None,
-    ) -> TranscriptResult: ...
+    ) -> TranscriptResult:
+        """Transcribe synchronously on the initiating thread.
+
+        Invoke on_progress on that same thread and propagate any exception it
+        raises before continuing work or returning a result. The caller may
+        commit and reacquire authority inside this callback; its Session is not
+        thread safe. Asynchronous callbacks or swallowing their failures violate
+        this backend contract. Callback failure is not proof that an already
+        accepted remote request or native computation has been cancelled.
+        """
+        ...

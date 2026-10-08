@@ -1,4 +1,7 @@
 import asyncio
+import json
+import subprocess
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -6,8 +9,89 @@ from conftest import new_task, send_message
 from sqlalchemy import select
 
 from codex_console import store
+from codex_console.config import AppExecutionEnvironment
 from codex_console.errors import ConsoleError
 from codex_console.models import Operation, PendingRequest, Task
+
+
+@pytest.mark.parametrize("reference_state", ["changed", "unavailable"])
+def test_resume_explains_reference_changes_without_rewriting_launch_snapshot(
+    client, repository, reference_state
+):
+    row = template(client)
+    launched = launch(client, row).json()
+    original = launched["template_snapshot"]
+    runtime = client.app.state.template_runtime
+    client.portal.call(
+        runtime.on_message,
+        {
+            "method": "turn/completed",
+            "params": {
+                "threadId": launched["thread_id"],
+                "turn": {"id": launched["turn_id"], "status": "completed"},
+            },
+        },
+    )
+    if reference_state == "changed":
+        (repository / "hello.txt").write_text("The current contract has changed.\n")
+    else:
+        (repository / "hello.txt").unlink()
+    resumed = send_message(client, launched, text="Continue the authorized review")
+    assert resumed.status_code == 200, resumed.json()
+    request = [p for m, p in runtime.rpc.calls if m == "turn/start"][-1]
+    changes = json.loads(request["additionalContext"]["template_context_changes"]["value"])
+    assert changes["changes"] == [{"reference": "hello.txt", "state": reference_state}]
+    assert client.get(f"/api/tasks/{launched['id']}").json()["template_snapshot"] == original
+    assert len([m for m, _ in runtime.rpc.calls if m == "thread/start"]) == 1
+
+
+def test_resume_reports_retired_skill_without_reapplying_it(client, monkeypatch):
+    from conftest import FakeRPC
+
+    native_call = FakeRPC.call
+    installed = True
+
+    async def call(rpc, method, params):
+        if method == "skills/list":
+            return {
+                "data": [
+                    {
+                        "cwd": str(client.app.state.settings.workspace),
+                        "skills": [
+                            {
+                                "name": "review-helper",
+                                "path": "/skills/review/SKILL.md",
+                                "enabled": True,
+                            }
+                        ]
+                        if installed
+                        else [],
+                    }
+                ]
+            }
+        return await native_call(rpc, method, params)
+
+    monkeypatch.setattr(FakeRPC, "call", call)
+    launched = launch(client, template(client, skills=["review-helper"])).json()
+    runtime = client.app.state.template_runtime
+    original = launched["template_snapshot"]
+    client.portal.call(
+        runtime.on_message,
+        {
+            "method": "turn/completed",
+            "params": {
+                "threadId": launched["thread_id"],
+                "turn": {"id": launched["turn_id"], "status": "completed"},
+            },
+        },
+    )
+    installed = False
+    assert send_message(client, launched).status_code == 200
+    request = [p for m, p in runtime.rpc.calls if m == "turn/start"][-1]
+    changes = json.loads(request["additionalContext"]["template_context_changes"]["value"])
+    assert changes["changes"] == [{"skill": "review-helper", "state": "unavailable"}]
+    assert not any(item["type"] == "skill" for item in request["input"])
+    assert client.get(f"/api/tasks/{launched['id']}").json()["template_snapshot"] == original
 
 
 def template(client, **changes):
@@ -35,6 +119,119 @@ def launch(client, row, **changes):
             "values": {},
             **changes,
         },
+    )
+
+
+@pytest.fixture
+def app_source(client, tmp_path):
+    root = tmp_path / "bound-app"
+    root.mkdir()
+    manifest = json.loads(
+        (Path(__file__).parents[3] / "templates/independent-app/app.manifest.json").read_text()
+    )
+    manifest["source"]["directory"] = "app"
+    (root / "app/ui").mkdir(parents=True)
+    (root / "app/ui/hello.txt").write_text("App review reference\n")
+    (root / "app.manifest.json").write_text(json.dumps(manifest))
+    for args in (
+        ("init", "-b", "personal"),
+        ("config", "user.email", "console@test.invalid"),
+        ("config", "user.name", "Console Test"),
+        ("remote", "add", "origin", manifest["source"]["repository"]),
+        ("add", "."),
+        ("commit", "-m", "app fixture"),
+    ):
+        subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True)
+    cfg = client.app.state.settings
+    cfg.app_source_roots = [root]
+    cfg.app_execution_environments = [
+        AppExecutionEnvironment(
+            key="sample",
+            source_root=root,
+            exec_server_url="ws://127.0.0.1:19876",
+            auth_bearer_token="synthetic-executor-token-" * 3,
+        )
+    ]
+    # The platform branch does not exist in the independent repository.
+    cfg.worktree_base_ref = "origin/dev"
+    result = client.put(
+        "/api/workbench/apps/sample-app/source",
+        json={"repository_root": str(root), "version": 0},
+    )
+    assert result.status_code == 200, result.json()
+    return root
+
+
+def test_app_template_uses_selected_remote_repository_and_nested_directory(client, app_source):
+    row = template(client, app_id="sample-app", directory="ui")
+    response = launch(client, row)
+    assert response.status_code == 200, response.json()
+    task = response.json()
+    expected = app_source / "app/ui"
+    assert task["root"] == str(expected)
+    with client.app.state.factory() as db:
+        assert not db.get(Task, task["id"]).worktree_owned
+    assert task["context"]["source_binding"]["directory"] == "app"
+    assert task["context"]["release_unit"] is None
+    assert task["template_snapshot"]["definition"]["app_id"] == "sample-app"
+    assert task["template_snapshot"]["reference_hashes"]["hello.txt"]
+    runtime = client.app.state.template_runtime.for_task(task["id"])
+    assert runtime.remote_task_id == task["id"]
+    host_rpc = client.app.state.template_runtime.rpc
+    assert not host_rpc or not any(
+        method in ("thread/start", "thread/resume", "turn/start") for method, _ in host_rpc.calls
+    )
+    request = [p for m, p in runtime.rpc.calls if m == "turn/start"][-1]
+    assert request["cwd"] == str(expected)
+    assert request["environments"][0]["cwd"] == str(expected)
+
+
+def test_app_template_cannot_create_unmounted_host_worktree(client, app_source):
+    row = template(client, app_id="sample-app", directory="ui", isolate=True)
+    response = launch(client, row)
+    assert response.status_code == 200
+    task = response.json()
+    assert task["status"] == "failed"
+    assert task["error_code"] == "app_executor_worktree_unsupported"
+    assert task["thread_id"] is None and task["root"] == str(app_source / "app/ui")
+    assert not any(client.app.state.settings.worktree_root.glob("codex-*"))
+
+
+def test_bound_app_can_be_repaired_but_new_template_launch_requires_valid_manifest(
+    client, app_source
+):
+    row = template(client, app_id="sample-app", directory="ui")
+    task = launch(client, row).json()
+    runtime = client.app.state.template_runtime.for_task(task["id"])
+    client.portal.call(
+        runtime.on_message,
+        {
+            "method": "turn/completed",
+            "params": {
+                "threadId": task["thread_id"],
+                "turn": {"id": task["turn_id"], "status": "completed"},
+            },
+        },
+    )
+    (app_source / "app.manifest.json").write_text("{ invalid")
+    resumed = send_message(client, task, text="Repair the app manifest")
+    assert resumed.status_code == 200, resumed.json()
+    assert resumed.json()["root"] == str(app_source / "app/ui")
+    assert launch(client, row).status_code == 422
+    client.app.state.settings.app_source_roots = []
+    denied = send_message(client, task)
+    assert denied.status_code == 403, denied.json()
+
+
+def test_app_template_picker_never_discovers_host_skills_for_app_source(client, app_source):
+    response = client.get("/api/templates/catalog?app_id=sample-app&directory_name=ui")
+    assert response.status_code == 200, response.json()
+    assert response.json()["workspace"] == str(app_source / "app/ui")
+    assert response.json()["skills"] == []
+    assert not any(m == "skills/list" for m, _ in client.app.state.template_runtime.rpc.calls)
+    assert (
+        client.get("/api/templates/catalog?app_id=sample-app&directory_name=../..").status_code
+        == 403
     )
 
 
@@ -327,9 +524,7 @@ def test_parent_and_nested_writers_share_one_workspace_lease(client, repository)
     assert response.status_code == 200
     root_task = response.json()
     assert root_task["status"] == "running"
-    row = template(
-        client, directory="component", references=["entry.txt"], stage="implement"
-    )
+    row = template(client, directory="component", references=["entry.txt"], stage="implement")
     blocked = launch(client, row).json()
     assert blocked["status"] == "failed" and blocked["error_code"] == "workspace_busy"
     isolated = launch(client, template(client, isolate=True, stage="implement")).json()

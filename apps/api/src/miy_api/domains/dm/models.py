@@ -7,9 +7,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from miy_api.core.db import Base
 from miy_api.domains.auth.models import utcnow_naive
+from miy_api.domains.official_apps.writer_contracts import OfficialWriterSource
 
 
-class DmConversation(Base):
+class DmConversation(OfficialWriterSource, Base):
     __tablename__ = "dm_conversations"
     __table_args__ = (
         UniqueConstraint("direct_key", name="uq_dm_conversations_direct_key"),
@@ -43,7 +44,7 @@ class DmConversation(Base):
     )
 
 
-class DmConversationParticipant(Base):
+class DmConversationParticipant(OfficialWriterSource, Base):
     __tablename__ = "dm_conversation_participants"
     __table_args__ = (
         Index(
@@ -86,7 +87,7 @@ class DmConversationParticipant(Base):
     last_read_message = relationship("DmMessage", foreign_keys=[last_read_message_id])
 
 
-class DmMessage(Base):
+class DmMessage(OfficialWriterSource, Base):
     __tablename__ = "dm_messages"
     __table_args__ = (
         UniqueConstraint(
@@ -131,7 +132,7 @@ class DmMessage(Base):
     )
 
 
-class DmMessageAttachment(Base):
+class DmMessageAttachment(OfficialWriterSource, Base):
     __tablename__ = "dm_message_attachments"
     __table_args__ = (
         Index("ix_dm_message_attachments_conversation", "conversation_id", "created_at"),

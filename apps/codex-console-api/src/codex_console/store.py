@@ -282,6 +282,8 @@ def task_out(task, db=None):
 
 
 def agent_list(db, task_id):
+    from .agents import observation_out
+
     return [
         {
             "thread_id": a.thread_id,
@@ -294,6 +296,7 @@ def agent_list(db, task_id):
             "activity": a.activity,
             "progress": a.progress,
             "updated_at": a.updated_at.isoformat(),
+            "observation": observation_out(a),
         }
         for a in db.scalars(
             select(Agent)
@@ -462,9 +465,13 @@ def reconcile_history(db, task, turns):
 
 
 def recover_startup(factory, executor="session"):
-    from .agents import TERMINAL, busy_descendants
+    from .agents import TERMINAL, busy_descendants, invalidate_observation
 
     with factory.begin() as db:
+        for row in db.scalars(
+            select(Agent).join(Task, Agent.task_id == Task.id).where(Task.executor == executor)
+        ):
+            invalidate_observation(row)
         for task in db.scalars(
             select(Task).where(
                 Task.executor == executor,

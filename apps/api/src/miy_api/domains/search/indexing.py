@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from miy_api.core.settings import get_settings
 from miy_api.domains.retrieval.models import RetrievalProjectionHead
+from miy_api.domains.retrieval.docs_legacy_repair import dispatch_docs_legacy_repair
 from miy_api.domains.search.backend_contracts import (
     KeywordSearchBackendError,
     KeywordSearchClient,
@@ -48,6 +49,9 @@ def process_search_index_job(
     client_factory: Callable[[Session, SearchIndexJob], KeywordSearchClient] | None = None,
     execution_allowed: Callable[[Session, SearchIndexJob], bool] | None = None,
 ) -> str:
+    converted = dispatch_docs_legacy_repair(db, kind="search", job_id=job_id)
+    if converted is not None:
+        return converted
     job, claim_outcome = _claim_search_index_job(db, job_id)
     if claim_outcome == "missing":
         return "missing"

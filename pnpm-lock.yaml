@@ -351,6 +351,8 @@ importers:
 
   apps/codex-console-web: {}
 
+  packages/app-sdk: {}
+
   packages/collab-codec-runtime:
     dependencies:
       '@blocknote/core':

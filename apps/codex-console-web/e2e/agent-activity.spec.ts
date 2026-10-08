@@ -28,6 +28,18 @@ test('global activity follows parallel agents through completion across pages an
         status: 'active',
         flags: [],
         updated_at: new Date().toISOString(),
+        observation: {
+          thread_status: 'active',
+          thread_checked_at: new Date().toISOString(),
+          attempted_at: new Date().toISOString(),
+          last_turn: {
+            id: 'review-turn',
+            status: 'inProgress',
+            observed_at: new Date().toISOString(),
+          },
+          error_code: null,
+          freshness: 'fresh',
+        },
       },
       {
         thread_id: 'child',
@@ -49,7 +61,9 @@ test('global activity follows parallel agents through completion across pages an
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   const trigger = page.getByRole('button', { name: /^에이전트 활동 ·/ });
-  await expect(trigger).toHaveAccessibleName(/실행 중 에이전트: 2/);
+  await expect(trigger).toHaveAccessibleName(
+    /마지막 보고 기준 실행 에이전트: 2/,
+  );
   await expect(page.getByRole('dialog', { name: '에이전트 활동' })).toHaveCount(
     0,
   );
@@ -64,23 +78,51 @@ test('global activity follows parallel agents through completion across pages an
     .getByRole('navigation', { name: 'Workbench 메뉴' })
     .getByRole('button', { name: '모니터링' })
     .click();
-  await expect(trigger).toHaveAccessibleName(/실행 중 에이전트: 2/);
+  await expect(trigger).toHaveAccessibleName(
+    /마지막 보고 기준 실행 에이전트: 2/,
+  );
   await trigger.click();
   await panel.getByRole('button', { name: /병렬 점검/ }).focus();
   task.status = 'idle';
   task.agents.forEach((agent) => {
     agent.status = 'completed';
+    agent.observation = {
+      thread_status: 'notLoaded',
+      thread_checked_at: new Date().toISOString(),
+      attempted_at: new Date().toISOString(),
+      last_turn: {
+        id: 'review-turn',
+        status: 'completed',
+        observed_at: new Date().toISOString(),
+      },
+      error_code: null,
+      freshness: 'fresh',
+    };
   });
   await page.evaluate(() =>
     document.dispatchEvent(new Event('visibilitychange')),
   );
   await expect(trigger).toHaveAccessibleName(
-    /실행 중 에이전트: 0.*최근 종료: 1/,
+    /마지막 보고 기준 실행 에이전트: 0.*최근 종료: 1/,
   );
   await expect(
     panel.getByRole('region', { name: '최근 종료' }).getByText('병렬 점검'),
   ).toBeVisible();
   await expect(panel.getByRole('button', { name: /병렬 점검/ })).toBeFocused();
+  await panel.getByText('에이전트 상세', { exact: false }).click();
+  const reviewCard = panel.locator('.agent-card').filter({
+    has: page.locator('summary strong', { hasText: '리뷰 에이전트' }),
+  });
+  await reviewCard.locator('summary').click();
+  await expect(reviewCard.locator('summary')).toContainText(
+    '저장된 상태: 완료',
+  );
+  await expect(reviewCard.locator('summary')).toContainText(
+    'Codex 관측 상태: 불러오지 않음',
+  );
+  await expect(
+    reviewCard.getByText('review-turn', { exact: true }),
+  ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   const box = await panel.boundingBox();
   expect(box!.x).toBeGreaterThanOrEqual(0);

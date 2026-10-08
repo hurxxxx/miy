@@ -3,20 +3,17 @@ import { useEffect, useReducer } from 'react';
 import {
   listRecentPages,
   type RecentPageItem,
-} from '@/src/app-modules/docs/public-api';
+} from '@miy/official-suite-web/docs';
 import {
   listMeetings,
   type MeetingListItem,
-} from '@/src/app-modules/meeting/public-api';
+} from '@miy/official-suite-web/meeting';
 import {
   listPlannerEvents,
   type PlannerEvent,
-} from '@/src/app-modules/planner/public-api';
-import {
-  listAssignedTasks,
-  type PmsTask,
-} from '@/src/app-modules/pms/public-api';
-import { zonedDateKey } from '@/src/platform/time/time-utils';
+} from '@miy/official-suite-web/planner/public-api';
+import { listAssignedTasks, type PmsTask } from '@miy/official-suite-web/pms';
+import { zonedDateKey } from '@miy/platform-web/time/time-utils';
 import { INITIAL_HOME_STATE, homeReducer, type HomeState } from './home-model';
 
 const PLANNER_LOOKAHEAD_DAYS = 31;

@@ -1,34 +1,14 @@
 ---
 name: miy-production
-description: Use when explicitly inspecting, deploying, restarting, or rolling back production from the prod checkout. Excludes release promotion and local dev operations.
+description: MIY guarded production inspection, deployment, restart, and rollback from the prod checkout. Excludes promotion and local development.
 ---
 
 # Production Operations
 
-## Boundary
+[Release operations](../../../docs/domains/release/README.md) owns topology and rollback. Production source is GitLab `origin/main`; checkout basename `prod` is an execution guard, not a container naming requirement.
 
-- Owns infra operations through `ops/compose/miy-prod.infra.yml` and `scripts/infra-stack.sh`.
-- Owns app operations through `ops/app/Dockerfile`, `ops/compose/miy-prod.app.yml`, and `scripts/prod-app.sh`.
-- Production checkout basename must be `prod`.
-- Production source is GitLab `origin/main`; this skill does not authorize changing it.
-- `prod` checkout is a command guard. Do not force `prod` into container/volume/service names when a shared site-named instance can isolate data by database, bucket, index, collection, Redis namespace, or queue group.
-- Add separate environment-named instances only for lifecycle, security, capacity, or blast-radius isolation.
-- Never run dev commands from prod checkout.
-- Do not bypass `scripts/prod-app.sh` with direct app Compose commands; its source, env, migration, revision, smoke, and restoration gates are part of the deploy contract.
-- Never print `.env`; use env skill if env changes are scoped.
-- Default app rollback restores the previous image only; it never reverses migrations. Incompatible database/config cutovers require the explicit immutable-image and protected env pair in the [release owner's rollback contract](../../../docs/domains/release/README.md#incompatible-database-and-configuration-cutovers).
+App operations use `scripts/prod-app.sh` through `pnpm app:prod:*`; infra operations use `scripts/infra-stack.sh`. Preserve source, env, migration, revision, local/public smoke, and restoration gates. Direct app Compose mutations bypass these gates and are forbidden.
 
-## Preflight
+Read-only entrypoints: `pnpm infra:prod:status`, `pnpm app:prod:status`, `pnpm app:prod:smoke`. Select only the authorized mutating action: `infra:prod:up`, `infra:prod:down`, `app:prod:deploy`, `app:prod:rollback`, or `app:prod:up`.
 
-```bash
-test "$(basename "$PWD")" = prod
-git branch --show-current
-git status --short
-pnpm check:env-contract
-pnpm infra:prod:status
-pnpm app:prod:status
-```
-
-Read-only when production inspection is in scope: `pnpm infra:prod:status`, `pnpm app:prod:status`, `pnpm app:prod:smoke`.
-
-Mutating commands require the exact action to be requested: `pnpm infra:prod:up`, `pnpm infra:prod:down`, `pnpm app:prod:deploy`, `pnpm app:prod:rollback`, or `pnpm app:prod:up`. A deploy includes image build, migration, runtime replacement, and local/public smoke; do not split or skip those gates.
+Default rollback restores the prior image without reversing migrations. Incompatible database/configuration cutovers require the owner's immutable-image and protected-env rollback pair. Workbench has its [own release/service](../../../docs/apps/codex-console/README.md#배포-완료-확인).

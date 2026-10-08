@@ -63,13 +63,13 @@ def test_enqueue_task_search_index_by_id_skips_missing_task(monkeypatch: Any) ->
 
 def test_enqueue_task_search_index_by_id_delegates_to_search_outbox(monkeypatch: Any) -> None:
     calls = _record_enqueues(monkeypatch)
-    db = cast(
-        Session,
-        SimpleNamespace(
-            get=lambda model, task_id: SimpleNamespace(
-                id=task_id,
-                retrieval_partition_id="722c2043-fc6f-4446-9811-dc35c263d445",
-            )
+    db = Session()
+    monkeypatch.setattr(
+        db,
+        "get",
+        lambda model, task_id: SimpleNamespace(
+            id=task_id,
+            retrieval_partition_id="722c2043-fc6f-4446-9811-dc35c263d445",
         ),
     )
     monkeypatch.setattr(
@@ -85,7 +85,9 @@ def test_enqueue_task_search_index_by_id_delegates_to_search_outbox(monkeypatch:
         db,
         task_id="task-1",
         operation="delete",
+        projection_event=_projection_event("task-1", deleted=True),
     )
+    db.close()
 
     assert calls == [
         (
@@ -98,7 +100,7 @@ def test_enqueue_task_search_index_by_id_delegates_to_search_outbox(monkeypatch:
 
 
 def test_enqueue_label_task_search_recompute_filters_and_sorts_task_ids(monkeypatch: Any) -> None:
-    calls = _record_enqueues(monkeypatch)
+    calls = []
     db = cast(
         Session,
         SimpleNamespace(
@@ -113,7 +115,7 @@ def test_enqueue_label_task_search_recompute_filters_and_sorts_task_ids(monkeypa
     monkeypatch.setattr(
         pms_search_hooks,
         "_record_task_projection_event",
-        lambda db, *, task, operation: _projection_event(task.id),
+        lambda db, *, task, operation: calls.append((task.id, operation)),
     )
 
     pms_search_hooks.enqueue_label_task_search_recompute(
@@ -122,20 +124,7 @@ def test_enqueue_label_task_search_recompute_filters_and_sorts_task_ids(monkeypa
         task_ids=task_ids,
     )
 
-    assert calls == [
-        (
-            SearchEntityType.PMS_TASK,
-            "task-a",
-            "upsert",
-            _projection_event("task-a"),
-        ),
-        (
-            SearchEntityType.PMS_TASK,
-            "task-b",
-            "upsert",
-            _projection_event("task-b"),
-        ),
-    ]
+    assert calls == [("task-a", "upsert"), ("task-b", "upsert")]
 
 
 def test_task_projection_event_assigns_missing_source_binding(monkeypatch: Any) -> None:
@@ -143,41 +132,38 @@ def test_task_projection_event_assigns_missing_source_binding(monkeypatch: Any) 
     task = SimpleNamespace(id="task-unbound", retrieval_partition_id=None)
     captured: dict[str, Any] = {}
 
-    def fake_assign_default_partition(db: Session, *, target: Any, **kwargs: Any) -> str:
+    def fake_assign_company_partition(db: Session, *, target: Any, **kwargs: Any) -> str:
         del db
         assert target is task
-        assert kwargs == {
-            "source_namespace": "pms",
-            "candidate_scope_kind": "company",
-        }
+        assert kwargs == {"source_namespace": "pms"}
         target.retrieval_partition_id = partition_id
         return partition_id
 
-    def fake_record_projection_event(db: Session, **kwargs: Any) -> ProjectionEventRef:
+    def fake_deliver_projection_intent(db: Session, **kwargs: Any) -> None:
         del db
-        captured.update(kwargs)
-        return _projection_event("task-unbound")
+        captured.update(kwargs["intent"].model_dump(mode="json"))
 
     monkeypatch.setattr(
         pms_search_hooks,
-        "assign_default_partition",
-        fake_assign_default_partition,
+        "assign_company_projection_partition",
+        fake_assign_company_partition,
     )
     monkeypatch.setattr(
         pms_search_hooks,
-        "record_projection_event",
-        fake_record_projection_event,
+        "deliver_projection_intent",
+        fake_deliver_projection_intent,
     )
 
-    result = pms_search_hooks._record_task_projection_event(
-        cast(Session, object()),
-        task=task,
-        operation="upsert",
-    )
+    with Session() as db:
+        result = pms_search_hooks._record_task_projection_event(db, task=task, operation="upsert")
 
-    assert result == _projection_event("task-unbound")
+    assert result is None  # Source delivery does not return an accepted Core reference.
     assert task.retrieval_partition_id == partition_id
     assert captured["retrieval_partition_id"] == partition_id
+    assert captured["resource_type"] == "pms_task"
+    assert captured["resource_id"] == task.id
+    assert captured["operation"] == "upsert"
+    assert captured["desired_state"] == "active"
 
 
 def test_meeting_projection_event_assigns_missing_source_binding(monkeypatch: Any) -> None:
@@ -187,50 +173,38 @@ def test_meeting_projection_event_assigns_missing_source_binding(monkeypatch: An
         retrieval_partition_id=None,
     )
     captured: dict[str, Any] = {}
-    projection_event = ProjectionEventRef(
-        event_sequence=1,
-        resource_type="meeting",
-        resource_id="meeting-unbound",
-        projection_version=1,
-        retrieval_partition_id=partition_id,
-        change_kind="content",
-        desired_state="active",
-        content_checksum=None,
-        visibility_checksum=None,
-    )
 
-    def fake_assign_default_partition(db: Session, *, target: Any, **kwargs: Any) -> str:
+    def fake_assign_company_partition(db: Session, *, target: Any, **kwargs: Any) -> str:
         del db
         assert target is meeting
-        assert kwargs == {
-            "source_namespace": "meeting",
-            "candidate_scope_kind": "company",
-        }
+        assert kwargs == {"source_namespace": "meeting"}
         target.retrieval_partition_id = partition_id
         return partition_id
 
-    def fake_record_projection_event(db: Session, **kwargs: Any) -> ProjectionEventRef:
+    def fake_deliver_projection_intent(db: Session, **kwargs: Any) -> None:
         del db
-        captured.update(kwargs)
-        return projection_event
+        captured.update(kwargs["intent"].model_dump(mode="json"))
 
     monkeypatch.setattr(
         meeting_search_hooks,
-        "assign_default_partition",
-        fake_assign_default_partition,
+        "assign_company_projection_partition",
+        fake_assign_company_partition,
     )
     monkeypatch.setattr(
         meeting_search_hooks,
-        "record_projection_event",
-        fake_record_projection_event,
+        "deliver_projection_intent",
+        fake_deliver_projection_intent,
     )
 
-    result = meeting_search_hooks._record_meeting_projection_event(
-        cast(Session, object()),
-        meeting=meeting,
-        operation="upsert",
-    )
+    with Session() as db:
+        result = meeting_search_hooks._record_meeting_projection_event(
+            db, meeting=meeting, operation="upsert"
+        )
 
-    assert result == projection_event
+    assert result is None  # Source delivery does not return an accepted Core reference.
     assert meeting.retrieval_partition_id == partition_id
     assert captured["retrieval_partition_id"] == partition_id
+    assert captured["resource_type"] == "meeting"
+    assert captured["resource_id"] == meeting.id
+    assert captured["operation"] == "upsert"
+    assert captured["desired_state"] == "active"

@@ -76,7 +76,7 @@ test('sessions restores search, scroll and drafts across workspace navigation', 
     )
     .toBeCloseTo(offset, 0);
   // Clicking the selected menu again must not disable future scroll recording.
-  await sidebar.getByRole('button', { name: '세션', exact: true }).click();
+  await sidebar.getByRole('button', { name: /^세션(?:\s+\d+)?$/ }).click();
   await list.locator('.session-title').nth(19).scrollIntoViewIfNeeded();
   const nextOffset = await page
     .locator('.sessions-view')

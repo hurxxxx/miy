@@ -75,6 +75,15 @@ function scanMemoryFiles(files, options = {}) {
   });
 }
 
+test('default scanning includes relocated platform and official UI source', () => {
+  const root = path.join(path.sep, 'repo');
+  const findings = scanMemoryFiles({
+    [path.join(root, 'packages/platform-web/src/SessionView.tsx')]: '<button>Sign out now</button>',
+    [path.join(root, 'packages/official-suite-web/src/diagrams/Panel.tsx')]: '<button>Create diagram</button>',
+  }, { srcDirs: undefined });
+  assert.deepEqual(findings.map((finding) => finding.value), ['Sign out now', 'Create diagram']);
+});
+
 test('finds literal JSX text that should come from i18n resources', () => {
   const findings = findWebI18nFindingsInText(
     'export function View() { return <button>Save changes</button>; }\n',

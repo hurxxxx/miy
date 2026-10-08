@@ -115,7 +115,9 @@ class RagQueryService:
         retrieval_top_k = request.top_k
         if rerank_client is not None:
             retrieval_top_k = max(request.top_k, self._rerank_candidate_k)
-        vector_top_k = _resolve_vector_top_k(retrieval_top_k, post_filter=post_filter)
+        vector_top_k = _resolve_vector_top_k(
+            retrieval_top_k, post_filter=post_filter, has_hydrator=hit_hydrator is not None
+        )
         query_collections = _resolve_query_collections(
             request=request,
             legacy_collection_resolver=self._legacy_collection_resolver,
@@ -129,10 +131,12 @@ class RagQueryService:
                 timeout_ms=_remaining_budget_ms(started, self._query_timeout_ms),
             )
             vector_hit_count = len(raw_hits)
+            if hit_hydrator is not None:
+                raw_hits = _apply_hit_hydrator(hit_hydrator, raw_hits)
             filtered_hits = _apply_post_filter(post_filter, raw_hits)
             filtered_hit_count = len(filtered_hits)
             vector_hits = filtered_hits
-            if post_filter is None:
+            if post_filter is None and hit_hydrator is None:
                 break
             if len(filtered_hits) >= request.top_k:
                 break
@@ -182,7 +186,7 @@ class RagQueryService:
         elif rerank_client is not None and vector_hits:
             rerank_degraded = True
 
-        # Refresh response metadata from source state before the final ACL.
+        # Recheck content and refresh metadata after rerank before the final ACL.
         # Hydration is never an authorization grant and may only narrow or
         # rewrite the candidate set.
         if hit_hydrator is not None:
@@ -437,8 +441,9 @@ def _resolve_vector_top_k(
     top_k: int,
     *,
     post_filter: Callable[[RagVectorSearchHit], bool] | None,
+    has_hydrator: bool = False,
 ) -> int:
-    if post_filter is None:
+    if post_filter is None and not has_hydrator:
         return top_k
     return min(
         max(top_k * _POST_FILTER_OVERSAMPLE_MULTIPLIER, top_k + _POST_FILTER_OVERSAMPLE_BUFFER),

@@ -661,6 +661,7 @@ def test_keyword_acl_refill_uses_pit_and_search_after_until_authorized_hit() -> 
 
     client = _Client()
     rows = _load_authorized_ranked_candidates(
+        None,  # Doc-only synthetic candidates do not read Files Source state.
         acl_filter=KeywordAclFilter(),
         policy=_Policy(),
         allowed_entity_types=frozenset({"doc"}),

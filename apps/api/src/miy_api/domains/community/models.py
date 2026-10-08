@@ -6,13 +6,14 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Te
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from miy_api.core.db import Base
+from miy_api.domains.official_apps.writer_contracts import OfficialWriterSource
 
 
 def utcnow_naive() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
-class CommunityChannel(Base):
+class CommunityChannel(OfficialWriterSource, Base):
     __tablename__ = "community_channels"
     __table_args__ = (Index("ix_community_channels_position", "position"),)
 
@@ -35,7 +36,7 @@ class CommunityChannel(Base):
     posts: Mapped[list["CommunityPost"]] = relationship(back_populates="channel")
 
 
-class CommunityPost(Base):
+class CommunityPost(OfficialWriterSource, Base):
     __tablename__ = "community_posts"
     __table_args__ = (
         Index(
@@ -72,7 +73,7 @@ class CommunityPost(Base):
     )
 
 
-class CommunityPostRead(Base):
+class CommunityPostRead(OfficialWriterSource, Base):
     __tablename__ = "community_post_reads"
     __table_args__ = (Index("ix_community_post_reads_user_id", "user_id"),)
 
@@ -93,7 +94,7 @@ class CommunityPostRead(Base):
     post: Mapped[CommunityPost] = relationship(back_populates="reads")
 
 
-class CommunityComment(Base):
+class CommunityComment(OfficialWriterSource, Base):
     __tablename__ = "community_comments"
     __table_args__ = (Index("ix_community_comments_post_created", "post_id", "created_at"),)
 

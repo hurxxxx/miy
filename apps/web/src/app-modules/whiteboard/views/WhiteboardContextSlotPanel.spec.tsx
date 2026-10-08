@@ -25,18 +25,25 @@ vi.mock('@miy/ui', async (original) => ({
   useConfirm: () => ({ confirm: mocks.confirm, confirmDialog: null }),
   useFeedback: () => ({ error: mocks.error }),
 }));
-vi.mock('@/src/platform/auth/auth-provider', () => ({
+vi.mock('@miy/platform-web', async (original) => ({
+  ...(await original<Record<string, unknown>>()),
   useAuth: () => ({ token: 'test-session', user: { time_zone: 'UTC' } }),
 }));
-vi.mock('../api/whiteboard-api', async (original) => ({
-  ...(await original<typeof import('../api/whiteboard-api')>()),
-  ...mocks,
-}));
-vi.mock('./WhiteboardEditorSurface', () => ({
-  WhiteboardEditorSurface: ({ boardId }: { boardId: string }) => (
-    <div>Editor {boardId}</div>
-  ),
-}));
+vi.mock(
+  '@miy/official-suite-web/whiteboard/api/whiteboard-api',
+  async (original) => ({
+    ...(await original<typeof import('../api/whiteboard-api')>()),
+    ...mocks,
+  }),
+);
+vi.mock(
+  '@miy/official-suite-web/whiteboard/views/WhiteboardEditorSurface',
+  () => ({
+    WhiteboardEditorSurface: ({ boardId }: { boardId: string }) => (
+      <div>Editor {boardId}</div>
+    ),
+  }),
+);
 
 function board(
   ownership: 'personal' | 'company' = 'personal',

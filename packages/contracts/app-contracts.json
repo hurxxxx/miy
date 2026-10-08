@@ -1,5 +1,19 @@
 {
   "$schema": "./app-contracts.schema.json",
+  "official_app_ids": [
+    "pms",
+    "docs",
+    "files",
+    "mail",
+    "community",
+    "whiteboard",
+    "diagrams",
+    "bento",
+    "planner",
+    "meeting",
+    "video-chat",
+    "recording"
+  ],
   "apps": [
     {
       "app_id": "home",
@@ -22,14 +36,13 @@
       ],
       "management": {
         "summary": "Personal launcher and activity overview",
-        "capabilities": [
-          "launcher",
-          "navigation"
-        ],
-        "source_paths": [
-          "apps/web/src/app-modules/home"
-        ],
+        "capabilities": ["launcher", "navigation"],
+        "source_paths": ["apps/web/src/app-modules/home"],
         "release_unit": "miy-app"
+      },
+      "title_translations": {
+        "ko-KR": "홈",
+        "en-US": "Home"
       }
     },
     {
@@ -44,9 +57,7 @@
         "placement": "personal_tools",
         "pinned_by_default": false
       },
-      "required_system_roles": [
-        "platform_admin"
-      ],
+      "required_system_roles": ["platform_admin"],
       "feature_flag": "agent_terminal_enabled",
       "routes": [
         {
@@ -57,15 +68,16 @@
       ],
       "management": {
         "summary": "Subscription authenticated coding terminal",
-        "capabilities": [
-          "coding",
-          "terminal"
-        ],
+        "capabilities": ["coding", "terminal"],
         "source_paths": [
           "apps/web/src/app-modules/agent-terminal",
           "apps/api/src/miy_api/domains/agent_terminal"
         ],
         "release_unit": "miy-app"
+      },
+      "title_translations": {
+        "ko-KR": "Codex 터미널",
+        "en-US": "Codex Terminal"
       }
     },
     {
@@ -81,9 +93,7 @@
         "pinned_by_default": false,
         "url_setting": "codex_console_launch_url"
       },
-      "required_system_roles": [
-        "platform_admin"
-      ],
+      "required_system_roles": ["platform_admin"],
       "feature_flag": "codex_console_enabled",
       "routes": [
         {
@@ -94,16 +104,16 @@
       ],
       "management": {
         "summary": "App development, maintenance and platform operations",
-        "capabilities": [
-          "studio",
-          "delivery",
-          "maintenance"
-        ],
+        "capabilities": ["studio", "delivery", "maintenance"],
         "source_paths": [
           "apps/codex-console-web/src",
           "apps/codex-console-api/src/codex_console"
         ],
         "release_unit": "miy-workbench"
+      },
+      "title_translations": {
+        "ko-KR": "MIY Workbench",
+        "en-US": "MIY Workbench"
       }
     },
     {
@@ -127,17 +137,18 @@
       ],
       "management": {
         "summary": "AI conversations, research and generated artifacts",
-        "capabilities": [
-          "ai",
-          "conversation",
-          "research"
-        ],
+        "capabilities": ["ai", "conversation", "research"],
         "source_paths": [
+          "packages/platform-web/src/chatbot",
           "apps/web/src/app-modules/chatbot",
           "apps/api/src/miy_api/domains/conversations",
           "apps/api/src/miy_api/domains/ai"
         ],
         "release_unit": "miy-app"
+      },
+      "title_translations": {
+        "ko-KR": "AI 어시스턴트 챗봇",
+        "en-US": "AI Assistant Chatbot"
       }
     },
     {
@@ -201,16 +212,19 @@
       ],
       "management": {
         "summary": "Projects, tasks and team collaboration",
-        "capabilities": [
-          "projects",
-          "tasks",
-          "workflow"
-        ],
+        "capabilities": ["projects", "tasks", "workflow"],
         "source_paths": [
+          "packages/official-suite-web/src/pms",
+          "packages/official-suite-web/public/help/pms/user-guide.html",
+          "packages/official-suite-web/vite/fixed-assets.mts",
           "apps/web/src/app-modules/pms",
           "apps/api/src/miy_api/domains/pms"
         ],
         "release_unit": "miy-app"
+      },
+      "title_translations": {
+        "ko-KR": "PMS",
+        "en-US": "PMS"
       }
     },
     {
@@ -254,15 +268,17 @@
       ],
       "management": {
         "summary": "Collaborative document authoring and sharing",
-        "capabilities": [
-          "documents",
-          "collaboration"
-        ],
+        "capabilities": ["documents", "collaboration"],
         "source_paths": [
+          "packages/official-suite-web/src/docs",
           "apps/web/src/app-modules/docs",
           "apps/api/src/miy_api/domains/docs"
         ],
         "release_unit": "miy-app"
+      },
+      "title_translations": {
+        "ko-KR": "문서",
+        "en-US": "Docs"
       }
     },
     {
@@ -291,15 +307,17 @@
       ],
       "management": {
         "summary": "File upload, storage and sharing",
-        "capabilities": [
-          "files",
-          "storage"
-        ],
+        "capabilities": ["files", "storage"],
         "source_paths": [
+          "packages/official-suite-web/src/files",
           "apps/web/src/app-modules/files",
           "apps/api/src/miy_api/domains/files"
         ],
         "release_unit": "miy-app"
+      },
+      "title_translations": {
+        "ko-KR": "파일",
+        "en-US": "Files"
       }
     },
     {
@@ -323,15 +341,17 @@
       ],
       "management": {
         "summary": "Personal mailbox and correspondence",
-        "capabilities": [
-          "mail",
-          "communication"
-        ],
+        "capabilities": ["mail", "communication"],
         "source_paths": [
+          "packages/official-suite-web/src/mail",
           "apps/web/src/app-modules/mail",
           "apps/api/src/miy_api/domains/mail"
         ],
         "release_unit": "miy-app"
+      },
+      "title_translations": {
+        "ko-KR": "메일",
+        "en-US": "Mail"
       }
     },
     {
@@ -360,15 +380,17 @@
       ],
       "management": {
         "summary": "Company discussions and suggestions",
-        "capabilities": [
-          "community",
-          "discussion"
-        ],
+        "capabilities": ["community", "discussion"],
         "source_paths": [
+          "packages/official-suite-web/src/community",
           "apps/web/src/app-modules/community",
           "apps/api/src/miy_api/domains/community"
         ],
         "release_unit": "miy-app"
+      },
+      "title_translations": {
+        "ko-KR": "커뮤니티",
+        "en-US": "Community"
       }
     },
     {
@@ -402,15 +424,17 @@
       ],
       "management": {
         "summary": "Collaborative visual whiteboards",
-        "capabilities": [
-          "whiteboard",
-          "collaboration"
-        ],
+        "capabilities": ["whiteboard", "collaboration"],
         "source_paths": [
+          "packages/official-suite-web/src/whiteboard",
           "apps/web/src/app-modules/whiteboard",
           "apps/api/src/miy_api/domains/whiteboard"
         ],
         "release_unit": "miy-app"
+      },
+      "title_translations": {
+        "ko-KR": "화이트보드",
+        "en-US": "Whiteboard"
       }
     },
     {
@@ -439,15 +463,17 @@
       ],
       "management": {
         "summary": "Diagram editing and sharing",
-        "capabilities": [
-          "diagram",
-          "drawing"
-        ],
+        "capabilities": ["diagram", "drawing"],
         "source_paths": [
           "apps/web/src/app-modules/diagrams",
+          "packages/official-suite-web/src/diagrams",
           "apps/api/src/miy_api/domains/diagrams"
         ],
         "release_unit": "miy-app"
+      },
+      "title_translations": {
+        "ko-KR": "다이어그램",
+        "en-US": "Diagrams"
       }
     },
     {
@@ -475,16 +501,18 @@
         }
       ],
       "management": {
-        "summary": "Structured tables and collaborative documents",
-        "capabilities": [
-          "tables",
-          "data"
-        ],
+        "summary": "Presentation editing and sharing",
+        "capabilities": ["presentation", "slides"],
         "source_paths": [
           "apps/web/src/app-modules/bento",
+          "packages/official-suite-web/src/bento",
           "apps/api/src/miy_api/domains/bento"
         ],
         "release_unit": "miy-app"
+      },
+      "title_translations": {
+        "ko-KR": "bento/slides",
+        "en-US": "bento/slides"
       }
     },
     {
@@ -508,15 +536,20 @@
       ],
       "management": {
         "summary": "Personal plans and task scheduling",
-        "capabilities": [
-          "planning",
-          "calendar"
-        ],
+        "capabilities": ["planning", "calendar"],
         "source_paths": [
+          "packages/official-suite-web/src/planner",
+          "packages/official-suite-web/src/calendar",
           "apps/web/src/app-modules/planner",
-          "apps/api/src/miy_api/domains/planner"
+          "apps/web/src/platform/calendar",
+          "apps/api/src/miy_api/domains/planner",
+          "apps/api/src/miy_api/domains/calendar"
         ],
         "release_unit": "miy-app"
+      },
+      "title_translations": {
+        "ko-KR": "플래너",
+        "en-US": "Planner"
       }
     },
     {
@@ -545,15 +578,17 @@
       ],
       "management": {
         "summary": "Meetings, agendas and shared notes",
-        "capabilities": [
-          "meeting",
-          "minutes"
-        ],
+        "capabilities": ["meeting", "minutes"],
         "source_paths": [
+          "packages/official-suite-web/src/meeting",
           "apps/web/src/app-modules/meeting",
           "apps/api/src/miy_api/domains/meeting"
         ],
         "release_unit": "miy-app"
+      },
+      "title_translations": {
+        "ko-KR": "회의",
+        "en-US": "Meeting"
       }
     },
     {
@@ -582,15 +617,17 @@
       ],
       "management": {
         "summary": "Real-time video meetings",
-        "capabilities": [
-          "video",
-          "communication"
-        ],
+        "capabilities": ["video", "communication"],
         "source_paths": [
+          "packages/official-suite-web/src/video-chat",
           "apps/web/src/app-modules/video-chat",
           "apps/api/src/miy_api/domains/video_chat"
         ],
         "release_unit": "miy-app"
+      },
+      "title_translations": {
+        "ko-KR": "화상채팅",
+        "en-US": "Video Chat"
       }
     },
     {
@@ -619,15 +656,19 @@
       ],
       "management": {
         "summary": "Recordings and transcription",
-        "capabilities": [
-          "recording",
-          "transcription"
-        ],
+        "capabilities": ["recording", "transcription"],
         "source_paths": [
+          "packages/official-suite-web/src/recording",
+          "packages/official-suite-web/public/recording-sync-sw.js",
+          "packages/official-suite-web/vite/recording-sync-asset.mts",
           "apps/web/src/app-modules/recording",
           "apps/api/src/miy_api/domains/recording"
         ],
         "release_unit": "miy-app"
+      },
+      "title_translations": {
+        "ko-KR": "녹음",
+        "en-US": "Recording"
       }
     },
     {
@@ -651,15 +692,16 @@
       ],
       "management": {
         "summary": "Search over authorized indexed sources",
-        "capabilities": [
-          "search",
-          "retrieval"
-        ],
+        "capabilities": ["search", "retrieval"],
         "source_paths": [
           "apps/web/src/app-modules/retrieval-search",
           "apps/api/src/miy_api/domains/retrieval"
         ],
         "release_unit": "miy-app"
+      },
+      "title_translations": {
+        "ko-KR": "Retrieval 진단 검색",
+        "en-US": "Retrieval Diagnostics"
       }
     },
     {
@@ -683,14 +725,16 @@
       ],
       "management": {
         "summary": "Personal Tetris game",
-        "capabilities": [
-          "game"
-        ],
+        "capabilities": ["game"],
         "source_paths": [
           "apps/web/src/app-modules/tetris",
           "apps/api/src/miy_api/domains/tetris"
         ],
         "release_unit": "miy-app"
+      },
+      "title_translations": {
+        "ko-KR": "테트리스",
+        "en-US": "Tetris"
       }
     }
   ]

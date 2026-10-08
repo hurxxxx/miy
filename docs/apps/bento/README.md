@@ -38,6 +38,15 @@ docker compose --env-file .env.example -f ops/compose/miy-dev.infra.yml up -d --
   and an audit record, and company ownership cannot revert to personal under the
   [App Platform Contract](../../domains/app-platform/README.md).
 - Save uses version compare to avoid overwriting concurrent edits.
+- During ordinary navigation within the same login, captured edits drain in order,
+  including the latest received debounce value. Each successful save supplies the
+  version for the next queued patch. Responses update a replaced view only through
+  its private queue bookkeeping, without changing the current screen.
+- Queued saves capture the shared AuthProvider's
+  [credential-generation predicate](../../../packages/platform-web/README.md).
+  A legacy auth context without this predicate permits queued writes only while its
+  original view remains mounted. Server authentication, edit permission and version
+  checks remain authoritative; a submitted request cannot be cancelled by this guard.
 - Delete flow: archive first, permanent delete second.
 - Iframe bridge validates exact origin and `window` sender. No Hub auth token enters iframe.
 - Import parses only `#bento-doc` JSON; it never executes imported HTML.

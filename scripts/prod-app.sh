@@ -216,6 +216,16 @@ verify_release_image() {
   '
 }
 
+verify_files_gate_executable() {
+  local image="${1:?immutable image is required}"
+  if [[ ! "$image" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+    echo "Files cutover gate requires an immutable image ID." >&2
+    return 1
+  fi
+  docker run --rm --network none --entrypoint /bin/sh "$image" \
+    -ec 'test -x /usr/bin/timeout'
+}
+
 verify_candidate_image() {
   local image="${1:?image is required}"
   local actual_id
@@ -247,6 +257,7 @@ EOF
     echo "Release candidate does not record valid build-time pipeline evidence." >&2
     return 1
   fi
+  verify_files_gate_executable "$actual_id"
 }
 
 prepare_candidate_image() {
@@ -322,6 +333,124 @@ promote_image() {
 
 run_migrations() {
   compose run --rm migrate
+}
+
+stop_previous_writers() {
+  # Honor each service definition: worker graceful shutdown can take 65 minutes.
+  compose stop api worker beat
+}
+
+check_files_content_cutover() {
+  compose run --rm --no-deps --entrypoint /usr/bin/timeout migrate \
+    --signal=TERM --kill-after=5 130 \
+    apps/api/.venv/bin/python -m miy_api.domains.files.cutover_gate
+}
+
+start_forward_runtime() {
+  FORWARD_START_ATTEMPTED=0
+  stop_previous_writers && run_migrations && check_files_content_cutover || return 1
+  FORWARD_START_ATTEMPTED=1
+  start_runtime && run_smoke
+}
+
+prior_runtime_definition() {
+  docker inspect --format \
+    '{{.Image}}|{{ index .Config.Labels "com.docker.compose.project" }}|{{ index .Config.Labels "com.docker.compose.service" }}|{{ index .Config.Labels "com.docker.compose.config-hash" }}' \
+    "${1:?container is required}"
+}
+
+capture_prior_runtime() {
+  local image="${1:?pre-up image is required}" service id hash definition actual_image project role index state status running health present=0 recoverable=1
+  local -a services=(api worker beat) ids=() definitions=()
+  UP_PRIOR_IMAGE=""
+  UP_PRIOR_IDS=()
+  UP_PRIOR_DEFINITIONS=()
+  for service in "${services[@]}"; do
+    id="$(compose ps --all --quiet "$service")" || return 1
+    if [[ -n "$id" ]]; then
+      [[ "$id" =~ ^[a-f0-9]{64}$ ]] || return 1
+      present=$((present + 1))
+    fi
+    ids+=("$id")
+  done
+  # First startup has no recovery target; only the forward gate may start it.
+  [[ "$present" -ne 0 ]] || return 0
+  [[ "$present" -eq 3 ]] || return 1
+  for index in 0 1 2; do
+    service="${services[$index]}"
+    definition="$(prior_runtime_definition "${ids[$index]}")" || return 1
+    IFS='|' read -r actual_image project role hash <<<"$definition"
+    [[ "$hash" =~ ^[a-f0-9]{64}$ \
+      && "$definition" == "$image|$COMPOSE_PROJECT_NAME|$service|$hash" ]] || return 1
+    state="$(docker inspect --format '{{.State.Status}}|{{.State.Running}}|{{if .State.Health}}{{.State.Health.Status}}{{end}}' "${ids[$index]}")" || return 1
+    IFS='|' read -r status running health <<<"$state"
+    [[ "$state" == "$status|$running|$health" ]] || return 1
+    case "$status" in
+      created|running|paused|restarting|exited|dead) ;;
+      *) return 1 ;;
+    esac
+    case "$running" in
+      true|false) ;;
+      *) return 1 ;;
+    esac
+    case "$health" in
+      ''|healthy|starting|unhealthy) ;;
+      *) return 1 ;;
+    esac
+    [[ "$state" == 'running|true|healthy' ]] || recoverable=0
+    definitions+=("$definition")
+  done
+  # Known nonhealthy/stopped containers may proceed through the forward gate,
+  # but cannot become a healthy automatic recovery target if it refuses.
+  [[ "$recoverable" == 1 ]] || return 0
+  UP_PRIOR_IMAGE="$image"
+  UP_PRIOR_IDS=("${ids[@]}")
+  UP_PRIOR_DEFINITIONS=("${definitions[@]}")
+}
+
+wait_prior_runtime() {
+  local deadline=$((SECONDS + 600)) index service id state ready
+  local -a services=(api worker beat)
+  while ((SECONDS < deadline)); do
+    [[ "$(image_id "$CURRENT_IMAGE")" == "$UP_PRIOR_IMAGE" ]] || return 1
+    ready=1
+    for index in 0 1 2; do
+      service="${services[$index]}"
+      id="$(compose ps --all --quiet "$service")" || return 1
+      [[ "$id" == "${UP_PRIOR_IDS[$index]}" \
+        && "$(prior_runtime_definition "$id")" == "${UP_PRIOR_DEFINITIONS[$index]}" ]] || return 1
+      state="$(docker inspect --format '{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$id")" || return 1
+      case "$state" in
+        'running|healthy') ;;
+        'running|starting') ready=0 ;;
+        *) return 1 ;;
+      esac
+    done
+    [[ "$ready" != 1 ]] || return 0
+    sleep 2 || return 1
+  done
+  return 1
+}
+
+restore_same_runtime() {
+  local expected_image="${1:?pre-up image identity is required}" index service id definition
+  local -a services=(api worker beat)
+  # No image-tag inference, no newly created containers and no partial-start recovery.
+  if [[ "${UP_PRIOR_IMAGE:-}" != "$expected_image" \
+    || "${FORWARD_START_ATTEMPTED:-0}" != 0 \
+    || "$(image_id "$CURRENT_IMAGE")" != "$expected_image" ]]; then
+    echo "No unchanged attested pre-up runtime is available; refusing restoration." >&2
+    return 1
+  fi
+  for index in 0 1 2; do
+    service="${services[$index]}"
+    id="$(compose ps --all --quiet "$service")" || return 1
+    [[ "$id" == "${UP_PRIOR_IDS[$index]}" ]] || return 1
+    definition="$(prior_runtime_definition "$id")" || return 1
+    [[ "$definition" == "${UP_PRIOR_DEFINITIONS[$index]}" ]] || return 1
+  done
+  # Start those existing definitions only; never force-recreate a refused candidate.
+  docker start "${UP_PRIOR_IDS[@]}" >/dev/null && wait_prior_runtime && run_smoke
 }
 
 start_runtime() {
@@ -423,7 +552,7 @@ deploy() {
     report_deployment_failure yes
     return 1
   fi
-  if ! run_migrations || ! start_runtime || ! run_smoke; then
+  if ! start_forward_runtime; then
     report_deployment_failure yes
     return 1
   fi
@@ -537,12 +666,23 @@ case "$COMMAND" in
   up)
     require_prod_checkout
     require_release_source
+    acquire_operation_lock
     validate_environment
     require_terminal_broker_port_available
     docker image inspect "$CURRENT_IMAGE" >/dev/null
-    run_migrations
-    start_runtime
-    run_smoke
+    up_image="$(image_id "$CURRENT_IMAGE")"
+    if ! capture_prior_runtime "$up_image"; then
+      echo "Existing runtime does not match the current image/prior container identities; refusing before stop." >&2
+      exit 1
+    fi
+    verify_files_gate_executable "$up_image"
+    if ! start_forward_runtime; then
+      echo "Forward startup failed; restoring the pre-up image." >&2
+      if ! restore_same_runtime "$up_image"; then
+        echo "Pre-up runtime restoration failed; operator recovery is required." >&2
+      fi
+      exit 1
+    fi
     ;;
   -h|--help|help)
     usage

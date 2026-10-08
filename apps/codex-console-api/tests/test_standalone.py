@@ -8,7 +8,7 @@ from sqlalchemy import select, text
 
 from codex_console import auth, store
 from codex_console.errors import ConsoleError
-from codex_console.models import Attachment, ResourceLease, Task, database
+from codex_console.models import Agent, Attachment, ResourceLease, Task, database
 from codex_console.storage import database_path, process_guard
 from codex_console.transfer import backup, import_postgres
 
@@ -223,6 +223,7 @@ def test_postgres_import_preserves_data_and_refuses_overwrite(
             with factory() as db:
                 saved = db.get(Task, task["id"])
                 assert saved.thread_id == task["thread_id"] and saved.executor == "session"
+                assert db.get(Agent, task["thread_id"]).observation is None
             with pytest.raises(ValueError, match="new SQLite"):
                 import_postgres(source, url)
         finally:

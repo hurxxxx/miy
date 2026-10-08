@@ -1,4 +1,261 @@
 export const korean = {
+  'Checked at': '확인 시각',
+  'Execution environment connection confirmed.':
+    '실행 환경 연결을 확인했습니다.',
+  'Execution environment connection is not configured.':
+    '실행 환경 연결이 설정되지 않았습니다.',
+  'Execution environment connection could not be confirmed.':
+    '실행 환경 연결을 확인할 수 없습니다.',
+  'Source or execution environment changed. Refresh before continuing.':
+    '소스 또는 실행 환경이 변경되었습니다. 새로고침한 뒤 계속하세요.',
+  'The execution environment needs the supported version.':
+    '실행 환경의 지원 버전을 확인해야 합니다.',
+  'The selected app source is no longer available.':
+    '선택한 앱 소스를 사용할 수 없습니다.',
+  'Checking execution environment connection': '실행 환경 연결 확인 중',
+  'Check execution environment connection': '실행 환경 연결 확인',
+  'This checks connection, version and source binding. Permissions and sandbox policies are checked separately when work starts.':
+    '연결·버전·소스 연결을 확인합니다. 작업 권한과 격리 정책은 실행 시 별도로 검사합니다.',
+  'This task uses the selected app source. Save and review its changes before initial registration.':
+    '이 작업은 선택한 앱 소스를 사용합니다. 최초 등록 전에 변경 사항을 저장하고 검토하세요.',
+
+  'Registration delegation is not configured. Use the JSON export or ask the administrator to enable it.':
+    '등록 위임이 설정되지 않았습니다. JSON 내보내기를 이용하거나 관리자에게 활성화를 요청하세요.',
+  'This MIY server does not support registration delegation. Use the JSON export.':
+    '이 MIY 서버는 등록 위임을 지원하지 않습니다. JSON 내보내기를 이용하세요.',
+  'The registration request is fixed. Inspect its result instead of replacing it with changed source.':
+    '등록 요청이 고정되어 있습니다. 변경된 소스로 덮어쓰지 말고 기존 결과를 조회하세요.',
+  'The registration response could not be verified. Inspect the same operation before continuing.':
+    '등록 응답을 검증하지 못했습니다. 계속하기 전에 같은 작업 결과를 확인하세요.',
+  'The registration policy changed. Review the source and reconnect authorization.':
+    '등록 정책이 변경되었습니다. 소스를 검토하고 등록 권한을 다시 연결하세요.',
+  'Registration was not accepted. Review the app identity, origin and owner authorization.':
+    '등록 요청이 수락되지 않았습니다. 앱 식별자·주소·소유자 승인을 확인하세요.',
+
+  'First app registration': '최초 앱 등록',
+  'New registration task': '새 등록 작업',
+  'Registration authorization required.': '등록 권한 연결이 필요합니다.',
+  'Waiting for MIY owner authorization.':
+    'MIY 소유자의 승인을 기다리고 있습니다.',
+  'Confirming registration authorization.': '등록 승인을 확인하고 있습니다.',
+  'Registration authorization connected.': '등록 권한이 연결되었습니다.',
+  'Registration authorization expired. Reconnect to inspect the same operation.':
+    '등록 권한이 만료되었습니다. 다시 연결하여 같은 작업 결과를 확인하세요.',
+  'Registration authorization was not confirmed. Reconnect explicitly.':
+    '등록 승인을 확인하지 못했습니다. 직접 다시 연결하세요.',
+  'This task belongs to another login session. Reconnect explicitly.':
+    '이 작업은 다른 로그인 세션에 연결되어 있습니다. 직접 다시 연결하세요.',
+  'Only this new registration task receives the registration tool. MIY owner authorization and implementation approval are both required.':
+    '새로 만든 등록 작업에서만 등록 도구를 사용할 수 있습니다. MIY 소유자 승인과 작업 구현 승인이 모두 필요합니다.',
+  'Registration operation': '등록 작업 ID',
+  'Authorization expires at': '등록 권한 만료 시각',
+  'The registration response is unknown. Inspect this same operation; it will not be submitted automatically.':
+    '등록 응답을 확인하지 못했습니다. 같은 작업 결과를 조회하세요. 자동으로 다시 제출하지 않습니다.',
+  'Historical registration receipt. The development installation was created inactive; this does not confirm current source, activation or deployment.':
+    '과거 등록 완료 기록입니다. 당시 개발 설치는 비활성 상태로 생성되었습니다. 현재 소스·활성화·배포 상태를 확인하는 정보는 아닙니다.',
+  'Development app origin': '개발 앱 주소',
+  'Connect registration authorization': '등록 권한 연결',
+  'Refresh authorization status': '연결 상태 새로고침',
+  'Inspect the same registration operation': '동일 등록 작업 결과 조회',
+  'Approve in MIY': 'MIY에서 승인',
+  'Authorize once in MIY, then refresh this task. Registration does not enable the app or deploy it. The JSON export remains available in Studio.':
+    'MIY에서 승인한 뒤 이 작업의 연결 상태를 새로고침하세요. 등록만으로 앱이 활성화되거나 배포되지는 않습니다. Studio의 JSON 내보내기도 계속 사용할 수 있습니다.',
+
+  'Platform registration': '플랫폼 등록',
+  'Check registration status': '등록 상태 확인',
+  'Checking registration status': '등록 상태 확인 중',
+  'No registration check yet.': '아직 등록 상태를 확인하지 않았습니다.',
+  'No independent registration found at last check.':
+    '확인 시점에 독립 앱 등록을 찾지 못했습니다.',
+  'Registration matches at last check.': '확인 시점의 등록 정보가 일치합니다.',
+  'Registration differs at last check.':
+    '확인 시점의 등록 정보에 차이가 있습니다.',
+  'This app ID is registered to a different source.':
+    '이 앱 ID는 다른 소스로 등록되어 있습니다.',
+  'Registration status could not be confirmed.':
+    '등록 상태를 확인할 수 없습니다.',
+  'This compares registration at the reported check time. It does not verify installation readiness or deployment.':
+    '표시된 확인 시점의 등록 정보를 비교합니다. 설치의 실행 준비나 배포 성공을 확인하는 기능은 아닙니다.',
+  'Platform checked at': '플랫폼 확인 시각',
+  'Source revision at check': '확인한 소스 커밋',
+  'Registered source revision': '등록된 소스 커밋',
+  'App definition': '앱 정의',
+  'Source commit': '소스 커밋',
+  Matches: '일치',
+  Differs: '다름',
+  'Not compared': '비교하지 않음',
+  'Source changes after this check are not included. Check again after editing.':
+    '확인 이후의 소스 변경은 반영되지 않습니다. 수정 후 다시 확인하세요.',
+  'Review the app ID and source connection. This result does not authorize changing the existing app.':
+    '앱 ID와 소스 연결을 검토하세요. 이 결과가 기존 앱을 수정할 권한을 부여하지는 않습니다.',
+  'View app installations': '앱 설치 환경 보기',
+  'Configure my development preview in MIY': 'MIY에서 내 개발 미리보기 설정',
+  'Download registration draft': '앱 등록 초안 내려받기',
+  'Preparing registration draft': '등록 초안 확인 중',
+  'Open this file in MIY App registration while signed in to MIY. Registration keeps the development installation inactive until its environment is ready.':
+    'MIY에 로그인한 뒤 앱 등록에서 이 파일을 여세요. 개발 환경을 준비하기 전까지 설치는 비활성 상태로 유지됩니다.',
+  'Commit or discard app source changes before preparing registration.':
+    '등록 초안을 준비하기 전에 앱 소스의 변경 사항을 저장하거나 되돌려 주세요.',
+
+  'No activity recorded': '기록된 활동 없음',
+  'Last reported running agents': '마지막 보고 기준 실행 에이전트',
+  'Last reported running tasks': '마지막 보고 기준 실행 작업',
+  'Counts use stored reports. Refreshing this list does not check native agent state.':
+    '집계는 저장된 보고 기준입니다. 목록 갱신 시각은 Codex 상태 확인 시각과 다릅니다.',
+  'Stored state': '저장된 상태',
+  'Native state': 'Codex 관측 상태',
+  'Current state unknown': '현재 상태 확인 불가',
+  'Recent native observation': '최근 Codex 관측',
+  'Native observation unavailable': 'Codex 상태 관측 불가',
+  'No native observation yet': 'Codex 상태를 아직 관측하지 않았습니다',
+  'Native connection unavailable': 'Codex 연결을 확인할 수 없습니다',
+  'Native state read failed': 'Codex 상태를 읽지 못했습니다',
+  'Native observation identity could not be verified':
+    '관측된 Codex 세션의 일치를 확인하지 못했습니다',
+  'Record updated': '기록 갱신 시각',
+  'Last observed thread state': '마지막 관측 스레드 상태',
+  'Native state checked': 'Codex 상태 확인 시각',
+  'Last observed turn': '마지막 관측 턴',
+  'No turn observed': '관측된 턴 없음',
+  'Turn observed': '턴 관측 시각',
+  'Last check attempted': '마지막 확인 시도',
+  'Observation issue': '관측 문제',
+  'Last recorded activity': '마지막 기록 활동',
+  'Not observed': '관측 없음',
+  Idle: '대기',
+  'Stored results remain available when current state is unknown.':
+    '현재 상태를 확인할 수 없어도 저장된 결과는 계속 확인할 수 있습니다.',
+  'Configure an isolated execution environment for this app.':
+    '이 앱의 격리 실행 환경을 연결하세요.',
+  'Execution environment configured; availability checked when starting work.':
+    '격리 실행 환경이 설정되어 있습니다. 연결 가능 여부는 작업 시작 시 확인합니다.',
+  'The app execution environment changed. Review its binding before continuing.':
+    '앱 실행 환경이 변경되었습니다. 연결 정보를 확인한 뒤 진행하세요.',
+  'Provision a separate app checkout for parallel work in another environment.':
+    '다른 환경에서 병행 작업하려면 별도의 앱 작업 경로를 준비하세요.',
+  'The app executor configuration does not meet the isolation contract.':
+    '앱 실행 환경의 설정이 격리 계약과 맞지 않습니다.',
+  'This app executor needs the verified Codex version.':
+    '이 앱 실행 환경에는 검증된 Codex 버전이 필요합니다.',
+  'Independent app tasks require their isolated executor.':
+    '독립 앱 작업은 연결된 격리 실행 환경에서 실행해야 합니다.',
+  'Configure a development installation delegation on the Workbench server.':
+    'Workbench 서버에 개발 설치 환경의 위임 권한을 연결하세요.',
+  'This installation no longer permits the requested action.':
+    '이 설치 환경에서 요청한 작업의 권한이 없습니다.',
+  'The source or installation changed. Read its current state before continuing.':
+    '소스 또는 설치 환경이 변경되었습니다. 현재 상태를 확인한 뒤 진행하세요.',
+  'Delivery status is unavailable. Check the existing request before submitting again.':
+    '배포 상태를 확인할 수 없습니다. 다시 요청하기 전에 기존 요청을 확인하세요.',
+  'Create an app checkpoint before requesting a verified build.':
+    '검증 빌드를 요청하기 전에 앱 변경 사항을 저장하세요.',
+  'The delivery response does not match the expected contract.':
+    '배포 응답이 지원하는 계약과 일치하지 않습니다.',
+  'Checkpointing requires an isolated app checkout on a named branch.':
+    '변경 사항을 저장하려면 격리된 앱 저장소의 브랜치가 필요합니다.',
+  'Another Git operation is active. Wait for it to finish before saving.':
+    '다른 Git 작업이 진행 중입니다. 완료된 뒤 저장하세요.',
+  'The app source changed while saving. Review the current changes and retry.':
+    '저장 중 앱 소스가 변경되었습니다. 현재 변경 사항을 확인한 뒤 다시 시도하세요.',
+  'Review staged changes or conflicts before creating an app checkpoint.':
+    '저장 전에 이미 스테이징된 변경 사항이나 충돌을 확인하세요.',
+  'This checkpoint contains files outside the permitted app source boundary.':
+    '저장하려는 파일이 허용된 앱 소스 범위를 벗어납니다.',
+  'The app Git metadata needs operator review before checkpointing.':
+    '저장 전에 운영자가 앱 Git 설정을 확인해야 합니다.',
+  'The app changes exceed the checkpoint size limit.':
+    '앱 변경 사항이 한 번에 저장할 수 있는 크기를 초과합니다.',
+  'Connect an app source and isolated executor, then start a new implementation task.':
+    '앱 소스와 격리 실행 환경을 연결한 뒤 새 개발 작업을 시작하세요.',
+  'Attachments are not yet supported by this isolated app executor.':
+    '이 격리 앱 실행 환경은 아직 첨부파일을 지원하지 않습니다.',
+  'Inspect installation': '설치 상태 점검',
+  'Plan preview deployment': '미리보기 배포 계획',
+  'Plan app recovery': '앱 복구 계획',
+  'App delivery purpose': '앱 운영 작업',
+  'General task': '일반 작업',
+  'Development installation': '개발 설치 환경',
+  'Select an installation': '설치 환경 선택',
+  'Installation access needs attention.':
+    '설치 환경의 연결과 접근 권한을 확인하세요.',
+  'App installations': '앱 설치 환경',
+  'Loading app installations': '앱 설치 환경을 불러오는 중',
+  'No app installations': '등록된 설치 환경이 없습니다.',
+  'Deployment records are not live health checks.':
+    '표시된 내용은 배포 기록입니다. 현재 실행 상태는 별도 점검이 필요합니다.',
+  'Installation ID': '설치 ID',
+  'Deployment request': '배포 요청',
+  'Deployment record updated': '배포 기록 갱신 시각',
+  'No deployment evidence': '확인된 배포 기록이 없습니다.',
+  'Check the existing request before retrying.':
+    '다시 실행하기 전에 기존 요청의 처리 상태를 확인하세요.',
+  Configured: '설정됨',
+  Queued: '대기 중',
+  'Cleanup required': '정리 확인 필요',
+  Succeeded: '완료',
+  Production: '운영',
+  Rollback: '복구',
+  'Platform workspace': '플랫폼 작업 경로',
+  'Application source': '앱 소스',
+  'Connect app source': '앱 소스 연결',
+  'Prepare app source': '앱 소스 준비',
+  'Create a starter app in an approved folder and connect its source to this project.':
+    '허용된 폴더에 템플릿 앱을 만들고 이 프로젝트의 개발 소스로 연결합니다.',
+  'Loading source preparation': '소스 준비 상태를 불러오는 중',
+  'An administrator must configure a folder for creating apps before source preparation is available.':
+    '앱을 만들 폴더를 관리자가 설정하면 소스 준비를 시작할 수 있습니다.',
+  'App source prepared': '앱 소스가 준비되었습니다',
+  'Source is connected. Check the app execution environment before starting development.':
+    '소스가 연결되었습니다. 개발을 시작하기 전에 앱 실행 환경을 확인하세요.',
+  'Starter template': '시작 템플릿',
+  'App with private notes': '개인 메모 데이터 앱',
+  'Web and API app': '화면·API 앱',
+  'App creation folder': '앱 생성 폴더',
+  'App repository URL': '앱 저장소 주소',
+  'Use the HTTPS address of the repository intended for this app. This step creates the local source only.':
+    '이 앱에 사용할 저장소의 HTTPS 주소를 입력하세요. 이 단계에서는 로컬 소스를 준비합니다.',
+  'Source preparation is pending. Check its status before continuing.':
+    '소스 준비가 진행 중이거나 중단되었습니다. 현재 상태를 확인한 뒤 이어가세요.',
+  'Source preparation stopped. Continue the same request to resume.':
+    '소스 준비가 중단되었습니다. 같은 요청으로 이어서 준비할 수 있습니다.',
+  'The source folder needs review. Existing files have been preserved.':
+    '소스 폴더를 확인해야 합니다. 기존 파일은 보존되어 있습니다.',
+  'Preparing app source': '앱 소스 준비 중',
+  'Continue source preparation': '소스 준비 이어가기',
+  'Check preparation status': '준비 상태 확인',
+  'The preparation result is unknown. Check the saved request before continuing.':
+    '준비 결과를 확인하지 못했습니다. 저장된 요청 상태를 먼저 확인하세요.',
+  'Check the app identifier, template and credential-free HTTPS repository address.':
+    '앱 식별자, 템플릿과 인증 정보가 없는 HTTPS 저장소 주소를 확인하세요.',
+  'The app creation folder is not available. Ask the administrator to check its configuration.':
+    '앱 생성 폴더를 사용할 수 없습니다. 관리자에게 설정 확인을 요청하세요.',
+  'The starter template changed. Check the saved request and reload the available templates.':
+    '시작 템플릿이 변경되었습니다. 저장된 요청과 사용 가능한 템플릿을 다시 확인하세요.',
+  'Source preparation conflicts with existing work. Check the saved request before continuing.':
+    '기존 작업과 소스 준비 요청이 충돌합니다. 저장된 요청을 확인한 뒤 이어가세요.',
+  'The starter template is unavailable. Ask the administrator to check the Workbench installation.':
+    '시작 템플릿을 사용할 수 없습니다. 관리자에게 Workbench 설치 확인을 요청하세요.',
+  'Another request is preparing this source. Check its status shortly.':
+    '다른 요청에서 이 소스를 준비 중입니다. 잠시 후 상태를 확인하세요.',
+  'Source preparation could not finish. Check the saved request before continuing.':
+    '소스 준비를 완료하지 못했습니다. 저장된 요청 상태를 확인한 뒤 이어가세요.',
+  'This server cannot prepare app sources. Ask the administrator to check its environment.':
+    '이 서버에서 앱 소스를 준비할 수 없습니다. 관리자에게 실행 환경 확인을 요청하세요.',
+  'Repository checkout path': '저장소 작업 경로',
+  'Use an owner-approved checkout containing the matching app.manifest.json.':
+    '관리자가 허용한 작업 경로와 앱 식별자가 일치하는 app.manifest.json이 필요합니다.',
+  'Connected source requires attention.': '연결된 소스를 확인해야 합니다.',
+  'The source path is outside the owner-approved app directories.':
+    '관리자가 허용한 앱 작업 경로가 아닙니다.',
+  'Check the app manifest and the checkout repository identity.':
+    '앱 매니페스트와 저장소의 연결 정보를 확인하세요.',
+  'This checkout configures Git helpers or partial cloning that cannot run on the host.':
+    '이 작업 경로는 호스트에서 실행할 수 없는 Git 보조 명령이나 부분 복제를 설정합니다.',
+  'The source identity changed. Review and reconnect it before starting new work.':
+    '소스 연결 정보가 변경되었습니다. 검토 후 다시 연결하고 새 작업을 시작하세요.',
+
+  'Unavailable skill; remove or replace it before running.':
+    '사용할 수 없는 스킬입니다. 실행 전에 제거하거나 교체하세요.',
   'Personal launcher and activity overview': '개인 앱 런처와 활동 현황',
   'Subscription authenticated coding terminal':
     '구독 인증을 사용하는 코딩 터미널',
@@ -52,6 +309,21 @@ export const korean = {
   'Open development app': '개발 앱 열기',
   'Release unit': '배포 단위',
   'Source paths': '관련 소스',
+  'Registered app': '등록된 앱',
+  'Not configured': '미설정',
+  'Source available': '개발 소스 연결됨',
+  'Source is not configured.': '개발 소스가 연결되지 않았습니다.',
+  'Configured source paths are missing in this checkout.':
+    '설정된 개발 소스가 현재 작업 디렉터리에 없습니다.',
+  'Preview is not configured.': '미리보기 연결이 설정되지 않았습니다.',
+  'Release unit is not configured.': '배포 단위가 설정되지 않았습니다.',
+  'Preview configured; availability not verified':
+    '미리보기 연결됨 · 동작 미확인',
+  'Release configured; deployment not verified':
+    '배포 단위 연결됨 · 배포 가능 여부 미확인',
+  'Inspect app registration': '앱 연결 설정 검토',
+  'App source is not available. Review its registration before starting development.':
+    '개발 소스를 사용할 수 없습니다. 앱 연결 설정을 검토한 뒤 수정 개발을 시작하세요.',
   'This app ships with the MIY release. Deployment and rollback apply to that release.':
     '이 앱은 MIY 릴리스에 포함됩니다. 배포와 롤백도 해당 릴리스 단위로 적용됩니다.',
   'Related work': '관련 작업',
@@ -682,6 +954,7 @@ export const korean = {
     '다른 곳에서 문서가 변경되었습니다. 편집 내용은 유지되며 최신 버전을 불러오기 전에 복사할 수 있습니다.',
   Preview: '미리보기',
   Version: '버전',
+  'Observed version': '관측 버전',
   'No document yet. Continue the conversation to create one.':
     '아직 문서가 없습니다. 대화를 진행하면 여기에 정리됩니다.',
   'Execute this plan': '이 계획으로 실행',
@@ -777,13 +1050,118 @@ export const korean = {
 
 export type Copy = keyof typeof korean;
 export type Locale = 'ko-KR' | 'en-US';
-export type Translate = (key: Copy) => string;
-export const translate =
-  (locale: Locale): Translate =>
-  (key) =>
-    locale === 'ko-KR' ? korean[key] : key;
+export type Translate = ((key: Copy) => string) & { locale?: Locale };
+export const translate = (locale: Locale): Translate =>
+  Object.assign((key: Copy) => (locale === 'ko-KR' ? korean[key] : key), {
+    locale,
+  });
 
 const errors: Record<string, Copy> = {
+  registration_unconfigured:
+    'Registration delegation is not configured. Use the JSON export or ask the administrator to enable it.',
+  registration_unsupported:
+    'This MIY server does not support registration delegation. Use the JSON export.',
+  registration_request_frozen:
+    'The registration request is fixed. Inspect its result instead of replacing it with changed source.',
+  registration_request_conflict:
+    'The registration request is fixed. Inspect its result instead of replacing it with changed source.',
+  registration_invalid_response:
+    'The registration response could not be verified. Inspect the same operation before continuing.',
+  registration_unavailable:
+    'The registration response could not be verified. Inspect the same operation before continuing.',
+  registration_policy_changed:
+    'The registration policy changed. Review the source and reconnect authorization.',
+  registration_rejected:
+    'Registration was not accepted. Review the app identity, origin and owner authorization.',
+  registration_denied: 'Registration authorization required.',
+  registration_session_changed:
+    'This task belongs to another login session. Reconnect explicitly.',
+  registration_authorization_required: 'Registration authorization required.',
+  registration_storage_invalid:
+    'Registration authorization was not confirmed. Reconnect explicitly.',
+  registration_callback_denied:
+    'Registration authorization was not confirmed. Reconnect explicitly.',
+  app_checkpoint_worktree_unsupported:
+    'Checkpointing requires an isolated app checkout on a named branch.',
+
+  source_setup_unknown:
+    'The preparation result is unknown. Check the saved request before continuing.',
+  app_setup_invalid:
+    'Check the app identifier, template and credential-free HTTPS repository address.',
+  app_setup_root_denied:
+    'The app creation folder is not available. Ask the administrator to check its configuration.',
+  app_setup_bundle_changed:
+    'The starter template changed. Check the saved request and reload the available templates.',
+  app_setup_conflict:
+    'Source preparation conflicts with existing work. Check the saved request before continuing.',
+  app_setup_bundle_invalid:
+    'The starter template is unavailable. Ask the administrator to check the Workbench installation.',
+  app_setup_busy:
+    'Another request is preparing this source. Check its status shortly.',
+  app_setup_git_failed:
+    'Source preparation could not finish. Check the saved request before continuing.',
+  app_setup_io_failed:
+    'Source preparation could not finish. Check the saved request before continuing.',
+  app_setup_publish_failed:
+    'Source preparation could not finish. Check the saved request before continuing.',
+  app_setup_publish_unsupported:
+    'This server cannot prepare app sources. Ask the administrator to check its environment.',
+  app_executor_unavailable:
+    'Configure an isolated execution environment for this app.',
+  app_executor_changed:
+    'The app execution environment changed. Review its binding before continuing.',
+  app_executor_worktree_unsupported:
+    'Provision a separate app checkout for parallel work in another environment.',
+  app_executor_configuration:
+    'The app executor configuration does not meet the isolation contract.',
+  app_executor_version_mismatch:
+    'This app executor needs the verified Codex version.',
+  app_executor_required:
+    'Independent app tasks require their isolated executor.',
+  app_executor_attachments_unsupported:
+    'Attachments are not yet supported by this isolated app executor.',
+  app_source_planning_only:
+    'Connect an app source and isolated executor, then start a new implementation task.',
+  app_delivery_unconfigured:
+    'Configure a development installation delegation on the Workbench server.',
+  app_delivery_denied:
+    'This installation no longer permits the requested action.',
+  app_delivery_conflict:
+    'The source or installation changed. Read its current state before continuing.',
+  app_delivery_unavailable:
+    'Delivery status is unavailable. Check the existing request before submitting again.',
+  app_delivery_source_uncommitted:
+    'Create an app checkpoint before requesting a verified build.',
+  app_delivery_invalid_response:
+    'The delivery response does not match the expected contract.',
+  app_checkpoint_source_required:
+    'Checkpointing requires an isolated app checkout on a named branch.',
+  app_checkpoint_named_branch_required:
+    'Checkpointing requires an isolated app checkout on a named branch.',
+  app_checkpoint_busy:
+    'Another Git operation is active. Wait for it to finish before saving.',
+  app_checkpoint_conflict:
+    'The app source changed while saving. Review the current changes and retry.',
+  app_checkpoint_changed:
+    'The app source changed while saving. Review the current changes and retry.',
+  app_checkpoint_staged:
+    'Review staged changes or conflicts before creating an app checkpoint.',
+  app_checkpoint_path_denied:
+    'This checkpoint contains files outside the permitted app source boundary.',
+  app_checkpoint_metadata_denied:
+    'The app Git metadata needs operator review before checkpointing.',
+  app_checkpoint_too_large: 'The app changes exceed the checkpoint size limit.',
+  app_source_denied:
+    'The source path is outside the owner-approved app directories.',
+  app_source_invalid:
+    'Check the app manifest and the checkout repository identity.',
+  app_source_git_policy:
+    'This checkout configures Git helpers or partial cloning that cannot run on the host.',
+  app_source_dirty:
+    'Commit or discard app source changes before preparing registration.',
+  app_source_changed:
+    'The source identity changed. Review and reconnect it before starting new work.',
+
   verification_unavailable:
     'Verify the exact revision in CI and the installed release before completing this patch.',
   instruction_conflict:
@@ -864,6 +1242,8 @@ const errors: Record<string, Copy> = {
   catalog_unavailable:
     'The app catalog is unavailable. Check the registered app contracts.',
   app_not_found: 'This app is not registered in the selected checkout.',
+  app_source_unavailable:
+    'App source is not available. Review its registration before starting development.',
   invalid_input: 'Check the entered values.',
   input_too_large: 'The request body is too large. Reduce the input and retry.',
   input_timeout:

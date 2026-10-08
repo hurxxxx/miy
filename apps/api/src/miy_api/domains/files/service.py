@@ -17,6 +17,7 @@ from miy_api.domains.auth.models import User
 from miy_api.domains.auth.security import new_id
 from miy_api.domains.content_access.ownership import record_ownership_transition
 from miy_api.domains.files import storage_adapter as file_storage
+from miy_api.domains.files.access_policy import filter_readable_files, record_visible
 from miy_api.domains.files.archive_planner import (
     ArchivePlanFile,
     ArchivePlanFolder,
@@ -211,7 +212,6 @@ def list_accessible_files(
     user: User,
     accessible_folder_ids: set[str],
 ) -> list[FileManagerFile]:
-    is_admin = is_corpus_admin(db, user=user)
     files = list(
         db.scalars(
             select(FileManagerFile)
@@ -222,47 +222,9 @@ def list_accessible_files(
             .order_by(FileManagerFile.filename.asc(), FileManagerFile.created_at.asc())
         )
     )
-    corpus_ids = {file.corpus_id for file in files if file.corpus_id is not None}
-    corpora = (
-        {
-            corpus.id: corpus
-            for corpus in db.scalars(
-                select(FileManagerCorpus).where(FileManagerCorpus.id.in_(corpus_ids))
-            )
-        }
-        if corpus_ids
-        else {}
+    return filter_readable_files(
+        db, user=user, files=files, accessible_folder_ids=accessible_folder_ids
     )
-    explicit_file_ids = [
-        file.id
-        for file in files
-        if file.corpus_id is not None
-        and (corpus := corpora.get(file.corpus_id)) is not None
-        and corpus.authorization_mode == "explicit_grants"
-    ]
-    explicit_allowed = authorize_explicit_file_ids(
-        db,
-        file_ids=explicit_file_ids,
-        user_id=user.id,
-    )
-    accessible: list[FileManagerFile] = []
-    for file in files:
-        if file.corpus_id is not None:
-            corpus = corpora.get(file.corpus_id)
-            if corpus is None:
-                continue
-            scope_allowed = corpus.access_scope_kind == "company"
-            if not scope_allowed:
-                continue
-            if corpus.authorization_mode == "explicit_grants" and file.id not in explicit_allowed:
-                continue
-            accessible.append(file)
-            continue
-        if _record_visible(file.visibility, file.owner_id, user=user, is_admin=is_admin) and (
-            file.folder_id is None or file.folder_id in accessible_folder_ids
-        ):
-            accessible.append(file)
-    return accessible
 
 
 def require_folder_access(
@@ -749,7 +711,11 @@ def require_file_access(
 ) -> FileManagerFile:
     file = db.scalar(
         select(FileManagerFile)
-        .options(joinedload(FileManagerFile.owner))
+        .options(
+            joinedload(FileManagerFile.owner).load_only(
+                User.id, User.display_name, User.full_name, raiseload=True
+            )
+        )
         .where(
             FileManagerFile.id == file_id,
             FileManagerFile.deleted_at.is_(None),
@@ -1405,7 +1371,7 @@ def _record_visible(
     user: User,
     is_admin: bool,
 ) -> bool:
-    return owner_id == user.id or visibility == "company"
+    return record_visible(visibility, owner_id, user=user)
 
 
 def _ensure_can_manage_record(

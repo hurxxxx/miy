@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import BinaryIO, Protocol
 
 from miy_api.core.i18n import localized_http_exception
+from miy_api.core.transaction_outcome import commit_was_rejected
 from miy_api.domains.dm import attachment_storage
 from miy_api.domains.dm.models import DmMessageAttachment
 
@@ -64,9 +65,20 @@ def persist_created_attachment(
     try:
         db.commit()
     except Exception as exc:
-        db.rollback()
-        _remove_uploaded_object(storage, storage_key=object_write.storage_key)
-        raise localized_http_exception(status_code=500, code="dm.attachment_save_failed") from exc
+        rejected = commit_was_rejected(exc)
+        try:
+            db.rollback()
+        except Exception:
+            rejected = False
+        # A lost commit acknowledgement can leave a committed row. A later
+        # rollback (or a SELECT that does not find the row) cannot disprove it.
+        # Preserve bytes for every unclassified outcome; never retry the write.
+        if rejected:
+            _remove_uploaded_object(storage, storage_key=object_write.storage_key)
+        raise localized_http_exception(
+            status_code=500,
+            code="dm.attachment_save_failed" if rejected else "dm.attachment_save_unknown",
+        ) from None
 
     db.refresh(row)
     return row

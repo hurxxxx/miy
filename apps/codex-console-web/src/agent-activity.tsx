@@ -84,7 +84,7 @@ export function AgentActivity({
     0,
   );
   const attentionCount = groups.attention.length;
-  const summary = `${t('Running agents')}: ${runningCount} · ${t('Needs attention')}: ${attentionCount} · ${t('Recently finished')}: ${groups.finished.length}`;
+  const summary = `${t('Last reported running agents')}: ${runningCount} · ${t('Needs attention')}: ${attentionCount} · ${t('Recently finished')}: ${groups.finished.length}`;
   return (
     <Dialog.Root open={open} onOpenChange={setOpen} modal={false}>
       <Dialog.Trigger asChild>
@@ -150,7 +150,7 @@ export function AgentActivity({
           <div className="agent-panel-summary">
             <div>
               <strong>{runningCount}</strong>
-              <span>{t('Running agents')}</span>
+              <span>{t('Last reported running agents')}</span>
             </div>
             <div data-attention={attentionCount > 0}>
               <strong>{attentionCount}</strong>
@@ -161,6 +161,11 @@ export function AgentActivity({
               <span>{t('Recently finished')}</span>
             </div>
           </div>
+          <p className="agent-update-warning">
+            {t(
+              'Counts use stored reports. Refreshing this list does not check native agent state.',
+            )}
+          </p>
           {failed && (
             <p className="agent-update-warning">
               {t('Updates delayed. Showing the last received state.')}

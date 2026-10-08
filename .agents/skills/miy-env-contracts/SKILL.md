@@ -1,16 +1,14 @@
 ---
 name: miy-env-contracts
-description: Use when changing or auditing typed env contracts, installing ignored env files, or auditing dev/prod runtime separation. Excludes incidental env mentions, service operations, secret rotation, and unrequested GitLab changes.
+description: MIY typed settings, ignored env-file helpers, and dev/prod runtime identity. Excludes incidental env mentions, secret rotation, and service operations.
 ---
 
 # Environment Contracts
 
-Choose only the affected contract:
-- Keys/settings/ignored files: read [env-files.md](references/env-files.md).
-- Runtime identity, ports, storage namespaces, or checkout guards: read [separation.md](references/separation.md).
+- [Env files/settings](references/env-files.md) owns typed keys and ignored-file installation.
+- [Runtime separation](references/separation.md) owns runtime identity, storage namespaces, ports, and checkout guards.
+- [Inventory helper](scripts/env-inventory.sh) and [local-file helper](scripts/local-env-files.sh) inspect/install without printing values.
 
-Use typed MIY_* settings; browser-visible VITE_MIY_* values cannot contain secrets.
-Report keys, counts, file modes, checksums, and redacted status. Env installation does not authorize restarting services.
-Production checkout is an execution guard, not a requirement to rename every shared physical service; use [release ownership](../../../docs/domains/release/README.md) for the current topology contract.
+Browser-visible `VITE_MIY_*` settings cannot contain secrets. Report key names, counts, modes, hashes, and redacted status. Env-file installation does not authorize restarting services. Shared physical services follow [release ownership](../../../docs/domains/release/README.md), with logical data isolation where supported.
 
-Run `pnpm check:env-contract` and `pnpm check:path-hardcoding`; verify modified helpers with fixtures.
+Verify changed contracts with `pnpm check:env-contract` and `pnpm check:path-hardcoding`; helper changes also require fixture checks.

@@ -201,6 +201,88 @@ def _application_seed_rows(connection, table_names) -> dict[str, str]:
     }
 
 
+def test_baseline_restore_failure_preserves_recording_authority_and_recovers(
+    application_postgres_state: conftest.ApplicationPostgresState,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import psycopg
+
+    engine = create_engine(application_postgres_state.dsn)
+    original = conftest._run_postgres_cli
+
+    def restore_failure(command, *, dsn):
+        result = original(command, dsn=dsn)
+        if command[0] == "pg_restore":
+            from pathlib import Path
+
+            generated = Path(command[command.index("--file") + 1])
+            with generated.open("a") as output:
+                output.write("\nSELECT public.synthetic_baseline_restore_failure();\n")
+        return result
+
+    def recording_guards(connection):
+        return connection.execute(
+            text("""
+            SELECT c.relname,t.tgname,t.tgenabled,p.proname
+            FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+            JOIN pg_namespace n ON n.oid=c.relnamespace
+            JOIN pg_proc p ON p.oid=t.tgfoid
+            WHERE n.nspname='public' AND NOT t.tgisinternal
+              AND c.relname IN ('recording_stage_commands','core_recording_publications','file_extraction_requests')
+            ORDER BY 1,2
+        """)
+        ).all()
+
+    try:
+        conftest._restore_application_postgres_state(application_postgres_state)
+        with engine.begin() as connection:
+            expected = recording_guards(connection)
+            assert len(expected) == 10 and all(row[2] == "O" for row in expected)
+            connection.execute(text("DELETE FROM app_access_policies"))
+            seed_before = _application_seed_rows(
+                connection, ("company_app_controls", "app_access_policies")
+            )
+        with monkeypatch.context() as patch:
+            patch.setattr(conftest, "_run_postgres_cli", restore_failure)
+            with pytest.raises(RuntimeError, match="synthetic_baseline_restore_failure"):
+                conftest._restore_application_postgres_state(application_postgres_state)
+        with engine.connect() as connection:
+            assert recording_guards(connection) == expected
+            assert _application_seed_rows(connection, seed_before) == seed_before
+            with pytest.raises(Exception) as error:
+                connection.execute(
+                    text("UPDATE core_recording_publications SET state=state WHERE false")
+                )
+            assert error.value.orig.sqlstate == "42501"
+            connection.rollback()
+            with pytest.raises(Exception) as file_error:
+                connection.execute(
+                    text("UPDATE file_extraction_requests SET state=state WHERE false")
+                )
+            assert file_error.value.orig.sqlstate == "55000"
+            connection.rollback()
+            assert connection.scalar(text("SELECT count(*) FROM official_writer_principals")) == 0
+        with psycopg.connect(
+            application_postgres_state.dsn.replace("postgresql+psycopg://", "postgresql://", 1)
+        ) as connection:
+            with pytest.raises(psycopg.Error) as error:
+                with connection.cursor().copy(
+                    "COPY public.core_recording_publications (publication_id) FROM STDIN"
+                ):
+                    pass
+            assert error.value.sqlstate == "42501"
+        # Rollback preserves the prior composition; a subsequent exact restore
+        # must still recover the canonical application seed.
+        conftest._restore_application_postgres_state(application_postgres_state)
+        with engine.connect() as connection:
+            assert recording_guards(connection) == expected
+            assert connection.scalar(text("SELECT count(*) FROM company_app_controls")) > 0
+            assert connection.scalar(text("SELECT count(*) FROM app_access_policies")) > 0
+            assert connection.scalar(text("SELECT count(*) FROM core_recording_publications")) == 0
+    finally:
+        engine.dispose()
+
+
 def test_test_resource_names_are_scoped_to_the_run() -> None:
     infra = _infra()
 
@@ -359,9 +441,7 @@ def test_unrecognized_postgres_template_is_rejected_without_ack(monkeypatch) -> 
     monkeypatch.setattr(
         infra_module.os,
         "getenv",
-        lambda name, default=None: (
-            "development" if name == "MIY_ENV_PROFILE" else default
-        ),
+        lambda name, default=None: "development" if name == "MIY_ENV_PROFILE" else default,
     )
     monkeypatch.setattr(infra_module, "_approved_dev_values", lambda _name: set())
     monkeypatch.setattr(infra_module, "_env_values", lambda _path: {})

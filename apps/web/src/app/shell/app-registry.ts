@@ -1,24 +1,19 @@
 import { APP_CONTRACTS } from '@miy/contracts/app-contracts';
-import {
-  createCoreAppModuleRegistry,
-  createCoreAppModuleRegistryApi,
-  type CoreAppModuleRegistration,
-  type CoreAppModuleRegistry,
-} from '@miy/core-web/app-registry';
-import type { ComponentType, ReactNode } from 'react';
-
 import type { BackgroundWorkSource } from '@/src/platform/background-work/background-work-session';
 import {
   DEFAULT_APP_MODULES,
   DEFAULT_FEATURE_MODULES,
   DEFAULT_SHELL_MODULES,
 } from './app-module-manifests';
+import {
+  createAppModuleRegistryApi,
+  type ShellProviderComponent,
+} from './app-registry-factory';
 import { compileFeatureModuleRegistry } from './feature-module-registry';
 import type {
   AppBarItem,
   AppModuleId,
   AppModuleManifest,
-  AppShellNavResolver,
   LauncherGlobalPaths,
   NavItem,
   StaticRouteDefinition,
@@ -27,80 +22,15 @@ import type {
   AppRouteDefinition,
   ToolViewRouteDefinition,
 } from './route-types';
-import type { AppSidebarConfig } from './sidebar-types';
-
-export type ShellProviderComponent = ComponentType<{ children: ReactNode }>;
-
-export type AppModuleRegistration = CoreAppModuleRegistration<
-  AppModuleId,
-  NavItem,
-  AppModuleManifest,
-  StaticRouteDefinition,
-  AppRouteDefinition,
-  ToolViewRouteDefinition,
-  BackgroundWorkSource,
-  AppSidebarConfig,
-  AppShellNavResolver,
-  ShellProviderComponent
->;
-
-export type AppModuleRegistry = CoreAppModuleRegistry<
-  AppModuleId,
-  NavItem,
-  AppModuleManifest,
-  AppBarItem,
-  StaticRouteDefinition,
-  AppRouteDefinition,
-  ToolViewRouteDefinition,
-  BackgroundWorkSource,
-  AppSidebarConfig,
-  AppShellNavResolver,
-  ShellProviderComponent
->;
-
-type AppModuleRegistryInput = AppModuleManifest | AppModuleRegistration;
-
-export function createAppModuleRegistry(
-  manifests: readonly AppModuleManifest[],
-): AppModuleRegistry;
-export function createAppModuleRegistry(
-  registrations: readonly AppModuleRegistration[],
-): AppModuleRegistry;
-export function createAppModuleRegistry(
-  inputs: readonly AppModuleRegistryInput[],
-): AppModuleRegistry {
-  return createCoreAppModuleRegistry<
-    AppModuleId,
-    NavItem,
-    AppModuleManifest,
-    AppBarItem,
-    StaticRouteDefinition,
-    AppRouteDefinition,
-    ToolViewRouteDefinition,
-    BackgroundWorkSource,
-    AppSidebarConfig,
-    AppShellNavResolver,
-    ShellProviderComponent
-  >(inputs);
-}
-
-export function createAppModuleRegistryApi(
-  inputs: readonly AppModuleRegistryInput[],
-) {
-  return createCoreAppModuleRegistryApi<
-    AppModuleId,
-    NavItem,
-    AppModuleManifest,
-    AppBarItem,
-    StaticRouteDefinition,
-    AppRouteDefinition,
-    ToolViewRouteDefinition,
-    BackgroundWorkSource,
-    AppSidebarConfig,
-    AppShellNavResolver,
-    ShellProviderComponent
-  >(inputs);
-}
+export {
+  createAppModuleRegistry,
+  createAppModuleRegistryApi,
+} from './app-registry-factory';
+export type {
+  AppModuleRegistration,
+  AppModuleRegistry,
+  ShellProviderComponent,
+} from './app-registry-factory';
 
 const APP_MODULE_REGISTRY_API = createAppModuleRegistryApi(DEFAULT_APP_MODULES);
 const SHELL_MODULE_REGISTRY_API = createAppModuleRegistryApi(

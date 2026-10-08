@@ -7,6 +7,7 @@
   "files": [
     "README.md",
     "miy-desktop-update-feed.manifest.json",
+    "independent-app.schema.json",
     "dist"
   ],
   "exports": {
@@ -27,6 +28,7 @@
       "import": "./dist/miy-desktop-update-feed.js"
     },
     "./miy-desktop-update-feed.manifest.json": "./miy-desktop-update-feed.manifest.json",
+    "./independent-app.schema.json": "./independent-app.schema.json",
     "./openapi": "./dist/openapi.generated.d.ts",
     "./dm": {
       "types": "./dist/dm.d.ts",

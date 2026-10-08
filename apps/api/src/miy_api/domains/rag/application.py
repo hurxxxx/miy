@@ -493,7 +493,7 @@ def _build_files_hit_hydrator(
     source_kinds: Sequence[str],
     partitioned_generation: bool,
 ) -> Callable[[Sequence[RagVectorSearchHit]], Sequence[RagVectorSearchHit]] | None:
-    if not partitioned_generation or FILES_RAG_SOURCE_KIND not in source_kinds:
+    if FILES_RAG_SOURCE_KIND not in source_kinds:
         return None
 
     from miy_api.domains.files.rag_projection import (

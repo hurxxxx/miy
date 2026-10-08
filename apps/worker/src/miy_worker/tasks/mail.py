@@ -11,12 +11,15 @@ from miy_api.domains.mail.service import (
 )
 from miy_api.domains.mail.sync_policy import MailSyncAccessRevoked
 
-from miy_worker.celery_app import celery_app
+from miy_worker.task_binding import task_app
+
 from miy_worker.runtime import db_session_factory as _session_factory
-from miy_worker.settings import get_settings as get_worker_settings
+from miy_worker.task_binding import mail_task_time_limit
+
+celery_app = task_app(__name__)
 
 logger = logging.getLogger(__name__)
-_MAIL_SYNC_TASK_TIME_LIMIT = get_worker_settings().mail_sync_processing_lease_seconds
+_MAIL_SYNC_TASK_TIME_LIMIT = mail_task_time_limit()
 _MAIL_SYNC_SOFT_TIME_LIMIT = max(1, _MAIL_SYNC_TASK_TIME_LIMIT - 60)
 
 
@@ -25,8 +28,8 @@ _MAIL_SYNC_SOFT_TIME_LIMIT = max(1, _MAIL_SYNC_TASK_TIME_LIMIT - 60)
     bind=True,
     acks_late=True,
     max_retries=None,
-    task_time_limit=_MAIL_SYNC_TASK_TIME_LIMIT,
-    task_soft_time_limit=_MAIL_SYNC_SOFT_TIME_LIMIT,
+    time_limit=_MAIL_SYNC_TASK_TIME_LIMIT,
+    soft_time_limit=_MAIL_SYNC_SOFT_TIME_LIMIT,
 )
 def sync_mail_job(self, job_id: str) -> str:
     session = _session_factory()()
@@ -48,8 +51,8 @@ def sync_mail_job(self, job_id: str) -> str:
     bind=True,
     acks_late=True,
     max_retries=None,
-    task_time_limit=_MAIL_SYNC_TASK_TIME_LIMIT,
-    task_soft_time_limit=_MAIL_SYNC_SOFT_TIME_LIMIT,
+    time_limit=_MAIL_SYNC_TASK_TIME_LIMIT,
+    soft_time_limit=_MAIL_SYNC_SOFT_TIME_LIMIT,
 )
 def sync_mail_account(self, account_id: str) -> str:
     del self

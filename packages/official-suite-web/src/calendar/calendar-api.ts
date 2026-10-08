@@ -1,0 +1,143 @@
+// Calendar events API client. Talks to the unified events endpoint
+// (Phase 2: GET /api/v1/calendar/events) which JOINs Meeting + PMS tasks
+// scoped to the current authenticated user.
+//
+// During Phase 1.3 the backend endpoint does not yet exist. The hook in
+// use-calendar-events.ts can fall back to MOCK_CALENDAR_EVENTS until Phase 2 lands.
+import { apiFetchJsonWithMappedError } from '@miy/platform-web/api-client';
+import { i18n } from '@miy/platform-web/i18n';
+
+import {
+  ALL_CALENDAR_SOURCES,
+  CALENDAR_SOURCE_COLORS,
+  type CalendarEvent,
+  type CalendarSourceFilter,
+} from './calendar-types';
+
+class CalendarApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+    this.name = 'CalendarApiError';
+  }
+}
+
+export interface ListCalendarEventsOptions {
+  from: string; // ISO date (YYYY-MM-DD) or full ISO datetime
+  to: string; // exclusive
+  sources?: CalendarSourceFilter;
+}
+
+export interface CalendarEventsResponse {
+  items: CalendarEvent[];
+}
+
+export async function listCalendarEvents(
+  token: string,
+  options: ListCalendarEventsOptions,
+): Promise<CalendarEventsResponse> {
+  const params = new URLSearchParams();
+  params.set('from', options.from);
+  params.set('to', options.to);
+  const sources = options.sources ?? ALL_CALENDAR_SOURCES;
+  if (sources.length > 0) {
+    params.set('sources', sources.join(','));
+  }
+  const path = `/api/v1/calendar/events?${params.toString()}`;
+  return apiFetchJsonWithMappedError<CalendarEventsResponse>(
+    path,
+    token,
+    {},
+    (error) =>
+      new CalendarApiError(
+        error.status,
+        error.message || `Calendar events request failed with ${error.status}.`,
+      ),
+  );
+}
+
+// Mock fixture used while the backend endpoint is not yet wired (Phase 1.3 → Phase 2).
+// Matches the set of scenarios verified in Phase 1.1 spike: overlapping events,
+// all-day, multi-day, midnight crossing.
+//
+// Anchored relative to today so the dev never sees an empty calendar regardless
+// of when they open it.
+function isoOffset(daysFromToday: number, hour: number, minute = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromToday);
+  d.setHours(hour, minute, 0, 0);
+  // FullCalendar accepts native Date.toISOString() and resolves it under the
+  // calendar's configured timezone.
+  return d.toISOString();
+}
+
+function isoDate(daysFromToday: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromToday);
+  return d.toISOString().slice(0, 10);
+}
+
+export function buildMockCalendarEvents(): CalendarEvent[] {
+  return [
+    {
+      id: 'mock-meeting-1',
+      title: i18n.t('apps:planner.mock.strategyMeeting'),
+      start: isoOffset(0, 10, 0),
+      end: isoOffset(0, 11, 0),
+      allDay: false,
+      sourceType: 'meeting',
+      sourceId: 'mock-meeting-1',
+      color: CALENDAR_SOURCE_COLORS.meeting,
+      metadata: { meetingId: 'mock-meeting-1', attendeeCount: 5 },
+    },
+    {
+      id: 'mock-meeting-2',
+      title: i18n.t('apps:planner.mock.productReviewOverlap'),
+      start: isoOffset(0, 10, 30),
+      end: isoOffset(0, 11, 30),
+      allDay: false,
+      sourceType: 'meeting',
+      sourceId: 'mock-meeting-2',
+      color: CALENDAR_SOURCE_COLORS.meeting,
+      metadata: { meetingId: 'mock-meeting-2', attendeeCount: 3 },
+    },
+    {
+      id: 'mock-pms-due-1',
+      title: i18n.t('apps:planner.mock.designReviewDue'),
+      start: isoDate(1),
+      end: isoDate(2),
+      allDay: true,
+      sourceType: 'pms_due',
+      sourceId: 'mock-task-12',
+      color: CALENDAR_SOURCE_COLORS.pms_due,
+      metadata: {
+        taskListKey: 'INDUSTRIAL',
+        taskNumber: 12,
+        status: 'in_progress',
+      },
+    },
+    {
+      id: 'mock-pms-block-1',
+      title: i18n.t('apps:planner.mock.workshopTravel'),
+      start: isoDate(2),
+      end: isoDate(5),
+      allDay: true,
+      sourceType: 'pms_block',
+      sourceId: 'mock-task-15',
+      color: CALENDAR_SOURCE_COLORS.pms_block,
+      metadata: { taskListKey: 'INDUSTRIAL', taskNumber: 15, status: 'todo' },
+    },
+    {
+      id: 'mock-meeting-3',
+      title: i18n.t('apps:planner.mock.midnightDeploy'),
+      start: isoOffset(3, 23, 30),
+      end: isoOffset(4, 0, 30),
+      allDay: false,
+      sourceType: 'meeting',
+      sourceId: 'mock-meeting-3',
+      color: CALENDAR_SOURCE_COLORS.meeting,
+      metadata: { meetingId: 'mock-meeting-3', attendeeCount: 2 },
+    },
+  ];
+}

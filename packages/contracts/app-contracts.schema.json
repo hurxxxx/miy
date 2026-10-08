@@ -1,14 +1,18 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": [
-    "$schema",
-    "apps"
-  ],
+  "required": ["$schema", "apps", "official_app_ids"],
   "additionalProperties": false,
   "properties": {
     "$schema": {
       "const": "./app-contracts.schema.json"
+    },
+    "official_app_ids": {
+      "description": "Owned official app scopes; composition does not activate a runtime writer.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"}
     },
     "apps": {
       "type": "array",
@@ -41,17 +45,10 @@
             "minLength": 1
           },
           "execution_context_kind": {
-            "enum": [
-              "personal",
-              "company"
-            ]
+            "enum": ["personal", "company"]
           },
           "resource_scope": {
-            "enum": [
-              "personal",
-              "company",
-              "hybrid"
-            ]
+            "enum": ["personal", "company", "hybrid"]
           },
           "route_base": {
             "type": "string",
@@ -64,17 +61,10 @@
           "launcher": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "placement",
-              "pinned_by_default"
-            ],
+            "required": ["placement", "pinned_by_default"],
             "properties": {
               "placement": {
-                "enum": [
-                  "fixed",
-                  "personal_tools",
-                  "category"
-                ]
+                "enum": ["fixed", "personal_tools", "category"]
               },
               "pinned_by_default": {
                 "type": "boolean"
@@ -103,11 +93,7 @@
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": [
-                "route_id",
-                "suffix",
-                "chrome"
-              ],
+              "required": ["route_id", "suffix", "chrome"],
               "properties": {
                 "route_id": {
                   "type": "string",
@@ -164,12 +150,21 @@
                 "uniqueItems": true
               },
               "release_unit": {
-                "enum": [
-                  "miy-app",
-                  "miy-workbench"
-                ]
+                "enum": ["miy-app", "miy-workbench"]
               }
             }
+          },
+          "title_translations": {
+            "type": "object",
+            "propertyNames": {
+              "pattern": "^[a-z]{2}-[A-Z]{2}$"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "maxProperties": 20
           }
         }
       }

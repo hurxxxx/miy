@@ -84,7 +84,7 @@ def record_projection_event(
         if normalized_change_kind != RetrievalProjectionChangeKind.REPAIR.value:
             raise ValueError("deleted projection state requires a delete or repair event")
 
-    _lock_projection_stream(
+    lock_projection_stream(
         db,
         resource_type=normalized_resource_type,
         resource_id=normalized_resource_id,
@@ -96,6 +96,7 @@ def record_projection_event(
             RetrievalProjectionHead.resource_id == normalized_resource_id,
         )
         .with_for_update()
+        .execution_options(populate_existing=True)
     )
     now = utcnow_naive()
     if head is None:
@@ -148,7 +149,7 @@ def record_projection_event(
     )
 
 
-def _lock_projection_stream(
+def lock_projection_stream(
     db: Session,
     *,
     resource_type: str,
@@ -209,4 +210,4 @@ def _enum_value[EnumT: RetrievalProjectionChangeKind | RetrievalProjectionDesire
         raise ValueError(f"{field} must be one of: {allowed}") from error
 
 
-__all__ = ["ProjectionEventRef", "record_projection_event"]
+__all__ = ["ProjectionEventRef", "lock_projection_stream", "record_projection_event"]

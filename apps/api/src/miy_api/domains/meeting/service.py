@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from miy_api.domains.official_apps.source_guard import lock_source_writer
+
 from datetime import UTC, datetime
 from typing import Iterable, Literal
 from urllib.parse import quote
@@ -80,7 +82,9 @@ from miy_api.domains.pms.access import ensure_task_attachable
 from miy_api.domains.pms.models import Task
 from miy_api.domains.rag.contracts import RagSyncOperation
 from miy_api.domains.recording import service as recording_service
-from miy_api.domains.retrieval.partitioning import assign_default_partition
+from miy_api.domains.retrieval.prepared_company_partitions import (
+    assign_company_projection_partition,
+)
 from miy_api.domains.source_access import can_read_meeting
 from miy_api.domains.source_access.policy import SourceAclPolicy
 from miy_api.domains.whiteboard.models import Whiteboard, WhiteboardTarget
@@ -676,11 +680,10 @@ def create_meeting(
         end_at=payload.end_at,
         status="scheduled",
     )
-    assign_default_partition(
+    assign_company_projection_partition(
         db,
         target=meeting,
         source_namespace="meeting",
-        candidate_scope_kind="company",
     )
     db.add(meeting)
     db.flush()
@@ -837,7 +840,7 @@ def delete_meeting(db: Session, *, user: User, meeting_id: str) -> None:
 
     meeting = _load_meeting(db, meeting_id)
     ensure_meeting_organizer(db, user, meeting)
-    cleanup_meeting_recordings(db, meeting=meeting)
+    spool_paths = cleanup_meeting_recordings(db, meeting=meeting)
     affected_doc_ids = collect_meeting_visibility_doc_ids(db, meeting_id=meeting.id)
     revoke_attachment_grants_for_deleted_meeting(
         db,
@@ -867,6 +870,10 @@ def delete_meeting(db: Session, *, user: User, meeting_id: str) -> None:
     )
     db.delete(meeting)
     db.commit()
+    from miy_api.domains.recording.blob_store import cleanup_spool_dir
+
+    for spool_path in spool_paths:
+        cleanup_spool_dir(spool_path)
 
 
 def get_meeting(
@@ -1268,6 +1275,7 @@ async def attach_file(
         attachment_id=attachment_id,
         filename=safe_name,
     )
+    lock_source_writer(db, "meeting_file_attachments")
     file_storage.put_attachment_object(
         storage_key=storage_key,
         data=data,
@@ -1316,15 +1324,14 @@ def detach_file(
 
     ensure_link_remover(db, user, meeting, attachment.added_by_id)
 
-    try:
-        file_storage.remove_attachment_object(attachment.storage_key)
-    except Exception:
-        # If the storage object is already gone we still want to drop the
-        # database row so the UI no longer shows a phantom attachment.
-        pass
-
+    storage_key = attachment.storage_key
     db.delete(attachment)
     db.commit()
+    # Only acknowledged source deletion permits removal of its original object.
+    try:
+        file_storage.remove_attachment_object(storage_key)
+    except Exception:
+        pass
 
     fresh = _load_meeting(db, meeting_id)
     return fresh

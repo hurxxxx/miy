@@ -17,6 +17,7 @@ from miy_api.domains.files.rag_sync import (
     stage_file_retrieval_reconciliation,
 )
 from miy_api.domains.files import rag_sync as files_rag_sync
+from miy_api.domains.files import retrieval_contract
 from miy_api.domains.files.models import (
     FileManagerCorpus,
     FileManagerFile,
@@ -24,6 +25,9 @@ from miy_api.domains.files.models import (
 )
 from miy_api.domains.rag.models import RagSyncJob
 from miy_api.domains.rag.contracts import RagSyncOperation
+from miy_api.domains.official_apps.writer_models import RuntimeOwnership
+from miy_api.domains.official_apps.projection_contracts import ProjectionIntent
+from miy_api.domains.retrieval import official_projection_ingress
 from miy_api.domains.retrieval.models import (
     RetrievalPartition,
     RetrievalProjectionEvent,
@@ -36,6 +40,30 @@ from miy_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOU
 
 
 _PARTITION_ID = "6fa05b2e-8f30-4388-af56-c229636fa6c9"
+
+
+def _stub_sqlite_core_dispatch(monkeypatch) -> list[ProjectionIntent]:
+    # SQLite controls Core head/job behavior here. The real Source transport,
+    # READ COMMITTED and role admission remain covered by PostgreSQL four-hook
+    # and authority tests in the full release CI.
+    intents: list[ProjectionIntent] = []
+
+    def _record_and_stage_core(db: Session, *, intent: ProjectionIntent) -> ProjectionEventRef:
+        assert isinstance(intent, ProjectionIntent)
+        intents.append(intent)
+        projection_event = record_projection_event(
+            db, **intent.model_dump(mode="json", exclude={"operation"})
+        )
+        official_projection_ingress._stage_jobs(
+            db, intent, projection_event, publish_after_commit=False
+        )
+        return projection_event
+
+    monkeypatch.setattr(files_rag_sync, "emit_and_accept_projection", _record_and_stage_core)
+    monkeypatch.setattr(
+        official_projection_ingress, "get_settings", lambda: SimpleNamespace(rag_enabled=True)
+    )
+    return intents
 
 
 def _session() -> Session:
@@ -52,6 +80,7 @@ def _session() -> Session:
         tables=[
             Group.__table__,
             User.__table__,
+            RuntimeOwnership.__table__,
             RetrievalPartition.__table__,
             FileManagerCorpus.__table__,
             FileManagerFolder.__table__,
@@ -63,6 +92,16 @@ def _session() -> Session:
         ],
     )
     session = Session(engine)
+    session.add(
+        RuntimeOwnership(
+            scope="official.suite",
+            active_owner="legacy",
+            generation=1,
+            artifact=None,
+            state="active",
+        )
+    )
+    session.flush()
     session.add_all(
         [
             User(
@@ -188,16 +227,28 @@ def test_disabled_gate_records_source_head_but_does_not_stage_backend_jobs(
 ) -> None:
     db = _session()
     try:
+        intents = _stub_sqlite_core_dispatch(monkeypatch)
         file = _legacy_file(file_id="file-disabled-change", checksum="c" * 64)
         db.add(file)
         db.flush()
-        monkeypatch.setattr(files_rag_sync, "FILES_RETRIEVAL_ACTIVE", False)
+        monkeypatch.setattr(retrieval_contract, "FILES_RETRIEVAL_ACTIVE", False)
 
         files_rag_sync.enqueue_file_retrieval_sync(
             db,
             file=file,
             operation=RagSyncOperation.UPSERT,
         )
+        assert intents == [
+            ProjectionIntent(
+                resource_type=FILE_MANAGER_FILE_RESOURCE_TYPE,
+                resource_id=file.id,
+                retrieval_partition_id=_PARTITION_ID,
+                change_kind="content",
+                desired_state="active",
+                operation="upsert",
+                content_checksum="c" * 64,
+            )
+        ]
 
         head = db.get(
             RetrievalProjectionHead,
@@ -219,10 +270,11 @@ def test_extraction_completion_refreshes_cached_row_and_advances_head(
 ) -> None:
     db = _session()
     try:
+        intents = _stub_sqlite_core_dispatch(monkeypatch)
         file = _legacy_file(file_id="file-extracted-later", checksum=None)
         db.add(file)
         db.flush()
-        monkeypatch.setattr(files_rag_sync, "FILES_RETRIEVAL_ACTIVE", False)
+        monkeypatch.setattr(retrieval_contract, "FILES_RETRIEVAL_ACTIVE", False)
         files_rag_sync.enqueue_file_retrieval_sync(
             db,
             file=file,
@@ -255,18 +307,24 @@ def test_extraction_completion_refreshes_cached_row_and_advances_head(
             .execution_options(synchronize_session=False)
         )
         assert file.extraction_content_checksum is None
-        monkeypatch.setattr(files_rag_sync, "FILES_RETRIEVAL_ACTIVE", True)
-        monkeypatch.setattr(
-            files_rag_sync,
-            "get_settings",
-            lambda: SimpleNamespace(rag_enabled=True),
-        )
-
+        monkeypatch.setattr(retrieval_contract, "FILES_RETRIEVAL_ACTIVE", True)
         files_rag_sync.mark_file_projection_prepared(
             db,
             file_id=file.id,
             projection_event=stale_ref,
         )
+        assert intents == [
+            ProjectionIntent(
+                resource_type=FILE_MANAGER_FILE_RESOURCE_TYPE,
+                resource_id=file.id,
+                retrieval_partition_id=_PARTITION_ID,
+                change_kind="content",
+                desired_state="active",
+                operation="upsert",
+                content_checksum=checksum,
+            )
+            for checksum in (None, "e" * 64)
+        ]
 
         head = db.get(
             RetrievalProjectionHead,
