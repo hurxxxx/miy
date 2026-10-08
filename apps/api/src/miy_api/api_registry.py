@@ -75,6 +75,8 @@ def register_api_routers(
                 session_factory=official_auth_session_factory,
                 max_concurrent_reads=official_auth_max_concurrent_reads,
             )
+            # HTTP and owned collaboration callbacks share one read budget.
+            app.state.prepared_official_auth_dependency = dependency
         else:
             dependency = require_official_auth_context
         app.dependency_overrides[require_auth_context] = dependency

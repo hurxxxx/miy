@@ -4,7 +4,9 @@ import asyncio
 import base64
 import json
 import secrets
+from collections.abc import Awaitable, Callable
 from datetime import datetime
+from functools import partial
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, WebSocket, status
@@ -28,6 +30,10 @@ from miy_api.core.i18n import (
     translate_message,
 )
 from miy_api.core.settings import get_settings
+from miy_api.domains.official_apps.websocket_auth import (
+    prepared_official_ws_close_choice,
+    resolve_prepared_official_ws_auth_context,
+)
 from miy_api.core.storage import get_minio_client
 from miy_api.domains.auth.access import is_platform_admin_user
 from miy_api.domains.auth.app_gate import (
@@ -213,7 +219,7 @@ async def _resolve_collab_ws_token(websocket: WebSocket) -> str:
 
 async def _close_websocket_for_http_error(websocket: WebSocket, exc: HTTPException) -> None:
     try:
-        choice = writer_close_choice(exc)
+        choice = _collab_authorization_error_close(exc)
         await websocket.close(
             code=choice[0] if choice else _collab_ws_close_code_for_status(exc.status_code),
             reason=choice[1] if choice else _collab_ws_reason_for_http_error(exc),
@@ -222,6 +228,10 @@ async def _close_websocket_for_http_error(websocket: WebSocket, exc: HTTPExcepti
         if "after sending 'websocket.close'" in str(close_error):
             return
         raise
+
+
+def _collab_authorization_error_close(exc: HTTPException) -> tuple[int, str] | None:
+    return writer_close_choice(exc) or prepared_official_ws_close_choice(exc)
 
 
 def _require_collab_edit_access(
@@ -235,6 +245,40 @@ def _require_collab_edit_access(
         require_active_writer(db, writer_identity)
 
 
+def _require_prepared_collab_source_access(
+    *, page_ref: str, user: User, writer_identity: WriterIdentity
+) -> None:
+    with get_session_factory()() as db:
+        context = resolve_collab_page_context(db, user, page_ref)
+        if not context.can_edit:
+            raise localized_http_exception(status_code=403, code="docs.doc_edit_access_required")
+        require_active_writer(db, writer_identity)
+
+
+async def _authorize_prepared_collab_access(
+    websocket: WebSocket,
+    *,
+    page_ref: str,
+    token: str,
+    user_id: str,
+    writer_identity: WriterIdentity,
+) -> None:
+    context = await resolve_prepared_official_ws_auth_context(
+        websocket, token=token, logical_app_id="docs"
+    )
+    if context is None:
+        # Removing prepared assembly cannot fall back during a live connection.
+        raise localized_http_exception(status_code=503, code="official_apps.authority_unavailable")
+    if context.user.id != user_id:
+        raise localized_http_exception(status_code=401, code="auth.required")
+    await run_in_threadpool(
+        _require_prepared_collab_source_access,
+        page_ref=page_ref,
+        user=context.user,
+        writer_identity=writer_identity,
+    )
+
+
 async def _monitor_collab_access(
     websocket: WebSocket,
     *,
@@ -242,17 +286,21 @@ async def _monitor_collab_access(
     token: str,
     hub: DocsCollabHub,
     runtime,
+    authorize: Callable[[], Awaitable[None]] | None = None,
 ) -> None:
     settings = get_settings()
     while True:
         await asyncio.sleep(settings.collab_acl_recheck_seconds)
         try:
-            await run_in_threadpool(
-                _require_collab_edit_access,
-                page_ref=page_ref,
-                token=token,
-                writer_identity=hub.writer_identity,
-            )
+            if authorize is not None:
+                await authorize()
+            else:
+                await run_in_threadpool(
+                    _require_collab_edit_access,
+                    page_ref=page_ref,
+                    token=token,
+                    writer_identity=hub.writer_identity,
+                )
         except HTTPException as exc:
             if writer_close_choice(exc) is not None:
                 hub.fence_runtime(runtime)
@@ -2118,12 +2166,19 @@ async def docs_collab_websocket(
 
     try:
         token = await _resolve_collab_ws_token(websocket)
+        prepared_context = await resolve_prepared_official_ws_auth_context(
+            websocket, token=token, logical_app_id="docs"
+        )
 
         session_factory = get_session_factory()
         db = session_factory()
         collab_yjs_state: bytes | None = None
         try:
-            auth_context = resolve_auth_context_from_token(db, token)
+            auth_context = (
+                prepared_context
+                if prepared_context is not None
+                else resolve_auth_context_from_token(db, token)
+            )
             auth_user_id = auth_context.user.id
             context = resolve_collab_page_context(db, auth_context.user, page_ref)
             if not context.can_edit:
@@ -2163,6 +2218,18 @@ async def docs_collab_websocket(
         except CollabConnectionLimitExceeded as exc:
             await websocket.close(code=exc.close_code, reason=exc.reason)
             return
+        prepared_authorize = (
+            partial(
+                _authorize_prepared_collab_access,
+                websocket,
+                page_ref=page_ref,
+                token=token,
+                user_id=auth_user_id,
+                writer_identity=hub.writer_identity,
+            )
+            if prepared_context is not None
+            else None
+        )
         monitor_task = asyncio.create_task(
             _monitor_collab_access(
                 websocket,
@@ -2170,17 +2237,21 @@ async def docs_collab_websocket(
                 token=token,
                 hub=hub,
                 runtime=runtime,
+                authorize=prepared_authorize,
             )
         )
 
         async def authorize_collab_frame() -> None:
             try:
-                await run_in_threadpool(
-                    _require_collab_edit_access,
-                    page_ref=page_ref,
-                    token=token,
-                    writer_identity=hub.writer_identity,
-                )
+                if prepared_authorize is not None:
+                    await prepared_authorize()
+                else:
+                    await run_in_threadpool(
+                        _require_collab_edit_access,
+                        page_ref=page_ref,
+                        token=token,
+                        writer_identity=hub.writer_identity,
+                    )
             except HTTPException as exc:
                 if writer_close_choice(exc) is not None:
                     hub.fence_runtime(runtime)
@@ -2192,7 +2263,7 @@ async def docs_collab_websocket(
             runtime,
             auth_user_id,
             authorize=authorize_collab_frame,
-            authorization_error_close=writer_close_choice,
+            authorization_error_close=_collab_authorization_error_close,
         )
         await runtime.room.serve(yjs_websocket)
     except HTTPException as exc:
