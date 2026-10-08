@@ -10,10 +10,10 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
 
 ## 현재 위치
 
-- **전달:** dev는 `436c7792`, main/prod는 `9e9280df`다. Workbench cold resume 수정은 필수 리뷰230/398 뒤 GitHub PR81·내부 MR88로 정상 병합하고 소유 브랜치를 원격·로컬에서 정리했다. 최신 full231/399는 저장 공간 검사에서 실패해 제품 테스트0이며 새 운영 배포는 없다. 정확한 게시 기록은 [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 소유한다.
-- **공식 앱 경계:** 준비된 Whiteboard Source ACL callback의 로컬 구현·검증을 마쳤다. Source 대기 전후의 현재 플랫폼 권한, 제한 조회·읽기 전용 실행과 worker/Session 정리를 확인했다. 최종 독립 검토·필수 리뷰·정상 feature 전달을 진행한다. 최소 operational 역할·공식 서비스 전환·room 초기화/영속화는 별도 필수 잔여다.
-- **Workbench:** 실제 구독 인증의 원 Task에서 readOnly 계획→표시된 revision 승인 후 격리 수정→같은 thread 후속 요청을 완료했다. 초기 cold resume 실패와 수정 근거는 [VALIDATION.md](VALIDATION.md)에 보존했다. 단절/중단·재사용 가능한 운영 설정·개인 앱 전체 흐름은 남아 있으며 Workbench의 별도 서비스 배포는 이 소스 병합에 포함되지 않는다.
-- **범위:** 필수 플랫폼 경계와 단일 사용자 Workbench 구조에 집중한다. 앱별 비필수 기능은 이슈 대장, 다중 사용자는 후속 범위다. 지속적인 저장 공간 확보와 최신 source/target/tree full CI 성공 뒤 MR81·fresh backup·guarded 운영 배포를 이어간다.
+- **전달:** dev는 `4764fc2c`, main/prod는 `9e9280df`다. Workbench cold resume과 준비된 Whiteboard Source ACL callback은 각각 필수 리뷰 뒤 GitHub·내부 저장소에 정상 병합했고 소유 브랜치를 정리했다. 최신 full233/401은 저장 공간 검사에서 실패해 제품 테스트0이며 새 운영 배포는 없다. [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 정확한 전달 기록을 소유한다.
+- **공식 앱 경계:** Whiteboard의 분리된 Source 권한 읽기·대기 후 현재 권한 재검사·취소/정리를 로컬 인수하고 전달했다. 다음 최소 단위는 기존 collab row의 readOnly 초기 상태 읽기다. 누락/오래된 row에는 legacy 초기화·복구로 fallback하지 않는다. 쓰기 초기화·room identity와 현재 writer가 보장된 영속화·Docs Source·공식 서비스 전환은 필수 잔여다.
+- **Workbench:** 실제 원 Task의 계획→표시된 revision 승인 후 격리 수정→같은 thread 후속 요청을 확인했다. 재사용 가능한 native executor의 최소 예제3개·공개 package pin·owner 절차를 구현하고 단위/공개 systemd 문법 검사를 통과해 최종 리뷰·정상 전달을 진행한다. 새 영구 cache/unit·운영 설정·Workbench 별도 서비스에는 아직 적용하지 않았다.
+- **범위:** 필수 플랫폼 경계와 단일 사용자 Workbench 구조를 진행한다. 앱별 비필수 기능은 이슈 대장, 다중 사용자는 후속 범위다. 현재 저장 공간14.9GiB/84.8% used는 기준에 미달하므로 지속 여유와 최신 full CI 성공 뒤 MR81·fresh backup·guarded 운영 배포를 이어간다.
 
 ## 이전 단계별 인수 기록
 

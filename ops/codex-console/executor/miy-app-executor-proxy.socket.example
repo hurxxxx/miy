@@ -1,0 +1,9 @@
+[Unit]
+Description=MIY loopback native executor listener
+BindsTo=miy-app-executor.service
+After=miy-app-executor.service
+
+[Socket]
+ListenStream=127.0.0.1:@HOST_PORT@
+Accept=no
+Service=miy-app-executor-proxy.service

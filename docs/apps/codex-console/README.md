@@ -430,6 +430,64 @@ Proxy는 executor의 private network namespace를 공유하며 caller의 host ne
 현재 Workbench 설정/서비스에 적용한 운영 구성이나 실제 모델 Task의 전체 인수는 아니다.
 실행별 정확한 범위와 남은 단계는 [재설계 검증](../../../platform-redesign/VALIDATION.md)이 소유한다.
 
+##### 단일 checkout의 표준 executor 정의
+
+[executor 예제](../../../ops/codex-console/executor/)는 systemd 255 이상에서 한 checkout을
+명시적으로 연결하는 **270초의 유한 pilot** 정의다. 배포·설정 활성화는 별도이며 예제에는
+자동 enable/restart나 설치·포트 할당·Task 관리기가 없다. backend는 공식 pinned bubblewrap과
+`exec-server`, ingress는 표준 `systemd-socket-proxyd`만 사용한다.
+
+운영자는 다음 입력을 검토해 `.example` 세 파일을 각각 suffix 없는 같은 이름으로 렌더한다.
+앱 manifest·Task·프롬프트는 이 값을 지정할 수 없다. 누락된 placeholder가 있거나 값에
+공백·개행·제어문자·systemd/argv 확장 문자(`%`, `$`, quote, backslash)가 있으면 설치하지 않는다.
+파일명과 의존성의 `miy-app-executor`를 다른 소유 bundle 이름으로 바꾸는 경우에는 동일한
+`[a-z][a-z0-9-]{0,63}` stem을 세 파일·`BindsTo`·`After`·`JoinsNamespaceOf`·`Service`에 적용한다.
+기존 운영 unit을 덮어쓰거나 앱 입력에서 이름을 자동 생성하지 않는다. Path 입력은 `/`로 시작하는
+ASCII 문자·숫자·`._/@-`만 허용하고 실제 canonical 경로·소유권·mount 중첩을 별도로 확인한다.
+
+| Placeholder                        | 필수 계약                                                                                                                                                                                                        |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@EXECUTOR_UID@`, `@EXECUTOR_GID@` | 실제 checkout 소유자에 대응하는 양의 non-root 숫자 ID                                                                                                                                                            |
+| `@SOURCE_ROOT@`                    | 운영자가 준비한 하나의 canonical 절대 checkout. 경로 구성 요소에 symlink가 없고 `.git`은 같은 저장소의 실제 디렉터리여야 한다. home·인증·환경·DB·제어망 설정·socket·플랫폼 전체 저장소와 중첩하지 않는 전용 경로 |
+| `@VENDOR_ROOT@`                    | 아래 immutable 캐시의 `node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl`                                                                                         |
+| `@HOST_PORT@`, `@PRIVATE_PORT@`    | 운영자가 지정한 1024..65535 포트. host ingress는 정확히 `127.0.0.1`에만 바인딩                                                                                                                                   |
+| `@TOKEN_SHA256@`                   | 보호된 host-client capability의 64자리 소문자 hex SHA256. plaintext token을 unit에 넣지 않는다                                                                                                                   |
+
+두 public 패키지의 버전·archive integrity·전체 파일 digest와 공식 wrapper/vendor layout은
+[native-pin.json](../../../ops/codex-console/executor/native-pin.json)이 소유한다. 설치 전에
+SHA512 dist integrity와 SHA256을 확인하고 **전체 layout**을 root 소유·앱/일반 사용자가 변경할 수
+없는 캐시(예: `/opt/miy/codex-0.160.1`)에 보존한다. npm scripts·자동 다운로드·mutable global CLI를
+사용하지 않는다. host `MIY_CODEX_CONSOLE_BINARY`도 검증된 이 패키지의 실제 vendor binary를
+명시적으로 선택해야 한다. 같은 binary가 코어에도 사용되므로 기존 0.159.2 소비 계약과 별도
+0.160.1 remote 계약을 모두 확인한다. template binary의 기존 선택은 별도로 유지한다.
+
+backend는 systemd private network를 상속한 outer bubblewrap에서 user/PID/IPC/UTS를 분리하고
+capability를 제거한다. 필요한 vendor·dash·libc·loader만 read-only, checkout 하나만 writable,
+그 `.git`은 read-only다. 빈 private HOME/CODEX_HOME과 64MiB tmpfs를 만들고 root를 read-only로
+고정한다. 외부/플랫폼 네트워크·host home/auth/env/Docker socket은 제공하지 않는다. Proxy는
+backend namespace만 공유하며 host listener를 socket activation으로 전달한다. Proxy 자체는
+인증을 대신하지 않으며 native backend의 capability 검사가 필수다.
+
+각 service의 CPUQuota100%는 CPU bandwidth 한도이며 총 CPU 시간 한도가 아니다. MemoryMax1GiB,
+swap0, TasksMax64, RuntimeMaxSec270, TimeoutStopSec3, KillMode=control-group과 Restart=no를
+적용한다. 이 값은 첫 유한 pilot의 계약이며 지속 운영 sizing/자동 복구 인수가 아니다. 앱 변경이나
+namespace/resource 실패 때문에 값을 자동 확장하지 않는다.
+
+설치 권한을 가진 운영자는 렌더된 세 파일에 `systemd-analyze verify`를 수행하고, 시스템 manager에
+소유 정의로 설치한다. Start 순서는 backend → socket이며 proxy는 socket으로 활성화된다. 실제
+bundle의 UID/cap0/NNP·private namespace·mount·tmpfs·effective cgroup CPU/memory/swap/PID 값을
+확인한 뒤 아래 기존 verifier로 no/bad bearer 거부와 정확한 version/cwd/native 정책을 검사한다.
+성공한 이전 transient receipt는 새 설치의 증명이 아니다. Endpoint 준비와 보호 설정 생성·설치,
+Workbench의 별도 배포·동일 Task 인수까지 완료해야 운영 연결을 완료로 보고한다.
+
+Plaintext capability와 verifier 출력은 Workbench 소유자의 0700 디렉터리/0600 regular file에
+저장하고 모든 앱 mount 밖에 둔다. Token 파일 UID는 verifier 실행 소유자와 같아야 한다.
+토큰을 바꿀 때는 socket → proxy → backend를 종료하고 기존 연결·cgroup/PID와 host port가
+사라졌음을 확인한 뒤 digest와 보호 client 설정을 함께 교체하고 verifier를 다시 통과시킨다.
+동일 Task의 endpoint/source identity는 유지한다. 유한 lifetime 만료나 실패에도 원 Task/thread/
+요청의 unknown 상태를 보존하며 새 요청·thread를 자동 생성하지 않는다. 다시 시작하려면 운영자가
+명시적으로 bundle과 현재 연결을 재검증한다. 이 정의는 설치·Task 재시도·서비스 설정을 실행하지 않는다.
+
 운영자가 위 경계를 갖춘 endpoint를 별도로 준비한 후 다음 사전 검사를 수행한다. token 파일은
 서비스 소유자의 regular file/0600이어야 한다. 검사기는 인증 없는 연결 거부, 정확한 버전/cwd,
 native 읽기 전용의 파일·명령 쓰기 거부, workspace 쓰기·자식 process, `.git` 쓰기 거부,

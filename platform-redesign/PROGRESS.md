@@ -439,3 +439,10 @@ Workbench의 정확 Codex0.160.1은 표준 systemd-socket-proxyd ingress와 owne
 - full231/399는 저장 공간 선행조건 실패로 제품 테스트0이며 새 운영 배포는 없다.
 - 준비된 Whiteboard Source ACL callback의 control/실제 native·기존 인증/기본 앱 영향과 생성 계약 검사를 마쳤다. 초기 fixture 실패와 기본 pgvector setup 한계는 VALIDATION에 보존하며 최종 독립 검토·정상 feature 전달을 진행한다.
 - 병렬 작업은 재사용 가능한 최소 native executor 정의를 별도 worktree에서 준비한다. 영구 설정·서비스는 아직 적용하지 않았고 앱별 상세 기능·다중 사용자 범위는 추가하지 않는다.
+
+## 2026-10-08 18:52 — Source 경계 전달과 최소 native 정의
+
+- 준비된 Whiteboard Source ACL callback은 독립 리뷰·필수232/400 뒤 PR82/MR89로 같은 tree에 병합했고 소유 브랜치를 정리했다. dev는 `4764fc2c`다.
+- full233/401은 저장 공간 검사에서 실패해 테스트0이며 main/prod는 `9e9280df`, 새 운영 배포는 없다.
+- 최소 native executor 예제3개와 공개 pin·검사·owner를 별도 worktree에서 구현했다. 단위7개와 실제 공개 package49파일·systemd 문법 검사를 통과했다. 설치/시작/native 요청·운영 설정 변경0이며 최종 독립 검토·정상 전달을 진행한다.
+- 다음 Source 단계는 기존 room 상태의 명시적 readOnly 초기 읽기, 별도 writer/room identity와 취소/COMMIT unknown이 보장된 초기화·영속화다. 앱 업무 기능을 확장하지 않는다.
