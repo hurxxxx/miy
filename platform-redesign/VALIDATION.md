@@ -1792,3 +1792,25 @@ turn/resume/history와 cleanup 준비는 ignored 읽기 전용 계획이며 실�
 최소 fixture 두 파일은 observer/revoker를 worker 시작 전에 열고 실제 block 관측→revocation COMMIT→blocker release 순서를 유지한다. 공용 helper의 기본 연결 소유·4초 관측 제한과 caller-owned observer 정리를 보존한다. 기존117개 assertion AST와 제품/SQL/5초 lock·15초 statement 제한을 유지했다. 수정 후 실제 focused8조합과 기존 default helper2개는10 PASS/23.72초다. 동일5.2초 지연 재검증은1 PASS/13.10초이며 delay 적용·SQL 오류 없음·원본 File/이벤트 없음/Core/권한 보존을 확인했다. 지연 case는8개 안의 재검증이며 고유 성공 수로 합산하지 않는다. 독립 코드 리뷰 blocker0이며 새 source 게시·필수 리뷰·전체 CI와 운영 배포는 대기 중이다. 안전한 증거는 ignored `release391-public-reason-comparison.json`, `release391-lock-wait-probe-{normal,slow_owner_connection}.json`, `post-api-lock_{normal,slow}-result.json`과 `.runtime/release391-source-fixture-fix/`가 소유한다.
 
 수정 후 안전한 실행 증거는 ignored `.runtime/structural-next-delivery/post-api-lock_matrix-result.json`, `release391-lock-matrix-after-fix-probe.json`, `post-api-lock_slow-result.json`, `release391-lock-slow-after-fix-probe.json`이다. 수정 전 지연 실패는 `release391-lock_slow-before-fix-result.json`과 원본 probe로 별도 보존했다. 독립 리뷰는 `release391-revocation-fixture-independent-review.md`와 정확 입력/AST receipt에 바인딩했다. snapshot의 archive base는 `fd5038ba`이고 수정 fixture는 root와 SHA256을 대조한 overlay다. 전체 새 commit 검증은 필수 CI가 소유한다.
+
+## 2026-10-08 fixture 게시 완료와 저장 공간 단계 중단
+
+권한 회수 fixture `d43a46aa`는 필수 리뷰224/392 SUCCESS/58.822793초 뒤 PR78/MR85로 정상 병합했다. 두 merge tree는 `af422c706c5abe34d92596044a392fabf6ca114b`이며 local/origin dev는 `ad42d0bc`, main/prod는 `9e9280df`다. 정확 tip의 feature 브랜치만 원격·로컬에서 정리했다. 새로운 full225/393은18.494424초에 storage floor로 실패했다. 테스트 실행0이며223의 reason assertion 실패나 focused 통과를225 전체 통과로 대체하지 않는다.
+
+저장 공간 대응은 소유 과거 scratch4개와 Git/source backup·Nx cache의 byte/mode/link 보존, 소유 inactive image2개의 정확 config/imageID/25개 layer·archive hash 검증 뒤 exact unused image/cache retirement로 제한했다. 원래 파일 경로의 연결과 복구 archive를 보존했으며 current/previous prod·canonical image·모든 data volume은 변경하지 않았다. 논리 reclaimed 수는 실제 filesystem 여유와 다르며 최종 actual check는 계속15GiB 미만이다. 기준15GiB/15%·retention·quota/daemon/snapshot을 바꾸지 않았다. 원본/private logs·SQL·credentials·customer rows는 공개하지 않았다. 외부 공간 확보 후 새 full evidence가 필요하다.
+
+다음 P0는 별도 `ad42d0bc` worktree의 로컬 실행이다. frozen prepared HTTP registry 옵션 미구현 case는 실제1 FAIL/2.86초, eefe image/network-none/owned cleanup이다. 그 전 alias failure1개는 같은 case의 역사이며 dependency setup 실패는 pytest 실행으로 세지 않는다. 초기 `abandon_on_cancel=False` adapter의 raw task cancellation 경계2개는1 PASS/1 FAIL/2.59초로 재현했고 structured cleanup을 보완 중이다. 실제 SQL HTTP/native role·최종 green·독립 리뷰는 아직 별도 인수가 필요하다. Baseline reader14표/87열·기본 adapter·비활성 ASGI를 유지한다.
+
+정확한 native prerequisite는 별도 소유 임시 cache의0.160.1 공개 wrapper/vendor49files, dist SHA512·fileSHA256·version/help·기존 remote protocol generator --check 통과다. 기존0.161/0.154/template0.159.2와 live settings/service는 변경0이다. Primitive/native executor·WS ingress·hard resource bounds·turn/resume/history는 이 metadata로 인수하지 않는다. 현재 운영의15:45 fixed read-only metadata는 기존 API/worker/Beat healthy·schema `artifact_sequences_20261006`이며 새 배포는0이다.
+
+## 2026-10-08 — 공식 인증 HTTP와 native 선행검사 실제 결과
+
+공식 auth-only HTTP의 현재 로컬 검증은 pure31 PASS/8.60초, 실제 PostgreSQL·HTTP13 PASS/27.42초, 기존 composition10 PASS/10.75초다. 서로 다른 선택31+13은 새44개이고 기존10개는 별도 영향 범위다. Raw·반복 host cancellation와 AnyIO 대기/실행 취소에서 worker 종료·Session 정리 전 admission을 반환하지 않는 경계를 확인했다. 네 HTTP GET은 genuine 현재 앱 세션/binding·제한된 auth PostgreSQL 역할·실제 Source ACL을 사용했다. Business Source fixture는 권한 있는 합성 계정이므로 최소 Source operational 역할 전체 인수로 확대하지 않는다. Profile14표/87열과 기존 기본 인증·비활성 ASGI를 유지했고 API architecture/i18n·independent app schema/OpenAPI/contract source --check를 통과했다. Operational role/grant·WS·공식 서비스 전환은 아직 하지 않았다.
+
+정확한 Codex0.160.1의 offline native 선행검사에서는 read-only·workspace-write 두 정책을 실제 실행했다. 앱 쓰기 허용/거부·Git/형제 경로 쓰기 차단과 소유 자원 정리를 확인했다. 단독 읽기 전용 재검증은 같은 두 범위 안의 반복이며 추가 고유 성공으로 합산하지 않는다. 기존 live CLI/settings/service는 변경하지 않았다. 이는 현재 도구 환경의 native primitive 검증이며 제품 executor·WS ingress·CPU/memory/PID 강제 한도·실제 인증 turn/resume/history를 대신하지 않는다.
+
+안전한 실행 증거는 ignored `.runtime/structural-next-delivery/post-api-auth_{pure,native,compat,contracts}-result.json`과 `workbench-native-offline-primitive-{result,final-check}.json`이다. 소유 container 정리·network-none과 실 credential/live DB·서비스 변경0을 확인했다. 문서 정렬·최종 입력과 독립 리뷰는 별도 확인한다.
+
+## 2026-10-08 16:06 — 실제 저장 공간 기준 회복
+
+2026-10-08 16:06 UTC의 실제 Docker 저장 경로 검사가15.0GiB free/84.7% used로 기존15GiB·15% 기준을 통과했다. 앞선225/393의 저장 공간 실패는 역사로 보존한다. 실제 free 증가의 원인이나 cache reclaimed 수와의 인과는 확정하지 않는다. 여유 폭이 작으므로 최신 source의 필수 전체 CI에서도 원래 floor를 그대로 확인한다. 다음 auth HTTP의 최종 독립 리뷰·정상 feature 병합 후 최신 dev 전체 릴리스를 진행하며 운영은 아직 배포하지 않았다.

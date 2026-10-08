@@ -56,6 +56,10 @@ MESSAGE_PARAM_VALUE_TRANSLATIONS: dict[tuple[str, str], str] = {
 
 
 MESSAGES: dict[str, dict[str, str]] = {
+    "official_apps.authority_unavailable": {
+        "ko-KR": "현재 접근 권한을 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+        "en-US": "Access cannot be verified right now. Please try again shortly.",
+    },
     "official_apps.writer_unavailable": {
         "ko-KR": "현재 변경 내용을 저장할 수 없습니다. 잠시 후 다시 시도해 주세요.",
         "en-US": "Changes cannot be saved right now. Please try again shortly.",

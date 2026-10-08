@@ -11,6 +11,16 @@ GitHub 작업 PR과 내부 dev→main release_validation을 각각 확인한다.
 DB/grant/서비스의 official cutover를 이 코드 배포로 활성화하지 않는다.
 실제 결과와 SHA는 PR/MR 기록과 후속 receipt가 원본이다.
 
+### 후속 PR78/MR85 병합과225/393 저장 공간 선행조건 — 2026-10-08 UTC
+
+Source `d43a46aaa490fad70957fad11a9d2975d832c923`는 실제 필수 pipeline224/job392 SUCCESS/58.822793초, allow_failure=false 후 정상 병합했다. GitHub PR78은 `cdfa602e000f30ae3a903b661899ba62e0f63b22`, 내부 MR85는 `ad42d0bcd721ab2deb455b764a33158b60da17cc`이며 tree `af422c706c5abe34d92596044a392fabf6ca114b`가 정확히 같다. 해당 feature 브랜치는 원격 두 곳과 로컬에서 exact tip으로만 정리했고 persistent dev/main·disabled direct upstream push를 유지했다.
+
+자동 후속 MR81 pipeline225/job393은 FAILED/script_failure/18.494424초로 저장 공간 검사에서 종료됐다. source `ad42d0bc`, target `9e9280df`이며 제품 테스트는 실행0이다. 운영 반영은 하지 않았다. 실패 소스의 제품 테스트를 우회하거나 fast/skip으로 바꾸지 않으며, 외부 공간 선행조건 해소 후 같은 source의 정상 full 재검증이 필요하다.
+
+현재·이전 운영 이미지와 canonical CI image, 데이터 volume은 보존했다. 소유 inactive image 두 개는25개 고유 layer/config·archive SHA256을 검증해 별도 임시 디스크에 온전히 보존한 뒤 정확한 미사용 ID와 그 private cache만 정리했다. 소유 scratch와 Git/source 보존본은 mode/hash/link를 확인해 원래 경로의 연결을 유지했다. 이 정리의 논리 크기를 실제 free gain으로 표시하지 않는다. Docker filesystem의 실제 여유는 계속15GiB 기준 미달이며 storage owner 조치가 필요하다. 최소15GiB·15%와 retention 정책·daemon/quota/snapshot은 변경하지 않았다.
+
+15:45 실제 운영 검사에서 `9e9280df`와 기존 immutable image의 API/worker/Beat는 healthy, schema는 `artifact_sequences_20261006`, 기존 inactive/empty Files 조건은 그대로였다. 이것은 새로운 deployment나 migration 결과가 아니다. MR81 merge·fresh backup·prepare/deploy와 새 revision의 실제 smoke는 대기 중이다. 다음 구조 P0는 별도 로컬 worktree이며 이 전달 소스에 섞지 않았다. 안전한 증거는 ignored `revocation-feature-{commit,publish,status,merge,cleanup}.json`, `job392-success-receipt.json`, `release225-job393-storage-before-tests.json`, `owned-inactive-images-preserved-retirement.json`, `exact-archived-image-cache-*-retirement.json`과 latest production-before receipt가 소유한다.
+
 ### 후속223/391의 권한 회수 fixture 실패 — 2026-10-08 UTC
 
 새 source `1d8cf66ecc1dd14f48576e6ef9e66a22ed89c9ae`는 필수 pipeline222/job390 SUCCESS 후 PR77의 `b12a4acc531fd6c76c744c51ab337901634ee8d2`, 내부 MR84의 `c401dd1a0ed1e88a5b32530c7df6ebe2923e0e55`로 정상 병합했다. 두 병합 tree는 `0ef60b8ab7cd877495fde7687de28dc2ec4613d6`이며 작업 브랜치만 원격·로컬에서 정리했다. 영구 dev/main과 upstream push-disabled를 유지했다.
@@ -440,3 +450,13 @@ GitHub main `26ca57677d9440d74362403c3fa1499bada4a632`를 부모로 삼아
 `.runtime/source-aggregate-publication/`에 기록한다. 커밋하지 않는 로컬
 근거이며 민감한 로그나 환경 값을 GitHub에 올리지 않는다. 후속작업의
 우선순위·의존성과 완료 기준은 [NEXT_STEPS.md](NEXT_STEPS.md)가 소유한다.
+
+## 2026-10-08 — 다음 inactive auth HTTP 로컬 인수
+
+공식 auth-only HTTP의 현재 로컬 검증은 pure31 PASS/8.60초, 실제 PostgreSQL·HTTP13 PASS/27.42초, 기존 composition10 PASS/10.75초다. 서로 다른 선택31+13은 새44개이고 기존10개는 별도 영향 범위다. Raw·반복 host cancellation와 AnyIO 대기/실행 취소에서 worker 종료·Session 정리 전 admission을 반환하지 않는 경계를 확인했다. 네 HTTP GET은 genuine 현재 앱 세션/binding·제한된 auth PostgreSQL 역할·실제 Source ACL을 사용했다. Business Source fixture는 권한 있는 합성 계정이므로 최소 Source operational 역할 전체 인수로 확대하지 않는다. Profile14표/87열과 기존 기본 인증·비활성 ASGI를 유지했고 API architecture/i18n·independent app schema/OpenAPI/contract source --check를 통과했다. Operational role/grant·WS·공식 서비스 전환은 아직 하지 않았다.
+
+이 변경은 별도 `feat/official-auth-http-20261008` worktree의 로컬 미커밋이다. 필수 리뷰·정상 feature 병합과 최신 전체 release 검증을 각각 확인한다. 저장 공간 부족225/393과 운영 미배포 상태를 로컬 통과로 대체하지 않는다.
+
+## 2026-10-08 16:06 — 실제 저장 공간 기준 회복
+
+2026-10-08 16:06 UTC의 실제 Docker 저장 경로 검사가15.0GiB free/84.7% used로 기존15GiB·15% 기준을 통과했다. 앞선225/393의 저장 공간 실패는 역사로 보존한다. 실제 free 증가의 원인이나 cache reclaimed 수와의 인과는 확정하지 않는다. 여유 폭이 작으므로 최신 source의 필수 전체 CI에서도 원래 floor를 그대로 확인한다. 다음 auth HTTP의 최종 독립 리뷰·정상 feature 병합 후 최신 dev 전체 릴리스를 진행하며 운영은 아직 배포하지 않았다.

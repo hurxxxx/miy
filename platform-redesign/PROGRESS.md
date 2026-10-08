@@ -388,3 +388,21 @@ NEXT_STEPS·STATUS·WORK_ITEMS·Files 단계와 runtime owner를 갱신했다.
 auth factory HTTP/WS·공통 권한 소비 연결, publication hold/원자 apply·기존
 parent-live ingress 채택, 검토된 native 격리 환경과 개인 앱의 전체 자연어
 개발/미리보기/배포/복구 연결이다. 다중 사용자·앱별 비필수 기능은 보류한다.
+
+## 2026-10-08 — 중단 지점 재개와 다음 구조 P0
+
+중단된223/391 권한 회수 fixture 실패를 coordinator 연결 준비의 최소 수정으로 보완했다. 실제8조합+기존 default helper2개10 PASS와 동일5.2초 지연1 PASS를 구분했고 제품 timeout·reason·117 assertions와 protected source를 유지했다. 독립 리뷰와 필수224/392 뒤 PR78/MR85를 같은 tree로 병합하고 소유 브랜치를 정리했다. 자동 full225/393은 저장 공간 검사에서 실패해 테스트0이며 실제 새 운영 배포를 진행하지 않았다.
+
+소유 산출물은 바이트·권한·링크 또는 전체 image layer/hash를 검증해 별도 임시 디스크에 보존한 뒤, 정확한 미사용 참조만 정리했다. 실제 free floor는 미달이므로 storage owner의 확보가 필요하다. Current/previous production·canonical CI·data volume과 최소15GiB/15%·retention·quota/daemon/snapshot은 유지했다.15:45 실제 prod API/worker/Beat는 기존9e source/image/schema로 healthy였다.
+
+전달 dev/prod를 보존하며 별도 worktree에서 다음 `OFF-002B` auth HTTP 최소 조립을 시작했다. 실제 registry red1개와 raw cancellation gap2개를 재현하고 structured cleanup을 보완한다. 준비된 최소 reader profile14/87와 current Source ACL·default/inactive composition은 유지한다. 별도 에이전트는 정확0.160.1 public package integrity·49files·version/help/remote contract를 통과했고 offline native helper 선행조건을 확인한다. Source-only 소비 전체, operational roles·공식서비스 cutover, supported executor hard bounds·실제 turn/resume와 네 영역 전체 구조는 계속 미완료다.
+
+## 2026-10-08 — 공식 인증 HTTP 로컬 연결 검증
+
+공식 auth-only HTTP의 현재 로컬 검증은 pure31 PASS/8.60초, 실제 PostgreSQL·HTTP13 PASS/27.42초, 기존 composition10 PASS/10.75초다. 서로 다른 선택31+13은 새44개이고 기존10개는 별도 영향 범위다. Raw·반복 host cancellation와 AnyIO 대기/실행 취소에서 worker 종료·Session 정리 전 admission을 반환하지 않는 경계를 확인했다. 네 HTTP GET은 genuine 현재 앱 세션/binding·제한된 auth PostgreSQL 역할·실제 Source ACL을 사용했다. Business Source fixture는 권한 있는 합성 계정이므로 최소 Source operational 역할 전체 인수로 확대하지 않는다. Profile14표/87열과 기존 기본 인증·비활성 ASGI를 유지했고 API architecture/i18n·independent app schema/OpenAPI/contract source --check를 통과했다. Operational role/grant·WS·공식 서비스 전환은 아직 하지 않았다.
+
+정확한 Codex0.160.1의 offline native 선행검사에서는 read-only·workspace-write 두 정책을 실제 실행했다. 앱 쓰기 허용/거부·Git/형제 경로 쓰기 차단과 소유 자원 정리를 확인했다. 단독 읽기 전용 재검증은 같은 두 범위 안의 반복이며 추가 고유 성공으로 합산하지 않는다. 기존 live CLI/settings/service는 변경하지 않았다. 이는 현재 도구 환경의 native primitive 검증이며 제품 executor·WS ingress·CPU/memory/PID 강제 한도·실제 인증 turn/resume/history를 대신하지 않는다.
+
+## 2026-10-08 16:06 — 실제 저장 공간 기준 회복
+
+2026-10-08 16:06 UTC의 실제 Docker 저장 경로 검사가15.0GiB free/84.7% used로 기존15GiB·15% 기준을 통과했다. 앞선225/393의 저장 공간 실패는 역사로 보존한다. 실제 free 증가의 원인이나 cache reclaimed 수와의 인과는 확정하지 않는다. 여유 폭이 작으므로 최신 source의 필수 전체 CI에서도 원래 floor를 그대로 확인한다. 다음 auth HTTP의 최종 독립 리뷰·정상 feature 병합 후 최신 dev 전체 릴리스를 진행하며 운영은 아직 배포하지 않았다.

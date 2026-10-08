@@ -3,9 +3,42 @@
 `authority_reader.resolve_prepared_official_auth_context` is an inactive,
 core-owned lookup seam. It accepts an opaque app-session credential and trusted
 canonical logical app scope, then reuses current official binding, release
-verification, independent-app identity and company/app admission rules. No HTTP
-route, manifest, settings default or service selects this reader yet. Platform
-login and the default official HTTP adapter remain unchanged.
+verification, independent-app identity and company/app admission rules. No app
+manifest, settings default or deployed service selects this reader. A trusted
+server-only HTTP assembly can explicitly select it using a separate auth factory;
+platform login and the default official HTTP adapter remain unchanged.
+
+## Explicit inactive HTTP assembly
+
+`register_api_routers` accepts paired `official_auth_session_factory` and
+`official_auth_max_concurrent_reads` options only for the official composition.
+With neither, the existing HTTP adapter remains selected. Partial configuration,
+another composition, a non-callable factory or a non-positive/non-integer budget
+refuses assembly. No request, app manifest or environment flag chooses these options.
+
+The prepared dependency validates owned canonical scope and bearer credentials
+before allocating the auth Session. It invokes the unchanged reader in an AnyIO
+worker with a private limiter sized by the auth Engine owner, separate from the
+business Source factory and pool. The limiter is created in the ASGI async context;
+its budget bounds executing reads, not HTTP waiters or other service workers.
+An outer read permit surrounds a public AnyIO TaskGroup; its private child shields
+the thread await and uses a per-call worker limiter. The group joins reader and
+cleanup before releasing admission under supported AnyIO scope cancellation and
+raw/repeated host request-task cancellation. A canceled admission waiter creates
+no Session. Original child exceptions are raised outside the group, without
+changing policy or cancellation into an ExceptionGroup. The child is not exposed
+for direct cancellation. Hard process kill, event-loop shutdown and an uncooperative
+driver/cleanup hard deadline are not guaranteed by this composition.
+Existing SQL timeouts are not a whole-request deadline. Reader control or SQLAlchemy
+failures return a fixed localized503 without private details or a broad-reader
+fallback; current credential/admission401/403 and cancellation remain distinct.
+
+The returned detached context is cached only by the existing request dependency
+chain. Current app policy and resource ACL are still enforced by the real Source
+handler. A successful lookup does not freeze permission through later waits or
+writes. This assembly does not install an operational auth role, activate the split
+ASGI artifact or complete the business Source privilege policy. Removing the options
+restores default assembly; runtime failure never selects that default as recovery.
 
 ## Ownership and current authority
 
@@ -72,9 +105,11 @@ assigned as the business Source writer profile.
 
 ## Remaining cutover
 
-HTTP/WS integration, non-launcher identity scopes, source-access/search/AI approval/
+Operational HTTP/WS integration, non-launcher identity scopes, source-access/search/AI approval/
 audit consumers, independent service credentials, queue ownership and old-writer
 drain remain required in the [cutover plan](../../../../../../platform-redesign/OFFICIAL_API_CUTOVER.md).
 This seam does not activate the suite or remove the inactive composition gate.
 `tests/test_official_authority_reader.py` owns focused profile/current policy/
 namespace/session-ownership cases; evidence belongs to `platform-redesign/VALIDATION.md`.
+`tests/test_prepared_official_http_auth.py` owns explicit HTTP assembly, separate
+restricted auth-role admission, real current Source ACL and cancellation boundaries.
