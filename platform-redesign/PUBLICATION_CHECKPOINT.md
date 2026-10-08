@@ -11,6 +11,39 @@ GitHub 작업 PR과 내부 dev→main release_validation을 각각 확인한다.
 DB/grant/서비스의 official cutover를 이 코드 배포로 활성화하지 않는다.
 실제 결과와 SHA는 PR/MR 기록과 후속 receipt가 원본이다.
 
+### 최신 전체 릴리스 검증 실패와 로컬 보완 — 2026-10-08 UTC
+
+- 필수 리뷰217/383을 통과했고 [PR75](https://github.com/hurxxxx/miy/pull/75)는
+  `1bd8892564656ede91d44dc7686b2418c7e42e46`, 내부 MR82는
+  `84245339e63471d7dac96ad79a139ddcb25df7bc`로 병합했다. 소유한 두 작업
+  브랜치만 원격·로컬에서 삭제했고 영구 dev/main은 유지했다.
+- MR81 최신 pipeline218/job386은 같은 source `84245339`에서 FAILED/
+  script_failure다. job1,959.693583초, API1,688.03초의 실제 결과는
+  3 FAIL/5,554 PASS/3 SKIP다. 실패는 Qdrant 합성 privacy capture2개와
+  publication storage의 unrelated-thread capture1개다. API 전체 성공이나
+  이후 릴리스 단계의 통과로 표시하지 않는다.
+- Alembic 공개 `fileConfig`는 이미 생성된 HTTP logger를 비활성화하므로
+  앞선 단독 capture 통과만으로 whole-suite 상태를 인수할 수 없었다. 두
+  테스트 파일에서 정확 emitter4개의 임시 직접 caplog·disabled 해제와 기존
+  handler 상태 복원을 보완하고 제품 filters는 유지했다. Qdrant에는 같은 http11의 다른 thread
+  positive assertion도 추가했다. 실제 초기3 FAIL과 수정 후 선택3 PASS를
+  구분한다. 실제 동일 CI 이미지의 read-only public snapshot에서 common
+  security 포함3파일을 전체·역순으로 실행해 각각188 PASS를 확인했다.
+  같은188개와 그 안의 선택3개는 중복 합산하지 않는다.
+  초기 probe의 teardown2 ERROR는 pytest의 일시 capture handler까지 원래
+  handler로 세던 검사 오류다. 원래 handler-list identity·비pytest sentinel·
+  filters 검사를 유지해 교정했으며 제품 로그 누출로 분류하지 않는다.
+- 준비384/385의 저장소 기준 실패는 별도 역사다. 소유 비활성 official
+  build의 exact8 cache 정리 후 실제 기준15.5GiB·15.4% 통과를 확인했다.
+  도구 보고6.102GB는 실제 available 증가의 근거가 아니다. 이 캐시 정리는
+  image·container·volume·daemon을 변경하지 않았다.
+- 수정은 아직 로컬이다. 새 필수 리뷰·게시·MR81 전체 검증과 운영 병합·
+  배포는 대기 중이다. main/prod는 기존 `9e9280df`를 유지하고 Workbench187개
+  제품 파일은 별도 배포 `0c1bf0fe`와 같아 재배포하지 않았다. 새로운 official
+  operational authority나 서비스 profile을 활성화하지 않았다.
+
+아래는 각 실행 당시의 역사적 경과이며 최신 성공으로 소급하지 않는다.
+
 ### 최신 중단 지점 인수 — 2026-10-08 UTC
 
 - `24211c5fbbda45c8ae0efd43200e96df7bc4ade5`의 필수 리뷰214/380을 통과했다.

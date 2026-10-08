@@ -641,7 +641,13 @@ def test_slots_are_process_wide_across_event_loops_threads(monkeypatch, spool):
 
 
 def test_private_logs_do_not_hide_unrelated_thread_logs(monkeypatch, spool, caplog):
-    caplog.set_level(logging.DEBUG, logger="httpcore.http11")
+    # Keep the real filter while isolating capture from Alembic and app logging.
+    logger = logging.getLogger("httpcore.http11")
+    caplog.set_level(logging.DEBUG, logger=logger.name)
+    monkeypatch.setattr(logger, "disabled", False)
+    monkeypatch.setattr(logger, "handlers", [caplog.handler])
+    monkeypatch.setattr(logger, "propagate", False)
+    assert logger.isEnabledFor(logging.DEBUG)
 
     class Transport:
         def __init__(self, **options):

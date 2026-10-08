@@ -597,13 +597,15 @@ def test_invalid_endpoint_refuses_before_sdk_or_transport(monkeypatch, url):
 
 @pytest.fixture
 def transport_log_capture(caplog, monkeypatch):
-    # App composition may already disable these loggers. Explicitly enable only
-    # this synthetic capture so the ContextVar filter, rather than global logger
-    # policy, proves private suppression and concurrent unrelated visibility.
-    caplog.set_level(logging.DEBUG)
-    for name in ("httpx", "httpcore"):
+    # Alembic may disable existing loggers, and the app suppresses their parents.
+    # Capture only these emitters, retaining their real ContextVar filters.
+    for name in ("httpx", "httpcore.connection", "httpcore.http11", "httpcore.http2"):
+        logger = logging.getLogger(name)
         caplog.set_level(logging.DEBUG, logger=name)
-        monkeypatch.setattr(logging.getLogger(name), "propagate", True)
+        monkeypatch.setattr(logger, "disabled", False)
+        monkeypatch.setattr(logger, "handlers", [caplog.handler])
+        monkeypatch.setattr(logger, "propagate", False)
+        assert logger.isEnabledFor(logging.DEBUG)
     return caplog
 
 
@@ -642,7 +644,11 @@ def test_concurrent_unrelated_client_logging_remains_visible_during_private_requ
     caplog = transport_log_capture
 
     def handle(request):
-        other = Thread(target=lambda: logging.getLogger("httpx").info("concurrent-client-visible"))
+        def unrelated_logs():
+            logging.getLogger("httpx").info("concurrent-client-visible")
+            logging.getLogger("httpcore.http11").debug("concurrent-core-visible")
+
+        other = Thread(target=unrelated_logs)
         other.start()
         other.join(timeout=1)
         assert not other.is_alive()
@@ -653,6 +659,7 @@ def test_concurrent_unrelated_client_logging_remains_visible_during_private_requ
         with pytest.raises(PreparedQdrantControlError, match="target_missing"):
             client.delete_resource(request=deletion())
     assert "concurrent-client-visible" in caplog.text
+    assert "concurrent-core-visible" in caplog.text
     assert "private-current-request-hidden" not in caplog.text
     assert "HTTP Request:" not in caplog.text
 
