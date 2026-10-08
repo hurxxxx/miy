@@ -1456,3 +1456,35 @@ daemon 원격 작업의 강제 취소 증거는 아니다. author 근거는 igno
 3450 dependency/2 kept/0 broken·번역·소유 lint/format 검사가 통과했다.
 최종 소유3 입력의 현재 일치와 독립 검토 차단0을 확인했다. 새 필수 리뷰·
 전체 release_validation·운영 배포는 후속 완료 조건이다.
+
+## 2026-10-08 기존 운영 런타임 복원·worker 종료 유예
+
+실제 pipeline210/job376은 인증 오류 없이 `up`의 태그 기반 복원 P1과
+공통45초 stop timeout P2를 지적했다. 기존 런타임이 없거나 태그가 candidate로
+교체된 경우 검사에서 거부한 이미지를 복원 중 시작할 수 있었다. 초기 실제
+회귀 red3 FAIL을 보존하고, healthy한 기존 API·worker·Beat의 실제 ID·불변
+이미지·Compose identity와 기존 config label을 중지 전에 캡처하도록 수정했다.
+
+수정된 스크립트 관련 **116 PASS**, Bash syntax·소유 포맷·diff 검사 PASS를
+확인했다. 정확 소유4 입력은 실행 전후·현재가 같고 rollback test는 변경하지
+않았다. 이전111/114 통과는 중간 입력이며 현재116과 합산하지 않는다. 첫 실행의
+검사 실패는 복원 대상을 만들지 않고, 부분·중지·혼합·retag 상태는 중지 전에
+거부한다. 실패한 검사 뒤에는 변경되지 않은 캡처 ID만 `docker start`로 시작하고
+상태를 기다린 뒤 기존 smoke를 실행한다. ID·label·태그 교체, 상태 실패·대기
+시간 초과와 전체 candidate 시작 시도 뒤에는 자동 복원을 거부한다. worker의
+기존65분 grace를 보존하고 API·Beat의45초 계약도 유지한다.
+
+독립 검토에서 실제 고정 Compose의 `start` 미지원 옵션과 `config --hash`의
+env_file 해석 차이를 확인해 정정했다. 이전 컨테이너 정의를 그대로 시작하므로
+현재 Compose 파일과 같은 hash라고 주장하지 않는다. 공개 CLI 잘못된 옵션의
+red1과 복원 warmup의 red3은 별도 입력으로 보존했다. 기존 pinned rollback·
+deploy·smoke6개 함수는 byte 동일하며 개인 앱 runtime3 입력도 보존했다.
+새 framework·환경 설정·실제 서비스·DB·provider 변경은 없다. 이116은 합성
+Docker/Compose 응답으로 실제 Bash 함수와 `up` 분기를 실행한 회귀이며 실제
+운영 컨테이너 복원 실증을 뜻하지 않는다.
+
+정확 입력·초기 실패·최종 결과는 ignored `.runtime/prod-app-prior-runtime/`,
+독립 검토는 `.runtime/delivery-resume-monitor/JOB376_FIX_REVIEW.md`에 기록한다.
+최종 소유4 입력 일치와 독립 검토 차단0을 확인했다. 실제 daemon stall의
+강제 시간 한도·진행 중65분 작업 종료·운영 복원 실증은 수행하지 않았다.
+수정 source의 필수 리뷰·전체 release_validation·운영 배포는 계속 필수다.

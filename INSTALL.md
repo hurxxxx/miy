@@ -11,7 +11,9 @@ Web·API·Worker는 저장소 소스에서 실행하고, 최초 셋업의 Postgr
 운영 갱신은 기존 API·worker·scheduler를 중지한 뒤 migration과 Files 결과 표식
 전환 검사를 마치고 새 런타임을 시작한다. Files 검색이 활성화된 기존 데이터는
 재색인된 실제 Source·keyword·vector 결과의 일치를 확인해야 하며, 검사 실패는
-이전 런타임 복원으로 처리한다. 재색인·서비스 전환은 자동 활성화하지 않는다.
+검증된 이전 런타임으로 복원을 시도한다. `up`의 자동 복원은 새 런타임 시작 전,
+변경되지 않은 기존 컨테이너를 확인할 수 있을 때만 허용한다. worker의 기존
+작업 종료 유예를 보존하며 재색인·서비스 전환은 자동 활성화하지 않는다.
 
 공통 브랜드와 패키지 이름은 **miy**이며 접속 도메인은 설치 설정으로 관리한다.
 기존 MTY·OWH·Open Work Hub 설치를 갱신할 때는 [이름 전환 절차](docs/domains/release/README.md#miy-naming-cutover)에

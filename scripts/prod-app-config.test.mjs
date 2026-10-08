@@ -84,24 +84,61 @@ async function forwardFixture(stage = '', mode = 'forward') {
       '-c',
       `
 set -euo pipefail
+COMPOSE_PROJECT_NAME=miy-prod-app
 CURRENT_IMAGE=miy-app:prod
 PREVIOUS_IMAGE=miy-app:prod-previous
 CURRENT_ID=sha256:${'a'.repeat(64)}
 STAGE=${stage}
 START_COUNT=0
+PRIOR_CHANGED=0
+HEALTH_READY=0
+RECOVERY_STARTED=0
+DEFINITION_HASH=${'c'.repeat(64)}
 ${functions}
 compose() {
+  case "$*" in
+    'ps --all --quiet '*)
+      [[ "$STAGE" != no-runtime && "$STAGE" != first-start ]] || return 0
+      if [[ "$STAGE" == partial-prior && "$*" == *worker ]]; then return 0; fi
+      if [[ "$STAGE" == replaced-prior && "$PRIOR_CHANGED" == 1 && "$*" == *api ]]; then printf '%064d\n' 4; return 0; fi
+      case "$*" in *api) printf '%064d\n' 1;; *worker) printf '%064d\n' 2;; *beat) printf '%064d\n' 3;; esac
+      return 0 ;;
+    'config --hash '*) return 9 ;;
+  esac
   printf '%s\n' "$*"
   case "$*" in
+    'start '*) return 9 ;;
     'stop '*) [[ "$STAGE" != stop ]] || return 4 ;;
     'run --rm migrate') [[ "$STAGE" != migration ]] || return 4 ;;
     *cutover_gate*)
       if [[ "$STAGE" == changed-image ]]; then CURRENT_ID=sha256:${'b'.repeat(64)}; return 4; fi
-      [[ "$STAGE" != gate && "$STAGE" != timeout ]] || return 124 ;;
+      if [[ "$STAGE" == replaced-prior || "$STAGE" == changed-definition ]]; then PRIOR_CHANGED=1; return 4; fi
+      if [[ "$STAGE" == warmup || "$STAGE" == warm-timeout || "$STAGE" == stopped-after-start ]]; then return 4; fi
+      [[ "$STAGE" != gate && "$STAGE" != timeout && "$STAGE" != no-runtime && "$STAGE" != retagged-runtime ]] || return 124 ;;
   esac
 }
 image_id() { [[ "$1" == "$CURRENT_IMAGE" ]]; printf '%s\n' "$CURRENT_ID"; }
-docker() { [[ "$*" == 'image inspect miy-app:prod' ]]; printf 'inspect-current\n'; }
+docker() {
+  if [[ "$1" == start ]]; then
+    [[ "$*" == 'start ${'0'.repeat(63)}1 ${'0'.repeat(63)}2 ${'0'.repeat(63)}3' ]] || return 9
+    RECOVERY_STARTED=1
+    return 0
+  fi
+  if [[ "$*" == 'image inspect miy-app:prod' ]]; then printf 'inspect-current\n'; return 0; fi
+  [[ "$1" == inspect ]] || return 9
+  local service=api image="$CURRENT_ID" definition="$DEFINITION_HASH"
+  case "\${*: -1}" in *2) service=worker;; *3) service=beat;; esac
+  [[ "$STAGE" != retagged-runtime && !( "$STAGE" == mixed-prior && "$service" == worker ) ]] || image=sha256:${'b'.repeat(64)}
+  [[ !( "$STAGE" == changed-definition && "$PRIOR_CHANGED" == 1 ) ]] || definition=${'d'.repeat(64)}
+  [[ "$STAGE" != invalid-config-label ]] || definition=invalid
+  if [[ "$3" == '{{.State.Running}}' ]]; then printf 'true\n';
+  elif [[ "$3" == '{{if .State.Health}}{{.State.Health.Status}}{{end}}' ]]; then printf 'healthy\n';
+  elif [[ "$3" == *'.State.Status'* ]]; then
+    if [[ "$STAGE" == stopped-after-start ]]; then printf 'exited|healthy\n';
+    elif [[ ( "$STAGE" == warmup || "$STAGE" == warm-timeout ) && "$HEALTH_READY" == 0 ]]; then printf 'running|starting\n';
+    else printf 'running|healthy\n'; fi
+  else printf '%s|miy-prod-app|%s|%s\n' "$image" "$service" "$definition"; fi
+}
 verify_files_gate_executable() {
   [[ "$1" == "sha256:${'a'.repeat(64)}" ]] || return 9
   printf 'timeout-executable-probe\n'
@@ -117,7 +154,10 @@ start_runtime() {
   printf 'start:%s:%s\n' "$START_COUNT" "$CURRENT_ID"
   [[ "$STAGE:$START_COUNT" != start:1 && "$STAGE" != restore-start ]] || return 4
 }
-run_smoke() { printf 'smoke\n'; [[ "$STAGE" != restore-smoke ]] || return 4; }
+sleep() { printf 'health-wait\n'; if [[ "$STAGE" == warm-timeout ]]; then SECONDS=700; else HEALTH_READY=1; fi; }
+run_smoke() {
+  if [[ "$STAGE" == stop || "$STAGE" == migration || "$STAGE" == gate || "$STAGE" == timeout || "$STAGE" == warmup ]]; then [[ "$RECOVERY_STARTED" == 1 ]] || return 9; fi
+  printf 'smoke\n'; [[ "$STAGE" != restore-smoke && !( "$STAGE" == warmup && "$HEALTH_READY" == 0 ) ]] || return 4; }
 ${mode === 'up' ? upBody : 'if start_forward_runtime; then printf "forward-ok\\n"; else printf "forward-failed\\n"; fi'}
 `,
     ],
@@ -130,7 +170,7 @@ test('forward runtime stops all old writers before migration, owned deadline gat
   const result = await forwardFixture();
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.stdout.trim().split('\n'), [
-    'stop --timeout 45 api worker beat',
+    'stop api worker beat',
     'run --rm migrate',
     'run --rm --no-deps --entrypoint /usr/bin/timeout migrate --signal=TERM --kill-after=5 130 apps/api/.venv/bin/python -m miy_api.domains.files.cutover_gate',
     `start:1:sha256:${'a'.repeat(64)}`,
@@ -170,20 +210,18 @@ test('up missing timeout executable refuses before stopping any current writer',
   assert.doesNotMatch(result.stderr, /restoring|restoration/);
 });
 
-for (const stage of ['stop', 'migration', 'gate', 'timeout', 'start']) {
+for (const stage of ['stop', 'migration', 'gate', 'timeout']) {
   test(`up ${stage} failure restores only the exact pre-up image and still fails`, async () => {
     const result = await forwardFixture(stage, 'up');
     assert.equal(result.status, 1);
     assert.match(result.stderr, /restoring the pre-up image/);
     assert.doesNotMatch(result.stderr, /restoration failed/);
-    assert.match(
-      result.stdout,
-      new RegExp(`start:[12]:sha256:${'a'.repeat(64)}\\nsmoke`),
-    );
+    assert.match(result.stdout, /smoke\n/);
+    assert.doesNotMatch(result.stdout, /start:[12]:/);
     assert.doesNotMatch(result.stdout, /prod-previous|tag|forward-ok/);
     assert.equal(
       (result.stdout.match(/cutover_gate/g) || []).length,
-      ['gate', 'timeout', 'start'].includes(stage) ? 1 : 0,
+      ['gate', 'timeout'].includes(stage) ? 1 : 0,
     );
   });
 }
@@ -191,7 +229,7 @@ for (const stage of ['stop', 'migration', 'gate', 'timeout', 'start']) {
 test('up refuses restoration if its current image identity changed and never uses unrelated prod-previous', async () => {
   const result = await forwardFixture('changed-image', 'up');
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /Current image changed/);
+  assert.match(result.stderr, /No unchanged attested pre-up runtime/);
   assert.match(result.stderr, /operator recovery is required/);
   assert.doesNotMatch(result.stdout, /start:|smoke|prod-previous|tag/);
 });
@@ -977,4 +1015,87 @@ test('broker Compose maps the typed namespace and production has no fallback', a
       `MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE: ${expression}`,
     );
   }
+});
+
+// Actual required-review regressions: no inferred tag-only recovery and service grace.
+test('P1 absent prior runtime cannot start a gate-refused candidate through recovery', async () => {
+  const result = await forwardFixture('no-runtime', 'up');
+  assert.equal(result.status, 1);
+  assert.doesNotMatch(result.stdout, /start:|restored-existing|smoke/);
+});
+
+test('P1 retagged existing runtime refuses before stopping any prior writers', async () => {
+  const result = await forwardFixture('retagged-runtime', 'up');
+  assert.equal(result.status, 1);
+  assert.doesNotMatch(result.stdout, /stop |start:|restored-existing|smoke/);
+});
+
+test('P2 forward stop preserves declared per-service grace without a timeout override', async () => {
+  const result = await forwardFixture();
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /^stop api worker beat\n/);
+  assert.doesNotMatch(result.stdout, /stop .*--timeout/);
+});
+
+for (const stage of ['mixed-prior', 'partial-prior', 'invalid-config-label']) {
+  test(`P1 ${stage} cannot stop or restore an inconsistent prior runtime`, async () => {
+    const result = await forwardFixture(stage, 'up');
+    assert.equal(result.status, 1);
+    assert.doesNotMatch(result.stdout, /stop |start:|restored-existing|smoke/);
+  });
+}
+
+test('P1 lost captured container ID after gate failure refuses recovery', async () => {
+  const result = await forwardFixture('replaced-prior', 'up');
+  assert.equal(result.status, 1);
+  assert.doesNotMatch(result.stdout, /start:|restored-existing|smoke/);
+  assert.match(result.stderr, /operator recovery is required/);
+});
+
+test('P1 first startup with no prior runtime starts only after a successful gate', async () => {
+  const result = await forwardFixture('first-start', 'up');
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(
+    result.stdout.indexOf('cutover_gate') < result.stdout.indexOf('start:'),
+  );
+  assert.doesNotMatch(result.stdout, /restored-existing/);
+});
+
+test('P1 partial forward runtime start requires operator recovery without another startup', async () => {
+  const result = await forwardFixture('start', 'up');
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /operator recovery is required/);
+  assert.equal((result.stdout.match(/start:/g) || []).length, 1);
+  assert.doesNotMatch(result.stdout, /restored-existing|smoke/);
+});
+
+test('P1 recovery waits for saved containers to become healthy before smoke', async () => {
+  const result = await forwardFixture('warmup', 'up');
+  assert.equal(result.status, 1);
+  assert.match(result.stdout, /health-wait\nsmoke/);
+  assert.doesNotMatch(result.stderr, /restoration failed/);
+});
+
+for (const stage of ['warm-timeout', 'stopped-after-start']) {
+  test(`P1 ${stage} recovery cannot report healthy restoration or start another container`, async () => {
+    const result = await forwardFixture(stage, 'up');
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /operator recovery is required/);
+    assert.doesNotMatch(result.stdout, /start:|smoke/);
+  });
+}
+
+test('P1 changed captured configuration label after gate failure refuses recovery', async () => {
+  const result = await forwardFixture('changed-definition', 'up');
+  assert.equal(result.status, 1);
+  assert.doesNotMatch(result.stdout, /start:|restored-existing|smoke/);
+  assert.match(result.stderr, /operator recovery is required/);
+});
+
+test('P1 live label hashing never assumes config --hash env_file equivalence', async () => {
+  const result = await forwardFixture('gate', 'up');
+  assert.equal(result.status, 1);
+  // Any config --hash call is refused by the pinned public-API fixture.
+  assert.match(result.stdout, /smoke/);
+  assert.doesNotMatch(result.stderr, /restoration failed/);
 });

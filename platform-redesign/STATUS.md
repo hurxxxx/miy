@@ -35,6 +35,8 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
   runtime의 CLI 출력·HTTP 전체 시간·Docker 로그 자원 한도를 추가 지적했으며
   필수 구조 계약으로 수정하고 고유77개와 구조·번역 검사를 확인했다.
   불완전한 release 관측이 active 앱 정리를 허용하는 경계도 닫았다.
+  다음 실제 리뷰의 `up` 복원 증명과 worker 종료 유예를 보완해 관련116개와
+  소유 syntax·format·diff 검사를 확인했다.
   새 필수 리뷰·전체 release_validation·
   실제 운영 반영을 이어간다.
   실제 SHA·반영 검사·잔여는 게시 체크포인트의 최신 결과가 소유한다.

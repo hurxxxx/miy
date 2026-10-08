@@ -85,6 +85,26 @@ ignored `.runtime/dev-platform-deployment/latest-20261008T054025897841Z/`와
 보존한다. 진단은 고정 분류·공개 코드 위치만 기록하고 원문 prompt·trace·
 자격정보는 저장하거나 출력하지 않았다.
 
+### 운영 시작·복원 검토 — 2026-10-08 UTC
+
+자원·관측 수정은 `07c72e98ff65e95fa0d86edd15a1b3d6a932a2a3`로 게시하고
+PR74와 MR80 설명을 최종 범위로 갱신했다. pipeline210/job376은 인증 오류
+없이 실제 리뷰했으나 `up`의 복원 기준 P1과 공통 종료 timeout P2를 지적했다.
+이미지 태그만으로 기존 런타임을 증명하면 검사에서 거부한 candidate를
+복원 중에 시작할 수 있다. 중지 전에 실제 healthy 컨테이너·불변 이미지·Compose
+identity를 캡처하고 새 런타임 시작 전 변경되지 않은 기존 ID만 직접 복원한다.
+현재 Compose 파일과 기존 정의가 같다는 보장은 하지 않는다. 변경된 기존 상태는
+중지 전에 거부하며 첫 실행은 검사 성공 전에 복원 대상으로 취급하지 않는다.
+worker의 기존65분 stop grace를45초로 덮어쓰던 공통 옵션도 제거한다.
+
+개인 앱 자원 한도·관측의 앞선 수정은 보존한다. 관련116개와 소유 syntax·
+format·diff 검사를 확인했고 실제 고정 Compose의 미지원 start 옵션과
+config hash 해석 차이도 정정했다. 정확 입력은 ignored
+`.runtime/prod-app-prior-runtime/`에 기록했다. 최종 소유4 입력 일치와 독립
+검토 차단0을 확인했으며 새 source의 필수 리뷰와 전체 release_validation을
+진행한다.
+기존 실패 source를 재시도하지 않으며 운영 checkout·image·DB는 기존 상태다.
+
 ### 반영 결과 — 2026-10-08 04:00 UTC
 
 - [PR71](https://github.com/hurxxxx/miy/pull/71)은 03:37:23 UTC에 일반 merge했다.

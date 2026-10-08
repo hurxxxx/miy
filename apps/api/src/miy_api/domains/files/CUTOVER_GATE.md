@@ -60,7 +60,9 @@ mechanism claims to cancel a remote server operation; this gate only reads.
 
 `scripts/prod-app.sh deploy` and `up` use the same forward sequence:
 
-1. Stop the existing `api`, `worker` and `beat` writer services successfully.
+1. Stop the existing `api`, `worker` and `beat` writer services successfully,
+   retaining their Compose grace periods (45 seconds, 65 minutes, 45 seconds).
+   No shared stop timeout shortens the worker graceful-shutdown contract.
 2. Apply the candidate migrations.
 3. Run the owned compatibility gate against the candidate image and existing
    current Source/physical indexes.
@@ -78,12 +80,33 @@ transition, new grants or activation of the prepared internal protocols.
 
 Any failed forward step prevents candidate startup or reports failed startup.
 `deploy` uses the existing immutable previous-runtime restoration and smoke
-contract. Its old definitions are restored without invoking the new gate.
-`up` captures its exact current image identity before stopping services and
-restores that same image only if the current tag still resolves to that identity;
-`prod-previous` can be unrelated and is never its recovery target. Failed
-restoration is reported separately, and even a successful restoration keeps the
-original forward operation failed. Existing rollback definitions and their
+contract. Its explicit pinned-bundle path restores old definitions without invoking the
+new gate; the compatible tag-only recovery path retains its existing current
+definition/schema compatibility requirement.
+`up` first inspects the actual running, healthy `api`, `worker` and `beat`
+containers. It captures their IDs, immutable images, exact Compose project/service
+identities and existing configuration-hash labels. All three images must match
+the selected current image. Partial, stopped, mixed, retagged or malformed
+identities refuse before stopping writers. With no existing containers, first
+startup may proceed only through the forward gate and has no automatic recovery
+target. Current Compose `config --hash` output is not equated with live labels:
+the public CLI and container creation resolve `env_file` differently.
+
+A failed pre-start step can restart only those attested existing containers,
+after rechecking their original IDs, captured definition labels and the current
+image. The existing Docker container retains its original configuration and
+environment; changes to current Compose files do not change that recovery
+definition. Recovery
+uses public `docker start` with only the captured container IDs, waits up to
+600 seconds for those unchanged containers to become healthy, then runs the
+existing bounded smoke check;
+it never force-recreates a gate-refused candidate. Lost/replaced containers, tag
+or captured-label drift, and failures after the full runtime startup attempt require
+explicit operator/pinned-bundle recovery. The latter may have changed other
+services, so three writer identities cannot prove a complete old runtime.
+`prod-previous` is never an inferred `up` recovery target. Failed restoration is
+reported separately, and successful recovery still leaves the original forward
+operation failed. Existing explicit rollback definitions and their
 schema-compatibility requirements are unchanged.
 
 Repair remains an explicit operator action through the existing
