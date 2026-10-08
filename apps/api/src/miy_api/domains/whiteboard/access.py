@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from fastapi import status
 from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, load_only, raiseload, selectinload
 
 from miy_api.core.i18n import localized_http_exception
 from miy_api.domains.auth.access import is_platform_admin_user
@@ -183,6 +183,33 @@ def load_whiteboard_for_user_or_404(
     if whiteboard is None:
         raise localized_http_exception(status_code=404, code="whiteboard.not_found")
     access = resolve_whiteboard_access(db, whiteboard, current_user, share_token=share_token)
+    if not access.can_view or (whiteboard.trashed_at is not None and not access.can_manage):
+        raise localized_http_exception(status_code=404, code="whiteboard.not_found")
+    return WhiteboardAccessContext(whiteboard=whiteboard, access=access)
+
+
+def load_whiteboard_for_acl_or_404(
+    db: Session, *, item_id: str, current_user: User
+) -> WhiteboardAccessContext:
+    """Current ACL only; do not load scene or owner/share-recipient user graphs."""
+    whiteboard = db.scalar(
+        select(Whiteboard)
+        .options(
+            load_only(
+                Whiteboard.id,
+                Whiteboard.owner_id,
+                Whiteboard.ownership_kind,
+                Whiteboard.company_visible,
+                Whiteboard.trashed_at,
+                raiseload=True,
+            ),
+            raiseload("*"),
+        )
+        .where(Whiteboard.id == item_id)
+    )
+    if whiteboard is None:
+        raise localized_http_exception(status_code=404, code="whiteboard.not_found")
+    access = resolve_whiteboard_access(db, whiteboard, current_user)
     if not access.can_view or (whiteboard.trashed_at is not None and not access.can_manage):
         raise localized_http_exception(status_code=404, code="whiteboard.not_found")
     return WhiteboardAccessContext(whiteboard=whiteboard, access=access)

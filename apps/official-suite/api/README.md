@@ -36,6 +36,17 @@ legacy business Source role and synthetic rooms/bus, so complete Source/hub role
 relay/persistence operations and deployed activation remain required. The reader
 owner above records this boundary and cancellation limits.
 
+An explicit prepared assembly can additionally select a separate Whiteboard
+ACL-read Session factory and positive Source budget. The ACL callback loads only
+board authority fields, reuses current app/group/admin/target policy, then repeats
+the same prepared auth check after Source cleanup. It shares the accepted
+structured worker API, with a distinct Source limiter. No environment or request
+selects it, and failure never selects the global factory as recovery. Initial
+room creation, scene/Yjs state and hub persistence still use the original business
+Source lifecycle. The [reader owner](../../api/src/miy_api/domains/official_apps/AUTHORITY_READER.md#explicit-inactive-whiteboard-acl-reads)
+distinguishes the disposable ACL-read fixture from a complete operational Source
+privilege profile; the published inactive artifact still supplies no such options.
+
 | Artifact                  | Current state                                                                                        |
 | ------------------------- | ---------------------------------------------------------------------------------------------------- |
 | Official UI               | Separate entry/build output; legacy UI/public-module bridge                                          |

@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from functools import partial
 
-from anyio import CancelScope, CapacityLimiter, create_task_group, to_thread
+from anyio import CapacityLimiter, to_thread
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.exc import SQLAlchemyError
@@ -22,6 +22,7 @@ from miy_api.domains.official_apps.authority_reader import (
     OfficialAuthorityReaderRefused,
     resolve_prepared_official_auth_context,
 )
+from miy_api.domains.official_apps.owned_read import run_owned_read
 
 
 def owned_app_scope(logical_app_id: str | None):
@@ -72,36 +73,15 @@ async def _read_prepared_authority(
     logical_app_id: str,
     limiter: CapacityLimiter,
 ) -> AuthContext:
-    context: AuthContext | None = None
-    error: BaseException | None = None
-
-    async def read_owned() -> None:
-        nonlocal context, error
-        # A raw host Task.cancel() must not cancel the thread's await Future.
-        # The structured group joins this private child before releasing the
-        # parent admission permit, including repeated host cancellation.
-        with CancelScope(shield=True):
-            try:
-                context = await to_thread.run_sync(
-                    partial(
-                        resolve_prepared_official_auth_context,
-                        session_factory,
-                        token,
-                        logical_app_id=logical_app_id,
-                    ),
-                    limiter=CapacityLimiter(1),
-                    abandon_on_cancel=False,
-                )
-            except BaseException as exc:
-                # Preserve the original policy/control/cancellation type rather
-                # than exposing an ExceptionGroup to the HTTP adapter.
-                error = exc
-
-    async with limiter:
-        async with create_task_group() as group:
-            group.start_soon(read_owned)
-    if error is not None:
-        raise error
+    context = await run_owned_read(
+        partial(
+            resolve_prepared_official_auth_context,
+            session_factory,
+            token,
+            logical_app_id=logical_app_id,
+        ),
+        limiter=limiter,
+    )
     if context is None:
         raise OfficialAuthorityReaderRefused("authority_read_failed")
     return context

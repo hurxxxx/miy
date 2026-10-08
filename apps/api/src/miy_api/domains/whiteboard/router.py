@@ -377,7 +377,13 @@ def _require_prepared_whiteboard_source_access(*, item_id: str, user: User) -> N
 
 
 async def _authorize_prepared_whiteboard_collab_access(
-    websocket: WebSocket, *, item_id: str, token: str, user_id: str
+    websocket: WebSocket,
+    *,
+    item_id: str,
+    token: str,
+    user_id: str,
+    source_access: Callable[..., Awaitable[None]] | None = None,
+    source_session_id: str | None = None,
 ) -> None:
     context = await resolve_prepared_official_ws_auth_context(
         websocket, token=token, logical_app_id="whiteboard"
@@ -386,6 +392,20 @@ async def _authorize_prepared_whiteboard_collab_access(
         raise localized_http_exception(status_code=503, code="official_apps.authority_unavailable")
     if context.user.id != user_id:
         raise localized_http_exception(status_code=401, code="auth.required")
+    if source_access is not None:
+        if context.session.id != source_session_id:
+            raise localized_http_exception(status_code=401, code="auth.required")
+        await source_access(item_id=item_id, user=context.user)
+        current = await resolve_prepared_official_ws_auth_context(
+            websocket, token=token, logical_app_id="whiteboard"
+        )
+        if current is None:
+            raise localized_http_exception(
+                status_code=503, code="official_apps.authority_unavailable"
+            )
+        if current.user.id != user_id or current.session.id != source_session_id:
+            raise localized_http_exception(status_code=401, code="auth.required")
+        return
     await run_in_threadpool(
         _require_prepared_whiteboard_source_access, item_id=item_id, user=context.user
     )
@@ -1038,6 +1058,7 @@ async def whiteboard_collab_websocket(
         except CollabConnectionLimitExceeded as exc:
             await websocket.close(code=exc.close_code, reason=exc.reason)
             return
+        source_access = getattr(websocket.app.state, "prepared_whiteboard_source_access", None)
         prepared_authorize = (
             partial(
                 _authorize_prepared_whiteboard_collab_access,
@@ -1045,6 +1066,10 @@ async def whiteboard_collab_websocket(
                 item_id=item_id,
                 token=token,
                 user_id=auth_user_id,
+                source_access=source_access,
+                source_session_id=prepared_context.session.id
+                if source_access is not None
+                else None,
             )
             if prepared_context is not None
             else None
