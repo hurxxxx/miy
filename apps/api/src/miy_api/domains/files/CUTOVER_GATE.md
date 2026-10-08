@@ -83,16 +83,25 @@ Any failed forward step prevents candidate startup or reports failed startup.
 contract. Its explicit pinned-bundle path restores old definitions without invoking the
 new gate; the compatible tag-only recovery path retains its existing current
 definition/schema compatibility requirement.
-`up` first inspects the actual running, healthy `api`, `worker` and `beat`
-containers. It captures their IDs, immutable images, exact Compose project/service
+`up` first inspects the actual `api`, `worker` and `beat` containers.
+It validates their IDs, immutable images, exact Compose project/service
 identities and existing configuration-hash labels. All three images must match
-the selected current image. Partial, stopped, mixed, retagged or malformed
-identities refuse before stopping writers. With no existing containers, first
+the selected current image. A successful state inspection must report a known
+Docker status (`created`, `running`, `paused`, `restarting`, `exited` or `dead`),
+a Boolean running value and a known health value (`healthy`, `starting` or
+`unhealthy`), or absent `State.Health` from a not-yet-started container.
+An absent health value provides no healthy recovery evidence. A container being
+removed refuses. Known stopped, starting or
+unhealthy containers may proceed through the forward stop, migration, gate and
+startup sequence. Only three previously `running|true|healthy` containers are
+captured as an automatic recovery target. Inspection failure, empty/invalid
+status, invalid running/health values, partial, mixed, retagged or malformed identities refuse before stopping
+writers. With no existing containers, first
 startup may proceed only through the forward gate and has no automatic recovery
 target. Current Compose `config --hash` output is not equated with live labels:
 the public CLI and container creation resolve `env_file` differently.
 
-A failed pre-start step can restart only those attested existing containers,
+A failed pre-start step can restart only those attested previously healthy containers,
 after rechecking their original IDs, captured definition labels and the current
 image. The existing Docker container retains its original configuration and
 environment; changes to current Compose files do not change that recovery
@@ -106,7 +115,9 @@ explicit operator/pinned-bundle recovery. The latter may have changed other
 services, so three writer identities cannot prove a complete old runtime.
 `prod-previous` is never an inferred `up` recovery target. Failed restoration is
 reported separately, and successful recovery still leaves the original forward
-operation failed. Existing explicit rollback definitions and their
+operation failed. A known stopped, starting or unhealthy prior runtime has no
+automatic restoration path after a refused gate; it cannot start through recovery.
+Existing explicit rollback definitions and their
 schema-compatibility requirements are unchanged.
 
 Repair remains an explicit operator action through the existing

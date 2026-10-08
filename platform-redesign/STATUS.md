@@ -40,6 +40,8 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
   `ddb29c31`의 개발 반영과 로그인·런처·worker/Beat를 확인했다. 후속 실제 리뷰의
   기존 projection 테스트 진입점·Files FK fixture를 현재 계약에 맞춰 로컬72개를
   확인했다. 제품 코드는 유지하며 native/client·PG 검증은 전체 CI가 소유한다.
+  후속 `up`의 중지·비정상 상태 재기동 허용과 자동 복원 근거를 분리해 관련139개를
+  확인했다. Source·fixture·나머지 운영 함수는 보존했다.
   새 필수 리뷰·전체 release_validation·
   실제 운영 반영을 이어간다.
   실제 SHA·반영 검사·잔여는 게시 체크포인트의 최신 결과가 소유한다.

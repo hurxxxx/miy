@@ -131,6 +131,24 @@ ignored `.runtime/dev-platform-deployment/latest-20261008T064107259159Z/`,
 `.runtime/delivery-resume-monitor/job377-safe-diagnosis.json`과
 `.runtime/review-fixture-fixes/`가 정확 입력·판정·실행 범위를 보존한다.
 
+### 재기동 허용과 자동 복원 근거 분리 — 2026-10-08 UTC
+
+테스트 계약 정정은 `de1b79cb66c6a89a2522e6298b4242aaf4161402`로 PR74와
+MR80에 게시했다. pipeline212/job378은 인증·실행·출력 오류 없이683초에
+실제 MERGE_BLOCKED P2 한 건으로 종료됐다. 강화된 기존 건강성 조건이
+중지·비정상 컨테이너의 정상적인 forward `up`도 차단하는 경계였다.
+
+이미지·Compose identity는 검증하고 상태 관측 실패는 거부하면서, 관측이
+완전한 중지·비정상 상태는 stop→migration→gate→start를 허용하도록 보완한다.
+자동 복원 target은 중지 전 정상인 기존3 컨테이너가 모두 확인될 때만 저장한다.
+gate 실패로 거부된 candidate를 복원 중 시작하지 않는 앞선 계약은 유지한다.
+관련 운영 스크립트139개와 소유 syntax·format·diff가 통과했으며 초기 실패와
+Health 정보가 없는 상태의 후기 보완을 각각 보존했다. 최종 입력 일치와 독립
+검토 차단0을 확인했다.
+같은 실패 source를 재시도하지 않고 수정 source의 필수 리뷰를 다시 받는다.
+기존 제품·테스트 fixture는 보존하며 개발 서비스의 추가 재시작은 수행하지 않았다.
+전체 release_validation과 운영 배포는 아직 별도 완료 조건이다.
+
 ### 반영 결과 — 2026-10-08 04:00 UTC
 
 - [PR71](https://github.com/hurxxxx/miy/pull/71)은 03:37:23 UTC에 일반 merge했다.

@@ -111,6 +111,7 @@ compose() {
     'stop '*) [[ "$STAGE" != stop ]] || return 4 ;;
     'run --rm migrate') [[ "$STAGE" != migration ]] || return 4 ;;
     *cutover_gate*)
+      [[ "$STAGE" != prior-*-gate ]] || return 4
       if [[ "$STAGE" == changed-image ]]; then CURRENT_ID=sha256:${'b'.repeat(64)}; return 4; fi
       if [[ "$STAGE" == replaced-prior || "$STAGE" == changed-definition ]]; then PRIOR_CHANGED=1; return 4; fi
       if [[ "$STAGE" == warmup || "$STAGE" == warm-timeout || "$STAGE" == stopped-after-start ]]; then return 4; fi
@@ -122,6 +123,7 @@ docker() {
   if [[ "$1" == start ]]; then
     [[ "$*" == 'start ${'0'.repeat(63)}1 ${'0'.repeat(63)}2 ${'0'.repeat(63)}3' ]] || return 9
     RECOVERY_STARTED=1
+    printf 'restored-existing\n'
     return 0
   fi
   if [[ "$*" == 'image inspect miy-app:prod' ]]; then printf 'inspect-current\n'; return 0; fi
@@ -131,8 +133,28 @@ docker() {
   [[ "$STAGE" != retagged-runtime && !( "$STAGE" == mixed-prior && "$service" == worker ) ]] || image=sha256:${'b'.repeat(64)}
   [[ !( "$STAGE" == changed-definition && "$PRIOR_CHANGED" == 1 ) ]] || definition=${'d'.repeat(64)}
   [[ "$STAGE" != invalid-config-label ]] || definition=invalid
-  if [[ "$3" == '{{.State.Running}}' ]]; then printf 'true\n';
-  elif [[ "$3" == '{{if .State.Health}}{{.State.Health.Status}}{{end}}' ]]; then printf 'healthy\n';
+  local prior_status=running prior_running=true prior_health=healthy
+  case "$STAGE" in
+    prior-created-no-health*) prior_status=created; prior_running=false; prior_health='' ;;
+    prior-exited-no-health*) prior_status=exited; prior_running=false; prior_health='' ;;
+    prior-exited*) prior_status=exited; prior_running=false ;;
+    prior-created*) prior_status=created; prior_running=false ;;
+    prior-paused*) prior_status=paused ;;
+    prior-restarting*) prior_status=restarting ;;
+    prior-dead*) prior_status=dead; prior_running=false ;;
+    prior-unhealthy*) prior_health=unhealthy ;;
+    prior-starting*) prior_health=starting ;;
+    prior-invalid-status) prior_status=unknown ;;
+    prior-invalid-running) prior_running=invalid ;;
+    prior-invalid-health) prior_health=invalid ;;
+    prior-empty-status) prior_status='' ;;
+  esac
+  if [[ "$3" == '{{.State.Running}}' ]]; then
+    [[ "$prior_status" != exited ]] && printf 'true\n' || printf 'false\n'
+  elif [[ "$3" == '{{if .State.Health}}{{.State.Health.Status}}{{end}}' ]]; then printf '%s\n' "$prior_health";
+  elif [[ "$3" == '{{.State.Status}}|{{.State.Running}}|{{if .State.Health}}{{.State.Health.Status}}{{end}}' ]]; then
+    [[ "$STAGE" != prior-inspect-error ]] || return 4
+    printf '%s|%s|%s\n' "$prior_status" "$prior_running" "$prior_health"
   elif [[ "$3" == *'.State.Status'* ]]; then
     if [[ "$STAGE" == stopped-after-start ]]; then printf 'exited|healthy\n';
     elif [[ ( "$STAGE" == warmup || "$STAGE" == warm-timeout ) && "$HEALTH_READY" == 0 ]]; then printf 'running|starting\n';
@@ -1099,3 +1121,60 @@ test('P1 live label hashing never assumes config --hash env_file equivalence', a
   assert.match(result.stdout, /smoke/);
   assert.doesNotMatch(result.stderr, /restoration failed/);
 });
+
+for (const state of [
+  'exited',
+  'unhealthy',
+  'starting',
+  'created',
+  'paused',
+  'restarting',
+  'dead',
+  'created-no-health',
+  'exited-no-health',
+]) {
+  test(`P2 review378 known prior ${state} permits gated forward startup`, async () => {
+    const result = await forwardFixture(`prior-${state}`, 'up');
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(result.stdout.indexOf('stop api worker beat') >= 0);
+    assert.ok(
+      result.stdout.indexOf('stop api worker beat') <
+        result.stdout.indexOf('run --rm migrate'),
+    );
+    assert.ok(
+      result.stdout.indexOf('run --rm migrate') <
+        result.stdout.indexOf('cutover_gate'),
+    );
+    assert.ok(
+      result.stdout.indexOf('cutover_gate') < result.stdout.indexOf('start:1:'),
+    );
+    assert.match(result.stdout, /start:1:.*\nsmoke/);
+    assert.doesNotMatch(result.stdout, /restored-existing/);
+  });
+
+  test(`P2 review378 known prior ${state} cannot become a recovery target after gate refusal`, async () => {
+    const result = await forwardFixture(`prior-${state}-gate`, 'up');
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /stop api worker beat\nrun --rm migrate\n/);
+    assert.match(result.stdout, /cutover_gate/);
+    assert.doesNotMatch(result.stdout, /start:|restored-existing|smoke/);
+    assert.match(result.stderr, /operator recovery is required/);
+  });
+}
+
+for (const stage of [
+  'prior-inspect-error',
+  'prior-invalid-status',
+  'prior-invalid-running',
+  'prior-invalid-health',
+  'prior-empty-status',
+]) {
+  test(`P2 review378 ${stage} remains unknown and refuses before stop`, async () => {
+    const result = await forwardFixture(stage, 'up');
+    assert.equal(result.status, 1);
+    assert.doesNotMatch(
+      result.stdout,
+      /stop |run --rm|start:|restored-existing|smoke/,
+    );
+  });
+}

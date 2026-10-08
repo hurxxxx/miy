@@ -1524,3 +1524,33 @@ ignored `.runtime/review-fixture-fixes/`와
 654→664다. 반환·helper 인자의 교정은 현재 Source 계약으로 한정하며 기존
 native ACL·lifecycle·bulk 단언은 동일하다. 독립 검토는
 `.runtime/delivery-resume-monitor/JOB377_FIXTURE_REVIEW.md`가 소유한다.
+
+## 2026-10-08 정상 재기동과 자동 복원 분리
+
+pipeline212/job378의 실제 리뷰는 source `de1b79cb`에서 인증·실행·출력 오류0,
+683초 뒤 MERGE_BLOCKED P2 한 건이었다. 기존 컨테이너가 중지·비정상이면
+`up`이 gate를 거치는 재기동까지 거부했다. 중지 전 정상 상태를 자동 복원
+근거로 저장하는 조건과 forward 작업 입장을 분리했다.
+
+실제 초기8 FAIL·2 PASS를 보존했고 두 운영 스크립트 파일의 **139 PASS**,
+Bash syntax·소유 포맷·diff PASS를 확인했다. 중간135 통과 뒤 Health 정보가
+없는 상태의 별도 red4를 보존했으며135를 현재139와 합산하지 않는다.
+캡처 함수 하나만 변경하고 다른 함수31개와 command dispatch는 byte 동일하다.
+개인 앱 runtime3·테스트 fixture8·gate Python·Compose·rollback test도 보존했다.
+
+실제 이미지·project/service·기존 config label을 확인한3 컨테이너의 완전한
+상태 관측은 forward stop→migration→gate→start를 허용한다. 상태가 알려진
+중지·비정상·시작 중·pause/restart/dead이거나 Health 정보가 없으면 자동 복원
+target으로 저장하지 않는다. `running|true|healthy`가 모두 확인된3개만
+기존 자동 복원의 근거다. gate 실패로 거부한 candidate를 자동 복원에서
+시작하지 않으며 removing·빈 status·알 수 없는 값·조회 실패는 중지 전에
+거부한다. tuple을 단일 조회하고 정상 종료를 확인해 조회 실패를 비정상
+상태와 혼동하지 않는다. worker65분 종료 유예와 이후 복원·smoke는 유지한다.
+
+Health 부재는 [Moby의 시작 시 Health 초기화](https://raw.githubusercontent.com/moby/moby/v28.0.0/daemon/health.go)를
+참고했으며 설치 daemon 버전이나 실제 컨테이너 재기동 실증의 근거로 쓰지
+않는다. 이139는 기존 Bash 함수의 합성 Docker/Compose 경계 회귀다.
+정확 입력·초기 실패·최종 결과는 ignored `.runtime/prod-up-forward-admission/`에
+기록했다. 실제 운영·DB·provider·환경 변경이나 새 framework는 없다.
+최종 소유3 입력·검증 전후·현재의 일치와 독립 검토 차단0을 확인했다.
+독립 인수는 `.runtime/delivery-resume-monitor/JOB378_FIX_REVIEW.md`에 기록했다.

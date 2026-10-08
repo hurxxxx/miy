@@ -360,7 +360,7 @@ prior_runtime_definition() {
 }
 
 capture_prior_runtime() {
-  local image="${1:?pre-up image is required}" service id hash definition actual_image project role index present=0
+  local image="${1:?pre-up image is required}" service id hash definition actual_image project role index state status running health present=0 recoverable=1
   local -a services=(api worker beat) ids=() definitions=()
   UP_PRIOR_IMAGE=""
   UP_PRIOR_IDS=()
@@ -381,11 +381,28 @@ capture_prior_runtime() {
     definition="$(prior_runtime_definition "${ids[$index]}")" || return 1
     IFS='|' read -r actual_image project role hash <<<"$definition"
     [[ "$hash" =~ ^[a-f0-9]{64}$ \
-      && "$definition" == "$image|$COMPOSE_PROJECT_NAME|$service|$hash" \
-      && "$(docker inspect --format '{{.State.Running}}' "${ids[$index]}")" == true \
-      && "$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "${ids[$index]}")" == healthy ]] || return 1
+      && "$definition" == "$image|$COMPOSE_PROJECT_NAME|$service|$hash" ]] || return 1
+    state="$(docker inspect --format '{{.State.Status}}|{{.State.Running}}|{{if .State.Health}}{{.State.Health.Status}}{{end}}' "${ids[$index]}")" || return 1
+    IFS='|' read -r status running health <<<"$state"
+    [[ "$state" == "$status|$running|$health" ]] || return 1
+    case "$status" in
+      created|running|paused|restarting|exited|dead) ;;
+      *) return 1 ;;
+    esac
+    case "$running" in
+      true|false) ;;
+      *) return 1 ;;
+    esac
+    case "$health" in
+      ''|healthy|starting|unhealthy) ;;
+      *) return 1 ;;
+    esac
+    [[ "$state" == 'running|true|healthy' ]] || recoverable=0
     definitions+=("$definition")
   done
+  # Known nonhealthy/stopped containers may proceed through the forward gate,
+  # but cannot become a healthy automatic recovery target if it refuses.
+  [[ "$recoverable" == 1 ]] || return 0
   UP_PRIOR_IMAGE="$image"
   UP_PRIOR_IDS=("${ids[@]}")
   UP_PRIOR_DEFINITIONS=("${definitions[@]}")
