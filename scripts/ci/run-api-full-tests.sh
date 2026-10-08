@@ -4,6 +4,10 @@ set -u
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 STATUS=0
 
+# API integration tests exercise real worker tasks from this same source tree.
+# Keep the product dependency environments separate; expose only the test source.
+export PYTHONPATH="$ROOT_DIR/apps/worker/src${PYTHONPATH:+:$PYTHONPATH}"
+
 run_segment() {
   local name="${1:?segment name is required}"
   shift

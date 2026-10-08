@@ -391,7 +391,7 @@ Console 검사는 이미지에 digest로 고정한 공식 Python standalone 3.12
 API·Worker의 기존 이미지 가상환경과 Node·uv base pin은 유지한다.
 이미지·BuildKit 캐시의 보관 범위와 용량 설정은 [빌드·테스트 저장 공간](docs/domains/release/README.md#build-and-test-storage)을 따른다. 검증 이미지를 커밋별로 복사·백업하지 않고, 의존성이 같은 이미지를 재사용한다.
 개발 서버의 Node.js 24 설치와는 별도이며, 이름만 같은 다른 이미지로 대체하지 않는다.
-빌드 스크립트는 선택한 PostgreSQL 메이저의 공식 Bookworm 이미지 태그를 불변 digest로 확인한다. PostgreSQL 버전·digest·Docker 플랫폼·Dockerfile·의존성이 일치하면 기존 이미지를 다시 검사해 재사용하고, 다르면 빌드한다. 빌드·클라이언트 검사 실패는 설치 실패로 처리한다.
+빌드 스크립트는 선택한 PostgreSQL 메이저의 공식 Bookworm 이미지 태그를 불변 digest로 확인한다. 같은 공식 이미지에서 `pg_dump`·`pg_restore`·`psql`과 테스트 전용 `initdb`·`postgres` 서버 바이너리·지원 파일을 검증 이미지에 함께 담는다. PostgreSQL 버전·digest·Docker 플랫폼·Dockerfile·의존성이 일치하면 기존 이미지를 다시 검사해 재사용하고, 다르면 빌드한다. 다섯 바이너리의 메이저 검사와 실제 이미지 빌드·재사용 검증이 성공해야 설치 완료로 기록하며, 스크립트 수정이나 문서 갱신만으로 완료로 보지 않는다.
 출력된 PostgreSQL 버전·이미지 digest·플랫폼·의존성 해시를 셋업 결과에 기록한다. 같은 입력으로 재현하려면 `--postgres-client-image 'postgres@sha256:<기록한-digest>'`를 전달한다. ARM64를 포함한 [플랫폼·재빌드 계약](docs/domains/release/README.md#validation-image-platform-and-database)을 따른다.
 로컬 이미지를 쓰는 전용 Runner는 `if-not-present` 등 그 배포 방식에 맞는 pull 정책을 구성한다.
 다른 Docker 데몬에서 실행하는 Runner라면 같은 검증된 이미지가 그 데몬에도 준비되어야 한다.
@@ -449,7 +449,8 @@ Runner 업데이트 후에는 [네트워크·테스트 DB 재검사와 복구](d
 #### 2.2.6. CI 변수 등록과 실제 실행 확인
 
 검증 Runner에서 접근할 수 있는 **CI 전용 비운영 PostgreSQL DB와 계정**을 준비한다.
-테스트용 DB 생성·삭제에 필요한 권한만 부여하고 GitLab 자체 DB, 개발 업무 DB나 운영 DB를 사용하지 않는다.
+테스트용 DB 생성·삭제에 필요한 `CREATEDB`만 부여하고 `NOCREATEROLE`·비-superuser를 유지한다. GitLab 자체 DB, 개발 업무 DB나 운영 DB를 사용하지 않는다.
+독립 앱 데이터·공식 authority reader의 역할 생성·권한 검증 테스트는 검증 이미지의 같은 메이저 서버로 모듈별 일회용 PostgreSQL 프로세스를 소유한다. root CI 안에서도 서버는 비특권 UID로 실행하며, 비공개 임시 비밀번호 파일·SCRAM·loopback과 종료·프로세스 회수·임시 디렉터리 정리를 사용한다. CI에서 서버 바이너리가 없으면 권한 검사를 skip하지 않고 실패한다. 공유 CI 계정에 `CREATEROLE`을 추가하거나 운영 DB 역할을 바꾸지 않는다. 로컬 Docker no-pull 대안과 세부 계약은 [검증 환경 소유 계약](docs/domains/release/README.md#validation-image-platform-and-database)을 따른다.
 Docker 작업 안의 `127.0.0.1`은 호스트 DB 주소가 아니므로 Runner의 실제 네트워크에서 접속 가능한 주소를 사용한다.
 CI 서버와 검증 이미지 클라이언트의 메이저 버전은 프로젝트 DB와 맞춘다. PostgreSQL 17 같은 특정 메이저 버전을 요구하지 않는다.
 CI 테스트 DB 생성에는 서버 측 `vector` 확장도 필요하다. [CI PostgreSQL 확장 준비](docs/domains/release/installation-operations.md#ci-postgresql-extensions)에 따라 설치·검증하고, 확장 생성을 위해 CI 계정에 superuser 권한을 주지 않는다.
@@ -677,7 +678,7 @@ Workbench에서 파일 없이 최초 등록을 이어갈 설치는 `registration
 
 Workbench의 위임된 요청을 자동 소비하려면 코어 설정의 `MIY_INDEPENDENT_APP_DELIVERY_TARGETS`에 앱·설치·독립 소스 경로·전용 scratch/state·승인된 이미지·플랫폼 출처를 명시한다. 기본값 `[]`는 비활성이다. [설정 계약과 명령](apps/api/src/miy_api/domains/independent_apps/README.md#optional-core-queue-consumer)의 `poll-once`는 요청 하나만, `serve`는 foreground 반복 소비를 수행한다. 예시 service 파일만 제공하며 설치·기동은 자동 수행하지 않는다. 중단된 running/unknown/cleanup 요청은 같은 ID로 기존 runtime을 관측하고 확인된 정리를 이어간다. 불확실한 배포를 새로 재실행하지 않으며, 저장된 관측 근거가 부족하면 상태를 유지하고 운영자 확인을 기다린다.
 
-DB가 필요한 독립 앱에는 `web-api-postgres-v1` 프로파일과 [개인 메모 템플릿](templates/independent-app-data/README.md)을 사용한다. 별도의 앱 데이터 PostgreSQL 클러스터를 준비하고 코어 API·실행기 설정에만 `MIY_INDEPENDENT_APP_DATA_POSTGRES_DSN`과 `MIY_INDEPENDENT_APP_DATA_CREDENTIAL_KEY`를 설치한다. 기본 빈 값은 비활성이다. 기존 코어·개발 DB에 대한 권한을 자동 변경하지 않으며, 클러스터의 `PUBLIC CONNECT` 제한을 확인하지 못하면 프로비저닝을 거부한다. 앱 DB·역할 분리, 고정 v1 마이그레이션, 설치별 백업과 키 변경 절차는 [데이터 계약](apps/api/src/miy_api/domains/independent_apps/DATA.md)이 소유한다. 이 키를 바꾸는 것은 자동 회전이 아니며 기존 로그인 실패로 드러난다. 데이터 경계 검사는 기존 개발 DB 대신 로컬 PostgreSQL 17 이미지로 만든 일회용 컨테이너를 사용한다.
+DB가 필요한 독립 앱에는 `web-api-postgres-v1` 프로파일과 [개인 메모 템플릿](templates/independent-app-data/README.md)을 사용한다. 별도의 앱 데이터 PostgreSQL 클러스터를 준비하고 코어 API·실행기 설정에만 `MIY_INDEPENDENT_APP_DATA_POSTGRES_DSN`과 `MIY_INDEPENDENT_APP_DATA_CREDENTIAL_KEY`를 설치한다. 기본 빈 값은 비활성이다. 기존 코어·개발 DB에 대한 권한을 자동 변경하지 않으며, 클러스터의 `PUBLIC CONNECT` 제한을 확인하지 못하면 프로비저닝을 거부한다. 앱 DB·역할 분리, 고정 v1 마이그레이션, 설치별 백업과 키 변경 절차는 [데이터 계약](apps/api/src/miy_api/domains/independent_apps/DATA.md)이 소유한다. 이 키를 바꾸는 것은 자동 회전이 아니며 기존 로그인 실패로 드러난다. 데이터 경계 검사는 [검증 환경 소유 계약](docs/domains/release/README.md#validation-image-platform-and-database)의 같은 메이저 일회용 네이티브 클러스터를 사용하며, CI 바이너리 부재 시 실패하고 로컬에서만 같은 메이저 Docker no-pull 대안을 허용한다.
 
 공식 업무 앱의 별도 UI 조립·빌드 대상은 [공식 suite](apps/official-suite/README.md)가 소유한다. 루트에서 `pnpm nx dev official-suite`로 포트 4201의 UI를 실행하고 `pnpm nx build official-suite`로 `dist/apps/official-suite`에 별도 산출물을 만든다. 현재는 기존 웹의 공용 UI·인증 클라이언트·설정과 기존 개발 API를 사용하는 0단계이며 별도 API·worker·마이그레이션을 기동하지 않는다. 운영 배포 대상·공식 앱 ID 실행 소유자·DB writer를 전환하지 않는다.
 

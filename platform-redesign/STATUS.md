@@ -10,7 +10,26 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
 
 ## 현재 위치
 
-- 최신 게시·병합 추적: [GitHub PR70](https://github.com/hurxxxx/miy/pull/70)의
+- **최신 릴리스 위치:** Bento 저장 보완 source `24211c5`의 필수 리뷰
+  pipeline214/job380은 통과했다. [GitHub PR74](https://github.com/hurxxxx/miy/pull/74)와
+  내부 MR80을 일반 병합했고 소유한 작업 브랜치를 원격·로컬에서 정리했다.
+  통합 `dev`는 `a91b2d38`이며 [릴리스 MR81](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/81)의
+  전체 pipeline215/job381은 API 단계에서 3 FAIL/148 ERROR로 실패했다.
+  제한 CI 계정의 역할 생성, worker 테스트 import, 필수 writer identity와
+  로그 캡처 설정을 바로잡는 검증 환경·fixture 보완을 별도 브랜치에서 진행한다.
+  같은 PostgreSQL major의 비특권 임시 서버를 포함한 실제 CI 이미지를 확인했고,
+  권한·데이터57개와 기존 실패 관련207개를 확인했다. 공유 상태 fixture의16개
+  오류는 수정 후16개 통과했다. 임시 DB 관련31개 파일의 확장 실행은
+  1,034 PASS/4 FAIL/37 ERROR/1 SKIP였다. worker 초기화의 테스트 DB 연결과
+  이전 리뷰 전용 경로 의존을 정정한 뒤 실패가 있던3개 파일 전체
+  125 PASS를 확인했다. 중복 검사는 합산하지 않는다. 새 소스의 필수 리뷰와
+  전체 릴리스 검증을 이어간다.
+  공유 CI·운영 DB 권한을 확대하거나 실패를 skip/재시도로 우회하지 않는다.
+  개발 최신 UI의 실제 로그인·런처·로그아웃과 제공 소스 일치를 확인했다.
+  운영 병합·배포는 전체 검증 통과 대기다. Workbench187개 제품 경로는 이미
+  배포한 별도 릴리스와 동일하며 신규 공식 실행 소유자는 활성화하지 않았다.
+
+- 앞선 구조 작업 경과: [GitHub PR70](https://github.com/hurxxxx/miy/pull/70)의
   Source 명령·관측과 공유 연결 검증 보완이다. 실제 merge 상태·시각·SHA는
   GitHub PR 기록이 원본이다. 초기 PR69의 main 병합·원격/로컬 작업 브랜치
   삭제와 dev 통합을 마쳤다. 이번 PR의 정확 commit·검증·정리 범위는

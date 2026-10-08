@@ -40,6 +40,19 @@ from test_independent_app_data import isolated_data_cluster as isolated_data_clu
 
 
 @pytest.fixture(autouse=True)
+def owned_worker_settings(world, monkeypatch):
+    from miy_worker.settings import get_settings as get_worker_settings
+
+    # Legacy task import runs the real control-plane check against this owned DB.
+    monkeypatch.setenv("MIY_POSTGRES_DSN", sa_dsn(world.dsn))
+    get_worker_settings.cache_clear()
+    try:
+        yield
+    finally:
+        get_worker_settings.cache_clear()
+
+
+@pytest.fixture(autouse=True)
 def no_publication(monkeypatch):
     from miy_api.core.settings import get_settings
     from miy_api.domains.search import outbox

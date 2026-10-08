@@ -595,8 +595,22 @@ def test_invalid_endpoint_refuses_before_sdk_or_transport(monkeypatch, url):
     assert "synthetic-secret" not in str(error.value)
 
 
-def test_loopback_private_transport_logs_are_suppressed_only_in_prepared_context(caplog):
+@pytest.fixture
+def transport_log_capture(caplog, monkeypatch):
+    # App composition may already disable these loggers. Explicitly enable only
+    # this synthetic capture so the ContextVar filter, rather than global logger
+    # policy, proves private suppression and concurrent unrelated visibility.
     caplog.set_level(logging.DEBUG)
+    for name in ("httpx", "httpcore"):
+        caplog.set_level(logging.DEBUG, logger=name)
+        monkeypatch.setattr(logging.getLogger(name), "propagate", True)
+    return caplog
+
+
+def test_loopback_private_transport_logs_are_suppressed_only_in_prepared_context(
+    transport_log_capture,
+):
+    caplog = transport_log_capture
 
     def response(conn):
         content = b'{"result":{"exists":false},"status":"ok"}'
@@ -622,8 +636,10 @@ def test_loopback_private_transport_logs_are_suppressed_only_in_prepared_context
     assert "unrelated-core-still-logged" in caplog.text
 
 
-def test_concurrent_unrelated_client_logging_remains_visible_during_private_request(caplog):
-    caplog.set_level(logging.DEBUG)
+def test_concurrent_unrelated_client_logging_remains_visible_during_private_request(
+    transport_log_capture,
+):
+    caplog = transport_log_capture
 
     def handle(request):
         other = Thread(target=lambda: logging.getLogger("httpx").info("concurrent-client-visible"))

@@ -2,6 +2,48 @@
 
 실제로 수행한 검사와 향후 제품 검증을 구분한다. 검증 성공은 해당 대상·버전·환경·범위에만 적용한다. 제품 코드가 바뀌지 않은 문서화 결과를 새 구조의 기능 검증으로 사용하지 않는다.
 
+## 2026-10-08 전체 릴리스 CI 환경·fixture 보완
+
+`a91b2d38`의 릴리스 MR81, pipeline215/job381은 전체 API 단계에서
+3 FAIL/148 ERROR로 실패했다. shared CI 계정의 `NOCREATEROLE`은 유지하고,
+테스트가 자기 소유의 같은 메이저 PostgreSQL에서만 LOGIN 역할을 생성하도록
+분리했다. API 테스트 진입점에 동일 소스의 worker 경로를 추가하고, writer
+identity·로그 캡처·SQLite business table fixture를 현재 계약에 맞췄다.
+제품 API/worker, 공식 서비스 권한과 migration은 이 보완에서 바꾸지 않았다.
+
+- 실제 validation image `sha256:eefe09d5bd59a0b9f30ca40ef251ccc52bd63294969b23f090ef9576df135e52`
+  build/verification이 통과했다. 같은 공식 PostgreSQL18 digest의 client3개와
+  server2개, dependency identity·native Nx·Chromium·Console SQLite를 확인했다.
+  최초 누락 `libnuma`/`liburing` runtime library 실패는 별도 기록으로 보존했다.
+- 실제 root CI 이미지에서 PostgreSQL은 비특권 사용자로 실행됐다. 서로 다른
+  소유 cluster2개의 식별자와 정상·body 예외 후 process reap·경로 제거를
+  확인했다. 외부 DB나 비공개 env 파일을 사용하지 않았다.
+- authority reader/independent data2개 파일은 **57 PASS**다. 초기 owned launcher의
+  읽기 전용 snapshot·미설정 일반 test DB 오류는 보존하고, 쓰기 가능한 자체
+  source copy와 synthetic test DB를 준비한 뒤 확인했다. 제품 권한 수정은 없다.
+- 기존 CI 실패 관련6개 파일은 **207 PASS/16 setup ERROR**였다.16개는 `docs_`
+  접두사 탐색이 PostgreSQL 전용 protocol model을 SQLite fixture에 포함한
+  오류다. 실제 business tables만 생성하도록 수정한 뒤 해당 파일 전체
+  **16 PASS**를 실제 동일 이미지에서 확인했다. 원래 assertion은 유지했다.
+- 임시 PostgreSQL fixture를 사용하는31개 파일의 확장 실행은 **1,034 PASS/
+  4 FAIL/37 setup ERROR/1 SKIP**였다. 추가 원인은 worker의 실제 초기화가
+  테스트 소유 DB에 연결되지 않는 경계와 이전 리뷰 전용 경로 입력이다.
+  마지막 경로 의존은 pytest `tmp_path`로 정정해 해당 target의 실제 통과를
+  확인했다. 실제 worker 초기화와 control-plane SQL은 유지하면서 fixture의
+  소유 DB 설정·캐시 수명을 맞췄다. 실패가 있던3개 파일 전체를 재검증해
+  **125 PASS**를 확인했다. 최초1,034개와 겹치는 성공은 합산하지 않는다.
+- Python 계약 guardrails(마이그레이션 그래프30개·단일 head, 소스797개·
+  설정 관련 검사), 영향 Ruff/format·shell syntax·tracking 문서 format과
+  GitLab pipeline 검사가 통과했다. 경로 검사에서 발견한 이전 조사 기록의
+  구형 checkout 절대 경로는 원격 dev/prod 체크아웃 표현으로 정정해 통과했다.
+  실제 조사 사실·앱 수·이름과 당시 검증 한계는 보존했다.
+
+각 실행의 입력 binding·초기 실패·현재 결과·소유 자원 정리는 ignored
+`.runtime/release381-native-fixture/`와 각 `release381-*-fixture` 기록이 소유한다.
+앞선57개와31개 파일은 겹치므로 합산하지 않는다. source copy 이후의 다른
+fixture/doc 변경을 과거 통과에 소급하지 않으며 실제 전체 CI·필수 리뷰·
+운영 배포 완료와 이 로컬 결과를 구분한다.
+
 ## 최초 문서화의 검사
 
 기준: 2026-10-06 UTC, 로컬 `dev`, 시작 HEAD `449d1417afbf6a2eb978c1465c765e26ef43c5dc`. 대상은 `platform-redesign/`의 신규 Markdown 문서 7개다.
@@ -265,7 +307,7 @@ candidate의 검사 명령 미관측 4건은 existing-app-ai 3회와 localizatio
 
 ### 원격 누락 사례의 정적 호환 확인
 
-SSH strict host verification·BatchMode로 사용자 지정 서버의 정적 계약/Workbench source만 읽었다. `/projects/open-work-hub/dev`의 25개 등록 중 candidate-review·recruitment-review·scalebridge에 management가 없고 기존 metadata 제외 조건이 존재함을 확인했다. `/prod` 계약은 18개이며 해당 3개가 없다. 앱/고객 데이터·env 값·인증 자료는 읽지 않았고 원격 mutation은 없었다. 이 결과는 이번 로컬 일반화된 전체 목록 수정의 실제 사례 근거이며 운영 브라우저 성공·원격 배포 검증이 아니다.
+SSH strict host verification·BatchMode로 사용자 지정 서버의 정적 계약/Workbench source만 읽었다. 원격 `dev` 체크아웃의 25개 등록 중 candidate-review·recruitment-review·scalebridge에 management가 없고 기존 metadata 제외 조건이 존재함을 확인했다. 원격 `prod` 계약은 18개이며 해당 3개가 없다. 앱/고객 데이터·env 값·인증 자료는 읽지 않았고 원격 mutation은 없었다. 이 결과는 이번 로컬 일반화된 전체 목록 수정의 실제 사례 근거이며 운영 브라우저 성공·원격 배포 검증이 아니다.
 
 ### 공식 정적 UI 소스의 물리적 추출
 
