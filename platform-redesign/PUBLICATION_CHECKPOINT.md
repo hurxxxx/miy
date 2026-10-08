@@ -105,6 +105,32 @@ config hash 해석 차이도 정정했다. 정확 입력은 ignored
 진행한다.
 기존 실패 source를 재시도하지 않으며 운영 checkout·image·DB는 기존 상태다.
 
+### 최신 개발 반영·기존 테스트 계약 정정 — 2026-10-08 UTC
+
+복원·종료 유예 수정은 `ddb29c318e02c3aaf3b8e0a39fb78ed170a694a6`로 두 저장소의
+기존 작업 브랜치에 게시했다. 개발 supervisor를06:41:22 UTC에 한 번 재시작해
+그 source와 tree의 일치를 확인했고 API·web·worker·Beat, 직접/공개 readiness,
+API 로그인·bootstrap18·실제 브라우저 런처12·script error0·로그아웃을 확인했다.
+health revision은 `unmanaged`이므로 source16 해시와 실제 재시작 근거로만
+배포를 설명한다. 기존 개발 기록과 Workbench187 제품 파일은 보존했다.
+
+pipeline211/job377은 인증·실행·출력 오류 없이834초의 실제 리뷰를 마쳤으나
+기존 테스트 계약 두 건 P1으로 MERGE_BLOCKED됐다. projection 테스트가 제거된
+함수·설정의 monkeypatch 대상과 과거 Session 대역을 사용하고, FK-enabled
+Files SQLite fixture는 새 writer_scope의 기준 테이블·scope 행을 준비하지
+못했다. 제품 권한·schema·FK를 완화하지 않고 현재 projection 전달 경로와
+official.suite 제어 데이터를 준비하도록 기존 테스트만 정정한다.
+
+에이전트는 projection 단위 테스트와 Files FK fixture를 서로 다른 파일에서
+담당했다. Files15·projection57 로컬 검사와 소유 format/lint가 통과했다.
+실제 실패·수정·영향 검증을 보존했고 최종 입력 일치·제품 변경0·독립 검토
+차단0을 확인했다. 기존 함수100개와 native lifecycle 단언을 유지하며 새
+source의 필수 리뷰를 받는다.
+dev→main 전체 release_validation·운영 배포는 아직 진행하지 않았다.
+ignored `.runtime/dev-platform-deployment/latest-20261008T064107259159Z/`,
+`.runtime/delivery-resume-monitor/job377-safe-diagnosis.json`과
+`.runtime/review-fixture-fixes/`가 정확 입력·판정·실행 범위를 보존한다.
+
 ### 반영 결과 — 2026-10-08 04:00 UTC
 
 - [PR71](https://github.com/hurxxxx/miy/pull/71)은 03:37:23 UTC에 일반 merge했다.

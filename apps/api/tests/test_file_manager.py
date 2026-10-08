@@ -26,6 +26,7 @@ from miy_api.domains.files import (
     rag_projection,
     rag_status,
     rag_sync,
+    retrieval_contract,
     search_hooks,
     service as files_service,
 )
@@ -42,6 +43,7 @@ from miy_api.domains.retrieval.models import (
     RetrievalProjectionGeneration,
 )
 from miy_api.domains.retrieval.projection_fencing import record_projection_event
+from miy_api.domains.retrieval import official_projection_ingress
 from miy_api.domains.search.models import SearchIndexJob
 from miy_api.domains.search.index_gateway import (
     RETRIEVAL_PARTITIONED_INDEX_SCHEMA_VERSION,
@@ -71,7 +73,7 @@ def test_file_manager_upload_download_and_delete_with_rag_job(
 ) -> None:
     # Exercise the post-generation lifecycle explicitly. Runtime Files
     # retrieval remains fail-closed until the isolated backend cutover.
-    monkeypatch.setattr(rag_sync, "FILES_RETRIEVAL_ACTIVE", True)
+    monkeypatch.setattr(retrieval_contract, "FILES_RETRIEVAL_ACTIVE", True)
     monkeypatch.setattr(rag_status, "FILES_RETRIEVAL_ACTIVE", True)
     session = dev_login(client, "administrator")
     headers = _auth_headers(session["token"])
@@ -183,7 +185,7 @@ def test_file_manager_reports_rag_status_until_both_indexes_are_ready(
     in_memory_object_storage: None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(rag_sync, "FILES_RETRIEVAL_ACTIVE", True)
+    monkeypatch.setattr(retrieval_contract, "FILES_RETRIEVAL_ACTIVE", True)
     monkeypatch.setattr(rag_status, "FILES_RETRIEVAL_ACTIVE", True)
     session = dev_login(client, "administrator")
     headers = _auth_headers(session["token"])
@@ -278,7 +280,7 @@ def test_file_manager_reports_adopted_file_ready_when_active_pair_covers_current
     in_memory_object_storage: None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(rag_sync, "FILES_RETRIEVAL_ACTIVE", True)
+    monkeypatch.setattr(retrieval_contract, "FILES_RETRIEVAL_ACTIVE", True)
     monkeypatch.setattr(rag_status, "FILES_RETRIEVAL_ACTIVE", True)
     session = dev_login(client, "administrator")
     headers = _auth_headers(session["token"])
@@ -461,9 +463,11 @@ def test_company_corpus_admission_change_preserves_ready_projection_status(
     in_memory_object_storage: None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(rag_sync, "FILES_RETRIEVAL_ACTIVE", True)
+    monkeypatch.setattr(retrieval_contract, "FILES_RETRIEVAL_ACTIVE", True)
     monkeypatch.setattr(rag_status, "FILES_RETRIEVAL_ACTIVE", True)
-    monkeypatch.setattr(rag_sync, "get_settings", lambda: SimpleNamespace(rag_enabled=True))
+    monkeypatch.setattr(
+        official_projection_ingress, "get_settings", lambda: SimpleNamespace(rag_enabled=True)
+    )
     administrator = dev_login(client, "administrator")
     admin_headers = _auth_headers(administrator["token"])
     target_member = dev_login(client, "delivery-hub-member")
@@ -538,9 +542,11 @@ def test_active_files_gate_enqueues_lifecycle_jobs_and_purges_extraction(
     in_memory_object_storage: None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(rag_sync, "FILES_RETRIEVAL_ACTIVE", True)
+    monkeypatch.setattr(retrieval_contract, "FILES_RETRIEVAL_ACTIVE", True)
     monkeypatch.setattr(search_hooks, "FILES_RETRIEVAL_ACTIVE", True)
-    monkeypatch.setattr(rag_sync, "get_settings", lambda: SimpleNamespace(rag_enabled=True))
+    monkeypatch.setattr(
+        official_projection_ingress, "get_settings", lambda: SimpleNamespace(rag_enabled=True)
+    )
     session = dev_login(client, "administrator")
     headers = _auth_headers(session["token"])
 

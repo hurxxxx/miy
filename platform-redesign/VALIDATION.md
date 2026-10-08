@@ -1488,3 +1488,39 @@ Docker/Compose 응답으로 실제 Bash 함수와 `up` 분기를 실행한 회�
 최종 소유4 입력 일치와 독립 검토 차단0을 확인했다. 실제 daemon stall의
 강제 시간 한도·진행 중65분 작업 종료·운영 복원 실증은 수행하지 않았다.
 수정 source의 필수 리뷰·전체 release_validation·운영 배포는 계속 필수다.
+
+## 2026-10-08 기존 projection 테스트·Files FK fixture 계약
+
+pipeline211/job377은 source `ddb29c31`의 실제 리뷰를834초에 마쳤으나 P1 두
+건으로 MERGE_BLOCKED됐다. 인증·native 실행·context·출력 계약 오류는0이었다.
+같은 실패 source를 재시도하지 않고 현재 계약에 맞는 테스트로 정정한다.
+
+- Files FK fixture: 실제 초기8 FAIL·2 PASS·5 setup ERROR를 보존했다. 기존
+  RuntimeOwnership 테이블과 official.suite·legacy·generation1·active 행을
+  준비하고 FK ON을 유지했다. 이후13 PASS·2 PostgreSQL 전용 전달 경로의
+  올바른 거부를 확인하고, 이2개를 명명된 SQLite Core dispatch 단위 대역으로
+  제한했다. 완전한 typed ProjectionIntent와 실제 record/head/job staging을
+  검증하며 기존 watermark·version2·checksum·gate·작업 단언을 유지한다.
+  두 파일 전체 **15 PASS**, Ruff·format·diff PASS, 정확 입력2 일치를 확인했다.
+  Source PostgreSQL transport·READ COMMITTED·권한 검증의 증거로 쓰지 않는다.
+- Projection 진입점: 실제11 FAIL·46 PASS에서 같은 선택의 **57 PASS**로
+  교정했다. 현재 company partition·deliver_projection_intent와 실제 Session
+  대역을 사용하며 PMS·Meeting이 Source 전달 뒤 Core reference를 반환하지
+  않는 계약과 canonical intent를 확인한다. 제거된 Files 설정 참조는 실제
+  retrieval_contract·Core ingress로 옮기고 정상적인 기존 함수·설정은
+  유지했다. 소유6 테스트 파일의 collection100 case·Ruff·format·diff는
+  통과했으나 native/client 사례의 실행 통과로 표시하지 않는다.
+
+별개 두 범위의72개 통과는 이전 제품 검증 수와 합산하지 않는다. 테스트 함수
+삭제나 기존 native lifecycle 단언 약화는 없다. 제품 API Python/SQL805개는
+수정 전 source와 byte 동일하며 migration·환경·서비스·권한·FK 계약도 유지한다.
+새 테스트 하네스나 PostgreSQL fixture 인스턴스를 추가하지 않았다. 실제
+PostgreSQL outbox·four-hook·권한·native/client 실행은 전체 release_validation의
+필수 후속 검사다. 정확 입력과 초기 실행 도구 경로 문제·실제 실패·최종 결과는
+ignored `.runtime/review-fixture-fixes/`와
+`.runtime/delivery-resume-monitor/job377-static-fixture-inventory.json`에 기록했다.
+최종 소유8 입력(실제 수정6)과 양쪽 검증 전후·현재의 일치, 제품805 변경0,
+독립 검토 차단0을 확인했다. 기존 test 함수100개는 유지했고 assertion은
+654→664다. 반환·helper 인자의 교정은 현재 Source 계약으로 한정하며 기존
+native ACL·lifecycle·bulk 단언은 동일하다. 독립 검토는
+`.runtime/delivery-resume-monitor/JOB377_FIXTURE_REVIEW.md`가 소유한다.

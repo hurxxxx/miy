@@ -26,6 +26,7 @@ from miy_api.domains.files.models import (
     FileManagerStorageCleanupJob,
 )
 from miy_api.domains.rag.models import RagSyncJob
+from miy_api.domains.official_apps.writer_models import RuntimeOwnership
 from miy_api.domains.retrieval.models import (
     RetrievalPartition,
     RetrievalProjectionEvent,
@@ -53,6 +54,7 @@ def db() -> Session:
         engine,
         tables=[
             *company_authority_tables(),
+            RuntimeOwnership.__table__,
             RetrievalPartition.__table__,
             FileManagerCorpus.__table__,
             FileManagerFolder.__table__,
@@ -67,6 +69,16 @@ def db() -> Session:
         ],
     )
     with Session(engine) as session:
+        session.add(
+            RuntimeOwnership(
+                scope="official.suite",
+                active_owner="legacy",
+                generation=1,
+                artifact=None,
+                state="active",
+            )
+        )
+        session.flush()
         seed_company_app_access(session)
         session.add_all(
             [
