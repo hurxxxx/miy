@@ -55,6 +55,36 @@ controller는 기존 현재 범위 검사와 실제 페이지의 keyed session�
 ignored `.runtime/files-ui-scope-fix/`와 배포 전환 검사 근거가 정확 입력·초기 실패·
 최종 결과를 보존한다. 구조 전체와 기존 비활성 official cutover는 완료로 표시하지 않는다.
 
+### 개인 앱 런타임의 실행 한도 보완 — 2026-10-08 UTC
+
+Files 전환·scope 수정은 `58489bf61d62828ce5df4304cefac1511be569b8`로 커밋·
+push했으며 [PR74](https://github.com/hurxxxx/miy/pull/74)를 생성했다. 개발
+supervisor를 한 번 재시작해 최신 소스를 반영했고 직접/공개 readiness,
+API 로그인·bootstrap18·로그아웃과 실제 브라우저 런처12개·script error0을
+확인했다. health revision은 `unmanaged`이며 정확 SHA의 health 증거로 쓰지 않는다.
+Workbench 제품187파일은 별도 배포 소스와 동일하므로 다시 배포하지 않았다.
+
+내부 pipeline209/job375는 인증 오류 없이 실제 리뷰를 완료했으나 개인 앱
+runtime의 P2 세 건으로 MERGE_BLOCKED됐다. Docker CLI stdout/stderr의 무한
+buffer, 지속적으로 데이터를 보내는 HTTP의 전체 시간 한도 부재, Docker
+기본 로그의 디스크 한도 부재를 수정한다. 독립 검토에서는 release 관측의
+통신 실패를 미활성으로 처리해 실제 사용 중인 앱의 정리를 허용하는 경계도
+명령 stub으로 재현했다. 불완전한 관측은 불확실한 실패로 유지하고 정리를
+거부한다. 이 경계들은 비개발자 앱을 공통 호스트에서 실행하기 위한 필수
+자원·정리 권한 계약이다. 앱별 비필수 기능 개선은 추가하지 않는다.
+최소 수정의 고유77개, 기존 Docker opt-in1 SKIP와 API 구조·번역·소유
+format/lint 검사를 확인했다. 제품은 모든 통과 시점에 동일하며 후기 테스트
+보완은 실행 시점별 입력으로 구분한다. 최종 소유3 입력 일치와 독립 검토
+차단0을 확인했으며 수정 source를 게시한다.
+같은 source를 재시도하거나 실패 리뷰를 우회하지 않는다. PR74와 MR80의
+수정 source를 갱신한 뒤 새 필수 리뷰·전체 release_validation을 진행한다.
+운영은 기존 정상 이미지와 schema를 유지한다.
+
+ignored `.runtime/dev-platform-deployment/latest-20261008T054025897841Z/`와
+`.runtime/delivery-resume-monitor/job375-safe-diagnosis.json`이 최신 실행을
+보존한다. 진단은 고정 분류·공개 코드 위치만 기록하고 원문 prompt·trace·
+자격정보는 저장하거나 출력하지 않았다.
+
 ### 반영 결과 — 2026-10-08 04:00 UTC
 
 - [PR71](https://github.com/hurxxxx/miy/pull/71)은 03:37:23 UTC에 일반 merge했다.

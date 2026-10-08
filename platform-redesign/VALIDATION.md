@@ -1427,3 +1427,32 @@ ignored `.runtime/independent-runtime-https-port/`, `.runtime/files-index-cutove
 완료되지 않았다. Workbench 제품187파일은 별도 배포 소스와 동일하며 이번
 후속 수정의 재배포 대상이 아니다. 공식 Source/Core 활성화·전체 구조 인수와
 앱별 비필수 기능 검증은 기존 잔여 범위를 유지한다.
+
+## 2026-10-08 개인 앱 실행 자원·관측 경계
+
+인증이 완료된 실제 job375는 Docker CLI의 무한 stdout/stderr buffer,
+지속 통신에 대한 HTTP 전체 시간 한도, Docker 기본 로그의 디스크 한도를
+P2로 지적했다. 독립 검토는 release ReadTimeout을 inactive로 처리한 뒤
+discard가 삭제 명령을 호출하는 경계도 stub으로 재현했다. 실제 삭제는 없다.
+
+필수 자원·정리 권한 수정의 초기 red6/6을 보존했다. 관련 runtime74 PASS 뒤
+정리 경계16 PASS(이전14 반복·새2)와 실제 header trickle1 PASS를 확인해
+고유 **77 PASS / 기존 opt-in 실제 Docker1 SKIP**를 구분한다. 제품은 모든
+통과 시점에 동일하며 후기 test-only 보완·owner 포맷 차이는 정확 입력 기록에
+남긴다. 이전 전체 입력이 현재와 같다고 표시하지 않는다. 소유 로컬 프로세스의
+출력 flood·stderr 폐기·전체 시간·EOF/descendant pipe 정리와 실제 loopback
+trickle 서버의 marker/health·연결 정리를 검증했다. 명령 stdout은1MiB,
+stderr는폐기하고 CLI는30초와 정리2초로 제한한다. marker+health와 소유 HTTP
+정리는 전체5초를 공유하며 완전한 marker를 읽지 못하면 uncertain 실패로
+유지해 정리를 거부한다. 이미 확인한 active marker는 이후 health 실패로
+미활성이 되지 않는다. app과 ingress 모두 log-driver none을 적용하고 기존
+컨테이너의 실제 LogConfig를 확인한다. 기존 무한 로그 설정은 자동 인수하지 않는다.
+
+수정은 기존 런타임·기존 테스트·현재 owner에 한정하며 새 하네스·CI 경로,
+daemon 전역 설정·앱 기능을 추가하지 않는다. 실제 Docker 인스턴스 인수나
+daemon 원격 작업의 강제 취소 증거는 아니다. author 근거는 ignored
+`.runtime/independent-runtime-io/`, 독립 관측 재현은
+`.runtime/independent-runtime-io-review/`에 보존한다. API 구조768파일/
+3450 dependency/2 kept/0 broken·번역·소유 lint/format 검사가 통과했다.
+최종 소유3 입력의 현재 일치와 독립 검토 차단0을 확인했다. 새 필수 리뷰·
+전체 release_validation·운영 배포는 후속 완료 조건이다.

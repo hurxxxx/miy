@@ -6,7 +6,10 @@
 별도 Workbench 반영을 확인했다. 내부 리뷰 재인증은 완료했고 리뷰에서 발견한
 개인 앱 HTTPS 기본 포트 오류를 수정·검증했다. 후속 실제 리뷰의 색인 전환과
 Files hook scope 경계를 보완했으며 운영 DB 복사본 호환 검증을 통과했다.
-최신 수정본 필수 리뷰와 전체 릴리스 검증을 마친 뒤 운영에 반영한다. 새로운 official operational reader/grant나 서비스
+개발 최신 소스 반영을 확인했고 후속 필수 리뷰의 개인 앱 실행 자원 한도를
+수정·검증했다. CLI 출력·HTTP 전체 시간·Docker 로그를 제한하고, 불완전한 release
+관측이 사용 중인 앱의 정리 근거가 되지 않도록 했다. 최신 수정본 필수 리뷰와
+전체 릴리스 검증을 마친 뒤 운영에 반영한다. 새로운 official operational reader/grant나 서비스
 cutover를 활성화한 것은 아니다. 게시 추적은
 [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md), 작업 상태는
 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다. 이 문서는 우선순위·의존성과

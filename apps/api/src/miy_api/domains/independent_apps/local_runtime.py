@@ -6,11 +6,14 @@ configuration; a generated nginx file alone is never evidence of activation.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import os
 from pathlib import Path
 import re
+import selectors
+import signal
 import subprocess
 import time
 from urllib.parse import urlsplit
@@ -25,6 +28,11 @@ from miy_api.domains.independent_apps.delivery import Observation, RuntimeFailur
 _IMAGE = re.compile(r"sha256:[a-f0-9]{64}")
 _LABEL = "miy.independent-installation"
 _REQUEST = "miy.independent-deployment"
+_DOCKER_SECONDS = 30
+_DOCKER_CLEANUP_SECONDS = 2
+_STDOUT_LIMIT = 1024 * 1024
+_OBSERVATION_SECONDS = 5
+_OBSERVATION_CLEANUP_SECONDS = 1
 
 
 class DockerRuntime:
@@ -57,26 +65,70 @@ class DockerRuntime:
             raise ValueError("Approved ingress image is unavailable locally")
 
     def _run(self, *args: str, missing_ok: bool = False) -> str | None:
+        process = None
+        selector = selectors.DefaultSelector()
+        completed = False
+        deadline = time.monotonic() + _DOCKER_SECONDS
+        output = bytearray()
         try:
-            result = subprocess.run(
+            process = subprocess.Popen(
                 [self.docker_bin, *args],
                 stdin=subprocess.DEVNULL,
-                capture_output=True,
-                text=True,
-                timeout=30,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
                 env=self.env,
+                start_new_session=True,
             )
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            raise RuntimeFailure("docker_unavailable") from exc
-        if result.returncode:
-            # Only a successful daemon inventory may establish absence. A missing
-            # object from `inspect` and a disconnected daemon are not equivalent.
-            if missing_ok:
-                return None
-            raise RuntimeFailure("docker_command_failed")
-        if len(result.stdout) > 1024 * 1024:
-            raise RuntimeFailure("docker_response_limit")
-        return result.stdout.strip()
+            selector.register(process.stdout, selectors.EVENT_READ)
+            while selector.get_map():
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise RuntimeFailure("docker_unavailable")
+                for key, _ in selector.select(remaining):
+                    chunk = os.read(key.fd, min(65536, _STDOUT_LIMIT + 1 - len(output)))
+                    if not chunk:
+                        selector.unregister(key.fileobj)
+                        continue
+                    output.extend(chunk)
+                    if len(output) > _STDOUT_LIMIT:
+                        raise RuntimeFailure("docker_response_limit")
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise RuntimeFailure("docker_unavailable")
+            code = process.wait(timeout=remaining)
+            completed = True
+            if code:
+                # Known failure is not evidence of daemon/object absence.
+                if missing_ok:
+                    return None
+                raise RuntimeFailure("docker_command_failed")
+            try:
+                return output.decode("utf-8").strip()
+            except UnicodeError:
+                raise RuntimeFailure("docker_response_invalid") from None
+        except (OSError, subprocess.TimeoutExpired):
+            raise RuntimeFailure("docker_unavailable") from None
+        finally:
+            # Killing this owned CLI group does not cancel daemon/remote exec effects.
+            # A descendant can retain the pipe after its parent already exited.
+            if process is not None:
+                if not completed:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except BaseException:
+                        pass
+                    try:
+                        process.wait(timeout=_DOCKER_CLEANUP_SECONDS)
+                    except BaseException:
+                        pass
+                try:
+                    process.stdout.close()
+                except BaseException:
+                    pass
+            try:
+                selector.close()
+            except BaseException:
+                pass
 
     def _objects(self, kind: str) -> list[dict]:
         command = ("container", "ls", "--all") if kind == "container" else ("network", "ls")
@@ -156,6 +208,7 @@ class DockerRuntime:
                 or set(host.get("CapDrop", [])) != {"ALL"}
                 or "no-new-privileges" not in host.get("SecurityOpt", [])
                 or host.get("Memory") != 536870912
+                or host.get("LogConfig") != {"Type": "none", "Config": {}}
                 or host.get("PidsLimit") != 256
                 or host.get("NanoCpus") != 1000000000
                 or host.get("Binds")
@@ -218,6 +271,8 @@ class DockerRuntime:
                 network,
                 "--network-alias",
                 name,
+                "--log-driver",
+                "none",
                 "--read-only",
                 "--cap-drop=ALL",
                 "--security-opt",
@@ -355,6 +410,7 @@ http {{
                 or set(host.get("CapDrop", [])) != {"ALL"}
                 or "no-new-privileges" not in host.get("SecurityOpt", [])
                 or host.get("Memory") != 134217728
+                or host.get("LogConfig") != {"Type": "none", "Config": {}}
                 or host.get("PidsLimit") != 64
                 or host.get("NanoCpus") != 500000000
                 or item["Config"].get("User") != "1000:1000"
@@ -388,6 +444,8 @@ http {{
                 "bridge",
                 "--add-host",
                 "host.docker.internal:host-gateway",
+                "--log-driver",
+                "none",
                 "--read-only",
                 "--cap-drop=ALL",
                 "--security-opt",
@@ -429,37 +487,87 @@ http {{
         raise RuntimeFailure("activation_not_confirmed")
 
     def observe(self, spec: RuntimeSpec) -> Observation:
+        # This executor is a synchronous operator boundary, not an async app API.
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            raise RuntimeFailure("runtime_observation_context_required")
         self.port(spec)
         container, proxy = self._container(spec), self._proxy(spec)
         image = container["Image"] if container else None
         active = healthy = False
         if proxy and proxy["State"].get("Running"):
-            try:
-                with httpx.Client(timeout=2, follow_redirects=False, trust_env=False) as client:
-                    with client.stream("GET", spec.origin + "/__miy_release") as response:
-                        data = b"".join(self._bounded(response, 1024))
-                        active = response.status_code == 200 and json.loads(data) == {
-                            "request_id": spec.request_id,
-                            "image_id": spec.image_id,
-                        }
-                    if active:
-                        with client.stream("GET", spec.origin + spec.health_path) as response:
-                            list(self._bounded(response, 65536))
-                            healthy = response.status_code == 200 and bool(
-                                container and container["State"].get("Running")
-                            )
-            except (httpx.HTTPError, ValueError):
-                pass
+            active, healthy = asyncio.run(
+                self._observe_http(spec, bool(container and container["State"].get("Running")))
+            )
         return Observation(active, healthy, image, container is not None, proxy is None)
 
+    async def _observe_http(self, spec: RuntimeSpec, running: bool) -> tuple[bool, bool]:
+        deadline = asyncio.get_running_loop().time() + _OBSERVATION_SECONDS
+        body_deadline = deadline - _OBSERVATION_CLEANUP_SECONDS
+        client = None
+        responses = []
+        marker_known = active = healthy = False
+        try:
+            async with asyncio.timeout_at(body_deadline):
+                client = httpx.AsyncClient(
+                    timeout=2,
+                    follow_redirects=False,
+                    trust_env=False,
+                    headers={"Accept-Encoding": "identity"},
+                )
+                response = await client.send(
+                    client.build_request("GET", spec.origin + "/__miy_release"), stream=True
+                )
+                responses.append(response)
+                data = await self._bounded(response, 1024)
+                marker = json.loads(data)
+                if (
+                    response.status_code != 200
+                    or not isinstance(marker, dict)
+                    or set(marker) != {"request_id", "image_id"}
+                    or not isinstance(marker["request_id"], str)
+                    or str(UUID(marker["request_id"])) != marker["request_id"]
+                    or not isinstance(marker["image_id"], str)
+                    or not _IMAGE.fullmatch(marker["image_id"])
+                ):
+                    raise ValueError("Invalid release marker")
+                marker_known = True
+                active = marker == {"request_id": spec.request_id, "image_id": spec.image_id}
+                if active:
+                    response = await client.send(
+                        client.build_request("GET", spec.origin + spec.health_path), stream=True
+                    )
+                    responses.append(response)
+                    await self._bounded(response, 65536)
+                    healthy = response.status_code == 200 and running
+        except (httpx.HTTPError, ValueError, TimeoutError, OSError):
+            if not marker_known:
+                raise RuntimeFailure("runtime_observation_unavailable") from None
+        finally:
+            # All owned closes share the original deadline; no reset/background task.
+            # Cleanup failure cannot erase an acknowledged active marker or refusal.
+            for resource in [*responses, *([client] if client is not None else [])]:
+                try:
+                    async with asyncio.timeout_at(deadline):
+                        await resource.aclose()
+                except BaseException:
+                    pass
+        return active, healthy
+
     @staticmethod
-    def _bounded(response, limit):
-        size = 0
-        for chunk in response.iter_bytes():
-            size += len(chunk)
-            if size > limit:
+    async def _bounded(response: httpx.Response, limit: int) -> bytes:
+        if response.headers.get("content-encoding", "").strip().lower() not in {"", "identity"}:
+            raise ValueError("Encoded response refused")
+        data = bytearray()
+        # Raw public stream avoids decompression and implicit EOF-close buffering.
+        async for chunk in response.stream:
+            if len(chunk) > 65536 or len(data) + len(chunk) > limit:
                 raise ValueError("Response too large")
-            yield chunk
+            data.extend(chunk)
+        return bytes(data)
 
     def discard(self, spec: RuntimeSpec) -> None:
         # Never remove the active target, even after an API/daemon timeout.
