@@ -83,6 +83,23 @@ function useAuthProviderElement(children: ReactNode) {
   stateRef.current = state;
   const mountedRef = useRef(true);
   const requestIdRef = useRef(0);
+  const sessionGenerationRef = useRef(0);
+  const [sessionGeneration, setSessionGeneration] = useState(0);
+  const invalidateSession = useCallback(() => {
+    setSessionGeneration(++sessionGenerationRef.current);
+  }, []);
+  const isSessionCurrent = useMemo(() => {
+    const generation = sessionGeneration;
+    const token = state.token;
+    const userId = state.user?.id;
+    return () =>
+      mountedRef.current &&
+      sessionGenerationRef.current === generation &&
+      Boolean(token && userId) &&
+      stateRef.current.token === token &&
+      stateRef.current.user?.id === userId &&
+      stateRef.current.status !== 'unauthenticated';
+  }, [sessionGeneration, state.token, state.user?.id]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -100,6 +117,7 @@ function useAuthProviderElement(children: ReactNode) {
 
   const applyAuthenticatedSession = useCallback(
     (session: { token: string; user: AuthUser }) => {
+      invalidateSession();
       persistAuthToken(session.token);
       void syncDesktopLoginSession(session.token).catch(() => undefined);
       syncLocale(session.user.locale);
@@ -115,7 +133,7 @@ function useAuthProviderElement(children: ReactNode) {
         }),
       );
     },
-    [],
+    [invalidateSession],
   );
 
   const refreshSession = useCallback(async () => {
@@ -153,6 +171,12 @@ function useAuthProviderElement(children: ReactNode) {
             ? currentUserResult.value
             : null,
       });
+      if (
+        stateRef.current.token !== projection.state.token ||
+        stateRef.current.user?.id !== projection.state.user?.id
+      ) {
+        invalidateSession();
+      }
 
       if (projection.sessionToSync) {
         syncLocale(projection.sessionToSync.user.locale);
@@ -170,7 +194,7 @@ function useAuthProviderElement(children: ReactNode) {
 
       setState(projection.state);
     }
-  }, [requestIsCurrent]);
+  }, [invalidateSession, requestIsCurrent]);
 
   const refreshAccessUser = useCallback(async (): Promise<AuthUser> => {
     const sessionToken = state.token;
@@ -182,6 +206,7 @@ function useAuthProviderElement(children: ReactNode) {
     try {
       const user = await getCurrentUser(sessionToken);
       if (requestIsCurrent(requestId)) {
+        if (stateRef.current.user?.id !== user.id) invalidateSession();
         syncLocale(user.locale);
         syncDateFormatPreference(user.date_format);
         syncTimeZonePreference(user.time_zone);
@@ -204,6 +229,7 @@ function useAuthProviderElement(children: ReactNode) {
         (caughtError.status === 401 || caughtError.status === 403) &&
         requestIsCurrent(requestId)
       ) {
+        invalidateSession();
         clearStoredAuthToken();
         syncDesktopLogoutSession();
         clearMatomoUser();
@@ -219,7 +245,7 @@ function useAuthProviderElement(children: ReactNode) {
       }
       throw caughtError;
     }
-  }, [requestIsCurrent, state.token]);
+  }, [invalidateSession, requestIsCurrent, state.token]);
 
   useEffect(() => {
     void refreshSession();
@@ -291,6 +317,7 @@ function useAuthProviderElement(children: ReactNode) {
   );
 
   const logout = useCallback(async () => {
+    invalidateSession();
     const requestId = ++requestIdRef.current;
     const sessionToken = state.token;
     clearStoredAuthToken();
@@ -313,6 +340,7 @@ function useAuthProviderElement(children: ReactNode) {
       await logoutRequest(sessionToken).catch(() => undefined);
     }
   }, [
+    invalidateSession,
     requestIsCurrent,
     state.devAdminLoginAvailable,
     state.devLoginAccounts,
@@ -415,6 +443,7 @@ function useAuthProviderElement(children: ReactNode) {
   const value = useMemo(
     () => ({
       ...state,
+      isSessionCurrent,
       login,
       signup,
       loginAsDevelopmentAdmin,
@@ -432,6 +461,7 @@ function useAuthProviderElement(children: ReactNode) {
     }),
     [
       state,
+      isSessionCurrent,
       login,
       signup,
       loginAsDevelopmentAdmin,

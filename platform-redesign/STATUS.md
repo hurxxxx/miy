@@ -42,6 +42,11 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
   확인했다. 제품 코드는 유지하며 native/client·PG 검증은 전체 CI가 소유한다.
   후속 `up`의 중지·비정상 상태 재기동 허용과 자동 복원 근거를 분리해 관련139개를
   확인했다. Source·fixture·나머지 운영 함수는 보존했다.
+  pipeline213/job379는 인증 오류 없이 실제 리뷰를 마쳤으나 Bento의 같은 로그인
+  화면 이동 시 큐에 남은 저장 유실 P2를 지적했다. 데이터 유실을 막되 로그인·
+  credential 변경 뒤 오래된 쓰기 차단을 보존하는 최소 수정을 마쳤고 Bento22·
+  실제 Provider10과 독립 검토 차단0을 확인했다. 영향 소비자19개·정상 타입4개·
+  web architecture를 확인했고 새 필수 리뷰와 전체 릴리스 검증을 진행한다.
   새 필수 리뷰·전체 release_validation·
   실제 운영 반영을 이어간다.
   실제 SHA·반영 검사·잔여는 게시 체크포인트의 최신 결과가 소유한다.

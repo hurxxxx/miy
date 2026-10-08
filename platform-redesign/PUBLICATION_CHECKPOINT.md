@@ -239,6 +239,27 @@ task-owned launcher에서 공개 package-manager config를 바로잡은 최종 �
 문서의 해당 링크는 로컬 증거 위치이며 GitHub에서 내려받는 파일이 아니다.
 이 체크포인트는 민감한 로그·원문·설정 값을 게시하지 않고 검증 범위만 기록한다.
 
+### 같은 로그인 화면 이동의 대기 저장 — 2026-10-08 UTC
+
+재기동·복원 조건 수정은 `70d35b7a7924c4f14443faa52a052d256d6f3c98`로
+PR74와 MR80 작업 브랜치에 게시했다. pipeline213/job379는 인증·실행·출력
+오류 없이546초의 실제 리뷰를 완료했으나 Bento의 대기 중 저장 유실 P2로
+MERGE_BLOCKED됐다. 첫 저장 중 추가 편집을 큐에 넣은 뒤 같은 로그인에서
+다른 화면으로 이동하면 keyed view의 unmount 검사가 두 번째 저장을 버린다.
+
+데이터 유실은 이번 구조 변경의 필수 수정으로 처리했다. 로그인·credential
+세대가 바뀐 뒤 오래된 쓰기를 막는 계약을 유지하면서 같은 로그인 일반 이동의
+대기 저장을 보존한다. Bento22·실제 Provider10 clean 검사가 통과했고 소유5
+입력 일치·독립 검토 차단0을 확인했다. 작성과 독립 검토를 분리했다.
+영향 소비자19개, 정상 설정의 소유·포털 타입4개와 web architecture를 확인했다.
+앱별 비필수 기능 개선은 추가하지 않는다. 실패한 source를 재시도하거나
+병합하지 않으며 운영은 이전 source·image·schema를 유지한다.
+
+ignored `.runtime/delivery-resume-monitor/job379-safe-diagnosis.json`과
+`.runtime/bento-save-queue-fix/`, `.runtime/bento-save-queue-review/`에
+고정 분류·공개 코드의 기술적 원인·정확 입력·수정 검증을 기록한다.
+원문 prompt·trace·자격정보나 사용자 문서 내용을 저장·게시하지 않는다.
+
 ## 초기 게시 결과 — PR69
 
 - [PR69](https://github.com/hurxxxx/miy/pull/69): 2026-10-07 23:46:53 UTC 병합.

@@ -11,8 +11,10 @@ Files hook scope 경계를 보완했으며 운영 DB 복사본 호환 검증을 
 관측이 사용 중인 앱의 정리 근거가 되지 않도록 했다. 다음 실제 리뷰에서 발견한
 기존 runtime 복원·worker 종료 유예를 보완하고 개발에 반영했다. 이후 리뷰에서
 발견한 기존 테스트의 projection 진입점·Files FK fixture를 현재 계약에 맞춘 뒤,
-`up`의 정상 재기동·자동 복원 조건을 분리하고 수정본 필수 리뷰와 전체 릴리스
-검증을 마치고 운영에 반영한다. 새로운 official operational reader/grant나 서비스
+`up`의 정상 재기동·자동 복원 조건을 분리했다. 이후 실제 필수 리뷰에서 발견한
+Bento의 같은 로그인 화면 이동 시 대기 중 저장 유실을 수정한다. 로그인·credential
+변경의 오래된 쓰기 차단은 유지한다. 새 필수 리뷰와 전체 릴리스 검증을 마치고
+운영에 반영한다. 새로운 official operational reader/grant나 서비스
 cutover를 활성화한 것은 아니다. 게시 추적은
 [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md), 작업 상태는
 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다. 이 문서는 우선순위·의존성과

@@ -1554,3 +1554,53 @@ Health 부재는 [Moby의 시작 시 Health 초기화](https://raw.githubusercon
 기록했다. 실제 운영·DB·provider·환경 변경이나 새 framework는 없다.
 최종 소유3 입력·검증 전후·현재의 일치와 독립 검토 차단0을 확인했다.
 독립 인수는 `.runtime/delivery-resume-monitor/JOB378_FIX_REVIEW.md`에 기록했다.
+
+## 2026-10-08 Bento 화면 이동과 로그인 세대의 저장 경계
+
+pipeline213/job379는 source `70d35b7a`에서 인증·실행·출력 오류0으로546초의
+실제 리뷰를 마쳤으나 같은 로그인 화면 이동의 대기 저장 유실 P2로
+MERGE_BLOCKED됐다. 첫 PATCH 중 받은 추가 편집이 view unmount 검사로
+버려지는 경계였다. 같은 source 재시도나 병합 없이 최소 수정했다.
+
+- 기존 제품에서 같은 로그인 hub 이동·다른 앱 이동·수신한 debounce 편집의
+  실제 두 번째 PATCH 누락 **3 FAIL**을 보존했다. 초기 production React 모드의
+  도구 설정 실패와 Provider 대역의 unhandled Promise 오류는 별도 기록하며
+  clean green으로 대체하지 않는다.
+- Bento **22 PASS**와 실제 React AuthProvider **10 PASS**를 각각 최종1.50초·
+  1.46초에 확인했다. 소유5 입력의 실행 전후·현재 일치와 ESLint·Prettier·
+  diff PASS를 확인했다. 허구의 API·iframe·session 자료이며 실제 server나
+  외부 Bento runtime의 저장 실행 증거는 아니다.
+- optional public session predicate는 해당 credential 세대의 고정 snapshot이다.
+  logout·새 session 설치는 render 전 즉시 무효화하고 같은 token의 재설치나
+  token 왕복도 이전 큐를 되살리지 않는다. 같은 credential의 bootstrap·access·
+  preference 갱신은 predicate identity와 현재성을 유지한다. provider 종료와
+  거부된 access도 이전 snapshot을 차단한다. 서버 권한을 부여하지 않는다.
+- 같은 로그인 일반 이동에서는 이미 받은 편집과 마지막 debounce를 순서대로
+  저장하며 첫 ACK의 version3으로 다음 PATCH한다. 먼저 전체 앱을 떠난 뒤
+  credential이 바뀌어도 후속 PATCH0을 확인했다. ACK는 해당 큐의 private
+  version만 갱신하고 사라진 화면의 state·이동은 바꾸지 않는다. optional
+  predicate가 없는 legacy context는 기존 mount-only 제한을 유지한다.
+- cleanup은 기존 public React `useEffectEvent`로 실제 unmount에만 실행한다.
+  언어 callback 변경을 퇴장으로 처리하지 않고 AI의 기존 직접 저장 경로가
+  취소한 debounce JSON도 소비한다. import·AI·archive 후속 guard와 서버의
+  현재 auth·owner·nonarchived·optimistic version 검사는 보존한다.
+
+독립 검토는 소유5·owner3을 바인딩하고 기존 보호 계약11개 불변, 기존 body23개
+보존과 AI pending JSON 소비 한 문장만의 보완을 확인했다. 차단 결함0이며
+검사를 다시 실행한 별개 통과 수로 합산하지 않는다. 정확 입력·초기 실패·
+최종 결과는 ignored `.runtime/bento-save-queue-fix/`와
+`.runtime/bento-save-queue-review/`에 기록한다. 브라우저 종료·offline durability·
+자동 재시도·이미 제출한 쓰기 취소의 보장은 추가하지 않았다.
+
+영향 소비자의 shared auth14·official composition5가 통과했고 공개 frontend·
+config·dependency1863 입력은 실행 전후·현재 동일했다. 이 로컬 단위 검사는
+기존 Vite config의 공개 `envDir:false`로 환경 파일 로드를 끄며 민감한 값은
+읽거나 출력하지 않았다. 중간 guarded 타입 검사4개는 Nx 초기화의 환경 파일
+읽기10회를 거부한 조건이므로 정상 설정의 증거와 구분한다. Root가 filesystem
+interception·project config override 없이 기존 `nx run-many`를 cache 없이
+다시 실행해 platform-web·official-suite-web·web·official-suite 타입4개를
+21.82초에 통과했다. 정상 `pnpm check:web-architecture`도8.04초에 통과했으며
+소유5 입력은 두 검사 전후에 같았다. 정확 결과는 ignored
+`.runtime/bento-save-queue-consumers/`가 소유하며 guarded 결과를 추가 통과 수로
+합산하지 않는다. 새 필수 리뷰·전체 release_validation·실제 배포는 별도
+완료 조건이다.

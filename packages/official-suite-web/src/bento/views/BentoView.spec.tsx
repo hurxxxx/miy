@@ -9,12 +9,20 @@ import {
   render,
   screen,
 } from '@testing-library/react';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import {
+  Link,
+  MemoryRouter,
+  Route,
+  Routes,
+  useLocation,
+} from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
   archiveBentoDocument,
   createBentoDocument,
   getBentoDocument,
+  editBentoDocumentWithAi,
+  getBentoAiJob,
   listBentoDocuments,
   updateBentoDocument,
   type BentoDocumentDetail,
@@ -34,6 +42,8 @@ vi.mock('../api/bento-api', async (original) => ({
   getBentoDocument: vi.fn(),
   updateBentoDocument: vi.fn(),
   archiveBentoDocument: vi.fn(),
+  editBentoDocumentWithAi: vi.fn(),
+  getBentoAiJob: vi.fn(),
 }));
 vi.mock('./bento-embed-protocol', async (original) => ({
   ...(await original<typeof import('./bento-embed-protocol')>()),
@@ -64,31 +74,46 @@ const response = (items: BentoDocumentDetail[] = []): BentoHubResponse => ({
   page_size: 200,
   total: items.length,
 });
-const context = (token: string) =>
-  ({
+let sessionToken: string | null = null;
+let sessionEpoch = 0;
+let sessionGuard = () => false;
+const context = (token: string, withGuard = true) => {
+  if (sessionToken !== token) {
+    sessionToken = token;
+    const epoch = ++sessionEpoch;
+    sessionGuard = () => sessionEpoch === epoch && sessionToken === token;
+  }
+  return {
     token,
     status: 'authenticated',
-    user: { time_zone: 'UTC' },
-  }) as AuthContextValue;
+    user: { id: 'owner', time_zone: 'UTC' },
+    ...(withGuard ? { isSessionCurrent: sessionGuard } : {}),
+  } as AuthContextValue;
+};
 function Location() {
   return <output data-testid="location">{useLocation().pathname}</output>;
 }
-const view = (token: string, path = '/apps/bento') => (
-  <AuthContext.Provider value={context(token)}>
+const view = (token: string, path = '/apps/bento', withGuard = true) => (
+  <AuthContext.Provider value={context(token, withGuard)}>
     <MemoryRouter initialEntries={[path]}>
       <Location />
+      <Link to="/elsewhere">leave app</Link>
       <Routes>
         <Route path="/apps/bento" element={<BentoView />} />
         <Route
           path="/apps/bento/presentations/:documentId"
           element={<BentoView />}
         />
+        <Route path="/elsewhere" element={<div>Other app</div>} />
       </Routes>
     </MemoryRouter>
   </AuthContext.Provider>
 );
 beforeEach(() => {
   vi.clearAllMocks();
+  sessionToken = null;
+  sessionEpoch = 0;
+  sessionGuard = () => false;
   vi.mocked(listBentoDocuments).mockResolvedValue(response());
   vi.mocked(createBentoDocument).mockResolvedValue(detail);
   vi.mocked(getBentoDocument).mockResolvedValue(detail);
@@ -291,6 +316,58 @@ it('drops queued edits after a session change while preserving the already sent 
   expect(updateBentoDocument).toHaveBeenCalledTimes(1);
 });
 
+it.each(['hub', 'other app', 'debounced edit'])(
+  'finishes accepted queued edits after same-session navigation to %s',
+  async (destination) => {
+    let finish!: (value: BentoDocumentDetail) => void;
+    vi.mocked(updateBentoDocument).mockImplementationOnce(
+      () =>
+        new Promise<BentoDocumentDetail>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    render(view('current-session', '/apps/bento/presentations/deck-one'));
+    const frame = (await screen.findByTitle(
+      'bento.editorTitle',
+    )) as HTMLIFrameElement;
+    vi.useFakeTimers();
+    message(frame);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    message(frame, {
+      ...changed,
+      type:
+        destination === 'debounced edit' ? 'document-changed' : 'save-request',
+      documentJson: '{"slides":[2]}',
+    });
+    if (destination !== 'debounced edit') {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+    }
+    expect(updateBentoDocument).toHaveBeenCalledTimes(1);
+    fireEvent.click(
+      destination === 'hub'
+        ? screen.getByTitle('bento.back')
+        : screen.getByRole('link', { name: 'leave app' }),
+    );
+    await act(async () =>
+      finish({ ...detail, version: 3, document_json: changed.documentJson }),
+    );
+    expect(updateBentoDocument).toHaveBeenCalledTimes(2);
+    expect(updateBentoDocument).toHaveBeenNthCalledWith(
+      2,
+      'current-session',
+      'deck-one',
+      {
+        version: 3,
+        document_json: '{"slides":[2]}',
+      },
+    );
+  },
+);
+
 it('does not navigate the next session after an old archive completes', async () => {
   let finish!: () => void;
   vi.mocked(archiveBentoDocument).mockImplementationOnce(
@@ -308,4 +385,196 @@ it('does not navigate the next session after an old archive completes', async ()
   rendered.rerender(view('current-session', path));
   await act(async () => finish());
   expect(screen.getByTestId('location').textContent).toBe(path);
+});
+
+it.each(['rotated back', 'same token relogin', 'missing snapshot'])(
+  'does not drain a retired queue across %s',
+  async (boundary) => {
+    let finish!: (value: BentoDocumentDetail) => void;
+    vi.mocked(updateBentoDocument).mockImplementationOnce(
+      () =>
+        new Promise<BentoDocumentDetail>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const path = '/apps/bento/presentations/deck-one';
+    const rendered = render(
+      view('previous-session', path, boundary !== 'missing snapshot'),
+    );
+    const frame = (await screen.findByTitle(
+      'bento.editorTitle',
+    )) as HTMLIFrameElement;
+    vi.useFakeTimers();
+    message(frame);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    message(frame, { ...changed, documentJson: '{"slides":[2]}' });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    if (boundary === 'missing snapshot') {
+      fireEvent.click(screen.getByRole('link', { name: 'leave app' }));
+    } else {
+      if (boundary === 'rotated back')
+        rendered.rerender(view('current-session', path));
+      else sessionToken = null;
+      rendered.rerender(view('previous-session', path));
+    }
+    await act(async () =>
+      finish({ ...detail, version: 3, document_json: changed.documentJson }),
+    );
+    expect(updateBentoDocument).toHaveBeenCalledTimes(1);
+    if (boundary !== 'missing snapshot') {
+      const currentFrame = screen.getByTitle(
+        'bento.editorTitle',
+      ) as HTMLIFrameElement;
+      message(currentFrame, { ...changed, documentJson: '{"slides":[3]}' });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(updateBentoDocument).toHaveBeenNthCalledWith(
+        2,
+        'previous-session',
+        'deck-one',
+        {
+          version: 2,
+          document_json: '{"slides":[3]}',
+        },
+      );
+    }
+  },
+);
+
+it('keeps the pending debounce when only the translation callback changes', async () => {
+  const rendered = render(
+    view('current-session', '/apps/bento/presentations/deck-one'),
+  );
+  const frame = (await screen.findByTitle(
+    'bento.editorTitle',
+  )) as HTMLIFrameElement;
+  vi.useFakeTimers();
+  message(frame, { ...changed, type: 'document-changed' });
+  const previousT = translation.t;
+  try {
+    translation.t = (key: string) => key;
+    rendered.rerender(
+      view('current-session', '/apps/bento/presentations/deck-one'),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(updateBentoDocument).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(650);
+    });
+    expect(updateBentoDocument).toHaveBeenCalledExactlyOnceWith(
+      'current-session',
+      'deck-one',
+      {
+        version: 2,
+        document_json: changed.documentJson,
+      },
+    );
+  } finally {
+    translation.t = previousT;
+  }
+});
+
+it('blocks a retired queue when credentials change after the editor has already unmounted', async () => {
+  let finish!: (value: BentoDocumentDetail) => void;
+  vi.mocked(updateBentoDocument).mockImplementationOnce(
+    () =>
+      new Promise<BentoDocumentDetail>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const path = '/apps/bento/presentations/deck-one';
+  const rendered = render(view('previous-session', path));
+  const frame = (await screen.findByTitle(
+    'bento.editorTitle',
+  )) as HTMLIFrameElement;
+  vi.useFakeTimers();
+  message(frame);
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+  });
+  message(frame, { ...changed, documentJson: '{"slides":[2]}' });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+  });
+  fireEvent.click(screen.getByRole('link', { name: 'leave app' }));
+  expect(screen.queryByTitle('bento.editorTitle')).toBeNull();
+  rendered.rerender(view('current-session', path));
+  await act(async () =>
+    finish({ ...detail, version: 3, document_json: changed.documentJson }),
+  );
+  expect(updateBentoDocument).toHaveBeenCalledTimes(1);
+  expect(screen.getByTestId('location').textContent).toBe('/elsewhere');
+});
+
+it('consumes a cancelled debounce before the existing AI current-document save', async () => {
+  vi.mocked(editBentoDocumentWithAi).mockResolvedValue({
+    id: 'ai-job',
+  } as Awaited<ReturnType<typeof editBentoDocumentWithAi>>);
+  vi.mocked(getBentoAiJob).mockResolvedValue({ status: 'running' } as Awaited<
+    ReturnType<typeof getBentoAiJob>
+  >);
+  render(view('current-session', '/apps/bento/presentations/deck-one'));
+  const frame = (await screen.findByTitle(
+    'bento.editorTitle',
+  )) as HTMLIFrameElement;
+  vi.useFakeTimers();
+  message(frame, { ...changed, type: 'ready' });
+  message(frame, { ...changed, type: 'document-changed' });
+  fireEvent.click(screen.getByTitle('bento.aiEdit'));
+  fireEvent.change(
+    screen.getByPlaceholderText('bento.aiEditPromptPlaceholder'),
+    { target: { value: 'Adjust the layout' } },
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'bento.aiEditApply' }));
+  await act(async () => {
+    await Promise.resolve();
+  });
+  message(frame, { ...changed, documentJson: '{"slides":[2]}' });
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(editBentoDocumentWithAi).toHaveBeenCalledTimes(1);
+  expect(updateBentoDocument).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('link', { name: 'leave app' }));
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(1000);
+  });
+  expect(updateBentoDocument).toHaveBeenCalledTimes(1);
+});
+
+it('keeps a failed save unsaved without advancing its version', async () => {
+  vi.mocked(updateBentoDocument).mockRejectedValueOnce(
+    new Error('Synthetic save conflict'),
+  );
+  render(view('current-session', '/apps/bento/presentations/deck-one'));
+  const frame = (await screen.findByTitle(
+    'bento.editorTitle',
+  )) as HTMLIFrameElement;
+  vi.useFakeTimers();
+  message(frame);
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+  });
+  expect(screen.getByText('Synthetic save conflict')).toBeTruthy();
+  expect(screen.getByText('bento.error')).toBeTruthy();
+  message(frame, { ...changed, documentJson: '{"slides":[2]}' });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+  });
+  expect(updateBentoDocument).toHaveBeenNthCalledWith(
+    2,
+    'current-session',
+    'deck-one',
+    {
+      version: 2,
+      document_json: '{"slides":[2]}',
+    },
+  );
 });

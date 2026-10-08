@@ -16,7 +16,14 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -70,15 +77,23 @@ function viewFromSearch(value: string | null): BentoHubView {
 
 export function BentoView() {
   const { documentId } = useParams();
-  const { token } = useAuth();
+  const { token, isSessionCurrent } = useAuth();
+  const sessionRef = useRef({ guard: isSessionCurrent, epoch: 0 });
+  if (sessionRef.current.guard !== isSessionCurrent) {
+    sessionRef.current = {
+      guard: isSessionCurrent,
+      epoch: sessionRef.current.epoch + 1,
+    };
+  }
+  const sessionKey = `${token}:${sessionRef.current.epoch}`;
   return documentId ? (
-    <BentoEditor key={`${token}:${documentId}`} />
+    <BentoEditor key={`${sessionKey}:${documentId}`} />
   ) : (
-    <BentoHub key={token} />
+    <BentoHub key={sessionKey} />
   );
 }
 
-// A keyed view cannot navigate or continue a queued write after it is replaced.
+// Retired views cannot navigate or update UI; accepted saves have a session fence.
 function useActiveView() {
   const active = useRef(false);
   useEffect(() => {
@@ -849,8 +864,12 @@ function BentoCard({
 
 function BentoEditor() {
   const { t, i18n } = useTranslation('apps');
-  const { token } = useAuth();
+  const { token, isSessionCurrent } = useAuth();
   const activeView = useActiveView();
+  const saveSessionIsCurrent = useCallback(
+    () => (isSessionCurrent ? isSessionCurrent() : activeView.current),
+    [activeView, isSessionCurrent],
+  );
   const { documentId } = useParams();
   const navigate = useNavigate();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -860,6 +879,7 @@ function BentoEditor() {
   const pendingSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const pendingSaveJsonRef = useRef<string | null>(null);
   const documentRequestRef = useRef<{
     resolve: (documentJson: string) => void;
     reject: (error: Error) => void;
@@ -913,24 +933,30 @@ function BentoEditor() {
         .then(async () => {
           const current = detailRef.current;
           if (
-            !activeView.current ||
+            !saveSessionIsCurrent() ||
             !token ||
             !documentId ||
             !current?.can_edit
           )
             return;
-          setSaveStatus('saving');
-          setError(null);
+          if (activeView.current) {
+            setSaveStatus('saving');
+            setError(null);
+          }
           const updated = await updateBentoDocument(token, documentId, {
             version: current.version,
             ...patch,
           });
-          if (!activeView.current) return;
-          applyDetail(updated);
+          if (!saveSessionIsCurrent()) return;
+          detailRef.current = updated;
           lastSavedJsonRef.current = updated.document_json;
-          setSaveStatus('saved');
+          if (activeView.current) {
+            applyDetail(updated);
+            setSaveStatus('saved');
+          }
         })
         .catch((caught: unknown) => {
+          if (!activeView.current || !saveSessionIsCurrent()) return;
           setSaveStatus('error');
           setError(
             caught instanceof Error ? caught.message : t('bento.saveFailed'),
@@ -939,7 +965,7 @@ function BentoEditor() {
       operationChainRef.current = operation;
       return operation;
     },
-    [activeView, applyDetail, documentId, t, token],
+    [activeView, applyDetail, documentId, saveSessionIsCurrent, t, token],
   );
 
   const queueDocumentSave = useCallback(
@@ -952,9 +978,11 @@ function BentoEditor() {
       if (pendingSaveTimerRef.current) {
         clearTimeout(pendingSaveTimerRef.current);
       }
+      pendingSaveJsonRef.current = documentJson;
       pendingSaveTimerRef.current = setTimeout(
         () => {
           pendingSaveTimerRef.current = null;
+          pendingSaveJsonRef.current = null;
           void enqueuePatch({ document_json: documentJson });
         },
         immediate ? 0 : 650,
@@ -1089,21 +1117,25 @@ function BentoEditor() {
     return () => window.removeEventListener('message', handleMessage);
   }, [embedConfig, queueDocumentSave, t]);
 
-  useEffect(
-    () => () => {
-      if (pendingSaveTimerRef.current) {
-        clearTimeout(pendingSaveTimerRef.current);
-      }
-      if (documentRequestRef.current) {
-        clearTimeout(documentRequestRef.current.timeout);
-        documentRequestRef.current.reject(
-          new Error('Bento document request cancelled'),
-        );
-        documentRequestRef.current = null;
-      }
-    },
-    [],
-  );
+  const releaseEditor = useEffectEvent(() => {
+    if (pendingSaveTimerRef.current) {
+      clearTimeout(pendingSaveTimerRef.current);
+      pendingSaveTimerRef.current = null;
+    }
+    const pendingJson = pendingSaveJsonRef.current;
+    pendingSaveJsonRef.current = null;
+    if (pendingJson !== null && saveSessionIsCurrent()) {
+      void enqueuePatch({ document_json: pendingJson });
+    }
+    if (documentRequestRef.current) {
+      clearTimeout(documentRequestRef.current.timeout);
+      documentRequestRef.current.reject(
+        new Error('Bento document request cancelled'),
+      );
+      documentRequestRef.current = null;
+    }
+  });
+  useEffect(() => () => releaseEditor(), []);
 
   const requestCurrentDocument = useCallback((): Promise<string> => {
     if (!iframeReady || !embedConfig || documentRequestRef.current) {
@@ -1174,6 +1206,7 @@ function BentoEditor() {
         clearTimeout(pendingSaveTimerRef.current);
         pendingSaveTimerRef.current = null;
       }
+      pendingSaveJsonRef.current = null;
       const currentDocumentJson = await requestCurrentDocument();
       if (!activeView.current) return;
       let current = detailRef.current;
