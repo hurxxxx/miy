@@ -1780,3 +1780,15 @@ Workbench187개 제품 경로는 별도 배포와 동일하다. 다음 P0의 nat
 turn/resume/history와 cleanup 준비는 ignored 읽기 전용 계획이며 실행 증거가
 아니다. 실제 격리 native turn, official operational authority·서비스 전환,
 개인 앱 전체 개발·배포와 네 영역 구조 인수는 계속 필수 잔여다.
+
+## 2026-10-08 후속223/391과 통제된 연결 지연
+
+새 source `1d8cf66e`는 리뷰222/390 SUCCESS 후 PR77/MR84로 정상 병합했고 양 병합 tree는 `0ef60b8ab7cd877495fde7687de28dc2ec4613d6`다. source `c401dd1a`, target `9e9280df`의223/391은 FAILED/script_failure,1,903.144108초다. 실제 fast5,556 PASS/1 FAIL/3 SKIP/5 warnings,1,654.61초이며 slow16/77.81초·migration37/43.62초·external15/37.05초는 각각 통과했다. 웹·Workbench 후속 단계 성공으로 확대하지 않는다.
+
+실패는 `test_file_source_mutations_authority.py`의 실제8조합 중 `[session-descriptor]`701행으로, 고정 reason `source_database_refused`가 기대 `current_execution_denied`와 달랐다. 원 CI의 SQLSTATE는 미관측이다. reason assertion 뒤 file/event/Core/privilege assertions가 그 case에서 실행됐다고 주장하지 않는다. `extraction_commands._stage`는 모든 SQLAlchemyError를 rollback 시도 후 고정 reason으로 숨기므로 reason만으로 DB 원인을 구분할 수 없다.
+
+동일 실제 CI 이미지의 network-none·공개 입력·별도 PostgreSQL18에서 원 case 단독1 PASS/8.47초를 확인했다. 테스트 coordinator의 두 번째 새 연결에만 통제한5.2초 지연을 넣은 별도 실행은1 FAIL/12.62초, native55P03/5.148초였다. 고정 probe는 SQL/parameters/credentials를 저장하지 않았으며 두 실행의 원본 File·선택 이벤트 없음·Core·권한 보존을 확인했다. 이것은 연결 준비가 제품의5초 lock budget을 소모할 수 있다는 근거이며 원 CI의 정확 인과 확정은 아니다. controlled1개와 original1개를 별도 고유 테스트2개로 합산하지 않는다.
+
+최소 fixture 두 파일은 observer/revoker를 worker 시작 전에 열고 실제 block 관측→revocation COMMIT→blocker release 순서를 유지한다. 공용 helper의 기본 연결 소유·4초 관측 제한과 caller-owned observer 정리를 보존한다. 기존117개 assertion AST와 제품/SQL/5초 lock·15초 statement 제한을 유지했다. 수정 후 실제 focused8조합과 기존 default helper2개는10 PASS/23.72초다. 동일5.2초 지연 재검증은1 PASS/13.10초이며 delay 적용·SQL 오류 없음·원본 File/이벤트 없음/Core/권한 보존을 확인했다. 지연 case는8개 안의 재검증이며 고유 성공 수로 합산하지 않는다. 독립 코드 리뷰 blocker0이며 새 source 게시·필수 리뷰·전체 CI와 운영 배포는 대기 중이다. 안전한 증거는 ignored `release391-public-reason-comparison.json`, `release391-lock-wait-probe-{normal,slow_owner_connection}.json`, `post-api-lock_{normal,slow}-result.json`과 `.runtime/release391-source-fixture-fix/`가 소유한다.
+
+수정 후 안전한 실행 증거는 ignored `.runtime/structural-next-delivery/post-api-lock_matrix-result.json`, `release391-lock-matrix-after-fix-probe.json`, `post-api-lock_slow-result.json`, `release391-lock-slow-after-fix-probe.json`이다. 수정 전 지연 실패는 `release391-lock_slow-before-fix-result.json`과 원본 probe로 별도 보존했다. 독립 리뷰는 `release391-revocation-fixture-independent-review.md`와 정확 입력/AST receipt에 바인딩했다. snapshot의 archive base는 `fd5038ba`이고 수정 fixture는 root와 SHA256을 대조한 overlay다. 전체 새 commit 검증은 필수 CI가 소유한다.
