@@ -323,3 +323,39 @@ ownership와 설정55개를 통과했다. 새 생성 계약·SDK/등록 검사�
 PUBLICATION_CHECKPOINT.md가 소유한다.
 실제 환경·인증 파일·runtime 로그는 게시하지 않는다. 서비스 배포 없이 병합 뒤
 고정 Source aggregate 명령부터 이어가며 앱별 비필수 기능은 계속 보류한다.
+
+2026-10-07 23:49 UTC — GitHub PR69를 일반 merge로 병합했고 main merge는
+26ca5767이다. 실제 PR의 CLEAN/MERGEABLE와 원격 rules/review/check 요구를
+확인했으며 우회 옵션을 사용하지 않았다. 현재 GitHub 자동 CI는 없으므로
+로컬 검증과 원격 실행을 구분한다. 로컬 dev에 같은 tree의 main 이력을
+45190645로 통합했고 이번 feature branch만 원격·로컬 삭제를 확인했다.
+서비스·운영 배포 없이 FILES_SOURCE_AGGREGATE.md의 작은 고정 leaf Stage를
+진행한다. Delivery는 Source 명령·관측과 좁은 현재 인증 seam, Data는 실제
+Source29 제한 PG, Structure는 작성자 외 리뷰, Root는 통합·owner를 담당한다.
+새 schema/role/PUT나 Core 직접 쓰기는 포함하지 않고 전체 tree·publication·
+회사 감사·managed identity·F5는 필수 잔여로 유지한다.
+
+2026-10-08 00:36 UTC — 병합 후 고정 Source leaf 변경·역사적 관측의 로컬
+비활성 인수를 마쳤다. private native root File 한 개의 canonical purge와
+진짜 DELETE event를 같은 Source transaction에 기록하며 caller가 COMMIT을
+소유한다. 작성자41개, 실제 제한 Source 고유30개, 기존 영향81개를 구분했고
+독립 최종 리뷰의 차단 결함은0이다. 최초 실제25 PASS/5 fixture FAIL은
+privacy-safe exception str 대신 `.reason`을 확인하는 다섯 assertion만 수정해
+실패5개를 통과했다. 공유 Session이 TextClause를 다른 Engine으로 보내는
+필수 연결 경계 오류는 독립 재현을 보존하고 표준 public get_bind 검증으로
+SQL 전에 거부했다. 실제 진단의 self-block/취소는 성공 receipt나 COMMIT의
+근거가 아니다. Source4·원본 권한48개가 그대로이며 최종 검사 입력253개와
+소유 임시 자원 정리를 확인했다. API 구조764/3419·i18n도 통과했다.
+후기 코드·문서는 로컬 미커밋 상태이며 PR69나 서비스 배포에 포함되지
+않는다. 전체 tree, publication hold·terminal seal·원자 apply, durable caller,
+회사 감사·managed identity·exact-version read/cleanup·F5는 필수 잔여다.
+앱별 비필수 기능이나 상세 검증은 계속 별도 지시까지 보류한다.
+
+2026-10-08 02:01 UTC — 사용자가 후속 Source 변경의 커밋·push·GitHub PR·
+병합과 후속작업 식별을 지시했다. 게시 범위는 인수한 Source 명령·관측과
+공유 Session routing 보완, 관련 검사·owner·계획/추적 문서다. Source4와
+실제 영향 입력253개가 그대로여서 기존41/30/81의 정확 근거를 재사용하며
+같은 검사를 반복하지 않는다. GitHub 실제 요구를 확인해 일반 PR merge와
+이번 작업 브랜치의 원격·로컬 정리까지 진행한다. 후속작업은 NEXT_STEPS.md에
+네 영역 전체의 우선순위·의존성·완료 기준으로 식별했다. 이번 요청으로
+새 후속 제품 구현·서비스 배포·공유 환경 변경에는 착수하지 않는다.

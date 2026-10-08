@@ -155,6 +155,17 @@ apply이며, transport 인수를 전체 Source 업로드 이전 완료로 표시
 
 ## 다음 Source 구조 구현 순서
 
+첫 고정 명령의 작은 범위는 [FILES_SOURCE_AGGREGATE.md](FILES_SOURCE_AGGREGATE.md)의
+기존 private native root File 한 개 soft-delete·동일 ID 역사적 관측이다.
+작성자41·실제 제한 Source 고유30·기존 영향81개와 독립 리뷰를 통해 로컬
+비활성 인수를 마쳤다. 공유 Session의 선택적 TextClause Engine 분리는 SQL
+전에 거부하도록 필수 보완했다. 현재 runtime은
+[SOURCE_MUTATIONS.md](../apps/api/src/miy_api/domains/files/SOURCE_MUTATIONS.md)가
+소유한다. 이것은 아래1의 전체 폴더/tree·회사 정책 또는2의 publication hold와
+seal까지 완료한 것이 아니다. 실행·입력·한계는 [VALIDATION.md](VALIDATION.md)에
+기록하며 후기 코드는 사용자 승인에 따른 별도 Source 후속 PR의 게시 대상이다.
+실제 게시 추적은 [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 소유한다.
+
 1. 고정 Source aggregate 명령을 먼저 조립한다. fresh Engine-backed Source
    stage와 canonical namespace, 실제 actor/session/app·각 작업의 현재 정책,
    정렬된 Source corpus→standalone tree gate→partition reader→부모/File 잠금을

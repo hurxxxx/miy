@@ -88,6 +88,11 @@ def _clock() -> datetime:
 
 def require_fresh_file_extraction_session(db: Session) -> None:
     """Non-SQL factory/stage validation grants no Source execution authority."""
+    # A custom method can route only SET LOCAL/admission TextClauses elsewhere
+    # while every fixed ORM probe still matches. This composition supports only
+    # the standard public Session router (including same-Engine explicit binds).
+    if getattr(db.get_bind, "__func__", None) is not Session.get_bind:
+        raise FileExtractionRefused("source_engine_binding_required")
     try:
         engine = db.get_bind()
     except SQLAlchemyError:
@@ -150,9 +155,10 @@ def _start(db: Session, *, request_id: UUID | None = None) -> None:
     _admit(db, request_id)
 
 
-def _authorize(
-    db: Session, *, actor_user_id: str, execution_ref: str, file: FileManagerFile
-) -> None:
+def require_current_file_source_actor(
+    db: Session, *, actor_user_id: str, execution_ref: str
+) -> User:
+    """Current execution/user/app only; grants no File or mutation authority."""
     session = db.execute(
         select(
             AuthSession.user_id,
@@ -182,6 +188,30 @@ def _authorize(
         or not can_use_app(db, user_id=actor_user_id, app_id="files")
     ):
         raise FileExtractionRefused("current_actor_or_app_denied")
+    return user
+
+
+def begin_file_source_stage(db: Session) -> None:
+    """Fixed fresh Source admission; the original caller owns COMMIT."""
+    _start(db)
+
+
+def require_current_file_source_writer(db: Session) -> None:
+    """Recheck actual current writer after a fixed command's last lock wait."""
+    _admit(db)
+
+
+def file_source_stage(function):
+    """Reuse fresh-session ownership and stable cleanup for fixed Source stages."""
+    return _stage(function)
+
+
+def _authorize(
+    db: Session, *, actor_user_id: str, execution_ref: str, file: FileManagerFile
+) -> None:
+    user = require_current_file_source_actor(
+        db, actor_user_id=actor_user_id, execution_ref=execution_ref
+    )
     folders, incomplete = readable_folder_subset(
         db,
         user=user,

@@ -1272,3 +1272,76 @@ bounded inactive blocker0이다. current21·positive10·corrected negative10·ow
 해시·초기 실패·실제/합성 구분을 소유한다. Source attempted permission·불변
 publication binding·canonical/event 원자 apply·회사 감사·버전 cleanup·기존
 파일/managed 전환과 실제 서비스 조립은 별도 필수 구조 gate다.
+
+### 2026-10-08 — 병합 후 고정 Files Source leaf의 로컬 인수
+
+[고정 계획](FILES_SOURCE_AGGREGATE.md)의 기존 private native root File 한 개
+soft-delete·same-ID 역사적 observer를 구현했다. runtime 계약은
+[SOURCE_MUTATIONS.md](../apps/api/src/miy_api/domains/files/SOURCE_MUTATIONS.md)가
+소유한다. 새 schema·grant·서비스·HTTP/default 호출 전환은 없다. Source의
+File tombstone·canonical artifact purge·진짜 DELETE event를 한 transaction에
+flush하고 current admission/actor/app/scope를 마지막 event-ID 대기 뒤에도
+확인한다. receipt는 항상 provisional이며 caller가 COMMIT을 소유한다.
+
+| 검증 범위                | 실행과 결과                                                                                                                                                                                                                                                                            | 입력·정리                                                                                                                        |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 작성자 계약·Session 소유 | [현재41개](../.runtime/file-source-mutations/focused-20261008T001528154593Z.json), 0.51초·process1.92초 PASS                                                                                                                                                                           | 774개 before==after, 독립 최종 시점 current 일치. 순수/SQLite 검사이며 실제 PG 역할 증거와 구분                                  |
+| 신규 실제 제한 Source29  | [최초30개](../.runtime/official-files-source-aggregate-pg/20261008T001813048027Z/result.json)는25 PASS/5 fixture FAIL, 36.68초·lifecycle40.07초. [실패5개만 정정](../.runtime/official-files-source-aggregate-pg/20261008T002410876446Z/result.json) 후5 PASS, 7.38초·lifecycle10.57초 | 고유 인수30=최초25+정정5. 각 입력251개 before==after, 원본 권한48개 불변·env/auth 읽기0·소유 컨테이너 정리                       |
+| 공유 Source 영향         | [현재81개](../.runtime/official-files-source-aggregate-pg/20261008T002555550274Z/result.json), commands39+ownership41+namespace1 PASS, 51.49초·lifecycle55.43초                                                                                                                        | 입력253개 before==after==독립 검토 시점 current, 원본 권한48개 불변·env/auth 읽기0·소유 컨테이너 정리                            |
+| 통합 API 구조·번역       | [Root 검사](../.runtime/source-aggregate-root-checks/results.json) PASS                                                                                                                                                                                                                | architecture764 files/3419 dependencies/2KEPT/0BROKEN, i18n PASS. Source4 일치 확인이며 전체764개의 byte capture를 주장하지 않음 |
+
+실제 검사 entrypoint는 소유 loopback PG runner의
+`tests/test_file_source_mutations_authority.py`와 실패5개 재지정, 영향 검사
+`tests/test_file_extraction_commands.py`,
+`tests/test_file_extraction_runner_ownership.py`,
+`tests/test_source_file_namespace.py`다. 작성자는
+`tests/test_file_source_mutations.py`를 실행했다. Source29 일반 제한 계정·
+합성 데이터만 사용했으며 공유 환경·설정·서비스를 읽거나 변경하지 않았다.
+
+신규 실제5개 실패는 privacy-safe exception `str()`을 개발자 `.reason`으로
+오인한 assertion이었다. 다섯 assertion만 고쳐 정확 `.reason`을 확인했다.
+독립 역변환이 최초 test bytes를 재현했고 제품·SQL·역할은 완화하지 않았다.
+최초25개에 대해서는 현재 다른250개 입력이 같고 authority test의 이 다섯
+assertion 차이만 있음을 명시한다. 전체30개가 다시 한 실행에서 PASS했다고
+표시하거나 profile feasibility1을 중복 합산하지 않는다.
+
+독립 routing red에서는 public `Session.get_bind`가 ORM을 Engine A로,
+TextClause를 Engine B로 보내도 기존 고정 mapper/table 검사에 통과했다.
+실제 Source29 진단은 revoked public execution·pooled TEMP fake execution에서
+File purge/flush까지 진행한 뒤 분리 transaction의 advisory lock에서
+self-block했다. 소유 waiter만 취소·rollback하고 자원을 제거했다.
+**receipt·COMMIT·영구 삭제는 없었으며**, 취소 뒤 generic refusal은 SQL 전
+거부 증거가 아니다. 공유 fresh validator를 표준 public method identity로
+검사해 override를 호출하거나 SQL/소유권에 진입하기 전에 거부하도록
+보완했다. 정상 inherited Session과 same-Engine explicit binds는 유지한다.
+수정 후 독립 counterpart와 현재 실제 routing·영향81개가 해당 경계를 확인했다.
+
+[독립 최종 리뷰](../.runtime/official-files-source-results/FILE_SOURCE_AGGREGATE_INDEPENDENT_REVIEW.md)는
+bounded inactive blocker0이다. [정확 입력 감사](../.runtime/official-files-source-results/file-source-aggregate-final-independent-input-check.json)는
+2026-10-08 00:32 UTC의 Source4·원본 권한48개, 현재 작성자774개, 정정 실제251개,
+영향 실제253개를 확인한다. 실제 PG maps는 product3+owner2를 포함하며
+작성자 pure test는 별도 author774/Source4 freeze에 포함한다. PG가 Source4
+전체를 capture했다고 표시하지 않는다. 정정 실제와 영향 검사의 공통250개는
+변경이 없다. 후기 Root의 진행 문서 갱신은 이 감사 후의 기록이며 captured
+runtime owner2·제품·검사 bytes는 유지했다. 작성자 runtime JSON의 과거
+ownership33/namespace9 설명은 잘못된 분해이며 실제 대상·총81 PASS와
+현재 report/독립 검토의 **39/41/1**이 정확하다.
+
+실제 범위는 File+event commit/rollback, stale/unsupported 상태·scope/tip,
+현재 session/app 회수 뒤 gate/descriptor/File/event 대기, same-target 경쟁,
+canonical TEMP namespace, historical event·새 execution 관측을 포함한다.
+legacy 잠금은 실제 descriptor→File SQL fixture이며 전체 legacy service
+함수 호출·모든 tree participant adoption의 증거가 아니다. lost ACK는
+진짜 COMMIT 전후의 합성 caller 예외이며 실제 연결 단절·typed durable runner
+인수로 확대하지 않는다. caller body BaseException 정리와 durable spec/ID
+보관은 caller의 계약이다. 이 Stage에는 arbitrary post-Stage caller write를
+막는 SQL terminal seal이 없고, 역사적 관측·event 부재로 변경을 재실행하지
+않는다.
+
+전체 tree의 유한 명령, publication active hold·top-XID seal·원자 apply,
+회사 감사·managed logical identity·exact-version read/cleanup, durable caller,
+matched runtime·F5 서비스 전환은 필수 잔여다. 인수 시점에 병합 후 코드는
+로컬 미커밋 상태였으며 GitHub PR69나 개발/운영 배포에 포함되지 않았다.
+현재 사용자 승인에 따른 별도 Source 후속 PR로 게시하며 실제 추적은
+[PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 소유한다. 앱별 비필수
+기능 개선·상세 검증은 별도 지시까지 계속 보류한다.
