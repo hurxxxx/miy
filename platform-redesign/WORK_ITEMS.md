@@ -90,6 +90,21 @@
 
 ### 현재 하위 구현 근거와 다음 연결
 
+2026-10-07 23:46 UTC에 현재 재설계 checkpoint를 GitHub PR69로 병합하고
+이번 작업 브랜치를 원격·로컬 모두 삭제했다. dev/main은 유지했다.
+[게시 기록](PUBLICATION_CHECKPOINT.md)과 [고정 Source aggregate slice](FILES_SOURCE_AGGREGATE.md)가
+후속 구현을 소유한다. private native root File 한 개의 Source-only
+soft-delete·exact event observer와 공유 Session routing 거부를 로컬 비활성
+범위로 인수했다. 작성자41·실제 제한 Source 고유30·기존 영향81개와 독립
+리뷰의 차단 결함0을 확인했다. 병합 후 코드는 이번 별도 Source 후속 PR의
+게시 대상이다. 다음은
+전체 tree의 유한 명령과 publication hold·원자 apply 조립이다. 이 첫 slice는
+전체 tree/publication나 OFF-002B 완료를 뜻하지 않는다. runtime 계약은
+[SOURCE_MUTATIONS.md](../apps/api/src/miy_api/domains/files/SOURCE_MUTATIONS.md)가,
+실행별 입력과 한계는 [VALIDATION.md](VALIDATION.md)가 소유한다.
+후속작업의 착수 순서·의존성과 완료 기준은 [NEXT_STEPS.md](NEXT_STEPS.md)에
+식별했으며 해당 작업 상태의 원본은 이 작업표를 유지한다.
+
 Files F4 후속: Core effect의 최신 controlled102·generation/helper110과 actual Data83·Source72·mandatory175개를 구분해 로컬 비활성 인수와 독립 리뷰를 마쳤다. 최소 owner58/caller125 SELECT와 신규 SQL/기존46 계약 불변, ACK/unknown 결과·동시성·이력·세션 소유권을 확인했다. Source TEMP 인증/cancellation은 최신 actual81·현재243개 불변과 독립 리뷰로 인수했다. 준비된 vector 한도 adapter는 고유118개·별도 기존39개 영향, 현재selected29·owned4 불변과 독립 리뷰로 인수했다. bounded PUT도 현재68개·actual0/small/250MiB version/SHA·missing-Version2 case·selected21/actual10 불변과 독립 리뷰로 인수했다. 다음은 Source aggregate와 publication/원자 apply 조립이다. 런타임은 files/PUBLICATION_STORAGE.md가 소유한다. durable caller retention·불변 publication·tree/bootstrap·F5 서비스 조립은 필수 잔여다. 이 checkpoint로 OFF-002B나 전체 F4를 완료하지 않는다.
 
 - `OFF-002A`: 공식 UI **12/12개**의 전체 source/build 소유 이전을 로컬 검증했다. Diagrams·Bento·Mail·Whiteboard·Community·Docs·Recording·Meeting·Planner·PMS·Files·Video Chat이 실제 suite 소유이며 공용 Chatbot은 platform 소유다. 최신 PMS 부모 독립 비교는 구현 94개·소비자 본문 5개·HTML·전체 catalog 동등성이며 suite 917/platform 124/root 44/PMS 318개 및 타입·경계 검사를 보존한다. 새 두 build·production browser 각 31개, actual-dev 새 PMS 다섯 경로가 통과했다. 전체 dev30 PASS/1기존 Meeting read-count fixture FAIL은 APP-ISS-007로 구분한다. 선택 입력 1,734개 중 제품 등 1,733개·owner 275개는 불변이며 후기 E2E 하나만 보완했다. Files·Video Chat·공용 Chatbot의 부모 비교는 실제 본문74개·Video helper14개·전체 catalog·CSS·Files 공개 API와 owner254/review35개를 확인했다. 최종 포털 build8,567 modules/26.23초·공식 build7,833 modules/22.81초, 포털37·공식36개의 고유 합성 브라우저 PASS와 selected dev6 PASS를 마쳤다. official의 portal-only Chatbot skip1개와 각 Whiteboard 별도 실행을 명시하고 중복을 합산하지 않는다. 선택 입력1,823개는 두 build 전부터 최종 브라우저 뒤까지 불변이다. source/build 통합 인수는 12/12개지만 독립 runtime/release·전체 portal 업무 조립 정리는 완료로 표시하지 않는다. 해당 UI의 상세 근거는 별도 기록을 따르며 앱 기능 인수로 확대하지 않는다. source/build 소유 이전을 별도 서비스·릴리스 활성화로 확대하지 않는다. [VALIDATION.md](VALIDATION.md), [APP_ISSUES.md](APP_ISSUES.md)가 증거·후속을 소유한다.
