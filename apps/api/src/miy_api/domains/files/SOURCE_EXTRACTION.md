@@ -41,12 +41,17 @@ qualified and the private functions retain their owned namespace.
 
 The public internal command stages require a fresh, clean outer READ COMMITTED
 Engine-backed Session. Connection-backed binds and external join modes are
-refused before autobegin or Source SQL. The fixed Source, actor/session, company
+refused before autobegin or Source SQL. The bound public `get_bind` implementation
+must be the standard `Session.get_bind`; subclasses inheriting it remain supported.
+Custom overrides or instance replacements are refused before calling the method,
+SQL or cleanup. Model-only probes cannot validate selectively routed TextClause
+helpers such as namespace, admission, timeout and descriptor/stream locks.
+The fixed Source, actor/session, company
 app, folder/File grant, group and PMS team query models must all resolve through
 public `Session.get_bind(mapper=...)` and `get_bind(clause=select(table))` to the
 same default Engine. Per-model/table routes to another Engine or a borrowed
 Connection are refused before the runner acquires ownership, SQL or cleanup.
-An explicit route to that same Engine remains supported; dynamic routing to
+An explicit standard binding to that same Engine remains supported; dynamic routing to
 different database resources is outside this fixed composition.
 Existing caller transactions, pending ORM
 changes and nested/savepoint transactions are refused before Source SQL and are

@@ -8,7 +8,7 @@
 
 재개 후에는 [구조 완성에 필수인 변경·치명적 문제](PLAN.md#구조-완성-우선과-앱별-후속-작업)에 집중한다. 앱별 비필수 개선·상세 검증은 [이슈 대장](APP_ISSUES.md)에만 기록하고 별도 사용자 지시 전까지 착수하지 않는다. 범위 조정 이후의 명시적 구현 재개 요청에 따라 구조 작업을 진행한다.
 
-현재 승인된 실행 범위는 **계획에 따른 구현·검증과 현재 변경의 GitHub 커밋·push·PR·병합**이다. 병합 후 이번 PR 작업 브랜치만 원격·로컬에서 정리하고 다음 구조 구현을 이어간다. 영구 `dev`·`main`과 다른 작업 브랜치는 유지하며 서비스·운영 배포는 포함하지 않는다. [게시 체크포인트](PUBLICATION_CHECKPOINT.md)가 이 일회성 게시 범위와 검증을 소유한다. 기존 하네스와 스킬은 적용할 절차가 아닌 최소화할 검토 대상으로 취급한다. 여러 에이전트가 경로별로 구현하며 주 에이전트가 통합한다. 작업을 재개할 때는 대화의 최신 요청과 [현재 상태](STATUS.md)를 먼저 대조한다.
+현재 사용자 지시는 **Source 후속 변경의 커밋·push·GitHub PR·병합과 후속작업 식별**이다. 이전 GitHub PR69 병합과 해당 작업 브랜치의 원격·로컬 삭제를 마쳤다. 영구 `dev`·`main`과 다른 작업 브랜치는 유지했다. 이후 구현·검증한 Source leaf 구조의 게시·병합 추적은 [GitHub PR70](https://github.com/hurxxxx/miy/pull/70)이며 서비스·운영 배포는 포함하지 않는다. [게시 체크포인트](PUBLICATION_CHECKPOINT.md)가 게시 범위와 검증을, [다음 작업](NEXT_STEPS.md)이 후속 우선순위와 의존성을 소유한다. 기존 하네스와 스킬은 적용할 절차가 아닌 최소화할 검토 대상으로 취급한다. 여러 에이전트가 경로별로 검토하며 주 에이전트가 통합한다. 작업을 재개할 때는 대화의 최신 요청과 [현재 상태](STATUS.md)를 먼저 대조한다.
 
 ## 문서별 책임
 
@@ -18,6 +18,7 @@
 | [REVIEW.md](REVIEW.md)                                         | 웹 재검토 근거·반영 전 발견 사항·소유 문서의 반영 위치                  |
 | [POLICY.md](POLICY.md)                                         | 이번 재설계에 적용할 기존 규칙의 유지·대체·제외 기준과 전환 계획        |
 | [WORK_ITEMS.md](WORK_ITEMS.md)                                 | 작업 ID, 의존성, 변경 범위, 상태와 완료 조건                            |
+| [NEXT_STEPS.md](NEXT_STEPS.md)                                 | 현재 후속 구조작업의 우선순위·의존성·착수 단위                          |
 | [APP_ISSUES.md](APP_ISSUES.md)                                 | 별도 지시까지 보류할 앱별 개선·상세 검증과 근거·착수 상태               |
 | [STATUS.md](STATUS.md)                                         | 현재 단계, 최근 완료 항목, 장애 요인과 다음 행동                        |
 | [PROGRESS.md](PROGRESS.md)                                     | 주요 결정·구현·검증·방향 변경의 날짜별 이력                             |
@@ -28,6 +29,7 @@
 | [OFFICIAL_FILES_WORKSPACE.md](OFFICIAL_FILES_WORKSPACE.md)     | 공식 파일 목록·검색·업로드 소유 이전과 공용 다운로드/표시 경계          |
 | [OFFICIAL_API_CUTOVER.md](OFFICIAL_API_CUTOVER.md)             | 공식 API의 인증·transaction writer·queue·서비스 전환 순서와 미완료 경계 |
 | [FILES_SOURCE_RESULTS.md](FILES_SOURCE_RESULTS.md)             | Files Source 추출 요청·결과와 Core 읽기 전용 경계의 단계별 구현 계획    |
+| [FILES_SOURCE_AGGREGATE.md](FILES_SOURCE_AGGREGATE.md)         | 현재 private native leaf Source 명령·관측의 고정 범위와 인수 조건       |
 | [FILES_EFFECT_BOUNDARY.md](FILES_EFFECT_BOUNDARY.md)           | Core 색인 효과의 durable identity·lifecycle·완료·유한 vector 한도       |
 | [FILES_PUBLICATION_STORAGE.md](FILES_PUBLICATION_STORAGE.md)   | Source 불변 publication의 bounded PUT·VersionId ACK 구현 계획           |
 | [REGISTRATION_AUTHORIZATION.md](REGISTRATION_AUTHORIZATION.md) | Workbench 자연어 최초 등록의 제한 위임·저장·실패 복구 구현 계획         |
@@ -58,13 +60,14 @@
 
 구현된 계약은 해당 소유 문서에 반영하고 여기서는 연결한다. 장기적인 아키텍처 결정은 루트 [adr/](../adr/)에 기록한다. 계획만으로 기존 ADR을 폐기하거나 현재 런타임 동작이 바뀌었다고 표시하지 않는다.
 
-| 현재 구현을 확인할 대상               | 소유 문서                                                        |
-| ------------------------------------- | ---------------------------------------------------------------- |
-| 앱 등록·권한·런처                     | [App Platform](../docs/domains/app-platform/README.md)           |
-| 기존 Workbench·Codex 실행·복구 저장소 | [Codex Console](../docs/apps/codex-console/README.md)            |
-| 하네스와 검사                         | [Vibe Coding Harness](../docs/agents/vibe-coding-harness.md)     |
-| 회사·사용자·그룹·앱 접근              | [ADR 0012](../adr/0012-company-app-access-without-workspaces.md) |
-| 설치와 실행 절차                      | [INSTALL.md](../INSTALL.md)                                      |
+| 현재 구현을 확인할 대상               | 소유 문서                                                                     |
+| ------------------------------------- | ----------------------------------------------------------------------------- |
+| 앱 등록·권한·런처                     | [App Platform](../docs/domains/app-platform/README.md)                        |
+| 기존 Workbench·Codex 실행·복구 저장소 | [Codex Console](../docs/apps/codex-console/README.md)                         |
+| 하네스와 검사                         | [Vibe Coding Harness](../docs/agents/vibe-coding-harness.md)                  |
+| 회사·사용자·그룹·앱 접근              | [ADR 0012](../adr/0012-company-app-access-without-workspaces.md)              |
+| 설치와 실행 절차                      | [INSTALL.md](../INSTALL.md)                                                   |
+| 비활성 Files Source leaf 변경·관측    | [Source mutations](../apps/api/src/miy_api/domains/files/SOURCE_MUTATIONS.md) |
 
 루트 `AGENTS.md`에 이 디렉터리를 연결했고 Web/API scoped 계약을 해당 기존 서비스에 한정했다. 실제 native 지침 선택과 결과의 평가는 [VALIDATION.md](VALIDATION.md)에서 별도로 추적한다. 링크 추가만으로 모든 세션이 새 정책으로 실행되었다고 주장하지 않는다.
 
