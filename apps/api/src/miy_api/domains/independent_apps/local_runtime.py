@@ -272,7 +272,12 @@ class DockerRuntime:
             raise RuntimeFailure("platform_upstream_invalid", uncertain=False)
         target = self.platform_api_origin
         if host in {"localhost", "127.0.0.1"}:
-            target = f"{upstream.scheme}://host.docker.internal:{upstream.port or 80}"
+            port = (
+                upstream.port
+                if upstream.port is not None
+                else (443 if upstream.scheme == "https" else 80)
+            )
+            target = f"{upstream.scheme}://host.docker.internal:{port}"
         marker = json.dumps(
             {"request_id": spec.request_id, "image_id": spec.image_id}, separators=(",", ":")
         )
