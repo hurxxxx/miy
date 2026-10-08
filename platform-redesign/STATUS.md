@@ -23,8 +23,15 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
   전체 릴리스 성공은 아니다. `window.innerWidth`2개·`window.location`1개로
   최소 fixture 수정을 마쳤다. scoped ESLint는3 errors/5 warnings에서
   0 errors/같은5 warnings로 통과했고 Prettier2·직접 E2E 타입·역변환 byte
-  검사를 확인했다. 기존 assertion·동작은 유지한다. 남은 web/Workbench
-  preflight는 실행 중이며 새 필수 리뷰·게시·전체 CI와 운영 배포는 대기 중이다.
+  검사를 확인했다. 기존 assertion·동작은 유지한다. 수정 `96a0d7af`는
+  PR77/MR84로 게시했고 필수 리뷰221/389를 통과했으나 아직 병합하지 않았다.
+  공개 합성 snapshot의 Workbench Python은773 PASS/25 SKIP이며 등록 브라우저
+  3개는 실제 metadata listener가 없는 fixture 때문에 Task 시작 전 차단됐다.
+  실제 synthetic bearer를 검증하는 initialize-only loopback peer로 fixture
+  한 파일을 보완했고 기존 readiness15·실제 등록 브라우저3 PASS를 확인했다.
+  웹 첫 Hermes `page.evaluate` timeout은 같은 입력의 단독 재검증에서 통과했고
+  전체 웹 브라우저 묶음도 단독42 PASS다. 새 source 리뷰·병합·전체 CI와
+  운영 배포는 대기 중이다.
   이전218/386의 API capture3개 실패와 로컬 전체·역순188개 통과는 역사로
   구분한다. 제품 filter·권한·AGENTS·스킬과 기존 assertion은 유지한다.
   준비384/385의 저장소 기준 실패는 역사로 보존한다. 소유 비활성 build의

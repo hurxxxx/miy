@@ -30,8 +30,15 @@ DB/grant/서비스의 official cutover를 이 코드 배포로 활성화하지 �
   scoped ESLint는3 errors/5 warnings에서0 errors/같은5 warnings로 통과했다.
   Prettier2·직접 E2E 타입 검사와 정확 세 qualification을 제거한 원래 byte
   재현을 확인했다. 새 테스트·lint disable·제품 변경은 없고 원래 assertions와
-  동작은 유지한다. 남은 web/Workbench preflight는 실행 중이며 새 필수 리뷰·
-  게시·전체 release_validation·운영 병합과 배포는 아직 완료되지 않았다.
+  동작은 유지한다. 수정 `96a0d7af75bec01b80ff26867d04cb4ed3ab5e1f`를
+  [PR77](https://github.com/hurxxxx/miy/pull/77)과 내부 MR84로 게시했고
+  필수 pipeline221/job389 SUCCESS를 확인했다. 아직 병합하지 않았다.
+  후속 합성 preflight의 Workbench Python773 PASS/25 SKIP과 등록3 FAIL을
+  구분한다. 등록 fixture 한 파일에 인증된 initialize-only loopback peer를
+  제공했고 기존 readiness15·실제 등록 브라우저3 PASS를 확인했다.
+  웹 첫 Hermes evaluate timeout은 동일 입력의 단독 실행에서 통과했고
+  전체 웹 브라우저 묶음도 단독42 PASS다. 새 source 리뷰·병합과 전체 release_validation·
+  운영 병합과 배포는 아직 완료되지 않았다.
   main/prod는 `9e9280df`이며 새 운영 배포는 없다. Workbench187개 제품 경로는
   별도 배포와 같고 actual native turn, official operational authority 전환과
   네 영역 전체 인수는 계속 남는다.

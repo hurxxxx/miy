@@ -1740,12 +1740,32 @@ Prettier2파일·직접 기존 E2E tsconfig 타입 검사와 scoped diff 검사�
 | `apps/web/e2e/independent-apps.spec.ts`           | `9dc05a2a18c4cbd7291b9f8cf0c3e05e21dc2ab92b2b029e71005cd6084e319f` |
 | `apps/web/e2e/registration-authorization.spec.ts` | `59892c675b00495ed636b1b9c44e586deb653363e85290ba5abfd9348d0ae778` |
 
-남은 web/Workbench preflight는 동일 실제 CI 이미지의 network-none·공개 예제·
-실제 credential 없는 조건에서 실행 중이다. 최초 custom/tmpfs noexec 준비는
+수정 `96a0d7af`는 PR77/MR84로 게시했고 필수 pipeline221/job389 SUCCESS를
+확인했다. 아직 병합하지 않았다. 후속 web/Workbench preflight는 동일 실제
+CI 이미지의 network-none·공개 예제·실제 credential 없는 조건에서 실행한다.
+최초 custom/tmpfs noexec 준비는
 local web setup 실패, Workbench772 PASS/25 SKIP/host disk 관련1 FAIL로 남겼다.
-Root가 helper 환경만 기존 canonical CI의 `/tmp` 방식으로 교정해 재진행한다.
-제품·CI 계약이나 skip 기준을 바꾸지 않았다. 현재 결과를 미리 통과로 기록하지
-않으며 새 필수 리뷰·게시·최신 전체 release_validation·운영 배포도 대기 중이다.
+Root가 helper 환경만 기존 canonical CI의 `/tmp` 방식으로 교정했다.
+그 뒤 Workbench Python은773 PASS/25 SKIP/0 FAIL이다. 25개의 PostgreSQL
+legacy import 경로는 이 SQLite 중심 preflight에서 실행하지 않았으며 전체 CI를
+대체하지 않는다. 등록 브라우저3개는 실제 metadata listener가 없는 fixture
+때문에 readiness에서 Task 시작을 차단했다. 기존 제품 guard·E2E assertions를
+유지하고 인증된 initialize-only loopback peer로 fixture 한 파일을 보완했다.
+실제 temporary source cwd·pinned version·port0·유한 open/receive/close와
+shutdown/join을 유지한다. 기존 readiness15 PASS/8.834초와 scoped Ruff/format/
+compile을 확인했다. 이것은 새 fixture 직접 실행과 구분하며, Root가 동일 실제
+CI 이미지에서 보완 fixture의 기존 등록 브라우저3 PASS를 별도로 확인했다.
+최종 fixture SHA256은 `6cdcceb4fcb0bdbb64e691ae40bc3de38e8fa4aa7a2c5dc969082212abab81ac`다.
+이 peer는 native turn을 실행하지 않으며 actual native 실행 인수로 확대하지 않는다.
+웹 최초 실패의 정적 callsite는 Hermes `page.evaluate`15행 timeout이며
+`page.goto`14행이 아니다. 같은 source/image/config의 첫 테스트 단독 실행은
+통과했고 후속 전체5spec 셸 브라우저 단독 실행도42 PASS다. 기존42개 안에
+첫 Hermes가 포함되므로43개 고유 성공으로 합산하지 않는다. 성공 로그에도
+ECONNREFUSED 코드가 있으므로 그 코드만으로 assertion 실패를 주장하지 않는다.
+동시 실행 부하 가설은 확정 원인으로 표시하지 않는다. 오류 진단에
+나온5spec 경로는 명령 echo이므로5개 모두 실패한 것으로 표시하지 않는다.
+제품·CI 계약이나 skip 기준을 바꾸지 않았다. 새 source 리뷰·병합·
+최신 전체 release_validation·운영 배포도 대기 중이다.
 수정과 scoped 증거는 ignored `.runtime/release388-e2e-browser-globals/REPORT.md`,
 `baseline-and-red.json`, `final-input-check.json`, `final-owned-inputs.json`이 소유한다.
 

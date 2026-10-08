@@ -29,9 +29,14 @@ cutover를 활성화한 것은 아니다. 게시 추적은
 fast5,557 PASS/3 SKIP/0 FAIL, slow16·migration37·external15 통과 후 웹 lint에서
 실패했다. E2E의 `window.innerWidth`2개·`window.location`1개 qualification을
 마쳤고 scoped ESLint0 errors/같은5 warnings, Prettier2·직접 E2E 타입·
-역변환 byte 검사를 통과했다. 남은 web/Workbench preflight는 실행 중이다.
-이 결과·새 필수 리뷰·게시와 정확 source/target/tree의 전체
-release_validation은 아직 대기 중이다.
+역변환 byte 검사를 통과했다. 수정 `96a0d7af`를 PR77/MR84로 게시했고 필수
+리뷰221/389를 통과했다. 후속 합성 preflight의 Workbench Python은773 PASS/
+25 SKIP이며 등록3개는 실제 metadata listener가 없는 fixture 때문에 실패했다.
+인증된 initialize-only loopback metadata peer로 fixture 한 파일을 보완해
+기존 readiness15·실제 등록 브라우저3 PASS를 확인했다.
+웹 첫 Hermes evaluate timeout은 같은 입력의 단독 실행에서 통과했고 전체
+브라우저 묶음도 단독42 PASS다. 이 fixture 보완 뒤 새 source의 필수 리뷰·
+병합과 정확 source/target/tree의 전체 release_validation을 이어간다.
 제품 로그 보안·원래 assertions와 공유 CI NOCREATEROLE은 유지한다. 통과 후
 MR81 병합·fresh backup/호환 확인·guarded 운영 prepare/deploy와 실제 반영
 검사를 진행한다. 운영은 여전히 `9e9280df`이며 이 전달을 공식 operational
