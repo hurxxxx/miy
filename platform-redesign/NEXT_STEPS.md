@@ -56,7 +56,9 @@ P2는 선행 경계 인수 후의 서비스 전환·최종 통합이다. 서로 
   대신하지 않으며 native 격리 환경과 전체 개발·배포 흐름은 계속 남는다.
 
 구체적 계획·진행·실행 결과는 WORK_ITEMS.md·PROGRESS.md·VALIDATION.md와
-각 runtime owner에 기록한다. 이번 구현에는 새 게시·배포 권한이 포함되지 않는다.
+각 runtime owner에 기록한다. 이후 사용자 지시로 게시·개발/운영 배포를
+승인받았으며 [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)에서 별도로
+진행한다. 이 배포는 비활성 official cutover나 남은 전체 구조의 완료가 아니다.
 
 멀티에이전트는 다음 세 경로를 분리해서 담당할 수 있다. 공유 권한·잠금·
 publication 계약은 한 소유자가 정리하고 Root가 통합한다.

@@ -2,6 +2,12 @@
 
 기록 기준: 2026-10-08 UTC. 작업별 상태는 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다.
 
+사용자의 최신 지시로 인수한 세 경계의 게시·개발/운영 배포를 진행한다.
+소스 commit·upstream PR과 내부 protected dev/main 릴리스 검증, 플랫폼
+immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인한다.
+아래 로컬 인수 기록은 배포 전 시점이며 실제 결과는
+[게시 체크포인트](PUBLICATION_CHECKPOINT.md)의 후속 추적에서 구분한다.
+
 ## 현재 위치
 
 - 최신 게시·병합 추적: [GitHub PR70](https://github.com/hurxxxx/miy/pull/70)의
