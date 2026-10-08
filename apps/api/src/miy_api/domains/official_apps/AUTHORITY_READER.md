@@ -5,7 +5,7 @@ core-owned lookup seam. It accepts an opaque app-session credential and trusted
 canonical logical app scope, then reuses current official binding, release
 verification, independent-app identity and company/app admission rules. No app
 manifest, settings default or deployed service selects this reader. A trusted
-server-only HTTP assembly can explicitly select it using a separate auth factory;
+server-only HTTP/Docs/Whiteboard WebSocket assembly can explicitly select it using a separate auth factory;
 platform login and the default official HTTP adapter remain unchanged.
 
 ## Explicit inactive HTTP assembly
@@ -39,6 +39,43 @@ handler. A successful lookup does not freeze permission through later waits or
 writes. This assembly does not install an operational auth role, activate the split
 ASGI artifact or complete the business Source privilege policy. Removing the options
 restores default assembly; runtime failure never selects that default as recovery.
+
+## Explicit inactive collaboration assembly
+
+The same registry-built callable accepts public Starlette `HTTPConnection` and is
+retained only in server-owned application state. Prepared Docs and Whiteboard
+WebSockets reuse that exact callable and its read limiter; they do not construct a
+Request, another reader or a second pool budget. The route owns the fixed `docs`
+or `whiteboard` scope. Caller headers, query scope and auth-frame extra fields do
+not choose authority. Query credentials remain refused by the existing handshake.
+The small `websocket_auth.py` adapter belongs to this domain; business routers do
+not import an API composition root.
+
+Prepared lookup finishes before initial business Source allocation. The unchanged
+Source page/board loaders still enforce current app admission and edit ACL. Docs
+also retains its current writer identity, initial transaction fence and frame
+writer check. A read share cannot open an edit room. Every Yjs receive, outgoing
+send and idle monitor performs a fresh prepared lookup before Source ACL access;
+a connected socket and an earlier detached context are not continuing grants.
+The initial actor must remain the same on subsequent checks. The existing public
+Yjs authorization callbacks, room slots, hub cleanup and persistence remain owned
+by their original modules.
+
+Credential/policy denial preserves existing handshake4401/4403/4404 and per-frame
+access revocation1008. Reader control/SQLAlchemy failure chooses private1013
+`official_authority_unavailable` without Source allocation, platform-auth fallback
+or fencing another client's room. Docs writer failure retains its separate1013
+writer fence. Cancellation remains cancellation and uses the accepted structured
+reader cleanup contract. Removing prepared state during a connection refuses its
+next prepared check; it does not adopt the legacy reader. Default construction
+keeps the original platform-token collaboration helpers.
+
+`tests/test_prepared_official_ws_auth.py` exercises real migrated PostgreSQL and the
+exact14/87 auth role, delegated/source/binding/app/user revocation, actual Source
+edit denial and Docs writer drain. Its business Source factory is the isolated
+legacy fixture, not an operational minimal Source role. Its room/bus are synthetic
+and invoke the unchanged Yjs transport callbacks; no live relay, codec, room
+persistence, service deployment or operational authority is accepted by that proof.
 
 ## Ownership and current authority
 
@@ -105,7 +142,7 @@ assigned as the business Source writer profile.
 
 ## Remaining cutover
 
-Operational HTTP/WS integration, non-launcher identity scopes, source-access/search/AI approval/
+Operational HTTP/WS activation and complete Source/hub privilege profiles, non-launcher identity scopes, source-access/search/AI approval/
 audit consumers, independent service credentials, queue ownership and old-writer
 drain remain required in the [cutover plan](../../../../../../platform-redesign/OFFICIAL_API_CUTOVER.md).
 This seam does not activate the suite or remove the inactive composition gate.

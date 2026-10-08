@@ -3,13 +3,16 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
+from functools import partial
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, WebSocket, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from miy_api.core.db import get_db_session, get_session_factory
 from miy_api.core.i18n import (
@@ -19,6 +22,10 @@ from miy_api.core.i18n import (
     translate_message,
 )
 from miy_api.core.settings import get_settings
+from miy_api.domains.official_apps.websocket_auth import (
+    prepared_official_ws_close_choice,
+    resolve_prepared_official_ws_auth_context,
+)
 from miy_api.domains.auth.app_gate import (
     require_app_access,
 )
@@ -314,6 +321,7 @@ async def _resolve_collab_ws_token(websocket: WebSocket) -> str:
 
 
 async def _close_websocket_for_http_error(websocket: WebSocket, exc: HTTPException) -> None:
+    choice = prepared_official_ws_close_choice(exc)
     reason = (
         translate_message(exc.detail, _websocket_locale(websocket))
         if isinstance(exc.detail, LocalizedApiMessage)
@@ -321,8 +329,8 @@ async def _close_websocket_for_http_error(websocket: WebSocket, exc: HTTPExcepti
     )
     try:
         await websocket.close(
-            code=_collab_ws_close_code_for_status(exc.status_code),
-            reason=reason,
+            code=choice[0] if choice else _collab_ws_close_code_for_status(exc.status_code),
+            reason=choice[1] if choice else reason,
         )
     except RuntimeError as close_error:
         if "after sending 'websocket.close'" in str(close_error):
@@ -360,17 +368,44 @@ async def _authorize_whiteboard_collab_access(*, item_id: str, token: str) -> No
             raise localized_http_exception(status_code=403, code="whiteboard.edit_access_required")
 
 
+def _require_prepared_whiteboard_source_access(*, item_id: str, user: User) -> None:
+    with get_session_factory()() as db:
+        _require_collab_app_access(db, user)
+        _whiteboard, access = _whiteboard_from_item_or_404(db, item_id, user)
+        if not access.can_edit:
+            raise localized_http_exception(status_code=403, code="whiteboard.edit_access_required")
+
+
+async def _authorize_prepared_whiteboard_collab_access(
+    websocket: WebSocket, *, item_id: str, token: str, user_id: str
+) -> None:
+    context = await resolve_prepared_official_ws_auth_context(
+        websocket, token=token, logical_app_id="whiteboard"
+    )
+    if context is None:
+        raise localized_http_exception(status_code=503, code="official_apps.authority_unavailable")
+    if context.user.id != user_id:
+        raise localized_http_exception(status_code=401, code="auth.required")
+    await run_in_threadpool(
+        _require_prepared_whiteboard_source_access, item_id=item_id, user=context.user
+    )
+
+
 async def _monitor_whiteboard_collab_access(
     websocket: WebSocket,
     *,
     item_id: str,
     token: str,
+    authorize: Callable[[], Awaitable[None]] | None = None,
 ) -> None:
     settings = get_settings()
     while True:
         await asyncio.sleep(settings.collab_acl_recheck_seconds)
         try:
-            await _authorize_whiteboard_collab_access(item_id=item_id, token=token)
+            if authorize is not None:
+                await authorize()
+            else:
+                await _authorize_whiteboard_collab_access(item_id=item_id, token=token)
         except HTTPException as exc:
             await _close_websocket_for_http_error(websocket, exc)
             return
@@ -951,12 +986,19 @@ async def whiteboard_collab_websocket(
 
     try:
         token = await _resolve_collab_ws_token(websocket)
+        prepared_context = await resolve_prepared_official_ws_auth_context(
+            websocket, token=token, logical_app_id="whiteboard"
+        )
 
         session_factory = get_session_factory()
         db = session_factory()
         collab_yjs_state: bytes | None = None
         try:
-            auth_context = resolve_auth_context_from_token(db, token)
+            auth_context = (
+                prepared_context
+                if prepared_context is not None
+                else resolve_auth_context_from_token(db, token)
+            )
             auth_user_id = auth_context.user.id
             _require_collab_app_access(
                 db,
@@ -996,16 +1038,31 @@ async def whiteboard_collab_websocket(
         except CollabConnectionLimitExceeded as exc:
             await websocket.close(code=exc.close_code, reason=exc.reason)
             return
+        prepared_authorize = (
+            partial(
+                _authorize_prepared_whiteboard_collab_access,
+                websocket,
+                item_id=item_id,
+                token=token,
+                user_id=auth_user_id,
+            )
+            if prepared_context is not None
+            else None
+        )
         monitor_task = asyncio.create_task(
             _monitor_whiteboard_collab_access(
                 websocket,
                 item_id=item_id,
                 token=token,
+                authorize=prepared_authorize,
             )
         )
 
         async def authorize_frame() -> None:
-            await _authorize_whiteboard_collab_access(item_id=item_id, token=token)
+            if prepared_authorize is not None:
+                await prepared_authorize()
+            else:
+                await _authorize_whiteboard_collab_access(item_id=item_id, token=token)
 
         yjs_websocket = FastAPIYjsWebsocket(
             websocket,
@@ -1013,6 +1070,7 @@ async def whiteboard_collab_websocket(
             runtime,
             auth_user_id,
             authorize=authorize_frame,
+            authorization_error_close=prepared_official_ws_close_choice,
         )
         await runtime.room.serve(yjs_websocket)
     except HTTPException as exc:
