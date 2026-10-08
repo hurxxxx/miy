@@ -1,5 +1,17 @@
 # GitHub 게시 체크포인트
 
+## 후속 세 경계 게시·개발/운영 반영
+
+2026-10-08 사용자가 이번 변경의 커밋·push·upstream PR·병합과 개발/운영
+배포를 명시적으로 지시했다. 대상은 auth-only 준비 reader, private flat
+폴더 명령, Workbench 연결 확인 UX와 관련 검증/owner/진행 문서다.
+GitHub 작업 PR과 내부 dev→main release_validation을 각각 확인한다.
+플랫폼의 guarded immutable image 배포와 별도 Workbench 릴리스·백업·교체·
+직접/공개 health 및 실제 UI 반영을 구분해 기록한다. 기존 operational
+DB/grant/서비스의 official cutover를 이 코드 배포로 활성화하지 않는다.
+실제 결과와 SHA는 PR/MR 기록과 후속 receipt가 원본이다. 이 문단은
+작업 착수 기록이며 아직 병합·배포 완료를 뜻하지 않는다.
+
 2026-10-08 UTC. 사용자 지시에 따른 변경의 커밋·push·PR·병합 기록이다.
 설계·후속 범위는 [PLAN.md](PLAN.md), 현재 구현은 [STATUS.md](STATUS.md),
 상세 검증은 [VALIDATION.md](VALIDATION.md)가 소유한다.

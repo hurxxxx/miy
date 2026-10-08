@@ -368,3 +368,23 @@ SQL 전에 거부했다. 실제 진단의 self-block/취소는 성공 receipt나
 주장하지 않는다. 실제 병합·작업 브랜치 정리 결과는 GitHub PR70과
 PUBLICATION_CHECKPOINT.md의 로컬 영수증에서 추적한다. 후기 PR 링크만
 같은 PR의 별도 문서 commit에 포함한다.
+
+2026-10-08 02:49 UTC — PR70 병합 뒤 사용자 지시로 다음 구현을 재개했다.
+공식 auth-only 최소 열 reader, private root 폴더/평면 File 1~16개 명령,
+Workbench 개인 앱 Task 시작 전 연결·버전·현재 소스 확인을 병렬로 진행한다.
+새 planner·일반 하네스·다중 사용자·개별 앱 기능 개선은 추가하지 않는다.
+현재는 로컬 미커밋이며 실제 제한 계정·namespace·role/소스 변경·취소의
+집중 검증과 독립 리뷰를 마친 뒤 인수 범위를 기록한다. 운영 grant·공유 DB·
+서비스 활성화·호스트 격리 정책·새 게시/배포는 이번 작업에 포함하지 않는다.
+
+2026-10-08 03:05 UTC — 세 구조 하위 경계의 로컬 구현·검증·독립 리뷰를 마쳤다.
+공식 auth-only reader52(실제PG45+control7)·기본 영향69, private 폴더
+1~16 File의 pure21/실제26, Workbench Python98/UI183을 각 범위로 인수했고
+각 독립 차단 결함은0이다. 기존 Source4/authority48은 그대로이며 초기
+제품 manifest 누락·fixture 실패·후기 owner/입력 시점 차이는 VALIDATION.md에
+구분했다. 현재 소유 auth6/folder5/Workbench11 입력이 독립 검토와 같다.
+NEXT_STEPS·STATUS·WORK_ITEMS·Files 단계와 runtime owner를 갱신했다.
+새 코드는 로컬 미커밋이며 PR70/서비스 배포에 포함되지 않는다. 다음 필수는
+auth factory HTTP/WS·공통 권한 소비 연결, publication hold/원자 apply·기존
+parent-live ingress 채택, 검토된 native 격리 환경과 개인 앱의 전체 자연어
+개발/미리보기/배포/복구 연결이다. 다중 사용자·앱별 비필수 기능은 보류한다.

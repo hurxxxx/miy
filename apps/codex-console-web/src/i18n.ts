@@ -1,4 +1,21 @@
 export const korean = {
+  'Checked at': '확인 시각',
+  'Execution environment connection confirmed.':
+    '실행 환경 연결을 확인했습니다.',
+  'Execution environment connection is not configured.':
+    '실행 환경 연결이 설정되지 않았습니다.',
+  'Execution environment connection could not be confirmed.':
+    '실행 환경 연결을 확인할 수 없습니다.',
+  'Source or execution environment changed. Refresh before continuing.':
+    '소스 또는 실행 환경이 변경되었습니다. 새로고침한 뒤 계속하세요.',
+  'The execution environment needs the supported version.':
+    '실행 환경의 지원 버전을 확인해야 합니다.',
+  'The selected app source is no longer available.':
+    '선택한 앱 소스를 사용할 수 없습니다.',
+  'Checking execution environment connection': '실행 환경 연결 확인 중',
+  'Check execution environment connection': '실행 환경 연결 확인',
+  'This checks connection, version and source binding. Permissions and sandbox policies are checked separately when work starts.':
+    '연결·버전·소스 연결을 확인합니다. 작업 권한과 격리 정책은 실행 시 별도로 검사합니다.',
   'This task uses the selected app source. Save and review its changes before initial registration.':
     '이 작업은 선택한 앱 소스를 사용합니다. 최초 등록 전에 변경 사항을 저장하고 검토하세요.',
 

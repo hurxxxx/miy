@@ -31,6 +31,7 @@ from .workbench_schemas import (
     MaintenanceInput,
     MaintenanceOut,
     PlatformOut,
+    ProjectExecutionReadinessOut,
     ProjectInput,
     ProjectOut,
     RuntimeApp,
@@ -437,6 +438,16 @@ def install(app, secured):
             db.add(row)
             db.flush()
             return ProjectOut(**{k: getattr(row, k) for k in ProjectOut.model_fields})
+
+    @app.get(
+        "/api/workbench/projects/{project_id}/execution-readiness",
+        dependencies=secured,
+        response_model=ProjectExecutionReadinessOut,
+    )
+    async def project_execution_readiness(project_id: UUID, request: Request):
+        from .execution_readiness import read
+
+        return await read(request.app.state.settings, request.app.state.factory, str(project_id))
 
     @app.get(
         "/api/workbench/projects/{project_id}/registration-draft",

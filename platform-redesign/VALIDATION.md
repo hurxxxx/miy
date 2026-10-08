@@ -1345,3 +1345,53 @@ matched runtime·F5 서비스 전환은 필수 잔여다. 인수 시점에 병�
 현재 사용자 승인에 따른 별도 Source 후속 PR로 게시하며 실제 추적은
 [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 소유한다. 앱별 비필수
 기능 개선·상세 검증은 별도 지시까지 계속 보류한다.
+
+## 2026-10-08 PR70 이후 세 구조 경계
+
+사용자의 다음 구현 지시에 따라 공식 인증 전용 최소 조회, 제한된 private
+폴더 변경, Workbench 작업 시작 전 연결 확인을 병렬 구현했다. 세 경로 모두
+독립 리뷰의 차단 결함0이다. 코드·현재 runtime owner는 로컬 미커밋이며
+서비스/공유 DB/grant/호스트 정책/배포를 변경하지 않았다. 새 일반 하네스·
+전체 skill 주입·다중 사용자·앱별 비필수 기능은 추가하지 않았다.
+
+| 범위                                 | 인수한 검증                                                                                                      | 정확 근거와 한계                                                                                                                                                                                                                                                                |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 공식 auth-only reader                | 최종52 PASS: 실제 제한 PostgreSQL45 + factory/cleanup7. 기존 공식 인증/독립 앱/composition 영향69 PASS.          | `.runtime/official-authority-next/pg/20261008T025815946532Z`, 최종221 before==after==current·원본48 보존. 14테이블/87열, User10/AuthSession5, 캐시·단일 Engine·고정 namespace·현재 권한/역할·두 credential TTL·privacy/취소/정리. 기본 HTTP와 서비스는 전환하지 않았다.         |
+| private root Folder + flat File 1~16 | pure21 PASS·실제 Source29 profile26 PASS. 첫 양성1은26의 반복이며 합산하지 않는다.                               | `.runtime/source-aggregate-next-pg/20261008T025538589666Z`, actual852 before==after==current·소유5/Source4/authority48 일치. COMMIT/rollback·부분 append·대기 중 회수·경쟁·역사적 관측. FK 보호는 transaction 안이며 삭제 부모에 대한 기존 ingress adoption/hold/seal은 남는다. |
+| Workbench 연결 확인·Task UX          | Python98 고유(기존83+새15), UI183 고유, generated contract·typecheck·Ruff·실제10개 번역키·Vite4137 modules PASS. | `.runtime/workbench-next/REPORT.md`, 최종 소유11 일치. actual SQLite/loopback initialize-only; 지연 reply·소스/환경 변경·중복 click·logout 뒤 POST401. 연결 확인은 native sandbox/계정/실제 turn 권한 인수가 아니다.                                                            |
+
+공식 조회의 최초36 PASS/10 FAIL은 보존했다. 기존 CompanyAppControl full ORM의
+`created_at`이 읽기 manifest에서 빠진 제품 오류와 synthetic 역할 fixture의
+누락 id를 수정했다. credential/DML 권한을 넓히지 않았다. 후속46/48과 최종52는
+중복이므로 합산하지 않는다. 최종52는30.63s pytest/37.61s lifecycle이며 소유
+PostgreSQL18.6을 제거했다. 기존 영향69의221 입력은 실행 때 불변이고 현재는
+실행하지 않은 prepared reader/owner 두 경로만 다르다. 공유 auth/service와
+실행된 기본 경로는 그대로다. 전체 이전221이 현재 같다고 표시하지 않는다.
+캐시된 ORM 자격정보, 앱 입장 확인 도중 오래된 역할 반환, SQL 오류 노출,
+열 DML/다른 schema/합법적 pg 접두어/열 없는 relation의 privilege 누락은
+독립 검토와 해당 실제 사례로 보완했다. 기본 인증·기존 역할 계약은 유지한다.
+
+Workbench의 초기93 PASS/3 FAIL은 in-repository basetemp가 기존 첨부 guard에
+거부된 fixture 경로 문제였다. 소유 `/tmp`로 옮겨 실패3만 통과했다. guard를
+완화하지 않았다. 초기 listener가 BEGIN/다른 status INSERT를 집계한 assertion은
+새 조회의 관측 scope만 정정했다. 새13·추가2·최종 UTC response1과 parent UI1은
+보고서에 시점별 입력으로 구분한다. 후기 테스트 실행 중 README 한 경로의 변경도
+보존했으며 이전52/93 입력 전체가 현재 같다고 표시하지 않는다. generic 웹
+번역 checker는 Workbench0파일을 검사했으므로 번역 근거로 쓰지 않고 실제
+typed dictionary의 한국어/영어10키를 확인했다. native/storage/POST10개 모듈은
+기준 commit과 byte 동일하다. 로컬 dist build는 별도 Workbench 배포가 아니다.
+
+각 actual DB/Workbench 검사는 환경 파일·Codex 자격 파일 읽기0, 소유 임시
+자원 정리를 확인했다. Source native 검사의852에는 실행하지 않은 Root의
+shared source-loader/official auth/prepared reader 세 경로를 명시적으로 제외했고
+그 세 경로는 별도 auth 검증이 소유한다. 새 Source proof로 old Source81이나
+공식 인증의 증거를 대신하지 않는다. API i18n/import 구조는767파일/
+3443 dependency/2 kept/0 broken이고, 새 source/API code의 Ruff·format도 통과했다.
+실제 서비스 queue/Beat/HTTP/WS 활성화·전체 natural-language 개발/배포·native
+격리 실행·publication hold/원자 apply와 exact-version 복구는 계속 필수 잔여다.
+
+독립 근거는 `.runtime/official-authority-next/AUTHORITY_READER_INDEPENDENT_REVIEW.md`,
+`.runtime/source-aggregate-next/INDEPENDENT_REVIEW.md`,
+`.runtime/workbench-next/INDEPENDENT_REVIEW.md`와 각 정확 입력 JSON이다.
+현재 우선순위는 [NEXT_STEPS.md](NEXT_STEPS.md), 상태는 [WORK_ITEMS.md](WORK_ITEMS.md)가
+소유한다. 이전 통과 수와 합산해 네 영역 전체 완료로 표시하지 않는다.

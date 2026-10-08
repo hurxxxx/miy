@@ -13,13 +13,13 @@ from sqlalchemy.orm import Session
 
 from miy_api.core.app_contracts_generated import OFFICIAL_APP_IDS
 from miy_api.core.i18n import localized_http_exception
-from miy_api.domains.auth.access import record_audit_log
+from miy_api.domains.auth.access import record_audit_log, resolve_system_roles
 from miy_api.domains.auth.app_access import can_use_app
 from miy_api.domains.auth.dependencies import AuthContext, resolve_auth_context_from_session_id
 from miy_api.domains.auth.models import utcnow_naive
 from miy_api.domains.auth.security import hash_token, new_id
 from miy_api.domains.independent_apps.models import AppInstallationRecord, AppSession
-from miy_api.domains.independent_apps.service import app_identity
+from miy_api.domains.independent_apps.service import SourceUserLoader, app_identity
 from miy_api.domains.independent_apps.verification import trusted_release
 from miy_api.domains.official_apps.models import OfficialAppBinding
 
@@ -155,7 +155,13 @@ def revoke_binding(db: Session, context: AuthContext, binding_id: str) -> None:
     )
 
 
-def resolve_official_auth_context(db: Session, token: str, *, logical_app_id: str) -> AuthContext:
+def resolve_official_auth_context(
+    db: Session,
+    token: str,
+    *,
+    logical_app_id: str,
+    source_user_loader: SourceUserLoader | None = None,
+) -> AuthContext:
     """Validate an app session then derive the unchanged source ACL principal.
 
     The logical app argument is trusted composition metadata, never request data.
@@ -186,7 +192,11 @@ def resolve_official_auth_context(db: Session, token: str, *, logical_app_id: st
         ):
             _denied()
         identity = app_identity(
-            db, token=token, installation_id=installation.id, audience=binding.origin
+            db,
+            token=token,
+            installation_id=installation.id,
+            audience=binding.origin,
+            source_user_loader=source_user_loader,
         )
         release = trusted_release(db, installation, binding.release_id)
         if (
@@ -201,7 +211,21 @@ def resolve_official_auth_context(db: Session, token: str, *, logical_app_id: st
             or not can_use_app(db, user_id=identity.user_id, app_id=logical_app_id)
         ):
             _denied()
-        context = resolve_auth_context_from_session_id(db, app_session.source_session_id)
+        if source_user_loader is None:
+            context = resolve_auth_context_from_session_id(db, app_session.source_session_id)
+        else:
+            user, source_session = source_user_loader(db, app_session.source_session_id)
+            context = AuthContext(
+                user=user,
+                session=source_session,
+                system_roles=frozenset(resolve_system_roles(db, user)),
+            )
+            # The narrow reader may observe a role change after earlier app
+            # admission. Evaluate app policy again with the current actual role.
+            if not can_use_app(db, user_id=user.id, app_id=logical_app_id):
+                _denied()
+            if context.system_roles != frozenset(resolve_system_roles(db, user)):
+                _denied()
         if context.user.id != identity.user_id or context.impersonator_user_id is not None:
             _denied()
         return context

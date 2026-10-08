@@ -1,7 +1,8 @@
 # Fixed Files Source mutations
 
-This inactive internal boundary implements one existing private native root File
-soft-delete. It does not change HTTP/default composition or allocate a partition.
+This inactive internal boundary implements a private native root File soft-delete
+and one bounded private root Folder with 1..16 explicitly retained flat Files.
+It does not change HTTP/default composition or allocate a partition.
 The [migration plan](../../../../../../platform-redesign/FILES_SOURCE_AGGREGATE.md)
 owns implementation status; this document owns the runtime contract.
 
@@ -86,3 +87,52 @@ descendant handling, publication holds across all native/managed mutations,
 company audit, exact-version read/cleanup, managed logical identity and service
 activation remain required. This API is a core-owned server primitive, not an
 independent app's database extension; independent apps use public platform APIs.
+
+## Bounded private flat Folder
+
+`FileSourceFolderDeleteSpec` in `source_tree_mutation_contracts.py` retains the
+Folder ID, original actor/execution, fixed Folder before-state and 1..16 members
+sorted by unique File ID. Each member has its own retained DELETE UUID and
+`FileSourceFolderFileExpected` before-state, including the genuine preceding
+Source tip. All Files have the same current private owner, Folder and admitted
+default partition. The strict canonical aggregate is at most 128 KiB and contains
+no extraction body. Supplied model instances are revalidated before Source SQL.
+
+`stage_native_root_folder_soft_delete(db, *, spec)` accepts only a live private
+native root Folder without a corpus or child Folder, whose complete FK membership
+exactly matches the specified Files. Empty, nested, 17+ or changed membership,
+company/managed scope, external metadata or any File access grant is refused.
+Historical deleted children also count as membership; this API does not discover
+an unbounded tree or automatically choose identities.
+
+The ordering is standalone admission gate, descriptor SHARE, Folder UPDATE,
+bounded membership, sorted File UPDATE locks, sorted File streams and sorted
+retained event UUID locks. The descriptor precedes the Folder to preserve legacy
+descriptor-before-tree ordering. Membership queries read at most one child Folder
+ID and 17 File IDs. Selective current row loads avoid old artifact bodies. Current
+writer/execution/user/app/scope is checked after waits and again after the final
+append. Folder and Files receive the same tombstone time; Files receive the same
+canonical purge as the single File command. The same Source transaction appends
+one genuine DELETE per File, binding aggregate/Folder-before/File-before digests
+and the exact predecessor. There is no fabricated Folder projection or Core DML.
+
+The Folder UPDATE conflicts with child File/Folder INSERT FK KEY SHARE until the
+caller finishes the transaction. After COMMIT, PostgreSQL's FK alone permits a
+raw insert into a soft-deleted parent. Every upload/move/child-folder participant
+must adopt current live-parent/owner/binding checks after waits before wider
+activation. Existing generic producers may acquire event and stream locks in a
+different order; this command's finite locks/timeouts are not a claim that every
+unconverted producer is globally free of deadlocks.
+
+The Stage returns `FileSourceFolderDeleteReceipt` with ordered member receipts,
+always provisional. The caller owns COMMIT and cancellation/cleanup as above.
+There is no SQL aggregate terminal seal protecting arbitrary later caller writes.
+After uncertain COMMIT use `observe_native_root_folder_soft_delete(db, *, spec,
+expected_event_digests, current_execution_ref)` in a fresh authorized Source
+Session. Digests correspond to the retained member events in File ID order.
+All absent returns `None`; partial or different witnesses conflict; all exact
+immutable events return a provisional historical aggregate receipt. Observation
+never changes rows or repairs a partial event set. A later genuine tip or restored
+Folder/File state does not erase historical evidence or turn it into proof of
+current canonical deletion. Current default descriptor and private/root/owner/
+binding/metadata/grant restrictions still apply to observation.

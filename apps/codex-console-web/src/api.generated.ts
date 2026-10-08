@@ -258,6 +258,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workbench/projects/{project_id}/execution-readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Project Execution Readiness */
+        get: operations["project_execution_readiness_api_workbench_projects__project_id__execution_readiness_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/workbench/projects/{project_id}/registration-draft": {
         parameters: {
             query?: never;
@@ -1783,6 +1800,30 @@ export interface components {
             /** Requested Permissions */
             requested_permissions: ("identity:read" | "data:read" | "data:write" | "files:read-selected")[];
         };
+        /**
+         * ProjectExecutionReadinessOut
+         * @description Connection metadata at checked_at; not sandbox or Task authorization.
+         */
+        ProjectExecutionReadinessOut: {
+            /** Project Id */
+            project_id: string;
+            /** App Id */
+            app_id: string | null;
+            /** Source Version */
+            source_version: number | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "reachable" | "unconfigured" | "unavailable" | "changed" | "unsupported" | "denied";
+            /** Failure Code */
+            failure_code: string | null;
+            /**
+             * Checked At
+             * Format: date-time
+             */
+            checked_at: string;
+        };
         /** ProjectInput */
         ProjectInput: {
             /** App Id */
@@ -3175,6 +3216,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    project_execution_readiness_api_workbench_projects__project_id__execution_readiness_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectExecutionReadinessOut"];
                 };
             };
             /** @description Validation Error */
