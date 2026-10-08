@@ -20,7 +20,7 @@ cutover를 활성화한 것은 아니다. 게시 추적은
 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다. 이 문서는 우선순위·의존성과
 다음 착수 단위를 소유하며 별도 작업 대장을 만들지 않는다.
 
-직전 pipeline220의 웹 E2E lint와 Workbench 등록 fixture 보완은 아래와 같다. 최신 필수 단계는 후속223의 권한 회수 fixture 보완을 게시하고 새 source의 전체 CI를 통과하는 것이다.
+직전 pipeline220과223의 테스트 보완은 아래 역사로 남긴다. 최신 전달 단계는 PR78/MR85 병합 뒤 저장 공간 검사에서 멈춘225/393의 외부 선행조건을 해결하고 정확한 새 source의 전체 CI를 통과하는 것이다. 같은 소스에서 테스트가 실패한 결과로 해석하지 않는다. 별도 worktree에서는 다음 P0의 inactive auth-only HTTP 조립과 정확한 Codex pin·offline 격리 선행 검증을 병행한다.
 앞선 native/fixture·Docker 정리 보완은 리뷰217/383과 PR75/MR82 병합을 마쳤다.
 218/386의 API capture3개 실패는 두 테스트 파일의 보완으로 닫았고, 실제 CI
 이미지의 전체·역순3파일 각각188개 통과는 같은 검사로 중복 합산하지 않는다.
@@ -47,6 +47,12 @@ MR81 병합·fresh backup/호환 확인·guarded 운영 prepare/deploy와 실제
 ## 후속 전체 CI223의 구조 fixture 보완
 
 PR77/MR84는 새 source `1d8cf66e`의 리뷰222/390 후 정상 병합했고 작업 브랜치를 정리했다. 현재 dev는 `c401dd1a`, main/prod는 `9e9280df`다. 후속223/391은 API fast5,556 PASS/1 FAIL/3 SKIP, slow16·migration37·external15 통과 후 실패했다. 권한 회수와 descriptor 대기 테스트의 기대 사유 한 건이며 원 CI의 SQLSTATE는 미관측이다. 실제 단독1 PASS·통제된 느린 연결55P03을 구분하고, 연결 준비를 worker 이전으로 옮기는 fixture 두 파일만 보완한다. 정확 reason·실권한·rollback·제품5초/15초 제한을 유지한다. 실제 focused8조합과 기존 공용 helper2개는10 PASS/23.72초, 동일5.2초 지연 재검증은1 PASS/13.10초이며 독립 코드 리뷰 blocker0이다. 지연 case는 같은8개 중 하나이므로 고유 성공 수로 합산하지 않는다. 새 source 게시·필수 리뷰·전체 CI 뒤 승인된 운영 배포를 이어간다. 실패한 동일 source의 CI를 재시도하지 않는다.
+
+## 현재 전달과 병렬 구조 착수
+
+PR78/MR85의 `d43a46aa`는 리뷰224/392 뒤 양쪽 같은 tree로 병합했고 현재 dev는 `ad42d0bc`다. main/prod는 `9e9280df`를 유지한다. 전체225/393은 저장 공간 검사 실패로 제품 테스트0이며 기준을 낮추지 않았다. 보존 가능한 소유 산출물과 정확한 미사용 cache 정리 뒤에도 실제 여유가 부족하므로 스토리지 확보가 현재 운영 전달의 필수 선행조건이다. 확보 후 정상 full CI→정확 source/target/tree 인수→MR81 정상 병합→fresh backup→guarded prepare/deploy→실제 반영 검사를 진행한다.
+
+별도 로컬 착수는 아래1번의 server-owned 제한 auth factory를 실제 네 HTTP 조회 경로에 조립하는 최소 inactive 변경이다. 새44개·기존 composition10개와 API architecture/i18n·생성 계약이 통과했으며, 최종 독립 리뷰·게시·전체 릴리스 후 나머지 공통 권한 소비 연결을 진행한다. 정확0.160.1의 두 native offline 정책도 선행검사만 통과했고 실제 executor/WS/자원 한도·turn 인수는 남아 있다. 기존14표/87열 reader·Source ACL·기본 legacy/official 경로·비활성 ASGI를 유지하며 scope/credential 선검사, private503과 취소 시 worker admission/cleanup을 인수한다. 새 operational role/grant·서비스 활성화는 후속이다. 아래2번은 정확한0.160.1 공개 패키지/기존 protocol 검사까지 준비했고 offline native helper의 격리 선행조건을 확인한다. 실제 WS·cgroup 한도·turn/resume/history를 이 선행조건으로 대체하지 않는다.
 
 ## 현재 판단
 
@@ -142,3 +148,7 @@ Workbench 배포 완료를 뜻하지 않는다. 실행이나 환경 적용 단�
 [worker runtime](../apps/worker/README.md)이다.
 읽기 전용 검토 근거는 ignored
 `.runtime/source-aggregate-publication/FOLLOW_UP_REVIEW.md`에 보관했다.
+
+## 2026-10-08 16:06 — 실제 저장 공간 기준 회복
+
+2026-10-08 16:06 UTC의 실제 Docker 저장 경로 검사가15.0GiB free/84.7% used로 기존15GiB·15% 기준을 통과했다. 앞선225/393의 저장 공간 실패는 역사로 보존한다. 실제 free 증가의 원인이나 cache reclaimed 수와의 인과는 확정하지 않는다. 여유 폭이 작으므로 최신 source의 필수 전체 CI에서도 원래 floor를 그대로 확인한다. 다음 auth HTTP의 최종 독립 리뷰·정상 feature 병합 후 최신 dev 전체 릴리스를 진행하며 운영은 아직 배포하지 않았다.

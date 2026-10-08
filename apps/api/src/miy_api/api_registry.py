@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from fastapi import Depends, FastAPI
 from fastapi.params import Depends as DependsParam
+from sqlalchemy.orm import Session
 
 from miy_api.api_composition import ApiComposition, RouterSpec, require_composition
 from miy_api.core.settings import Settings
@@ -51,11 +52,32 @@ def register_api_routers(
     settings: Settings,
     *,
     composition: ApiComposition = "legacy",
+    official_auth_session_factory: Callable[[], Session] | None = None,
+    official_auth_max_concurrent_reads: int | None = None,
 ) -> None:
+    composition = require_composition(composition)
+    prepared = (
+        official_auth_session_factory is not None or official_auth_max_concurrent_reads is not None
+    )
+    if prepared and (
+        composition != "official"
+        or official_auth_session_factory is None
+        or official_auth_max_concurrent_reads is None
+    ):
+        raise ValueError("Prepared auth requires official composition, factory and read budget")
     if composition == "official":
         from miy_api.official_auth import owned_app_scope, require_official_auth_context
 
-        app.dependency_overrides[require_auth_context] = require_official_auth_context
+        if prepared:
+            from miy_api.official_auth import build_prepared_official_auth_dependency
+
+            dependency = build_prepared_official_auth_dependency(
+                session_factory=official_auth_session_factory,
+                max_concurrent_reads=official_auth_max_concurrent_reads,
+            )
+        else:
+            dependency = require_official_auth_context
+        app.dependency_overrides[require_auth_context] = dependency
     for spec in router_specs(composition):
         protected_dependencies = [Depends(require_current_user)]
         if composition == "official":

@@ -97,7 +97,7 @@
 지연·회수·취소 경계를 검증했다. 세 하위 범위의 독립 차단 결함은0이다.
 공식 조회52·기존 영향69, 폴더 pure21/actual26, Workbench Python98/UI183을
 각 범위로 구분하며 [검증 기록](VALIDATION.md)에 초기 실패와 입력 시점을 남긴다.
-현재는 로컬 미커밋·비활성 범위이며
+아래 최초 인수 당시에는 로컬 미커밋·비활성 범위였으며
 전체 reader HTTP 전환, tree publication/hold, native sandbox·전체 자연어
 개발/배포 완료로 표시하지 않는다. 새 operational grant/서비스/게시 변경은
 하지 않았다. 이 결과는 아래 역사적 인수 수에 합산하지 않는다.
@@ -155,3 +155,19 @@ Files F4 후속: Core effect의 최신 controlled102·generation/helper110과 ac
 
 - `CAT-002`·`WB-003B` 최초 등록 하위 범위: Core API의 UUID·입력 digest·현재 권한·원자적 rollback·동시 요청을 실제 PostgreSQL에서 검증했다(71개). Workbench 현재 소스의 읽기 전용 초안과 정규화 호환을 연결했다(영향 회귀 137개, 삼자 정규화 45개). 핵심 계약의 불리언 거부/정수 버전 호환 검사를 기존 CI에 추가했고 새로운 일반 개발 하네스는 만들지 않았다. 파일 전달 UI·portal 등록·독립 Workbench 후보도 검증했으며 전체 자연어 생성→등록→실행 완료와 구분한다.
 - `CAT-002`·`WB-004B` 등록 관측 하위 범위: 기존 metadata 조회 scope에 등록 commit과 관측 지원 버전을 additive로 추가했다. Workbench가 현재 소스와 비교해 일치/정의·commit 차이/소스 충돌/명확한 미등록/확인 불가를 구분한다. capability 없는 이전 서버·페이지 변경·stale 자료로 미등록을 확정하지 않는다. backend 116개·Core 실제 PostgreSQL 44개·전체 frontend 143개와 독립 리뷰, 상태 확인과 기존 설치 화면 연결의 실제 브라우저·최종 독립 후보 검증을 마쳤다. 등록 이후 실행 준비와 자연어 전체 흐름의 완료는 별개다.
+
+### 2026-10-08 후속 전달과 다음 P0
+
+PR78/MR85까지 fixture 보완과 필수 리뷰·게시·정리를 마쳤으며 `REL-001`의 실제 운영 전달은 full225/393의 저장 공간 선행조건 해소를 기다린다. 테스트 실행0을 제품 실패로 분류하지 않는다. Current state/evidence는 STATUS·PUBLICATION_CHECKPOINT·VALIDATION이 소유한다.
+
+`OFF-002B`는 별도 로컬 worktree에서 기존14표/87열 reader의 server-owned HTTP 조립에 착수했다. 옵션 미구현의 실제 red와 raw cancellation의 admission gap을 먼저 재현하고, current scope/credential→restricted auth→Source ACL 순서·private503·cleanup을 검증한다. Default/ASGI는 비활성이며 operational grant/cutover 완료가 아니다. `WB-001/002`·`ENV-001`은 정확0.160.1 public package/protocol 검사를 준비했고 offline native helper 선행조건을 확인한다. 실제 지원 executor·hard bounds·turn·resume/history 인수는 남는다. 기존 작업 상태는 계속 in_progress로 유지하며 새 app 상세 기능·다중 사용자 범위는 추가하지 않는다.
+
+## 2026-10-08 — 현재 OFF-002B HTTP 하위 범위
+
+공식 auth-only HTTP의 현재 로컬 검증은 pure31 PASS/8.60초, 실제 PostgreSQL·HTTP13 PASS/27.42초, 기존 composition10 PASS/10.75초다. 서로 다른 선택31+13은 새44개이고 기존10개는 별도 영향 범위다. Raw·반복 host cancellation와 AnyIO 대기/실행 취소에서 worker 종료·Session 정리 전 admission을 반환하지 않는 경계를 확인했다. 네 HTTP GET은 genuine 현재 앱 세션/binding·제한된 auth PostgreSQL 역할·실제 Source ACL을 사용했다. Business Source fixture는 권한 있는 합성 계정이므로 최소 Source operational 역할 전체 인수로 확대하지 않는다. Profile14표/87열과 기존 기본 인증·비활성 ASGI를 유지했고 API architecture/i18n·independent app schema/OpenAPI/contract source --check를 통과했다. Operational role/grant·WS·공식 서비스 전환은 아직 하지 않았다.
+
+상위 OFF-002B·Workbench 격리 실행·최종 네 영역의 상태를 완료로 바꾸지 않는다. 앱별 세부 기능·다중 사용자는 기존 보류를 유지한다.
+
+## 2026-10-08 16:06 — 실제 저장 공간 기준 회복
+
+2026-10-08 16:06 UTC의 실제 Docker 저장 경로 검사가15.0GiB free/84.7% used로 기존15GiB·15% 기준을 통과했다. 앞선225/393의 저장 공간 실패는 역사로 보존한다. 실제 free 증가의 원인이나 cache reclaimed 수와의 인과는 확정하지 않는다. 여유 폭이 작으므로 최신 source의 필수 전체 CI에서도 원래 floor를 그대로 확인한다. 다음 auth HTTP의 최종 독립 리뷰·정상 feature 병합 후 최신 dev 전체 릴리스를 진행하며 운영은 아직 배포하지 않았다.
