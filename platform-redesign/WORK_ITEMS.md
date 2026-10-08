@@ -195,3 +195,11 @@ Workbench의 정확 Codex0.160.1은 표준 systemd-socket-proxyd ingress와 owne
 `WB-001/002`·`ENV-001`은 원 native Task의 계획·승인 후 격리 수정·동일 thread 후속 요청을 실제 인수했다. Cold resume 호환 수정은 필수 리뷰 뒤 양쪽 정상 병합·소유 브랜치 정리를 완료했다. 다음 최소 재사용 운영 정의·실제 중단/단절·별도 Workbench 서비스 적용·개인 앱 전체 흐름은 남아 상태는 in_progress다.
 
 `REL-001`·`VAL-001`은 full231/399의 저장 공간 선행조건 실패로 in_progress다. 최신 dev는 `436c7792`, main/prod는 `9e9280df`이며 전체 검증·MR81 병합·새 운영 배포·네 영역 전체 인수는 미완료다. 앱별 기능·다중 사용자 범위는 추가하지 않는다.
+
+## 2026-10-08 18:52 — Source 전달과 native 정의 후속
+
+`OFF-002B`의 준비된 Whiteboard Source ACL 읽기 하위 범위는 독립 검토·필수 리뷰·정상 양쪽 병합·소유 브랜치 정리를 마쳤다. Initial collab row readOnly loader와 room/writer가 보장된 초기화·영속화·Docs Source·operational 최소 역할·서비스 전환은 남아 in_progress다.
+
+`WB-001/002`·`ENV-001`의 최소 표준 native executor 정의는 source-only 구현·단위/공개 parser 검사를 마쳤다. 최종 독립 리뷰·정상 전달과 immutable 운영 cache·실제 설치 enforcement·보호 설정·별도 Workbench 서비스 반영·중단/단절·개인 앱 전체 흐름은 남아 in_progress다.
+
+`REL-001`·`VAL-001`은 full233/401의 저장 공간 실패로 in_progress다. 현재 dev `4764fc2c`, main/prod `9e9280df`이며 전체 릴리스·MR81 병합·새 운영 배포·네 영역 전체 인수는 미완료다. 앱별 비필수 기능·다중 사용자 범위는 유지한다.

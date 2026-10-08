@@ -490,3 +490,11 @@ WS source `7ae28d38cdc68a6459b8baaab6f63febd43d0c78`는 필수228/396 SUCCESS(92
 MR81의 최신 full231/399는 source `436c7792`, target `9e9280df`, 같은 tree에서 FAILED/script_failure(24.72378초)다. 저장 공간 선행조건에서 실패했고 제품 테스트는0이다. 15GiB·15% 기준은 유지하며 정상 full 성공 전에 main 병합·새 운영 배포를 하지 않는다.
 
 다음 게시 단위는 준비된 Whiteboard Source ACL callback9개와 현재 계획/검증 추적6개다. 기존 기본 경로·운영 역할·ASGI·hub/room을 유지하는 비활성 조립이며 최종 독립 검토와 필수 feature 리뷰·정상 병합은 별도 확인한다.
+
+## 2026-10-08 18:51 — Whiteboard Source ACL 정상 전달
+
+Source ACL source `a6705f0f010ff6c57d03548ba1c7ebdc317b4f2f`는 필수232/400 codex_review SUCCESS(61.914681초, allow_failure=false) 뒤 [GitHub PR82](https://github.com/hurxxxx/miy/pull/82)와 [내부 MR89](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/89)로 정상 병합했다. GitHub merge는 `886b5633`, 내부 dev merge는 `4764fc2c`이며 tree `fd5403ae44f430de22ef091a458f517705983ec8`가 같다. 소유 feature 브랜치의 양쪽 원격·로컬 정리를 완료했다. 준비된 비활성 ACL 조립을 전달한 것이며 Source operational role·room 초기화/영속화·공식 service cutover 완료가 아니다.
+
+후속 full233/401은 source `4764fc2c`, target `9e9280df`, 같은 tree에서 저장 공간 선행조건으로 FAILED/script_failure(22.998495초), 제품 테스트0이다. main/prod는 기존 revision이고 새 운영 배포는 없다. 필수 기준을 낮추거나 반복 수동 retry를 하지 않으며 지속 headroom 뒤 최신 head의 정상 full 검증을 진행한다.
+
+다음 게시 단위는 Workbench의 최소 native executor source6와 설치 entrypoint1·계획 추적6이다. 원 Task의 실제 native 흐름을 검증한 앞선 소스와 재사용 가능한 설정 정의를 구분한다. 새 source-only 정의는 별도 필수 feature 리뷰·정상 병합을 확인하며 설치·운영 설정·Workbench 별도 배포 완료로 보고하지 않는다.
