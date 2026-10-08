@@ -422,3 +422,20 @@ Workbench 자원 선행검사는 task-owned systemd transient service에서 UID1
 Docs·Whiteboard의 준비된 WS 조립은 pure16·실제 PostgreSQL/native WS30으로 새46개를 인수했고, 기존 HTTP44·composition10의 영향54개도 통과했다. 시간은 ws_pure: 5.33s, ws_native: 56.40s, ws_compat: 40.57s다. 실제 Source 편집 공유를 read로 회수한4개 recv/send 검사와 current auth·writer fence·private503/1013·제한 reader 취소/permit 경계를 확인했다. 초기 pure13 PASS/3 FAIL은 공개 WebSocket 생성자 fixture를 수정한 동일 선택의 전후 결과이며 고유 성공 수에 합산하지 않는다. 제품 조립 전 Source trap 관측 red1도 보존한다. 첫 계약 검사의 domain→composition-root 역방향 import는 공용 WS 어댑터를 도메인 소유 모듈로 옮겨 수정했다. 그 구조 변경 뒤 영향을 받는 pure/native/HTTP 검사를 재실행한 현재 결과이며 전후 실행을 합산하지 않는다. API architecture/i18n와 생성 API/독립 앱/OpenAPI/contract source 검사를 통과했다. Business Source는 권한 있는 합성 fixture이며 최소 Source operational 역할·전체 Source worker 취소를 인수한 것이 아니다. 14표/87열·기본 인증·비활성 ASGI·hub/codec/room·운영 role/grant를 보존했다. 아직 별도 로컬 미커밋이며 최종 독립 인수·필수 리뷰·정상 게시/병합은 남아 있다.
 
 Workbench의 정확 Codex0.160.1은 표준 systemd-socket-proxyd ingress와 owned transient supervisor 안에서 기존 executor_probe로 실제 인증 없는 연결 거부·정확 버전/cwd·native readOnly/workspaceWrite·자식 명령·Git 쓰기 거부·host canary 비노출을 통과했다. Native와 proxy는 같은 private network namespace의 loopback만 사용했고 caller namespace와 달랐다. 실제 kernel 한도는 CPU1·메모리1GiB·swap0·PIDs64, UID1000·capability0·no-new-privileges이며 endpoint와3개 owned unit/process/cgroup 정리도 통과했다. 앞선 합성 ingress37bytes·자원 fork 한도 검사는 각각 별도 선행조건이다. 같은 pin의 공개 JSON schema440개로 기존0.159.2 소비 계약과 별도0.160.1 remote 계약의 호환을 확인했다. 현재 설치된 CLI/템플릿/서비스·설정은 변경하지 않았다. 구독 인증을 사용하는 실제 제품 Task의 계획 승인→수정→같은 thread 재개/history·중단/단절과 재사용 가능한 운영 설정 적용은 남아 있다. Remote app mount에는 인증을 복사하지 않는다. 기존 secured API·Runtime·SQLite·Codex 수명을 재사용한다.
+
+## 2026-10-08 17:31 이후
+
+- WS의 필수228/396 리뷰를 통과해 PR80/MR87로 정상 병합했고 소유 원격·로컬 feature 브랜치를 정리했다. 최신 dev는 `b4d6445e`다.
+- full229/397은 저장 공간 검사에서 실패해 제품 테스트0이며 운영은 기존 `9e9280df`를 유지한다.
+- Whiteboard Source ACL reader는 별도 worktree에서 미구현 red1을 확인하고 최소 읽기 경계를 구현 중이다.
+- 실제 구독 Task의 계획·승인·격리 수정은 통과했지만 cold resume에서 세 번째 turn 전에 거부됐다. 원 Task/SQLite와 앱을 보존했다.
+- 모델 요청 없는 같은 thread 관측으로 pinned native cold resume의 명시적 빈 환경 응답을 확인했다. 엄격한 실행 대상 검사를 유지하는 최소 수정과 독립 리뷰를 진행한다.
+- 상세 검증·실패 한계는 VALIDATION, 전달 SHA/리뷰/full 결과는 PUBLICATION_CHECKPOINT가 소유한다.
+
+## 2026-10-08 18:38 — 중단 지점의 구조 구현 재개
+
+- Workbench cold resume의 명시적 effective roots와 기존 thread/세대 검사를 보완했다. 실제 원 Task의 계획·승인 후 격리 수정 기록을 유지한 동일 thread 후속 요청이 완료됐고 임시 자원을 정리했다.
+- 필수230/398 리뷰 뒤 PR81/MR88을 동일 tree로 정상 병합하고 소유 브랜치를 원격·로컬에서 정리했다. dev는 `436c7792`, main/prod는 `9e9280df`다.
+- full231/399는 저장 공간 선행조건 실패로 제품 테스트0이며 새 운영 배포는 없다.
+- 준비된 Whiteboard Source ACL callback의 control/실제 native·기존 인증/기본 앱 영향과 생성 계약 검사를 마쳤다. 초기 fixture 실패와 기본 pgvector setup 한계는 VALIDATION에 보존하며 최종 독립 검토·정상 feature 전달을 진행한다.
+- 병렬 작업은 재사용 가능한 최소 native executor 정의를 별도 worktree에서 준비한다. 영구 설정·서비스는 아직 적용하지 않았고 앱별 상세 기능·다중 사용자 범위는 추가하지 않는다.

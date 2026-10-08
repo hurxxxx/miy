@@ -187,3 +187,11 @@ Workbench 자원 선행검사는 task-owned systemd transient service에서 UID1
 Docs·Whiteboard의 준비된 WS 조립은 pure16·실제 PostgreSQL/native WS30으로 새46개를 인수했고, 기존 HTTP44·composition10의 영향54개도 통과했다. 시간은 ws_pure: 5.33s, ws_native: 56.40s, ws_compat: 40.57s다. 실제 Source 편집 공유를 read로 회수한4개 recv/send 검사와 current auth·writer fence·private503/1013·제한 reader 취소/permit 경계를 확인했다. 초기 pure13 PASS/3 FAIL은 공개 WebSocket 생성자 fixture를 수정한 동일 선택의 전후 결과이며 고유 성공 수에 합산하지 않는다. 제품 조립 전 Source trap 관측 red1도 보존한다. 첫 계약 검사의 domain→composition-root 역방향 import는 공용 WS 어댑터를 도메인 소유 모듈로 옮겨 수정했다. 그 구조 변경 뒤 영향을 받는 pure/native/HTTP 검사를 재실행한 현재 결과이며 전후 실행을 합산하지 않는다. API architecture/i18n와 생성 API/독립 앱/OpenAPI/contract source 검사를 통과했다. Business Source는 권한 있는 합성 fixture이며 최소 Source operational 역할·전체 Source worker 취소를 인수한 것이 아니다. 14표/87열·기본 인증·비활성 ASGI·hub/codec/room·운영 role/grant를 보존했다. 아직 별도 로컬 미커밋이며 최종 독립 인수·필수 리뷰·정상 게시/병합은 남아 있다.
 
 Workbench의 정확 Codex0.160.1은 표준 systemd-socket-proxyd ingress와 owned transient supervisor 안에서 기존 executor_probe로 실제 인증 없는 연결 거부·정확 버전/cwd·native readOnly/workspaceWrite·자식 명령·Git 쓰기 거부·host canary 비노출을 통과했다. Native와 proxy는 같은 private network namespace의 loopback만 사용했고 caller namespace와 달랐다. 실제 kernel 한도는 CPU1·메모리1GiB·swap0·PIDs64, UID1000·capability0·no-new-privileges이며 endpoint와3개 owned unit/process/cgroup 정리도 통과했다. 앞선 합성 ingress37bytes·자원 fork 한도 검사는 각각 별도 선행조건이다. 같은 pin의 공개 JSON schema440개로 기존0.159.2 소비 계약과 별도0.160.1 remote 계약의 호환을 확인했다. 현재 설치된 CLI/템플릿/서비스·설정은 변경하지 않았다. 구독 인증을 사용하는 실제 제품 Task의 계획 승인→수정→같은 thread 재개/history·중단/단절과 재사용 가능한 운영 설정 적용은 남아 있다. Remote app mount에는 인증을 복사하지 않는다. 기존 secured API·Runtime·SQLite·Codex 수명을 재사용한다.
+
+## 2026-10-08 18:38 — 최신 착수 상태
+
+`OFF-002B`는 auth HTTP와 Docs·Whiteboard WS의 필수 리뷰·양쪽 정상 병합을 마쳤다. 준비된 Whiteboard Source ACL callback의 제한 조회·현재 권한 재검사·읽기 전용 실행/정리와 영향 검증을 로컬 인수했고 최종 독립 검토·정상 feature 전달을 진행한다. 최소 operational 역할·room 초기화/영속화·Docs Source·공식 cutover는 필수 잔여이므로 in_progress다.
+
+`WB-001/002`·`ENV-001`은 원 native Task의 계획·승인 후 격리 수정·동일 thread 후속 요청을 실제 인수했다. Cold resume 호환 수정은 필수 리뷰 뒤 양쪽 정상 병합·소유 브랜치 정리를 완료했다. 다음 최소 재사용 운영 정의·실제 중단/단절·별도 Workbench 서비스 적용·개인 앱 전체 흐름은 남아 상태는 in_progress다.
+
+`REL-001`·`VAL-001`은 full231/399의 저장 공간 선행조건 실패로 in_progress다. 최신 dev는 `436c7792`, main/prod는 `9e9280df`이며 전체 검증·MR81 병합·새 운영 배포·네 영역 전체 인수는 미완료다. 앱별 기능·다중 사용자 범위는 추가하지 않는다.
