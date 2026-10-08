@@ -16,6 +16,7 @@ import json
 import re
 import secrets
 import signal
+from contextlib import ExitStack, contextmanager
 from datetime import UTC, datetime, timedelta
 from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -25,11 +26,14 @@ from uuid import UUID, uuid4
 
 import browser_server
 from fastapi import Request
+from websockets.exceptions import ConnectionClosed
+from websockets.sync.server import serve
 
 from codex_console import auth, registration, registration_source
 from codex_console.config import Settings
 from codex_console.errors import ConsoleError
 from codex_console.models import now
+from codex_console.remote_environments import REMOTE_VERSION
 
 ACTOR = UUID("90d27016-9223-4e50-b2cb-2a43afef70f7")
 PREFIX = "/api/v1/independent-apps/bootstrap-authorizations"
@@ -37,6 +41,68 @@ PREFIX = "/api/v1/independent-apps/bootstrap-authorizations"
 
 def instant():
     return datetime.now(UTC)
+
+
+@contextmanager
+def executor_metadata(environment):
+    """Expose only real loopback initialize metadata for this synthetic executor."""
+    bearer = ("Bearer " + environment.auth_bearer_token.get_secret_value()).encode()
+
+    def authorize(connection, request):
+        values = request.headers.get_all("Authorization")
+        if len(values) != 1 or not hmac.compare_digest(values[0].encode(), bearer):
+            return connection.respond(401, "Unauthorized\n")
+
+    def handler(socket):
+        try:
+            message = json.loads(socket.recv(timeout=5))
+            if (
+                not isinstance(message, dict)
+                or message.get("method") != "initialize"
+                or type(message.get("id")) is not int
+            ):
+                socket.close(1008, "Initialize only")
+                return
+            socket.send(
+                json.dumps(
+                    {
+                        "id": message["id"],
+                        "result": {
+                            "environmentInfo": {
+                                "executorVersion": REMOTE_VERSION,
+                                "cwd": environment.source_root.as_uri(),
+                                "platformOs": "linux",
+                            }
+                        },
+                    }
+                )
+            )
+            if json.loads(socket.recv(timeout=5)) != {"method": "initialized", "params": {}}:
+                socket.close(1008, "Initialize only")
+        except (ConnectionClosed, TimeoutError, ValueError, TypeError):
+            socket.close(1008, "Invalid metadata request")
+
+    with serve(
+        handler,
+        "127.0.0.1",
+        0,
+        process_request=authorize,
+        compression=None,
+        open_timeout=5,
+        close_timeout=3,
+        max_size=65536,
+    ) as listener:
+        worker = Thread(target=listener.serve_forever, daemon=True)
+        worker.start()
+        try:
+            yield environment.model_copy(
+                update={"exec_server_url": f"ws://127.0.0.1:{listener.socket.getsockname()[1]}"}
+            )
+        finally:
+            listener.shutdown()
+            worker.join(timeout=5)
+            if worker.is_alive():
+                raise RuntimeError("Synthetic executor listener cleanup failed")
 
 
 class SyntheticCore:
@@ -332,9 +398,13 @@ def main():
     core.issuer = f"http://localhost:{server.server_port}"
     worker = Thread(target=server.serve_forever, daemon=True)
     worker.start()
+    executors = ExitStack()
 
     def configure(settings):
         core.audience = settings.origin + settings.base_path
+        environment = executors.enter_context(
+            executor_metadata(settings.app_execution_environments[0])
+        )
         return Settings(
             **(
                 settings.model_dump()
@@ -343,6 +413,7 @@ def main():
                     "miy_api_origin": core.issuer,
                     "miy_api_key": "synthetic-registration-metadata-only",
                     "sso_subjects": {core.issuer: ACTOR},
+                    "app_execution_environments": [environment],
                 }
             ),
             _env_file=None,
@@ -358,9 +429,12 @@ def main():
         # Finish this owned listener's cleanup even if a second SIGINT arrives.
         previous = signal.signal(signal.SIGINT, signal.SIG_IGN)
         try:
-            server.shutdown()
-            server.server_close()
-            worker.join(timeout=5)
+            try:
+                executors.close()
+            finally:
+                server.shutdown()
+                server.server_close()
+                worker.join(timeout=5)
         finally:
             signal.signal(signal.SIGINT, previous)
 
