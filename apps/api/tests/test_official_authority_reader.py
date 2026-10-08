@@ -6,7 +6,9 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
+import psycopg
 from psycopg import sql
+from psycopg.conninfo import make_conninfo
 from sqlalchemy import create_engine, delete, event, inspect, select, text
 from sqlalchemy.exc import DBAPIError, InvalidRequestError, SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
@@ -29,7 +31,35 @@ from miy_api.domains.independent_apps.delivery_models import AppBuildVerificatio
 from miy_api.domains.independent_apps.models import AppInstallationRecord, AppSession
 from miy_api.domains.official_apps import authority_reader as reader
 from miy_api.domains.official_apps.models import OfficialAppBinding
+from conftest import _build_client, _teardown_client_state
+from test_independent_app_data import isolated_data_cluster as isolated_data_cluster
 from test_official_app_auth import bound_official as bound_official
+from test_official_writer_roles import role_template as role_template, sa_dsn
+
+
+@pytest.fixture
+def client(role_template, monkeypatch):
+    """Run the real binding setup on our role-capable disposable cluster."""
+    cluster, template = role_template
+    name = "miy_test_authority_" + token_hex(8)
+    with psycopg.connect(cluster, autocommit=True) as connection:
+        connection.execute(
+            sql.SQL("CREATE DATABASE {} TEMPLATE {}").format(
+                sql.Identifier(name), sql.Identifier(template)
+            )
+        )
+    try:
+        dsn = sa_dsn(make_conninfo(cluster, dbname=name))
+        with _build_client(monkeypatch, postgres_dsn=dsn) as test_client:
+            yield test_client
+    finally:
+        try:
+            _teardown_client_state()
+        finally:
+            with psycopg.connect(cluster, autocommit=True) as connection:
+                connection.execute(
+                    sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(name))
+                )
 
 
 @pytest.fixture

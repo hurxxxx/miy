@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 import json
+import os
 import subprocess
 import time
 from uuid import uuid4
@@ -9,6 +10,8 @@ from uuid import uuid4
 import psycopg
 from psycopg import sql
 import pytest
+
+from disposable_postgres import native_bin_dir, native_cluster, postgres_major
 
 from miy_api.domains.independent_apps.contracts import AppIdentityOut
 from miy_api.domains.independent_apps.data_store import CHECKSUM, DataStoreError, PostgresAppData
@@ -24,11 +27,23 @@ def docker(*args):
 @pytest.fixture(scope="module")
 def isolated_data_cluster():
     # No connections or grant changes to the checkout's development/core cluster.
+    major = postgres_major()
+    directory = native_bin_dir(major)
+    if directory is not None:
+        with native_cluster(directory, major) as dsn:
+            yield dsn
+        return
+    if os.getenv("CI") == "true":
+        pytest.fail("CI requires same-major disposable PostgreSQL server binaries")
     try:
-        image = docker("image", "inspect", "postgres:17-alpine", "--format", "{{.Id}}")
+        image = docker("image", "inspect", f"postgres:{major}-alpine", "--format", "{{.Id}}")
     except (OSError, RuntimeError):
-        pytest.skip("Disposable data tests need local postgres:17-alpine image and Docker; no pull")
+        pytest.skip(
+            "Disposable data tests need same-major native server or local Docker image; no pull"
+        )
     name = "miy-app-data-test-" + uuid4().hex
+    # Official images moved their VOLUME root in PostgreSQL 18.
+    data_path = "/var/lib/postgresql" if major >= 18 else "/var/lib/postgresql/data"
     try:
         docker(
             "create",
@@ -43,7 +58,7 @@ def isolated_data_cluster():
             "--cpus",
             "1",
             "--tmpfs",
-            "/var/lib/postgresql/data:rw,size=256m",
+            data_path + ":rw,size=256m",
             "--env",
             "POSTGRES_PASSWORD=synthetic-test-only",
             image,
@@ -55,7 +70,10 @@ def isolated_data_cluster():
         dsn = f"postgresql://postgres:synthetic-test-only@127.0.0.1:{port}/postgres"
         for _ in range(100):
             try:
-                with psycopg.connect(dsn, connect_timeout=1):
+                with psycopg.connect(dsn, connect_timeout=1) as conn:
+                    assert (
+                        int(conn.execute("SHOW server_version_num").fetchone()[0]) // 10000 == major
+                    )
                     break
             except psycopg.Error:
                 time.sleep(0.1)
@@ -63,7 +81,7 @@ def isolated_data_cluster():
             pytest.fail("Disposable PostgreSQL failed to start")
         yield dsn
     finally:
-        docker("rm", "--force", name)
+        docker("rm", "--force", "--volumes", name)
 
 
 @pytest.fixture(scope="module")

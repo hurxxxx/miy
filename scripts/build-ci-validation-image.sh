@@ -117,6 +117,8 @@ verify_image() {
       pg_dump --version | grep -Eq "^pg_dump \(PostgreSQL\) ${expected_major}\."
       pg_restore --version | grep -Eq "^pg_restore \(PostgreSQL\) ${expected_major}\."
       psql --version | grep -Eq "^psql \(PostgreSQL\) ${expected_major}\."
+      "/usr/lib/postgresql/${expected_major}/bin/initdb" --version | grep -Eq "^initdb \(PostgreSQL\) ${expected_major}\."
+      "/usr/lib/postgresql/${expected_major}/bin/postgres" --version | grep -Eq "^postgres \(PostgreSQL\) ${expected_major}\."
       test -r "$MIY_API_IMAGE_DEPENDENCY_FILE"
       test -r "$MIY_NODE_IMAGE_DEPENDENCY_FILE"
       test -r "$MIY_WORKER_IMAGE_DEPENDENCY_FILE"

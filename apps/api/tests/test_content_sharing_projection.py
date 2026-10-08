@@ -11,9 +11,14 @@ from miy_api.core import settings
 from miy_api.core.db import Base
 from miy_api.domains.auth.models import User
 from miy_api.domains.docs.models import (
+    DocMeetingAccess,
+    DocsCollection,
+    DocsUserItemPref,
     NativeDoc,
     NativeDocGroupShare,
     NativeDocLinkShare,
+    NativeDocPage,
+    NativeDocTarget,
     NativeDocUserShare,
 )
 from miy_api.domains.groups.models import Group
@@ -21,6 +26,8 @@ from miy_api.domains.whiteboard.models import (
     Whiteboard,
     WhiteboardGroupShare,
     WhiteboardLinkShare,
+    WhiteboardTarget,
+    WhiteboardUserItemPref,
     WhiteboardUserShare,
 )
 
@@ -40,11 +47,26 @@ def content_projection_db(monkeypatch: pytest.MonkeyPatch):
             engine,
             tables=[
                 *company_authority_tables(),
-                *(
-                    table
-                    for table in Base.metadata.tables.values()
-                    if table.name.startswith(("docs_", "whiteboard"))
-                ),
+                *[
+                    model.__table__
+                    for model in (
+                        NativeDoc,
+                        DocsCollection,
+                        NativeDocPage,
+                        NativeDocTarget,
+                        NativeDocUserShare,
+                        NativeDocGroupShare,
+                        NativeDocLinkShare,
+                        DocMeetingAccess,
+                        DocsUserItemPref,
+                        Whiteboard,
+                        WhiteboardTarget,
+                        WhiteboardUserShare,
+                        WhiteboardGroupShare,
+                        WhiteboardLinkShare,
+                        WhiteboardUserItemPref,
+                    )
+                ],
             ],
         )
         with Session(engine) as db:
