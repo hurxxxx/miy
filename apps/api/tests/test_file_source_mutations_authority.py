@@ -677,14 +677,21 @@ def test_actual_lock_wait_rechecks_current_authority_and_rolls_back(
                 else "official.projection.event:" + str(native.event_id)
             )
             blocker.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))", (identity,))
-        with ThreadPoolExecutor(max_workers=1) as pool:
+        # Connection setup must not consume the Source's bounded lock-wait budget.
+        with (
+            native.world.connect(autocommit=True) as observer,
+            native.world.connect() as current,
+            ThreadPoolExecutor(max_workers=1) as pool,
+        ):
             future, waiter = submit_stage(pool, native)
             try:
-                wait_for_exact_blocker(native.world, waiter, blocker.info.backend_pid)
+                wait_for_exact_blocker(
+                    native.world, waiter, blocker.info.backend_pid, observer=observer
+                )
                 assert not future.done()
                 if phase == "event":
                     assert phases == ["file_flushed"]
-                with native.world.connect() as current:
+                with current.transaction():
                     if revocation == "session":
                         current.execute(
                             "UPDATE public.auth_sessions SET revoked_at=clock_timestamp() WHERE id=%s",

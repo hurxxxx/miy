@@ -10,7 +10,9 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
 
 ## 현재 위치
 
-- **최신 릴리스 위치:** CI/native fixture와 Docker 임시 데이터 정리 보완은
+- **최신 릴리스 위치 — pipeline223:** 새 fixture source `1d8cf66e`의 필수 리뷰222/390 SUCCESS 뒤 PR77은 `b12a4acc`, 내부 MR84는 `c401dd1a`로 정상 병합했다. 두 tree가 같고 작업 브랜치만 원격·로컬에서 정리했다. MR81의 후속 전체223/391은1,903.144108초에 실패했다. API fast5,556 PASS/1 FAIL/3 SKIP이며 slow16·migration37·external15는 각각 통과했다. 실패는 실제 descriptor 잠금 대기 중 세션 회수를 재확인하는 테스트의 기대 사유다. 실제 사유는 `source_database_refused`, 기대는 `current_execution_denied`다. 해당 CI의 SQLSTATE는 없어 원인을 확정하지 않는다. 동일 CI 이미지의 단독1개는 통과했고 통제한 새 연결5.2초 지연에서는55P03을 관측했다. fixture 두 파일에서 observer/revoker를 worker 전에 연결하고 기존 timeout·정확 reason·권한·rollback assertions를 유지한다. 동일 이미지의 실제8조합과 기존 default helper2개는10 PASS/23.72초이며, 같은5.2초 지연 재검증도1 PASS/13.10초다. 두 실행 모두 원본 File·이벤트 없음·Core·권한 보존을 확인했다. 독립 코드 리뷰 blocker0이며 새 source 게시·필수 리뷰·전체 CI와 운영 배포는 대기 중이다. main/prod는 `9e9280df`이며14:25의 API·worker·Beat 정상과 clean main 체크아웃을 확인했다. 공식 operational 전환·실제 native turn·네 영역 전체 인수는 여전히 미완료다.
+
+- **직전 릴리스 위치 — pipeline220:** CI/native fixture와 Docker 임시 데이터 정리 보완은
   필수 리뷰217/383과 PR75/MR82 병합을 마쳤다. 후속 합성 로그 capture 수정은
   필수 리뷰219/387을 통과했고 [GitHub PR76](https://github.com/hurxxxx/miy/pull/76)은
   `a4c27760`, 내부 MR83은 `fd5038ba`로 병합했다. 소유한 작업 브랜치만

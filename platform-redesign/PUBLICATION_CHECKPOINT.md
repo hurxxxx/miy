@@ -11,7 +11,15 @@ GitHub 작업 PR과 내부 dev→main release_validation을 각각 확인한다.
 DB/grant/서비스의 official cutover를 이 코드 배포로 활성화하지 않는다.
 실제 결과와 SHA는 PR/MR 기록과 후속 receipt가 원본이다.
 
-### 최신 전체 릴리스의 API 통과와 웹 lint 실패 — 2026-10-08 UTC
+### 후속223/391의 권한 회수 fixture 실패 — 2026-10-08 UTC
+
+새 source `1d8cf66ecc1dd14f48576e6ef9e66a22ed89c9ae`는 필수 pipeline222/job390 SUCCESS 후 PR77의 `b12a4acc531fd6c76c744c51ab337901634ee8d2`, 내부 MR84의 `c401dd1a0ed1e88a5b32530c7df6ebe2923e0e55`로 정상 병합했다. 두 병합 tree는 `0ef60b8ab7cd877495fde7687de28dc2ec4613d6`이며 작업 브랜치만 원격·로컬에서 정리했다. 영구 dev/main과 upstream push-disabled를 유지했다.
+
+후속 MR81 pipeline223/job391은 FAILED/script_failure,1,903.144108초다. API fast5,556 PASS/1 FAIL/3 SKIP이며 slow16·migration37·external15는 각각 통과했다. 실패는 `test_actual_lock_wait_rechecks_current_authority_and_rolls_back[session-descriptor]`의701행 reason assertion이다. `source_database_refused`와 기대 `current_execution_denied`의 차이이며 원 CI의 SQLSTATE는 없어 native 원인을 확정하지 않는다. 그 case의 뒤쪽 rollback assertions 실행을 이 실패 결과로 주장하지 않는다.
+
+동일 CI 이미지의 실제 단독1 PASS와 통제된 느린 새 연결1 FAIL/SQLSTATE55P03을 별도로 관측했다. 후자에서 원본 파일·선택 이벤트 없음·Core·권한 보존을 실제 확인했다. fixture 두 파일의 사전 observer/revoker 연결로 한정해 제품 timeout·SQL·정확 reason·기존 assertions를 유지한다. 수정 후 실제8조합과 기존 default helper2개는10 PASS/23.72초이며 동일5.2초 지연도1 PASS/13.10초다. 네 가지 잔여 상태 보존과 SQL 오류 없음을 확인했고 독립 코드 리뷰 blocker0이다. 지연 재검증을 별도 고유 case로 합산하지 않는다. 새 source 게시·필수 리뷰와 전체 release_validation·MR81 병합·운영 배포는 대기 중이다. 운영은 기존 `9e9280df`와 정상 artifact를 유지한다.
+
+### 이전 전체 릴리스의 API 통과와 웹 lint 실패 — 2026-10-08 UTC
 
 - 합성 privacy capture 수정은 필수 pipeline219/job387 SUCCESS 후
   [PR76](https://github.com/hurxxxx/miy/pull/76)의
