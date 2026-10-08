@@ -15,6 +15,16 @@ The build produces the official entry wheel and its matching MIY API compatibili
 
 The [core identity bridge](../../api/src/miy_api/domains/official_apps/README.md) now connects explicitly approved app sessions to the original `AuthContext` for owned official HTTP app scopes. It binds the current verified artifact and installation generation, rechecks admission, preserves source ACLs and avoids login-session last-seen writes. Approval is an internal core operation with no app-facing endpoint. The bridge still reads shared core authority tables; remote introspection, service DB roles and WebSocket delegation remain pending. The inactive gate above remains in force.
 
+An internal official router assembly can now explicitly supply a separate auth-only
+Session factory and its positive read budget. This selects the prepared
+[minimal authority reader](../../api/src/miy_api/domains/official_apps/AUTHORITY_READER.md)
+without using the business Source Session for authentication. Default assembly is
+unchanged, and reader failure refuses without fallback. Actual Source app admission
+and resource ACL still run on the business factory. The published ASGI entry does
+not supply these options; its inactive HTTP503/WS1013/readiness503 gates remain.
+No role/grant, environment selection, service activation or operational Source
+policy is provisioned by this HTTP seam.
+
 | Artifact                  | Current state                                                                                        |
 | ------------------------- | ---------------------------------------------------------------------------------------------------- |
 | Official UI               | Separate entry/build output; legacy UI/public-module bridge                                          |
