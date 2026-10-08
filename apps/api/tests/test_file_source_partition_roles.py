@@ -1,6 +1,7 @@
 """Restricted Files Source UUID admission and actual retained descriptor SHARE."""
 
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext
 from types import SimpleNamespace
 import time
 from uuid import uuid4
@@ -72,9 +73,10 @@ def read(conn, partition, version=None):
     return str(value)
 
 
-def wait_for_exact_blocker(world, waiter, blocker):
+def wait_for_exact_blocker(world, waiter, blocker, *, observer=None):
+    """Poll with an owned default connection or a caller-owned preopened observer."""
     deadline = time.monotonic() + 4
-    with world.connect(autocommit=True) as observer:
+    with world.connect(autocommit=True) if observer is None else nullcontext(observer) as observer:
         while time.monotonic() < deadline:
             if observer.execute(
                 "SELECT %s=ANY(pg_blocking_pids(%s))", (blocker, waiter)

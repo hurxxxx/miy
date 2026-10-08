@@ -20,7 +20,7 @@ cutover를 활성화한 것은 아니다. 게시 추적은
 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다. 이 문서는 우선순위·의존성과
 다음 착수 단위를 소유하며 별도 작업 대장을 만들지 않는다.
 
-당장 이어갈 필수 단계는 MR81 최신 전체 CI의 웹 E2E lint 실패를 닫는 것이다.
+직전 pipeline220의 웹 E2E lint와 Workbench 등록 fixture 보완은 아래와 같다. 최신 필수 단계는 후속223의 권한 회수 fixture 보완을 게시하고 새 source의 전체 CI를 통과하는 것이다.
 앞선 native/fixture·Docker 정리 보완은 리뷰217/383과 PR75/MR82 병합을 마쳤다.
 218/386의 API capture3개 실패는 두 테스트 파일의 보완으로 닫았고, 실제 CI
 이미지의 전체·역순3파일 각각188개 통과는 같은 검사로 중복 합산하지 않는다.
@@ -35,8 +35,7 @@ fast5,557 PASS/3 SKIP/0 FAIL, slow16·migration37·external15 통과 후 웹 lin
 인증된 initialize-only loopback metadata peer로 fixture 한 파일을 보완해
 기존 readiness15·실제 등록 브라우저3 PASS를 확인했다.
 웹 첫 Hermes evaluate timeout은 같은 입력의 단독 실행에서 통과했고 전체
-브라우저 묶음도 단독42 PASS다. 이 fixture 보완 뒤 새 source의 필수 리뷰·
-병합과 정확 source/target/tree의 전체 release_validation을 이어간다.
+브라우저 묶음도 단독42 PASS다. 이 fixture 보완은 리뷰222/390 뒤 PR77/MR84 병합을 마쳤고, 정확 source/target/tree의 후속 전체223은 아래 권한 회수 fixture 한 건에서 실패했다.
 제품 로그 보안·원래 assertions와 공유 CI NOCREATEROLE은 유지한다. 통과 후
 MR81 병합·fresh backup/호환 확인·guarded 운영 prepare/deploy와 실제 반영
 검사를 진행한다. 운영은 여전히 `9e9280df`이며 이 전달을 공식 operational
@@ -44,6 +43,10 @@ MR81 병합·fresh backup/호환 확인·guarded 운영 prepare/deploy와 실제
 확대하지 않는다. 앱별 비필수 기능과 다중 사용자 확장은 계속 보류한다.
 다음 P0 native 환경·turn/resume/history 인수의 ignored 준비 문서는 실행이나
 환경 적용의 완료 근거가 아니다. 지원되는 격리 환경의 외부 선행조건부터 확인한다.
+
+## 후속 전체 CI223의 구조 fixture 보완
+
+PR77/MR84는 새 source `1d8cf66e`의 리뷰222/390 후 정상 병합했고 작업 브랜치를 정리했다. 현재 dev는 `c401dd1a`, main/prod는 `9e9280df`다. 후속223/391은 API fast5,556 PASS/1 FAIL/3 SKIP, slow16·migration37·external15 통과 후 실패했다. 권한 회수와 descriptor 대기 테스트의 기대 사유 한 건이며 원 CI의 SQLSTATE는 미관측이다. 실제 단독1 PASS·통제된 느린 연결55P03을 구분하고, 연결 준비를 worker 이전으로 옮기는 fixture 두 파일만 보완한다. 정확 reason·실권한·rollback·제품5초/15초 제한을 유지한다. 실제 focused8조합과 기존 공용 helper2개는10 PASS/23.72초, 동일5.2초 지연 재검증은1 PASS/13.10초이며 독립 코드 리뷰 blocker0이다. 지연 case는 같은8개 중 하나이므로 고유 성공 수로 합산하지 않는다. 새 source 게시·필수 리뷰·전체 CI 뒤 승인된 운영 배포를 이어간다. 실패한 동일 source의 CI를 재시도하지 않는다.
 
 ## 현재 판단
 
