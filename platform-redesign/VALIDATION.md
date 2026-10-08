@@ -1864,3 +1864,27 @@ API architecture/i18n·생성 API/독립 앱/OpenAPI·contract source 검사는 
 독립 리뷰의 owner path allowlist가 literal `@`를 빠뜨려 필수 `node_modules/@openai` layout과 충돌한 지적을 README 한 군데만 보완했다. 공백·제어·`%`·`$`·quote·backslash 거부와 canonical/no-symlink 조건은 유지한다. 다른5개와 검사 본문이 불변이므로7개를 반복하지 않았다. 실제 파일·unit 설치 후 resource/mount/no-auth/native 정책·endpoint 정리, 보호 typed 설정과 별도 Workbench 서비스 적용, 동일 Task 재개 및 중단/단절은 후속 필수 gate다. 270초 유한 pilot을 지속 운영·자동 복구·개인 앱 전체 흐름 완료로 확대하지 않는다.
 
 Source ACL의 전달 뒤 기존 collab room 초기화와 hub의 전역 Session factory/persistence가 남아 있음을 확인했다. 다음 읽기-only 초기 상태 조립은 기존 row만 Source에서 읽고 누락/오래된 상태에서 legacy init/repair fallback을 거부한다. 쓰기 초기화와 room identity CAS·현재 auth/writer·worker join·COMMIT unknown 경계는 별도 필수 단계이며 앱 기능 개선 이슈로 넘기지 않는다.
+
+## 2026-10-08 19:12 — 기존 room Source 초기 읽기의 실제 red
+
+별도 `4764fc2c` 기준 room worktree에서 기존 상태 readOnly 로더의 server registry 옵션 미구현을 실제1 FAIL/0.58초로 확인했다. eefe pinned image/network-none·합성 환경과 소유 자원 정리, 새 test/기존 제품 입력 불변을 기록했다. 첫 실행은 새 worktree의 locked public dependency cache 부재로 tests0이며, 같은 소유 공개 cache를 재사용한 뒤 실제 red를 인수했다. 그 사이 Docker create30초 timeout도 tests0이었다. 정확한 label/image/not-running created 상태를 확인해 해당 소유 partial만 삭제했고 최종 생성·검사는 정상 수행했다. Docker daemon/retention·운영 컨테이너·data volume은 변경하지 않았다.
+
+구현 계약은 coherent paired SQL에서 JSON scene/snapshot UTF-8와 raw Yjs 총8MiB를 서버에서 제한하고 전송 DTO를 재확인하는 것이다. 기존 initialized row만 읽으며 absent/stale/mismatched/invalid/oversize는 private503/1013이다. Source 전후의 captured auth/ACL/loader와 같은 actor/session, queued/running cancellation·cleanup/permit, ACL 재확인을 고정한다. Server-only configured marker는 최초 callable 유실과 원래 미설정 default를 구분한다. 현재 red 시점의 green/실제 SQL/native 인수 결과는 아직 없다.
+
+기본 init/repair·native hub/store·scene/codec·모델/role/migration·ASGI·auth14/87은 이 단계의 보호 경로다. 글로벌 hub persistence가 남으므로 read-only 초기 조립만으로 source-only 운영 서비스를 완료로 표시하지 않는다. 이후 disjoint nativeOps13을 `c7520d05`로 fast-forward하며 Room 작성자 입력을 보존했고 Root STATUS draft만 별도로 보관·재적용했다. Source test baseline은 이전 SHA 그대로 기록한다.
+
+Root의19:01 읽기 전용 prod metadata는 기존9e API·worker·Beat healthy/schema를 확인했고 customer row·raw 환경 출력·새 배포는0이다. 후속 저장 공간 진단은 available15,676,473,344B(14.5999GiB), free14.85754%로 두 floor 미달이며 필요한15GiB보다429,654,016B 부족하다. Docker/workspace는 같은 dataset이며 보존 경로도 같은 pool이므로 relocation·nominal reclaimable를 physicalgain으로 주장하지 않는다. 새로 입증된 disposable owned 후보는0, 정리/설정 변경0이다. 지속 headroom 확보 뒤 최신 full을 재실행한다.
+
+## 2026-10-08 — 재시작 복구와 기존 room Source 초기 읽기 인수
+
+서버 재시작 뒤 Source7·보호62·dev `c7520d05`와 기존 prod `9e9280df`를 확인하고 미완료 단계만 재개했다. 기존 collab 상태를 fresh readOnly Source transaction에서 읽는 명시적 비활성 초기 로더를 인수했다. 앱·edit ACL을 읽기 전후 재조회하고 정리 뒤 동일 auth callable·actor/session 및 server assembly identity를 재검증한다. 동일 paired SELECT의 scene/snapshot/Yjs 합계8MiB를 SQL CASE로 전송 전에 제한하고 detached DTO를 재검증한다. 부분 설정·missing/stale/invalid/초과 상태는 private503/1013으로 거절하며 legacy init/repair로 우회하지 않는다. Global hub persistence와 writer/CAS·COMMIT unknown, Docs Source·최소 operational 역할·cutover는 여전히 필수 잔여다.
+
+새 pure39 PASS/4.09초·실제 PostgreSQL/native26 PASS/47.08s초로 고유65개다. 영향 old Source ACL54 PASS/48.08초·HTTP/WS/composition100 PASS/70.29초·기존 기본 Whiteboard3 PASS/13.44초는 별도157개다. 기본3개는 원 test function object를 기존 fresh migrated PostgreSQL18 역할 fixture·표준 client에 연결한 검사이며 canonical global/vector fixture·전체 CI를 대신하지 않는다. Architecture/i18n·generated API/independent schema/OpenAPI·contract source도 통과했다.
+
+첫 native25 PASS/1 FAIL(44.66초)과 정확8MiB 단독1 FAIL(9.59초)의 실제 사유는 room_state_stale이었다. Test onupdate가 collab를 미래 board보다 앞서게 했다. Exact-bound/aggregate 두 fixture의 시각만 동일 UTC로 명시했고 용량·nullYjs·length·snapshot/CASE assertions와 제품 구현은 유지한다.
+
+다음 native25 PASS/1 FAIL(58.83초)은 변하지 않은 wait/revocation 검사에서 발생했고 동일 두 parameter 단독2 PASS/10.77초였다. 최초 간헐 실패 원인은 확정하지 않는다. Observer/revoker 연결을 task 전에 준비·재사용하고 finally에서 닫는 fixture 교정을 추가했다. 제품5초 lock/15초 statement·test5초/100poll/pg_blocking_pids/401·403 assertions는 유지한다. 수정 뒤 전체26이 현재 인수 근거이며 이전 실패·단독2개를 고유 성공에 합산하지 않는다. Byte/AST 불변인 pure39·영향157·계약 검사는 반복하지 않았다.
+
+Red1·dependency/create timeout tests0·exact partial cleanup과 두 전체 실패 원 receipt를 보존한다. 정확8MiB 단독 fixed-reason 관측은 후속 진단이 같은 receipt 이름을 재사용해 원 파일 hash 증명으로 남기지 못했다. post-room-exact-bound-before-fixture-observation.json은 당시 allowlisted tool 결과의 재구성으로 provenance/한계를 명시한다.
+
+Ignored post-room-\*-result.json·author implementation-frozen-inputs·two-fixture-correction-proof·wait-connection-preparation-proof가 정확 입력/범위를 기록한다. Network-none·합성 DB와 소유 컨테이너 정리를 확인했다. 실제 환경·인증·raw 출력·운영 role/grant·서비스 변경0, 보호62·기본 역변환 AST를 유지한다. 로컬 검증은 운영·별도 Workbench 배포 인수가 아니다.

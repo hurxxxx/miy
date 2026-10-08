@@ -411,6 +411,40 @@ async def _authorize_prepared_whiteboard_collab_access(
     )
 
 
+async def _load_prepared_whiteboard_room(
+    websocket: WebSocket, *, item_id: str, token: str, context, dependency, loader, source_access
+):
+    def require_captured_assembly() -> None:
+        if (
+            not callable(dependency)
+            or not callable(loader)
+            or not callable(source_access)
+            or getattr(websocket.app.state, "prepared_whiteboard_room_configured", None) is not True
+            or getattr(websocket.app.state, "prepared_official_auth_dependency", None)
+            is not dependency
+            or getattr(websocket.app.state, "prepared_whiteboard_room_loader", None) is not loader
+            or getattr(websocket.app.state, "prepared_whiteboard_source_access", None)
+            is not source_access
+        ):
+            raise localized_http_exception(
+                status_code=503, code="official_apps.authority_unavailable"
+            )
+
+    require_captured_assembly()
+    actor_id, session_id = context.user.id, context.session.id
+    state = await loader(item_id=item_id, user=context.user)
+    require_captured_assembly()
+    current = await resolve_prepared_official_ws_auth_context(
+        websocket, token=token, logical_app_id="whiteboard"
+    )
+    require_captured_assembly()
+    if current is None:
+        raise localized_http_exception(status_code=503, code="official_apps.authority_unavailable")
+    if current.user.id != actor_id or current.session.id != session_id:
+        raise localized_http_exception(status_code=401, code="auth.required")
+    return state
+
+
 async def _monitor_whiteboard_collab_access(
     websocket: WebSocket,
     *,
@@ -1006,34 +1040,68 @@ async def whiteboard_collab_websocket(
 
     try:
         token = await _resolve_collab_ws_token(websocket)
+        prepared_dependency = getattr(
+            websocket.app.state, "prepared_official_auth_dependency", None
+        )
+        room_loader = getattr(websocket.app.state, "prepared_whiteboard_room_loader", None)
+        room_source_access = getattr(websocket.app.state, "prepared_whiteboard_source_access", None)
+        room_configured = (
+            getattr(websocket.app.state, "prepared_whiteboard_room_configured", None) is True
+        )
+        if (room_configured or room_loader is not None) and (
+            not room_configured
+            or not all(
+                callable(value) for value in (prepared_dependency, room_loader, room_source_access)
+            )
+        ):
+            raise localized_http_exception(
+                status_code=503, code="official_apps.authority_unavailable"
+            )
         prepared_context = await resolve_prepared_official_ws_auth_context(
             websocket, token=token, logical_app_id="whiteboard"
         )
 
-        session_factory = get_session_factory()
-        db = session_factory()
-        collab_yjs_state: bytes | None = None
-        try:
-            auth_context = (
-                prepared_context
-                if prepared_context is not None
-                else resolve_auth_context_from_token(db, token)
-            )
-            auth_user_id = auth_context.user.id
-            _require_collab_app_access(
-                db,
-                auth_context.user,
-            )
-            context, collab = _ensure_whiteboard_collab_context(db, auth_context.user, item_id)
-            if not context.can_edit:
+        if room_configured:
+            if prepared_context is None:
                 raise localized_http_exception(
-                    status_code=403,
-                    code="whiteboard.edit_access_required",
+                    status_code=503, code="official_apps.authority_unavailable"
                 )
-            db.commit()
-            collab_yjs_state = collab.yjs_state
-        finally:
-            db.close()
+            auth_user_id = prepared_context.user.id
+            state = await _load_prepared_whiteboard_room(
+                websocket,
+                item_id=item_id,
+                token=token,
+                context=prepared_context,
+                dependency=prepared_dependency,
+                loader=room_loader,
+                source_access=room_source_access,
+            )
+            context, collab_yjs_state = state.context, state.yjs_state
+        else:
+            session_factory = get_session_factory()
+            db = session_factory()
+            collab_yjs_state: bytes | None = None
+            try:
+                auth_context = (
+                    prepared_context
+                    if prepared_context is not None
+                    else resolve_auth_context_from_token(db, token)
+                )
+                auth_user_id = auth_context.user.id
+                _require_collab_app_access(
+                    db,
+                    auth_context.user,
+                )
+                context, collab = _ensure_whiteboard_collab_context(db, auth_context.user, item_id)
+                if not context.can_edit:
+                    raise localized_http_exception(
+                        status_code=403,
+                        code="whiteboard.edit_access_required",
+                    )
+                db.commit()
+                collab_yjs_state = collab.yjs_state
+            finally:
+                db.close()
 
         if context is None:
             raise localized_http_exception(status_code=404, code="whiteboard.not_found")
@@ -1058,7 +1126,11 @@ async def whiteboard_collab_websocket(
         except CollabConnectionLimitExceeded as exc:
             await websocket.close(code=exc.close_code, reason=exc.reason)
             return
-        source_access = getattr(websocket.app.state, "prepared_whiteboard_source_access", None)
+        source_access = (
+            room_source_access
+            if room_configured
+            else getattr(websocket.app.state, "prepared_whiteboard_source_access", None)
+        )
         prepared_authorize = (
             partial(
                 _authorize_prepared_whiteboard_collab_access,

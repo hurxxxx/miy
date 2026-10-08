@@ -20,7 +20,7 @@ cutover를 활성화한 것은 아니다. 게시 추적은
 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다. 이 문서는 우선순위·의존성과
 다음 착수 단위를 소유하며 별도 작업 대장을 만들지 않는다.
 
-현재 dev는 `4764fc2c`, main/prod는 `9e9280df`다. Workbench cold resume과 Whiteboard Source ACL callback은 필수 리뷰 뒤 양쪽 정상 병합·소유 브랜치 정리를 마쳤다. 최신 full233/401은 저장 공간 검사에서 실패해 테스트0이며 새 운영 배포는 없다. 다음은 최소 native executor 정의의 최종 검토·정상 전달, Whiteboard의 기존 room 상태를 읽는 명시적 Source 조립이다. Native의 immutable cache/실제 설치된 자원·mount·정확한 정책 검증과 별도 Workbench 반영, Source의 writer·room CAS·취소/COMMIT unknown을 보장하는 초기화/영속화·Docs 권한 조립을 각각 인수한 뒤 개인 앱 전체 흐름으로 연결한다. 아래 과거 단계 기록은 당시 결과다.
+현재 dev는 `c7520d05`, main/prod는 `9e9280df`다. Workbench cold resume·Whiteboard Source ACL·최소 native executor 정의는 필수 리뷰와 양쪽 정상 병합·소유 브랜치 정리를 마쳤다. 최신 full235/403은 저장 공간 검사 실패로 테스트0이며 새 운영 배포는 없다. 기존 room 상태의 readOnly Source 초기 로더는 새65개·영향157개 검사 뒤 로컬 인수했고 정상 feature 전달을 진행한다. 그 뒤 Source writer·room CAS·취소/COMMIT unknown과 현재 권한을 보장하는 초기화/영속화·Docs 경계, native immutable cache/실제 설치 enforcement·보호 설정·별도 Workbench 반영·개인 앱 전체 흐름을 각각 인수한다. Native pilot의 제한된 shell 외에 대표 SDK 앱의 실제 build/test 도구 체인도 전체 흐름에서 확인해야 한다. 아래 과거 단계 기록은 당시 결과다.
 앞선 native/fixture·Docker 정리 보완은 리뷰217/383과 PR75/MR82 병합을 마쳤다.
 218/386의 API capture3개 실패는 두 테스트 파일의 보완으로 닫았고, 실제 CI
 이미지의 전체·역순3파일 각각188개 통과는 같은 검사로 중복 합산하지 않는다.

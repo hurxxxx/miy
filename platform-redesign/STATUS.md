@@ -10,10 +10,10 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
 
 ## 현재 위치
 
-- **전달:** dev는 `4764fc2c`, main/prod는 `9e9280df`다. Workbench cold resume과 준비된 Whiteboard Source ACL callback은 각각 필수 리뷰 뒤 GitHub·내부 저장소에 정상 병합했고 소유 브랜치를 정리했다. 최신 full233/401은 저장 공간 검사에서 실패해 제품 테스트0이며 새 운영 배포는 없다. [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 정확한 전달 기록을 소유한다.
-- **공식 앱 경계:** Whiteboard의 분리된 Source 권한 읽기·대기 후 현재 권한 재검사·취소/정리를 로컬 인수하고 전달했다. 다음 최소 단위는 기존 collab row의 readOnly 초기 상태 읽기다. 누락/오래된 row에는 legacy 초기화·복구로 fallback하지 않는다. 쓰기 초기화·room identity와 현재 writer가 보장된 영속화·Docs Source·공식 서비스 전환은 필수 잔여다.
-- **Workbench:** 실제 원 Task의 계획→표시된 revision 승인 후 격리 수정→같은 thread 후속 요청을 확인했다. 재사용 가능한 native executor의 최소 예제3개·공개 package pin·owner 절차를 구현하고 단위/공개 systemd 문법 검사를 통과해 최종 리뷰·정상 전달을 진행한다. 새 영구 cache/unit·운영 설정·Workbench 별도 서비스에는 아직 적용하지 않았다.
-- **범위:** 필수 플랫폼 경계와 단일 사용자 Workbench 구조를 진행한다. 앱별 비필수 기능은 이슈 대장, 다중 사용자는 후속 범위다. 현재 저장 공간14.9GiB/84.8% used는 기준에 미달하므로 지속 여유와 최신 full CI 성공 뒤 MR81·fresh backup·guarded 운영 배포를 이어간다.
+- **전달:** dev는 `c7520d05`, main/prod는 `9e9280df`다. Workbench cold resume, Whiteboard Source ACL callback, 최소 native executor 정의는 각각 필수 리뷰 뒤 양쪽 저장소에 정상 병합하고 소유 브랜치를 정리했다. 최신 full235/403은 저장 공간 선행조건에서 실패해 제품 테스트0이며 새 운영 배포는 없다. [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 전달 기록을 소유한다.
+- **공식 앱 경계:** 준비된 Source ACL의 현재 권한·취소/정리를 전달했다. 기존 collab row의 readOnly Source 초기 로더도 실제 미구현 red 뒤 새65개·영향157개 검사와 생성 계약 검사를 통과해 로컬 인수했다. 정상 feature 게시·필수 리뷰·병합 결과는 게시 체크포인트의 다음 기록으로 확인한다. 누락/stale 상태에 legacy 초기화·복구로 fallback하지 않는다. Source writer·room CAS·취소/COMMIT unknown이 보장된 초기화·영속화, Docs Source·공식 cutover는 필수 잔여다.
+- **Workbench:** 실제 원 Task의 계획→표시된 revision 승인 후 격리 수정→같은 thread 후속 요청과 최소 실행 정의 source-only 인수를 마쳤다. 영구 immutable cache·설치된 자원/mount/native 정책·보호 설정·Workbench 별도 서비스와 중단/단절·개인 앱 전체 흐름은 남아 있다.
+- **운영과 범위:** 서버 재시작 뒤19:39의 읽기 전용 검사에서 기존 API·worker·Beat healthy와 schema를 다시 확인했다. 19:40 측정 여유 공간14.3024GiB/14.5573% free는 두 기준 미달이므로 지속 여유와 최신 full 성공 뒤 MR81·fresh backup·guarded 배포를 이어간다. 앱별 비필수 기능·다중 사용자 범위는 추가하지 않는다.
 
 ## 이전 단계별 인수 기록
 
