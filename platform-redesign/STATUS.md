@@ -29,7 +29,9 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
   새로운 operational reader/grant는 활성화하지 않았다. 운영 플랫폼은 내부
   필수 리뷰 계정의 Codex 재인증을 완료했다. 실제 리뷰의 P2인 개인 앱 HTTPS
   기본 포트 오류를 수정했으며 관련 검사42개와 API architecture 검사를 통과했다.
-  수정본 필수 리뷰·전체 release_validation·운영 DB 복사본 호환 검증을 이어간다.
+  후속 실제 리뷰에서 기존 색인의 결과 표식 전환과 재사용 Files hook의 scope
+  상태를 보완했다. DB 복사본의 append20·기존 데이터·이전 이미지 호환 검증은
+  통과했다. 최신 수정본 필수 리뷰·전체 release_validation·실제 운영 반영을 이어간다.
   실제 SHA·반영 검사·잔여는 게시 체크포인트의 최신 결과가 소유한다.
   후속 우선순위와 이번 제한 범위는 [NEXT_STEPS.md](NEXT_STEPS.md)에 기록한다.
 - 단계: **사용자 지시로 구현 재개**. 재시작 전 동결한 PMS 275개·Recording authority 108개·delivery 12개 입력이 모두 일치함을 확인했다. PMS 부모 통합과 Recording managed의 비활성 권한·전달·legacy 영향 검증 및 독립 리뷰를 마쳤다. 공식 UI 12/12개의 source/build 소유와 Files·Video Chat·공용 Chatbot을 포함한 최종 두 build·브라우저 통합을 마쳤다. 포털37·공식36개의 합성 브라우저와 selected dev6개, 입력1,823개 불변을 확인했다. 독립 서비스·릴리스·전체 portal 업무 정리는 별도 필수 범위다. [RESTART_CHECKPOINT.md](RESTART_CHECKPOINT.md)는 중단 시점의 역사적 근거이며 앱별 비필수 개선·상세 검증은 계속 보류한다.

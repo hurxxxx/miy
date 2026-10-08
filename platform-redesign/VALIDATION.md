@@ -1395,3 +1395,35 @@ shared source-loader/official auth/prepared reader 세 경로를 명시적으로
 `.runtime/workbench-next/INDEPENDENT_REVIEW.md`와 각 정확 입력 JSON이다.
 현재 우선순위는 [NEXT_STEPS.md](NEXT_STEPS.md), 상태는 [WORK_ITEMS.md](WORK_ITEMS.md)가
 소유한다. 이전 통과 수와 합산해 네 영역 전체 완료로 표시하지 않는다.
+
+## 2026-10-08 필수 배포 리뷰 후속 수정
+
+실제 인증이 완료된 내부 MR80의 job373은 개인 앱 HTTPS 기본 포트 오류를,
+job374는 기존 Files 결과 표식의 전환과 재사용 controller의 범위 변경 상태를
+지적했다. 같은 실패 source를 재시도하지 않고 다음 수정 source로 리뷰한다.
+
+- HTTPS 기본 포트: 생략된 HTTPS443·HTTP80과 명시 포트 보존. 관련42 PASS,
+  기존 opt-in Docker1 SKIP. [PR73](https://github.com/hurxxxx/miy/pull/73) 병합 완료.
+- Files 전환 gate: API112 PASS, 수정된 cold-process 사례1회 반복 PASS,
+  운영 스크립트103 PASS. API 구조768파일/3450 dependency/2 kept/0 broken과
+  번역 검사 PASS. 실제 public generation verifier와 합성 physical inventory,
+  소유 SQLite queue를 사용했다. 실제 운영 재색인·provider 호출 증거가 아니다.
+  이전 결과 표식이 없는 keyword/vector 결과는 거부하고 재구축한 결과는
+  허용한다. 비어 있지 않은 Source의 zero-ready 결과도 실제 queue를 확인한다.
+  forward stop→migration→gate→start 인계와 실패 복원, 타이머 설치 실패의
+  handler 복원, 중지 전 불변 이미지 timeout 실행파일 확인을 검증했다.
+- Files 재사용 controller: 관련36 PASS와 타입·린트·포맷 PASS. 폴더·token
+  변경 시 일시 상태를 초기화하고 과거 응답이 새 작업을 해제하지 않도록
+  deferred 회귀를 추가했다. 실제 페이지의 기존 keyed remount는 보존했다.
+- 운영 복사본: PostgreSQL18 native consistent backup을 격리 복원하고 append
+  migration20개를 적용했다. 기존164 비-Alembic relation의 원래 열별 row 수와
+  server multiset digest가 보존됐고, 실제 이전 불변 이미지의 모델·인증·
+  cooperative writer 검사가 통과했다. 전체 업무·provider 실행의 증거가 아니다.
+
+각 범위의 독립 검토 차단 문제는0이다. 정확 입력·초기 실패·최종 결과는
+ignored `.runtime/independent-runtime-https-port/`, `.runtime/files-index-cutover-gate/`,
+`.runtime/files-ui-scope-fix/`, `.runtime/production-compatibility-review/`에 남긴다.
+새 필수 코드 리뷰, dev→main 전체 release_validation과 실제 운영 배포는 아직
+완료되지 않았다. Workbench 제품187파일은 별도 배포 소스와 동일하며 이번
+후속 수정의 재배포 대상이 아니다. 공식 Source/Core 활성화·전체 구조 인수와
+앱별 비필수 기능 검증은 기존 잔여 범위를 유지한다.

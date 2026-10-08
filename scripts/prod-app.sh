@@ -216,6 +216,16 @@ verify_release_image() {
   '
 }
 
+verify_files_gate_executable() {
+  local image="${1:?immutable image is required}"
+  if [[ ! "$image" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+    echo "Files cutover gate requires an immutable image ID." >&2
+    return 1
+  fi
+  docker run --rm --network none --entrypoint /bin/sh "$image" \
+    -ec 'test -x /usr/bin/timeout'
+}
+
 verify_candidate_image() {
   local image="${1:?image is required}"
   local actual_id
@@ -247,6 +257,7 @@ EOF
     echo "Release candidate does not record valid build-time pipeline evidence." >&2
     return 1
   fi
+  verify_files_gate_executable "$actual_id"
 }
 
 prepare_candidate_image() {
@@ -322,6 +333,31 @@ promote_image() {
 
 run_migrations() {
   compose run --rm migrate
+}
+
+stop_previous_writers() {
+  compose stop --timeout 45 api worker beat
+}
+
+check_files_content_cutover() {
+  compose run --rm --no-deps --entrypoint /usr/bin/timeout migrate \
+    --signal=TERM --kill-after=5 130 \
+    apps/api/.venv/bin/python -m miy_api.domains.files.cutover_gate
+}
+
+start_forward_runtime() {
+  stop_previous_writers && run_migrations && check_files_content_cutover \
+    && start_runtime && run_smoke
+}
+
+restore_same_runtime() {
+  local expected_image="${1:?pre-up image identity is required}"
+  if [[ "$(image_id "$CURRENT_IMAGE")" != "$expected_image" ]]; then
+    echo "Current image changed during forward startup; refusing restoration." >&2
+    return 1
+  fi
+  # The pre-up image is the recovery target; prod-previous may be unrelated.
+  start_runtime && run_smoke
 }
 
 start_runtime() {
@@ -423,7 +459,7 @@ deploy() {
     report_deployment_failure yes
     return 1
   fi
-  if ! run_migrations || ! start_runtime || ! run_smoke; then
+  if ! start_forward_runtime; then
     report_deployment_failure yes
     return 1
   fi
@@ -537,12 +573,19 @@ case "$COMMAND" in
   up)
     require_prod_checkout
     require_release_source
+    acquire_operation_lock
     validate_environment
     require_terminal_broker_port_available
     docker image inspect "$CURRENT_IMAGE" >/dev/null
-    run_migrations
-    start_runtime
-    run_smoke
+    up_image="$(image_id "$CURRENT_IMAGE")"
+    verify_files_gate_executable "$up_image"
+    if ! start_forward_runtime; then
+      echo "Forward startup failed; restoring the pre-up image." >&2
+      if ! restore_same_runtime "$up_image"; then
+        echo "Pre-up runtime restoration failed; operator recovery is required." >&2
+      fi
+      exit 1
+    fi
     ;;
   -h|--help|help)
     usage

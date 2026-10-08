@@ -30,6 +30,31 @@ Workbench 재배포 대상은 아니다. 앞선04:00 결과는 당시의 기록�
 ignored `.runtime/independent-runtime-https-port/`와
 `.runtime/production-compatibility-review/`가 해당 실행의 범위·결과를 보존한다.
 
+### 실제 리뷰의 추가 수정 — 2026-10-08 UTC
+
+[PR73](https://github.com/hurxxxx/miy/pull/73)의 HTTPS 포트 수정을 일반 병합하고
+해당 원격·로컬 작업 브랜치를 삭제했다. 내부 pipeline208/job374는 인증 오류
+없이 실행됐으나 기존 색인의 결과 표식 전환 P1과 재사용 Files controller의
+범위 변경 상태 P2로 MERGE_BLOCKED됐다. 이 실패는 기존 인증 실패와 구분한다.
+
+Files의 strict SHA·partition·결과 표식 비교는 유지한다. 새 배포 전환 검사는
+기존 generation verifier로 실제 Source와 keyword/vector 결과를 대조하며,
+누락된 Source 표식과 재색인 전의 기존 envelope를 거부한다. 검사만으로 재색인,
+paid compute나 서비스 profile을 활성화하지 않는다. forward deploy/up은 기존
+API·worker·scheduler 중지→migration→검사→새 런타임 인계를 사용한다.
+실패한 deploy는 이전 이미지, 실패한 up은 같은 기존 이미지로 복원을 시도한다.
+
+controller는 기존 현재 범위 검사와 실제 페이지의 keyed session을 보존하면서
+자체 scope가 바뀔 때 일시 상태를 정리한다. 이전 응답이 새 작업을 해제하지
+않는 deferred 회귀를 검증했다. 실제 페이지는 이미 keyed remount를 사용하므로
+초기 리뷰의 페이지 생명주기 가정과 재사용 hook의 수정 범위를 구분한다.
+
+보호된 DB backup의 격리 복원·append20·기존 데이터 보존과 이전 불변 이미지의
+모델·인증·cooperative writer 검증은 통과했고 소유 자원을 정리했다. 새 수정본의
+필수 리뷰·전체 release_validation과 실제 운영 배포는 여전히 별도 완료 조건이다.
+ignored `.runtime/files-ui-scope-fix/`와 배포 전환 검사 근거가 정확 입력·초기 실패·
+최종 결과를 보존한다. 구조 전체와 기존 비활성 official cutover는 완료로 표시하지 않는다.
+
 ### 반영 결과 — 2026-10-08 04:00 UTC
 
 - [PR71](https://github.com/hurxxxx/miy/pull/71)은 03:37:23 UTC에 일반 merge했다.

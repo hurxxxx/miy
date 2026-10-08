@@ -144,9 +144,14 @@ export function useFileManagerController() {
     [],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     closeImagePreview();
-  }, [closeImagePreview, token, folderId]);
+    setBulkAction(null);
+    setBusyId(null);
+    setPreviewBusyId(null);
+    setSavingFolder(false);
+    setFolderDialog(null);
+  }, [closeImagePreview, scope]);
 
   const companyName = t('common:labels.company');
   const currentFolder = browse?.current_folder ?? null;

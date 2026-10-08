@@ -15,6 +15,194 @@ const oldImage = (id, tags, extra = {}) => ({
 });
 const appTag = (id) => `miy-app:${id.repeat(12)}`;
 
+for (const missing of [false, true]) {
+  test(`candidate executable contract ${missing ? 'refuses missing' : 'checks present'} owned timeout before publication`, async () => {
+    const script = await readFile(
+      new URL('./prod-app.sh', import.meta.url),
+      'utf8',
+    );
+    const start = script.indexOf('verify_files_gate_executable()');
+    const functions = script.slice(
+      start >= 0 ? start : script.indexOf('verify_candidate_image()'),
+      script.indexOf('prepare_candidate_image()'),
+    );
+    const result = spawnSync(
+      'bash',
+      [
+        '-c',
+        `
+set -euo pipefail
+RELEASE_REVISION=revision RELEASE_CONTRACT=contract RELEASE_SOURCE_REVISION=source
+RELEASE_TREE=tree RELEASE_PLATFORM=platform RELEASE_BENTO_URL_SHA256=urlhash RELEASE_MR=80
+${functions}
+image_id() { printf 'sha256:${'a'.repeat(64)}\n'; }
+verify_release_image() { printf 'base-verifier\n'; }
+image_label() {
+  case "$2" in
+    *release.contract) printf 'contract\n';; *source-revision) printf 'source\n';;
+    *release.tree) printf 'tree\n';; *release.platform) printf 'platform\n';;
+    *bento-url-sha256) printf 'urlhash\n';; *merge-request) printf '80\n';;
+    *release.pipeline) printf '141\n';; *) return 9;;
+  esac
+}
+docker() {
+  [[ "$*" == 'run --rm --network none --entrypoint /bin/sh sha256:${'a'.repeat(64)} -ec test -x /usr/bin/timeout' ]] || return 9
+  printf 'timeout-executable-probe\n'
+  ${missing ? 'return 4' : 'return 0'}
+}
+if verify_candidate_image synthetic:candidate; then printf 'candidate-ready\n'; else printf 'candidate-blocked\n'; fi
+`,
+      ],
+      { encoding: 'utf8', env: { PATH: process.env.PATH } },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(result.stdout.trim().split('\n'), [
+      'base-verifier',
+      'timeout-executable-probe',
+      missing ? 'candidate-blocked' : 'candidate-ready',
+    ]);
+  });
+}
+
+async function forwardFixture(stage = '', mode = 'forward') {
+  const script = await readFile(
+    new URL('./prod-app.sh', import.meta.url),
+    'utf8',
+  );
+  const functions = script.slice(
+    script.indexOf('run_migrations()'),
+    script.indexOf('start_runtime()'),
+  );
+  const upStart = script.indexOf('  up)\n');
+  const upBody = script.slice(
+    upStart + '  up)\n'.length,
+    script.indexOf('    ;;', upStart),
+  );
+  const result = spawnSync(
+    'bash',
+    [
+      '-c',
+      `
+set -euo pipefail
+CURRENT_IMAGE=miy-app:prod
+PREVIOUS_IMAGE=miy-app:prod-previous
+CURRENT_ID=sha256:${'a'.repeat(64)}
+STAGE=${stage}
+START_COUNT=0
+${functions}
+compose() {
+  printf '%s\n' "$*"
+  case "$*" in
+    'stop '*) [[ "$STAGE" != stop ]] || return 4 ;;
+    'run --rm migrate') [[ "$STAGE" != migration ]] || return 4 ;;
+    *cutover_gate*)
+      if [[ "$STAGE" == changed-image ]]; then CURRENT_ID=sha256:${'b'.repeat(64)}; return 4; fi
+      [[ "$STAGE" != gate && "$STAGE" != timeout ]] || return 124 ;;
+  esac
+}
+image_id() { [[ "$1" == "$CURRENT_IMAGE" ]]; printf '%s\n' "$CURRENT_ID"; }
+docker() { [[ "$*" == 'image inspect miy-app:prod' ]]; printf 'inspect-current\n'; }
+verify_files_gate_executable() {
+  [[ "$1" == "sha256:${'a'.repeat(64)}" ]] || return 9
+  printf 'timeout-executable-probe\n'
+  [[ "$STAGE" != executable ]] || return 4
+}
+require_prod_checkout() { :; }
+require_release_source() { :; }
+acquire_operation_lock() { :; }
+validate_environment() { :; }
+require_terminal_broker_port_available() { :; }
+start_runtime() {
+  START_COUNT=$((START_COUNT+1))
+  printf 'start:%s:%s\n' "$START_COUNT" "$CURRENT_ID"
+  [[ "$STAGE:$START_COUNT" != start:1 && "$STAGE" != restore-start ]] || return 4
+}
+run_smoke() { printf 'smoke\n'; [[ "$STAGE" != restore-smoke ]] || return 4; }
+${mode === 'up' ? upBody : 'if start_forward_runtime; then printf "forward-ok\\n"; else printf "forward-failed\\n"; fi'}
+`,
+    ],
+    { encoding: 'utf8', env: { PATH: process.env.PATH } },
+  );
+  return result;
+}
+
+test('forward runtime stops all old writers before migration, owned deadline gate, startup and smoke', async () => {
+  const result = await forwardFixture();
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(result.stdout.trim().split('\n'), [
+    'stop --timeout 45 api worker beat',
+    'run --rm migrate',
+    'run --rm --no-deps --entrypoint /usr/bin/timeout migrate --signal=TERM --kill-after=5 130 apps/api/.venv/bin/python -m miy_api.domains.files.cutover_gate',
+    `start:1:sha256:${'a'.repeat(64)}`,
+    'smoke',
+    'forward-ok',
+  ]);
+});
+
+for (const stage of ['stop', 'migration', 'gate', 'timeout']) {
+  test(`forward ${stage} failure never starts the candidate or claims success`, async () => {
+    const result = await forwardFixture(stage);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /forward-failed/);
+    assert.doesNotMatch(result.stdout, /start:|smoke|forward-ok/);
+    if (stage === 'stop') assert.doesNotMatch(result.stdout, /run --rm/);
+    if (stage === 'migration')
+      assert.doesNotMatch(result.stdout, /cutover_gate/);
+  });
+}
+
+test('up runs the same forward gate and starts the captured current image', async () => {
+  const result = await forwardFixture('', 'up');
+  assert.equal(result.status, 0, result.stderr);
+  // Docker inspect is intentionally redirected by the production entrypoint.
+  assert.match(result.stdout, /^timeout-executable-probe\nstop /);
+  assert.match(result.stdout, /cutover_gate/);
+  assert.match(
+    result.stdout,
+    new RegExp(`start:1:sha256:${'a'.repeat(64)}\\nsmoke`),
+  );
+});
+
+test('up missing timeout executable refuses before stopping any current writer', async () => {
+  const result = await forwardFixture('executable', 'up');
+  assert.equal(result.status, 4);
+  assert.equal(result.stdout, 'timeout-executable-probe\n');
+  assert.doesNotMatch(result.stderr, /restoring|restoration/);
+});
+
+for (const stage of ['stop', 'migration', 'gate', 'timeout', 'start']) {
+  test(`up ${stage} failure restores only the exact pre-up image and still fails`, async () => {
+    const result = await forwardFixture(stage, 'up');
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /restoring the pre-up image/);
+    assert.doesNotMatch(result.stderr, /restoration failed/);
+    assert.match(
+      result.stdout,
+      new RegExp(`start:[12]:sha256:${'a'.repeat(64)}\\nsmoke`),
+    );
+    assert.doesNotMatch(result.stdout, /prod-previous|tag|forward-ok/);
+    assert.equal(
+      (result.stdout.match(/cutover_gate/g) || []).length,
+      ['gate', 'timeout', 'start'].includes(stage) ? 1 : 0,
+    );
+  });
+}
+
+test('up refuses restoration if its current image identity changed and never uses unrelated prod-previous', async () => {
+  const result = await forwardFixture('changed-image', 'up');
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Current image changed/);
+  assert.match(result.stderr, /operator recovery is required/);
+  assert.doesNotMatch(result.stdout, /start:|smoke|prod-previous|tag/);
+});
+
+test('up recovery smoke failure remains an explicit failure', async () => {
+  const result = await forwardFixture('restore-smoke', 'up');
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /operator recovery is required/);
+  assert.doesNotMatch(result.stdout, /forward-ok/);
+});
+
 test('pipeline retries for the same release do not change the image contract', async () => {
   const script = await readFile(
     new URL('./prod-app.sh', import.meta.url),
@@ -229,10 +417,7 @@ test('retention preserves current, rollback, CI, container refs, recent and unkn
     oldImage('candidate', ['miy-app:candidate']),
     oldImage('running', [appTag('d')]),
     oldImage('stopped', [appTag('e')]),
-    oldImage('manual', [
-      appTag('f'),
-      'miy-app:keep-for-investigation',
-    ]),
+    oldImage('manual', [appTag('f'), 'miy-app:keep-for-investigation']),
     oldImage('foreign', ['another-project:old']),
     oldImage('unlabeled', [appTag('1')], { Config: {} }),
     oldImage('recent', [appTag('2')], { Created: new Date().toISOString() }),
@@ -337,10 +522,7 @@ test('cleanup stops if a candidate gains a reference or tag after inspection', (
             if (count++ > 0) {
               if (change === 'container')
                 state.containers.push({ Image: 'retired' });
-              else
-                state.images[3].RepoTags.push(
-                  'miy-app:prod-previous',
-                );
+              else state.images[3].RepoTags.push('miy-app:prod-previous');
             }
             return state;
           },
@@ -362,10 +544,7 @@ test('production dependency layers exclude revision churn, uv cache and local te
     'utf8',
   );
   const [buildStages, runtime] = dockerfile.split('AS runtime');
-  assert.match(
-    runtime,
-    /COPY --chown=miy:miy config config/,
-  );
+  assert.match(runtime, /COPY --chown=miy:miy config config/);
   assert.ok(!ignore.split('\n').includes('config'));
   assert.equal(
     (buildStages.match(/uv sync --no-cache --frozen/g) ?? []).length,
@@ -400,12 +579,10 @@ test('production dependency layers exclude revision churn, uv cache and local te
     2,
   );
   assert.ok(
-    runtime.indexOf('ARG MIY_BUILD_REVISION') >
-      runtime.lastIndexOf('COPY '),
+    runtime.indexOf('ARG MIY_BUILD_REVISION') > runtime.lastIndexOf('COPY '),
   );
   assert.ok(
-    runtime.indexOf('ARG MIY_BUILD_REVISION') >
-      runtime.lastIndexOf('RUN '),
+    runtime.indexOf('ARG MIY_BUILD_REVISION') > runtime.lastIndexOf('RUN '),
   );
   assert.match(
     runtime,
@@ -464,8 +641,7 @@ function validEnv(overrides = {}) {
       MIY_API_ENVIRONMENT: 'production',
       MIY_API_OBJECT_STORAGE_REQUIRED: 'true',
       MIY_API_SEED_DEV_LOGIN_ACCOUNT: 'false',
-      MIY_CONTENT_GRANT_SIGNING_KEY:
-        'production-test-content-signing-key',
+      MIY_CONTENT_GRANT_SIGNING_KEY: 'production-test-content-signing-key',
       MIY_APP_BIND_HOST: '127.0.0.1',
       MIY_APP_FORWARDED_ALLOW_IPS: '127.0.0.1',
       MIY_APP_PORT: '8000',
@@ -479,12 +655,10 @@ function validEnv(overrides = {}) {
       MIY_HERMES_ENABLED: 'true',
       MIY_HERMES_MANAGEMENT_BASE_URL: 'http://127.0.0.1:9119',
       MIY_HERMES_MANAGEMENT_PORT: '9119',
-      MIY_HERMES_MANAGEMENT_TOKEN:
-        'production-hermes-management-secret-0001',
+      MIY_HERMES_MANAGEMENT_TOKEN: 'production-hermes-management-secret-0001',
       MIY_HERMES_MCP_SERVER_URL:
         'http://127.0.0.1:8000/api/v1/internal/hermes/mcp',
-      MIY_HERMES_MCP_SHARED_SECRET:
-        'production-hermes-mcp-secret-0000000001',
+      MIY_HERMES_MCP_SHARED_SECRET: 'production-hermes-mcp-secret-0000000001',
       MIY_HERMES_PROFILE_CLONE_SOURCE: 'default',
       MIY_HERMES_RUNTIME_BASE_URL: 'http://127.0.0.1:8642',
       MIY_HERMES_RUNTIME_PORT: '8642',
@@ -509,10 +683,7 @@ test('parses dotenv assignments without evaluating shell syntax', () => {
     ignored shell text
   `);
   assert.equal(values.get('MIY_ENV_PROFILE'), 'prod');
-  assert.equal(
-    values.get('MIY_APP_PUBLIC_URL'),
-    'https://prod.example.com',
-  );
+  assert.equal(values.get('MIY_APP_PUBLIC_URL'), 'https://prod.example.com');
   assert.equal(values.has('ignored shell text'), false);
 });
 
@@ -541,10 +712,7 @@ test('requires an exact private or loopback Bento IPv4 bind address', () => {
     'proxy.internal',
   ]) {
     assert.throws(
-      () =>
-        assertProductionAppEnv(
-          validEnv({ MIY_BENTO_BIND_HOST: value }),
-        ),
+      () => assertProductionAppEnv(validEnv({ MIY_BENTO_BIND_HOST: value })),
       /exact private or loopback IPv4 address/,
     );
   }
@@ -561,9 +729,7 @@ test('requires an exact private or loopback Bento IPv4 bind address', () => {
 test('rejects development access and port collisions', () => {
   assert.throws(
     () =>
-      assertProductionAppEnv(
-        validEnv({ MIY_API_ALLOW_DEV_ADMIN_LOGIN: '1' }),
-      ),
+      assertProductionAppEnv(validEnv({ MIY_API_ALLOW_DEV_ADMIN_LOGIN: '1' })),
     /ALLOW_DEV_ADMIN_LOGIN/,
   );
   assert.throws(
@@ -598,9 +764,7 @@ test('requires a separate credential-free HTTPS Bento origin', () => {
     'https://prod.example.com',
   ]) {
     assert.throws(() =>
-      assertProductionAppEnv(
-        validEnv({ MIY_BENTO_SERVER_URL: value }),
-      ),
+      assertProductionAppEnv(validEnv({ MIY_BENTO_SERVER_URL: value })),
     );
   }
 });
@@ -624,9 +788,7 @@ test('rejects unsafe production secrets and proxy trust', () => {
   }
   assert.throws(
     () =>
-      assertProductionAppEnv(
-        validEnv({ MIY_APP_FORWARDED_ALLOW_IPS: '*' }),
-      ),
+      assertProductionAppEnv(validEnv({ MIY_APP_FORWARDED_ALLOW_IPS: '*' })),
     /exact proxy IP addresses/,
   );
 });
@@ -693,8 +855,7 @@ test('requires loopback Hermes endpoints on their declared ports', () => {
     () =>
       assertProductionAppEnv(
         validEnv({
-          MIY_HERMES_MCP_SERVER_URL:
-            'http://127.0.0.1:8000/api/v1/tools/mcp',
+          MIY_HERMES_MCP_SERVER_URL: 'http://127.0.0.1:8000/api/v1/tools/mcp',
         }),
       ),
     /internal Hermes MCP endpoint/,
@@ -703,8 +864,7 @@ test('requires loopback Hermes endpoints on their declared ports', () => {
     () =>
       assertProductionAppEnv(
         validEnv({
-          MIY_HERMES_TERMINAL_BROKER_BASE_URL:
-            'http://127.0.0.1:8766',
+          MIY_HERMES_TERMINAL_BROKER_BASE_URL: 'http://127.0.0.1:8766',
         }),
       ),
     /Hermes Terminal broker port/,
@@ -738,10 +898,7 @@ test('production image build embeds the validated Bento public URL', async () =>
     readFile(new URL('./prod-app.sh', import.meta.url), 'utf8'),
   ]);
   assert.match(dockerfile, /ARG MIY_BENTO_SERVER_URL/);
-  assert.match(
-    dockerfile,
-    /MIY_BENTO_SERVER_URL="\$\{MIY_BENTO_SERVER_URL\}"/,
-  );
+  assert.match(dockerfile, /MIY_BENTO_SERVER_URL="\$\{MIY_BENTO_SERVER_URL\}"/);
   assert.match(
     releaseScript,
     /--build-arg "MIY_BENTO_SERVER_URL=\$bento_server_url"/,
@@ -800,10 +957,7 @@ for (const namespace of ['prod', 'company-prod-20260908', 'p'.repeat(32)]) {
 
 test('broker Compose maps the typed namespace and production has no fallback', async () => {
   for (const [filename, expression] of [
-    [
-      'miy-dev.infra.yml',
-      '${MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE:-dev}',
-    ],
+    ['miy-dev.infra.yml', '${MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE:-dev}'],
     [
       'miy-prod.app.yml',
       '${MIY_HERMES_TERMINAL_RESOURCE_NAMESPACE:?Production Hermes resource namespace is required}',
