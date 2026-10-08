@@ -37,6 +37,16 @@ identity·로그 캡처·SQLite business table fixture를 현재 계약에 맞�
   GitLab pipeline 검사가 통과했다. 경로 검사에서 발견한 이전 조사 기록의
   구형 checkout 절대 경로는 원격 dev/prod 체크아웃 표현으로 정정해 통과했다.
   실제 조사 사실·앱 수·이름과 당시 검증 한계는 보존했다.
+- 보완064b2aeb의 자동 리뷰216/382는 구버전 Docker fallback의 익명 볼륨
+  회수를 P2로 차단했다. PG17 이하와18 이후의 실제 data-volume root에
+  각각256MiB tmpfs를 적용하고, 소유 컨테이너의 익명 볼륨을 함께 제거했다.
+  실제 로컬 PG17 alpine과 PG18 bookworm/pgvector 이미지에서 정상·시작 후
+  실패·body 예외 **6 PASS**를 확인했다. 실제 server major·tmpfs 크기와
+  Mounts의 volume0·정확한 소유 컨테이너 제거를 확인했다.18은 기존
+  bookworm 이미지로 버전 선택을 제어해 검사했으며 없는 alpine 태그의
+  실행 성공은 주장하지 않는다. image pull/alias 변경이나 공유 DB 접근은
+  없다. native 경로·기존9개 함수·제품/SQL은 그대로다. 새 필수 리뷰와 전체
+  릴리스 검증은 여전히 필요하다.
 
 각 실행의 입력 binding·초기 실패·현재 결과·소유 자원 정리는 ignored
 `.runtime/release381-native-fixture/`와 각 `release381-*-fixture` 기록이 소유한다.

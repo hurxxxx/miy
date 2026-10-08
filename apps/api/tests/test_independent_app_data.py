@@ -42,6 +42,8 @@ def isolated_data_cluster():
             "Disposable data tests need same-major native server or local Docker image; no pull"
         )
     name = "miy-app-data-test-" + uuid4().hex
+    # Official images moved their VOLUME root in PostgreSQL 18.
+    data_path = "/var/lib/postgresql" if major >= 18 else "/var/lib/postgresql/data"
     try:
         docker(
             "create",
@@ -56,7 +58,7 @@ def isolated_data_cluster():
             "--cpus",
             "1",
             "--tmpfs",
-            "/var/lib/postgresql:rw,size=256m",
+            data_path + ":rw,size=256m",
             "--env",
             "POSTGRES_PASSWORD=synthetic-test-only",
             image,
@@ -79,7 +81,7 @@ def isolated_data_cluster():
             pytest.fail("Disposable PostgreSQL failed to start")
         yield dsn
     finally:
-        docker("rm", "--force", name)
+        docker("rm", "--force", "--volumes", name)
 
 
 @pytest.fixture(scope="module")
