@@ -75,14 +75,14 @@ class WhiteboardSourceReaderRefused(ValueError):
         super().__init__("whiteboard_source_reader_refused")
 
 
-def _fresh(db: Session) -> None:
+def _fresh(db: Session, *, models: tuple = _MODELS) -> None:
     if getattr(db.get_bind, "__func__", None) is not Session.get_bind:
         raise WhiteboardSourceReaderRefused("standard_session_binding_required")
     try:
         engine = db.get_bind()
         if not isinstance(engine, Engine):
             raise WhiteboardSourceReaderRefused("engine_binding_required")
-        for model in _MODELS:
+        for model in models:
             if (
                 db.get_bind(mapper=model) is not engine
                 or db.get_bind(clause=select(model.__table__)) is not engine
@@ -112,28 +112,32 @@ def _cleanup(db: Session) -> None:
                 pass
 
 
+def require_whiteboard_source_read_transaction(db: Session) -> None:
+    """Admit the existing owned read transaction; this is not a grant profile."""
+    if db.get_bind().dialect.name != "postgresql":
+        raise WhiteboardSourceReaderRefused("postgresql_required")
+    if db.connection().connection.driver_connection.autocommit is True:
+        raise WhiteboardSourceReaderRefused("read_committed_required")
+    if db.scalar(text("SHOW transaction_isolation")) != "read committed":
+        raise WhiteboardSourceReaderRefused("read_committed_required")
+    db.execute(text("SET TRANSACTION READ ONLY"))
+    db.execute(text("SET LOCAL search_path = pg_catalog, public, pg_temp"))
+    db.execute(text("SET LOCAL lock_timeout = '5s'"))
+    db.execute(text("SET LOCAL statement_timeout = '15s'"))
+    current, session = db.execute(text("SELECT CURRENT_USER, SESSION_USER")).one()
+    if current != session:
+        raise WhiteboardSourceReaderRefused("direct_login_required")
+    # Catalog-only reuse, preserving the accepted ACL reader's limitation.
+    _role(db, session, login=True)
+
+
 def require_prepared_whiteboard_edit_access(
     create_session: Callable[[], Session], *, item_id: str, user: User
 ) -> None:
     db = create_session()
     _fresh(db)  # Rejected caller work never becomes this reader's owned Session.
     try:
-        if db.get_bind().dialect.name != "postgresql":
-            raise WhiteboardSourceReaderRefused("postgresql_required")
-        if db.connection().connection.driver_connection.autocommit is True:
-            raise WhiteboardSourceReaderRefused("read_committed_required")
-        if db.scalar(text("SHOW transaction_isolation")) != "read committed":
-            raise WhiteboardSourceReaderRefused("read_committed_required")
-        db.execute(text("SET TRANSACTION READ ONLY"))
-        db.execute(text("SET LOCAL search_path = pg_catalog, public, pg_temp"))
-        db.execute(text("SET LOCAL lock_timeout = '5s'"))
-        db.execute(text("SET LOCAL statement_timeout = '15s'"))
-        current, session = db.execute(text("SELECT CURRENT_USER, SESSION_USER")).one()
-        if current != session:
-            raise WhiteboardSourceReaderRefused("direct_login_required")
-        # Catalog-only reuse; this does not install a principal or attest all
-        # Source grants. The separate role contracts retain that responsibility.
-        _role(db, session, login=True)
+        require_whiteboard_source_read_transaction(db)
         ensure_whiteboard_app_access(db, user)
         context = load_whiteboard_for_acl_or_404(db, item_id=item_id, current_user=user)
         if not context.access.can_edit:

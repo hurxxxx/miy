@@ -498,3 +498,17 @@ Source ACL source `a6705f0f010ff6c57d03548ba1c7ebdc317b4f2f`는 필수232/400 co
 후속 full233/401은 source `4764fc2c`, target `9e9280df`, 같은 tree에서 저장 공간 선행조건으로 FAILED/script_failure(22.998495초), 제품 테스트0이다. main/prod는 기존 revision이고 새 운영 배포는 없다. 필수 기준을 낮추거나 반복 수동 retry를 하지 않으며 지속 headroom 뒤 최신 head의 정상 full 검증을 진행한다.
 
 다음 게시 단위는 Workbench의 최소 native executor source6와 설치 entrypoint1·계획 추적6이다. 원 Task의 실제 native 흐름을 검증한 앞선 소스와 재사용 가능한 설정 정의를 구분한다. 새 source-only 정의는 별도 필수 feature 리뷰·정상 병합을 확인하며 설치·운영 설정·Workbench 별도 배포 완료로 보고하지 않는다.
+
+## 2026-10-08 19:12 — 최소 native executor 정의 정상 전달
+
+Source `44e9217b1f1404d3a8822069779bf80310532e1f`는 필수234/402 codex_review SUCCESS(64.006274초, allow_failure=false) 뒤 [GitHub PR83](https://github.com/hurxxxx/miy/pull/83)과 [내부 MR90](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/90)로 정상 병합했다. GitHub merge는 `6ee1faf4`, 내부 dev merge는 `c7520d05`이며 tree `c6856d33488ff5a067b2dd0cda70f8ac97dc363a`가 같다. 소유 feature 브랜치만 양쪽 원격·로컬에서 정리하고 persistent dev/main과 upstream 직접 push 차단을 유지했다.
+
+최소 정의와 설치 entrypoint를 source-only로 전달했다. 영구 cache/unit 설치·실제 mount/자원/native 정책·보호 설정·별도 Workbench 서비스 배포는 남아 있다. 앞선 실제 원 Task 검증이나 source parser 통과를 새 운영 적용으로 확대하지 않는다.
+
+MR81의 최신 full235/403은 source `c7520d05`, target `9e9280df`, 같은 tree에서 저장 공간 선행조건으로 FAILED/script_failure(21.894737초), 제품 테스트0이다. 새 main 병합·운영 배포는 없다. 19:01의 읽기 전용 prod 검사에서는 기존 revision/image의 API·worker·Beat healthy와 schema `artifact_sequences_20261006`을 확인했다.
+
+## 2026-10-08 — 재시작 복구와 기존 room Source 초기 읽기 인수
+
+서버 재시작 뒤 Source7·보호62·dev `c7520d05`와 기존 prod `9e9280df`를 확인하고 미완료 단계만 재개했다. 기존 collab 상태를 fresh readOnly Source transaction에서 읽는 명시적 비활성 초기 로더를 인수했다. 앱·edit ACL을 읽기 전후 재조회하고 정리 뒤 동일 auth callable·actor/session 및 server assembly identity를 재검증한다. 동일 paired SELECT의 scene/snapshot/Yjs 합계8MiB를 SQL CASE로 전송 전에 제한하고 detached DTO를 재검증한다. 부분 설정·missing/stale/invalid/초과 상태는 private503/1013으로 거절하며 legacy init/repair로 우회하지 않는다. Global hub persistence와 writer/CAS·COMMIT unknown, Docs Source·최소 operational 역할·cutover는 여전히 필수 잔여다.
+
+기준 base c7520d0553fde63401ebd03822ba4ea49ff00ec8, main/prod9e9280df, GitHub main6ee1faf4의 로컬 인수 기록이다. Source7·추적6만 정상 commit/push/필수 codex_review/양쪽 PR·MR 병합 대상으로 고정한다. Feature 전달은 dev→main full 성공과 운영 반영을 대체하지 않는다. 재시작 뒤19:39 기존 API·worker·Beat healthy/schema 확인,19:40 공간14.3024GiB·14.5573% free로 두 기준 실패. 추가 삭제·기준 완화·새 main/운영/Workbench 배포는 없다.

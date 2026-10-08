@@ -56,6 +56,8 @@ def register_api_routers(
     official_auth_max_concurrent_reads: int | None = None,
     official_whiteboard_source_session_factory: Callable[[], Session] | None = None,
     official_whiteboard_source_max_concurrent_reads: int | None = None,
+    official_whiteboard_room_session_factory: Callable[[], Session] | None = None,
+    official_whiteboard_room_max_concurrent_reads: int | None = None,
 ) -> None:
     composition = require_composition(composition)
     prepared = (
@@ -78,6 +80,37 @@ def register_api_routers(
     ):
         raise ValueError(
             "Prepared Whiteboard Source access requires prepared auth, factory and read budget"
+        )
+    prepared_room = (
+        official_whiteboard_room_session_factory is not None
+        or official_whiteboard_room_max_concurrent_reads is not None
+    )
+    if prepared_room and (
+        not prepared_source
+        or official_whiteboard_room_session_factory is None
+        or official_whiteboard_room_max_concurrent_reads is None
+    ):
+        raise ValueError("Prepared Whiteboard room reads require prepared auth and Source access")
+    if prepared_room and (
+        not all(
+            callable(factory)
+            for factory in (
+                official_auth_session_factory,
+                official_whiteboard_source_session_factory,
+                official_whiteboard_room_session_factory,
+            )
+        )
+        or any(
+            type(budget) is not int or budget < 1
+            for budget in (
+                official_auth_max_concurrent_reads,
+                official_whiteboard_source_max_concurrent_reads,
+                official_whiteboard_room_max_concurrent_reads,
+            )
+        )
+    ):
+        raise ValueError(
+            "Prepared Whiteboard room assembly requires factories and positive budgets"
         )
     if composition == "official":
         from miy_api.official_auth import owned_app_scope, require_official_auth_context
@@ -103,6 +136,17 @@ def register_api_routers(
                 session_factory=official_whiteboard_source_session_factory,
                 max_concurrent_reads=official_whiteboard_source_max_concurrent_reads,
             )
+        if prepared_room:
+            from miy_api.domains.whiteboard.collab_source_room import (
+                build_prepared_whiteboard_room_loader,
+            )
+
+            app.state.prepared_whiteboard_room_loader = build_prepared_whiteboard_room_loader(
+                session_factory=official_whiteboard_room_session_factory,
+                max_concurrent_reads=official_whiteboard_room_max_concurrent_reads,
+            )
+            # Records server assembly only; never user authority or activation.
+            app.state.prepared_whiteboard_room_configured = True
     for spec in router_specs(composition):
         protected_dependencies = [Depends(require_current_user)]
         if composition == "official":
