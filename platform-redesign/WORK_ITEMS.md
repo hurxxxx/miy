@@ -90,6 +90,18 @@
 
 ### 현재 하위 구현 근거와 다음 연결
 
+2026-10-08 PR70 병합 뒤 사용자의 다음 구현 지시로 세 경계를 진행한다.
+`OFF-002B`의 인증 전용 최소 열·현재 정책 reader와 Files private root 폴더/
+평면 자식 1~16개 변경, `WB-001/002`의 개인 앱 Task 시작 전 연결·설정 확인이다.
+각 경로를 분리해 멀티에이전트로 구현·리뷰하고 실제 제한 계정과
+지연·회수·취소 경계를 검증했다. 세 하위 범위의 독립 차단 결함은0이다.
+공식 조회52·기존 영향69, 폴더 pure21/actual26, Workbench Python98/UI183을
+각 범위로 구분하며 [검증 기록](VALIDATION.md)에 초기 실패와 입력 시점을 남긴다.
+현재는 로컬 미커밋·비활성 범위이며
+전체 reader HTTP 전환, tree publication/hold, native sandbox·전체 자연어
+개발/배포 완료로 표시하지 않는다. 새 operational grant/서비스/게시 변경은
+하지 않았다. 이 결과는 아래 역사적 인수 수에 합산하지 않는다.
+
 2026-10-07 23:46 UTC에 현재 재설계 checkpoint를 GitHub PR69로 병합하고
 이번 작업 브랜치를 원격·로컬 모두 삭제했다. dev/main은 유지했다.
 [게시 기록](PUBLICATION_CHECKPOINT.md)과 [고정 Source aggregate slice](FILES_SOURCE_AGGREGATE.md)가
