@@ -8,7 +8,11 @@ import {
 import { beforeEach, expect, it, vi } from 'vitest';
 import { api } from './api';
 import { translate } from './i18n';
-import { AppInstallations, WorkbenchApps } from './workbench';
+import {
+  AppInstallations,
+  WorkbenchApps,
+  type StartWorkbenchTask,
+} from './workbench';
 
 vi.mock('./api', async (original) => ({
   ...(await original<typeof import('./api')>()),
@@ -69,6 +73,75 @@ beforeEach(() => {
     if (path === '/workbench/runtime')
       return { state: 'unconfigured', items: [], stale: true } as never;
     throw new Error('Unexpected API request');
+  });
+});
+
+it('checks the selected independent project connection before creating its development task', async () => {
+  let resolve!: (value: unknown) => void;
+  const checked = new Promise((done) => {
+    resolve = done;
+  });
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === '/workbench/catalog')
+      return {
+        items: [
+          {
+            ...apps[0],
+            discovery: 'source',
+            source_status: 'ready',
+            execution_status: 'configured',
+            source_version: 1,
+          },
+        ],
+        projects: [
+          {
+            id: 'project-check',
+            app_id: apps[0].app_id,
+            title: 'Independent project',
+            summary: 'Develop this app',
+            reuse_decision: 'new',
+            reuse_notes: 'Need this app',
+            created_at: '2026-10-08T00:00:00Z',
+          },
+        ],
+        source_revision: null,
+        source_dirty: false,
+        checked_at: '2026-10-08T00:00:00Z',
+      } as never;
+    if (path === '/workbench/runtime')
+      return { state: 'unconfigured', items: [], stale: true } as never;
+    if (path === '/workbench/projects/project-check/execution-readiness')
+      return checked as never;
+    throw new Error('Unexpected API request');
+  });
+  const startTask = vi.fn<StartWorkbenchTask>().mockResolvedValue(undefined);
+  render(
+    <WorkbenchApps
+      area="studio"
+      t={translate('en-US')}
+      tasks={[]}
+      openTask={vi.fn()}
+      newTask={vi.fn()}
+      startTask={startTask}
+    />,
+  );
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Continue development' }),
+  );
+  expect(startTask).not.toHaveBeenCalled();
+  resolve({
+    project_id: 'project-check',
+    app_id: apps[0].app_id,
+    source_version: 1,
+    state: 'reachable',
+    failure_code: null,
+    checked_at: '2026-10-08T00:00:00Z',
+  });
+  await waitFor(() => expect(startTask).toHaveBeenCalledTimes(1));
+  expect(startTask.mock.calls[0][0]).toMatchObject({
+    purpose: 'development',
+    project_id: 'project-check',
+    app_id: apps[0].app_id,
   });
 });
 

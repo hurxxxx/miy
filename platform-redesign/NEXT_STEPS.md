@@ -1,8 +1,8 @@
 # 후속 구조작업
 
 2026-10-08 UTC. 사용자 요청에 따라 Source 명령 후속 게시 이후의 필수 작업을
-식별했다. 이번 작업은 커밋·push·GitHub PR·병합과 후속 식별까지이며 아래
-새 구현·서비스 변경에는 착수하지 않았다. 게시 추적은
+식별했고, PR70 병합 후 사용자 지시로 다음 구현을 재개했다. 현재는 아래
+세 경계의 로컬 구현·검증·독립 리뷰를 마쳤으며 서비스·공유 환경 변경은 하지 않았다. 게시 추적은
 [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md), 작업 상태는
 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다. 이 문서는 우선순위·의존성과
 다음 착수 단위를 소유하며 별도 작업 대장을 만들지 않는다.
@@ -40,18 +40,38 @@ P2는 선행 경계 인수 후의 서비스 전환·최종 통합이다. 서로 
 
 ## 다음 착수 묶음
 
+이번에 인수한 구현 묶음은 다음과 같이 제한한다. 이 묶음의 통과를 위 전체 단위의
+완료로 확대하지 않는다.
+
+- **공식 인증:** 기존 앱 세션·승인 binding·현재 입장 판단을 재사용하는
+  인증 전용 최소 열 reader를 준비했다. 독립된 fresh read-only Session과 실제
+  제한 PostgreSQL 계정으로 검증했다. 다음은 제한 auth factory의 HTTP/WS 적용과
+  나머지 공통 권한 소비 연결이며 기본 HTTP 인증과 서비스는 아직 전환하지 않았다.
+- **Files:** private native root 폴더와 평면 자식 File 1~16개의 변경을
+  128KiB 이내 spec, 정렬 잠금, genuine event와 caller COMMIT으로 구현·검증했다.
+  기존 ingress의 삭제된 부모 확인과 publication hold·seal은 계속 필수 잔여다.
+- **Workbench:** 선택한 개인 앱의 Task 시작 전에 현재 소스·설정과 pinned
+  native endpoint의 연결·버전을 읽기 전용으로 확인하도록 구현·검증했다.
+  지연 응답·소스 변경·로그아웃 뒤 Task 생성 차단을 확인했다. 이 확인은 sandbox·계정·실제 turn 검증을
+  대신하지 않으며 native 격리 환경과 전체 개발·배포 흐름은 계속 남는다.
+
+구체적 계획·진행·실행 결과는 WORK_ITEMS.md·PROGRESS.md·VALIDATION.md와
+각 runtime owner에 기록한다. 이번 구현에는 새 게시·배포 권한이 포함되지 않는다.
+
 멀티에이전트는 다음 세 경로를 분리해서 담당할 수 있다. 공유 권한·잠금·
 publication 계약은 한 소유자가 정리하고 Root가 통합한다.
 
-1. **공식 Source:** private 폴더/작은 tree의 before-state·tip·정렬 잠금·
-   유한 작업부터 설계한다. publication header/hold/원자 apply의 최소 SQL
-   계약을 확정한 후 구현하며 기존 upload route를 즉시 전환하지 않는다.
+1. **공식 Source:** 인수한 유한 leaf/flat 폴더를 바탕으로 publication
+   header/hold/원자 apply와 모든 변경 ingress의 parent-live·hold 준수를
+   조립한다. 전체 tree 한도와 회사/managed 정책을 별도로 인수하며 기존
+   upload route를 즉시 전환하지 않는다.
 2. **Workbench·개인 앱:** 검토된 격리 환경의 실제 native 사전 검사와 UI
    시험 앱 한 개의 등록→native 수정→미리보기 전체 흐름부터 연결한다.
    호스트 정책·서비스 변경이 필요하면 구체적인 대상·결과를 준비하고
    제품 구현과 운영 변경 승인을 구분한다. 같은 경로를 DB 시험 앱에 적용한다.
-3. **공통 플랫폼·공식 서비스:** 현재 권한 읽기/위임의 첫 작은 경계를
-   선정하고 WS·source-access/content·AI/audit·비-launcher 서비스를 연결한다.
+3. **공통 플랫폼·공식 서비스:** 준비된 auth-only reader를 실제 제한
+   인증 factory의 HTTP/WS에 적용하고 source-access/content·AI/audit·
+   비-launcher 서비스의 현재 권한 경계를 연결한다.
    이 경계가 준비된 뒤 matched artifact와 실제 worker/Beat 전환을 진행한다.
 
 각 흐름에 자연어 대표 사례를 붙여 비개발자가 대략적인 지시만 해도 현재

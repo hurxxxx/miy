@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import secrets
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import timedelta
 from uuid import uuid4
@@ -481,8 +482,16 @@ class VerifiedAppSession:
     permissions: list[str]
 
 
+SourceUserLoader = Callable[[Session, str], tuple[User, AuthSession]]
+
+
 def verified_app_session(
-    db: Session, *, token_hash: str, installation_id: str, audience: str
+    db: Session,
+    *,
+    token_hash: str,
+    installation_id: str,
+    audience: str,
+    source_user_loader: SourceUserLoader | None = None,
 ) -> VerifiedAppSession:
     """Internal lookup: hash a bearer or verify a purpose-bound proof first.
 
@@ -501,16 +510,30 @@ def verified_app_session(
         or session.expires_at <= utcnow_naive()
     ):
         fail("session_invalid", 401)
-    user, source = _source_user(db, session.source_session_id)
+    # Only trusted server composition selects this reader; no request field or
+    # manifest can supply it. A failed reader never falls back to a broader one.
+    loader = _source_user if source_user_loader is None else source_user_loader
+    user, source = loader(db, session.source_session_id)
     if not admitted(db, installation, user):
         fail("session_invalid", 401)
     permissions = sorted(set(session.permissions) & set(installation.granted_permissions))
     return VerifiedAppSession(session, installation, user, source, permissions)
 
 
-def app_identity(db: Session, *, token: str, installation_id: str, audience: str) -> AppIdentityOut:
+def app_identity(
+    db: Session,
+    *,
+    token: str,
+    installation_id: str,
+    audience: str,
+    source_user_loader: SourceUserLoader | None = None,
+) -> AppIdentityOut:
     current = verified_app_session(
-        db, token_hash=hash_token(token), installation_id=installation_id, audience=audience
+        db,
+        token_hash=hash_token(token),
+        installation_id=installation_id,
+        audience=audience,
+        source_user_loader=source_user_loader,
     )
     session, installation, user, permissions = (
         current.session,

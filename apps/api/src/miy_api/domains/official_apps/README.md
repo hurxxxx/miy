@@ -2,6 +2,10 @@
 
 This core-owned contract connects a previously authenticated independent-app session to the existing `AuthContext` for official HTTP routes. It reuses the original user graph, current system roles, company/app admission and source resource ACL functions. It does not accept an app session as a platform login bearer, create a new login protocol, or activate the official service.
 
+[AUTHORITY_READER.md](AUTHORITY_READER.md) owns the separately prepared, inactive
+auth-only minimum-column lookup. Its typed source-user seam preserves the default
+full-graph path; it does not switch HTTP authentication or prepare operational grants.
+
 ## Approval and current authority
 
 `approve_binding` is an internal core operation. There is no app-facing endpoint, manifest permission or self-approval route. Official binding approval, revocation and delegated resolution require a real READ COMMITTED transaction. REPEATABLE READ/SERIALIZABLE snapshots and DBAPI AUTOCOMMIT are refused: refreshing an ORM object cannot refresh an old database snapshot, and autocommit cannot hold approval locks and audit writes together. These operations never upgrade isolation or commit implicitly. The common platform login/authentication policy is unchanged. The caller must hold a current, non-impersonated platform administrator session; authority is checked again after acquiring the installation lock so revocation during a lock wait denies the approval. Approval requires an enabled, ready installation with a runtime reference and an exactly reviewed generation, verified release and artifact. The release snapshot must have official ownership. The binding also records the verification ID, environment, origin, explicit logical app IDs and approving actor/session; approval and the existing platform audit record commit together.

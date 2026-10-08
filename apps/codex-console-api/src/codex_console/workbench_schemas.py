@@ -45,6 +45,17 @@ class SourceBindingInput(Input):
     version: int = Field(default=0, ge=0)
 
 
+class ProjectExecutionReadinessOut(BaseModel):
+    """Connection metadata at checked_at; not sandbox or Task authorization."""
+
+    project_id: str
+    app_id: str | None
+    source_version: int | None = Field(ge=1)
+    state: Literal["reachable", "unconfigured", "unavailable", "changed", "unsupported", "denied"]
+    failure_code: str | None = Field(max_length=80)
+    checked_at: datetime
+
+
 class SourceCreationRoot(BaseModel):
     id: str
     label: str

@@ -10,6 +10,7 @@ import { useServices } from './management';
 import { SourcePrepare } from './source-prepare';
 import { SourceRegistrationExport } from './source-registration-export';
 import { SourceRegistrationStatus } from './source-registration-status';
+import { ProjectTaskActions } from './project-task-actions';
 
 type S = components['schemas'];
 type App = S['AppDescriptor'];
@@ -515,49 +516,32 @@ export function WorkbenchApps({
                             {t('Prepare app source')}
                           </Button>
                         )}
-                        <Button
-                          disabled={busy || needsExecutor}
-                          onClick={() =>
-                            void run(() =>
+                        <ProjectTaskActions
+                          project={project}
+                          source={projectApp}
+                          busy={busy}
+                          scope={selected ?? ''}
+                          registrationAvailable={
+                            data.registration_authorization_available
+                          }
+                          t={t}
+                          onStart={(purpose) =>
+                            run(() =>
                               startTask(
                                 {
                                   area: 'studio',
-                                  purpose: 'development',
+                                  purpose,
                                   project_id: project.id,
                                   app_id: project.app_id,
                                 },
                                 project.title,
-                                `${project.summary}\nReview existing work and propose the next development step using this task's source binding. If no isolated app source is connected, plan the setup before implementation.`,
+                                purpose === 'registration'
+                                  ? "Inspect this registration Task's committed app source. Explain the personal, inactive development registration and plan the next step. Use miy_app_registration context; registration requires the owner's MIY authorization and explicit implementation approval. Never treat a receipt as execution readiness or deployment."
+                                  : `${project.summary}\nReview existing work and propose the next development step using this task's source binding. If no isolated app source is connected, plan the setup before implementation.`,
                               ),
                             )
                           }
-                        >
-                          {t('Continue development')}
-                        </Button>
-                        {data.registration_authorization_available &&
-                          projectApp?.discovery === 'source' &&
-                          projectApp.source_status === 'ready' &&
-                          projectApp.execution_status === 'configured' && (
-                            <Button
-                              disabled={busy}
-                              onClick={() =>
-                                void run(() =>
-                                  startTask(
-                                    {
-                                      area: 'studio',
-                                      purpose: 'registration',
-                                      project_id: project.id,
-                                      app_id: project.app_id,
-                                    },
-                                    project.title,
-                                    "Inspect this registration Task's committed app source. Explain the personal, inactive development registration and plan the next step. Use miy_app_registration context; registration requires the owner's MIY authorization and explicit implementation approval. Never treat a receipt as execution readiness or deployment.",
-                                  ),
-                                )
-                              }
-                            >
-                              {t('New registration task')}
-                            </Button>
-                          )}
+                        />
                       </div>
                     </div>
                     {needsExecutor && (

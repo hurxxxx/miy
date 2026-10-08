@@ -163,8 +163,18 @@ apply이며, transport 인수를 전체 Source 업로드 이전 완료로 표시
 [SOURCE_MUTATIONS.md](../apps/api/src/miy_api/domains/files/SOURCE_MUTATIONS.md)가
 소유한다. 이것은 아래1의 전체 폴더/tree·회사 정책 또는2의 publication hold와
 seal까지 완료한 것이 아니다. 실행·입력·한계는 [VALIDATION.md](VALIDATION.md)에
-기록하며 후기 코드는 사용자 승인에 따른 별도 Source 후속 PR의 게시 대상이다.
+기록하며 이 첫 명령은 Source 후속 PR70으로 게시했다.
 실제 게시 추적은 [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 소유한다.
+
+PR70 이후 후속 명령은 private native root Folder와 명시한 평면 File
+1~16개를 128KiB canonical spec으로 한 transaction에서 변경하는 범위다.
+정렬 File/stream/UUID 잠금·genuine File DELETE outbox·현재 회수·같은 ID의
+역사적 관측을 pure21/실제 Source26과 독립 리뷰로 로컬 비활성 인수했다.
+기존 Source4/authority48은 그대로이며 이 새 코드는 로컬 미커밋이다.
+FK로 보호되는 것은 transaction 안의 membership뿐이다. COMMIT 뒤 삭제된
+부모에 들어오는 기존 upload/move/child-folder 참가자의 live-parent 확인,
+모든 hold 참가자와 SQL terminal seal은 필수 잔여다. 전체 tree/회사/managed
+정책과 아래 publication을 이 인수로 완료하지 않는다.
 
 1. 고정 Source aggregate 명령을 먼저 조립한다. fresh Engine-backed Source
    stage와 canonical namespace, 실제 actor/session/app·각 작업의 현재 정책,

@@ -334,6 +334,26 @@ MIY 승인으로 기존 receipt를 조회한다. receipt의 operation·app·정�
 
 #### 독립 앱의 native 원격 실행
 
+Studio의 독립 앱 프로젝트는 **계속 개발** 또는 **새 등록 작업** 전에 실행 환경의
+연결 메타데이터를 확인한다. **실행 환경 연결 확인**으로 작업을 만들지 않고 같은
+조회만 할 수도 있다. 소스가 연결되기 전의 계획 작업과 공식 checkout 작업은 기존
+흐름을 유지한다.
+
+`GET /api/workbench/projects/{project_id}/execution-readiness`는 현재 프로젝트의
+소스·매니페스트·binding version·HEAD와 운영자가 구성한 환경을 확인하고 아래의
+기존10초/64KiB `initialize` 검사로 정확한 버전·cwd를 조회한다. 조회 후 소스나 환경이
+달라졌으면 `changed`로 처리한다. SQLite 기록, native thread·turn, 파일·명령 실행이나
+설정 변경은 하지 않고 endpoint·capability·원격 오류 원문을 응답하지 않는다.
+화면은 프로젝트·소스 버전·선택이 바뀌거나 로그아웃하면 진행 중인 조회를 폐기하고,
+동일한 조회 중 중복 클릭으로 Task를 만들지 않는다. 작업을 시작할 때마다 새로 확인한다.
+
+카탈로그의 `execution_status=configured`는 설정 연결 여부이고, 이 조회의
+`state=reachable`은 표시된 확인 시각의 연결·버전·cwd 관측이다. 현재 Task 생성·실행
+권한, 구독 인증이나 격리 정책 전체의 준비를 증명하지 않는다. 조회 결과는 Task 실행
+허가가 아니며 서버는 실제 작업 시 기존 현재 소스·환경·인증·정책 검사를 유지한다.
+관측 이후의 연결 교체나 권한 회수에도 호스트로 대체 실행하지 않는다. 아래의 운영
+환경 준비·sandbox 검증 조건은 별도로 완료해야 한다.
+
 독립 앱의 수정 작업은 앱별 checkout만 보이는 공식 Codex `exec-server`에 전달한다. 소유자의
 구독 인증·thread/turn/하위 agent 수명은 host `app-server`가 계속 관리한다. 앱 Task마다 별도
 native 연결을 사용하며 코어 Task의 host 실행과 분리한다. 환경 연결이 없거나 달라지면 실행을
