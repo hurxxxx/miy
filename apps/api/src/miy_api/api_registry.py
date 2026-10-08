@@ -54,6 +54,8 @@ def register_api_routers(
     composition: ApiComposition = "legacy",
     official_auth_session_factory: Callable[[], Session] | None = None,
     official_auth_max_concurrent_reads: int | None = None,
+    official_whiteboard_source_session_factory: Callable[[], Session] | None = None,
+    official_whiteboard_source_max_concurrent_reads: int | None = None,
 ) -> None:
     composition = require_composition(composition)
     prepared = (
@@ -65,6 +67,18 @@ def register_api_routers(
         or official_auth_max_concurrent_reads is None
     ):
         raise ValueError("Prepared auth requires official composition, factory and read budget")
+    prepared_source = (
+        official_whiteboard_source_session_factory is not None
+        or official_whiteboard_source_max_concurrent_reads is not None
+    )
+    if prepared_source and (
+        not prepared
+        or official_whiteboard_source_session_factory is None
+        or official_whiteboard_source_max_concurrent_reads is None
+    ):
+        raise ValueError(
+            "Prepared Whiteboard Source access requires prepared auth, factory and read budget"
+        )
     if composition == "official":
         from miy_api.official_auth import owned_app_scope, require_official_auth_context
 
@@ -80,6 +94,15 @@ def register_api_routers(
         else:
             dependency = require_official_auth_context
         app.dependency_overrides[require_auth_context] = dependency
+        if prepared_source:
+            from miy_api.domains.whiteboard.collab_source_access import (
+                build_prepared_whiteboard_source_access,
+            )
+
+            app.state.prepared_whiteboard_source_access = build_prepared_whiteboard_source_access(
+                session_factory=official_whiteboard_source_session_factory,
+                max_concurrent_reads=official_whiteboard_source_max_concurrent_reads,
+            )
     for spec in router_specs(composition):
         protected_dependencies = [Depends(require_current_user)]
         if composition == "official":

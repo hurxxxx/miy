@@ -77,6 +77,53 @@ legacy fixture, not an operational minimal Source role. Its room/bus are synthet
 and invoke the unchanged Yjs transport callbacks; no live relay, codec, room
 persistence, service deployment or operational authority is accepted by that proof.
 
+## Explicit inactive Whiteboard ACL reads
+
+An official assembly that already supplies prepared auth can also explicitly
+supply `official_whiteboard_source_session_factory` and
+`official_whiteboard_source_max_concurrent_reads`. Both are required together.
+The captured callback has a separate positive Source read budget. HTTP auth and
+Source reads reuse the public domain `owned_read.run_owned_read` structured worker;
+the auth limiter and its existing cancellation and failure behavior remain unchanged.
+Default assembly supplies neither Source option and retains its original callback.
+
+The Source callback refuses borrowed, cached, pending, connection-bound or routed
+Sessions before SQL or cleanup ownership. A factory must use standard public
+`Session.get_bind`, one Engine for the fixed current ACL model set, PostgreSQL
+READ COMMITTED and non-autocommit. Owned reads use a read-only transaction,
+canonical local search path and the existing five/fifteen-second SQL limits.
+Owned rollback/close attempts finish before the callback returns; a failure
+attempts invalidation and cannot replace the original policy or cancellation outcome.
+SQL/control failures return the same private localized503, without a default
+Source factory fallback. Policy403/404 and cancellation retain their types.
+
+`collab_source_access.CORE_POLICY_READ_COLUMNS` records eight existing Core policy
+tables and twenty safe columns, a subset of the existing Source policy contract.
+Current app, user, admin, local/HR group and registered target predicates are
+reused. The ACL-only board loader selects five fields with deferred-column and
+relationship raise guards; it does not load the scene, title, owner or share-user
+graphs. Existing PMS/Meeting target adapters still load their original Source
+models. No predicate is replaced by a detached auth context.
+
+The callback reuses the existing private `writer_roles._role` catalog check for
+direct nonprivileged LOGIN attributes, membership, ownership and parameter grants.
+This reuse is not a full privilege-manifest attestation or a new role preparation
+API; the helper's existing namespace-prefix checking limits remain. Focused tests
+use a disposable ACL-read login with column-only Core/board reads and SELECT on
+nine existing Source target/share tables. They do not establish an operational
+minimal Source or hub role, and product code creates no roles or grants.
+
+After Source read cleanup, the route calls the same prepared auth dependency
+again and requires the original actor and source-session identity before continuing.
+Current source-session or app denial across a Source wait therefore refuses the
+frame. This is a current admission check, not an atomic freeze of ACL until a
+later write. Original room initialization, scene/Yjs state, hub persistence and
+their global business Source factory are unchanged. Those lifecycle operations,
+the full Source privilege profile and operational activation remain cutover work.
+`tests/test_prepared_whiteboard_source_access.py` owns the bounded ACL-role,
+namespace, ownership, wait/revocation and cancellation checks. Its room/bus and
+initialization factory remain isolated synthetic business fixtures.
+
 ## Ownership and current authority
 
 The caller supplies a factory for a fresh **auth-only** SQLAlchemy Session,
