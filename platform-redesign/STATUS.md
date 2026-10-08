@@ -4,15 +4,16 @@
 
 ## 현재 위치
 
-- 최신 게시: [GitHub PR69](https://github.com/hurxxxx/miy/pull/69)를 main에
-  병합했고 이번 작업 브랜치를 원격·로컬 모두 삭제했다. 로컬 dev도 병합
-  이력을 통합했다. 정확 commit·검증·삭제 범위는
+- 최신 게시·병합 추적: [GitHub PR70](https://github.com/hurxxxx/miy/pull/70)의
+  Source 명령·관측과 공유 연결 검증 보완이다. 실제 merge 상태·시각·SHA는
+  GitHub PR 기록이 원본이다. 초기 PR69의 main 병합·원격/로컬 작업 브랜치
+  삭제와 dev 통합을 마쳤다. 이번 PR의 정확 commit·검증·정리 범위는
   [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 소유한다.
   병합 뒤 [고정 Source aggregate slice](FILES_SOURCE_AGGREGATE.md)의 private
   native root File soft-delete·동일 ID 관측과 필수 공유 연결 검증 보완을
   로컬 비활성 범위로 인수했다. 작성자41·실제 제한 PostgreSQL 고유30·기존
   Source 영향81개를 구분하고 독립 리뷰의 차단 결함0을 확인했다. 이 후속
-  코드는 이번 별도 Source 후속 PR 게시 대상이며 서비스는 변경하지 않았다. 전체 tree와
+  코드는 PR70으로 게시했으며 서비스는 변경하지 않았다. 전체 tree와
   publication hold/원자 apply는 계속 필수 구조 작업이다.
   최신 사용자 지시는 이 후속 변경의 커밋·push·GitHub PR·병합과 후속작업
   식별이다. 후속 우선순위는 [NEXT_STEPS.md](NEXT_STEPS.md)에 기록한다.

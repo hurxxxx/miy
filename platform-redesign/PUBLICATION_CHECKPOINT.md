@@ -52,7 +52,7 @@ task-owned launcher에서 공개 package-manager config를 바로잡은 최종 �
 문서의 해당 링크는 로컬 증거 위치이며 GitHub에서 내려받는 파일이 아니다.
 이 체크포인트는 민감한 로그·원문·설정 값을 게시하지 않고 검증 범위만 기록한다.
 
-## 게시 결과
+## 초기 게시 결과 — PR69
 
 - [PR69](https://github.com/hurxxxx/miy/pull/69): 2026-10-07 23:46:53 UTC 병합.
 - GitHub main merge: `26ca57677d9440d74362403c3fa1499bada4a632`.
@@ -86,10 +86,22 @@ artifact 조립·구형 writer drain·실제 queue/Beat·독립 Workbench 릴리
 
 ## Source 명령 후속 게시
 
+게시·병합 추적은 [GitHub PR70](https://github.com/hurxxxx/miy/pull/70)이다.
+PR의 실제 병합 여부·시각·merge SHA는 GitHub 기록이 원본이며, 로컬 결과
+영수증은 아래 ignored 경로에 남긴다. 이를 개발/운영 배포 상태로 해석하지 않는다.
+
 2026-10-08 사용자가 후속 변경의 커밋·push·GitHub PR·병합과 후속작업 식별을
 명시적으로 승인했다. 기존 private native root File의 비활성 명령·동일 event
 관측, 공유 Session routing 보완, 관련 검사·owner·진행 문서를 별도 PR로
-게시한다. 서비스 활성화나 새 후속 기능 구현은 이번 게시에 포함하지 않는다.
+게시했다. 서비스 활성화나 새 후속 기능 구현은 이번 게시에 포함하지 않는다.
+
+첫 로컬 dev commit은 `851e3b660f2bd6f6ef0f61b03ec39bd000590300`, 동일
+tree의 GitHub commit은 `1ef57d4fd4404fb60828265530960e5aa308e952`다.
+GitHub main `26ca57677d9440d74362403c3fa1499bada4a632`를 부모로 삼아
+현재 변경16개만 게시했고 내부 dev 이력은 추가하지 않았다. 이 문서·현재
+상태의 PR70 추적 링크는 뒤이은 문서 commit으로 같은 PR에 포함한다.
+작업 브랜치는 `feat/file-source-mutations-20261008`이며 dev/main과 다른
+작업은 유지한다. upstream의 push-disabled 설정도 유지한다.
 
 검증된 Source4와 실제 영향 검사 입력253개가 그대로인지 다시 확인했다.
 기존 작성자41·고유 실제30·영향81개 및 독립 리뷰의 bounded 인수 근거를
