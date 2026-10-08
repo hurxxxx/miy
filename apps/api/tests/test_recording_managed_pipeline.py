@@ -46,6 +46,10 @@ from miy_api.domains.recording.pipeline_models import RecordingStageCommand
 @pytest.fixture
 def pipeline(world, monkeypatch):  # noqa: F811
     from miy_api.domains.official_apps.recording_roles import prepare_core_principal
+    from miy_worker.settings import get_settings as get_worker_settings
+
+    monkeypatch.setenv("MIY_POSTGRES_DSN", sa_dsn(world.dsn))
+    get_worker_settings.cache_clear()
     from miy_worker.tasks import recording as task
 
     recording_id = str(uuid4())
@@ -139,9 +143,12 @@ def pipeline(world, monkeypatch):  # noqa: F811
 
     monkeypatch.setattr(task, "get_asr_backend", lambda: SimpleNamespace(transcribe=transcribe))
     monkeypatch.setattr(task, "_complete_local_agent", complete)
-    yield c
-    for engine in engines:
-        engine.dispose()
+    try:
+        yield c
+    finally:
+        for engine in engines:
+            engine.dispose()
+        get_worker_settings.cache_clear()
 
 
 def publish(c, command_id=None, *, callback=None):

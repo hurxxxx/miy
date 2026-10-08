@@ -1,11 +1,9 @@
 """Fixed leaf Source mutations on the unchanged restricted Source29 profile."""
 
 import json
-import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
-from pathlib import Path
 from threading import Event, get_ident
 from types import SimpleNamespace
 from uuid import uuid4
@@ -514,7 +512,7 @@ def test_actual_immutable_event_observation_after_later_tip_and_new_current_sess
     assert_core_and_privileges_unchanged(native)
 
 
-def test_actual_text_router_cannot_pin_other_engine_and_spoof_current_execution(native):
+def test_actual_text_router_cannot_pin_other_engine_and_spoof_current_execution(native, tmp_path):
     # Each Engine has its own pool and genuine Source29 LOGIN connection.
     alternate = reader_engine(native.world, native.roles.source)
     with native.world.connect() as conn:
@@ -580,12 +578,8 @@ def test_actual_text_router_cannot_pin_other_engine_and_spoof_current_execution(
                     is not None
                 )
             observation.update(refused=refused, **calls)
-            runtime = (
-                Path(os.environ["MIY_REVIEW_CHECKOUT_ROOT"])
-                / ".runtime/official-files-source-aggregate"
-            )
             stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
-            (runtime / ("text-router-observation-" + stamp + ".json")).write_text(
+            (tmp_path / ("text-router-observation-" + stamp + ".json")).write_text(
                 json.dumps(observation, indent=2, sort_keys=True) + "\n"
             )
             assert refused, "actual_revoked_execution_passed_via_orm_TEMP_and_second_text_engine"

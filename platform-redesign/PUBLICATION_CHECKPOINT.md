@@ -11,6 +11,44 @@ GitHub 작업 PR과 내부 dev→main release_validation을 각각 확인한다.
 DB/grant/서비스의 official cutover를 이 코드 배포로 활성화하지 않는다.
 실제 결과와 SHA는 PR/MR 기록과 후속 receipt가 원본이다.
 
+### 최신 중단 지점 인수 — 2026-10-08 UTC
+
+- `24211c5fbbda45c8ae0efd43200e96df7bc4ade5`의 필수 리뷰214/380을 통과했다.
+  [PR74](https://github.com/hurxxxx/miy/pull/74)는 `1e3a0f2e`, 내부 MR80은
+  `a91b2d38`로 일반 병합했다. 소스·두 병합의 Git tree는 동일하다.
+- 소유한 두 작업 브랜치를 원격·로컬에서 삭제했고 영구 dev/main과
+  emergency branch, Workbench 작업 경로는 보존했다. upstream 직접 push는
+  계속 비활성이다.
+- [MR81](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/81)은
+  `a91b2d38`의 dev→main 전체 검증이다.215/381이 API 단계3 FAIL/148 ERROR로
+  실패했으며 같은 실패 소스의 CI를 재시도하거나 운영에 병합하지 않았다.
+  45개의 권한 reader setup/cleanup 오류는 제한 계정의 역할 생성,
+  나머지103개 오류는 테스트 worker import다. 실패3개는 필수 writer 인자
+  누락과 기존 전역 로그 정책 아래의 합성 로그 캡처2개다.
+- 현재 별도 수정 브랜치에서 native 임시 서버·fixture·테스트 진입점을
+  보완했다. 실제 같은 메이저 CI 이미지·비특권 서버와 정리를 확인했다.
+  권한·데이터57개, 이전 실패 관련207개를 확인했고 공유 상태의16개 fixture
+  오류는 수정 후16개 통과했다. native31개 파일에서 새로 드러난4 FAIL/
+  37 ERROR는 소유 worker DB 설정과 이전 리뷰 전용 경로를 정정한 뒤
+  해당3개 파일 전체125개 통과했다. 중복 성공은 합산하지 않는다.
+  공유/운영 계정 권한과 제품 보안 계약은 유지한다. 검증 후 새
+  필수 리뷰·통합과 MR81의 최신 전체 검증을 받는다.
+- 보완064b2aeb을 [PR75](https://github.com/hurxxxx/miy/pull/75)와 내부 MR82로
+  게시했다. 자동 리뷰216/382는 구버전 Docker fallback의 익명 볼륨 정리를
+  P2로 차단했다. major별 데이터 경로에256MiB tmpfs를 적용하고 소유
+  컨테이너의 익명 볼륨을 함께 제거하도록 최소 수정했다. 실제 PG17·18의
+  정상·시작 후 실패·body 예외6개에서 메모리 크기·볼륨0·소유 자원 정리를
+  확인했다. 새 소스의 필수 리뷰를 받고 이전 실패 소스는 재시도하지 않는다.
+- 개발 실제 로그인·런처·Provider 로그아웃·공개 Vite 제공 소스2개의
+  SHA 일치를 확인했다. 기존 backend 서비스는 재시작하지 않았다.
+  운영은 이전9e9280df 이미지/스키마를 유지하며 전체 gate 통과 뒤 전환한다.
+  Workbench187개 제품 파일은 배포0c1bf0fe와 동일해 추가 배포 대상이 아니다.
+
+실행 원본은 ignored `.runtime/structural-next-delivery/`,
+`.runtime/delivery-resume-monitor/`, `.runtime/dev-platform-deployment/`와
+`.runtime/release381-{authority-fix,qdrant-fix,docs-fixture,native-fixture}/`가
+보존한다. 아래 기록은 각 실행 당시의 역사적 경과다.
+
 ### 중단 후 재개 — 2026-10-08 UTC
 
 사용자가 필수 리뷰 계정의 공식 재인증을 완료했다. MR80 pipeline207의

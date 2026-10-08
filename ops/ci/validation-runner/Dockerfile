@@ -61,6 +61,8 @@ ARG POSTGRES_CLIENT_IMAGE
 COPY --from=node_toolchain /usr/local/ /usr/local/
 COPY --from=postgres_client /opt/postgres-client/bin/ /usr/local/bin/
 COPY --from=postgres_client /opt/postgres-client/lib/ /usr/local/lib/
+COPY --from=postgres_client /usr/lib/postgresql/ /usr/lib/postgresql/
+COPY --from=postgres_client /usr/share/postgresql/ /usr/share/postgresql/
 
 ENV LD_LIBRARY_PATH=/usr/local/lib
 
@@ -73,6 +75,12 @@ RUN apt-get update \
       git \
       jq \
       libpq-dev \
+      libicu72 \
+      liblz4-1 \
+      libnuma1 \
+      liburing2 \
+      libxml2 \
+      libzstd1 \
       postgresql-client \
       tmux \
     && rm -rf /var/lib/apt/lists/* \
@@ -89,6 +97,8 @@ RUN apt-get update \
     && pg_dump --version | grep -Eq "^pg_dump \(PostgreSQL\) ${POSTGRES_MAJOR}\." \
     && pg_restore --version | grep -Eq "^pg_restore \(PostgreSQL\) ${POSTGRES_MAJOR}\." \
     && psql --version | grep -Eq "^psql \(PostgreSQL\) ${POSTGRES_MAJOR}\." \
+    && "/usr/lib/postgresql/${POSTGRES_MAJOR}/bin/initdb" --version | grep -Eq "^initdb \(PostgreSQL\) ${POSTGRES_MAJOR}\." \
+    && "/usr/lib/postgresql/${POSTGRES_MAJOR}/bin/postgres" --version | grep -Eq "^postgres \(PostgreSQL\) ${POSTGRES_MAJOR}\." \
     && mkdir -p /opt/miy/locks/api \
     && printf '%s\n' "${POSTGRES_MAJOR}" > /opt/miy/locks/api/postgres-major
 
