@@ -20,13 +20,18 @@ cutover를 활성화한 것은 아니다. 게시 추적은
 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다. 이 문서는 우선순위·의존성과
 다음 착수 단위를 소유하며 별도 작업 대장을 만들지 않는다.
 
-당장 이어갈 필수 단계는 MR81 전체 CI의 실제 실패를 닫는 것이다. 필수 리뷰와
-PR74/MR80 병합은 완료했으나 job381은 통과하지 않았다. 테스트 역할은 같은
-메이저의 자체 임시 PostgreSQL에서만 생성하고 공유 CI 계정의 NOCREATEROLE을
-유지한다. API 테스트의 worker source import와 새 writer 계약·로그 캡처 fixture를
-정정한 뒤 실제 native 검증, 새 소스의 필수 리뷰·통합, 전체 release_validation을
-거쳐 guarded 운영 prepare/deploy와 배포 후 검사를 진행한다. 앱별 기능 확장이나
-기존 비활성 공식 cutover를 이 실패 보완에 포함하지 않는다.
+당장 이어갈 필수 단계는 MR81 최신 전체 CI의 로그 캡처 실패를 닫는 것이다.
+앞선 native/fixture·Docker 정리 보완은 리뷰217/383과 PR75/MR82 병합을 마쳤다.
+통합 source `84245339`의218/386은 API 3 FAIL/5,554 PASS/3 SKIP로 실패했다.
+두 테스트 파일의 합성 capture만 현재 전역 logger 상태에 맞춰 로컬 보완했으며
+선택3개 통과·teardown 복원과 실제 CI 이미지의 전체·역순3파일 각각188개
+통과를 확인했다. 같은188개를 합산하지 않는다. 새 필수 리뷰·게시와 정확
+source/target/tree의 전체 release_validation은 대기 중이다.
+제품 로그 보안·원래 assertions와 공유 CI NOCREATEROLE은 유지한다. 통과 후
+MR81 병합·fresh backup/호환 확인·guarded 운영 prepare/deploy와 실제 반영
+검사를 진행한다. 운영은 여전히 `9e9280df`이며 이 전달을 공식 operational
+권한·서비스 전환, Workbench native turn이나 개인 앱 전체 흐름의 완료로
+확대하지 않는다. 앱별 비필수 기능과 다중 사용자 확장은 계속 보류한다.
 
 ## 현재 판단
 

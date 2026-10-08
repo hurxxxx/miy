@@ -1656,3 +1656,50 @@ interception·project config override 없이 기존 `nx run-many`를 cache 없�
 `.runtime/bento-save-queue-consumers/`가 소유하며 guarded 결과를 추가 통과 수로
 합산하지 않는다. 새 필수 리뷰·전체 release_validation·실제 배포는 별도
 완료 조건이다.
+
+## 2026-10-08 최신 전체 CI의 합성 로그 캡처 경계
+
+native/fixture와 메이저별 Docker 정리 수정은 필수 리뷰217/383을 통과했고
+PR75/MR82로 병합했다. 통합 source는 `84245339e63471d7dac96ad79a139ddcb25df7bc`다.
+MR81 pipeline218/job386은 FAILED/script_failure,1,959.693583초였다. API 단계는
+1,688.03초에 **3 FAIL/5,554 PASS/3 SKIP**다. 이 결과를 전체 릴리스 성공으로
+처리하지 않으며 앞선215/381·216/382 실패와 로컬 검증은 보존한다.
+
+실패는 `test_prepared_qdrant.py`의 private-loopback·concurrent-unrelated 두
+capture와 `test_file_publication_storage.py`의 unrelated-thread capture다.
+Alembic의 공개 `fileConfig`는 기본 `disable_existing_loggers=True`여서 이미
+생성된 HTTP logger를 비활성화한다. 기존 capture는 level·propagation만
+바꿨으므로 단독 통과와 전체 suite의 상태를 구분하지 못했다.
+
+Root가 두 테스트 파일의 합성 capture만 보완했다. 정확4 emitter를 임시
+활성화하고 caplog에 직접 연결하되 제품 ContextVar filters는 유지한다.
+원래 handler-list identity·비pytest sentinel·filters와 logger 상태를 teardown에
+복원한다. Qdrant concurrent에는 private emitter와 같은 http11의 다른 thread
+positive assertion을 추가했다. 기존 private-log 거부·unrelated visibility
+assertions와 제품·권한·AGENTS·스킬은 바꾸지 않았다.
+
+실제 초기 선택3 FAIL을 보존했고 수정 후 **선택3 PASS**와 teardown 속성을
+확인했다. 첫 probe의 추가2 teardown ERROR는 pytest가 일시 설치·제거하는
+capture handler를 원래 handler로 세던 진단 assertion 오류다. pytest 모듈의
+일시 handler만 별도 취급하고 원래 handler identity·비pytest sentinel·filters
+검사를 유지했다. 이 오류를 제품 누출이나 clean green으로 기록하지 않는다.
+같은 실제 CI 이미지 `eefe09d5`의 read-only public snapshot을 network-none으로
+실행했다. common security를 포함한3파일은 전체·역순 각각 **188 PASS/0 FAIL/
+0 ERROR/0 SKIP**였다. 같은188개를 순서만 바꿔 실행했으므로376개 고유 통과로
+합산하지 않으며 선택3개도 이 범위에 포함된다. 최종 probe SHA는
+`8eb1a44335ae139064f5cd3e7338f63dc05cebf516046c80df8b5221553a776f`다.
+ignored `.runtime/release386-logging-fixture/whole-result.json`과
+`reverse-result.json`이 각 실행의 입력·결과를 소유한다. 제품 filters와 전역
+guard는 유지하며 실제 수정은 두 테스트 파일에 한정한다.
+
+실패한386의 slow16·migration37·external15는 각각 통과했다. 이 부분 성공을
+전체 CI 성공으로 바꾸지 않는다. 새 source의 필수 리뷰·게시·MR81 전체
+release_validation·실제 운영 배포는 아직 완료되지 않았다.
+
+준비384/385의 저장소 기준 실패도 보존한다. 정확 소유 비활성 build의
+cache8개 정리 후 실제 기준15.5GiB·15.4% 통과를 확인했다. 도구가 보고한
+6.102GB를 실제 available 증가로 주장하지 않는다. 이 캐시 정리에서 image·
+container·volume·daemon은 변경하지 않았다. 운영은 기존 `9e9280df`,
+Workbench187제품은 별도 배포와
+동일하며 새로운 operational authority·native turn·개인 앱 전체 흐름이나
+네 영역 구조 인수의 증거로 확대하지 않는다.
