@@ -445,7 +445,7 @@ test('discovers an arbitrary app and authenticates its isolated iframe without p
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
     await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
+      () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
   state.revoke();
@@ -685,7 +685,7 @@ test('selected-file iframe uses mobile keyboard confirmation and reads only afte
   await expect(confirm).toBeEnabled();
   expect(
     await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
+      () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
   await confirm.focus();

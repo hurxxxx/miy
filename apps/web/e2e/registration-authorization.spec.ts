@@ -74,7 +74,7 @@ async function portal(page: Page, baseURL: string | undefined) {
   // The shared fixture seeds only its local baseURL, while this test deliberately
   // serves the portal under a separate HTTPS origin.
   await page.addInitScript((origin) => {
-    if (location.origin === origin)
+    if (window.location.origin === origin)
       localStorage.setItem('miy.auth.token', 'e2e-test-token');
   }, core);
 }

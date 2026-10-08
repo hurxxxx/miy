@@ -11,18 +11,22 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
 ## 현재 위치
 
 - **최신 릴리스 위치:** CI/native fixture와 Docker 임시 데이터 정리 보완은
-  필수 리뷰217/383을 통과했다. [GitHub PR75](https://github.com/hurxxxx/miy/pull/75)는
-  `1bd88925`, 내부 MR82는 `84245339`로 병합했고 소유한 두 작업 브랜치만
-  원격·로컬에서 정리했다. 영구 dev/main은 유지했다.
+  필수 리뷰217/383과 PR75/MR82 병합을 마쳤다. 후속 합성 로그 capture 수정은
+  필수 리뷰219/387을 통과했고 [GitHub PR76](https://github.com/hurxxxx/miy/pull/76)은
+  `a4c27760`, 내부 MR83은 `fd5038ba`로 병합했다. 소유한 작업 브랜치만
+  원격·로컬에서 정리했고 영구 dev/main은 유지했다.
   [릴리스 MR81](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/81)의
-  최신 pipeline218/job386은 source `84245339`에서 script_failure로 실패했다.
-  API 단계는 3 FAIL/5,554 PASS/3 SKIP,1,688.03초이며 job은1,959.69초였다.
-  세 실패는 전역 logging 설정 뒤 합성 HTTP 로그를 캡처하지 못한 테스트다.
-  Alembic의 기존 logger 비활성화를 고려해 두 테스트 파일의 임시 capture만
-  보완했고 선택3개 통과와 teardown 상태 복원을 확인했다. 같은 실제 CI
-  이미지의 common security 포함3파일은 전체·역순 각각188개 통과했으며
-  같은 검사를 중복 합산하지 않는다. 제품 filter·권한·AGENTS·스킬은 유지한다.
-  수정 source의 새 필수 리뷰·게시·MR81 전체 검증은 아직 완료하지 않았다.
+  최신 pipeline220/job388은 source `fd5038ba`, target `9e9280df`에서
+  FAILED/script_failure,2,096.498755초였다. API fast는 **5,557 PASS/
+  3 SKIP/0 FAIL**이며 slow16·migration37·external15도 각각 통과했다.
+  이후 웹 lint가 E2E 두 파일의 bare browser globals3개로 실패했으므로
+  전체 릴리스 성공은 아니다. `window.innerWidth`2개·`window.location`1개로
+  최소 fixture 수정을 마쳤다. scoped ESLint는3 errors/5 warnings에서
+  0 errors/같은5 warnings로 통과했고 Prettier2·직접 E2E 타입·역변환 byte
+  검사를 확인했다. 기존 assertion·동작은 유지한다. 남은 web/Workbench
+  preflight는 실행 중이며 새 필수 리뷰·게시·전체 CI와 운영 배포는 대기 중이다.
+  이전218/386의 API capture3개 실패와 로컬 전체·역순188개 통과는 역사로
+  구분한다. 제품 filter·권한·AGENTS·스킬과 기존 assertion은 유지한다.
   준비384/385의 저장소 기준 실패는 역사로 보존한다. 소유 비활성 build의
   exact8 cache 정리 후 실제 기준15.5GiB·15.4% 통과를 확인했다. 도구 보고
   6.102GB를 실제 추가 여유로 해석하지 않는다. 이 캐시 정리에서 image·
@@ -31,7 +35,8 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
   Workbench187개 제품 경로는 배포 `0c1bf0fe`와 같아 추가 배포 대상이 아니다.
   official operational authority·서비스 전환, Workbench native turn과 개인 앱의
   전체 개발·배포 및 네 영역 구조 인수는 계속 필수 잔여다. 이전 실패·로컬
-  검증의 정확 범위는 게시 체크포인트와 VALIDATION.md에 보존한다.
+  검증의 정확 범위는 게시 체크포인트와 VALIDATION.md에 보존한다. 다음 P0의
+  native 환경·실제 turn 인수 준비 문서는 읽기 전용 계획이며 실행 증거가 아니다.
 
 - 앞선 구조 작업 경과: [GitHub PR70](https://github.com/hurxxxx/miy/pull/70)의
   Source 명령·관측과 공유 연결 검증 보완이다. 실제 merge 상태·시각·SHA는

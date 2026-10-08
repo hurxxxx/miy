@@ -11,7 +11,39 @@ GitHub 작업 PR과 내부 dev→main release_validation을 각각 확인한다.
 DB/grant/서비스의 official cutover를 이 코드 배포로 활성화하지 않는다.
 실제 결과와 SHA는 PR/MR 기록과 후속 receipt가 원본이다.
 
-### 최신 전체 릴리스 검증 실패와 로컬 보완 — 2026-10-08 UTC
+### 최신 전체 릴리스의 API 통과와 웹 lint 실패 — 2026-10-08 UTC
+
+- 합성 privacy capture 수정은 필수 pipeline219/job387 SUCCESS 후
+  [PR76](https://github.com/hurxxxx/miy/pull/76)의
+  `a4c27760c3706209e3beff150b8074a4d7d2a681`, 내부 MR83의
+  `fd5038ba6b2821a5a87716b5181f6ff99df92816`으로 병합했다. 소유한 작업
+  브랜치만 원격·로컬에서 삭제했고 dev/main은 유지했다.
+- MR81 최신 pipeline220/job388은 FAILED/script_failure,2,096.498755초다.
+  source `fd5038ba`, target `9e9280df`, source tree
+  `827f30f7df504052bdaba96090698479d6001d21`의 관측이며 실행 전후
+  source/target ref는 바뀌지 않았다. API fast **5,557 PASS/
+  3 SKIP/0 FAIL**, slow16·migration37·external15는 각각 통과했다.
+  이후 웹 lint의 `no-restricted-globals`3개로 전체 job이 실패했다.
+  `apps/web/e2e/independent-apps.spec.ts`의 `innerWidth`2개와
+  `registration-authorization.spec.ts`의 `location`1개가 대상이다.
+- 최소 `window.innerWidth`2개·`window.location`1개 qualification을 마쳤다.
+  scoped ESLint는3 errors/5 warnings에서0 errors/같은5 warnings로 통과했다.
+  Prettier2·직접 E2E 타입 검사와 정확 세 qualification을 제거한 원래 byte
+  재현을 확인했다. 새 테스트·lint disable·제품 변경은 없고 원래 assertions와
+  동작은 유지한다. 남은 web/Workbench preflight는 실행 중이며 새 필수 리뷰·
+  게시·전체 release_validation·운영 병합과 배포는 아직 완료되지 않았다.
+  main/prod는 `9e9280df`이며 새 운영 배포는 없다. Workbench187개 제품 경로는
+  별도 배포와 같고 actual native turn, official operational authority 전환과
+  네 영역 전체 인수는 계속 남는다.
+
+현재 실패의 안전한 metadata·진단은 ignored
+`.runtime/delivery-resume-monitor/job388-failure-receipt.json`과
+`.runtime/structural-next-delivery/release388-fixed-{progress,failure-summary,eslint-diagnostics}.json`이
+소유한다. 수정·scoped 검사는 `.runtime/release388-e2e-browser-globals/REPORT.md`와
+final input receipt가 소유한다. 아래218/386 기록은 당시 실패·로컬 보완 시점의 역사이며 현재
+게시 또는 전체 CI 성공으로 소급하지 않는다.
+
+### 이전 전체 릴리스 검증 실패와 로컬 보완 — pipeline218/job386
 
 - 필수 리뷰217/383을 통과했고 [PR75](https://github.com/hurxxxx/miy/pull/75)는
   `1bd8892564656ede91d44dc7686b2418c7e42e46`, 내부 MR82는

@@ -20,18 +20,25 @@ cutover를 활성화한 것은 아니다. 게시 추적은
 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다. 이 문서는 우선순위·의존성과
 다음 착수 단위를 소유하며 별도 작업 대장을 만들지 않는다.
 
-당장 이어갈 필수 단계는 MR81 최신 전체 CI의 로그 캡처 실패를 닫는 것이다.
+당장 이어갈 필수 단계는 MR81 최신 전체 CI의 웹 E2E lint 실패를 닫는 것이다.
 앞선 native/fixture·Docker 정리 보완은 리뷰217/383과 PR75/MR82 병합을 마쳤다.
-통합 source `84245339`의218/386은 API 3 FAIL/5,554 PASS/3 SKIP로 실패했다.
-두 테스트 파일의 합성 capture만 현재 전역 logger 상태에 맞춰 로컬 보완했으며
-선택3개 통과·teardown 복원과 실제 CI 이미지의 전체·역순3파일 각각188개
-통과를 확인했다. 같은188개를 합산하지 않는다. 새 필수 리뷰·게시와 정확
-source/target/tree의 전체 release_validation은 대기 중이다.
+218/386의 API capture3개 실패는 두 테스트 파일의 보완으로 닫았고, 실제 CI
+이미지의 전체·역순3파일 각각188개 통과는 같은 검사로 중복 합산하지 않는다.
+후속 privacy 수정은 리뷰219/387을 통과해 PR76/MR83으로 병합했고 작업
+브랜치를 정리했다. source `fd5038ba`, target `9e9280df`의220/388은 API
+fast5,557 PASS/3 SKIP/0 FAIL, slow16·migration37·external15 통과 후 웹 lint에서
+실패했다. E2E의 `window.innerWidth`2개·`window.location`1개 qualification을
+마쳤고 scoped ESLint0 errors/같은5 warnings, Prettier2·직접 E2E 타입·
+역변환 byte 검사를 통과했다. 남은 web/Workbench preflight는 실행 중이다.
+이 결과·새 필수 리뷰·게시와 정확 source/target/tree의 전체
+release_validation은 아직 대기 중이다.
 제품 로그 보안·원래 assertions와 공유 CI NOCREATEROLE은 유지한다. 통과 후
 MR81 병합·fresh backup/호환 확인·guarded 운영 prepare/deploy와 실제 반영
 검사를 진행한다. 운영은 여전히 `9e9280df`이며 이 전달을 공식 operational
 권한·서비스 전환, Workbench native turn이나 개인 앱 전체 흐름의 완료로
 확대하지 않는다. 앱별 비필수 기능과 다중 사용자 확장은 계속 보류한다.
+다음 P0 native 환경·turn/resume/history 인수의 ignored 준비 문서는 실행이나
+환경 적용의 완료 근거가 아니다. 지원되는 격리 환경의 외부 선행조건부터 확인한다.
 
 ## 현재 판단
 

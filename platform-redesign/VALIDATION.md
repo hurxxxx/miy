@@ -1703,3 +1703,60 @@ container·volume·daemon은 변경하지 않았다. 운영은 기존 `9e9280df`
 Workbench187제품은 별도 배포와
 동일하며 새로운 operational authority·native turn·개인 앱 전체 흐름이나
 네 영역 구조 인수의 증거로 확대하지 않는다.
+
+## 2026-10-08 후속 전체 CI의 API 통과와 웹 E2E lint 실패
+
+앞선 합성 privacy capture 보완은 필수 pipeline219/job387 **SUCCESS** 후
+GitHub PR76의 `a4c27760c3706209e3beff150b8074a4d7d2a681`, 내부 MR83의
+`fd5038ba6b2821a5a87716b5181f6ff99df92816`으로 병합했다. 소유 작업 브랜치만
+원격·로컬에서 정리했고 영구 dev/main은 유지했다. 위218/386의3 FAIL과
+로컬 선택3·전체/역순188개 증거는 해당 시점의 역사로 보존한다.
+
+MR81 최신 pipeline220/job388은 **FAILED/script_failure**,2,096.498755초
+(34분56.5초)다. source `fd5038ba`, target `9e9280df`, source tree
+`827f30f7df504052bdaba96090698479d6001d21`에 바인딩됐고 실행 전후 두 ref는
+유지됐다. 실제 API 구간은 다음과 같다.
+
+| 구간               | 실제 결과                           | 범위                                                                   |
+| ------------------ | ----------------------------------- | ---------------------------------------------------------------------- |
+| API fast           | 5,557 PASS/3 SKIP/0 FAIL,1,666.76초 | 이전386의capture3개 실패와 구분한다. SKIP을 실행 통과로 바꾸지 않는다. |
+| API slow           | 16 PASS,78.46초                     | 같은 suite의 선택 구간이며 전체 통과 수로 합산하지 않는다.             |
+| migration          | 37 PASS,52.15초                     | 해당 선택 구간의 실제 결과다.                                          |
+| external lifecycle | 15 PASS,37.05초                     | 해당 선택 구간의 실제 결과다.                                          |
+
+이후 웹 lint에서 `no-restricted-globals`3개가 실패했다.
+`apps/web/e2e/independent-apps.spec.ts:448,688`의 bare `innerWidth`와
+`apps/web/e2e/registration-authorization.spec.ts:77`의 bare `location`이다.
+API 구간 통과를 전체 CI 또는 web/Workbench 후속 단계 통과로 확대하지 않는다.
+최소 `window.innerWidth`2개·`window.location`1개 qualification을 마쳤다.
+실제 scoped ESLint의3 errors/5 warnings는 수정 후0 errors/같은5 warnings다.
+Prettier2파일·직접 기존 E2E tsconfig 타입 검사와 scoped diff 검사를 통과했다.
+직접 타입 검사는 정상 Nx web target이나 브라우저 실행으로 표시하지 않는다.
+세 qualification만 제거하면 두 원래 byte hash가 재현되며 기존 assertions·
+동작을 유지한다. 새 테스트·disable·제품/security/CI 변경은 없다.
+
+| 수정 파일                                         | 최종 SHA256                                                        |
+| ------------------------------------------------- | ------------------------------------------------------------------ |
+| `apps/web/e2e/independent-apps.spec.ts`           | `9dc05a2a18c4cbd7291b9f8cf0c3e05e21dc2ab92b2b029e71005cd6084e319f` |
+| `apps/web/e2e/registration-authorization.spec.ts` | `59892c675b00495ed636b1b9c44e586deb653363e85290ba5abfd9348d0ae778` |
+
+남은 web/Workbench preflight는 동일 실제 CI 이미지의 network-none·공개 예제·
+실제 credential 없는 조건에서 실행 중이다. 최초 custom/tmpfs noexec 준비는
+local web setup 실패, Workbench772 PASS/25 SKIP/host disk 관련1 FAIL로 남겼다.
+Root가 helper 환경만 기존 canonical CI의 `/tmp` 방식으로 교정해 재진행한다.
+제품·CI 계약이나 skip 기준을 바꾸지 않았다. 현재 결과를 미리 통과로 기록하지
+않으며 새 필수 리뷰·게시·최신 전체 release_validation·운영 배포도 대기 중이다.
+수정과 scoped 증거는 ignored `.runtime/release388-e2e-browser-globals/REPORT.md`,
+`baseline-and-red.json`, `final-input-check.json`, `final-owned-inputs.json`이 소유한다.
+
+안전한 실행 원본은 ignored
+`.runtime/delivery-resume-monitor/job388-failure-receipt.json`,
+`.runtime/structural-next-delivery/release388-fixed-progress.json`,
+`release388-fixed-failure-summary.json`, `release388-fixed-eslint-diagnostics.json`이다.
+원문 trace·prompt·비밀정보를 문서에 보관하지 않는다.
+
+운영은 기존 `9e9280df`와 정상 artifact를 유지하며 새 배포는 없다.
+Workbench187개 제품 경로는 별도 배포와 동일하다. 다음 P0의 native 환경·
+turn/resume/history와 cleanup 준비는 ignored 읽기 전용 계획이며 실행 증거가
+아니다. 실제 격리 native turn, official operational authority·서비스 전환,
+개인 앱 전체 개발·배포와 네 영역 구조 인수는 계속 필수 잔여다.
