@@ -27,7 +27,9 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
   이 변경은 PR71로 커밋·게시·병합했고 개발 플랫폼과 별도 Workbench에 반영했다.
   개발 append migration과 Workbench 저장소 이전을 확인했으며 공식 서비스와
   새로운 operational reader/grant는 활성화하지 않았다. 운영 플랫폼은 내부
-  필수 리뷰 계정의 Codex 재인증과 전체 release_validation 대기 상태다.
+  필수 리뷰 계정의 Codex 재인증을 완료했다. 실제 리뷰의 P2인 개인 앱 HTTPS
+  기본 포트 오류를 수정했으며 관련 검사42개와 API architecture 검사를 통과했다.
+  수정본 필수 리뷰·전체 release_validation·운영 DB 복사본 호환 검증을 이어간다.
   실제 SHA·반영 검사·잔여는 게시 체크포인트의 최신 결과가 소유한다.
   후속 우선순위와 이번 제한 범위는 [NEXT_STEPS.md](NEXT_STEPS.md)에 기록한다.
 - 단계: **사용자 지시로 구현 재개**. 재시작 전 동결한 PMS 275개·Recording authority 108개·delivery 12개 입력이 모두 일치함을 확인했다. PMS 부모 통합과 Recording managed의 비활성 권한·전달·legacy 영향 검증 및 독립 리뷰를 마쳤다. 공식 UI 12/12개의 source/build 소유와 Files·Video Chat·공용 Chatbot을 포함한 최종 두 build·브라우저 통합을 마쳤다. 포털37·공식36개의 합성 브라우저와 selected dev6개, 입력1,823개 불변을 확인했다. 독립 서비스·릴리스·전체 portal 업무 정리는 별도 필수 범위다. [RESTART_CHECKPOINT.md](RESTART_CHECKPOINT.md)는 중단 시점의 역사적 근거이며 앱별 비필수 개선·상세 검증은 계속 보류한다.
@@ -60,7 +62,7 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
 2. **공식 앱 실행·데이터 분리 완성:** 원본 88개 guard, source outbox와 단계별 claim·COMMIT 경계는 기존 근거를 보존한다. 구형 Docs scope/RAG/keyword 작업의 Core 변환은 actual PG 238개와 독립 리뷰를 통과했다. source SELECT만 사용하며 origin/target receipt 두 표, 원 이벤트 FK·불변성, 최대 100개와 동일 ID 복구를 유지한다. Recording legacy 발행·두 재시도 보완도 actual PG 68개와 독립 리뷰를 통과했다. 원 attempt·오디오를 보존하며 현재 권한 검사·reset·attempt는 한 COMMIT이다. 고정 네 단계 source command와 별도 Core publication은 로컬 비활성 구현·현재 권한·영향 legacy·독립 리뷰를 마쳤다. 실제 계정 경쟁을 ON CONFLICT와 동일 binding의 현재 권한 재조회로 보완했으며 기본 HTTP·legacy chain은 유지한다. 다음은 새 schema와 신규 principal/artifact를 맞춘 명시적 서비스 조립, 현재 app/ACL·AI/audit 읽기 권한과 제한된 실제 broker/ACK·queue·Beat 경계다. 원격 요청의 불명확한 수락, broker/Beat, source-only consumer, partition과 Files extraction 역방향 쓰기, 실제 auth/ACL·audit·routing·runtime 분리와 공식 owner 활성화는 필수 잔여다.
 3. **개인 앱의 독립 개발·배포 흐름 완성:** manifest 정의→등록→소스/개발 환경→미리보기→불변 산출물 배포→관측·복구를 UI 및 DB 시범 앱으로 연결한다. 포털·Workbench 앱별 수정 없이 동작하는지, 현재 인증·앱 권한·데이터 격리가 유지되는지 검증한다. 이미 구현한 SDK·파일 선택과 최초 개발 설정의 계약 검증은 보존하며 개별 시험 앱의 업무 기능을 확장하지 않는다.
 4. **Workbench와 native 실행 연결:** 단일 사용자·SQLite·native Codex를 유지하면서 프로젝트·세션·에이전트·템플릿·상태와 위 흐름을 연결한다. 최신 후보 `8d8b5fa8…`의 SQLite/vault/backup/두 starter와 실제 후보 API/UI의 합성 브라우저 아홉 경로를 확인했다. 후보 payload digest와 검사 입력 474개는 불변이며 기존 browser/native 결과와 구분한다. 현재 제한 컨테이너는 상위 syscall filter에서 막힌다. 호스트 보안 정책·서비스를 임의 변경하지 않고 승인 범위 안에서 필요한 실행 경계를 해결한다.
-5. **구조 통합·인수:** 대표 자연어 생성→등록→개발→실행→배포·실패 복구, 동시 미리보기의 자원·권한 경계와 새 구조의 지침 적용을 검증한다. 실제 배치 환경 검증·설정 미적용·운영 권한 한계를 구분하고 필요한 소유 문서를 갱신한다. 앱별 후속 이슈가 남았다는 이유로 구조 완성을 미루지 않으며 미해결 구조·치명적 문제를 앱 이슈로 넘겨 완료 처리하지 않는다. PR71 게시·병합과 개발/Workbench 반영을 마쳤다. 운영 배포도 승인 범위이며 필수 리뷰 재인증과 전체 릴리스 검증 후 이어간다. 구조 전체 서비스 cutover와 native 실행 인수는 별도 잔여다.
+5. **구조 통합·인수:** 대표 자연어 생성→등록→개발→실행→배포·실패 복구, 동시 미리보기의 자원·권한 경계와 새 구조의 지침 적용을 검증한다. 실제 배치 환경 검증·설정 미적용·운영 권한 한계를 구분하고 필요한 소유 문서를 갱신한다. 앱별 후속 이슈가 남았다는 이유로 구조 완성을 미루지 않으며 미해결 구조·치명적 문제를 앱 이슈로 넘겨 완료 처리하지 않는다. PR71 게시·병합과 개발/Workbench 반영을 마쳤다. 운영 배포도 승인 범위이며 수정본 필수 리뷰와 전체 릴리스 검증 후 이어간다. 구조 전체 서비스 cutover와 native 실행 인수는 별도 잔여다.
 
 ## 확보한 근거와 남은 범위
 

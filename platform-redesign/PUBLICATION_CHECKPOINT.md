@@ -11,6 +11,25 @@ GitHub 작업 PR과 내부 dev→main release_validation을 각각 확인한다.
 DB/grant/서비스의 official cutover를 이 코드 배포로 활성화하지 않는다.
 실제 결과와 SHA는 PR/MR 기록과 후속 receipt가 원본이다.
 
+### 중단 후 재개 — 2026-10-08 UTC
+
+사용자가 필수 리뷰 계정의 공식 재인증을 완료했다. MR80 pipeline207의
+job373에서는 인증 오류 없이 실제 코드 리뷰가 실행됐으며 개인 앱 runtime의
+암묵적 HTTPS upstream 포트를80으로 변경하는 P2 하나로 MERGE_BLOCKED됐다.
+명시된 포트는 보존하고 생략된 HTTPS는443, HTTP는80을 사용하도록 수정했다.
+관련 검사42개 통과·기존 opt-in Docker 검사1개 skip과 API architecture/i18n
+검사 통과를 확인했다. 동일 source의 실패 job을 재시도해 우회하지 않고
+수정 source의 새로운 필수 리뷰를 받는다.
+
+운영 플랫폼은 여전히 기존 릴리스를 유지한다. 보호된 일관성 DB backup을
+완료했으며 격리 복사본의 append migration20개와 이전 불변 이미지의 호환성을
+검증한다. 이 검증과 dev→main 전체 release_validation을 통과한 뒤 guarded
+배포를 진행한다. 현재 수정은 Workbench 제품 소스를 바꾸지 않아 별도
+Workbench 재배포 대상은 아니다. 앞선04:00 결과는 당시의 기록으로 보존한다.
+
+ignored `.runtime/independent-runtime-https-port/`와
+`.runtime/production-compatibility-review/`가 해당 실행의 범위·결과를 보존한다.
+
 ### 반영 결과 — 2026-10-08 04:00 UTC
 
 - [PR71](https://github.com/hurxxxx/miy/pull/71)은 03:37:23 UTC에 일반 merge했다.
