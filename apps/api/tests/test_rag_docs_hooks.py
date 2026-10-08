@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from miy_api.core.db import get_session_factory
 from miy_api.domains.auth.models import User
@@ -58,12 +59,13 @@ def test_native_doc_sync_emits_one_canonical_intent(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         docs_rag_sync,
-        "emit_and_accept_projection",
+        "deliver_projection_intent",
         lambda _db, *, intent: recorded.append(intent.model_dump(mode="json")),
     )
-    docs_rag_sync.enqueue_native_doc_rag_sync(
-        object(), doc=SimpleNamespace(id="doc-1"), operation=RagSyncOperation.DELETE
-    )
+    with Session() as db:
+        docs_rag_sync.enqueue_native_doc_rag_sync(
+            db, doc=SimpleNamespace(id="doc-1"), operation=RagSyncOperation.DELETE
+        )
     assert len(recorded) == 1
     assert recorded[0]["resource_type"] == "docs_native_doc"
     assert recorded[0]["resource_id"] == "doc-1"
@@ -165,8 +167,9 @@ def test_new_native_docs_use_company_candidates_for_every_rag_scope(monkeypatch)
         ),
     )
 
-    class _Session:
+    class _Session(Session):
         def __init__(self) -> None:
+            super().__init__()
             self.added: list[object] = []
 
         def add(self, value) -> None:
@@ -198,6 +201,7 @@ def test_new_native_docs_use_company_candidates_for_every_rag_scope(monkeypatch)
         ]
         * 3
     )
+    db.close()
 
 
 @pytest.mark.parametrize(
@@ -275,8 +279,10 @@ def test_existing_native_doc_partition_must_be_valid_or_fail_closed(
         lambda *_args, **_kwargs: pytest.fail("existing bindings must not be replaced"),
     )
 
-    class _Session:
-        added: list[object] = []
+    class _Session(Session):
+        def __init__(self) -> None:
+            super().__init__()
+            self.added: list[object] = []
 
         def get(self, model, partition_id):
             assert model is RetrievalPartition
@@ -299,6 +305,7 @@ def test_existing_native_doc_partition_must_be_valid_or_fail_closed(
 
     assert doc.retrieval_partition_id == "11111111-1111-1111-1111-111111111111"
     assert db.added == []
+    db.close()
 
 
 def test_meeting_doc_acl_changes_enqueue_versioned_visibility_jobs(

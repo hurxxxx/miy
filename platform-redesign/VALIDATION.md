@@ -1395,3 +1395,212 @@ shared source-loader/official auth/prepared reader 세 경로를 명시적으로
 `.runtime/workbench-next/INDEPENDENT_REVIEW.md`와 각 정확 입력 JSON이다.
 현재 우선순위는 [NEXT_STEPS.md](NEXT_STEPS.md), 상태는 [WORK_ITEMS.md](WORK_ITEMS.md)가
 소유한다. 이전 통과 수와 합산해 네 영역 전체 완료로 표시하지 않는다.
+
+## 2026-10-08 필수 배포 리뷰 후속 수정
+
+실제 인증이 완료된 내부 MR80의 job373은 개인 앱 HTTPS 기본 포트 오류를,
+job374는 기존 Files 결과 표식의 전환과 재사용 controller의 범위 변경 상태를
+지적했다. 같은 실패 source를 재시도하지 않고 다음 수정 source로 리뷰한다.
+
+- HTTPS 기본 포트: 생략된 HTTPS443·HTTP80과 명시 포트 보존. 관련42 PASS,
+  기존 opt-in Docker1 SKIP. [PR73](https://github.com/hurxxxx/miy/pull/73) 병합 완료.
+- Files 전환 gate: API112 PASS, 수정된 cold-process 사례1회 반복 PASS,
+  운영 스크립트103 PASS. API 구조768파일/3450 dependency/2 kept/0 broken과
+  번역 검사 PASS. 실제 public generation verifier와 합성 physical inventory,
+  소유 SQLite queue를 사용했다. 실제 운영 재색인·provider 호출 증거가 아니다.
+  이전 결과 표식이 없는 keyword/vector 결과는 거부하고 재구축한 결과는
+  허용한다. 비어 있지 않은 Source의 zero-ready 결과도 실제 queue를 확인한다.
+  forward stop→migration→gate→start 인계와 실패 복원, 타이머 설치 실패의
+  handler 복원, 중지 전 불변 이미지 timeout 실행파일 확인을 검증했다.
+- Files 재사용 controller: 관련36 PASS와 타입·린트·포맷 PASS. 폴더·token
+  변경 시 일시 상태를 초기화하고 과거 응답이 새 작업을 해제하지 않도록
+  deferred 회귀를 추가했다. 실제 페이지의 기존 keyed remount는 보존했다.
+- 운영 복사본: PostgreSQL18 native consistent backup을 격리 복원하고 append
+  migration20개를 적용했다. 기존164 비-Alembic relation의 원래 열별 row 수와
+  server multiset digest가 보존됐고, 실제 이전 불변 이미지의 모델·인증·
+  cooperative writer 검사가 통과했다. 전체 업무·provider 실행의 증거가 아니다.
+
+각 범위의 독립 검토 차단 문제는0이다. 정확 입력·초기 실패·최종 결과는
+ignored `.runtime/independent-runtime-https-port/`, `.runtime/files-index-cutover-gate/`,
+`.runtime/files-ui-scope-fix/`, `.runtime/production-compatibility-review/`에 남긴다.
+새 필수 코드 리뷰, dev→main 전체 release_validation과 실제 운영 배포는 아직
+완료되지 않았다. Workbench 제품187파일은 별도 배포 소스와 동일하며 이번
+후속 수정의 재배포 대상이 아니다. 공식 Source/Core 활성화·전체 구조 인수와
+앱별 비필수 기능 검증은 기존 잔여 범위를 유지한다.
+
+## 2026-10-08 개인 앱 실행 자원·관측 경계
+
+인증이 완료된 실제 job375는 Docker CLI의 무한 stdout/stderr buffer,
+지속 통신에 대한 HTTP 전체 시간 한도, Docker 기본 로그의 디스크 한도를
+P2로 지적했다. 독립 검토는 release ReadTimeout을 inactive로 처리한 뒤
+discard가 삭제 명령을 호출하는 경계도 stub으로 재현했다. 실제 삭제는 없다.
+
+필수 자원·정리 권한 수정의 초기 red6/6을 보존했다. 관련 runtime74 PASS 뒤
+정리 경계16 PASS(이전14 반복·새2)와 실제 header trickle1 PASS를 확인해
+고유 **77 PASS / 기존 opt-in 실제 Docker1 SKIP**를 구분한다. 제품은 모든
+통과 시점에 동일하며 후기 test-only 보완·owner 포맷 차이는 정확 입력 기록에
+남긴다. 이전 전체 입력이 현재와 같다고 표시하지 않는다. 소유 로컬 프로세스의
+출력 flood·stderr 폐기·전체 시간·EOF/descendant pipe 정리와 실제 loopback
+trickle 서버의 marker/health·연결 정리를 검증했다. 명령 stdout은1MiB,
+stderr는폐기하고 CLI는30초와 정리2초로 제한한다. marker+health와 소유 HTTP
+정리는 전체5초를 공유하며 완전한 marker를 읽지 못하면 uncertain 실패로
+유지해 정리를 거부한다. 이미 확인한 active marker는 이후 health 실패로
+미활성이 되지 않는다. app과 ingress 모두 log-driver none을 적용하고 기존
+컨테이너의 실제 LogConfig를 확인한다. 기존 무한 로그 설정은 자동 인수하지 않는다.
+
+수정은 기존 런타임·기존 테스트·현재 owner에 한정하며 새 하네스·CI 경로,
+daemon 전역 설정·앱 기능을 추가하지 않는다. 실제 Docker 인스턴스 인수나
+daemon 원격 작업의 강제 취소 증거는 아니다. author 근거는 ignored
+`.runtime/independent-runtime-io/`, 독립 관측 재현은
+`.runtime/independent-runtime-io-review/`에 보존한다. API 구조768파일/
+3450 dependency/2 kept/0 broken·번역·소유 lint/format 검사가 통과했다.
+최종 소유3 입력의 현재 일치와 독립 검토 차단0을 확인했다. 새 필수 리뷰·
+전체 release_validation·운영 배포는 후속 완료 조건이다.
+
+## 2026-10-08 기존 운영 런타임 복원·worker 종료 유예
+
+실제 pipeline210/job376은 인증 오류 없이 `up`의 태그 기반 복원 P1과
+공통45초 stop timeout P2를 지적했다. 기존 런타임이 없거나 태그가 candidate로
+교체된 경우 검사에서 거부한 이미지를 복원 중 시작할 수 있었다. 초기 실제
+회귀 red3 FAIL을 보존하고, healthy한 기존 API·worker·Beat의 실제 ID·불변
+이미지·Compose identity와 기존 config label을 중지 전에 캡처하도록 수정했다.
+
+수정된 스크립트 관련 **116 PASS**, Bash syntax·소유 포맷·diff 검사 PASS를
+확인했다. 정확 소유4 입력은 실행 전후·현재가 같고 rollback test는 변경하지
+않았다. 이전111/114 통과는 중간 입력이며 현재116과 합산하지 않는다. 첫 실행의
+검사 실패는 복원 대상을 만들지 않고, 부분·중지·혼합·retag 상태는 중지 전에
+거부한다. 실패한 검사 뒤에는 변경되지 않은 캡처 ID만 `docker start`로 시작하고
+상태를 기다린 뒤 기존 smoke를 실행한다. ID·label·태그 교체, 상태 실패·대기
+시간 초과와 전체 candidate 시작 시도 뒤에는 자동 복원을 거부한다. worker의
+기존65분 grace를 보존하고 API·Beat의45초 계약도 유지한다.
+
+독립 검토에서 실제 고정 Compose의 `start` 미지원 옵션과 `config --hash`의
+env_file 해석 차이를 확인해 정정했다. 이전 컨테이너 정의를 그대로 시작하므로
+현재 Compose 파일과 같은 hash라고 주장하지 않는다. 공개 CLI 잘못된 옵션의
+red1과 복원 warmup의 red3은 별도 입력으로 보존했다. 기존 pinned rollback·
+deploy·smoke6개 함수는 byte 동일하며 개인 앱 runtime3 입력도 보존했다.
+새 framework·환경 설정·실제 서비스·DB·provider 변경은 없다. 이116은 합성
+Docker/Compose 응답으로 실제 Bash 함수와 `up` 분기를 실행한 회귀이며 실제
+운영 컨테이너 복원 실증을 뜻하지 않는다.
+
+정확 입력·초기 실패·최종 결과는 ignored `.runtime/prod-app-prior-runtime/`,
+독립 검토는 `.runtime/delivery-resume-monitor/JOB376_FIX_REVIEW.md`에 기록한다.
+최종 소유4 입력 일치와 독립 검토 차단0을 확인했다. 실제 daemon stall의
+강제 시간 한도·진행 중65분 작업 종료·운영 복원 실증은 수행하지 않았다.
+수정 source의 필수 리뷰·전체 release_validation·운영 배포는 계속 필수다.
+
+## 2026-10-08 기존 projection 테스트·Files FK fixture 계약
+
+pipeline211/job377은 source `ddb29c31`의 실제 리뷰를834초에 마쳤으나 P1 두
+건으로 MERGE_BLOCKED됐다. 인증·native 실행·context·출력 계약 오류는0이었다.
+같은 실패 source를 재시도하지 않고 현재 계약에 맞는 테스트로 정정한다.
+
+- Files FK fixture: 실제 초기8 FAIL·2 PASS·5 setup ERROR를 보존했다. 기존
+  RuntimeOwnership 테이블과 official.suite·legacy·generation1·active 행을
+  준비하고 FK ON을 유지했다. 이후13 PASS·2 PostgreSQL 전용 전달 경로의
+  올바른 거부를 확인하고, 이2개를 명명된 SQLite Core dispatch 단위 대역으로
+  제한했다. 완전한 typed ProjectionIntent와 실제 record/head/job staging을
+  검증하며 기존 watermark·version2·checksum·gate·작업 단언을 유지한다.
+  두 파일 전체 **15 PASS**, Ruff·format·diff PASS, 정확 입력2 일치를 확인했다.
+  Source PostgreSQL transport·READ COMMITTED·권한 검증의 증거로 쓰지 않는다.
+- Projection 진입점: 실제11 FAIL·46 PASS에서 같은 선택의 **57 PASS**로
+  교정했다. 현재 company partition·deliver_projection_intent와 실제 Session
+  대역을 사용하며 PMS·Meeting이 Source 전달 뒤 Core reference를 반환하지
+  않는 계약과 canonical intent를 확인한다. 제거된 Files 설정 참조는 실제
+  retrieval_contract·Core ingress로 옮기고 정상적인 기존 함수·설정은
+  유지했다. 소유6 테스트 파일의 collection100 case·Ruff·format·diff는
+  통과했으나 native/client 사례의 실행 통과로 표시하지 않는다.
+
+별개 두 범위의72개 통과는 이전 제품 검증 수와 합산하지 않는다. 테스트 함수
+삭제나 기존 native lifecycle 단언 약화는 없다. 제품 API Python/SQL805개는
+수정 전 source와 byte 동일하며 migration·환경·서비스·권한·FK 계약도 유지한다.
+새 테스트 하네스나 PostgreSQL fixture 인스턴스를 추가하지 않았다. 실제
+PostgreSQL outbox·four-hook·권한·native/client 실행은 전체 release_validation의
+필수 후속 검사다. 정확 입력과 초기 실행 도구 경로 문제·실제 실패·최종 결과는
+ignored `.runtime/review-fixture-fixes/`와
+`.runtime/delivery-resume-monitor/job377-static-fixture-inventory.json`에 기록했다.
+최종 소유8 입력(실제 수정6)과 양쪽 검증 전후·현재의 일치, 제품805 변경0,
+독립 검토 차단0을 확인했다. 기존 test 함수100개는 유지했고 assertion은
+654→664다. 반환·helper 인자의 교정은 현재 Source 계약으로 한정하며 기존
+native ACL·lifecycle·bulk 단언은 동일하다. 독립 검토는
+`.runtime/delivery-resume-monitor/JOB377_FIXTURE_REVIEW.md`가 소유한다.
+
+## 2026-10-08 정상 재기동과 자동 복원 분리
+
+pipeline212/job378의 실제 리뷰는 source `de1b79cb`에서 인증·실행·출력 오류0,
+683초 뒤 MERGE_BLOCKED P2 한 건이었다. 기존 컨테이너가 중지·비정상이면
+`up`이 gate를 거치는 재기동까지 거부했다. 중지 전 정상 상태를 자동 복원
+근거로 저장하는 조건과 forward 작업 입장을 분리했다.
+
+실제 초기8 FAIL·2 PASS를 보존했고 두 운영 스크립트 파일의 **139 PASS**,
+Bash syntax·소유 포맷·diff PASS를 확인했다. 중간135 통과 뒤 Health 정보가
+없는 상태의 별도 red4를 보존했으며135를 현재139와 합산하지 않는다.
+캡처 함수 하나만 변경하고 다른 함수31개와 command dispatch는 byte 동일하다.
+개인 앱 runtime3·테스트 fixture8·gate Python·Compose·rollback test도 보존했다.
+
+실제 이미지·project/service·기존 config label을 확인한3 컨테이너의 완전한
+상태 관측은 forward stop→migration→gate→start를 허용한다. 상태가 알려진
+중지·비정상·시작 중·pause/restart/dead이거나 Health 정보가 없으면 자동 복원
+target으로 저장하지 않는다. `running|true|healthy`가 모두 확인된3개만
+기존 자동 복원의 근거다. gate 실패로 거부한 candidate를 자동 복원에서
+시작하지 않으며 removing·빈 status·알 수 없는 값·조회 실패는 중지 전에
+거부한다. tuple을 단일 조회하고 정상 종료를 확인해 조회 실패를 비정상
+상태와 혼동하지 않는다. worker65분 종료 유예와 이후 복원·smoke는 유지한다.
+
+Health 부재는 [Moby의 시작 시 Health 초기화](https://raw.githubusercontent.com/moby/moby/v28.0.0/daemon/health.go)를
+참고했으며 설치 daemon 버전이나 실제 컨테이너 재기동 실증의 근거로 쓰지
+않는다. 이139는 기존 Bash 함수의 합성 Docker/Compose 경계 회귀다.
+정확 입력·초기 실패·최종 결과는 ignored `.runtime/prod-up-forward-admission/`에
+기록했다. 실제 운영·DB·provider·환경 변경이나 새 framework는 없다.
+최종 소유3 입력·검증 전후·현재의 일치와 독립 검토 차단0을 확인했다.
+독립 인수는 `.runtime/delivery-resume-monitor/JOB378_FIX_REVIEW.md`에 기록했다.
+
+## 2026-10-08 Bento 화면 이동과 로그인 세대의 저장 경계
+
+pipeline213/job379는 source `70d35b7a`에서 인증·실행·출력 오류0으로546초의
+실제 리뷰를 마쳤으나 같은 로그인 화면 이동의 대기 저장 유실 P2로
+MERGE_BLOCKED됐다. 첫 PATCH 중 받은 추가 편집이 view unmount 검사로
+버려지는 경계였다. 같은 source 재시도나 병합 없이 최소 수정했다.
+
+- 기존 제품에서 같은 로그인 hub 이동·다른 앱 이동·수신한 debounce 편집의
+  실제 두 번째 PATCH 누락 **3 FAIL**을 보존했다. 초기 production React 모드의
+  도구 설정 실패와 Provider 대역의 unhandled Promise 오류는 별도 기록하며
+  clean green으로 대체하지 않는다.
+- Bento **22 PASS**와 실제 React AuthProvider **10 PASS**를 각각 최종1.50초·
+  1.46초에 확인했다. 소유5 입력의 실행 전후·현재 일치와 ESLint·Prettier·
+  diff PASS를 확인했다. 허구의 API·iframe·session 자료이며 실제 server나
+  외부 Bento runtime의 저장 실행 증거는 아니다.
+- optional public session predicate는 해당 credential 세대의 고정 snapshot이다.
+  logout·새 session 설치는 render 전 즉시 무효화하고 같은 token의 재설치나
+  token 왕복도 이전 큐를 되살리지 않는다. 같은 credential의 bootstrap·access·
+  preference 갱신은 predicate identity와 현재성을 유지한다. provider 종료와
+  거부된 access도 이전 snapshot을 차단한다. 서버 권한을 부여하지 않는다.
+- 같은 로그인 일반 이동에서는 이미 받은 편집과 마지막 debounce를 순서대로
+  저장하며 첫 ACK의 version3으로 다음 PATCH한다. 먼저 전체 앱을 떠난 뒤
+  credential이 바뀌어도 후속 PATCH0을 확인했다. ACK는 해당 큐의 private
+  version만 갱신하고 사라진 화면의 state·이동은 바꾸지 않는다. optional
+  predicate가 없는 legacy context는 기존 mount-only 제한을 유지한다.
+- cleanup은 기존 public React `useEffectEvent`로 실제 unmount에만 실행한다.
+  언어 callback 변경을 퇴장으로 처리하지 않고 AI의 기존 직접 저장 경로가
+  취소한 debounce JSON도 소비한다. import·AI·archive 후속 guard와 서버의
+  현재 auth·owner·nonarchived·optimistic version 검사는 보존한다.
+
+독립 검토는 소유5·owner3을 바인딩하고 기존 보호 계약11개 불변, 기존 body23개
+보존과 AI pending JSON 소비 한 문장만의 보완을 확인했다. 차단 결함0이며
+검사를 다시 실행한 별개 통과 수로 합산하지 않는다. 정확 입력·초기 실패·
+최종 결과는 ignored `.runtime/bento-save-queue-fix/`와
+`.runtime/bento-save-queue-review/`에 기록한다. 브라우저 종료·offline durability·
+자동 재시도·이미 제출한 쓰기 취소의 보장은 추가하지 않았다.
+
+영향 소비자의 shared auth14·official composition5가 통과했고 공개 frontend·
+config·dependency1863 입력은 실행 전후·현재 동일했다. 이 로컬 단위 검사는
+기존 Vite config의 공개 `envDir:false`로 환경 파일 로드를 끄며 민감한 값은
+읽거나 출력하지 않았다. 중간 guarded 타입 검사4개는 Nx 초기화의 환경 파일
+읽기10회를 거부한 조건이므로 정상 설정의 증거와 구분한다. Root가 filesystem
+interception·project config override 없이 기존 `nx run-many`를 cache 없이
+다시 실행해 platform-web·official-suite-web·web·official-suite 타입4개를
+21.82초에 통과했다. 정상 `pnpm check:web-architecture`도8.04초에 통과했으며
+소유5 입력은 두 검사 전후에 같았다. 정확 결과는 ignored
+`.runtime/bento-save-queue-consumers/`가 소유하며 guarded 결과를 추가 통과 수로
+합산하지 않는다. 새 필수 리뷰·전체 release_validation·실제 배포는 별도
+완료 조건이다.

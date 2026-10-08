@@ -29,7 +29,26 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
   새로운 operational reader/grant는 활성화하지 않았다. 운영 플랫폼은 내부
   필수 리뷰 계정의 Codex 재인증을 완료했다. 실제 리뷰의 P2인 개인 앱 HTTPS
   기본 포트 오류를 수정했으며 관련 검사42개와 API architecture 검사를 통과했다.
-  수정본 필수 리뷰·전체 release_validation·운영 DB 복사본 호환 검증을 이어간다.
+  후속 실제 리뷰에서 기존 색인의 결과 표식 전환과 재사용 Files hook의 scope
+  상태를 보완했다. DB 복사본의 append20·기존 데이터·이전 이미지 호환 검증은
+  통과했다. Files 수정본의 개발 반영도 확인했다. 후속 필수 리뷰는 개인 앱
+  runtime의 CLI 출력·HTTP 전체 시간·Docker 로그 자원 한도를 추가 지적했으며
+  필수 구조 계약으로 수정하고 고유77개와 구조·번역 검사를 확인했다.
+  불완전한 release 관측이 active 앱 정리를 허용하는 경계도 닫았다.
+  다음 실제 리뷰의 `up` 복원 증명과 worker 종료 유예를 보완해 관련116개와
+  소유 syntax·format·diff 검사를 확인했다.
+  `ddb29c31`의 개발 반영과 로그인·런처·worker/Beat를 확인했다. 후속 실제 리뷰의
+  기존 projection 테스트 진입점·Files FK fixture를 현재 계약에 맞춰 로컬72개를
+  확인했다. 제품 코드는 유지하며 native/client·PG 검증은 전체 CI가 소유한다.
+  후속 `up`의 중지·비정상 상태 재기동 허용과 자동 복원 근거를 분리해 관련139개를
+  확인했다. Source·fixture·나머지 운영 함수는 보존했다.
+  pipeline213/job379는 인증 오류 없이 실제 리뷰를 마쳤으나 Bento의 같은 로그인
+  화면 이동 시 큐에 남은 저장 유실 P2를 지적했다. 데이터 유실을 막되 로그인·
+  credential 변경 뒤 오래된 쓰기 차단을 보존하는 최소 수정을 마쳤고 Bento22·
+  실제 Provider10과 독립 검토 차단0을 확인했다. 영향 소비자19개·정상 타입4개·
+  web architecture를 확인했고 새 필수 리뷰와 전체 릴리스 검증을 진행한다.
+  새 필수 리뷰·전체 release_validation·
+  실제 운영 반영을 이어간다.
   실제 SHA·반영 검사·잔여는 게시 체크포인트의 최신 결과가 소유한다.
   후속 우선순위와 이번 제한 범위는 [NEXT_STEPS.md](NEXT_STEPS.md)에 기록한다.
 - 단계: **사용자 지시로 구현 재개**. 재시작 전 동결한 PMS 275개·Recording authority 108개·delivery 12개 입력이 모두 일치함을 확인했다. PMS 부모 통합과 Recording managed의 비활성 권한·전달·legacy 영향 검증 및 독립 리뷰를 마쳤다. 공식 UI 12/12개의 source/build 소유와 Files·Video Chat·공용 Chatbot을 포함한 최종 두 build·브라우저 통합을 마쳤다. 포털37·공식36개의 합성 브라우저와 selected dev6개, 입력1,823개 불변을 확인했다. 독립 서비스·릴리스·전체 portal 업무 정리는 별도 필수 범위다. [RESTART_CHECKPOINT.md](RESTART_CHECKPOINT.md)는 중단 시점의 역사적 근거이며 앱별 비필수 개선·상세 검증은 계속 보류한다.

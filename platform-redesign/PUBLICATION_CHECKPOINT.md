@@ -30,6 +30,125 @@ Workbench 재배포 대상은 아니다. 앞선04:00 결과는 당시의 기록�
 ignored `.runtime/independent-runtime-https-port/`와
 `.runtime/production-compatibility-review/`가 해당 실행의 범위·결과를 보존한다.
 
+### 실제 리뷰의 추가 수정 — 2026-10-08 UTC
+
+[PR73](https://github.com/hurxxxx/miy/pull/73)의 HTTPS 포트 수정을 일반 병합하고
+해당 원격·로컬 작업 브랜치를 삭제했다. 내부 pipeline208/job374는 인증 오류
+없이 실행됐으나 기존 색인의 결과 표식 전환 P1과 재사용 Files controller의
+범위 변경 상태 P2로 MERGE_BLOCKED됐다. 이 실패는 기존 인증 실패와 구분한다.
+
+Files의 strict SHA·partition·결과 표식 비교는 유지한다. 새 배포 전환 검사는
+기존 generation verifier로 실제 Source와 keyword/vector 결과를 대조하며,
+누락된 Source 표식과 재색인 전의 기존 envelope를 거부한다. 검사만으로 재색인,
+paid compute나 서비스 profile을 활성화하지 않는다. forward deploy/up은 기존
+API·worker·scheduler 중지→migration→검사→새 런타임 인계를 사용한다.
+실패한 deploy는 이전 이미지, 실패한 up은 같은 기존 이미지로 복원을 시도한다.
+
+controller는 기존 현재 범위 검사와 실제 페이지의 keyed session을 보존하면서
+자체 scope가 바뀔 때 일시 상태를 정리한다. 이전 응답이 새 작업을 해제하지
+않는 deferred 회귀를 검증했다. 실제 페이지는 이미 keyed remount를 사용하므로
+초기 리뷰의 페이지 생명주기 가정과 재사용 hook의 수정 범위를 구분한다.
+
+보호된 DB backup의 격리 복원·append20·기존 데이터 보존과 이전 불변 이미지의
+모델·인증·cooperative writer 검증은 통과했고 소유 자원을 정리했다. 새 수정본의
+필수 리뷰·전체 release_validation과 실제 운영 배포는 여전히 별도 완료 조건이다.
+ignored `.runtime/files-ui-scope-fix/`와 배포 전환 검사 근거가 정확 입력·초기 실패·
+최종 결과를 보존한다. 구조 전체와 기존 비활성 official cutover는 완료로 표시하지 않는다.
+
+### 개인 앱 런타임의 실행 한도 보완 — 2026-10-08 UTC
+
+Files 전환·scope 수정은 `58489bf61d62828ce5df4304cefac1511be569b8`로 커밋·
+push했으며 [PR74](https://github.com/hurxxxx/miy/pull/74)를 생성했다. 개발
+supervisor를 한 번 재시작해 최신 소스를 반영했고 직접/공개 readiness,
+API 로그인·bootstrap18·로그아웃과 실제 브라우저 런처12개·script error0을
+확인했다. health revision은 `unmanaged`이며 정확 SHA의 health 증거로 쓰지 않는다.
+Workbench 제품187파일은 별도 배포 소스와 동일하므로 다시 배포하지 않았다.
+
+내부 pipeline209/job375는 인증 오류 없이 실제 리뷰를 완료했으나 개인 앱
+runtime의 P2 세 건으로 MERGE_BLOCKED됐다. Docker CLI stdout/stderr의 무한
+buffer, 지속적으로 데이터를 보내는 HTTP의 전체 시간 한도 부재, Docker
+기본 로그의 디스크 한도 부재를 수정한다. 독립 검토에서는 release 관측의
+통신 실패를 미활성으로 처리해 실제 사용 중인 앱의 정리를 허용하는 경계도
+명령 stub으로 재현했다. 불완전한 관측은 불확실한 실패로 유지하고 정리를
+거부한다. 이 경계들은 비개발자 앱을 공통 호스트에서 실행하기 위한 필수
+자원·정리 권한 계약이다. 앱별 비필수 기능 개선은 추가하지 않는다.
+최소 수정의 고유77개, 기존 Docker opt-in1 SKIP와 API 구조·번역·소유
+format/lint 검사를 확인했다. 제품은 모든 통과 시점에 동일하며 후기 테스트
+보완은 실행 시점별 입력으로 구분한다. 최종 소유3 입력 일치와 독립 검토
+차단0을 확인했으며 수정 source를 게시한다.
+같은 source를 재시도하거나 실패 리뷰를 우회하지 않는다. PR74와 MR80의
+수정 source를 갱신한 뒤 새 필수 리뷰·전체 release_validation을 진행한다.
+운영은 기존 정상 이미지와 schema를 유지한다.
+
+ignored `.runtime/dev-platform-deployment/latest-20261008T054025897841Z/`와
+`.runtime/delivery-resume-monitor/job375-safe-diagnosis.json`이 최신 실행을
+보존한다. 진단은 고정 분류·공개 코드 위치만 기록하고 원문 prompt·trace·
+자격정보는 저장하거나 출력하지 않았다.
+
+### 운영 시작·복원 검토 — 2026-10-08 UTC
+
+자원·관측 수정은 `07c72e98ff65e95fa0d86edd15a1b3d6a932a2a3`로 게시하고
+PR74와 MR80 설명을 최종 범위로 갱신했다. pipeline210/job376은 인증 오류
+없이 실제 리뷰했으나 `up`의 복원 기준 P1과 공통 종료 timeout P2를 지적했다.
+이미지 태그만으로 기존 런타임을 증명하면 검사에서 거부한 candidate를
+복원 중에 시작할 수 있다. 중지 전에 실제 healthy 컨테이너·불변 이미지·Compose
+identity를 캡처하고 새 런타임 시작 전 변경되지 않은 기존 ID만 직접 복원한다.
+현재 Compose 파일과 기존 정의가 같다는 보장은 하지 않는다. 변경된 기존 상태는
+중지 전에 거부하며 첫 실행은 검사 성공 전에 복원 대상으로 취급하지 않는다.
+worker의 기존65분 stop grace를45초로 덮어쓰던 공통 옵션도 제거한다.
+
+개인 앱 자원 한도·관측의 앞선 수정은 보존한다. 관련116개와 소유 syntax·
+format·diff 검사를 확인했고 실제 고정 Compose의 미지원 start 옵션과
+config hash 해석 차이도 정정했다. 정확 입력은 ignored
+`.runtime/prod-app-prior-runtime/`에 기록했다. 최종 소유4 입력 일치와 독립
+검토 차단0을 확인했으며 새 source의 필수 리뷰와 전체 release_validation을
+진행한다.
+기존 실패 source를 재시도하지 않으며 운영 checkout·image·DB는 기존 상태다.
+
+### 최신 개발 반영·기존 테스트 계약 정정 — 2026-10-08 UTC
+
+복원·종료 유예 수정은 `ddb29c318e02c3aaf3b8e0a39fb78ed170a694a6`로 두 저장소의
+기존 작업 브랜치에 게시했다. 개발 supervisor를06:41:22 UTC에 한 번 재시작해
+그 source와 tree의 일치를 확인했고 API·web·worker·Beat, 직접/공개 readiness,
+API 로그인·bootstrap18·실제 브라우저 런처12·script error0·로그아웃을 확인했다.
+health revision은 `unmanaged`이므로 source16 해시와 실제 재시작 근거로만
+배포를 설명한다. 기존 개발 기록과 Workbench187 제품 파일은 보존했다.
+
+pipeline211/job377은 인증·실행·출력 오류 없이834초의 실제 리뷰를 마쳤으나
+기존 테스트 계약 두 건 P1으로 MERGE_BLOCKED됐다. projection 테스트가 제거된
+함수·설정의 monkeypatch 대상과 과거 Session 대역을 사용하고, FK-enabled
+Files SQLite fixture는 새 writer_scope의 기준 테이블·scope 행을 준비하지
+못했다. 제품 권한·schema·FK를 완화하지 않고 현재 projection 전달 경로와
+official.suite 제어 데이터를 준비하도록 기존 테스트만 정정한다.
+
+에이전트는 projection 단위 테스트와 Files FK fixture를 서로 다른 파일에서
+담당했다. Files15·projection57 로컬 검사와 소유 format/lint가 통과했다.
+실제 실패·수정·영향 검증을 보존했고 최종 입력 일치·제품 변경0·독립 검토
+차단0을 확인했다. 기존 함수100개와 native lifecycle 단언을 유지하며 새
+source의 필수 리뷰를 받는다.
+dev→main 전체 release_validation·운영 배포는 아직 진행하지 않았다.
+ignored `.runtime/dev-platform-deployment/latest-20261008T064107259159Z/`,
+`.runtime/delivery-resume-monitor/job377-safe-diagnosis.json`과
+`.runtime/review-fixture-fixes/`가 정확 입력·판정·실행 범위를 보존한다.
+
+### 재기동 허용과 자동 복원 근거 분리 — 2026-10-08 UTC
+
+테스트 계약 정정은 `de1b79cb66c6a89a2522e6298b4242aaf4161402`로 PR74와
+MR80에 게시했다. pipeline212/job378은 인증·실행·출력 오류 없이683초에
+실제 MERGE_BLOCKED P2 한 건으로 종료됐다. 강화된 기존 건강성 조건이
+중지·비정상 컨테이너의 정상적인 forward `up`도 차단하는 경계였다.
+
+이미지·Compose identity는 검증하고 상태 관측 실패는 거부하면서, 관측이
+완전한 중지·비정상 상태는 stop→migration→gate→start를 허용하도록 보완한다.
+자동 복원 target은 중지 전 정상인 기존3 컨테이너가 모두 확인될 때만 저장한다.
+gate 실패로 거부된 candidate를 복원 중 시작하지 않는 앞선 계약은 유지한다.
+관련 운영 스크립트139개와 소유 syntax·format·diff가 통과했으며 초기 실패와
+Health 정보가 없는 상태의 후기 보완을 각각 보존했다. 최종 입력 일치와 독립
+검토 차단0을 확인했다.
+같은 실패 source를 재시도하지 않고 수정 source의 필수 리뷰를 다시 받는다.
+기존 제품·테스트 fixture는 보존하며 개발 서비스의 추가 재시작은 수행하지 않았다.
+전체 release_validation과 운영 배포는 아직 별도 완료 조건이다.
+
 ### 반영 결과 — 2026-10-08 04:00 UTC
 
 - [PR71](https://github.com/hurxxxx/miy/pull/71)은 03:37:23 UTC에 일반 merge했다.
@@ -119,6 +238,27 @@ task-owned launcher에서 공개 package-manager config를 바로잡은 최종 �
 상세 로컬 실행 로그·입력 해시·실패 재현은 ignored `.runtime/`의 증거다.
 문서의 해당 링크는 로컬 증거 위치이며 GitHub에서 내려받는 파일이 아니다.
 이 체크포인트는 민감한 로그·원문·설정 값을 게시하지 않고 검증 범위만 기록한다.
+
+### 같은 로그인 화면 이동의 대기 저장 — 2026-10-08 UTC
+
+재기동·복원 조건 수정은 `70d35b7a7924c4f14443faa52a052d256d6f3c98`로
+PR74와 MR80 작업 브랜치에 게시했다. pipeline213/job379는 인증·실행·출력
+오류 없이546초의 실제 리뷰를 완료했으나 Bento의 대기 중 저장 유실 P2로
+MERGE_BLOCKED됐다. 첫 저장 중 추가 편집을 큐에 넣은 뒤 같은 로그인에서
+다른 화면으로 이동하면 keyed view의 unmount 검사가 두 번째 저장을 버린다.
+
+데이터 유실은 이번 구조 변경의 필수 수정으로 처리했다. 로그인·credential
+세대가 바뀐 뒤 오래된 쓰기를 막는 계약을 유지하면서 같은 로그인 일반 이동의
+대기 저장을 보존한다. Bento22·실제 Provider10 clean 검사가 통과했고 소유5
+입력 일치·독립 검토 차단0을 확인했다. 작성과 독립 검토를 분리했다.
+영향 소비자19개, 정상 설정의 소유·포털 타입4개와 web architecture를 확인했다.
+앱별 비필수 기능 개선은 추가하지 않는다. 실패한 source를 재시도하거나
+병합하지 않으며 운영은 이전 source·image·schema를 유지한다.
+
+ignored `.runtime/delivery-resume-monitor/job379-safe-diagnosis.json`과
+`.runtime/bento-save-queue-fix/`, `.runtime/bento-save-queue-review/`에
+고정 분류·공개 코드의 기술적 원인·정확 입력·수정 검증을 기록한다.
+원문 prompt·trace·자격정보나 사용자 문서 내용을 저장·게시하지 않는다.
 
 ## 초기 게시 결과 — PR69
 

@@ -41,8 +41,7 @@ function fixture(t, { symlink = false, brand = 'miy' } = {}) {
   const rootDir = path.join(directory, 'prod');
   mkdirSync(rootDir);
   const files = {
-    [`ops/compose/${brand}-prod.app.yml`]:
-      `name: ${brand}-prod-app\nservices:\n  api:\n    image: ${brand}-app:prod\n    env_file: [../../.env]\n  hermes-terminal-broker:\n    image: ${brand}-app:prod\n    container_name: ${brand}-prod-hermes-terminal-broker\n`,
+    [`ops/compose/${brand}-prod.app.yml`]: `name: ${brand}-prod-app\nservices:\n  api:\n    image: ${brand}-app:prod\n    env_file: [../../.env]\n  hermes-terminal-broker:\n    image: ${brand}-app:prod\n    container_name: ${brand}-prod-hermes-terminal-broker\n`,
     'ops/hermes/bootstrap.py': '# previous helper\n',
     'scripts/prod-app-config.mjs': `import {readFileSync} from 'node:fs';\nif (!readFileSync(process.argv[2], 'utf8').includes('PREVIOUS_CONTRACT=required')) { console.error('synthetic-sensitive-environment'); process.exit(1); }\n`,
     'scripts/prod-app-smoke.mjs': '// previous smoke\n',
@@ -89,10 +88,16 @@ function fixture(t, { symlink = false, brand = 'miy' } = {}) {
   const run = (command, args) => {
     calls.push([command, ...args]);
     if (command === 'docker') {
-      if (args[0] === 'compose') return JSON.stringify({name: `${brand}-prod-app`, services: {
-        api: {image: `${brand}-app:prod`},
-        'hermes-terminal-broker': {container_name: `${brand}-prod-hermes-terminal-broker`},
-      }});
+      if (args[0] === 'compose')
+        return JSON.stringify({
+          name: `${brand}-prod-app`,
+          services: {
+            api: { image: `${brand}-app:prod` },
+            'hermes-terminal-broker': {
+              container_name: `${brand}-prod-hermes-terminal-broker`,
+            },
+          },
+        });
       return args[3] === '{{.Id}}' ? IMAGE : revision;
     }
     return execFileSync(command, args, {
@@ -138,7 +143,11 @@ test('pins environment and exact Git deployment assets before any runtime change
   assert.equal(
     f.calls
       .filter((call) => call[0] === 'docker')
-      .every((call) => (call[1] === 'image' && call[2] === 'inspect') || (call[1] === 'compose' && call.includes('config'))),
+      .every(
+        (call) =>
+          (call[1] === 'image' && call[2] === 'inspect') ||
+          (call[1] === 'compose' && call.includes('config')),
+      ),
     true,
   );
   assert.ok(
@@ -384,6 +393,14 @@ run_migrations() {
   printf 'candidate-migration\\n' >> "$EVENTS"
   [[ "$FAIL_STAGE" != migration && "$FAIL_STAGE" != env ]] || return 4
 }
+stop_previous_writers() {
+  printf 'candidate-stop\n' >> "$EVENTS"
+  [[ "$FAIL_STAGE" != candidate-stop ]] || return 4
+}
+check_files_content_cutover() {
+  printf 'candidate-gate\n' >> "$EVENTS"
+  [[ "$FAIL_STAGE" != gate ]] || return 4
+}
 run_smoke() {
   printf 'candidate-smoke\\n' >> "$EVENTS"
   [[ "$FAIL_STAGE" != candidate-smoke ]] || return 4
@@ -454,7 +471,9 @@ test('default compatible-image rollback also stops after retag failure', (t) => 
 
 for (const stage of [
   'promote',
+  'candidate-stop',
   'migration',
+  'gate',
   'candidate-start',
   'candidate-smoke',
 ]) {
@@ -626,31 +645,50 @@ for (const args of [
 }
 
 for (const brand of ['mty', 'open-work-hub']) {
-  test(`restores ${brand} runtime after candidate naming changes without migration`, t => {
+  test(`restores ${brand} runtime after candidate naming changes without migration`, (t) => {
     const f = shellRestore(t, '', 'explicit', 'restore', brand);
     assert.equal(f.result.stdout, 'success\n', f.result.stderr);
-    assert.match(f.events, /--project-name miy-prod-app .* down --remove-orphans/);
+    assert.match(
+      f.events,
+      /--project-name miy-prod-app .* down --remove-orphans/,
+    );
     assert.ok(f.events.includes(`--project-name ${brand}-prod-app`));
     assert.ok(f.events.includes(`/ops/compose/${brand}-prod.app.yml`));
-    assert.ok(f.events.includes(`smoke:${f.bundle}/scripts/prod-app-smoke.mjs:${f.revision}`));
+    assert.ok(
+      f.events.includes(
+        `smoke:${f.bundle}/scripts/prod-app-smoke.mjs:${f.revision}`,
+      ),
+    );
     assert.doesNotMatch(f.events, /candidate-migration|--volumes/);
-    const manifest = JSON.parse(readFileSync(path.join(f.bundle, 'rollback.json')));
+    const manifest = JSON.parse(
+      readFileSync(path.join(f.bundle, 'rollback.json')),
+    );
     assert.equal(manifest.runtime.image, `${brand}-app:prod`);
-    assert.equal(manifest.runtime.broker, `${brand}-prod-hermes-terminal-broker`);
+    assert.equal(
+      manifest.runtime.broker,
+      `${brand}-prod-hermes-terminal-broker`,
+    );
   });
 }
 
-test('native Compose config failure rejects preparation without restoring candidate env', t => {
+test('native Compose config failure rejects preparation without restoring candidate env', (t) => {
   const f = fixture(t);
   const run = (command, args) => {
-    if (command === 'docker' && args[0] === 'compose') throw Error('synthetic secret');
+    if (command === 'docker' && args[0] === 'compose')
+      throw Error('synthetic secret');
     return f.run(command, args);
   };
-  assert.throws(() => prepareRollbackBundle(f.options, { run }), /previous Compose validation failed/);
-  assert.equal(readFileSync(path.join(f.rootDir, '.env'), 'utf8'), CANDIDATE_ENV);
+  assert.throws(
+    () => prepareRollbackBundle(f.options, { run }),
+    /previous Compose validation failed/,
+  );
+  assert.equal(
+    readFileSync(path.join(f.rootDir, '.env'), 'utf8'),
+    CANDIDATE_ENV,
+  );
 });
 
-test('previous app project takes precedence over a shared infra project setting', t => {
+test('previous app project takes precedence over a shared infra project setting', (t) => {
   const f = fixture(t, { brand: 'mty' });
   const run = (command, args) => {
     const result = f.run(command, args);
@@ -664,7 +702,7 @@ test('previous app project takes precedence over a shared infra project setting'
   assert.equal(rollbackRuntime(bundle).project, 'mty-prod-app');
 });
 
-test('rejects mixed project/image identities and changed protected env in runtime metadata', t => {
+test('rejects mixed project/image identities and changed protected env in runtime metadata', (t) => {
   const f = prepared(t, { brand: 'mty' });
   assert.equal(rollbackRuntime(f.bundle).project, 'mty-prod-app');
   const file = path.join(f.bundle, 'rollback.json');
@@ -674,6 +712,8 @@ test('rejects mixed project/image identities and changed protected env in runtim
   assert.throws(() => rollbackRuntime(f.bundle), /identities do not match/);
   manifest.runtime.image = 'mty-app:prod';
   writeFileSync(file, JSON.stringify(manifest), { mode: 0o600 });
-  writeFileSync(path.join(f.bundle, '.env'), 'synthetic changed secret', { mode: 0o600 });
+  writeFileSync(path.join(f.bundle, '.env'), 'synthetic changed secret', {
+    mode: 0o600,
+  });
   assert.throws(() => rollbackRuntime(f.bundle), /snapshot has changed/);
 });

@@ -22,6 +22,8 @@ export interface AuthContextValue {
   status: AuthSessionStatus;
   user: AuthUser | null;
   token: string | null;
+  /** Captured credential generation; does not grant server permissions. */
+  isSessionCurrent?: () => boolean;
   requiresSetup: boolean;
   devAdminLoginAvailable: boolean;
   devLoginAccounts: DevLoginAccount[];

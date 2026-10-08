@@ -1,10 +1,18 @@
 import { createAuthUser } from '../../../tests/fixtures/company';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AuthSessionResponse, AuthUser } from './auth-api';
 import { AUTH_TOKEN_STORAGE_KEY } from './auth-storage';
 import { AuthProvider, useAuth } from './auth-provider';
+import type { AuthContextValue } from './auth-context';
 
 const apiMocks = vi.hoisted(() => ({
   getBootstrapStatus: vi.fn(),
@@ -100,9 +108,131 @@ beforeEach(() => {
     requires_setup: false,
   });
   apiMocks.login.mockResolvedValue(session());
-  apiMocks.logout.mockReset();
+  apiMocks.logout.mockReset().mockResolvedValue(undefined);
   apiMocks.getCurrentUser.mockReset();
   apiMocks.updatePreferences.mockReset();
+});
+afterEach(cleanup);
+
+let currentAuth: AuthContextValue;
+function SessionProbe() {
+  currentAuth = useAuth();
+  return <p>{currentAuth.status}</p>;
+}
+function currentGuard() {
+  const guard = currentAuth.isSessionCurrent;
+  if (!guard) throw new Error('Missing live-session snapshot');
+  return guard;
+}
+async function authenticatedProvider() {
+  const rendered = render(
+    <AuthProvider>
+      <SessionProbe />
+    </AuthProvider>,
+  );
+  await screen.findByText('unauthenticated');
+  await act(async () =>
+    currentAuth.login({ login_id: 'member', password: 'password123' }),
+  );
+  expect(currentGuard()()).toBe(true);
+  return rendered;
+}
+
+describe('AuthProvider credential snapshots', () => {
+  it.each(['same token', 'rotated token', 'logout then same token'])(
+    'invalidates the previous snapshot synchronously for %s',
+    async (boundary) => {
+      await authenticatedProvider();
+      const previous = currentGuard();
+      act(() => {
+        if (boundary === 'logout then same token') {
+          void currentAuth.logout();
+          expect(previous()).toBe(false);
+        }
+        currentAuth.switchSession({
+          ...session(),
+          token: boundary === 'rotated token' ? 'rotated-token' : 'login-token',
+        });
+        expect(previous()).toBe(false);
+      });
+      const installed = currentGuard();
+      expect(installed).not.toBe(previous);
+      expect(installed()).toBe(true);
+      act(() => {
+        currentAuth.switchSession(session());
+        expect(installed()).toBe(false);
+        expect(previous()).toBe(false);
+      });
+      expect(currentGuard()()).toBe(true);
+    },
+  );
+
+  it('does not revive an old snapshot after accepted same-token login', async () => {
+    await authenticatedProvider();
+    const previous = currentGuard();
+    await act(async () =>
+      currentAuth.login({ login_id: 'member', password: 'password123' }),
+    );
+    expect(previous()).toBe(false);
+    expect(currentGuard()).not.toBe(previous);
+    expect(currentGuard()()).toBe(true);
+  });
+
+  it('preserves a snapshot through same-session bootstrap, access, and preferences refresh', async () => {
+    await authenticatedProvider();
+    const snapshot = currentGuard();
+    let finish!: (value: AuthUser) => void;
+    apiMocks.getCurrentUser.mockImplementationOnce(
+      () =>
+        new Promise<AuthUser>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    let refreshing!: Promise<void>;
+    act(() => {
+      refreshing = currentAuth.refreshSession();
+    });
+    expect(screen.getByText('bootstrapping')).toBeTruthy();
+    expect(snapshot()).toBe(true);
+    expect(currentGuard()).toBe(snapshot);
+    await act(async () => {
+      finish(user({ group_ids: ['current-group'] }));
+      await refreshing;
+    });
+    apiMocks.getCurrentUser.mockResolvedValue(user({ group_ids: [] }));
+    await act(async () => {
+      await currentAuth.refreshAccessUser();
+    });
+    apiMocks.updatePreferences.mockResolvedValue(user({ locale: 'en-US' }));
+    await act(async () => currentAuth.updatePreferences({ locale: 'en-US' }));
+    expect(currentGuard()).toBe(snapshot);
+    expect(snapshot()).toBe(true);
+  });
+
+  it('invalidates snapshots when current-session verification rejects the credential', async () => {
+    await authenticatedProvider();
+    const snapshot = currentGuard();
+    apiMocks.getCurrentUser.mockResolvedValue(null);
+    await act(async () => currentAuth.refreshSession());
+    expect(snapshot()).toBe(false);
+    expect(currentGuard()()).toBe(false);
+  });
+
+  it('does not revive a snapshot when the provider unmounts and remounts with the same credential', async () => {
+    const rendered = await authenticatedProvider();
+    const previous = currentGuard();
+    rendered.unmount();
+    expect(previous()).toBe(false);
+    apiMocks.getCurrentUser.mockResolvedValue(user());
+    render(
+      <AuthProvider>
+        <SessionProbe />
+      </AuthProvider>,
+    );
+    await screen.findByText('authenticated');
+    expect(previous()).toBe(false);
+    expect(currentGuard()()).toBe(true);
+  });
 });
 
 describe('AuthProvider logout', () => {
