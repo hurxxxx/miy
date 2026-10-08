@@ -368,6 +368,15 @@ capability와 공식 exec-server `initialize`로 원격 0.160.1/cwd를 읽기 �
 프로비저닝 검사기의 클라이언트를 재사용하며 10초와 응답 64 KiB 상한을 적용한다. 같은 endpoint에서
 실행 파일이 교체되어 버전이 달라져도 새 native 연결을 거부한다. 파일 쓰기 검사는 재연결 때 하지 않는다.
 `environment/add`와 thread/turn 환경 선택자를 사용하며 local provider는 비활성화한다.
+새 app-server의 0.160.1 `thread/resume`은 이전 원격 선택자를 복원하지 않는다. 기존 Task에
+저장된 연결 세대가 새 연결과 다르고 원래 thread·cwd가 정확히 일치할 때만 명시적인 빈 선택
+배열을 허용한다. 이때 응답 workspace roots는 명시적인 빈 배열 또는 해당 cwd 하나여야 한다.
+0.160.1 응답은 요청의 fallback roots가 아닌 현재 선택된 환경의 roots를 보고하므로 빈 선택은
+빈 roots로 나타날 수 있다. 누락·null·다른 roots는 거부하는 이 좁은 재개 어댑터에서도 새 thread와
+같은 연결의 재개는 정확한 원격 선택자를 계속 요구하며, 누락·null·local·다른 선택자는 거부한다.
+다음 `turn/start`는 항상 같은 Task의
+원격 환경을 명시적으로 다시 선택한다. 기존 Task·thread·요청을 유지하며 host 실행으로 대체하거나
+새 thread로 자동 재시도하지 않는다.
 `CODEX_HOME/environments.toml`이 존재하면 공식 TOML provider의 우선순위 때문에 시작을 거부한다.
 host hooks·MCP·앱/플러그인·shell snapshot·host skills discovery·로그인 shell을 끄고, shell 환경은
 고정 PATH/HOME만 넘긴다. host custom agent config file은 거부한다. 사용자 Codex 설정은 수정하지
