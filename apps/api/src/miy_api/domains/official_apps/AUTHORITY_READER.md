@@ -124,6 +124,45 @@ the full Source privilege profile and operational activation remain cutover work
 namespace, ownership, wait/revocation and cancellation checks. Its room/bus and
 initialization factory remain isolated synthetic business fixtures.
 
+## Explicit inactive Whiteboard initial room reads
+
+The same explicit assembly can additionally supply
+`official_whiteboard_room_session_factory` and
+`official_whiteboard_room_max_concurrent_reads`, together with the prepared auth
+and ACL options. A server-owned configured marker records this complete assembly;
+it grants no authority. Missing or noncallable dependencies refuse with private
+503/1013 before global initial Session, room or connection-slot allocation. Auth,
+ACL and initial room reads have separate budgets, not a combined concurrency cap.
+
+`collab_source_room` reads only an existing board/collab pair. One SQL projection
+measures the sum of the scene and snapshot JSON UTF-8 text representation and raw
+Yjs bytes against a fixed 8 MiB bound; CASE expressions withhold all three bodies
+when oversized. The transferred DTO is checked again before use. Null Yjs remains
+valid, and the existing empty-scene behavior and current room key are preserved.
+Missing, stale, mismatched, invalid or oversized state refuses instead of creating,
+repairing, resetting, flushing, committing or selecting a global factory fallback.
+The reader checks current app/edit policy before the body and again after clearing
+its owned ORM identity snapshot. The paired read is a current observation, not a
+lock on room state for a later write.
+
+After Source cleanup, the route reuses the identical prepared auth callable and
+requires the original actor and source-session identity. The configured marker,
+auth dependency, room loader and ACL callback identities are checked before and
+after this final await. Revocation across a Source wait refuses before room or
+connection-slot admission. Reads reuse the same owned transaction guard and
+structured worker; supported request cancellation joins cleanup before releasing
+that reader's permit, without a hard process-kill or event-loop-shutdown guarantee.
+
+The isolated native fixture extends the existing ACL-read fixture only with two
+board columns and six collab columns. Its eight Core policy tables/twenty columns
+and nine existing Source target/share table reads retain the ACL owner's limits.
+This is not exact operational Source-profile attestation; the private catalog-role
+check has the same documented limitation. Synthetic room/bus fixtures establish
+route ordering and callbacks, not deployed codec, relay or persistence operation.
+Default initialization, scene/Yjs code and the native hub's global persistence
+factory remain unchanged. Source writer/CAS, COMMIT-unknown, complete roles and
+operational activation require separate contracts and validation.
+
 ## Ownership and current authority
 
 The caller supplies a factory for a fresh **auth-only** SQLAlchemy Session,

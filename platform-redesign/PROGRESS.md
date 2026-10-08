@@ -446,3 +446,17 @@ Workbench의 정확 Codex0.160.1은 표준 systemd-socket-proxyd ingress와 owne
 - full233/401은 저장 공간 검사에서 실패해 테스트0이며 main/prod는 `9e9280df`, 새 운영 배포는 없다.
 - 최소 native executor 예제3개와 공개 pin·검사·owner를 별도 worktree에서 구현했다. 단위7개와 실제 공개 package49파일·systemd 문법 검사를 통과했다. 설치/시작/native 요청·운영 설정 변경0이며 최종 독립 검토·정상 전달을 진행한다.
 - 다음 Source 단계는 기존 room 상태의 명시적 readOnly 초기 읽기, 별도 writer/room identity와 취소/COMMIT unknown이 보장된 초기화·영속화다. 앱 업무 기능을 확장하지 않는다.
+
+## 2026-10-08 19:12 — 중단 지점 이후 전달과 다음 구현
+
+- Workbench cold resume·Whiteboard Source ACL·최소 native executor 정의를 각각 독립/필수 리뷰 후 양쪽 정상 병합하고 소유 브랜치를 정리했다. Dev는 `c7520d05`다.
+- 최신 full235/403은 저장 공간 검사 실패로 제품 테스트0이며 main/prod는 `9e9280df`, 새 운영 배포는 없다. 19:01 기존 API·worker·Beat의 실제 healthy를 확인했다.
+- 다음 room readOnly 초기 로더의 red1을 실제 확인하고 구현 중이다. Dependency setup·Docker create timeout은 tests0로 구분하고 해당 소유 partial만 정리했다.
+- 최신 여유14.5999GiB/14.85754% free는 두 floor 미달이며 새로 입증된 소유 정리 후보는0이다. 추가 삭제·설정 변경 없이 지속 headroom을 기다린다.
+- 최소 native 정의의 영구 적용과 실제 설치 검증·개인 앱 SDK 도구 체인, Source writer/room 저장·Docs·공식 cutover는 별도 필수 잔여다. 업무 기능 확대·다중 사용자는 진행하지 않는다.
+
+## 2026-10-08 — 재시작 복구와 기존 room Source 초기 읽기 인수
+
+서버 재시작 뒤 Source7·보호62·dev `c7520d05`와 기존 prod `9e9280df`를 확인하고 미완료 단계만 재개했다. 기존 collab 상태를 fresh readOnly Source transaction에서 읽는 명시적 비활성 초기 로더를 인수했다. 앱·edit ACL을 읽기 전후 재조회하고 정리 뒤 동일 auth callable·actor/session 및 server assembly identity를 재검증한다. 동일 paired SELECT의 scene/snapshot/Yjs 합계8MiB를 SQL CASE로 전송 전에 제한하고 detached DTO를 재검증한다. 부분 설정·missing/stale/invalid/초과 상태는 private503/1013으로 거절하며 legacy init/repair로 우회하지 않는다. Global hub persistence와 writer/CAS·COMMIT unknown, Docs Source·최소 operational 역할·cutover는 여전히 필수 잔여다.
+
+새65개·영향157개와 생성 계약 검사를 통과했다. 용량 fixture와 wait 관측 준비의 실패·재검증 한계는 VALIDATION이 소유한다. 정상 source 전달·필수 리뷰·소유 브랜치 정리를 진행한다. 최신 full235/403 저장 공간 실패는 유지하며 새 운영 배포는 없다.

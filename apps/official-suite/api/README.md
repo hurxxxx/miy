@@ -47,6 +47,17 @@ Source lifecycle. The [reader owner](../../api/src/miy_api/domains/official_apps
 distinguishes the disposable ACL-read fixture from a complete operational Source
 privilege profile; the published inactive artifact still supplies no such options.
 
+An additional explicit room-read factory and budget can select an existing
+Whiteboard collab row for the initial handshake. This prepared branch enforces a
+coherent 8 MiB aggregate scene/snapshot/Yjs bound, refuses missing or stale state
+without initialization or repair, and repeats the same current auth identity after
+Source cleanup. Complete server assembly is checked before room or slot admission;
+failure never falls back to the global initial factory. The
+[initial-room reader owner](../../api/src/miy_api/domains/official_apps/AUTHORITY_READER.md#explicit-inactive-whiteboard-initial-room-reads)
+records separate budgets, restricted fixture scope and current-observation limits.
+Default initialization and native hub persistence remain unchanged; this option
+does not provision a Source writer, roles, durable room CAS or service activation.
+
 | Artifact                  | Current state                                                                                        |
 | ------------------------- | ---------------------------------------------------------------------------------------------------- |
 | Official UI               | Separate entry/build output; legacy UI/public-module bridge                                          |

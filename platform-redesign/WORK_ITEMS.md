@@ -203,3 +203,17 @@ Workbench의 정확 Codex0.160.1은 표준 systemd-socket-proxyd ingress와 owne
 `WB-001/002`·`ENV-001`의 최소 표준 native executor 정의는 source-only 구현·단위/공개 parser 검사를 마쳤다. 최종 독립 리뷰·정상 전달과 immutable 운영 cache·실제 설치 enforcement·보호 설정·별도 Workbench 서비스 반영·중단/단절·개인 앱 전체 흐름은 남아 in_progress다.
 
 `REL-001`·`VAL-001`은 full233/401의 저장 공간 실패로 in_progress다. 현재 dev `4764fc2c`, main/prod `9e9280df`이며 전체 릴리스·MR81 병합·새 운영 배포·네 영역 전체 인수는 미완료다. 앱별 비필수 기능·다중 사용자 범위는 유지한다.
+
+## 2026-10-08 19:12 — native source 전달 뒤 room 초기 읽기
+
+`WB-001/002`·`ENV-001`의 최소 native executor 정의·설치 entrypoint는 독립 검토·필수 리뷰·양쪽 정상 병합·소유 브랜치 정리를 마쳤다. Immutable 운영 cache·실제 설치 enforcement·보호 설정·별도 Workbench 서비스·중단/단절·대표 SDK 도구 체인/개인 앱 전체 흐름은 남아 in_progress다.
+
+`OFF-002B`는 기존 room Source 초기 readOnly의 실제 미구현 red를 확인하고 승인된7경로를 구현 중이다. Source writer·room identity CAS·현재 권한과 COMMIT unknown을 보장하는 초기화/영속화·Docs Source·minimum operational 역할·cutover는 필수 잔여다.
+
+`REL-001`·`VAL-001`은 full235/403의 저장 공간 실패/tests0로 in_progress다. Dev `c7520d05`, main/prod `9e9280df`이며 전체 릴리스·운영 반영·네 영역 전체 인수는 미완료다. 앱별 세부 기능·다중 사용자는 보류한다.
+
+## 2026-10-08 — 재시작 복구와 기존 room Source 초기 읽기 인수
+
+서버 재시작 뒤 Source7·보호62·dev `c7520d05`와 기존 prod `9e9280df`를 확인하고 미완료 단계만 재개했다. 기존 collab 상태를 fresh readOnly Source transaction에서 읽는 명시적 비활성 초기 로더를 인수했다. 앱·edit ACL을 읽기 전후 재조회하고 정리 뒤 동일 auth callable·actor/session 및 server assembly identity를 재검증한다. 동일 paired SELECT의 scene/snapshot/Yjs 합계8MiB를 SQL CASE로 전송 전에 제한하고 detached DTO를 재검증한다. 부분 설정·missing/stale/invalid/초과 상태는 private503/1013으로 거절하며 legacy init/repair로 우회하지 않는다. Global hub persistence와 writer/CAS·COMMIT unknown, Docs Source·최소 operational 역할·cutover는 여전히 필수 잔여다.
+
+OFF-002B의 기존 room readOnly 초기 읽기는 locally_accepted다. Source writer·room CAS·초기화/영속화·Docs·operational 최소 역할·cutover, native immutable 설치/enforcement·SDK 전체 흐름은 필수 잔여다. REL-001·VAL-001은 최신 full 실패로 미완료이며 비필수 앱 세부 기능·다중 사용자는 보류한다.
