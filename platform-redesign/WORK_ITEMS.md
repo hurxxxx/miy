@@ -96,8 +96,8 @@
 후속 구현을 소유한다. private native root File 한 개의 Source-only
 soft-delete·exact event observer와 공유 Session routing 거부를 로컬 비활성
 범위로 인수했다. 작성자41·실제 제한 Source 고유30·기존 영향81개와 독립
-리뷰의 차단 결함0을 확인했다. 병합 후 코드는 이번 별도 Source 후속 PR의
-게시 대상이다. 다음은
+리뷰의 차단 결함0을 확인했다. 병합 후 코드는
+[GitHub PR70](https://github.com/hurxxxx/miy/pull/70)으로 게시했다. 다음은
 전체 tree의 유한 명령과 publication hold·원자 apply 조립이다. 이 첫 slice는
 전체 tree/publication나 OFF-002B 완료를 뜻하지 않는다. runtime 계약은
 [SOURCE_MUTATIONS.md](../apps/api/src/miy_api/domains/files/SOURCE_MUTATIONS.md)가,
