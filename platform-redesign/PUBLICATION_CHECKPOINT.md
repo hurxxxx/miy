@@ -9,8 +9,45 @@ GitHub 작업 PR과 내부 dev→main release_validation을 각각 확인한다.
 플랫폼의 guarded immutable image 배포와 별도 Workbench 릴리스·백업·교체·
 직접/공개 health 및 실제 UI 반영을 구분해 기록한다. 기존 operational
 DB/grant/서비스의 official cutover를 이 코드 배포로 활성화하지 않는다.
-실제 결과와 SHA는 PR/MR 기록과 후속 receipt가 원본이다. 이 문단은
-작업 착수 기록이며 아직 병합·배포 완료를 뜻하지 않는다.
+실제 결과와 SHA는 PR/MR 기록과 후속 receipt가 원본이다.
+
+### 반영 결과 — 2026-10-08 04:00 UTC
+
+- [PR71](https://github.com/hurxxxx/miy/pull/71)은 03:37:23 UTC에 일반 merge했다.
+  GitHub source는 `a7e71d40a3d2a6a53cbab71eb03b847d1094b9ee`, merge는
+  `22f6f522d6ae383a57c04e4a241784048df5a668`이다. 로컬 구현 commit은
+  `0c1bf0fe6406ba42445a25e6ea470ac4dabbb31c`, 내부 게시 source는
+  `c5c3556fb89724977fe3943507a39b23a8eb00b2`다. GitHub와 내부 게시 tree의
+  일치를 확인했고 GitHub 작업 브랜치는 원격·로컬에서 삭제했다.
+  영구 dev/main, 미병합 내부 작업 브랜치와 upstream push-disabled는 유지한다.
+- 개발 플랫폼은 기존 개발 Redis의 중지·네트워크 연결 누락을 복구한 뒤 기존
+  supervisor를 한 번 재시작했다. 기존 volume·설정을 보존하고 운영 Redis는
+  변경하지 않았다. append migration 5개를 적용해 `file_effect_20261007`이며
+  API·web·worker·Beat, 직접/공개 readiness와 실제 로그인·런처·로그아웃을
+  확인했다. health revision은 여전히 `unmanaged`이므로 정확한 health SHA
+  증명을 주장하지 않는다. 재시작 소스와 게시 tree의 일치는 별도로 확인했다.
+- Workbench는 별도 `20261008-0c1bf0fe` 릴리스로 교체했다. consistent backup과
+  복사본 rehearsal 뒤 모든 세 역할을 중지하고 SQLite0003→0008을 적용했다.
+  기존 작업·native 이력·세션·첨부·설정과 고정 CLI를 보존하고 두 릴리스 링크를
+  교체해 세 역할을 재시작했다. 직접/공개 health, 배포된 JS 일치, 실제 공개
+  로그인·여섯 화면의 heading/선택 메뉴·로그아웃401을 확인했다.
+  설치된 새 조회 handler의 missing-project404는 실제 연결 실행 증거가 아니다.
+  등록 프로젝트가 없어 새 프로젝트 pre-Task UX와 실제 native/sandbox 실행은
+  운영 실증하지 않았으며 기존 잔여를 유지한다.
+- **운영 플랫폼은 아직 미배포다.** 내부 MR80의 필수 `codex_review`가 pipeline206의
+  job370과 재시도371에서 `refresh_token_reused` 인증 오류로 실패했다.
+  코드 리뷰의 MERGE_READY/BLOCKED 판정은 없다. 실제 리뷰 계정의 홈에서 공식
+  browser 재인증을 마친 뒤 최신 source/target의 필수 리뷰와 dev→main 전체
+  `release_validation`을 통과해야 한다. 운영 설정 사전 점검과 PostgreSQL18
+  검증 이미지는 준비했으며 운영 checkout·image·DB는 기존 릴리스를 유지한다.
+- 공식 Source/Core 서비스 전환, 새로운 operational reader/grant, 전체 tree·
+  publication/원자 apply와 native 실행 경계는 이번 코드 설치로 활성화하지 않았다.
+  상세 앱 기능 개선은 계속 별도 지시를 기다린다.
+
+민감한 자료를 제외한 로컬 근거는 ignored `.runtime/structural-next-delivery/`,
+`.runtime/dev-platform-deployment/`, `.runtime/workbench-deployment/`와
+`.runtime/source-aggregate-next/ci-review-diagnosis/`에 보존한다.
+이후 결과 문서의 게시 commit은 제품 릴리스 source와 구분한다.
 
 2026-10-08 UTC. 사용자 지시에 따른 변경의 커밋·push·PR·병합 기록이다.
 설계·후속 범위는 [PLAN.md](PLAN.md), 현재 구현은 [STATUS.md](STATUS.md),
