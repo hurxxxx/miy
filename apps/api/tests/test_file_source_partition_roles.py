@@ -11,6 +11,7 @@ from psycopg import sql
 import pytest
 from sqlalchemy.orm import Session
 
+from _migration_revision_fixtures import migration_revision_world
 from miy_api.domains.official_apps.file_source_partition_roles import (
     file_source_partition_contract,
     install_file_source_partition_guard,
@@ -25,8 +26,19 @@ from test_official_writer_roles import (
     denied,
     move,
     role_template as role_template,
-    world as world,
+    world as current_head_world,  # noqa: F401
 )
+
+
+@pytest.fixture
+def world(current_head_world, request, tmp_path, monkeypatch):  # noqa: F811
+    return migration_revision_world(
+        current_head_world,
+        request,
+        tmp_path,
+        monkeypatch,
+        expected_revision="file_effect_20261007",
+    )
 
 
 @pytest.fixture
@@ -618,6 +630,7 @@ def test_new_capability_downgrade_requires_explicit_retirement(world, file_sourc
         )
 
 
+@pytest.mark.parametrize("world", ["file_effect_20261007"], indirect=True)
 def test_fresh_append_roundtrip_is_inactive_and_old_schema_preserved(world):
     from alembic import command
     from test_alembic_migrations import _migration_config

@@ -236,3 +236,11 @@ Docker executor의 validation workspace와 Docker data가 새 root filesystem에
 최종17파일 범위에서 신규 actual PG18 native138 PASS/321.13초·pure7 PASS/3.30초 =145개다. 정상 원본 Source 모듈79 PASS/82.18초·원 role31 PASS/24.19초·authority52 PASS/83.77초·migration5 PASS/6.35초 =고유 기존 영향167개다. 진단/반복은 더하지 않는다. ACT-CI-01의 실제5 FAIL/11.19초와 동일5 PASS/11.17초는 보존하며 현재 영향 검증은 ignored Source prior adapter에 의존하지 않는다. 기존45개 함수 본문·signature·assertion, 보호94개·기존31 migration은 동일하다.
 
 Python6·API architecture/i18n·schema/OpenAPI/contract sources를 통과했다. 최종 문서 검사·동결 후 새 독립 인수와 정상 게시/필수 원격 리뷰를 진행한다. 현재 dev746258cd·main/prod9e9280df 및 최신 full247/415 storage 실패/tests0를 유지하며 새로운 commit/push/PR/MR/merge는 아직 없다. Docker 이전/원본 정리·서비스 복구는 완료했고 제품/별도 Workbench 버전 배포는 없다. 전체 ACL·같은 Source connection/transaction 조립·실제 공식 서비스 cutover·Native 전체 자연어 앱 흐름 등 구조상 필수 잔여는 남아 있다.
+
+## 2026-10-09 10:48 — 다음 실행 순서
+
+먼저 실제 full249에서 실패한 기존 파일 migration의 revision별 fixture를 정상 CI 수집 경로에 반영하고 영향 모듈 전체를 검증한다. 필수 review 후 dev 통합·새 full release를 실행한다. 성공한 최신 source/target/tree를 확인한 뒤에만 정상 MR81 병합, fresh backup, guarded 운영 prepare/deploy/smoke를 수행한다. 전체 edit ACL 후속 구현은 별도 격리 검증을 유지하며 릴리스 source가 바뀌면 기존 성공 근거를 재사용하지 않는다. 별도 Workbench 배포와 실제 자연어 앱 전체 흐름 검증은 이후 필수 단계다.
+
+## 2026-10-09 11:05 — ACT-CI-02 로컬 영향 검증 완료
+
+ACT-CI-02 영향 모듈270 PASS를 최종 문서/독립 인수에 반영하고 정상 필수 review를 거쳐 dev에 먼저 통합한다. 이후 이미 로컬444 PASS인 전체 edit ACL을 새 base에 통합하면서 runtime/fixture 영향과 문서 충돌을 확인한다. 최종 dev source의 새 full 성공 후에만 운영 MR81/backup/guarded 배포를 진행한다. 실제 Source 저장과 별도 Workbench/native 전체 흐름은 그다음 필수 단계다.

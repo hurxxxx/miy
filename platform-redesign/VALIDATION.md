@@ -2050,3 +2050,13 @@ Docker 이전: 첫 bulk rsync23 및 두 번째 동일 오류238 mknod/ENOENT를 
 최종17파일 범위에서 신규 actual PG18 native138 PASS/321.13초·pure7 PASS/3.30초 =145개다. 정상 원본 Source 모듈79 PASS/82.18초·원 role31 PASS/24.19초·authority52 PASS/83.77초·migration5 PASS/6.35초 =고유 기존 영향167개다. 진단/반복은 더하지 않는다. ACT-CI-01의 실제5 FAIL/11.19초와 동일5 PASS/11.17초는 보존하며 현재 영향 검증은 ignored Source prior adapter에 의존하지 않는다. 기존45개 함수 본문·signature·assertion, 보호94개·기존31 migration은 동일하다.
 
 Python6·API architecture/i18n·schema/OpenAPI/contract sources를 통과했다. 최종 문서 검사·동결 후 새 독립 인수와 정상 게시/필수 원격 리뷰를 진행한다. 현재 dev746258cd·main/prod9e9280df 및 최신 full247/415 storage 실패/tests0를 유지하며 새로운 commit/push/PR/MR/merge는 아직 없다. Docker 이전/원본 정리·서비스 복구는 완료했고 제품/별도 Workbench 버전 배포는 없다. 전체 ACL·같은 Source connection/transaction 조립·실제 공식 서비스 cutover·Native 전체 자연어 앱 흐름 등 구조상 필수 잔여는 남아 있다.
+
+## 2026-10-09 10:48 — ACT-CI-02: 파일 migration revision 입력
+
+Full249/job417의 실제 백엔드 결과는 6,283 PASS/8 FAIL/3 SKIP/4 warnings, 2,445.04초다. 실패 여섯 함수는 extraction2·effect2·projection1·partition1이며 extraction의 세 boundary parameter로 여덟 case다. 이들은 `file_effect_20261007` 버전이나 그 revision의 왕복을 검증하지만 공통 fixture는 실제 최신 `wb_actor_owner_20261009`까지 올라간다. 제품 guard나 기존 migration을 완화하지 않고, 해당 case만 정상 Alembic downgrade와 원래 ancestor inventory로 버전을 고정하는 방식을 적용한다. 원 함수 body/signature/assertion은 유지한다.
+
+Full249/job417은 최종 FAILED/script_failure/2,730.55초다. 후속 백엔드 세 그룹16·37·15 PASS도 기록했으며 앞선8 FAIL을 무효화하지 않는다. 이후 전체 릴리스 성공 또는 새 수정본 통과의 근거가 아니다. 새 fixture의 실제 PostgreSQL 검증·정상 원격 review와 새 full release는 별도로 확인한다. 근거는 `.runtime/structural-next-delivery/release249-job417-final-failed.json`과 후속 ACT-CI-02 영수증에 보존한다.
+
+## 2026-10-09 11:05 — ACT-CI-02 로컬 영향 검증 완료
+
+원본 네 모듈 전체를 제외 없이 실행해270 PASS/469.15초·cleanup PASS다. 진단8 PASS/29.10초는 고유 합계에 더하지 않는다. 원115개 함수 body/signature/return과270 assertion은 AST 동일하며 다른262 case는 실제 최신 head다. Python5·문서6·collect270도 PASS다. 보호99개·기존32 migration 및 제품 API786개는 동일하다. 실행 이후 업데이트한 tracking6은 최종 Markdown/독립 리뷰로 별도 확인하고 source5의 실행 전후 해시를 유지한다. 기존 full249/job417의8 FAIL은 보존하며 새 전체 release 성공으로 취급하지 않는다.

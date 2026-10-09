@@ -15,6 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from _migration_revision_fixtures import migration_revision_world
 from test_alembic_migrations import _migration_config
 from test_file_extraction_authority import extraction_prepared as extraction_prepared
 from test_file_materialization_roles import accepted, prepare as prepare_read
@@ -22,7 +23,11 @@ from test_file_projection_core_roles import file_core_prepared as file_core_prep
 from test_file_projection_roles import reader_engine
 from test_file_source_partition_roles import wait_for_exact_blocker
 from test_independent_app_data import isolated_data_cluster as isolated_data_cluster
-from test_official_writer_roles import denied, role_template as role_template, world as world
+from test_official_writer_roles import (
+    denied,
+    role_template as role_template,
+    world as current_head_world,  # noqa: F401
+)
 from test_prepared_files_ingress import c as c, publications as publications
 
 from miy_api.domains.files.core_projection import prepared_core_file_projection
@@ -42,6 +47,18 @@ from miy_api.domains.retrieval.projection_generations import (
     create_projection_generation,
     mark_generation_baselining,
 )
+
+
+@pytest.fixture
+def world(current_head_world, request, tmp_path, monkeypatch):  # noqa: F811
+    return migration_revision_world(
+        current_head_world,
+        request,
+        tmp_path,
+        monkeypatch,
+        expected_revision="file_effect_20261007",
+        config_alias_module=__name__,
+    )
 
 
 def prepare(c, role, *, commit=True):
@@ -518,6 +535,7 @@ def test_effect_fixture_restore_failure_preserves_history_and_guards(
         )
 
 
+@pytest.mark.parametrize("world", ["file_effect_20261007"], indirect=True)
 def test_new_effect_schema_history_and_explicit_retirement_gate(file_effect_prepared):
     p = file_effect_prepared
     config = _migration_config(p.world.engine.url.render_as_string(hide_password=False))
@@ -1300,6 +1318,7 @@ def test_private_owner_cannot_read_operation_header(file_effect_prepared):
         denied(conn, "SELECT source_event_id FROM public.core_file_materialization_operations")
 
 
+@pytest.mark.parametrize("world", ["file_effect_20261007"], indirect=True)
 def test_fresh_schema_roundtrip_without_history_or_grants(world):
     from alembic import command
 

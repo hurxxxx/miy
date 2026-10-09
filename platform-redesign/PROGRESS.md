@@ -578,3 +578,13 @@ Docker 이전 후 정상 게시 전 독립 리뷰에서 ACT-CI-01을 발견해 �
 최종17파일 범위에서 신규 actual PG18 native138 PASS/321.13초·pure7 PASS/3.30초 =145개다. 정상 원본 Source 모듈79 PASS/82.18초·원 role31 PASS/24.19초·authority52 PASS/83.77초·migration5 PASS/6.35초 =고유 기존 영향167개다. 진단/반복은 더하지 않는다. ACT-CI-01의 실제5 FAIL/11.19초와 동일5 PASS/11.17초는 보존하며 현재 영향 검증은 ignored Source prior adapter에 의존하지 않는다. 기존45개 함수 본문·signature·assertion, 보호94개·기존31 migration은 동일하다.
 
 Python6·API architecture/i18n·schema/OpenAPI/contract sources를 통과했다. 최종 문서 검사·동결 후 새 독립 인수와 정상 게시/필수 원격 리뷰를 진행한다. 현재 dev746258cd·main/prod9e9280df 및 최신 full247/415 storage 실패/tests0를 유지하며 새로운 commit/push/PR/MR/merge는 아직 없다. Docker 이전/원본 정리·서비스 복구는 완료했고 제품/별도 Workbench 버전 배포는 없다. 전체 ACL·같은 Source connection/transaction 조립·실제 공식 서비스 cutover·Native 전체 자연어 앱 흐름 등 구조상 필수 잔여는 남아 있다.
+
+## 2026-10-09 10:48 — 실제 전체 릴리스의 파일 migration 호환 문제
+
+Actor-owner는 정상 commit `3b39f5b9`, GitHub PR89·GitLab MR96 병합과 필수 review248/job416 성공으로 전달했다. 개발 통합은 `8bf0bbee`, 운영 main/prod는 `9e9280df`이며 기능 브랜치는 양쪽 원격/로컬에서 정리했다. Docker 데이터의 루트 볼륨 이전과 기존 서비스 복구는 완료했다.
+
+MR81의 새 full249/job417은 저장 공간 검사를 지나 실제 백엔드를 실행했고 6,283 PASS/8 FAIL/3 SKIP를 기록했다. 실패는 기존 파일 migration의 여섯 함수·여덟 case가 최신 head에서도 `file_effect_20261007`을 기대하는 호환 문제다. 정상 CI에서 수집되는 revision별 fixture를 별도 브랜치에서 수정한다. 전체 릴리스는 아직 성공하지 않았고 운영·별도 Workbench 버전 배포는 하지 않았다.
+
+## 2026-10-09 11:05 — ACT-CI-02 로컬 영향 검증 완료
+
+ACT-CI-02 수정본의 원본 네 모듈270개 전체 PASS/469.15초를 확인했다. 제외/ignored adapter 없이 여섯 역사적 함수의8 case만 정상 revision fixture를 사용했고 기존 모든 검증문은 유지했다. 독립 최종 인수 뒤 정상 commit/push·GitHub PR·GitLab MR 및 필수 review를 진행한다. 현재 dev8bf0bbee·main/prod9e9280df이며 운영/별도 Workbench 신규 배포는 아직 없다.
