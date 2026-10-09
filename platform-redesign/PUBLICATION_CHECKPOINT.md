@@ -616,3 +616,13 @@ revision fixture를 원본 테스트에 포함해17파일/보호94로 범위를 
 최종17파일 범위에서 신규 actual PG18 native138 PASS/321.13초·pure7 PASS/3.30초 =145개다. 정상 원본 Source 모듈79 PASS/82.18초·원 role31 PASS/24.19초·authority52 PASS/83.77초·migration5 PASS/6.35초 =고유 기존 영향167개다. 진단/반복은 더하지 않는다. ACT-CI-01의 실제5 FAIL/11.19초와 동일5 PASS/11.17초는 보존하며 현재 영향 검증은 ignored Source prior adapter에 의존하지 않는다. 기존45개 함수 본문·signature·assertion, 보호94개·기존31 migration은 동일하다.
 
 Python6·API architecture/i18n·schema/OpenAPI/contract sources를 통과했다. 최종 문서 검사·동결 후 새 독립 인수와 정상 게시/필수 원격 리뷰를 진행한다. 현재 dev746258cd·main/prod9e9280df 및 최신 full247/415 storage 실패/tests0를 유지하며 새로운 commit/push/PR/MR/merge는 아직 없다. Docker 이전/원본 정리·서비스 복구는 완료했고 제품/별도 Workbench 버전 배포는 없다. 전체 ACL·같은 Source connection/transaction 조립·실제 공식 서비스 cutover·Native 전체 자연어 앱 흐름 등 구조상 필수 잔여는 남아 있다.
+
+## 2026-10-09 10:48 — owner 전달 완료와 release 재검증 조건
+
+Owner commit `3b39f5b9`의 GitHub PR89·GitLab MR96은 정상 병합했다. 필수248/job416 SUCCESS·allow_failure=false, 양쪽 merge tree `68ca858ec1390e43037fec7d1d277feaec409ad6` 동일이다. dev는 `8bf0bbee`로 fast-forward했고 해당 기능 브랜치만 원격/로컬 정리했다.
+
+MR81의 full249/job417에서 파일 migration 여덟 case가 실패했으므로 현재 source의 운영 병합·배포 근거가 없다. 버전 전용 fixture 수정은 새 필수 review와 새 exact-source full 검증을 거친다. 보호된 dev/main 및 upstream direct-push 비활성 계약을 유지한다.
+
+## 2026-10-09 11:05 — ACT-CI-02 로컬 영향 검증 완료
+
+ACT-CI-02는5개 test/helper+root tracking6=11경로다. 정상 원본270 PASS, 원115함수/270assertion 유지, 보호99개·기존32 migration 및 제품786개 동일을 확인했다. 최종 문서와 독립 인수 후 정상 commit/push·양쪽 PR/MR·필수 codex_review를 진행한다. Merge 전 현재 source/target/tree를 다시 확인하고 owned feature만 정리한다. 보호된 dev/main과 upstream direct push 비활성은 유지한다.

@@ -8,13 +8,14 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.orm import Session
 
+from _migration_revision_fixtures import migration_revision_world
 from test_independent_app_data import isolated_data_cluster as isolated_data_cluster
 from test_official_writer_roles import (
     ACTIVE,
     activate,
     move,
     role_template as role_template,
-    world as world,
+    world as current_head_world,  # noqa: F401
 )
 from miy_api.domains.files.models import FileManagerFile
 from miy_api.domains.official_apps.file_extraction_roles import (
@@ -32,6 +33,17 @@ from miy_api.domains.official_apps.writer_contracts import SUITE_SCOPE
 from miy_api.domains.retrieval.partitioning import ensure_default_partition
 
 POLICY = "files-retrieval-v2/local-only-10m-v1"
+
+
+@pytest.fixture
+def world(current_head_world, request, tmp_path, monkeypatch):  # noqa: F811
+    return migration_revision_world(
+        current_head_world,
+        request,
+        tmp_path,
+        monkeypatch,
+        expected_revision="file_effect_20261007",
+    )
 
 
 @pytest.fixture
@@ -1092,6 +1104,7 @@ def test_owned_new_history_reset_rollback_and_trigger_recovery(extraction_prepar
         )
 
 
+@pytest.mark.parametrize("world", ["file_effect_20261007"], indirect=True)
 def test_fresh_protocol_downgrade_round_trip_preserves_sources(world):
     from alembic import command
     from test_alembic_migrations import _migration_config
@@ -1122,6 +1135,7 @@ def test_fresh_protocol_downgrade_round_trip_preserves_sources(world):
         )
 
 
+@pytest.mark.parametrize("world", ["file_effect_20261007"], indirect=True)
 @pytest.mark.parametrize("boundary", ["active", "history", "grants"])
 def test_protocol_downgrade_preserves_history_and_explicit_retirement(
     extraction_prepared, world, boundary
