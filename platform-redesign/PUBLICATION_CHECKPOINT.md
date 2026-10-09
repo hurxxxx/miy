@@ -690,3 +690,13 @@ C1·GC·접근 도구를 최신 dev02418067 기반으로 먼저 통합한다. C1
 ## 2026-10-09 18:03 UTC — GitHub94/GitLab101 필수 재리뷰
 
 최초858632eb/tree40f560da 게시와 정상 commit/push는 완료했지만 필수258/job426은 Docs 종료 P1로 실패했다. 수정31개 후보는 focused24·원본106을 새로 통과했으며 새 head를 정상 푸시해 필수 리뷰를 다시 받는다. 실패를 면제하거나 이전 검사로 병합하지 않는다. Persistent dev/main과 main/prod9e9280df를 유지하며 SDK/C2 후보는 별도다.
+
+## 2026-10-09 18:37 UTC — draining 마이그레이션 필수 P1 수정
+
+필수259/job427(source0059196a)은 C1 migration의 기존행 UPDATE backfill이 draining 상태의 statement writer guard에 걸리는 P1을 발견했다. 빈 테이블도 guard가 실행되므로 기존 trigger/role/ACL을 우회하지 않고 두 column을 owner DDL의 NOT NULL/default로 초기화한다. UUID의 행별 생성 뒤 미래 INSERT default만 기존 sentinel로 복원한다. 기존 SQL 함수·guard·downgrade·22개 테스트 정의와 기본 비활성 경로를 보존했다.
+
+현재 코드의 실제 PostgreSQL18 회귀는 기존56개+legacy/hardened×empty/existing_rows4개로 **60 PASS/179.90909초**다. Setup/call/teardown 모두60/실패·skip·collection error0이며 소유 cluster/container 정리와 입력 전후 검증을 통과했다. Native 입력31 c34454d1·수정3 ddabcea8 및 receipt e988110b를 보존했다. Canonical 문서 서식만 후속 whitespace로 정리했고 코드·테스트·migration bytes는 같다. 현재 입력31 4d19d222·수정3 23abcea3에 결속한 frozen CI Ruff0.16.6 check/format과 owner Markdown도 통과했다. 이전 잘못된 도구 버전 기대와 문서 format RED는 보존하며 검사 결과를 성공으로 덮어쓰지 않는다.
+
+Docs 집중24/기존협업106(208.751168초)은 바뀌지 않은 runtime/test bytes에 한정한 이전 인수 근거다. 과거 C1 권한132/110/145/52는 그 당시 입력으로 구분한다. GitHub94/GitLab101의 새 수정 head 필수 리뷰·정상 병합·새 current full, 새 migration34/pending24 private 리허설과 이전 운영 이미지 호환·fresh backup/guarded 배포가 남아 있다. Dev02418067·main/prod9e9280df는 현재 그대로이며 배포 완료를 뜻하지 않는다.
+
+별도 Workbench 후보는 SDK source22/owned delta11의 신규74 PASS와 영향427 PASS/기존 PostgreSQL legacy fixture5 SKIP 및 독립 소스 리뷰를 마쳤다. 실제 원관리 정책 확인·controller/Task·private-notes와 별도 서비스 배포는 미완료다. C2-1 비활성 provenance3은 실제 native53 PASS와 독립 리뷰를 통과했으며 PostgreSQL pre-apply durable journal/discovery와 C3 원 attempt 복구·서비스 활성화는 필수 구조 잔여다. 앱별 비필수 기능과 다중 사용자는 보류한다.

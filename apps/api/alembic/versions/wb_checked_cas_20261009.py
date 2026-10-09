@@ -629,25 +629,22 @@ def upgrade():
     ):
         raise RuntimeError("whiteboard_checked_capability_exists")
     op.add_column(
-        "whiteboard_collab_documents", sa.Column("content_incarnation_id", sa.Uuid(), nullable=True)
+        "whiteboard_collab_documents",
+        sa.Column(
+            "content_incarnation_id",
+            sa.Uuid(),
+            nullable=False,
+            server_default=sa.text("pg_catalog.gen_random_uuid()"),
+        ),
     )
     op.add_column(
-        "whiteboard_collab_documents", sa.Column("content_revision", sa.BigInteger(), nullable=True)
-    )
-    op.execute(
-        "UPDATE public.whiteboard_collab_documents SET content_incarnation_id=pg_catalog.gen_random_uuid(),content_revision=0"
+        "whiteboard_collab_documents",
+        sa.Column("content_revision", sa.BigInteger(), nullable=False, server_default=sa.text("0")),
     )
     op.alter_column(
         "whiteboard_collab_documents",
         "content_incarnation_id",
-        nullable=False,
         server_default=sa.text("'00000000-0000-0000-0000-000000000000'::uuid"),
-    )
-    op.alter_column(
-        "whiteboard_collab_documents",
-        "content_revision",
-        nullable=False,
-        server_default=sa.text("0"),
     )
     op.create_table(
         "whiteboard_checked_attempts",

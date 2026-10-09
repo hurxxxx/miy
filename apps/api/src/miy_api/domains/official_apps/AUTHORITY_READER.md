@@ -662,7 +662,6 @@ cluster identity. Same-transaction checked captured-CAS storage, every queued
 contributor's original execution, relay attribution, durable unknown recovery and
 operational drain/cutover are separate activation gates.
 
-
 ## Inactive Core-sealed checked Whiteboard storage
 
 `whiteboard/checked_save.py` supplies caller-owned Core seal/resolve and Source
@@ -703,6 +702,16 @@ The two columns are deferred and collab eager-default fetching is disabled to
 preserve existing restricted Source8 SELECT and historical INSERT RETURNING;
 checked storage uses explicit SQL projections. SQLite metadata defaults are not
 checked-storage authority; every C1 operation requires actual PostgreSQL.
+
+Upgrade initializes existing rows through owner DDL: `ADD COLUMN` uses a volatile
+`pg_catalog.gen_random_uuid()` default for a distinct nonzero incarnation per row
+and a NOT NULL zero revision, then restores the incarnation's zero INSERT sentinel
+default. It issues no business UPDATE and leaves all existing Source statement
+guards enabled, including in legacy and role-hardened draining states. The volatile
+default rewrites the table under an ACCESS EXCLUSIVE lock; drain, clone rehearsal,
+available disk and lock admission remain deployment requirements. This is not an
+online or metadata-only migration. Changing the default afterwards leaves the
+initialized rows unchanged. [PostgreSQL 18 ALTER TABLE](https://www.postgresql.org/docs/18/sql-altertable.html).
 
 On the same actual Source caller Connection/outer READ COMMITTED transaction,
 save locks the original attempt, validates every sealed original contributor using

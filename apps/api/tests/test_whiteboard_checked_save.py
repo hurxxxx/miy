@@ -5,8 +5,9 @@ saved assertion follows actual COMMIT. Missing APIs are readiness failures.
 """
 
 from dataclasses import FrozenInstanceError, replace
+from datetime import datetime
 from types import SimpleNamespace
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from alembic import command
 from _migration_revision_fixtures import migration_revision_world
@@ -14,8 +15,11 @@ import psycopg
 from psycopg.conninfo import make_conninfo
 import pytest
 from sqlalchemy import create_engine, event, select, text
+from sqlalchemy.engine import Engine
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
+from miy_api.domains.auth.dependencies import resolve_auth_context_from_token
 from miy_api.domains.official_apps import whiteboard_checked_writer_roles as roles
 from miy_api.domains.official_apps.whiteboard_actor_writer import CapturedWhiteboardWriteExecution
 from miy_api.domains.official_apps.whiteboard_checked_models import (
@@ -23,9 +27,10 @@ from miy_api.domains.official_apps.whiteboard_checked_models import (
     WhiteboardCheckedContributor,
 )
 from miy_api.domains.whiteboard import checked_save as runtime
-from miy_api.domains.whiteboard.models import WhiteboardCollabDocument
+from miy_api.domains.whiteboard.models import Whiteboard, WhiteboardCollabDocument
+from miy_api.domains.whiteboard.scene_state import make_fresh_whiteboard_room_key
 from test_alembic_migrations import _migration_config
-from test_official_writer_roles import ACTIVE, PASSWORD, move
+from test_official_writer_roles import ACTIVE, BASE, PASSWORD, move
 from test_prepared_official_http_auth import (
     authority as authority,  # noqa: F401
     bound_official as bound_official,  # noqa: F401
@@ -616,3 +621,221 @@ def test_pure_stage_refuses_nested_savepoint_without_issuing_sql_or_owning_clean
             nested.rollback()
     finally:
         engine.dispose()
+
+
+def _guarded_c1_upgrade_snapshot(engine):
+    """Compare existing synthetic authority and data, excluding only C1 additions."""
+    with engine.connect() as db:
+        return {
+            "payload": db.execute(
+                text(
+                    "SELECT id,whiteboard_id,room_key,yjs_state,snapshot_scene,last_snapshot_at,created_at,updated_at,writer_scope "
+                    "FROM public.whiteboard_collab_documents ORDER BY id"
+                )
+            ).all(),
+            "guards": db.execute(
+                text(
+                    "SELECT c.relname,t.oid,t.tgfoid,t.tgenabled,t.tgtype,t.tgnargs,t.tgargs,"
+                    "p.proname,p.proowner,p.prosrc,p.proacl::text,p.proconfig "
+                    "FROM pg_catalog.pg_trigger t JOIN pg_catalog.pg_class c ON c.oid=t.tgrelid "
+                    "JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace "
+                    "JOIN pg_catalog.pg_proc p ON p.oid=t.tgfoid "
+                    "WHERE n.nspname='public' AND t.tgname='miy_official_source_writer' ORDER BY c.relname"
+                )
+            ).all(),
+            "prior_functions": db.execute(
+                text(
+                    "SELECT p.oid,p.proname,p.proowner,p.prosrc,p.proacl::text,p.proconfig,"
+                    "p.prosecdef,p.proargnames,p.proargmodes,pg_catalog.pg_get_function_identity_arguments(p.oid) "
+                    "FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace "
+                    "WHERE n.nspname='public' AND p.proname NOT IN "
+                    "('miy_whiteboard_seal_checked','miy_whiteboard_save_checked','miy_whiteboard_resolve_checked',"
+                    "'miy_whiteboard_content_revision','miy_whiteboard_checked_immutable') ORDER BY p.oid"
+                )
+            ).all(),
+            "existing_table_authority": db.execute(
+                text(
+                    "SELECT c.oid,c.relname,c.relowner,c.relacl::text,a.attnum,a.attname,a.attacl::text "
+                    "FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace "
+                    "JOIN pg_catalog.pg_attribute a ON a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped "
+                    "WHERE n.nspname='public' AND c.relkind IN ('r','p') "
+                    "AND c.relname NOT IN ('whiteboard_checked_attempts','whiteboard_checked_contributors') "
+                    "AND NOT (c.relname='whiteboard_collab_documents' "
+                    "AND a.attname IN ('content_incarnation_id','content_revision')) ORDER BY c.oid,a.attnum"
+                )
+            ).all(),
+            "principals": db.execute(
+                text("SELECT * FROM public.official_writer_principals ORDER BY role_oid")
+            ).all(),
+            "ownership": db.execute(
+                text("SELECT * FROM public.official_runtime_ownership ORDER BY scope")
+            ).all(),
+            "roles": db.execute(
+                text(
+                    "SELECT oid,rolname,rolsuper,rolinherit,rolcreaterole,rolcreatedb,rolcanlogin,"
+                    "rolreplication,rolbypassrls,rolconnlimit,rolvaliduntil,rolconfig "
+                    "FROM pg_catalog.pg_roles ORDER BY oid"
+                )
+            ).all(),
+            "memberships": db.execute(
+                text(
+                    "SELECT roleid,member,grantor,admin_option,inherit_option,set_option "
+                    "FROM pg_catalog.pg_auth_members ORDER BY oid"
+                )
+            ).all(),
+            "default_acl": db.execute(
+                text(
+                    "SELECT oid,defaclrole,defaclnamespace,defaclobjtype,defaclacl::text "
+                    "FROM pg_catalog.pg_default_acl ORDER BY oid"
+                )
+            ).all(),
+        }
+
+
+@pytest.mark.parametrize("http_world", [REVISION], indirect=True)
+@pytest.mark.parametrize("guard_kind", ["legacy", "hardened"])
+@pytest.mark.parametrize("populated", [False, True], ids=["empty", "existing_rows"])
+def test_genuine_draining_c1_upgrade_initializes_rows_without_business_dml(
+    http_world, request, guard_kind, populated
+):
+    if guard_kind == "hardened":
+        c = request.getfixturevalue("checked_prepared")
+        engine, control, expected = c.engine, c.control, ACTIVE
+        with Session(engine) as db:
+            db.execute(
+                text("DELETE FROM public.whiteboard_collab_documents WHERE id=:id"),
+                {"id": c.collab_id},
+            )
+            db.commit()
+    else:
+        with http_world.core() as db:
+            engine = db.get_bind()
+            admin = resolve_auth_context_from_token(
+                db, http_world.state["admin"]["token"], update_last_seen=False
+            )
+            db.expunge_all()
+        control, expected = SimpleNamespace(engine=engine, actor=admin), BASE
+
+    with Session(engine) as db:
+        assert db.scalar(text("SELECT count(*) FROM public.whiteboard_collab_documents")) == 0
+        if populated:
+            for index in range(2):
+                board_id = str(uuid4())
+                db.add(
+                    Whiteboard(
+                        id=board_id,
+                        owner_id=http_world.state["member_id"],
+                        title="Synthetic guarded migration board",
+                    )
+                )
+                db.flush()
+                db.add(
+                    WhiteboardCollabDocument(
+                        id=str(uuid4()),
+                        whiteboard_id=board_id,
+                        room_key=make_fresh_whiteboard_room_key(board_id),
+                        yjs_state=b"\x00guarded-migration" if index == 0 else None,
+                        snapshot_scene={"synthetic": index} if index == 0 else None,
+                        last_snapshot_at=datetime(2026, 10, 9, 1, 2, 3),
+                        created_at=datetime(2026, 10, 8, 1, 2, 3),
+                        updated_at=datetime(2026, 10, 8, 4, 5, 6),
+                    )
+                )
+        db.commit()
+
+    drained = move(control, expected, "active", state="draining", artifact=expected.artifact)
+    assert drained.generation == expected.generation + 1
+    config = _migration_config(engine.url.render_as_string(hide_password=False))
+    command.downgrade(config, "wb_actor_acl_20261009")
+    before = _guarded_c1_upgrade_snapshot(engine)
+    assert len(before["payload"]) == (2 if populated else 0)
+    assert len(before["guards"]) == 90
+    assert {row[7] for row in before["guards"]} == {
+        "miy_guard_official_source_writer_by_role"
+        if guard_kind == "hardened"
+        else "miy_guard_official_source_writer"
+    }
+    # Statement guards must still reject a zero-row UPDATE under drain.
+    with Session(engine) as db:
+        with pytest.raises(DBAPIError) as refused:
+            db.execute(
+                text(
+                    "UPDATE public.whiteboard_collab_documents SET yjs_state=yjs_state WHERE false"
+                )
+            )
+        assert refused.value.orig.sqlstate == "55000"
+        assert refused.value.orig.diag.message_primary == "official_writer_fenced"
+        db.rollback()
+
+    unsafe = []
+
+    def observe(_conn, _cursor, statement, *_):
+        upper = statement.lstrip().upper()
+        if upper.startswith("UPDATE ") and not upper.startswith("UPDATE ALEMBIC_VERSION "):
+            unsafe.append("business_update")
+        if upper.startswith("ALTER ") and "DISABLE TRIGGER" in upper:
+            unsafe.append("disable_trigger")
+        if upper.startswith("SET ") and any(
+            marker in upper
+            for marker in ("SESSION_REPLICATION_ROLE", "ROLE ", "SESSION AUTHORIZATION")
+        ):
+            unsafe.append("session_authority")
+
+    event.listen(Engine, "before_cursor_execute", observe)
+    try:
+        command.upgrade(config, REVISION)
+    finally:
+        event.remove(Engine, "before_cursor_execute", observe)
+    assert unsafe == []
+    assert _guarded_c1_upgrade_snapshot(engine) == before
+    with engine.connect() as db:
+        incarnations = db.execute(
+            text(
+                "SELECT content_incarnation_id,content_revision FROM public.whiteboard_collab_documents ORDER BY id"
+            )
+        ).all()
+        assert all(
+            isinstance(incarnation, UUID) and incarnation != UUID(int=0) and revision == 0
+            for incarnation, revision in incarnations
+        )
+        assert len({row[0] for row in incarnations}) == len(incarnations)
+        assert (
+            db.execute(
+                text(
+                    "SELECT content_incarnation_id,content_revision FROM public.whiteboard_collab_documents ORDER BY id"
+                )
+            ).all()
+            == incarnations
+        )
+        assert db.execute(
+            text(
+                "SELECT a.attname,a.attnotnull,pg_catalog.format_type(a.atttypid,a.atttypmod),"
+                "pg_catalog.pg_get_expr(d.adbin,d.adrelid) FROM pg_catalog.pg_attribute a "
+                "JOIN pg_catalog.pg_attrdef d ON d.adrelid=a.attrelid AND d.adnum=a.attnum "
+                "WHERE a.attrelid='public.whiteboard_collab_documents'::regclass "
+                "AND a.attname IN ('content_incarnation_id','content_revision') ORDER BY a.attname"
+            )
+        ).all() == [
+            (
+                "content_incarnation_id",
+                True,
+                "uuid",
+                "'00000000-0000-0000-0000-000000000000'::uuid",
+            ),
+            ("content_revision", True, "bigint", "0"),
+        ]
+        assert db.scalar(text("SELECT count(*) FROM public.whiteboard_checked_attempts")) == 0
+        assert db.scalar(text("SELECT count(*) FROM public.whiteboard_checked_contributors")) == 0
+        assert (
+            db.scalar(
+                text(
+                    "SELECT count(*) FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace "
+                    "WHERE n.nspname='public' AND p.proname IN "
+                    "('miy_whiteboard_seal_checked','miy_whiteboard_save_checked','miy_whiteboard_resolve_checked',"
+                    "'miy_whiteboard_content_revision','miy_whiteboard_checked_immutable') "
+                    "AND NOT EXISTS(SELECT 1 FROM pg_catalog.aclexplode("
+                    "COALESCE(p.proacl,pg_catalog.acldefault('f',p.proowner))) a WHERE a.grantee<>p.proowner)"
+                )
+            )
+            == 5
+        )

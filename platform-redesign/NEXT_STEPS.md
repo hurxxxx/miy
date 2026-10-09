@@ -22,7 +22,7 @@ cutover를 활성화한 것은 아니다. 게시 추적은
 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다. 이 문서는 우선순위·의존성과
 다음 착수 단위를 소유하며 별도 작업 대장을 만들지 않는다.
 
-현재 dev는 `02418067`, main/prod는 `9e9280df`다. GitHub94/GitLab101의 최초 source858632eb 필수258/job426이 Docs 종료 P1로 막혀 수정했고, 실제 DB 종료4개 포함 집중24개·기존 협업106개를 통과했다. 수정 head의 정상 필수 review→양쪽 병합→소유 브랜치 정리→새 current full→pending24 private 리허설/이전 이미지 호환→MR81/guarded 운영 순서로 진행한다. SDK controller/세션 경계와 C2 원 contributor provenance는 별도 로컬 구현·검증 중이며 실제 Task/Workbench 전달 및 durable handoff/recovery가 남아 있다.
+현재 dev는 `02418067`, main/prod는 `9e9280df`다. GitHub94/GitLab101의 최초258/job426 Docs 종료 P1과 후속259/job427 draining 마이그레이션 P1을 보존하고 모두 수정했다. 실제 종료24·기존 협업106과 현재 C1 60개를 통과했다. 수정 head의 필수 review→양쪽 정상 병합→소유 브랜치 정리→새 current full→pending24 private 리허설/이전 이미지 호환→MR81/guarded 운영 순서로 진행한다. 별도 SDK22/owned11은 로컬74·영향427/기존skip5와 독립 리뷰까지 완료했으며 실제 controller/Task 검증이 필요하다. 비활성 C2-1 provenance53은 로컬 인수했고 C2-2 PostgreSQL durable intake/discovery 계약과 C3 복구·서비스 활성화는 필수 잔여다.
 
 동시에 **C1 비활성 checked save**를 현재 인수된 ACL base에서 구현한다. Core만 complete original cohort/payload를 봉인하며, Source는 봉인된 attempt UUID와 digest만 받아 SELECT/DML0·private save EXEC1로 같은 caller transaction에서 모든 ACL/최종 expiry·content incarnation/revision CAS·durable receipt를 처리한다. 기존 Source/auth/actor ceilings·33 migrations·default native/factory를 보존한다. 정확 schema/grant manifest를 코드 작성 전에 동결하고 native PG의 contributor 회수·wait·CAS/ABA·ACK loss/lock-and-cancel·역할 거부를 검증한다. C2 실제 apply/relay의 완전한 provenance와 C3 config/role/drain/recovery는 이어서 진행한다. Workbench SDK toolchain/cache 준비는 별도 경로로 병행하며 사용자 app manifest/scripts를 shadow하지 않는다.
 
