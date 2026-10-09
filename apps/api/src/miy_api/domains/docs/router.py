@@ -279,6 +279,85 @@ async def _authorize_prepared_collab_access(
     )
 
 
+def _require_prepared_docs_assembly(
+    websocket: WebSocket,
+    *,
+    auth_dependency: Callable,
+    source_access: Callable,
+    writer_access: Callable,
+    hub: DocsCollabHub,
+    writer_identity: WriterIdentity,
+) -> None:
+    state = websocket.app.state
+    if (
+        getattr(state, "prepared_docs_source_configured", None) is not True
+        or getattr(state, "prepared_official_auth_dependency", None) is not auth_dependency
+        or getattr(state, "prepared_docs_source_access", None) is not source_access
+        or getattr(state, "prepared_official_writer_access", None) is not writer_access
+        or getattr(state, "docs_collab", None) is not hub
+        or not isinstance(writer_identity, WriterIdentity)
+        or getattr(hub, "writer_identity", None) is not writer_identity
+        or not all(
+            callable(callback) for callback in (auth_dependency, source_access, writer_access)
+        )
+    ):
+        raise localized_http_exception(status_code=503, code="official_apps.authority_unavailable")
+
+
+async def _authorize_prepared_docs_source_access(
+    websocket: WebSocket,
+    *,
+    page_ref: str,
+    token: str,
+    user_id: str,
+    source_session_id: str,
+    auth_dependency: Callable,
+    source_access: Callable[..., Awaitable[None]],
+    writer_access: Callable[..., Awaitable[None]],
+    hub: DocsCollabHub,
+    writer_identity: WriterIdentity,
+) -> None:
+    """Explicit joined read admission; no Source writer or room initialization."""
+    require_assembly = partial(
+        _require_prepared_docs_assembly,
+        websocket,
+        auth_dependency=auth_dependency,
+        source_access=source_access,
+        writer_access=writer_access,
+        hub=hub,
+        writer_identity=writer_identity,
+    )
+
+    def require_identity(context) -> None:
+        if context is None:
+            raise localized_http_exception(
+                status_code=503, code="official_apps.authority_unavailable"
+            )
+        if context.user.id != user_id or context.session.id != source_session_id:
+            raise localized_http_exception(status_code=401, code="auth.required")
+
+    require_assembly()
+    context = await resolve_prepared_official_ws_auth_context(
+        websocket, token=token, logical_app_id="docs"
+    )
+    require_assembly()
+    require_identity(context)
+    await writer_access(writer_identity=writer_identity)
+    require_assembly()
+    require_identity(context)
+    await source_access(page_ref=page_ref, user=context.user)
+    require_assembly()
+    require_identity(context)
+    await writer_access(writer_identity=writer_identity)
+    require_assembly()
+    require_identity(context)
+    current = await resolve_prepared_official_ws_auth_context(
+        websocket, token=token, logical_app_id="docs"
+    )
+    require_assembly()
+    require_identity(current)
+
+
 async def _monitor_collab_access(
     websocket: WebSocket,
     *,
@@ -2166,10 +2245,38 @@ async def docs_collab_websocket(
 
     try:
         token = await _resolve_collab_ws_token(websocket)
+        state = websocket.app.state
+        docs_access = getattr(state, "prepared_docs_source_access", None)
+        writer_access = getattr(state, "prepared_official_writer_access", None)
+        docs_configured = getattr(state, "prepared_docs_source_configured", False)
+        explicit_docs = docs_configured or docs_access is not None or writer_access is not None
+        captured_auth = getattr(state, "prepared_official_auth_dependency", None)
+        pinned_writer = getattr(hub, "writer_identity", None) if explicit_docs else None
+        if explicit_docs:
+            _require_prepared_docs_assembly(
+                websocket,
+                auth_dependency=captured_auth,
+                source_access=docs_access,
+                writer_access=writer_access,
+                hub=hub,
+                writer_identity=pinned_writer,
+            )
         prepared_context = await resolve_prepared_official_ws_auth_context(
             websocket, token=token, logical_app_id="docs"
         )
-
+        if explicit_docs:
+            _require_prepared_docs_assembly(
+                websocket,
+                auth_dependency=captured_auth,
+                source_access=docs_access,
+                writer_access=writer_access,
+                hub=hub,
+                writer_identity=pinned_writer,
+            )
+            if prepared_context is None:
+                raise localized_http_exception(
+                    status_code=503, code="official_apps.authority_unavailable"
+                )
         session_factory = get_session_factory()
         db = session_factory()
         collab_yjs_state: bytes | None = None
@@ -2230,6 +2337,20 @@ async def docs_collab_websocket(
             if prepared_context is not None
             else None
         )
+        if explicit_docs:
+            prepared_authorize = partial(
+                _authorize_prepared_docs_source_access,
+                websocket,
+                page_ref=page_ref,
+                token=token,
+                user_id=auth_user_id,
+                source_session_id=prepared_context.session.id,
+                auth_dependency=captured_auth,
+                source_access=docs_access,
+                writer_access=writer_access,
+                hub=hub,
+                writer_identity=pinned_writer,
+            )
         monitor_task = asyncio.create_task(
             _monitor_collab_access(
                 websocket,

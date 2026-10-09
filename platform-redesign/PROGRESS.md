@@ -460,3 +460,17 @@ Workbench의 정확 Codex0.160.1은 표준 systemd-socket-proxyd ingress와 owne
 서버 재시작 뒤 Source7·보호62·dev `c7520d05`와 기존 prod `9e9280df`를 확인하고 미완료 단계만 재개했다. 기존 collab 상태를 fresh readOnly Source transaction에서 읽는 명시적 비활성 초기 로더를 인수했다. 앱·edit ACL을 읽기 전후 재조회하고 정리 뒤 동일 auth callable·actor/session 및 server assembly identity를 재검증한다. 동일 paired SELECT의 scene/snapshot/Yjs 합계8MiB를 SQL CASE로 전송 전에 제한하고 detached DTO를 재검증한다. 부분 설정·missing/stale/invalid/초과 상태는 private503/1013으로 거절하며 legacy init/repair로 우회하지 않는다. Global hub persistence와 writer/CAS·COMMIT unknown, Docs Source·최소 operational 역할·cutover는 여전히 필수 잔여다.
 
 새65개·영향157개와 생성 계약 검사를 통과했다. 용량 fixture와 wait 관측 준비의 실패·재검증 한계는 VALIDATION이 소유한다. 정상 source 전달·필수 리뷰·소유 브랜치 정리를 진행한다. 최신 full235/403 저장 공간 실패는 유지하며 새 운영 배포는 없다.
+
+## 2026-10-08 20:00 — Room 전달 뒤 Docs 경계 구현
+
+- 기존 room Source 초기 read는 필수236/404 뒤 PR84/MR91로 같은 tree에 정상 병합하고 소유 원격·로컬 브랜치를 정리했다. Dev5d909, main/prod9e다.
+- full237/405는 저장 공간 실패25.308425초/tests0다. 새 운영 배포는 없다.
+- Docs Source ACL·Core writer read/shared guard10경로의 actual red1을 확인하고 통합 baseline에서 구현을 시작했다. 기존 auth/profile·기본 초기화/저장 수명은 보존한다.
+
+## 2026-10-08 20:30 — 중단 지점 재개와 Docs 읽기 검증
+
+Source/Core별 fresh readOnly Session과 기존 구조화 worker를 재사용해 Docs17 모델 ACL·Core writer1 모델 읽기를 분리했다. 모든 await 경계에서 현재 권한과 원 actor/session·captured callable·hub pinned writer를 재검증하고 실제 writer drain과 reader503을 구분한다. 공용 guard는 기존 WB3 함수와8표20열의 동등 추출이며 새로운 lifecycle을 만들지 않았다. 신규143개·기존219개와 생성 계약은 통과했고 fixture CHECK/NOT NULL 두 오류의 원본·두 입력 교정·재검증 한계를 VALIDATION에 남겼다. 기본 Docs 영향·최종 독립 리뷰·정상 전달을 이어간다. 운영 배포와 전체 구조 완료는 미완료다.
+
+## 2026-10-09 01:58 — Docs 읽기 경계 로컬 인수
+
+신규143개·기존227개와 생성 계약·Source Python 검사를 통과했다. 기본 Docs 원7함수/8cases는 첫 장시간 실행 종료 뒤 동일 입력의 bounded 재검사8 PASS/25.49초다. 첫 실행 원인은 미확인이고 VALIDATION에 원본과 제한을 남겼다. 제품10경로·진행 문서6의 최종 독립 freeze 리뷰와 정상 source 전달을 이어간다. Docs initial Source 읽기·writer/CAS·영속화·operational 최소 grant/cutover, native 영구 설치/enforcement·SDK/등록 전체 흐름은 필수 잔여다. 비필수 앱 상세 기능과 다중 사용자는 보류한다.

@@ -163,6 +163,73 @@ Default initialization, scene/Yjs code and the native hub's global persistence
 factory remain unchanged. Source writer/CAS, COMMIT-unknown, complete roles and
 operational activation require separate contracts and validation.
 
+## Explicit inactive Docs ACL and Core writer reads
+
+An official assembly with prepared auth can explicitly pair
+`official_docs_source_session_factory` / `official_docs_source_max_concurrent_reads`
+with `official_writer_read_session_factory` / `official_writer_read_max_concurrent_reads`.
+Complete callable factories and positive integer budgets are checked before state
+or dependency mutation. Construction allocates no SQL Session or room. The server
+records `prepared_docs_source_configured`; this sentinel is neither user authority
+nor a split-service activation switch. Default assembly supplies none of these
+options and keeps the original prepared/default collaboration helpers.
+
+The Docs Source callback loads only native page ID/doc ID/content format/trash and
+doc ID/owner/ownership kind/company visibility/trash, with deferred-column and
+relationship raise guards. It preserves the native-page-only, block-format edit
+scope and current app/direct/local-HR-group/MeetingAccess/PMS-target predicates.
+It does not load page content, owner/created-by/share-user/collection graphs or link
+credentials. Its fixed routing closure is17 models: Core policy8, Docs6 and PMS3.
+The current Docs target adapter has PMS spaces; this is not a universal privilege
+closure for future registered adapters.
+
+`owned_read_session.py` owns the small fresh/single-Engine, read-only transaction
+and non-replacing cleanup guards shared with Whiteboard. Existing Whiteboard
+`_fresh`, `_cleanup`, transaction wrapper and private refusal class/reasons remain
+compatible; its ACL18 and room19 model closures stay distinct. The exact existing
+Core policy8-table/20-column dictionary moves to this public owner and remains
+re-exported as Whiteboard's `CORE_POLICY_READ_COLUMNS`. It does not adopt the wider
+F2 policy9-table/27-column manifest or change any existing role/profile/SQL contract.
+The auth14/87 reader is unchanged and does not use this extraction.
+
+The separate Core callback reads only current `RuntimeOwnership` using the
+unchanged `require_active_writer` and the hub's original pinned `WriterIdentity`.
+It never discovers/adopts a generation, binds a Source write transaction or reads
+Source content. Current Core writer admission runs before and after the Source ACL
+read. Auth runs before and after the whole joined read sequence; after each await,
+exact captured auth/Source/Core callables, hub and writer-identity object, actor and
+original source-session identity must still match. Removing/rebinding assembly
+refuses privately rather than using the global factory. These repeated reads are
+not an atomic permission freeze through later Yjs execution or a SQL commit fence.
+
+Each callback uses the unchanged `owned_read.run_owned_read` joined worker API and
+an independent limiter. Auth, Source and Core budgets are separate; neither their
+sum nor per-statement SQL timeouts is a whole-process/request deadline. Rejected
+borrowed/routed/cached/pending Sessions get no SQL or cleanup ownership. Queued or
+running/repeated cancellation preserves the existing worker/permit ownership
+contract. Cleanup attempts cannot replace policy or cancellation outcomes.
+Reader/session/catalog/SQL failures use authority-unavailable503/private1013 and
+do not fence another client's room. Only the existing exact localized writer
+unavailability keeps native writer1013 and room fencing; policy401/403/404 stays
+distinct. Credentials and internal refusal reasons never appear in responses.
+
+`test_prepared_docs_source_access.py` defines disposable migrated Source and Core
+read fixtures, native transport receive/send/idle-monitor effects with a synthetic
+room/bus, exact captured-identity refusal and SQL lock-wait/cancellation boundaries.
+The Source fixture has column-only Core policy/doc/page reads and SELECT on seven
+existing share/target/PMS tables; the Core fixture reads the six mapped ownership
+columns. These bounded fixtures are not operational privilege-manifest attestation,
+a live relay/codec/store proof or deployed activation.
+
+Initial Docs room loading/creation/Yjs initialization and COMMIT still use the
+original business Source transaction, as do hub relay writer reads and persistence.
+The initial explicit assembly guard does not reroute those writes to a readonly
+factory. Docs media writes, RAG/outbox and actor policy remain structural cutover
+work. This slice is an inactive frame/monitor read seam, not a complete Source-only
+Docs process. The published artifact still supplies no prepared options and retains
+its inactive HTTP503/WS1013/readiness503 boundary. Product code provisions no roles,
+grants, credentials, environment settings or service activation.
+
 ## Ownership and current authority
 
 The caller supplies a factory for a fresh **auth-only** SQLAlchemy Session,

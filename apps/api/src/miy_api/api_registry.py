@@ -58,6 +58,10 @@ def register_api_routers(
     official_whiteboard_source_max_concurrent_reads: int | None = None,
     official_whiteboard_room_session_factory: Callable[[], Session] | None = None,
     official_whiteboard_room_max_concurrent_reads: int | None = None,
+    official_docs_source_session_factory: Callable[[], Session] | None = None,
+    official_docs_source_max_concurrent_reads: int | None = None,
+    official_writer_read_session_factory: Callable[[], Session] | None = None,
+    official_writer_read_max_concurrent_reads: int | None = None,
 ) -> None:
     composition = require_composition(composition)
     prepared = (
@@ -112,6 +116,53 @@ def register_api_routers(
         raise ValueError(
             "Prepared Whiteboard room assembly requires factories and positive budgets"
         )
+    prepared_docs = any(
+        value is not None
+        for value in (
+            official_docs_source_session_factory,
+            official_docs_source_max_concurrent_reads,
+            official_writer_read_session_factory,
+            official_writer_read_max_concurrent_reads,
+        )
+    )
+    if prepared_docs and (
+        not prepared
+        or not all(
+            callable(factory)
+            for factory in (
+                official_auth_session_factory,
+                official_docs_source_session_factory,
+                official_writer_read_session_factory,
+            )
+        )
+        or any(
+            type(budget) is not int or budget < 1
+            for budget in (
+                official_auth_max_concurrent_reads,
+                official_docs_source_max_concurrent_reads,
+                official_writer_read_max_concurrent_reads,
+            )
+        )
+    ):
+        raise ValueError(
+            "Prepared Docs Source and Core writer reads require complete prepared assembly"
+        )
+    # Build complete new callbacks before mutating state or dependency overrides.
+    # Construction allocates no Session, worker, room or SQL connection.
+    if prepared_docs:
+        from miy_api.domains.docs.collab_source_access import build_prepared_docs_source_access
+        from miy_api.domains.official_apps.writer_access import (
+            build_prepared_official_writer_access,
+        )
+
+        docs_access = build_prepared_docs_source_access(
+            session_factory=official_docs_source_session_factory,
+            max_concurrent_reads=official_docs_source_max_concurrent_reads,
+        )
+        writer_access = build_prepared_official_writer_access(
+            session_factory=official_writer_read_session_factory,
+            max_concurrent_reads=official_writer_read_max_concurrent_reads,
+        )
     if composition == "official":
         from miy_api.official_auth import owned_app_scope, require_official_auth_context
 
@@ -147,6 +198,11 @@ def register_api_routers(
             )
             # Records server assembly only; never user authority or activation.
             app.state.prepared_whiteboard_room_configured = True
+    if prepared_docs:
+        app.state.prepared_docs_source_access = docs_access
+        app.state.prepared_official_writer_access = writer_access
+        # Trusted assembly sentinel only, not user authority or activation.
+        app.state.prepared_docs_source_configured = True
     for spec in router_specs(composition):
         protected_dependencies = [Depends(require_current_user)]
         if composition == "official":
