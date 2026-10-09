@@ -58,6 +58,22 @@ records separate budgets, restricted fixture scope and current-observation limit
 Default initialization and native hub persistence remain unchanged; this option
 does not provision a Source writer, roles, durable room CAS or service activation.
 
+An explicit prepared assembly can also pair a separate Docs ACL-read factory
+with a separate Core writer-read factory and their positive budgets. The Docs
+callback reads page/doc authority fields and current ACL without content/display
+graphs; the Core callback reuses the original pinned writer check before and after
+Source cleanup. The same captured auth callable rechecks the original actor and
+source-session identity, and changed callback/hub/writer bindings refuse privately.
+SQL/catalog reader failures remain distinct from actual native writer fencing.
+The small public owned-read Session guard is shared with Whiteboard while its
+private refusal wrappers and policy8/20 alias remain compatible. Auth14/87 and
+existing SQL role/profile contracts are unchanged. The
+[reader owner](../../api/src/miy_api/domains/official_apps/AUTHORITY_READER.md#explicit-inactive-docs-acl-and-core-writer-reads)
+records the independent budgets, disposable role proof and limits. Initial Docs
+room initialization, COMMIT, hub relay writer reads, persistence/media/RAG remain
+on the native business lifecycle. This is an inactive frame/monitor seam; it
+provisions no roles or service settings and does not complete a Source-only runtime.
+
 | Artifact                  | Current state                                                                                        |
 | ------------------------- | ---------------------------------------------------------------------------------------------------- |
 | Official UI               | Separate entry/build output; legacy UI/public-module bridge                                          |

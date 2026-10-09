@@ -1888,3 +1888,25 @@ Root의19:01 읽기 전용 prod metadata는 기존9e API·worker·Beat healthy/s
 Red1·dependency/create timeout tests0·exact partial cleanup과 두 전체 실패 원 receipt를 보존한다. 정확8MiB 단독 fixed-reason 관측은 후속 진단이 같은 receipt 이름을 재사용해 원 파일 hash 증명으로 남기지 못했다. post-room-exact-bound-before-fixture-observation.json은 당시 allowlisted tool 결과의 재구성으로 provenance/한계를 명시한다.
 
 Ignored post-room-\*-result.json·author implementation-frozen-inputs·two-fixture-correction-proof·wait-connection-preparation-proof가 정확 입력/범위를 기록한다. Network-none·합성 DB와 소유 컨테이너 정리를 확인했다. 실제 환경·인증·raw 출력·운영 role/grant·서비스 변경0, 보호62·기본 역변환 AST를 유지한다. 로컬 검증은 운영·별도 Workbench 배포 인수가 아니다.
+
+## 2026-10-08 20:00 — Docs Source/Core writer 분리 actual red와 구현 계획
+
+Source10은 Docs ACL-only projection/Source reader, Core-only RuntimeOwnership writer read, 공용 owned_read_session guard와 기존 WB3 delegate wrapper, registry/router/새검사/owner2다. Core8표20열은 기존WB값을 그대로 공유하며 F2의 더 넓은9표27열이나 auth14/87·Source20을 확장하지 않는다. 기존 native Docs init/repair/COMMIT·hub persistence·writer/roles/ORM/migrations/ASGI·owned_read structured worker는 보존한다. Actor/source-session·auth/Source/Core callable·hub pinned writer identity를 모든 await 전후 확인하고 actual writer drain만 기존1013fence로 처리한다. Reader/catalog/SQL·부분 설정 실패는 private5031013이며 fence나 fallback 권한을 만들지 않는다.
+
+실제 registry missing Docs 옵션 red는1 FAIL/0.53초, collection/setup 오류0이다. Source base c752/testSHA588eaab3을 그대로 보존하며 actual network-none·합성 입력·소유 컨테이너 정리를 확인했다. Root helper input schema의 초기 owned_files/files 혼동은 컨테이너·검사 시작 전 오류/tests0이며 actual red와 구분한다. PR84/MR91 필수 리뷰/정상 통합 뒤 Docs source/test/보호 baseline을5d909로 재동결했다. 이 기록은 green·운영 Source role·서비스 전환 증거가 아니다. 구현 후 실제 최소 합성 Source/Core 역할·취소/권한 회수·current identity·private reader failure/writer drain과 WB ACL54/Room65·관련 Doc/default 영향·생성 계약 검사를 인수한다. 상세 앱 기능·다중 사용자는 범위외다.
+
+## 2026-10-08 20:30 — Docs Source ACL·Core writer 읽기 검증
+
+신규 pure91 PASS/4.30초와 실제 PostgreSQL/native52 PASS/85.79초, 기존 WB Source ACL54·Room65 합계119 PASS/120.93초, 기존 HTTP/WS auth·composition100 PASS/84.77초를 확인했다. API architecture/i18n·생성 API/schema/OpenAPI·contract source 검사도 통과했다. 제품9개·보호34개·기존 기본 경로와 공유 guard AST를 독립 대조했다. 서버 조립은 명시적 비활성이며 Source17 모델의 페이지/문서 ACL-only projection과 별도 Core RuntimeOwnership1모델/6열만 읽는다. Core 정책8표20열과 나머지 Source share/target/PMS7표의 fixture SELECT를 구분하며 operational 최소 grant ceiling 완료를 주장하지 않는다.
+
+첫 native50 PASS/2 FAIL/108.32초와 동일 실패 두 함수8 PASS/2 FAIL/20.20초는 보존한다. 실제 SQLSTATE23514는 허용되지 않은 테스트 format=text, 23502는 user_system_roles 필수 id 누락이었다. 테스트 두 입력만 html·id=new_id()로 교정했고 역변환이 원 module AST와 모든 assertions·기대 상태코드를 복원한다. Root formatter는 동일 테스트 줄만 재배치했다. 최종 test SHA는 cf2259937ae1fd4b0680b8d40f4ee87c8bf461658e0fa74a4675c739a2c34f59다. 재검사 횟수를 고유 성공 수에 합산하지 않는다. raw SQL/parameters나 credentials를 저장·출력하지 않았고 network-none·합성 DB·소유 컨테이너 정리를 확인했다.
+
+검사 증거는 `.runtime/structural-next-delivery/post-docs-*-result.json`, 실패 원본은 `post-docs-room_native-result-before-policy-fixture-fix.json`·`post-docs-policy-fixture-diagnosis-before-fix.json`, 입력 교정과 freeze는 `.runtime/prepared-docs-source-access/policy-fixture-corrections.json`에 보존한다. 기본 Docs writer/relay/cancel 영향과 최종 전달은 다음 기록에서 확인한다. 기존 Docs initial/repair/COMMIT·global hub persistence, Source writer/CAS·정확 operational 권한·cutover·별도 Workbench 설치/배포와 전체 SDK 흐름은 계속 필수 잔여다.
+
+## 2026-10-09 01:58 — 기존 Docs 기본 경로 인수와 장시간 실행 기록
+
+원 test_docs_collab_writer7개 함수/8개 parameter case를 변경 없이 직접 import한 adapter에서 fresh migrated PG18·표준 client·기존 writer/docs_source fixture를 사용했다. 동일 원 assertions와 controlled Event cancellation monkeypatch를 유지했다. 초기 실행은 정상 시간을 크게 넘겨19,462초 시점에 확인했으며, 원인을 특정하지 못했다. 정확 소유 검사 컨테이너의 pytest PID에 SIGINT를 보냈으나 정리가 끝나지 않아 그 컨테이너만 종료했다. 최종 exit137·known pytest summary0·소유 컨테이너 정리 PASS를 보존한다. 제품/운영 서비스 종료나 역할 변경은 없으며 초기 실행을 성공으로 계산하지 않는다.
+
+제품·원 검사·adapter bytes를 유지한 fresh PG 재검사에 공개 함수 진행 marker·faulthandler와180초 timeout/15초 kill-after만 추가했다. 실제8 PASS/25.49초와 정상 cleanup을 확인했다. 이를 고유 영향8개로 합산해 현재 새143개·기존227개를 구분한다. Auth/WB/생성 계약과 기본 initial/noop·active/idle drain·dirty state 보존·relay writer 확인·취소 thread 직렬화·실제 Source row-lock shutdown 경계를 포함한다. 첫 장시간 실행 원인 해결이나 canonical global/vector·Redis·전체 CI 인수를 주장하지 않는다. 후속 임시 실행에는 전체 시간 제한을 적용하며 재발 시 같은 ID·공개 단계만 진단한다.
+
+한계와 원본은 `.runtime/structural-next-delivery/{docs-default-impact-adapter-proof,docs-default-impact-interruption,post-docs-default-impact-hung-original,post-docs-docs_default_diagnosis-result}.json`이 소유한다. 실패·중단을 성공 receipt로 덮어쓰지 않았으며 실제 raw traceback/SQL/parameters·인증 정보를 저장·출력하지 않았다.

@@ -6,7 +6,7 @@ from typing import Literal
 
 from fastapi import status
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy.orm import Session, joinedload, load_only, raiseload, selectinload
 
 from miy_api.core.i18n import localized_http_exception
 from miy_api.core.principal import CallerPrincipal
@@ -308,3 +308,46 @@ def native_page_context_from_page_or_404(
         raise localized_http_exception(status_code=403, code="docs.doc_edit_access_required")
     page.doc = doc
     return NativePageContext(page=page, doc=doc, access=access)
+
+
+def load_native_page_for_acl_or_404(db: Session, *, page_id: str, user: User) -> NativePageContext:
+    """Read current native page edit authority without content/display graphs."""
+    page = db.scalar(
+        select(NativeDocPage)
+        .options(
+            load_only(
+                NativeDocPage.id,
+                NativeDocPage.doc_id,
+                NativeDocPage.content_format,
+                NativeDocPage.trashed_at,
+                raiseload=True,
+            ),
+            raiseload("*"),
+        )
+        .where(NativeDocPage.id == normalize_page_id(page_id))
+    )
+    if page is None:
+        raise localized_http_exception(status_code=404, code="docs.page_not_found")
+    doc = db.scalar(
+        select(NativeDoc)
+        .options(
+            load_only(
+                NativeDoc.id,
+                NativeDoc.owner_id,
+                NativeDoc.ownership_kind,
+                NativeDoc.company_visible,
+                NativeDoc.trashed_at,
+                raiseload=True,
+            ),
+            raiseload("*"),
+        )
+        .where(NativeDoc.id == page.doc_id)
+    )
+    if doc is None or page.content_format != "block":
+        raise localized_http_exception(status_code=404, code="docs.page_not_found")
+    access = resolve_native_doc_access(db, doc, user, share_token=None)
+    if not access.can_view or page.trashed_at is not None or doc.trashed_at is not None:
+        raise localized_http_exception(status_code=403, code="docs.page_access_required")
+    if not access.can_edit:
+        raise localized_http_exception(status_code=403, code="docs.doc_edit_access_required")
+    return NativePageContext(page, doc, access)

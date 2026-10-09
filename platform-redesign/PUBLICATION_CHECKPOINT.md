@@ -512,3 +512,17 @@ MR81의 최신 full235/403은 source `c7520d05`, target `9e9280df`, 같은 tree�
 서버 재시작 뒤 Source7·보호62·dev `c7520d05`와 기존 prod `9e9280df`를 확인하고 미완료 단계만 재개했다. 기존 collab 상태를 fresh readOnly Source transaction에서 읽는 명시적 비활성 초기 로더를 인수했다. 앱·edit ACL을 읽기 전후 재조회하고 정리 뒤 동일 auth callable·actor/session 및 server assembly identity를 재검증한다. 동일 paired SELECT의 scene/snapshot/Yjs 합계8MiB를 SQL CASE로 전송 전에 제한하고 detached DTO를 재검증한다. 부분 설정·missing/stale/invalid/초과 상태는 private503/1013으로 거절하며 legacy init/repair로 우회하지 않는다. Global hub persistence와 writer/CAS·COMMIT unknown, Docs Source·최소 operational 역할·cutover는 여전히 필수 잔여다.
 
 기준 base c7520d0553fde63401ebd03822ba4ea49ff00ec8, main/prod9e9280df, GitHub main6ee1faf4의 로컬 인수 기록이다. Source7·추적6만 정상 commit/push/필수 codex_review/양쪽 PR·MR 병합 대상으로 고정한다. Feature 전달은 dev→main full 성공과 운영 반영을 대체하지 않는다. 재시작 뒤19:39 기존 API·worker·Beat healthy/schema 확인,19:40 공간14.3024GiB·14.5573% free로 두 기준 실패. 추가 삭제·기준 완화·새 main/운영/Workbench 배포는 없다.
+
+## 2026-10-08 20:00 — 기존 Whiteboard room 초기 Source 읽기 정상 전달
+
+Source `f833768973502174d539f25761afef598d1ad7f0`는 필수236/404 codex_review SUCCESS(53.454217초, allow_failure=false) 뒤 [GitHub PR84](https://github.com/hurxxxx/miy/pull/84)와 [내부 MR91](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/91)로 정상 병합했다. GitHub merge는 `e5fef219`, 내부 dev는 `5d909dc3`, tree `865f66a959abad284adda215c7989d0a9cef7b13`가 같다. 소유 feature 브랜치만 양쪽 원격·로컬에서 정리했다. Persistent dev/main과 upstream 직접 push 차단은 유지한다.
+
+MR81의 최신 full237/405는 source `5d909dc3`, target `9e9280df`, 같은 tree에서 저장 공간 실패25.308425초/tests0다. main/prod는 기존9e이고 새 운영·Workbench 배포는 없다. Source-only local65·impact157과 실패 한계는 VALIDATION이 소유한다. 이후 Docs worktree는 red1의 기존c752 입력을 보존하고5d909로 fast-forward했다.
+
+## 2026-10-08 20:30 — Docs Source/Core 분리 전달 준비
+
+Base dev5d909/main9e/GitHub main e5fef219에서 Source10·추적 문서6의 단일 범위로 전달한다. 신규143개·기존219개와 생성 계약은 통과했고, 기본 Docs writer/relay/cancel8개와 최종16개 독립 freeze 리뷰를 마친 뒤 일반 hook commit·원격 feature push·GitHub PR·GitLab dev MR 필수 codex_review·정상 병합·소유 브랜치 정리를 순서대로 진행한다. 후속 source SHA/tree·PR/MR·리뷰 pipeline/job·merge/cleanup은 실제 완료 receipt에서만 인용한다. 이 문서 시점은 커밋/병합 전이다.
+
+Dev→main의 MR81 전체 릴리스 gate를 유지한다.20:28 읽기 전용 측정14.2954GiB/14.5538% free는 저장 공간 기준 미달이며, 새 main/prod 또는 별도 Workbench 배포는 없다. 전체 구조 인수·운영 활성화·SDK/영구 실행기 작업 완료를 주장하지 않는다.
+
+2026-10-09 01:58 후속: 기본 Docs 원8개 bounded 재검사는 PASS/25.49초다. 첫 장시간 실행/exit137와 원인 미확인 한계는 VALIDATION에 보존한다. 최종 Source10·추적6을 freeze하고 독립 리뷰를 완료한 뒤 일반 게시를 진행한다. 이 추가 기록도 커밋/병합 전이다.

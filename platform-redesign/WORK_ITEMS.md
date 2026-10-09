@@ -217,3 +217,11 @@ Workbench의 정확 Codex0.160.1은 표준 systemd-socket-proxyd ingress와 owne
 서버 재시작 뒤 Source7·보호62·dev `c7520d05`와 기존 prod `9e9280df`를 확인하고 미완료 단계만 재개했다. 기존 collab 상태를 fresh readOnly Source transaction에서 읽는 명시적 비활성 초기 로더를 인수했다. 앱·edit ACL을 읽기 전후 재조회하고 정리 뒤 동일 auth callable·actor/session 및 server assembly identity를 재검증한다. 동일 paired SELECT의 scene/snapshot/Yjs 합계8MiB를 SQL CASE로 전송 전에 제한하고 detached DTO를 재검증한다. 부분 설정·missing/stale/invalid/초과 상태는 private503/1013으로 거절하며 legacy init/repair로 우회하지 않는다. Global hub persistence와 writer/CAS·COMMIT unknown, Docs Source·최소 operational 역할·cutover는 여전히 필수 잔여다.
 
 OFF-002B의 기존 room readOnly 초기 읽기는 locally_accepted다. Source writer·room CAS·초기화/영속화·Docs·operational 최소 역할·cutover, native immutable 설치/enforcement·SDK 전체 흐름은 필수 잔여다. REL-001·VAL-001은 최신 full 실패로 미완료이며 비필수 앱 세부 기능·다중 사용자는 보류한다.
+
+## 2026-10-08 20:00 — OFF-002B Source 읽기 후속
+
+Whiteboard room readOnly 초기 읽기는 local accepted 뒤 필수 리뷰/양쪽 정상 병합/소유 브랜치 정리까지 전달했다. Docs Source17 ACL·별도 Core writer1 모델/6열 read·공용 guard10경로는 actual red1 뒤 새143개·기존227개 검사 통과이며, 기본 Docs 영향8개도 통과했으며, 첫 실행의 장시간 중단 원인은 미확인이다. 최종 리뷰·전달은 in_progress다. Source writer/CAS·초기화와 저장·Docs 초기 read·operational 최소 grant/cutover는 필수 잔여이며 REL-001/VAL-001은 full237/405 storage 실패/tests0로 미완료다. Native 영구 설치/enforcement·개인 SDK 전체 흐름과 핵심 계약도 유지한다. 비필수 앱 상세 기능은 APP_ISSUES에 남기고 별도 지시까지 보류한다.
+
+## 2026-10-09 01:58 — Docs 읽기 경계 로컬 인수
+
+신규143개·기존227개와 생성 계약·Source Python 검사를 통과했다. 기본 Docs 원7함수/8cases는 첫 장시간 실행 종료 뒤 동일 입력의 bounded 재검사8 PASS/25.49초다. 첫 실행 원인은 미확인이고 VALIDATION에 원본과 제한을 남겼다. 제품10경로·진행 문서6의 최종 독립 freeze 리뷰와 정상 source 전달을 이어간다. Docs initial Source 읽기·writer/CAS·영속화·operational 최소 grant/cutover, native 영구 설치/enforcement·SDK/등록 전체 흐름은 필수 잔여다. 비필수 앱 상세 기능과 다중 사용자는 보류한다.
