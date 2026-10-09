@@ -604,3 +604,9 @@ ACT-CI-02 수정본의 원본 네 모듈270개 전체 PASS/469.15초를 확인�
 ## 2026-10-09 11:23 — 정상 fixture 전달과 ACL 통합 준비
 
 파일 revision 수정은 GitHub PR90·내부 MR97 병합 완료, 필수250/job418 SUCCESS다. Dev e3e2591로 통합했고 기능 브랜치를 양쪽 원격/로컬에서 정리했다. ACL은 로컬2c9d0528에서 새 base에 rebase해e16c2b32로 보존했다. 문서6의 양쪽 기록을 시간 순서로 유지했으며 runtime/owned test8과 전체33 migration은 동일하다. 통합8-case 검사도 PASS다. ACL 최종 문서·독립 통합 리뷰·필수 remote review를 이어간다. 운영 main/prod9e9280df와 별도 Workbench 버전은 유지한다.
+
+## 2026-10-09 12:20 — ACL 전달 완료, ACT-CI-03 최소 린트 수정
+
+ACL source b3954393은 필수252/job420 SUCCESS/74.636035초 뒤 PR91·MR98로 병합했다. GitHub b34612a3·GitLab 92e77670은 tree93744905로 동일하고 소유 feature 양쪽 원격·로컬 정리를 마쳤다. Main/prod9e9280df와 운영·새 Workbench 배포0는 유지한다.
+
+Full251/419는 API 네 그룹·웹911/브라우저42·Workbench 웹183/타입 검사 통과 뒤 기존 test_remote_runtime.py의 Ruff I001로3121.651538초에 실패했다. 오류를 숨기거나 전체 성공으로 바꾸지 않는다. ACT-CI-03은 해당 테스트의 import 정렬만 변경하며 원8 함수/30 assertions AST·본문 바이트를 보존한다. 같은 pinned CI 이미지에서 Ruff0.16.8 전체 Workbench Python lint와 원 모듈24 PASS/14.19초를 확인했다. 최종 문서·독립 인수 뒤 정상 게시/필수 리뷰와 새 full을 진행한다.

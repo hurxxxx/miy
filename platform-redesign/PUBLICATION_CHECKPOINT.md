@@ -642,3 +642,7 @@ ACT-CI-02는5개 test/helper+root tracking6=11경로다. 정상 원본270 PASS, 
 ## 2026-10-09 11:23 — 정상 fixture 전달과 ACL 통합 준비
 
 ACT-CI-02 commitcdc6103e·GitHub PR90 merge268363f0·GitLab MR97 mergee3e2591c, 필수250/job418 SUCCESS/55.90초/allow_failure=false다. Merge treecc54e4d9 동일, origin/main9e9280df 유지, owned feature만 정확한 tip으로 양쪽 원격/로컬 삭제했다. 첫 GitHub PR 생성 요청 실패는 보존했고 원인은 단정하지 않는다. 재조회에서 기존 PR0을 확인한 뒤 정상 재요청해PR90을 만들었다. ACL은 rebase 후 동일 runtime8+최신head8-case PASS를 확인했으며 최종14경로/독립 통합 인수·필수 review를 새 source에 고정한다.
+
+## 2026-10-09 12:20 — ACL 정상 게시 완료와 CI 린트 후속
+
+PR91/MR98은 exact b3954393의 필수252/job420 SUCCESS 후 정상 병합했고 양쪽 tree93744905가 일치한다. Dev92e77670, main/prod9e9280df이며 소유 feature 양쪽 원격·로컬만 삭제했다. Full251의 실제 실패는 보존한다. 새 ACT-CI-03은 아직 미게시인 test import 정렬1개와 추적6이며 local whole-Python lint/원 module24 PASS다. 현재 full253과 이후 수정본의 latest full 결과는 구분한다. MR81/운영·separate Workbench deployment 성공은 없다.

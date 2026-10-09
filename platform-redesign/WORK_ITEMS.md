@@ -346,3 +346,9 @@ ACT-CI-02의 실제 영향 검증270 PASS와 기존115함수/270assertion 동일
 ## 2026-10-09 11:23 — 정상 fixture 전달과 ACL 통합 준비
 
 필수 ACT-CI-02 전달은 완료했다(PR90/MR97, review250/418 SUCCESS). 다음은 byte-identical ACL의 새 base 최종 전달·필수 review와 최신 dev full release다. 추가Source 저장 C1은 신뢰된 Core가 payload와 모든 원 contributor를 immutable attempt로 봉인하고, Source DML0 LOGIN이 같은 실제 connection에서 전체 ACL·incarnation/content revision CAS·영속 receipt를 처리하는 최소 비활성 단계다. Source가 contributor를 임의로 빠뜨리거나 last_editor로 대체할 수 없어야 한다. 이후 native apply/relay의 완전한 provenance와 운영 factory/config epoch를 연결한다. 앱별 비필수 기능과 다중 사용자는 여전히 보류한다.
+
+## 2026-10-09 12:20 — 구조 전달 상태
+
+ACT-CI-02는 PR90/MR97로 전달 완료이고 owner/전체 edit ACL은 PR89/MR96 및 PR91/MR98로 전달했다. ACT-CI-03은 full251의 Workbench Ruff I001을 원 테스트 import 순서만으로 고치는 필수 CI 호환 작업이다. Local lint/24 cases PASS, 최종 문서·독립 리뷰/게시·latest full은 남아 있다. 구조 runtime 활성화로 확대하지 않는다.
+
+운영 pending23 private restore/data/old-image compatibility는 통과했으나 final candidate binding/full/before/deploy/after는 남아 있다. 필수 후속은 checked-save C1/C2/C3, 실제 official source/queue/service 전환, Workbench SDK/immutable install 및 개인 앱 UI→DB 자연어 전체 흐름이다. 세부 앱 기능과 다중 사용자는 후속 별도 지시 대상으로 유지한다.
