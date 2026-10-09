@@ -89,6 +89,9 @@ def _room_state(row: Mapping, *, item_id: str) -> PreparedWhiteboardRoomState:
     if (
         row["board_id"] != item_id
         or row["collab_board_id"] != item_id
+        or type(row["collab_id"]) is not str
+        or not row["collab_id"]
+        or len(row["collab_id"]) > 36
         or not isinstance(key, str)
         or not key
         or len(key) > 128
@@ -140,7 +143,9 @@ def _room_state(row: Mapping, *, item_id: str) -> PreparedWhiteboardRoomState:
             raise
         raise WhiteboardRoomReaderRefused("room_state_invalid") from None
     return PreparedWhiteboardRoomState(
-        WhiteboardCollabContext(item_id, key, True, scene, row["owner_id"]), yjs, snapshot
+        WhiteboardCollabContext(item_id, key, True, scene, row["owner_id"], row["collab_id"]),
+        yjs,
+        snapshot,
     )
 
 
