@@ -610,3 +610,19 @@ ACT-CI-02 수정본의 원본 네 모듈270개 전체 PASS/469.15초를 확인�
 ACL source b3954393은 필수252/job420 SUCCESS/74.636035초 뒤 PR91·MR98로 병합했다. GitHub b34612a3·GitLab 92e77670은 tree93744905로 동일하고 소유 feature 양쪽 원격·로컬 정리를 마쳤다. Main/prod9e9280df와 운영·새 Workbench 배포0는 유지한다.
 
 Full251/419는 API 네 그룹·웹911/브라우저42·Workbench 웹183/타입 검사 통과 뒤 기존 test_remote_runtime.py의 Ruff I001로3121.651538초에 실패했다. 오류를 숨기거나 전체 성공으로 바꾸지 않는다. ACT-CI-03은 해당 테스트의 import 정렬만 변경하며 원8 함수/30 assertions AST·본문 바이트를 보존한다. 같은 pinned CI 이미지에서 Ruff0.16.8 전체 Workbench Python lint와 원 모듈24 PASS/14.19초를 확인했다. 최종 문서·독립 인수 뒤 정상 게시/필수 리뷰와 새 full을 진행한다.
+
+## 2026-10-09 12:55 — CI03 전달·개발 반영과 다음 구조 병행
+
+Workbench import 정렬은 PR92/MR99와 필수254/422를 정상 통과·병합하고 정확 소유 브랜치를 정리했다. 현재 dev0d259/tree04d144이며 main/prod9e는 유지한다. 알려진 같은 lint 오류의 full253은 정상 취소 상태를 확인했고 새 full255/423을 실행한다. 실제23 migration 리허설을 최종 tree에 반복·독립 인수했으며 릴리스 도구도 current job의 live full artifact와 source/target/tree·no-skip/pass·동일 bytes에 결속했다.
+
+개발 관리 서비스 갱신·새 schema/private cap·원 writer 보호와18개 앱의 공개 브라우저 로그인/진입/로그아웃을 확인했다. CLI 검사와 서비스의 수신 주소 차이를 발견해 작은 접근 도구 보완을 별도 후보에서 진행했다. Root는 전달/실제 운영·추적 문서, 한 에이전트는 C1 schema/role/runtime, 다른 에이전트는 Native SDK toolchain, 별도 검토자는 SDK 증거를 담당한다. App manifests/scripts를 immutable cache로 shadow하는 제안은 제거했고 일반 앱 소스 소유권을 유지한다. 아직 운영 배포·C1/native 활성화·전체 구조 인수가 아니다.
+
+## 2026-10-09 13:46 UTC — ACT-CI-04와 실제 SDK pilot
+
+전체255/job423은 프로젝트 기본1시간에 종료되어 실패했다. Runner 최대는7200초다. API6423·별도 slow16/migration37/external15·Web911·WorkbenchWeb183·WorkbenchPython822의 관측을 보존하지만 build/E2E 및 최종 full 성공을 대신하지 않는다. 운영 main/prod는 `9e9280df`, 개발은 `0d259c30`이며 MR81 병합과 운영 배포는 대기한다.
+
+ACT-CI-04는 root/ops의 동일 `release_validation`에 `timeout: 2h`만 추가하고 현재 exact checker 및 누락/1h/24h 거부를 연결한다. 원래 job scripts·전체 선택·실패·artifact·리소스/저장 공간 조건은 유지한다. 동일 immutable 검증 이미지eefe09d5에서 network none·70/70 PASS, source/protected 불변·소유 container 정리를 확인했다. 최초 host YAML dependency 부족과 컨테이너의 host worktree Git 경로 접근 실패는 준비 단계 실패로 구분해 보존했다. 프로젝트/Runner 전역 설정은 변경하지 않는다. [GitLab job timeout](https://docs.gitlab.com/ci/yaml/#timeout)의 지원 계약을 적용하며 후보의 필수 리뷰·게시/병합·최신 full은 아직 남아 있다.
+
+공개 Native 코드는 새 `/opt/miy/miy-native-codex-01601-v1`에49files/446,771,872bytes/고정 executable34개로 설치했고, SDK는 `/opt/miy/miy-native-sdk-20261009-v1`에 정확 inventory를 검사했다. 두 cache는 root-owned readonly이며 모델·기존 Workbench 설정/서비스를 변경하지 않았다. 별도 canonical basic 앱의 실제 finite unit에서 kernel namespace·UID1000/cap0/NNP·CPU1/메모리1GiB/swap0/PIDs64와 읽기 전용 root/cache/Git 및 쓰기 Source를 확인했다. provisioning와 잘못된 bearer 거부·일반 `pnpm test`는 통과했으나 `pnpm run build` exit1의 정확 원인은 미확정이다. 초기 outer bwrap monitor PID 관측과 실제 exec-server child의 PID namespace 인수를 구분했다. 실패 근거를 유지하고3개 임시 unit을 stop/정리했으며, 자동 한도 확대·host fallback이나 실제 제품 Task 성공을 주장하지 않는다. SDK 재현 producer와 실제 Task 환경 profile도 별도 필수 구현 중이다.
+
+C1 checked CAS는 Core sealed cohort/payload·Source EXEC1/DML0·Core EXEC2/DML0와 durable receipt/원 attempt 잠금 취소의 비활성 후보다. 저자·독립 reviewer의 정적/pure 단계 뒤42 native case의 실제 disposable PG와 기존 Source8 최신 head 회귀 검증이 남아 있다. C2 원 provenance·C3 서비스 활성화와 앱별 비필수 기능은 후속 범위를 유지한다.

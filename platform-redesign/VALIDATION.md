@@ -2092,3 +2092,23 @@ Full251/job419 최종 FAILED/script_failure3121.651538초. API main6291 PASS/3 S
 ACT-CI-03의 원 파일52f058f7→정렬본5d036f4b는 non-import AST·8 함수/30 assertions·import AST/nonblank import line multiset과 첫 test decorator 이후 바이트가 같다. Same image eefe09d5, Python3.12.14의 frozen public dependency 환경에서 Ruff0.16.8 전체 Python lint와 원 remote-runtime 모듈24 PASS/2 warnings/14.19초다. 원 assertion·기대값·pytest selection은 유지한다. 실행은 public dependency 준비를 포함한 bridge container이며 network-none으로 주장하지 않는다. 실제 credential/운영 연결0, 파일1·보호181 입력/출력 동일 및 소유 container cleanup PASS다. Root 추적6은 이 행동 실행 뒤 갱신하고 최종 Markdown/범위 인수로 따로 결속한다.
 
 운영 백업의 격리 PostgreSQL18.6 private23 복원은 b395/tree93744905, 코드848 before/after 동일, 원164 relation 데이터 보존, 정확23 pending/current33 migration, 새 세 capability 전체 catalog/owner/argument/EXEC 확인과 이전 image164 table/160 mapper/88 rollback-only writer/합성 auth8을 통과했다. Clone 복원은 owner/ACL을 정규화하며 probe flags는 공급한 상수이므로 실제 운영 역할/flags 인수로 확대하지 않는다. 임시2 containers/network 정리와 독립 aggregate 리뷰 blocker0다. 최종 source/tree가 바뀌면 그 결속을 갱신하고 실제 before/after metadata·fresh backup·guarded 배포를 별도로 확인한다.
+
+## 2026-10-09 12:55 — 최신 tree의 실제 전달·개발·운영 준비
+
+- CI03 source22913094/tree04d144c1는 required254/job422 SUCCESS41.729942s 뒤 PR92/MR99로 정상 병합했다. dev merge0d259c30는 같은 tree다. 원 테스트의24 cases·같은 image Ruff 검증 및 AST/assertion 보존 근거는 앞선 항목을 유지한다. 최신 full255/423은 실행 중이며 이전251의 통과 수를 최신 full 성공으로 합산하지 않는다. Full253 취소는 성공 증거가 아니다.
+- 최종 tree의 실제 private23 리허설 receipt SHA `f7c55b96277bef493dd2d343b8904ddeb7f4d70acf20e90ee3c4b4deada16b49`: restore/append/164 retained relation 동일·cap catalog·old model164/mapper160/rollback writer88/auth8·848 dependency identity·owned cleanup PASS. 독립 review9633b0df/blockers0. 정규화된 clone ACL과 합성 flags의 범위를 유지한다.
+- 개발 before exact Source cap1→supervised restart→after exact cap3/schema wb_actor_acl·private direct/inherited EXEC 거부·owner/DML·cooperative90/principal0 PASS. 최초 오타 함수명 count 관측은 capability 근거에서 제외하고 정확 probe로 교체했다. 초기 기본 loopback 접근 실패와 실제 bind를 선택한 재검증을 구분한다.
+- 새 접근 도구 Node8 PASS/0SKIP, shell syntax PASS. 별도 후보 코드를 현재 runtime 설정에 적용한 직접/공개 readiness/health identity/bootstrap/login shell과 기존 owner login PASS. Source bytes 동일성을 확인했다. 공개 HTTPS owner browser는36초에18개 app entry와 로그인·logout PASS이며 업무별 기능 검사가 아니다. 외부 사용자 PC 경로는 미확인이다. 접근 도구 수정은 아직 별도 로컬 후보이며 현재 dev commit은 변경하지 않았다.
+- Release helper의 순수10 사례는 accepted full 및 source/tree/failed/skip/duplicate 거부를 확인했다. 첫 서로 다른 중복 header 허용 결과를 보존한 후 prefix singleton과 local/live current-job artifact를 보강했다. 최종 static review accepted/blockers0는 실제 CI/merge/deploy 성공을 대신하지 않는다.
+
+C1/SDK는 별도 로컬 작업이며 새 native PG·installed confinement·actual Task/개인 앱 전체 흐름·최신 full/실제 운영 before/deploy/after는 남아 있다. Raw logs/customerdata/config/credentials를 추적 문서로 저장하지 않는다.
+
+## 2026-10-09 13:46 UTC — ACT-CI-04와 실제 SDK pilot
+
+전체255/job423은 프로젝트 기본1시간에 종료되어 실패했다. Runner 최대는7200초다. API6423·별도 slow16/migration37/external15·Web911·WorkbenchWeb183·WorkbenchPython822의 관측을 보존하지만 build/E2E 및 최종 full 성공을 대신하지 않는다. 운영 main/prod는 `9e9280df`, 개발은 `0d259c30`이며 MR81 병합과 운영 배포는 대기한다.
+
+ACT-CI-04는 root/ops의 동일 `release_validation`에 `timeout: 2h`만 추가하고 현재 exact checker 및 누락/1h/24h 거부를 연결한다. 원래 job scripts·전체 선택·실패·artifact·리소스/저장 공간 조건은 유지한다. 동일 immutable 검증 이미지eefe09d5에서 network none·70/70 PASS, source/protected 불변·소유 container 정리를 확인했다. 최초 host YAML dependency 부족과 컨테이너의 host worktree Git 경로 접근 실패는 준비 단계 실패로 구분해 보존했다. 프로젝트/Runner 전역 설정은 변경하지 않는다. [GitLab job timeout](https://docs.gitlab.com/ci/yaml/#timeout)의 지원 계약을 적용하며 후보의 필수 리뷰·게시/병합·최신 full은 아직 남아 있다.
+
+공개 Native 코드는 새 `/opt/miy/miy-native-codex-01601-v1`에49files/446,771,872bytes/고정 executable34개로 설치했고, SDK는 `/opt/miy/miy-native-sdk-20261009-v1`에 정확 inventory를 검사했다. 두 cache는 root-owned readonly이며 모델·기존 Workbench 설정/서비스를 변경하지 않았다. 별도 canonical basic 앱의 실제 finite unit에서 kernel namespace·UID1000/cap0/NNP·CPU1/메모리1GiB/swap0/PIDs64와 읽기 전용 root/cache/Git 및 쓰기 Source를 확인했다. provisioning와 잘못된 bearer 거부·일반 `pnpm test`는 통과했으나 `pnpm run build` exit1의 정확 원인은 미확정이다. 초기 outer bwrap monitor PID 관측과 실제 exec-server child의 PID namespace 인수를 구분했다. 실패 근거를 유지하고3개 임시 unit을 stop/정리했으며, 자동 한도 확대·host fallback이나 실제 제품 Task 성공을 주장하지 않는다. SDK 재현 producer와 실제 Task 환경 profile도 별도 필수 구현 중이다.
+
+C1 checked CAS는 Core sealed cohort/payload·Source EXEC1/DML0·Core EXEC2/DML0와 durable receipt/원 attempt 잠금 취소의 비활성 후보다. 저자·독립 reviewer의 정적/pure 단계 뒤42 native case의 실제 disposable PG와 기존 Source8 최신 head 회귀 검증이 남아 있다. C2 원 provenance·C3 서비스 활성화와 앱별 비필수 기능은 후속 범위를 유지한다.

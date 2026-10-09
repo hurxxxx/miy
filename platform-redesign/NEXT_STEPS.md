@@ -1,5 +1,7 @@
 # 후속 구조작업
 
+현재 전달의 첫 선행조건은 ACT-CI-04의 정상 게시·필수 리뷰/병합과 새 최신 full이다. 이전255/job423은 기본3600초에서 실패했고 Runner는7200초를 허용한다. 전체 항목을 유지한 job-only 2h 후보70/70을 확인했다. 성공 전 main/prod `9e9280df`를 유지하며 운영 배포하지 않는다. Workbench actual `pnpm test` 이후 빌드 실패는 구조 인수의 필수 잔여로 조사하고 실제 Task 환경·재현 producer와 함께 완료한다.
+
 2026-10-09 UTC. 사용자 요청에 따라 Source 명령 후속 게시 이후의 필수 작업을
 식별했고, PR70 병합 후 사용자 지시로 다음 구현을 재개했다. 현재는 아래
 세 경계의 구현·검증·독립 리뷰와 PR71 게시·병합을 마쳤다. 승인된 개발 플랫폼과
@@ -20,7 +22,11 @@ cutover를 활성화한 것은 아니다. 게시 추적은
 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다. 이 문서는 우선순위·의존성과
 다음 착수 단위를 소유하며 별도 작업 대장을 만들지 않는다.
 
-현재 dev는 `746258cd`, main/prod는 `9e9280df`다. 비활성 최소 Whiteboard Source writer/profile은 필수246/job414 성공 뒤 [PR88](https://github.com/hurxxxx/miy/pull/88)·[MR95](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/95)로 정상 병합하고 소유 feature 브랜치를 양쪽 원격·로컬에서 정리했다. 최신 full247/job415는 저장 공간 선행조건에서22.79551초에 실패해 제품 테스트0이며 새 운영·별도 Workbench 배포는 없다. 다음은 별도 worktree의 비활성 Core actor-owner capability다. 실제 원 delegated execution을 별도 auth-only Session에서 캡처하고, 공급된 fresh LOGIN에는 private EXEC1만 허용해 사업 데이터 SELECT·DML0을 유지한다. 같은 PostgreSQL database의 caller-owned transaction에서 원래 서비스와 현재 사용자·세션·설치·앱 승인·live board owner의 positive witness를 잠근다. Source v1의 SELECT8/UPDATE4 및 auth14표/87열은 확장하지 않는다. 기존31 migration·보호95개를 동결하고 신규 revision `wb_actor_owner_20261009` 하나와 inventory head 한 항목만 추가한다. 구현·테스트 작성에 착수했으며 새 검사 실행·최종 인수·게시·서비스 활성화는 아직 하지 않았다. 아래 날짜별 과거 기록은 당시 결과이며 최신 검증은 [VALIDATION.md](VALIDATION.md)가 소유한다.
+현재 dev는 `0d259c30`, main/prod는 `9e9280df`다. ACL과 필수 CI import 보완을 정상 전달했고 기본1시간에서 실패한 full255/job423을 보존하고 ACT-CI-04 이후의 새 current full 검증을 기다린다. 개발 스키마·private capability·legacy writer와 공개 브라우저 진입은 확인했다. 운영은 exact full artifact 인수→MR81 정상 병합→prod clean FF→guarded prepare→실제 metadata before/fresh backup→guarded deploy→metadata after/owner smoke 순서로 진행한다. 최신 소스와 같은 tree의23 migration private 리허설은 통과했으나 실제 운영 권한·flags 검사를 대체하지 않는다.
+
+동시에 **C1 비활성 checked save**를 현재 인수된 ACL base에서 구현한다. Core만 complete original cohort/payload를 봉인하며, Source는 봉인된 attempt UUID와 digest만 받아 SELECT/DML0·private save EXEC1로 같은 caller transaction에서 모든 ACL/최종 expiry·content incarnation/revision CAS·durable receipt를 처리한다. 기존 Source/auth/actor ceilings·33 migrations·default native/factory를 보존한다. 정확 schema/grant manifest를 코드 작성 전에 동결하고 native PG의 contributor 회수·wait·CAS/ABA·ACK loss/lock-and-cancel·역할 거부를 검증한다. C2 실제 apply/relay의 완전한 provenance와 C3 config/role/drain/recovery는 이어서 진행한다. Workbench SDK toolchain/cache 준비는 별도 경로로 병행하며 사용자 app manifest/scripts를 shadow하지 않는다.
+
+아래 날짜별 이력은 해당 시점의 기록이며 현재 위치를 대신하지 않는다.
 
 ## 후속 전체 CI223의 구조 fixture 보완
 
