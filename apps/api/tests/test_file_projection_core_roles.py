@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from sqlalchemy.orm import Session
 import pytest
 
+from _migration_revision_fixtures import migration_revision_world
 from miy_api.domains.official_apps.file_extraction_roles import prepare_file_extraction_principal
 from miy_api.domains.official_apps.file_projection_core_roles import (
     file_projection_partition_contract,
@@ -15,9 +16,23 @@ from miy_api.domains.official_apps.writer import WriterIdentity
 from miy_api.domains.official_apps.writer_contracts import SUITE_SCOPE
 from test_file_extraction_authority import extraction_prepared as extraction_prepared
 from test_file_extraction_authority import seeded_request
-from test_official_writer_roles import world as world, role_template as role_template
+from test_official_writer_roles import (
+    world as current_head_world,  # noqa: F401
+    role_template as role_template,
+)
 from test_official_writer_roles import move, denied
 from test_independent_app_data import isolated_data_cluster as isolated_data_cluster
+
+
+@pytest.fixture
+def world(current_head_world, request, tmp_path, monkeypatch):  # noqa: F811
+    return migration_revision_world(
+        current_head_world,
+        request,
+        tmp_path,
+        monkeypatch,
+        expected_revision="file_effect_20261007",
+    )
 
 
 @pytest.fixture
@@ -538,6 +553,7 @@ def test_new_capability_downgrade_is_explicit_and_preserves_prior_schema(world, 
         assert conn.execute("SELECT count(*) FROM file_extraction_requests").fetchone()[0] == 0
 
 
+@pytest.mark.parametrize("world", ["file_effect_20261007"], indirect=True)
 def test_fresh_capability_migration_round_trip_is_inactive(world):
     from alembic import command
     from test_alembic_migrations import _migration_config
