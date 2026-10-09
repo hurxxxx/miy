@@ -1,5 +1,13 @@
 # 검증 계획과 수행 근거
 
+## 2026-10-09 full261 후속 소유 연결 정리
+
+- Full261/job429/source1efd2054: API6502 PASS/3 FAIL/3 SKIP/4 WARN3029.87초, 후속 PG16/37/15 PASS; job FAILED3313.759587초다. Raw trace/SQL/credentials/customer 자료를 기록하지 않았다.
+- Minimal source5: 실제 두 route의 취소 경계12 FAIL/원 오류객체4 PASS를 먼저 재현했다. 수정 후 동일16 PASS1.807114초와 기존 synthetic 인증16 PASS7.638735초(고유32), Ruff/format/owner Markdown 및 독립 리뷰를 통과했다. Auth 본문/기존 assertions/34 migration/보호1219를 보존했다. 동시 부모 취소는 원 cancellation을 우선하며 새 강한 오류 보존을 약속하지 않는다.
+- Root actual26: 같은 immutable CI image의 network-none/4GiB/2CPU/750초 한도, owned PG18/표준 identity checker를 사용했다. Setup/call/teardown 각각26 PASS, errors/skips0, before/after와 cluster/container 정리 PASS39.165164초다. 준비 단계의 empty cache directory 충돌(product0)은 원 디렉터리를 보존하고 정상 CI linking 후 새 실행으로 구분한다. Receipt0b7868fb·source073a6482·helper6301554d·독립 sourcec2ea1a9c/runner939264f7+7c16ca7c로 결속한다. 전체 CI나 운영 반영 증거는 아니다.
+- Normal private24(Source1efd/tree4b5): restore/24append/데이터164표 동등/이전 이미지 ordinary persistence·rollback/최소 private ACL와 PG18 제약 검사/소유 정리 PASS다. Public witnessca216dcb와 독립 리뷰e0854622는 Root 실행·공개 코드 결속이며 독립 rerun 또는 새로운 source의 운영 인수를 뜻하지 않는다.
+- 별도 SDKfaaf source22/owned13: 합성146 PASS0.56초·Ruff0.16.8·format·owner Markdown·독립 composite reviewef9bd7c6 통과, Fresh normal model0는3.835966초에 실제 PASS, 원 known LOGIN 제한·공식 구독·현재 ADMIN6/NETWORK8·소유 RPC/unit 정리와 source guards PASS다(Receipt9f7a49aa). 실제 Task/관리 정책 reload/network 전체 경로/운영은 미검증이다. C2 pure51과 두 native48 setup 실패는 구분하며 fixture alias와 CASE grammar 보완 뒤 재검증한다. 원 실패 이력·핵심 계약·모델0·비활성을 유지한다.
+
 실제로 수행한 검사와 향후 제품 검증을 구분한다. 검증 성공은 해당 대상·버전·환경·범위에만 적용한다. 제품 코드가 바뀌지 않은 문서화 결과를 새 구조의 기능 검증으로 사용하지 않는다.
 
 ## 2026-10-08 전체 릴리스 CI 환경·fixture 보완
