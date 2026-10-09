@@ -2012,3 +2012,41 @@ Migration은 정상 legacy/hardened 환경에서 비활성 capability만 설치�
 Evidence: `.runtime/structural-next-delivery/post-whiteboard-source-writer-*-result.json`, `whiteboard-source-writer-first-native-failure.json`, `whiteboard-source-writer-first-native-failure-diagnosis.json`, `whiteboard-source-writer-sequence-kind-fix-proof.json`, `whiteboard-source-writer-impact-binding-proof.json`, `whiteboard-source-writer-migration-inventory-test-proof.json`. 이전 WB/Docs 실패와 hang의 원인 미확인 기록을 이 새 성공으로 바꾸지 않는다.
 
 현재 dev `aafbccb2`·main/prod `9e9280df`, 최신 full245/413 저장 공간 선행조건 실패/제품 테스트0와 새 운영/별도 Workbench 배포0를 유지한다. 이 단계는 Source factory·저장 연결·사용자의 현재 Core/Source ACL COMMIT fence·cross-hub content CAS·영속 unknown 복구·Docs 저장·공식 서비스 cutover를 완료하지 않는다. 다음 actor fence는 현재 사용자 구현 승인 안에서 별도 범위와 보호표를 확정한다. Same-DB SQL 잠금을 실제 separate DB 보장으로 표시하지 않으며, queued Yjs의 credential attribution/expiry와 모든 owner/direct/group/PMS/meeting edit closure가 활성화 전 필수다. Native SDK/toolchain 실제 pin 검증/설치·개인 앱 전체 자연어 흐름도 남아 있다. 앱별 비필수 기능·다중 사용자는 보류한다.
+
+## 2026-10-09 06:22 — 최소 Source writer 전달과 actor-owner 경계 착수
+
+현재 dev는 `746258cd`, main/prod는 `9e9280df`다. 비활성 최소 Whiteboard Source writer/profile은 필수246/job414 성공 뒤 [PR88](https://github.com/hurxxxx/miy/pull/88)·[MR95](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/95)로 정상 병합하고 소유 feature 브랜치를 양쪽 원격·로컬에서 정리했다. 최신 full247/job415는 저장 공간 선행조건에서22.79551초에 실패해 제품 테스트0이며 새 운영·별도 Workbench 배포는 없다.
+
+다음은 별도 worktree의 비활성 Core actor-owner capability다. 실제 원 delegated execution을 별도 auth-only Session에서 캡처하고, 공급된 fresh LOGIN에는 private EXEC1만 허용해 사업 데이터 SELECT·DML0을 유지한다. 같은 PostgreSQL database의 caller-owned transaction에서 원래 서비스와 현재 사용자·세션·설치·앱 승인·live board owner의 positive witness를 잠근다. Source v1의 SELECT8/UPDATE4 및 auth14표/87열은 확장하지 않는다. 기존31 migration·보호95개를 동결하고 신규 revision `wb_actor_owner_20261009` 하나와 inventory head 한 항목만 추가한다. 구현·테스트 작성에 착수했으며 새 검사 실행·최종 인수·게시·서비스 활성화는 아직 하지 않았다.
+
+이번 owner-only 단계는 전체 Whiteboard ACL·실제 Source 쓰기 연결·운영 전환을 완료하지 않는다. 공유/HR/PMS/meeting 편집 권한, contributor의 원 credential 보존, 같은 connection/transaction의 Source CAS와 actor 검사 조립, cross-hub content CAS·영속 unknown 복구·Docs 저장/media/RAG가 필수 잔여다. 별도 LOGIN 연결 두 개는 하나의 transaction으로 합칠 수 없으므로 후속 최소 combined profile 또는 검토된 capability가 필요하다. 같은 database의 역할·프로세스 분리이며 물리적 별도 DB를 인수하지 않는다. 대기 후 실제 시각의 만료 판정은 decision 시점 보장이고 physical COMMIT-time 만료 보장은 아니다. 사용자 update의 User→AuthSession과 autoflush=False인 reset/delete의 AuthSession→User 역순 잠금 충돌은 bounded private refusal·caller rollback으로 검증하고 보편적 잠금 순서로 주장하지 않는다. Native immutable cache/설치·SDK 전체 자연어 흐름과 별도 Workbench 전달도 남아 있다. 비필수 앱 기능·다중 사용자는 보류한다.
+
+## 2026-10-09 08:38 — actor-owner 구현 검증과 Docker 저장소 이전
+
+ACT-NULL-01: installation.release_id 및 release.verification_id가 NULL이면 `<>` 검사가 우회되던 두 실제 PostgreSQL 사례를2 FAIL로 재현했다. 두 비교만 `IS DISTINCT FROM`으로 수정하고 capability body attestation을 `c9cb12f0…`로 갱신했다. NULL 두 거부 사례는 첫 전체 수정 후 실행에서 통과했다. 전체는133 PASS/5 fixture FAIL/355.03초, setup0·소유 컨테이너 cleanup PASS다.
+
+5 fixture 실패는 reserved `pg_` schema, 두 system-role created_at 누락, 실제 original update_user의 관측 PID/connection 보존 경계다. 네 함수의 fixture만 수정했으며 이전 assertion·parameterization과 나머지 module AST는 동일하다. PID 실패의 최초 원인은 가설이며 확정하지 않는다. 교정한 정확5사례는5 PASS/29.16초이고 전체145 결과로 세지 않는다. 증거는 `.runtime/structural-next-delivery/whiteboard-actor-owner-first-native-{133pass-5fail-result,failure-summary}.json`, `post-whiteboard-actor-owner-fixture_diagnosis-result.json`이다.
+
+기존105+5+52+5=167은 실제 PASS이며 API 계약도 PASS다. 최종 테스트 해시 및 보조 fixture의 실행 당시 동결 근거가 부족해 이 결과에 포괄적 예외를 적용하지 않고 재실행한다. Docker 초기 inventory83/29running/286volume/18image objects와 원본·목적지 filesystem, 이전 helper 독립 검토는 `docker-relocation-{before,helper-review,independent-review}.json`에 있다. 데이터 내용·실제 env·credential·raw log는 출력하지 않는다. 아직 이전 완료와 최종145 PASS를 기록하지 않는다.
+
+## 2026-10-09 09:26 — Docker 이전 완료와 actor-owner 최종 로컬 검증
+
+최종 신규145: native138 PASS/480.01초, pure7 PASS/3.24초. 동일145 parameterization이며 보호95·이전31 migration과 Source v1 SELECT8/UPDATE4/auth14표87열 계약을 유지했다. 최종 영향167은 current-head Source/role105 PASS/90.81초, original authority52 PASS/67.78초, unchanged original Source prior-head5 PASS/13.18초, original legacy migration5 PASS/5.12초다. 이전 fixture qualification은 그대로이고 기존 assertion을 변경하지 않았다. Python 및 API architecture/i18n·schema/OpenAPI·contract sources PASS, 모든 소유 container cleanup PASS다. 선정 fixture/conftest/adapter/diagnostic8 해시를 실제 재실행 before/after 동결했다.
+
+Docker 이전: 첫 bulk rsync23 및 두 번째 동일 오류238 mknod/ENOENT를 보존했고 최초 원인을 단정하지 않는다. Source237 whiteout의 type0:0/mode를 누락된 target에 보완한 후 일반 rsync 재시도0, cold sync0과 전체checksum/metadata0 differences/381.55초를 확인했다. Current driver overlay2/live-restore true/containerd root를 유지했다. 전체83/286/18 metadata·마운트/정지 정책·이전29running·21healthy는20개 후속 검사 PASS다. PostgreSQL2 exit0, 전체137/OOM0, gateway2/GitLab exit1은 기동 건강으로 확인했고 GitLab public readiness404는 성공 근거로 세지 않았다. 실제 GitLab API project 조회0·공개root302·개발HTTP200·PostgreSQL readiness0를 확인했다. 검증된 stale source만 제거하고 runner를 복원했다.
+
+근거: `.runtime/structural-next-delivery/docker-relocation-{complete,postcheck,old-source-retirement,optional-health-template-correction}.json`, `whiteboard-actor-owner-final-impact-execution-dependencies.json`, `post-whiteboard-actor-owner-{native,pure,compat,authority_compat,source_prior_compat,migrations,python_check,contracts}-result.json`. 문서 포맷과 다음 Python 검사를 겹쳐 frozen-input check가 거부한 실수는 테스트0/container0로 보존했다. 문서 포맷 완료 후 refreeze해 새 검사를 통과했다. Final Markdown·독립 acceptance와 normal publication은 다음 단계이며 새 운영/Workbench 배포는 없다.
+
+## 2026-10-09 09:46 — 정상 CI의 Source revision 호환 수정
+
+독립 리뷰의 ACT-CI-01은 실제 정상 CI 수집 경로의 누락이었다. 기존 로컬 `.runtime` adapter에서 통과한 prior-head5는 원본 Source 모듈 전체가 정상 CI에서도 통과한다는 증거가 아니었다. 수정 전 원본 모듈의 동일5를 실행해5 FAIL/11.19초·setup error0·cleanup PASS를 확인했다. 실패 결과와 이전 로컬 성공은 별도로 보존한다.
+
+커밋 대상 원본 테스트에 per-case indirect `world` fixture를 추가했다. 선택한5만 legacy clone을 정상 Alembic downgrade로 `wb_source_writer_20261009`에 맞추고, 원래31개 ancestor migration을 byte-exact 임시 inventory로 복사해 해당 case의 downgrade/re-upgrade `head`를 고정한다. 나머지74와 신규 actor145는 최신 head다. 기존45개 함수 본문·signature·assertion은 AST 동일하며 네 decorator 목록에 단일 revision parameter만 추가했다. `stamp`·`create_all`·skip·제품 변경은 없다.
+
+동일5는5 PASS/11.17초로 바뀌었다. 이후 `-k` 제외나 ignored prior adapter 없이 원본 Source79 PASS/82.18초, 원 writer-role31 PASS/24.19초, authority52 PASS/83.77초, 원 migration5 PASS/6.35초 =고유 기존 영향167개다. 진단5·반복 실행은 더하지 않는다. Pure7 PASS/3.30초·Python6·API architecture/i18n·generated contracts도 통과했다. 최종17파일/보호94/기존31 migration 범위의 native138 전체 재실행과 최종 문서/독립 인수·원격 필수 리뷰는 아직 진행 중이다.
+
+## 2026-10-09 09:50 — actor-owner와 정상 CI 호환 최종 로컬 인수 준비
+
+최종17파일 범위에서 신규 actual PG18 native138 PASS/321.13초·pure7 PASS/3.30초 =145개다. 정상 원본 Source 모듈79 PASS/82.18초·원 role31 PASS/24.19초·authority52 PASS/83.77초·migration5 PASS/6.35초 =고유 기존 영향167개다. 진단/반복은 더하지 않는다. ACT-CI-01의 실제5 FAIL/11.19초와 동일5 PASS/11.17초는 보존하며 현재 영향 검증은 ignored Source prior adapter에 의존하지 않는다. 기존45개 함수 본문·signature·assertion, 보호94개·기존31 migration은 동일하다.
+
+Python6·API architecture/i18n·schema/OpenAPI/contract sources를 통과했다. 최종 문서 검사·동결 후 새 독립 인수와 정상 게시/필수 원격 리뷰를 진행한다. 현재 dev746258cd·main/prod9e9280df 및 최신 full247/415 storage 실패/tests0를 유지하며 새로운 commit/push/PR/MR/merge는 아직 없다. Docker 이전/원본 정리·서비스 복구는 완료했고 제품/별도 Workbench 버전 배포는 없다. 전체 ACL·같은 Source connection/transaction 조립·실제 공식 서비스 cutover·Native 전체 자연어 앱 흐름 등 구조상 필수 잔여는 남아 있다.

@@ -129,6 +129,22 @@ write bounds and Source factory activation remain separate required steps. This
 service-only fence supplies no user authorization or saved ACK; current runtime
 persistence and inactive service gates retain their contracts.
 
+An additional inactive owner-only actor primitive captures the original delegated
+execution through the separate auth14/87 reader and rechecks it in the actual
+caller Source transaction. Its separate fresh LOGIN has no table reads or DML and
+executes one private capability. The capability retains current service, user,
+source/delegated session, verified installation/binding, positive app audience and
+untrashed Whiteboard-owner SHARE locks through caller COMMIT/rollback. Known
+different database locators refuse; trusted same-cluster composition remains
+required. Expiry is evaluated after waits at decision time. The
+[actor owner](../../api/src/miy_api/domains/official_apps/AUTHORITY_READER.md#inactive-whiteboard-owner-actor-fence)
+records exact owner lock-column grants, Core SQL-adapter semantics, bounded
+deadlock refusal and migration/replay limits. Existing Source v1 and auth14/87
+profiles remain unchanged. This primitive performs no Yjs save or factory
+activation; full resource ACL, queued credential attribution, config epoch and
+same-transaction persistence remain required. Separate LOGIN Sessions cannot be
+combined into one SQL transaction or an independent-database fence.
+
 | Artifact                  | Current state                                                                                        |
 | ------------------------- | ---------------------------------------------------------------------------------------------------- |
 | Official UI               | Separate entry/build output; legacy UI/public-module bridge                                          |

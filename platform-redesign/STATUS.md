@@ -10,10 +10,10 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
 
 ## 현재 위치
 
-- **전달:** dev는 `aafbccb2`, main/prod는 `9e9280df`다. Whiteboard 저장 안전성은 필수244/412 성공 뒤 PR87/MR94로 양쪽 병합하고 소유 브랜치를 정리했다. 최신 full245/413은 저장 공간 선행조건에서 실패해 제품 테스트0이며 새 운영 배포는 없다. [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 전달 기록을 소유한다.
-- **공식 앱 경계:** Source 인증·ACL·기존 room 초기 읽기와 Whiteboard 저장 안전성을 전달했다. 비활성 최소 Source service writer/profile은 신규79·영향209 로컬 검증을 마쳤고 최종 리뷰·전달을 진행한다. Core 사용자 COMMIT fence·Source 연결·cross-hub content CAS·영속 unknown 복구와 공식 서비스 cutover는 남아 있다.
-- **Workbench:** 실제 원 Task의 계획→승인된 격리 수정→같은 thread 후속 요청과 최소 native 실행 정의를 인수했다. 영구 immutable cache·설치된 자원/mount/native 정책·보호 설정·별도 Workbench 서비스 및 개인 앱 자연어 전체 흐름은 남아 있다.
-- **운영과 범위:** 기존 운영 API·worker·Beat와 schema는 마지막 읽기 전용 검사에서 정상이었다. 최소15GiB 및15%의 지속 여유와 최신 full 성공 뒤 MR81·fresh backup·guarded 배포를 이어간다. 앱별 비필수 기능과 다중 사용자는 보류한다.
+- **전달:** 현재 dev는 `746258cd`, main/prod는 `9e9280df`다. 비활성 최소 Whiteboard Source writer/profile은 필수246/job414 성공 뒤 [PR88](https://github.com/hurxxxx/miy/pull/88)·[MR95](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/95)로 정상 병합하고 소유 feature 브랜치를 양쪽 원격·로컬에서 정리했다. 최신 full247/job415는 저장 공간 선행조건에서22.79551초에 실패해 제품 테스트0이며 새 운영·별도 Workbench 배포는 없다.
+- **공식 앱 경계:** 최소 Source writer/profile 신규79·영향209 로컬 검증과 독립·필수 리뷰를 마쳤다. 다음 Core actor-owner capability는 구현·테스트 작성 중이며 아직 인수하지 않았다.
+- **Workbench:** 기존 원 Task와 native 실행 정의는 보존한다. 영구 cache/설치·개인 앱 자연어 전체 흐름·별도 서비스 배포는 남아 있다.
+- **범위:** 구조·권한·데이터 보존에 필수인 변경만 진행한다. 앱별 상세 기능과 다중 사용자는 보류한다.
 
 ## 이전 단계별 인수 기록
 
@@ -190,3 +190,45 @@ Migration은 정상 legacy/hardened 환경에서 비활성 capability만 설치�
 최종 새 pure10 PASS/0.62s·실제 PG18 native69 PASS/56.98s =79개다. 기존 role/Source ACL/room/저장204 PASS/203.03s·원 migration 함수5 PASS/6.35s =209개는 별도 영향 범위다. API architecture/i18n·생성 API/schema/OpenAPI/contract-source와 scoped Python5 검사는 통과했다. Owner2·Root tracking6의 최종 Markdown freeze와 독립/필수 원격 리뷰·게시/병합은 별도로 진행한다. Network-none·실제 env/credentials0·소유 컨테이너 정리를 확인했다.
 
 현재 dev `aafbccb2`·main/prod `9e9280df`, 최신 full245/413 저장 공간 선행조건 실패/제품 테스트0와 새 운영/별도 Workbench 배포0를 유지한다. 이 단계는 Source factory·저장 연결·사용자의 현재 Core/Source ACL COMMIT fence·cross-hub content CAS·영속 unknown 복구·Docs 저장·공식 서비스 cutover를 완료하지 않는다. 다음 actor fence는 현재 사용자 구현 승인 안에서 별도 범위와 보호표를 확정한다. Same-DB SQL 잠금을 실제 separate DB 보장으로 표시하지 않으며, queued Yjs의 credential attribution/expiry와 모든 owner/direct/group/PMS/meeting edit closure가 활성화 전 필수다. Native SDK/toolchain 실제 pin 검증/설치·개인 앱 전체 자연어 흐름도 남아 있다. 앱별 비필수 기능·다중 사용자는 보류한다.
+
+## 2026-10-09 06:22 — 최소 Source writer 전달과 actor-owner 경계 착수
+
+현재 dev는 `746258cd`, main/prod는 `9e9280df`다. 비활성 최소 Whiteboard Source writer/profile은 필수246/job414 성공 뒤 [PR88](https://github.com/hurxxxx/miy/pull/88)·[MR95](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/95)로 정상 병합하고 소유 feature 브랜치를 양쪽 원격·로컬에서 정리했다. 최신 full247/job415는 저장 공간 선행조건에서22.79551초에 실패해 제품 테스트0이며 새 운영·별도 Workbench 배포는 없다.
+
+다음은 별도 worktree의 비활성 Core actor-owner capability다. 실제 원 delegated execution을 별도 auth-only Session에서 캡처하고, 공급된 fresh LOGIN에는 private EXEC1만 허용해 사업 데이터 SELECT·DML0을 유지한다. 같은 PostgreSQL database의 caller-owned transaction에서 원래 서비스와 현재 사용자·세션·설치·앱 승인·live board owner의 positive witness를 잠근다. Source v1의 SELECT8/UPDATE4 및 auth14표/87열은 확장하지 않는다. 기존31 migration·보호95개를 동결하고 신규 revision `wb_actor_owner_20261009` 하나와 inventory head 한 항목만 추가한다. 구현·테스트 작성에 착수했으며 새 검사 실행·최종 인수·게시·서비스 활성화는 아직 하지 않았다.
+
+이번 owner-only 단계는 전체 Whiteboard ACL·실제 Source 쓰기 연결·운영 전환을 완료하지 않는다. 공유/HR/PMS/meeting 편집 권한, contributor의 원 credential 보존, 같은 connection/transaction의 Source CAS와 actor 검사 조립, cross-hub content CAS·영속 unknown 복구·Docs 저장/media/RAG가 필수 잔여다. 별도 LOGIN 연결 두 개는 하나의 transaction으로 합칠 수 없으므로 후속 최소 combined profile 또는 검토된 capability가 필요하다. 같은 database의 역할·프로세스 분리이며 물리적 별도 DB를 인수하지 않는다. 대기 후 실제 시각의 만료 판정은 decision 시점 보장이고 physical COMMIT-time 만료 보장은 아니다. 사용자 update의 User→AuthSession과 autoflush=False인 reset/delete의 AuthSession→User 역순 잠금 충돌은 bounded private refusal·caller rollback으로 검증하고 보편적 잠금 순서로 주장하지 않는다. Native immutable cache/설치·SDK 전체 자연어 흐름과 별도 Workbench 전달도 남아 있다. 비필수 앱 기능·다중 사용자는 보류한다.
+
+## 2026-10-09 08:38 — actor-owner 구현 검증과 Docker 저장소 이전
+
+비활성 actor-owner 구현을 작성하고 실제 PostgreSQL에서 검증 중이다. nullable release/verification 연결의 NULL 우회는 실제 2 FAIL로 재현한 뒤 `IS DISTINCT FROM`으로 수정했다. 첫 전체 native138 실행은133 PASS/5 fixture FAIL이며, 교정한 동일5 진단은5 PASS/29.16초다. 최종 전체138·pure7·영향167 및 계약 검증은 최종 입력으로 다시 확인한다. 새 capability의 실제 서비스 연결·운영 활성화는 아직 없다.
+
+사용자는 Docker 데이터를 루트의 여유104GB 영역으로 이전하도록 승인했다. 기존 `/var/lib/docker`는 `/home/user/docker-data`의 bind이며 실제 데이터 약51GiB가 작은 home 볼륨을 사용한다. 새 실제 저장소 `/var/lib/miy-docker-data`로 초기 복사 중이고 서비스는 기존 저장소에서 계속 실행 중이다. 모든 컨테이너83·볼륨286·이미지18 objects를 보존하고, 마지막 쓰기 중지·체크섬·목록·건강 상태 확인 뒤 전환한다. 이전 완료·원본 정리·릴리스 CI 재개를 아직 주장하지 않는다.
+
+## 2026-10-09 09:10 — Docker 이전 최종 비교 중
+
+Docker 초기 복사의 bulk mknod/ENOENT 오류를 보존했다. Source의237개 char0:0 whiteout을 같은 type/rdev/mode로 누락된 목적지에 보완한 뒤 일반 rsync 전체 재시도는 성공했다. 단일 파일 복사는 오류를 재현하지 못했으므로 최초 원인을 단정하지 않는다. 드라이버·저장 형식은 그대로이며 오프라인 전체 체크섬이 최종 조건이다.
+
+09:03부터 기존29개 실행 컨테이너와 개발/CI 서비스를 중지했다. 강제137/OOM0이며 PostgreSQL2개 exit0, Hermes gateway2개와 GitLab exit1은 별도 복구 확인 대상으로 기록했다. 09:05 최종 동기화는 성공했고 현재 약205만 파일의 checksum/metadata 비교 중이다. 저장소 전환과 서비스 복구·원본 정리는 아직 하지 않았다. 부모 SSH/작업 환경과 두 복사본은 유지된다.
+
+최종 동결16 입력의 실제 native138은138 PASS/480.01초, input==output·소유 컨테이너 cleanup PASS다. Pure7의 최종 hash 검사와 기존 영향167·계약 재검증, 정상 게시·필수 리뷰·운영 release와 별도 Workbench 전달은 남아 있다.
+
+## 2026-10-09 09:26 — Docker 이전 완료와 actor-owner 최종 로컬 검증
+
+Docker 실제 저장소를 `/var/lib/miy-docker-data`로 옮기고 canonical `/var/lib/docker` bind와 fstab/systemd 의존성을 전환했다. 약205만 파일의 전체 checksum/metadata 차이0, 모든 컨테이너83·볼륨286·이미지18 및 참조·이전 실행29·healthy21이 동일하다. 기존 원본은 검증 후 정리하고 CI runner를 복원했다. Docker 여유는52.65GiB/45.22%다. Home 파일 사용량은 약86→35GiB로 감소했지만 가용12.85GiB가 유지된다. 원인을 확정하거나 외부 ZFS snapshot/보관 정책을 변경하지 않았다. Docker executor에는 별도 home `/builds`/`/cache` bind가 없으며 실제 full CI로 새 filesystem gate를 확인한다.
+
+Actor-owner 최종 native138 PASS/480.01초·pure7 PASS/3.24초와 기존105+52+5+5=167 PASS, Python·API 구조/i18n·OpenAPI/schema/generated contract가 통과했다. 기존167 결과에 예외를 적용하지 않고 최종 코드/보조 fixture 해시를 before/after 동결해 재실행했다. 이번은 비활성 capability와 호스트 유지보수 인수이며 새 제품/Workbench 버전 배포0다. 정상 게시·필수 리뷰와 최신 full release, 전체 actor ACL·같은 Source connection/transaction 조립은 남아 있다.
+
+## 2026-10-09 09:46 — 기본 CI의 Source revision fixture 보완
+
+`ACT-CI-01`로 최종 전달을 HOLD했다. 이전 영향167 PASS는 원 Source74개를 최신 head에서, revision 전용5개를 ignored runtime adapter에서 실행한 범위였으며 게시된 기본 Source79개 전체의 성공 근거가 아니었다. 기본 원본 모듈에서 해당5개를 실행하자 최신 actor head가 Source revision 검사의 입력이 되어5 FAIL/11.19초가 발생했다. Setup0·소유 cleanup PASS이며 이전 결과를 삭제하거나 전체 CI 통과로 확대하지 않는다.
+
+Source 검사 파일에 case-scoped `world` 래퍼와 정확히4개 함수의 단일 간접 revision 매개변수를 게시 가능한 형태로 추가했다. 해당5개만 legacy 복제 DB를 정상 Alembic downgrade하고 정확한 Source ancestor31개 임시 inventory를 사용한다. Hardened writer 준비보다 먼저 실행되며 나머지74개와 actor145개는 최신 head를 유지한다. 원본 모든 함수의 body·signature·assertion AST와 기존 decorator 순서는 동일하다. 제품8개와 이전31 migration은 그대로이며, 소유 범위를17경로·보호94개로 명시적으로 갱신했다. 같은 기본 선택5개는5 PASS/11.17초·cleanup PASS다.
+
+최신 입력의 pure7·role31·migration5·API 구조/생성 계약은 통과했고 기본 Source79·authority52·actor native138 전체를 재검증 중이다. 이전 actor145·영향167 성공은 이전 시점의 기록으로 보존하며 이번 최종 freeze 성공으로 대신하지 않는다. 최종 문서/독립 리뷰·필수 source 리뷰와 전체 release/운영·별도 Workbench 전달은 남아 있다. 실제 actor/source 역할·same-connection factory·전체 edit ACL은 활성화하지 않았다.
+
+## 2026-10-09 09:50 — actor-owner와 정상 CI 호환 최종 로컬 인수 준비
+
+최종17파일 범위에서 신규 actual PG18 native138 PASS/321.13초·pure7 PASS/3.30초 =145개다. 정상 원본 Source 모듈79 PASS/82.18초·원 role31 PASS/24.19초·authority52 PASS/83.77초·migration5 PASS/6.35초 =고유 기존 영향167개다. 진단/반복은 더하지 않는다. ACT-CI-01의 실제5 FAIL/11.19초와 동일5 PASS/11.17초는 보존하며 현재 영향 검증은 ignored Source prior adapter에 의존하지 않는다. 기존45개 함수 본문·signature·assertion, 보호94개·기존31 migration은 동일하다.
+
+Python6·API architecture/i18n·schema/OpenAPI/contract sources를 통과했다. 최종 문서 검사·동결 후 새 독립 인수와 정상 게시/필수 원격 리뷰를 진행한다. 현재 dev746258cd·main/prod9e9280df 및 최신 full247/415 storage 실패/tests0를 유지하며 새로운 commit/push/PR/MR/merge는 아직 없다. Docker 이전/원본 정리·서비스 복구는 완료했고 제품/별도 Workbench 버전 배포는 없다. 전체 ACL·같은 Source connection/transaction 조립·실제 공식 서비스 cutover·Native 전체 자연어 앱 흐름 등 구조상 필수 잔여는 남아 있다.
