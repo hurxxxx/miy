@@ -1,11 +1,11 @@
 # 재설계 작업 목록
 
-**재시작 뒤 구현 재개:** [RESTART_CHECKPOINT.md](RESTART_CHECKPOINT.md)의 동결 입력을 확인했다. PMS 부모 통합과 Recording managed의 비활성 권한·전달·legacy 영향 검증·독립 리뷰를 마쳤다. 공식 UI source/build 12/12개와 최종 두 build·브라우저 통합을 마쳤다. 독립 API·데이터·worker 서비스와 Workbench native 실행은 필수 잔여다. 일회성 [긴급 백업](EMERGENCY_BACKUP.md)은 완료했으며 추가 게시·배포 없이 로컬 작업을 이어간다.
+**이전 재시작 뒤 구현 재개 기록 — 2026-10-07:** [RESTART_CHECKPOINT.md](RESTART_CHECKPOINT.md)의 동결 입력을 확인했다. PMS 부모 통합과 Recording managed의 비활성 권한·전달·legacy 영향 검증·독립 리뷰를 마쳤다. 공식 UI source/build 12/12개와 최종 두 build·브라우저 통합을 마쳤다. 독립 API·데이터·worker 서비스와 Workbench native 실행은 필수 잔여다. 일회성 [긴급 백업](EMERGENCY_BACKUP.md)은 완료했으며 추가 게시·배포 없이 로컬 작업을 이어간다.
 작업별 상태와 의존성의 원본이다. 목표와 설계는 [PLAN.md](PLAN.md), 현재 위치는 [STATUS.md](STATUS.md), 증거는 [VALIDATION.md](VALIDATION.md)를 참조한다.
 
 **2026-10-07 재개:** 중간 점검에서 정한 구조 우선 기준으로 제품 구현을 재개한다. 공식 UI 전체 모듈 소유권·worker 실행 세대·source outbox 전달 경계를 병렬 진행한다. 원본88개 보호와 비활성 worker profile 기반은 로컬 검증을 마쳤다.
 
-현재 승인 범위는 [구조 우선 기준](PLAN.md#구조-완성-우선과-앱별-후속-작업)의 로컬 구현·검증이다. 앱별 비필수 개선·상세 검증은 [APP_ISSUES.md](APP_ISSUES.md)에 별도로 보류하며 아래 작업의 의존성에 포함하지 않는다. `ready`는 의존성 충족을 뜻하며 커밋·원격 변경·운영 배포 승인을 뜻하지 않는다.
+현재 승인 범위는 [구조 우선 기준](PLAN.md#구조-완성-우선과-앱별-후속-작업)의 구현·검증과 사용자가 후속 지시한 커밋·push·upstream PR·정상 병합 및 개발/운영 배포다. 필수 리뷰·전체 릴리스 CI·저장 공간·배포 계약을 통과한 뒤 해당 전달을 진행하며 기존 실패를 면제하지 않는다. 앱별 비필수 개선·상세 검증은 [APP_ISSUES.md](APP_ISSUES.md)에 별도로 보류하며 아래 작업의 의존성에 포함하지 않는다. `ready`는 의존성 충족을 뜻하며 커밋·원격 변경·운영 배포 승인을 뜻하지 않는다.
 
 ## 상태와 완료 규칙
 
@@ -267,3 +267,19 @@ Source writer/CAS·COMMIT unknown·저장/media/RAG·정확 operational grants/c
 `OFF-002B`의 저장 안전성 필수 수정으로 final admission의 unsaved state를 보존했다. 최종 신규54개는 pure16 PASS/7.10s와 native38 PASS/131.44s다. 기존 영향480개는 prepared/auth/composition466 PASS/372.13s·원 Whiteboard6 PASS/25.87s·원 Docs8 PASS/35.69s다. 이전48/51개·재실행 횟수는 더하지 않는다. API architecture/i18n·생성 계약을 통과했다. 최종 문서·Python 검사와 새13파일 독립 인수 및 새 source의 필수 리뷰는 별도 단계다.
 
 현재 dev499aff33·main/prod9e9280df, full241/409 storage 실패/tests0, 새 운영 및 별도 Workbench 배포0다. 다음은 비활성2표 최소 Source service writer/profile이며 Core 사용자 권한 COMMIT fence·Source factory 연결·cross-hub content CAS·영속 unknown 복구·공식 서비스 cutover는 남아 있다. Native SDK/toolchain 실제 pin 검증·설치 및 개인 앱 자연어 전체 흐름도 필수 잔여다. 앱별 비필수 기능·다중 사용자는 보류한다.
+
+## 2026-10-09 05:22 — 저장 안전성 전달과 최소 Source writer 착수
+
+Whiteboard 저장 안전성 최종 Source `ba9fee1e`/tree `fef48496`는 필수244/job412 SUCCESS/94.736405초 뒤 GitHub [PR87](https://github.com/hurxxxx/miy/pull/87)→`2c1cb019`와 내부 [MR94](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/94)→dev `aafbccb2`로 정상 병합했다. 양쪽 tree는 같고 소유 feature 브랜치의 양쪽 원격·로컬 정리를 완료했다. Dev는 persistent integration branch로 유지하며 main/prod는 `9e9280df`다.
+
+새 전체245/job413은30.366867초에 저장 공간 선행조건에서 실패했다. 제품 테스트0이며 필수 최소15GiB/15% 기준을 유지한다. 이 결과를 source 리뷰 성공으로 대체하지 않고 새 운영·별도 Workbench 배포0를 유지한다.
+
+다음 구현은 `aafbccb2` 기준 별도 worktree에서 비활성 Whiteboard Source service writer/profile이다. 실제 migration head `file_effect_20261007`, 기존 migration30개 및 보호85개를 다시 동결했다. 새 migration·service admission·role checker와 새 테스트·owner2, Root 추적6을 분담한다. 두 Source 표의 SELECT8열·UPDATE4열과 제한된 capability 하나부터 인수하며 공급된 LOGIN/NOLOGIN 역할·원래 principal identity·정확한 권한·기존 mapping replay·실제 session_user와 SQL 락을 검증한다. 현재는 구현 착수이며 새 테스트를 실행하거나 인수한 것으로 표시하지 않는다.
+
+Migration은 정상 legacy/hardened 환경에서 비활성 capability만 설치한다. 준비·admission에는 hardened guard가 필요하다. Session/factory/COMMIT/cleanup 수명은 caller가 소유하며 Core 사용자 ACL COMMIT fence·hub Source factory 연결·운영 역할/grant/config/service 전환은 이번 범위가 아니다. Current actor fence, cross-hub content CAS, 영속 unknown 복구와 공식 서비스 cutover는 여전히 필수 잔여다. 기존 skills/harness는 절차로 사용하지 않고 현재 코드·owner·중요 계약만 사용한다. 앱별 비필수 기능과 다중 사용자는 보류한다.
+
+## 2026-10-09 05:59 — 비활성 최소 Source writer 로컬 검증
+
+`OFF-002B`의 비활성 service-admission 최소 profile은 신규79·영향209 로컬 검증을 마쳤다. 부모 경계와 실제 factory/운영 전환은 계속 in_progress다. 새 migration의 정상 legacy downgrade→re-upgrade는 실제 board/collab bytes·기존 source trigger/ownership을 보존한다. Hardened active rollback은 상태/버전/함수/데이터 변경 없이 거절하고, 실제 Core drain 뒤 capability만 제거한다. 변조된 body/overload rollback도 거절하며 기존 role·principal·column ACL·guard·데이터를 보존한다. 신규 revision `wb_source_writer_20261009`는25자로 기존 head `file_effect_20261007` 뒤 하나만 추가했다. 이전30 migration·보호85개는 byte exact이고 원 inventory test는 정확한 새 head 한 항목만 갱신했다.
+
+현재 dev `aafbccb2`·main/prod `9e9280df`, 최신 full245/413 저장 공간 선행조건 실패/제품 테스트0와 새 운영/별도 Workbench 배포0를 유지한다. 이 단계는 Source factory·저장 연결·사용자의 현재 Core/Source ACL COMMIT fence·cross-hub content CAS·영속 unknown 복구·Docs 저장·공식 서비스 cutover를 완료하지 않는다. 다음 actor fence는 현재 사용자 구현 승인 안에서 별도 범위와 보호표를 확정한다. Same-DB SQL 잠금을 실제 separate DB 보장으로 표시하지 않으며, queued Yjs의 credential attribution/expiry와 모든 owner/direct/group/PMS/meeting edit closure가 활성화 전 필수다. Native SDK/toolchain 실제 pin 검증/설치·개인 앱 전체 자연어 흐름도 남아 있다. 앱별 비필수 기능·다중 사용자는 보류한다.

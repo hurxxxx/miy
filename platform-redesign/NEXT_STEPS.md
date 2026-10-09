@@ -20,29 +20,7 @@ cutover를 활성화한 것은 아니다. 게시 추적은
 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다. 이 문서는 우선순위·의존성과
 다음 착수 단위를 소유하며 별도 작업 대장을 만들지 않는다.
 
-현재 dev는 `499aff33`, main/prod는 `9e9280df`다. Workbench cold resume·Whiteboard Source ACL·최소 native executor 정의는 필수 리뷰와 양쪽 정상 병합·소유 브랜치 정리를 마쳤다. 최신 full241/409은 저장 공간 검사 실패로 테스트0이며 새 운영 배포는 없다. 기존 room 상태의 readOnly Source 초기 로더는 새65개·영향157개 검사 뒤 로컬 인수했고 필수236/404 뒤 PR84/MR91로 정상 전달하고 소유 브랜치를 정리했다. Docs Source17-model ACL·별도 Core writer 읽기와 공용 Session guard10경로는 actual red1 뒤 새143개·기존227개 검사가 통과했다. 기본 Docs 영향8개도 통과했으며, 첫 실행의 장시간 중단 원인은 미확인이다. 필수238/406 리뷰 뒤 PR85/MR92로 정상 전달하고 소유 브랜치를 정리했다. Docs 기존 room Source 초기 읽기는 actual red 뒤 신규104개·기존370개 검사와 생성 계약을 통과했으며 필수240/408 리뷰 뒤 PR86/MR93 정상 병합·소유 브랜치 정리를 마쳤다. 그 뒤 Source writer·room CAS·취소/COMMIT unknown과 현재 권한을 보장하는 초기화/영속화·Docs 경계, native immutable cache/실제 설치 enforcement·보호 설정·별도 Workbench 반영·개인 앱 전체 흐름을 각각 인수한다. Native pilot의 제한된 shell 외에 대표 SDK 앱의 실제 build/test 도구 체인도 전체 흐름에서 확인해야 한다. 아래 과거 단계 기록은 당시 결과다.
-앞선 native/fixture·Docker 정리 보완은 리뷰217/383과 PR75/MR82 병합을 마쳤다.
-218/386의 API capture3개 실패는 두 테스트 파일의 보완으로 닫았고, 실제 CI
-이미지의 전체·역순3파일 각각188개 통과는 같은 검사로 중복 합산하지 않는다.
-후속 privacy 수정은 리뷰219/387을 통과해 PR76/MR83으로 병합했고 작업
-브랜치를 정리했다. source `fd5038ba`, target `9e9280df`의220/388은 API
-fast5,557 PASS/3 SKIP/0 FAIL, slow16·migration37·external15 통과 후 웹 lint에서
-실패했다. E2E의 `window.innerWidth`2개·`window.location`1개 qualification을
-마쳤고 scoped ESLint0 errors/같은5 warnings, Prettier2·직접 E2E 타입·
-역변환 byte 검사를 통과했다. 수정 `96a0d7af`를 PR77/MR84로 게시했고 필수
-리뷰221/389를 통과했다. 후속 합성 preflight의 Workbench Python은773 PASS/
-25 SKIP이며 등록3개는 실제 metadata listener가 없는 fixture 때문에 실패했다.
-인증된 initialize-only loopback metadata peer로 fixture 한 파일을 보완해
-기존 readiness15·실제 등록 브라우저3 PASS를 확인했다.
-웹 첫 Hermes evaluate timeout은 같은 입력의 단독 실행에서 통과했고 전체
-브라우저 묶음도 단독42 PASS다. 이 fixture 보완은 리뷰222/390 뒤 PR77/MR84 병합을 마쳤고, 정확 source/target/tree의 후속 전체223은 아래 권한 회수 fixture 한 건에서 실패했다.
-제품 로그 보안·원래 assertions와 공유 CI NOCREATEROLE은 유지한다. 통과 후
-MR81 병합·fresh backup/호환 확인·guarded 운영 prepare/deploy와 실제 반영
-검사를 진행한다. 운영은 여전히 `9e9280df`이며 이 전달을 공식 operational
-권한·서비스 전환, Workbench native turn이나 개인 앱 전체 흐름의 완료로
-확대하지 않는다. 앱별 비필수 기능과 다중 사용자 확장은 계속 보류한다.
-다음 P0 native 환경·turn/resume/history 인수의 ignored 준비 문서는 실행이나
-환경 적용의 완료 근거가 아니다. 지원되는 격리 환경의 외부 선행조건부터 확인한다.
+현재 dev는 `aafbccb2`, main/prod는 `9e9280df`다. Whiteboard 저장 안전성은 필수244/412 성공 뒤 PR87/MR94로 정상 병합하고 소유 브랜치를 정리했다. 최신 full245/413은 저장 공간 선행조건 실패로 제품 테스트0이며 새 운영 배포는 없다. 다음 비활성 최소 Source service writer/profile은 별도 worktree에서 구현·검증 중이다. 현재 Source actor 권한의 COMMIT fence·Source factory 연결·cross-hub content CAS·영속 unknown 복구·Docs 저장·공식 서비스 전환과 native SDK 실제 pin 검증/설치·개인 앱 전체 자연어 흐름·별도 Workbench 배포는 남아 있다. 아래 날짜별 과거 기록은 당시 결과이며 최신 검증은 [VALIDATION.md](VALIDATION.md)와 이 파일의 후속 기록이 소유한다.
 
 ## 후속 전체 CI223의 구조 fixture 보완
 
@@ -210,3 +188,19 @@ Hub별 고정4개의 shared permit을 private shielded child 시작 전에 얻�
 기존 PR87/MR94의 정상 후속 commit/push와 새 필수 리뷰 뒤 병합·소유 브랜치 정리를 진행한다. 다음 Source service profile은 불필요한 ACL 선행 grants 없이 최소2표에서 시작한다.
 
 현재 dev499aff33·main/prod9e9280df, full241/409 storage 실패/tests0, 새 운영 및 별도 Workbench 배포0다. 다음은 비활성2표 최소 Source service writer/profile이며 Core 사용자 권한 COMMIT fence·Source factory 연결·cross-hub content CAS·영속 unknown 복구·공식 서비스 cutover는 남아 있다. Native SDK/toolchain 실제 pin 검증·설치 및 개인 앱 자연어 전체 흐름도 필수 잔여다. 앱별 비필수 기능·다중 사용자는 보류한다.
+
+## 2026-10-09 05:22 — 저장 안전성 전달과 최소 Source writer 착수
+
+Whiteboard 저장 안전성 최종 Source `ba9fee1e`/tree `fef48496`는 필수244/job412 SUCCESS/94.736405초 뒤 GitHub [PR87](https://github.com/hurxxxx/miy/pull/87)→`2c1cb019`와 내부 [MR94](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/94)→dev `aafbccb2`로 정상 병합했다. 양쪽 tree는 같고 소유 feature 브랜치의 양쪽 원격·로컬 정리를 완료했다. Dev는 persistent integration branch로 유지하며 main/prod는 `9e9280df`다.
+
+새 전체245/job413은30.366867초에 저장 공간 선행조건에서 실패했다. 제품 테스트0이며 필수 최소15GiB/15% 기준을 유지한다. 이 결과를 source 리뷰 성공으로 대체하지 않고 새 운영·별도 Workbench 배포0를 유지한다.
+
+다음 구현은 `aafbccb2` 기준 별도 worktree에서 비활성 Whiteboard Source service writer/profile이다. 실제 migration head `file_effect_20261007`, 기존 migration30개 및 보호85개를 다시 동결했다. 새 migration·service admission·role checker와 새 테스트·owner2, Root 추적6을 분담한다. 두 Source 표의 SELECT8열·UPDATE4열과 제한된 capability 하나부터 인수하며 공급된 LOGIN/NOLOGIN 역할·원래 principal identity·정확한 권한·기존 mapping replay·실제 session_user와 SQL 락을 검증한다. 현재는 구현 착수이며 새 테스트를 실행하거나 인수한 것으로 표시하지 않는다.
+
+Migration은 정상 legacy/hardened 환경에서 비활성 capability만 설치한다. 준비·admission에는 hardened guard가 필요하다. Session/factory/COMMIT/cleanup 수명은 caller가 소유하며 Core 사용자 ACL COMMIT fence·hub Source factory 연결·운영 역할/grant/config/service 전환은 이번 범위가 아니다. Current actor fence, cross-hub content CAS, 영속 unknown 복구와 공식 서비스 cutover는 여전히 필수 잔여다. 기존 skills/harness는 절차로 사용하지 않고 현재 코드·owner·중요 계약만 사용한다. 앱별 비필수 기능과 다중 사용자는 보류한다.
+
+## 2026-10-09 05:59 — 비활성 최소 Source writer 로컬 검증
+
+새 `whiteboard_source_service_admission_v1`은 두 Source 표의 SELECT8열·UPDATE4열과 실제 session_user에서 출발하는 private capability만 준비한다. 공급된 fresh LOGIN/NOLOGIN과 명시적인 원래 owner OIDs·role OID/name·generation/artifact를 고정하며 기존 broad/부분/회수된 역할을 확장하거나 복구하지 않는다. 정확한 complete replay는 grant/ALTER/audit0이다. 정상 legacy migration은 비활성 capability만 설치하며 실제 준비/admission은 기존 hardened guard를 요구한다. Caller-owned transaction의 SHARE 잠금은 실제 COMMIT/rollback까지 유지하고 caller의 감소하는 SQL deadline·cleanup 소유를 보존한다.
+
+현재 dev `aafbccb2`·main/prod `9e9280df`, 최신 full245/413 저장 공간 선행조건 실패/제품 테스트0와 새 운영/별도 Workbench 배포0를 유지한다. 이 단계는 Source factory·저장 연결·사용자의 현재 Core/Source ACL COMMIT fence·cross-hub content CAS·영속 unknown 복구·Docs 저장·공식 서비스 cutover를 완료하지 않는다. 다음 actor fence는 현재 사용자 구현 승인 안에서 별도 범위와 보호표를 확정한다. Same-DB SQL 잠금을 실제 separate DB 보장으로 표시하지 않으며, queued Yjs의 credential attribution/expiry와 모든 owner/direct/group/PMS/meeting edit closure가 활성화 전 필수다. Native SDK/toolchain 실제 pin 검증/설치·개인 앱 전체 자연어 흐름도 남아 있다. 앱별 비필수 기능·다중 사용자는 보류한다.
