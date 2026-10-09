@@ -221,14 +221,79 @@ existing share/target/PMS tables; the Core fixture reads the six mapped ownershi
 columns. These bounded fixtures are not operational privilege-manifest attestation,
 a live relay/codec/store proof or deployed activation.
 
-Initial Docs room loading/creation/Yjs initialization and COMMIT still use the
-original business Source transaction, as do hub relay writer reads and persistence.
-The initial explicit assembly guard does not reroute those writes to a readonly
-factory. Docs media writes, RAG/outbox and actor policy remain structural cutover
+Without the optional existing-room read assembly below, initial Docs room
+loading/creation/Yjs initialization and COMMIT still use the original business
+Source transaction. Hub relay writer reads and persistence keep their native
+business lifecycle in either composition. The initial ACL assembly guard alone
+does not reroute those writes to a readonly factory. Docs media writes, RAG/outbox and actor policy remain structural cutover
 work. This slice is an inactive frame/monitor read seam, not a complete Source-only
 Docs process. The published artifact still supplies no prepared options and retains
 its inactive HTTP503/WS1013/readiness503 boundary. Product code provisions no roles,
 grants, credentials, environment settings or service activation.
+
+## Explicit inactive Docs existing-room Source reads
+
+A complete prepared auth/Docs ACL/Core writer assembly can additionally supply
+`official_docs_room_source_session_factory` and
+`official_docs_room_source_max_concurrent_reads`. Both are server-only and must
+be supplied together with a callable factory and positive integer budget before
+state/dependency mutation. The new `prepared_docs_room_configured` sentinel and
+captured `prepared_docs_room_loader` select only an existing-state read; no env,
+client data or sentinel is user authority or service activation. Absent options
+retain the original initial room transaction. Partial/missing/rebound configured
+state fails privately and never uses that global initial factory as recovery.
+
+The loader uses the unchanged public owned-read Session guards and structured
+worker, adding only `DocsCollabDocument` to the fixed Docs17 routing closure.
+Its separate positive limiter does not make the auth/ACL/Core/room budgets one
+process/request deadline. Current app and native page/parent edit ACL run before
+and after a coherent Page/Doc/Collab projection; the final read discards the first
+ORM identity snapshot and checks the parent binding. Content and creator metadata
+are detached Source data, never actor/session/writer authority.
+
+One paired SQL CASE computes the combined UTF-8 page/snapshot JSON and raw Yjs
+length, refusing bodies above8MiB before driver/Python transfer. The detached DTO
+rechecks exact transferred bytes and normalized size. SQL NULL contributes zero
+wire bytes, while JSON text `null` contributes four; both decode to native None.
+Deferred content text/title/user/display/collection graphs and writer scope are
+not loaded. The default scene/editor/codec settings and Source SQL schema are not
+changed by this prepared-only bound.
+
+Native semantics are retained: only native_doc_page references, canonical exact
+`native_doc_page:{normalizedId}` key, and page.created_by_id as default actor.
+There is no timestamp stale check, key suffix/rotation or page/snapshot equality
+rule. A missing collab row, changed source/parent/key, or state needing native
+snapshot/Yjs initialization is private not-ready503/1013 rather than create,
+repair, seed, codec or COMMIT. Yjs None plus non-None page blocks needs repair,
+including []; b'' is kept distinct. Meaningful page/snapshot bodies with absent
+or empty Yjs refuse to prevent empty-room content loss. Legitimate empty
+page/snapshot None with null or empty bytes retains native empty-YDoc semantics.
+The loader performs no Y.py or Node codec operation in the SQL worker.
+
+The initial route checks the same captured auth/ACL/Core/room callables, hub and
+pinned writer object before and after awaits. Core writer admission surrounds
+room read/cleanup; the same auth callable then rechecks the original actor and
+source-session before native room/slot admission. Removal or rebinding refuses;
+no current generation or client writer identity is adopted. Frame/monitor
+continuation retains the accepted ACL/Core/auth helper and additionally refuses
+changed room assembly. These current reads do not freeze authority through later
+Yjs execution or replace a Source commit fence. Reader-control/SQL failure remains
+private authority-unavailable without fencing another client's room; actual
+writer unavailability keeps the existing native fence behavior.
+
+`test_prepared_docs_source_room.py` defines migrated bounded Source18 reads,
+actual BlockNote codec/Y.py/YRoom positives with a qualified in-process bus,
+SQLNULL/JSONnull and null/empty state cases, coherent aggregate bounds,
+repair/no-admission failures, retained current ACL/auth, cancellation/cleanup and
+rebind tests. Its transport rooms are qualified synthetic fixtures and its
+room-read fixture explicitly adds only two page and six collab columns to the
+accepted ACL fixture. It is not an operational role/grant ceiling or deployed
+complete Source-only Docs service. Product code installs no roles, credentials,
+service configuration or activation.
+
+HTTP room creation/snapshots, hub relay writer reads, persistence/media/RAG and
+Source writer/current actor/commit-outcome policy remain structural cutover work.
+The published inactive HTTP503/WS1013/readiness503 boundary is unchanged.
 
 ## Ownership and current authority
 

@@ -526,3 +526,13 @@ Base dev5d909/main9e/GitHub main e5fef219에서 Source10·추적 문서6의 단�
 Dev→main의 MR81 전체 릴리스 gate를 유지한다.20:28 읽기 전용 측정14.2954GiB/14.5538% free는 저장 공간 기준 미달이며, 새 main/prod 또는 별도 Workbench 배포는 없다. 전체 구조 인수·운영 활성화·SDK/영구 실행기 작업 완료를 주장하지 않는다.
 
 2026-10-09 01:58 후속: 기본 Docs 원8개 bounded 재검사는 PASS/25.49초다. 첫 장시간 실행/exit137와 원인 미확인 한계는 VALIDATION에 보존한다. 최종 Source10·추적6을 freeze하고 독립 리뷰를 완료한 뒤 일반 게시를 진행한다. 이 추가 기록도 커밋/병합 전이다.
+
+## 2026-10-09 02:07 — Docs Source/Core 읽기 전달 완료
+
+일반 hook commit40b450324c203251b469727a5cac4eeb42554d4d/treee7b9e489779c521cad4bd7779d09f2db14a53a4f를 양쪽 소유 feature에 push했다. 필수238/406 codex_review SUCCESS/74.328198초·allow_failure=false·exact source 뒤 GitHub PR85는7242b86542f05d0e0ce285cb38b76c9b2fd771ff, 내부 MR92는e25c1934c7374c46a630dad486f2c5d8bce52e9b로 정상 merge했다. 양쪽 merge tree는 exact e7b9e489이고 primary dev를 fast-forward했다. 소유 feature를 양쪽 원격에서 exact-tip으로 삭제하고 source worktree를 detached 보존한 뒤 로컬 feature를 정리했다. Persistent dev/main과 upstream push disable은 유지했다.
+
+MR81 최신 full239/job407은 저장 공간 선행조건24.291815초 실패·제품 tests0다. Main/prod9e9280df는 그대로이며 새 운영 또는 별도 Workbench 배포는 없다. 최초 default8 검사 장시간 지연 원인 미확인과 실제 bounded8 PASS는 VALIDATION이 소유한다. 후속 기존 Docs room Source6 읽기는 이 merge를 기준으로 red1FAIL/0.56초·collection/setup0을 보존하고 구현한다.
+
+## 2026-10-09 02:38 — Docs room Source 전달 준비
+
+Base deve25c1934/main9e/GitHub7242b865에서 Source6·추적6의 범위로 신규104·기존370 검사와 생성 계약을 통과했다. Native SQLNULL assertion 시점 문제의 원본·실제 진단·기대값 보존 교정은 VALIDATION을 참조한다. Owner format/check와 최종12개 독립 수락 뒤 일반 commit/push·양쪽 PR/MR·필수 Codex review·정상 merge·소유 feature 정리를 진행한다. 이 기록 시점은 커밋/병합 전이고 source/tree·원격ID는 실제 완료 receipt에서 추적한다. Full239/407 storage 실패·main/prod9e 유지·새 운영/별도 Workbench 배포 없음은 유지한다.

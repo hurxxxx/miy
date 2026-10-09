@@ -62,6 +62,8 @@ def register_api_routers(
     official_docs_source_max_concurrent_reads: int | None = None,
     official_writer_read_session_factory: Callable[[], Session] | None = None,
     official_writer_read_max_concurrent_reads: int | None = None,
+    official_docs_room_source_session_factory: Callable[[], Session] | None = None,
+    official_docs_room_source_max_concurrent_reads: int | None = None,
 ) -> None:
     composition = require_composition(composition)
     prepared = (
@@ -147,6 +149,26 @@ def register_api_routers(
         raise ValueError(
             "Prepared Docs Source and Core writer reads require complete prepared assembly"
         )
+    prepared_docs_room = (
+        official_docs_room_source_session_factory is not None
+        or official_docs_room_source_max_concurrent_reads is not None
+    )
+    if prepared_docs_room and (
+        not prepared_docs
+        or not callable(official_docs_room_source_session_factory)
+        or type(official_docs_room_source_max_concurrent_reads) is not int
+        or official_docs_room_source_max_concurrent_reads < 1
+    ):
+        raise ValueError(
+            "Prepared Docs room reads require complete auth, Source ACL, Core writer and room options"
+        )
+    if prepared_docs_room:
+        from miy_api.domains.docs.collab_source_room import build_prepared_docs_room_loader
+
+        docs_room_loader = build_prepared_docs_room_loader(
+            session_factory=official_docs_room_source_session_factory,
+            max_concurrent_reads=official_docs_room_source_max_concurrent_reads,
+        )
     # Build complete new callbacks before mutating state or dependency overrides.
     # Construction allocates no Session, worker, room or SQL connection.
     if prepared_docs:
@@ -203,6 +225,9 @@ def register_api_routers(
         app.state.prepared_official_writer_access = writer_access
         # Trusted assembly sentinel only, not user authority or activation.
         app.state.prepared_docs_source_configured = True
+    if prepared_docs_room:
+        app.state.prepared_docs_room_loader = docs_room_loader
+        app.state.prepared_docs_room_configured = True
     for spec in router_specs(composition):
         protected_dependencies = [Depends(require_current_user)]
         if composition == "official":

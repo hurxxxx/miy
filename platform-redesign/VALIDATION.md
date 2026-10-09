@@ -1910,3 +1910,23 @@ Source10은 Docs ACL-only projection/Source reader, Core-only RuntimeOwnership w
 제품·원 검사·adapter bytes를 유지한 fresh PG 재검사에 공개 함수 진행 marker·faulthandler와180초 timeout/15초 kill-after만 추가했다. 실제8 PASS/25.49초와 정상 cleanup을 확인했다. 이를 고유 영향8개로 합산해 현재 새143개·기존227개를 구분한다. Auth/WB/생성 계약과 기본 initial/noop·active/idle drain·dirty state 보존·relay writer 확인·취소 thread 직렬화·실제 Source row-lock shutdown 경계를 포함한다. 첫 장시간 실행 원인 해결이나 canonical global/vector·Redis·전체 CI 인수를 주장하지 않는다. 후속 임시 실행에는 전체 시간 제한을 적용하며 재발 시 같은 ID·공개 단계만 진단한다.
 
 한계와 원본은 `.runtime/structural-next-delivery/{docs-default-impact-adapter-proof,docs-default-impact-interruption,post-docs-default-impact-hung-original,post-docs-docs_default_diagnosis-result}.json`이 소유한다. 실패·중단을 성공 receipt로 덮어쓰지 않았으며 실제 raw traceback/SQL/parameters·인증 정보를 저장·출력하지 않았다.
+
+## 2026-10-09 02:07 — Docs 기존 room Source 읽기 후속 계획
+
+Source ACL/Core writer10경로는 필수238/406 뒤 PR85/MR92 정상 병합·exact tree·소유 원격/로컬 브랜치 정리를 마쳤다. Dev는e25c1934, main/prod9e다. 최신 full239/407은storage 실패24.291815초/tests0로 REL-001/VAL-001 미완료다.
+
+후속 Source6은 기존 Docs initialized row의 readOnly loader·registry/router·새검사·owner2이며, 이전 Source17+DocsCollabDocument=18의 fresh singleEngine Session을 사용한다. Native canonical room key와 page.created_by_id, SQLNULL/JSONnull·YjsNone/빈bytes 의미를 보존한다. Page blocks가None이 아닌데 Yjs/snapshot이None이면 기존 codec/repair가 필요해 거절하며 []를None으로 바꾸지 않는다. 의미 있는 page/snapshot 내용이 있는데 null/빈Yjs인 경우도 빈 room으로 유실하지 않도록 거절한다. 빈nullable 상태는 실제 native positive로 인수한다. WB timestamp stale·suffix 회전·snapshot/page equality 규칙은 추가하지 않는다.
+
+Page/Doc/Collab 단일 projection의 page blocks+snapshot+Yjs합산8MiB를 SQL CASE로 전송 전에 제한하고 detachedDTO를 검증한다. 현재 Source ACL·Core pinned writer·원 auth/actor/session과 captured callback/hub identities를 모든 await 뒤 확인한다. 부분 조립·초기화/복구 필요 상태는 private5031013·무쓰기·무globalfactoryfallback이며 기존 defaultinit/persist/codec/roles/models/ASGI는 그대로다. 새 registry옵션 actual red1 FAIL/0.56초·collection/setup0·networknone·소유cleanup을 Source40b/redtestSHAbea7로 보존하고, prior merge e25로 FF할 때 Source/protected40을 유지했다. 제품 구현과 actual 최소PG/Yjs·권한회수·취소·bounds·default영향 검사는 진행 중이며 green·운영 활성화 완료를 주장하지 않는다.
+
+Source writer/CAS·COMMIT unknown·저장/media/RAG·정확 operational grants/cutover, native 영구 설치/enforcement·SDK 전체 자연어 등록/배포와 별도 Workbench 배포는 필수 잔여다. 앱별 비필수 기능과 다중 사용자는 별도 요청까지 보류한다. 계획·baseline/red는 `.runtime/structural-next-delivery/next-docs-source-room-slice.{md,json}`·`docs-room-source-red-base-integration.json`에서 추적한다.
+
+## 2026-10-09 02:38 — Docs 기존 room readOnly Source 로더 로컬 검증
+
+순수72 PASS/4.71초·실제 PostgreSQL/Yjs32 PASS/56.12초로 신규104개를 확인했다. 기존 Docs Source143·WB Source ACL54/Room65·HTTP/WS auth/composition100의 합계362 PASS/241.23초, 원 Docs writer/WS/cancellation7함수8cases8 PASS/26.62초로 고유 영향370개를 확인했다. API architecture/i18n·생성 API/schema/OpenAPI/contracts와 Source Python4개 format/lint가 통과했다. 새 room role fixture는 기존 Source17 모델의 페이지4열에 created_by_id/content_blocks2열과 collab6열을 더한다. Source18 singleEngine/readOnly·native creatorActor/canonical key·sameAuth/Corewriter·Sourcewaitrevocation/worker취소·permit·partial/rebind/no-global-init·SQL CASE와 DTO 합산8MiB·nullable actual emptyYDoc를 포함한다. Operational 최소 grant ceiling·codec corruption/전체service/Redis/vector CI·Source writer/cutover 완료를 주장하지 않는다.
+
+첫 native30 PASS/2 FAIL/66.27초와 exact4case2 PASS/2 FAIL/14.97초·14.60초를 보존했다. Root bounded 진단에서 Source paired read 당시 SQLNULL/SQLNULL 합계0, JSONnull/JSONnull 합계8와 YjsNone/빈bytes의 정확한 의미를 확인했다. 실제 native hub 종료 뒤 SQLNULL 사례는 snapshot[]·Yjs2bytes의 기존 Core persistence로 합계4가 됐다. JSONnull은 페이지null4+snapshot[]2+Yjs2=8로 같은 기대값과 우연히 일치했다. Source 초기 준비·reader 구현은 올바르며, 전송크기 assertion이 native lifecycle 이후를 읽은 테스트 시점 문제였다. 기존 0/8 query/assertion 블록만 Source load 직후/native probe 전에 옮겼다. All assert AST multiset·native async AST·나머지 테스트/제품5·보호40은 그대로이며 test SHA04d11b6ef5bb4eed9b6e60348b01005fd6454c526e4e00f6ca9fdca9ba1d58ae다. Diagnostic wrapper는 실제 Source row metadata의 NULL/빈목록 분류·길이만 관측했으며 Root는 제거한 상태로32개를 재검증했다. 테스트 횟수를 고유 성공 수에 합산하지 않는다.
+
+첫 formatter의 테스트 unused import F401은 테스트 실행 전에 발견했고 F401만 자동 제거한 뒤 전체 Source format/lint를 통과했다. 제품 동작·assertion이나 권한 완화는 없었다. 정확 원본·진단은 `.runtime/structural-next-delivery/{post-docs-room-native-before-null-wire-diagnosis,post-docs-room-null-wire-first-diagnosis,post-docs-room-before-after-native-null-wire-diagnosis}.json`, 기존 테스트 bytes는 `docs-room-test-before-native-wire-assertion-fix.py`, 교정은 소유 worktree의 `.runtime/prepared-docs-source-room/native-wire-assertion-fix.{json,patch}`에 보존한다. 결과는 `post-docs-room-*-result.json`이다.
+
+기존 native hub shutdown이 쓰는 기본 Core persistence는 보존하며, 새 Source callback의 읽기·SQL 무쓰기 증거와 분리한다. 기존 default8의 최초 장시간 지연 원인 미확인 기록도 유지한다. Source writer/CAS·초기화·media/RAG/영속화와 정확 operational grants·service cutover, native SDK/영구설치·보호 정책·별도 Workbench/운영 배포는 필수 잔여다.
