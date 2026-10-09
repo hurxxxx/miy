@@ -70,6 +70,16 @@ reader cleanup contract. Removing prepared state during a connection refuses its
 next prepared check; it does not adopt the legacy reader. Default construction
 keeps the original platform-token collaboration helpers.
 
+Docs and Whiteboard routes detach the transport synchronously, then join a private
+shielded AnyIO cleanup child before returning under scope or repeated host-task
+cancellation. That child retains the original monitor-join, connection-slot release
+and expected-runtime room-cleanup order. Cleanup errors keep their original type
+outside the TaskGroup; cancellation is not converted to a policy denial. This
+also protects the existing default collaboration assembly. Hard process kill,
+event-loop shutdown and an uncooperative cleanup without a driver deadline remain
+outside this guarantee. Synthetic router tests exercise each owned wait; genuine
+prepared-auth and initial-room tests retain their current ACL/denial assertions.
+
 `tests/test_prepared_official_ws_auth.py` exercises real migrated PostgreSQL and the
 exact14/87 auth role, delegated/source/binding/app/user revocation, actual Source
 edit denial and Docs writer drain. Its business Source factory is the isolated

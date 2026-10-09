@@ -1,5 +1,11 @@
 # 후속 구조작업
 
+## 현재 착수 — 2026-10-09 20:20 UTC
+
+먼저 full261에서 확인한 소유 WS 정리와 stale fixture의 최소 수정본(합성32·실제 PG26·독립 리뷰 통과)을 별도 feature로 게시한다. 필수 리뷰/정상 병합 뒤 최신 source의 full을 실행하고 pending24 private 리허설을 새 source/tree에 재결속해 정상 검증한 뒤 MR81·guarded 운영으로 이어간다. 개발 DB는 현재 actor ACL head이며 백업 후 C1 migration과 실행 서버를 함께 맞춘다.
+
+Workbench SDK22/13의 인수한 normal model0 이후 실제 native Task와 별도 서비스 반영, C2 journal8의 native48·독립 리뷰→C2 actual-applied checkpoint→C3 운영 경계는 병렬로 진행한다. C2/SDK 후보를 아직 이 release 소스에 섞지 않는다. 앱별 비필수 기능·다중 사용자·기존 skills/하네스 절차 재사용은 계속 보류한다. 아래 날짜별 문단은 해당 시점의 이력이다.
+
 먼저 C1 비활성 checked-save·공통 native GC drain·실제 수신 주소 접근 보완을 최신 dev 기반에서 통합 인수하고 정상 feature 게시/필수 리뷰/병합한다. 그 수정본의 새 exact-source full artifact를 인수한 뒤에만 운영 전달한다. 기존257/job425의 GC/SQL 예산 실패와 최초 SDK Python/초기화 실패를 보존한다. C1 통합은 migration34/pending24이므로 새 정확 tree의 private restore·구형 운영 이미지 호환·metadata 계약을 다시 인수한다. SDK18개 후보의 Python 및 제품 Task는 별도 진행하며 C2/C3 durable payload owner/handoff는 구조 필수로 남긴다.
 
 2026-10-09 UTC. 사용자 요청에 따라 Source 명령 후속 게시 이후의 필수 작업을

@@ -517,7 +517,7 @@ def test_genuine_invalid_and_oversized_room_never_repairs_or_admits_room(
         if change == "missing":
             db.delete(collab)
         elif change == "stale":
-            collab.updated_at = board.updated_at - timedelta(seconds=1)
+            board.updated_at = collab.updated_at + timedelta(seconds=1)
         elif change == "key":
             collab.room_key = "whiteboard:other"
         elif change == "invalid":
@@ -534,6 +534,10 @@ def test_genuine_invalid_and_oversized_room_never_repairs_or_admits_room(
             board.updated_at = collab.updated_at = utcnow_naive()
             collab.snapshot_scene = {"payload": "x" * (room.ROOM_STATE_MAX_BYTES // 2)}
         db.commit()
+        if change == "stale":
+            db.refresh(board)
+            db.refresh(collab)
+            assert collab.updated_at < board.updated_at
     if change in {"scene", "snapshot", "yjs", "aggregate"}:
         with c.factory() as db:
             row = db.execute(room._paired_room_query(c.world.ids["board"])).mappings().one()

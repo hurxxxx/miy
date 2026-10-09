@@ -1,5 +1,11 @@
 # GitHub 게시 체크포인트
 
+## 최신 전달 — PR94/MR101 정상 병합 후 full261의 필수 보완
+
+Source8b7555a0은 필수260/job428 SUCCESS113.328338초 뒤 [GitHub PR94](https://github.com/hurxxxx/miy/pull/94)(999726a6)·[GitLab MR101](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/101)(1efd2054)으로 정상 병합했다. Tree4b5d8bab이 같고 소유 feature의 두 원격/로컬 브랜치를 정리했다. Persistent dev/main과 upstream 직접 push 차단은 유지한다.
+
+후속 MR81/full261/job429는 API 실패3건으로 종료했다. 두 route 소유 정리와 stale fixture의 최소 수정본은 고유synthetic32·실제 PG26·독립 리뷰를 통과했다. 이 후속 후보의 새 feature 게시/필수 리뷰/병합/current full·fresh private24·MR81/guarded 운영은 남아 있다. Main/prod9e9280df와 기존 image를 유지하며 운영 쓰기0이다. Source1efd의 정상 private24는 인수했지만 후속 source의 완료로 대체하지 않는다. 별도 SDK/C2 후보는 이 전달에 포함하지 않는다. 아래 기록은 날짜별 역사다.
+
 ## 후속 세 경계 게시·개발/운영 반영
 
 2026-10-08 사용자가 이번 변경의 커밋·push·upstream PR·병합과 개발/운영

@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from functools import partial
 from typing import Any, Literal
 
+from anyio import CancelScope, create_task_group
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, WebSocket, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
@@ -1179,13 +1180,28 @@ async def whiteboard_collab_websocket(
     finally:
         if yjs_websocket is not None:
             yjs_websocket.detach_room_runtime()
-        if monitor_task is not None:
-            monitor_task.cancel()
-            await asyncio.gather(monitor_task, return_exceptions=True)
-        if slot_acquired and runtime is not None and auth_user_id is not None:
-            await hub.release_connection_slot(runtime, auth_user_id)
-        if room_key is not None and runtime is not None:
-            await hub.cleanup_room(room_key, expected_runtime=runtime)
+        cleanup_error: BaseException | None = None
+
+        async def cleanup_owned_connection() -> None:
+            nonlocal cleanup_error
+            # The route joins this private child before cancellation can release
+            # its monitor, connection slot or room ownership.
+            with CancelScope(shield=True):
+                try:
+                    if monitor_task is not None:
+                        monitor_task.cancel()
+                        await asyncio.gather(monitor_task, return_exceptions=True)
+                    if slot_acquired and runtime is not None and auth_user_id is not None:
+                        await hub.release_connection_slot(runtime, auth_user_id)
+                    if room_key is not None and runtime is not None:
+                        await hub.cleanup_room(room_key, expected_runtime=runtime)
+                except BaseException as exc:
+                    cleanup_error = exc
+
+        async with create_task_group() as cleanup_group:
+            cleanup_group.start_soon(cleanup_owned_connection)
+        if cleanup_error is not None:
+            raise cleanup_error
 
 
 @router.get("/shared-links/{share_token}", response_model=ResolveWhiteboardSharedLinkResponse)
