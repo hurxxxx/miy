@@ -10,8 +10,8 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
 
 ## 현재 위치
 
-- **전달:** dev는 `5d909dc3`, main/prod는 `9e9280df`다. Workbench cold resume, Whiteboard Source ACL callback, 최소 native executor 정의는 각각 필수 리뷰 뒤 양쪽 저장소에 정상 병합하고 소유 브랜치를 정리했다. 최신 full237/405은 저장 공간 선행조건에서 실패해 제품 테스트0이며 새 운영 배포는 없다. [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 전달 기록을 소유한다.
-- **공식 앱 경계:** 준비된 Source ACL의 현재 권한·취소/정리를 전달했다. 기존 collab row의 readOnly Source 초기 로더도 실제 미구현 red 뒤 새65개·영향157개 검사와 생성 계약 검사를 통과해 로컬 인수했다. 필수236/404 리뷰 뒤 PR84/MR91 정상 병합과 소유 브랜치 정리를 마쳤다. Docs Source ACL·별도 Core writer 읽기와 공용 Session guard를 구현했고 새143개·기존227개 검사가 통과했다. 기본 Docs 영향8개도 통과했으며, 첫 실행의 장시간 중단 원인은 미확인이다. 최종 리뷰·전달을 확인 중이다. 누락/stale 상태에 legacy 초기화·복구로 fallback하지 않는다. Source writer·room CAS·취소/COMMIT unknown이 보장된 초기화·영속화, Docs Source·공식 cutover는 필수 잔여다.
+- **전달:** dev는 `e25c1934`, main/prod는 `9e9280df`다. Workbench cold resume, Whiteboard Source ACL callback, 최소 native executor 정의는 각각 필수 리뷰 뒤 양쪽 저장소에 정상 병합하고 소유 브랜치를 정리했다. 최신 full239/407은 저장 공간 선행조건에서 실패해 제품 테스트0이며 새 운영 배포는 없다. [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 전달 기록을 소유한다.
+- **공식 앱 경계:** 준비된 Source ACL의 현재 권한·취소/정리를 전달했다. 기존 collab row의 readOnly Source 초기 로더도 실제 미구현 red 뒤 새65개·영향157개 검사와 생성 계약 검사를 통과해 로컬 인수했다. 필수236/404 리뷰 뒤 PR84/MR91 정상 병합과 소유 브랜치 정리를 마쳤다. Docs Source ACL·별도 Core writer 읽기와 공용 Session guard를 구현했고 새143개·기존227개 검사가 통과했다. 기본 Docs 영향8개도 통과했으며, 첫 실행의 장시간 중단 원인은 미확인이다. 필수238/406 리뷰 뒤 PR85/MR92로 정상 전달하고 소유 브랜치를 정리했다. Docs 기존 room Source 초기 읽기는 actual red 뒤 신규104개·기존370개 검사와 생성 계약을 통과했으며 최종 리뷰·전달 중이다. 누락/stale 상태에 legacy 초기화·복구로 fallback하지 않는다. Source writer·room CAS·취소/COMMIT unknown이 보장된 초기화·영속화, Docs Source·공식 cutover는 필수 잔여다.
 - **Workbench:** 실제 원 Task의 계획→표시된 revision 승인 후 격리 수정→같은 thread 후속 요청과 최소 실행 정의 source-only 인수를 마쳤다. 영구 immutable cache·설치된 자원/mount/native 정책·보호 설정·Workbench 별도 서비스와 중단/단절·개인 앱 전체 흐름은 남아 있다.
 - **운영과 범위:** 서버 재시작 뒤19:39의 읽기 전용 검사에서 기존 API·worker·Beat healthy와 schema를 다시 확인했다. 19:40 측정 여유 공간14.3024GiB/14.5573% free는 두 기준 미달이므로 지속 여유와 최신 full 성공 뒤 MR81·fresh backup·guarded 배포를 이어간다. 앱별 비필수 기능·다중 사용자 범위는 추가하지 않는다.
 

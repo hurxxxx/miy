@@ -358,6 +358,72 @@ async def _authorize_prepared_docs_source_access(
     require_identity(current)
 
 
+def _require_prepared_docs_room_assembly(
+    websocket: WebSocket, *, room_loader: Callable, **assembly
+) -> None:
+    _require_prepared_docs_assembly(websocket, **assembly)
+    if (
+        getattr(websocket.app.state, "prepared_docs_room_configured", None) is not True
+        or getattr(websocket.app.state, "prepared_docs_room_loader", None) is not room_loader
+        or not callable(room_loader)
+    ):
+        raise localized_http_exception(status_code=503, code="official_apps.authority_unavailable")
+
+
+async def _load_prepared_docs_collab_context(
+    websocket: WebSocket,
+    *,
+    page_ref: str,
+    token: str,
+    auth_context,
+    room_loader: Callable,
+    auth_dependency: Callable,
+    source_access: Callable,
+    writer_access: Callable,
+    hub: DocsCollabHub,
+    writer_identity: WriterIdentity,
+):
+    """Current pinned admission around one joined existing-state Source read."""
+    require_assembly = partial(
+        _require_prepared_docs_room_assembly,
+        websocket,
+        room_loader=room_loader,
+        auth_dependency=auth_dependency,
+        source_access=source_access,
+        writer_access=writer_access,
+        hub=hub,
+        writer_identity=writer_identity,
+    )
+    if auth_context is None:
+        raise localized_http_exception(status_code=503, code="official_apps.authority_unavailable")
+    user_id, session_id = auth_context.user.id, auth_context.session.id
+
+    def require_identity(context):
+        if context is None:
+            raise localized_http_exception(
+                status_code=503, code="official_apps.authority_unavailable"
+            )
+        if context.user.id != user_id or context.session.id != session_id:
+            raise localized_http_exception(status_code=401, code="auth.required")
+
+    require_assembly()
+    await writer_access(writer_identity=writer_identity)
+    require_assembly()
+    require_identity(auth_context)
+    result = await room_loader(page_ref=page_ref, user=auth_context.user)
+    require_assembly()
+    require_identity(auth_context)
+    await writer_access(writer_identity=writer_identity)
+    require_assembly()
+    require_identity(auth_context)
+    current = await resolve_prepared_official_ws_auth_context(
+        websocket, token=token, logical_app_id="docs"
+    )
+    require_assembly()
+    require_identity(current)
+    return result
+
+
 async def _monitor_collab_access(
     websocket: WebSocket,
     *,
@@ -2249,7 +2315,12 @@ async def docs_collab_websocket(
         docs_access = getattr(state, "prepared_docs_source_access", None)
         writer_access = getattr(state, "prepared_official_writer_access", None)
         docs_configured = getattr(state, "prepared_docs_source_configured", False)
-        explicit_docs = docs_configured or docs_access is not None or writer_access is not None
+        room_loader = getattr(state, "prepared_docs_room_loader", None)
+        room_configured = getattr(state, "prepared_docs_room_configured", False)
+        explicit_room = room_configured or room_loader is not None
+        explicit_docs = (
+            docs_configured or docs_access is not None or writer_access is not None or explicit_room
+        )
         captured_auth = getattr(state, "prepared_official_auth_dependency", None)
         pinned_writer = getattr(hub, "writer_identity", None) if explicit_docs else None
         if explicit_docs:
@@ -2261,6 +2332,18 @@ async def docs_collab_websocket(
                 hub=hub,
                 writer_identity=pinned_writer,
             )
+        require_room_assembly = partial(
+            _require_prepared_docs_room_assembly,
+            websocket,
+            room_loader=room_loader,
+            auth_dependency=captured_auth,
+            source_access=docs_access,
+            writer_access=writer_access,
+            hub=hub,
+            writer_identity=pinned_writer,
+        )
+        if explicit_room:
+            require_room_assembly()
         prepared_context = await resolve_prepared_official_ws_auth_context(
             websocket, token=token, logical_app_id="docs"
         )
@@ -2277,40 +2360,56 @@ async def docs_collab_websocket(
                 raise localized_http_exception(
                     status_code=503, code="official_apps.authority_unavailable"
                 )
-        session_factory = get_session_factory()
-        db = session_factory()
-        collab_yjs_state: bytes | None = None
-        try:
-            auth_context = (
-                prepared_context
-                if prepared_context is not None
-                else resolve_auth_context_from_token(db, token)
+        if explicit_room:
+            require_room_assembly()
+            loaded = await _load_prepared_docs_collab_context(
+                websocket,
+                page_ref=page_ref,
+                token=token,
+                auth_context=prepared_context,
+                room_loader=room_loader,
+                auth_dependency=captured_auth,
+                source_access=docs_access,
+                writer_access=writer_access,
+                hub=hub,
+                writer_identity=pinned_writer,
             )
-            auth_user_id = auth_context.user.id
-            context = resolve_collab_page_context(db, auth_context.user, page_ref)
-            if not context.can_edit:
-                raise localized_http_exception(
-                    status_code=403, code="docs.doc_edit_access_required"
+            context, collab_yjs_state = loaded.context, loaded.yjs_state
+            auth_user_id = prepared_context.user.id
+        else:
+            session_factory = get_session_factory()
+            db = session_factory()
+            collab_yjs_state: bytes | None = None
+            try:
+                auth_context = (
+                    prepared_context
+                    if prepared_context is not None
+                    else resolve_auth_context_from_token(db, token)
                 )
-            require_active_writer(db, hub.writer_identity)
-            bind_transaction(db, hub.writer_identity)
-            collab = ensure_collab_document_state(
-                db,
-                source_type=context.source_type,
-                source_page_id=context.source_page_id,
-                room_key=context.room_key,
-                snapshot_content_blocks=context.content_blocks,
-            )
-            db.commit()
-            collab_yjs_state = collab.yjs_state
-        except DBAPIError as exc:
-            db.rollback()
-            if is_official_writer_guard_error(exc):
-                raise official_writer_unavailable() from None
-            raise
-        finally:
-            db.close()
-
+                auth_user_id = auth_context.user.id
+                context = resolve_collab_page_context(db, auth_context.user, page_ref)
+                if not context.can_edit:
+                    raise localized_http_exception(
+                        status_code=403, code="docs.doc_edit_access_required"
+                    )
+                require_active_writer(db, hub.writer_identity)
+                bind_transaction(db, hub.writer_identity)
+                collab = ensure_collab_document_state(
+                    db,
+                    source_type=context.source_type,
+                    source_page_id=context.source_page_id,
+                    room_key=context.room_key,
+                    snapshot_content_blocks=context.content_blocks,
+                )
+                db.commit()
+                collab_yjs_state = collab.yjs_state
+            except DBAPIError as exc:
+                db.rollback()
+                if is_official_writer_guard_error(exc):
+                    raise official_writer_unavailable() from None
+                raise
+            finally:
+                db.close()
         room_key = context.room_key
         if room_name and room_name != room_key:
             raise localized_http_exception(status_code=404, code="docs.room_not_found")
@@ -2319,9 +2418,13 @@ async def docs_collab_websocket(
             return
 
         runtime = await hub.get_room(context, collab_yjs_state)
+        if explicit_room:
+            require_room_assembly()
         try:
             await hub.acquire_connection_slot(runtime, auth_user_id)
             slot_acquired = True
+            if explicit_room:
+                require_room_assembly()
         except CollabConnectionLimitExceeded as exc:
             await websocket.close(code=exc.close_code, reason=exc.reason)
             return
@@ -2351,6 +2454,15 @@ async def docs_collab_websocket(
                 hub=hub,
                 writer_identity=pinned_writer,
             )
+        if explicit_room:
+            original_authorize = prepared_authorize
+
+            async def authorize_prepared_room_frame():
+                require_room_assembly()
+                await original_authorize()
+                require_room_assembly()
+
+            prepared_authorize = authorize_prepared_room_frame
         monitor_task = asyncio.create_task(
             _monitor_collab_access(
                 websocket,
