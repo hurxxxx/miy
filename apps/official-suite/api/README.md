@@ -62,8 +62,14 @@ The trusted Whiteboard runtime now retains the admitted collab row ID and room k
 and conditionally saves only that same live incarnation. Rotation or same-key row
 recreation cannot make an old flush adopt a replacement. Each hub admits at most
 four persistence workers across its rooms and holds each permit through owned
-cleanup and joined outcome transfer; canceled admission waits allocate no Session.
-This is a per-hub bound with no new operational setting. Its SQL worker stays
+cleanup and joined outcome transfer; canceled ordinary admission waits allocate
+no Session. Final disposal retains pending bytes before admission and joins its
+shielded owner through final work and native cleanup. Accepted cleanup waits and
+the whole shutdown lifecycle likewise join their owners before caller cancellation
+returns. Its admission wait is separate
+from the admitted SQL budget and other cleanup time limits, so timeout cannot discard
+an unsaved waiting room. This is a per-hub bound with no new operational setting.
+Its SQL worker stays
 joined under cancellation until owned cleanup, with decreasing local SQL budgets;
 ACK is preserved before close, and unknown/refused attempts retire without automatic
 replay. A local unknown-incarnation tombstone blocks re-admission from a same-row

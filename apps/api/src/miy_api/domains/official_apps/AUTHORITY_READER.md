@@ -201,13 +201,14 @@ new public app API or a Source writer activation switch.
 
 Each hub shares a fixed four-permit persistence limiter across all its rooms.
 The parent holds the room flush lock and acquires that shared permit before
-starting the private shielded AnyIO child. Shared-permit waits remain cancellable
-and allocate no Session. After the wait, terminal/disposing state, the original
+starting the private shielded AnyIO child. Ordinary flush shared-permit waits
+remain cancellable and allocate no Session. After the wait, terminal/disposing state, the original
 captured identity, native YDoc, uncertain incarnation and current hub runtime are
 checked again; the private disposing final flush keeps its existing allowance.
-The native encode/validation before child startup has no await. Cancellation while
-waiting for the shared permit allocates no Session; once the private child starts,
-parent cancellation joins it through owned cleanup and outcome transfer.
+The native encode/validation before child startup has no await. Ordinary flush
+cancellation while waiting for the shared permit allocates no Session; once the
+private child starts, parent cancellation joins it through owned cleanup and
+outcome transfer.
 The shared permit stays held through the actual SQL worker, complete owned cleanup,
 child outcome transfer and task-group join. Its internal one-worker thread limiter
 is the accepted owned-worker adapter, not another room admission budget; the outer
@@ -249,6 +250,25 @@ equal-byte timestamp no-op. Later distinct native edits remain possible after AC
 The production finalizer supplies `expected_runtime`; an old connection cannot
 remove, persist or release a same-key replacement. Disposal joins its own tasks and
 releases native YRoom state on the owning event loop.
+
+Final disposal has a private shielded lifecycle owner joined by its parent.
+An accepted `cleanup_room` disposal wait also has a private shielded joined owner;
+its caller cannot return on cancellation while that disposal still runs. The whole
+shutdown lifecycle runs in another private shielded joined owner, including room
+detachment, all disposal waits and bus shutdown. Caller cancellation cannot cancel
+the disposal gather and return after only its first completed child. Errors remain
+propagated rather than being converted to successful cleanup.
+Under the room flush lock final disposal first joins earlier work, compares the current native bytes
+to the last ACK and retains any final pending bytes before admission. Final flush
+then awaits the shared permit directly, without the non-SQL cleanup timeout
+wrapping that wait. The SQL statement/lock budget starts in the admitted worker's
+Session, while client/relay/room cleanup steps keep their separate time limits.
+Repeated cleanup/shutdown parent cancellation joins final admission, worker
+cleanup, outcome transfer and native disposal before being forwarded. Native YDoc
+and its captured identity stay owned until that final work completes; only a known
+ACK clears retained bytes. Refusal/unknown preserves the detached buffer and its
+existing terminal controls without automatic replay. There is no hard overall
+shutdown/admission, driver, network, process-kill or event-loop guarantee.
 
 This first step uses the existing trusted global business factory and statement
 writer fence. It does not provision minimal Source privileges or a new principal,

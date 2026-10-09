@@ -1650,7 +1650,8 @@ def test_genuine_shared_worker_capacity_holds_slots_through_cleanup_and_rechecks
     entries = _capacity_source_contexts(c)
     holders, holder_pids = [], []
     opened, active, committed, active_peaks = [], [], [], []
-    worker_ordinals, sql_pids = {}, {}
+    worker_ordinals, sql_pids, row_sql_pids = {}, {}, {}
+    blocked_collab_ids = {entry.collab_id for entry in entries[:4]}
     close_entered, close_release = Event(), Event()
     tracking_lock = Lock()
 
@@ -1681,14 +1682,26 @@ def test_genuine_shared_worker_capacity_holds_slots_through_cleanup_and_rechecks
             active_peaks.append(len(active))
         return db
 
-    def observe(connection, _cursor, statement, *_):
+    def observe(connection, _cursor, statement, _parameters, execution_context, _executemany):
         ordinal = worker_ordinals.get(get_ident())
         if (
             ordinal is not None
             and statement.lstrip().upper().startswith("UPDATE")
             and ("whiteboard_collab_documents" in statement)
         ):
-            sql_pids[ordinal] = connection.connection.driver_connection.info.backend_pid
+            pid = connection.connection.driver_connection.info.backend_pid
+            if ordinal < 4:
+                captured_ids = {
+                    value
+                    for parameters in execution_context.compiled_parameters
+                    for value in parameters.values()
+                    if isinstance(value, str) and value in blocked_collab_ids
+                }
+                assert len(captured_ids) == 1, (
+                    "Capacity observer must identify one captured collab row"
+                )
+                row_sql_pids[captured_ids.pop()] = pid
+            sql_pids[ordinal] = pid
 
     async def exercise():
         hub = collab.WhiteboardCollabHub(
@@ -1718,7 +1731,10 @@ def test_genuine_shared_worker_capacity_holds_slots_through_cleanup_and_rechecks
             await _eventually(lambda: len(sql_pids) == 4)
             for ordinal in range(4):
                 await asyncio.to_thread(
-                    wait_for_blockers, c.world.core, sql_pids[ordinal], {holder_pids[ordinal]}
+                    wait_for_blockers,
+                    c.world.core,
+                    row_sql_pids[entries[ordinal].collab_id],
+                    {holder_pids[ordinal]},
                 )
             assert len(opened) == len(active) == 4
             fifth = asyncio.create_task(hub._flush_runtime(runtimes[4]))
@@ -1783,7 +1799,10 @@ def test_genuine_shared_worker_capacity_holds_slots_through_cleanup_and_rechecks
             assert hub._persistence_limiter.statistics().borrowed_tokens == 4
             for ordinal in range(1, 4):
                 await asyncio.to_thread(
-                    wait_for_blockers, c.world.core, sql_pids[ordinal], {holder_pids[ordinal]}
+                    wait_for_blockers,
+                    c.world.core,
+                    row_sql_pids[entries[ordinal].collab_id],
+                    {holder_pids[ordinal]},
                 )
             close_release.set()
             assert await tasks[0] is True
@@ -1850,3 +1869,233 @@ def test_genuine_shared_worker_capacity_holds_slots_through_cleanup_and_rechecks
             holder.close()
         if event.contains(c.engine, "before_cursor_execute", observe):
             event.remove(c.engine, "before_cursor_execute", observe)
+
+
+@pytest.mark.parametrize("lifecycle", ["cleanup", "shutdown"])
+def test_genuine_saturated_final_disposal_retains_native_bytes_until_admission_and_ack(
+    persistence_world, lifecycle
+):
+    from threading import Lock
+
+    c = persistence_world
+    entries = _capacity_source_contexts(c)
+    opened, active, committed, close_entered = [], [], [], []
+    tracking_lock = Lock()
+    close_release = Event()
+
+    class ObservedSession(Session):
+        def commit(self):
+            result = super().commit()
+            with tracking_lock:
+                committed.append(self)
+            return result
+
+        def close(self):
+            try:
+                super().close()
+                with tracking_lock:
+                    gated = self in opened[:4]
+                    if gated:
+                        close_entered.append(self)
+                if gated:
+                    assert close_release.wait(10), (
+                        "The saturated final-save gates were not released"
+                    )
+            finally:
+                with tracking_lock:
+                    active.remove(self)
+
+    def factory():
+        db = ObservedSession(c.engine, autoflush=False)
+        with tracking_lock:
+            opened.append(db)
+            active.append(db)
+        return db
+
+    async def exercise():
+        hub = collab.WhiteboardCollabHub(bus=InProcessCollabBus(instance_id="saturated-final-save"))
+        await hub.startup()
+        hub._session_factory = factory
+        hub._settings = hub._settings.model_copy(
+            update={
+                "collab_snapshot_debounce_ms": 60000,
+                "collab_cleanup_timeout_seconds": 1,
+            }
+        )
+        tasks, runtimes = [], []
+        disposing = None
+        try:
+            for ordinal, entry in enumerate(entries):
+                runtime = await hub.get_room(
+                    entry.context, _native_state(f"owned-saturated-final-{ordinal}")
+                )
+                runtimes.append(runtime)
+            for runtime in runtimes[:4]:
+                tasks.append(asyncio.create_task(hub._flush_runtime(runtime)))
+            await _eventually(lambda: len(close_entered) == 4)
+            assert len(opened) == len(active) == len(committed) == 4
+            assert hub._persistence_limiter.statistics().borrowed_tokens == 4
+
+            pending = runtimes[4]
+            await hub.acquire_connection_slot(pending, c.world.state["member_id"])
+            with pending.room.ydoc.begin_transaction() as transaction:
+                pending.room.ydoc.get_map("scene").set(
+                    transaction, "marker", "last-connection-final-bytes"
+                )
+            expected = bytes(Y.encode_state_as_update(pending.room.ydoc))
+            assert pending.flush_task is not None
+            await hub.release_connection_slot(pending, c.world.state["member_id"])
+            assert pending.active_connection_count == 0
+            identity = pending.persistence_identity
+            disposing = asyncio.create_task(
+                hub.cleanup_room(pending.room_key, expected_runtime=pending)
+                if lifecycle == "cleanup"
+                else hub.shutdown()
+            )
+            await _eventually(lambda: pending.metadata.get("disposing") == "true")
+            await _eventually(lambda: hub._persistence_limiter.statistics().tasks_waiting == 1)
+            # Baseline finalsave used the same outer timeout for slot admission.
+            await asyncio.sleep(1.3)
+            assert pending.room.ydoc is not None, (
+                "Final disposal released unsaved native bytes while shared slots were saturated"
+            )
+            assert bytes(Y.encode_state_as_update(pending.room.ydoc)) == expected
+            assert pending.retained_yjs_state == expected
+            assert pending.persistence_identity == identity
+            assert pending.persistence_outcome is None
+            assert not disposing.done() and len(opened) == len(active) == 4
+            assert hub._persistence_limiter.statistics().borrowed_tokens == 4
+            with c.world.core() as db:
+                assert db.get(WhiteboardCollabDocument, entries[4].collab_id).yjs_state == c.yjs
+
+            if lifecycle == "shutdown":
+                disposing.cancel()
+                await asyncio.sleep(0)
+                disposing.cancel()
+                await asyncio.sleep(0.05)
+                assert not disposing.done(), "Shutdown cancellation detached final byte ownership"
+                assert pending.room.ydoc is not None and pending.retained_yjs_state == expected
+                assert pending.persistence_identity == identity
+                assert len(opened) == len(active) == 4
+            close_release.set()
+            assert await asyncio.gather(*tasks) == [True] * 4
+            if lifecycle == "shutdown":
+                with pytest.raises(asyncio.CancelledError):
+                    await disposing
+            else:
+                await disposing
+            assert pending.persistence_outcome.status == "acknowledged"
+            assert pending.last_acknowledged_yjs_state == expected
+            assert pending.retained_yjs_state is None
+            assert pending.persistence_identity == identity
+            assert pending.room.ydoc is None
+            assert active == [] and len(opened) == len(committed) == 5
+            assert hub._persistence_limiter.statistics().borrowed_tokens == 0
+            with c.world.core() as db:
+                row = db.get(WhiteboardCollabDocument, entries[4].collab_id)
+                assert row.id == identity.collab_document_id
+                assert row.room_key == identity.room_key and row.yjs_state == expected
+            await hub.shutdown()
+            assert all(runtime.room.ydoc is None for runtime in runtimes)
+            assert active == [] and len(opened) == len(committed) == 5
+        finally:
+            close_release.set()
+            await asyncio.gather(
+                *tasks, *(task for task in (disposing,) if task is not None), return_exceptions=True
+            )
+            await hub.shutdown()
+
+    try:
+        asyncio.run(exercise())
+    finally:
+        close_release.set()
+
+
+def test_genuine_last_connection_cleanup_cancellation_joins_post_commit_session_close(
+    persistence_world,
+):
+    c = persistence_world
+    opened, active, committed = [], [], []
+    close_entered, close_release = Event(), Event()
+
+    class ObservedSession(Session):
+        def commit(self):
+            result = super().commit()
+            committed.append(self)
+            return result
+
+        def close(self):
+            try:
+                super().close()
+                close_entered.set()
+                assert close_release.wait(8), "The final cleanup close gate was not released"
+            finally:
+                active.remove(self)
+
+    def factory():
+        db = ObservedSession(c.engine, autoflush=False)
+        opened.append(db)
+        active.append(db)
+        return db
+
+    async def exercise():
+        hub = collab.WhiteboardCollabHub(bus=InProcessCollabBus(instance_id="final-cleanup-cancel"))
+        await hub.startup()
+        hub._session_factory = factory
+        hub._settings = hub._settings.model_copy(
+            update={"collab_snapshot_debounce_ms": 60000, "collab_cleanup_timeout_seconds": 5}
+        )
+        cleanup = None
+        try:
+            runtime = await hub.get_room(c.context, c.yjs)
+            identity = runtime.persistence_identity
+            await hub.acquire_connection_slot(runtime, c.world.state["member_id"])
+            with runtime.room.ydoc.begin_transaction() as transaction:
+                runtime.room.ydoc.get_map("scene").set(
+                    transaction, "marker", "cleanup-caller-cancel"
+                )
+            expected = bytes(Y.encode_state_as_update(runtime.room.ydoc))
+            await hub.release_connection_slot(runtime, c.world.state["member_id"])
+            cleanup = asyncio.create_task(
+                hub.cleanup_room(runtime.room_key, expected_runtime=runtime)
+            )
+            await _eventually(close_entered.is_set)
+            assert opened == committed and len(committed) == 1
+            with c.world.core() as db:
+                assert db.get(WhiteboardCollabDocument, c.collab_id).yjs_state == expected
+            cleanup.cancel()
+            await asyncio.sleep(0)
+            cleanup.cancel()
+            await asyncio.sleep(0.05)
+            assert not cleanup.done(), (
+                "Last-connection cleanup detached post-COMMIT Session cleanup"
+            )
+            assert runtime.room.ydoc is not None and runtime.flush_lock.locked()
+            assert bytes(Y.encode_state_as_update(runtime.room.ydoc)) == expected
+            assert (
+                runtime.persistence_identity == identity and runtime.retained_yjs_state == expected
+            )
+            assert runtime.persistence_outcome is None
+            assert active == opened and hub._persistence_limiter.statistics().borrowed_tokens == 1
+            close_release.set()
+            with pytest.raises(asyncio.CancelledError):
+                await cleanup
+            assert active == [] and len(opened) == len(committed) == 1
+            assert runtime.room.ydoc is None and not runtime.flush_lock.locked()
+            assert runtime.persistence_identity == identity
+            assert runtime.persistence_outcome.status == "acknowledged"
+            assert (
+                runtime.last_acknowledged_yjs_state == expected
+                and runtime.retained_yjs_state is None
+            )
+            assert hub._persistence_limiter.statistics().borrowed_tokens == 0
+        finally:
+            close_release.set()
+            if cleanup is not None:
+                await asyncio.gather(cleanup, return_exceptions=True)
+            await hub.shutdown()
+
+    try:
+        asyncio.run(exercise())
+    finally:
+        close_release.set()

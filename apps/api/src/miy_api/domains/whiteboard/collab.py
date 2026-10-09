@@ -281,82 +281,108 @@ class WhiteboardCollabHub:
             self._rooms.pop(room_key, None)
         task = self._start_disposal(runtime, persist=True)
         if task is not None:
-            await asyncio.shield(task)
+
+            async def wait_disposal_owned():
+                with CancelScope(shield=True):
+                    await task
+
+            async with create_task_group() as group:
+                group.start_soon(wait_disposal_owned)
 
     async def _dispose_runtime(self, runtime, *, persist, close_code):
-        if runtime.flush_task is not None:
-            runtime.flush_task.cancel()
-            await self._run_cleanup_step(
-                runtime,
-                "flush task cancellation",
-                asyncio.gather(runtime.flush_task, return_exceptions=True),
-            )
-        # The debounce pointer may have been replaced while an older shielded
-        # worker still owns this lock. Even an acknowledged-byte skip must join it.
-        async with runtime.flush_lock:
-            needs_flush = (
-                persist
-                and not runtime.metadata.get("persistence_terminal")
-                and runtime.room.ydoc is not None
-                and bytes(Y.encode_state_as_update(runtime.room.ydoc))
-                != runtime.last_acknowledged_yjs_state
-            )
-        if needs_flush:
-            await self._run_cleanup_step(
-                runtime, "flush", self._flush_runtime(runtime, allow_disposing=True)
-            )
-        if runtime.metadata.get("persistence_terminal"):
-            close_code = 1013
-        if close_code is not None:
-            for client in list(runtime.room.clients):
+        async def dispose_owned(close_code):
+            # Joining this private owner also finishes native disposal when the
+            # cleanup/shutdown parent is canceled while final admission waits.
+            with CancelScope(shield=True):
+                if runtime.flush_task is not None:
+                    runtime.flush_task.cancel()
+                    await self._run_cleanup_step(
+                        runtime,
+                        "flush task cancellation",
+                        asyncio.gather(runtime.flush_task, return_exceptions=True),
+                    )
+                # The debounce pointer may have been replaced while an older shielded
+                # worker still owns this lock. Even an acknowledged-byte skip must join it.
+                async with runtime.flush_lock:
+                    final_yjs_state = (
+                        bytes(Y.encode_state_as_update(runtime.room.ydoc))
+                        if persist
+                        and not runtime.metadata.get("persistence_terminal")
+                        and runtime.room.ydoc is not None
+                        else None
+                    )
+                    needs_flush = (
+                        final_yjs_state is not None
+                        and final_yjs_state != runtime.last_acknowledged_yjs_state
+                    )
+                    if needs_flush:
+                        runtime.retained_yjs_state = final_yjs_state
+                if needs_flush:
+                    # Admission wait is not the SQL deadline or non-SQL cleanup timeout.
+                    # This owner keeps native state and detached bytes until work joins.
+                    await self._flush_runtime(runtime, allow_disposing=True)
+                if runtime.metadata.get("persistence_terminal"):
+                    close_code = 1013
+                if close_code is not None:
+                    for client in list(runtime.room.clients):
+                        await self._run_cleanup_step(
+                            runtime,
+                            "client close",
+                            client.close(
+                                code=close_code,
+                                reason=(
+                                    "whiteboard_persistence_unavailable"
+                                    if close_code == 1013
+                                    else "Server shutdown."
+                                ),
+                            ),
+                        )
+                if runtime.relay_task is not None:
+                    runtime.relay_task.cancel()
+                    await self._run_cleanup_step(
+                        runtime,
+                        "relay task cancellation",
+                        asyncio.gather(runtime.relay_task, return_exceptions=True),
+                    )
+                if runtime.relay_pubsub is not None:
+                    await self._run_cleanup_step(
+                        runtime,
+                        "relay pubsub close",
+                        self._bus.close_pubsub(runtime.relay_pubsub, runtime.room_key),
+                    )
+                self._stop_room(runtime)
                 await self._run_cleanup_step(
                     runtime,
-                    "client close",
-                    client.close(
-                        code=close_code,
-                        reason=(
-                            "whiteboard_persistence_unavailable"
-                            if close_code == 1013
-                            else "Server shutdown."
-                        ),
-                    ),
+                    "room task stop",
+                    asyncio.gather(runtime.room_task, return_exceptions=True),
                 )
-        if runtime.relay_task is not None:
-            runtime.relay_task.cancel()
-            await self._run_cleanup_step(
-                runtime,
-                "relay task cancellation",
-                asyncio.gather(runtime.relay_task, return_exceptions=True),
-            )
-        if runtime.relay_pubsub is not None:
-            await self._run_cleanup_step(
-                runtime,
-                "relay pubsub close",
-                self._bus.close_pubsub(runtime.relay_pubsub, runtime.room_key),
-            )
-        self._stop_room(runtime)
-        await self._run_cleanup_step(
-            runtime,
-            "room task stop",
-            asyncio.gather(runtime.room_task, return_exceptions=True),
-        )
-        self._release_room_state(runtime)
-        # Clear only after joined SQL and this native disposal complete. Unknown
-        # attempts remain blocked by their separate retained incarnation tombstone.
-        self._forget_retiring(runtime)
+                self._release_room_state(runtime)
+                # Clear only after joined SQL and this native disposal complete. Unknown
+                # attempts remain blocked by their separate retained incarnation tombstone.
+                self._forget_retiring(runtime)
+
+        async with create_task_group() as group:
+            group.start_soon(dispose_owned, close_code)
 
     async def shutdown(self) -> None:
-        async with self._lock:
-            runtimes = list(self._rooms.values())
-            for runtime in runtimes:
-                self._mark_retiring(runtime)
-            self._rooms.clear()
+        async def shutdown_owned():
+            # Caller cancellation must not cancel gather and return after only
+            # the first completed disposal while another final owner still runs.
+            with CancelScope(shield=True):
+                async with self._lock:
+                    runtimes = list(self._rooms.values())
+                    for runtime in runtimes:
+                        self._mark_retiring(runtime)
+                    self._rooms.clear()
 
-        for runtime in runtimes:
-            self._start_disposal(runtime, persist=True, close_code=1001)
-        while self._disposals:
-            await asyncio.gather(*tuple(self._disposals))
-        await self._bus.shutdown()
+                for runtime in runtimes:
+                    self._start_disposal(runtime, persist=True, close_code=1001)
+                while self._disposals:
+                    await asyncio.gather(*tuple(self._disposals))
+                await self._bus.shutdown()
+
+        async with create_task_group() as group:
+            group.start_soon(shutdown_owned)
 
     async def _run_cleanup_step(
         self,

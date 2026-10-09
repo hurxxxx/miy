@@ -261,3 +261,9 @@ Source writer/CAS·COMMIT unknown·저장/media/RAG·정확 operational grants/c
 `OFF-002B` 기존 WB 저장 상한 필수 수정의 로컬 검증은51+480개다. Hub별 고정4개의 shared permit을 private shielded child 시작 전에 얻고 SQL worker·Session cleanup·결과 전달·TaskGroup join까지 보유한다. Permit 대기 취소는 Session0이며 child 시작 뒤 취소는 기존 owned join을 따른다. Permit을 얻은 뒤 terminal/disposing/current runtime/captured identity/YDoc/unknown을 재검사한다. Child 내부 limiter1은 shared token을 재획득하지 않으며 기존 adapter를 유지한다. Process 전체 상한이나 새 설정·운영 적용을 주장하지 않는다.
 
 최소 Source writer/profile·현재 Core 사용자 COMMIT fence·같은 room의 cross-hub content CAS/convergence·영속 unknown/Docs 저장·operational 역할과 서비스 전환은 필수 잔여다. Next service-admission profile은 이번 단계에서 사용하지 않는19표98열 ACL 호환 grant를 미리 주지 않고 board/collab의 고정 최소열과 EXEC부터 독립 인수하도록 계획을 좁힌다. 현재 ACL reader는 보호하며 실제 ACL writer 연결은 후속이다. main/prod9e9280df·full241/409 storage 실패/tests0·새 운영/Workbench 배포0를 유지한다. 앱별 상세 기능과 다중 사용자는 보류한다.
+
+## 2026-10-09 05:08 — 최종 저장 대기 중 상태 보존
+
+`OFF-002B`의 저장 안전성 필수 수정으로 final admission의 unsaved state를 보존했다. 최종 신규54개는 pure16 PASS/7.10s와 native38 PASS/131.44s다. 기존 영향480개는 prepared/auth/composition466 PASS/372.13s·원 Whiteboard6 PASS/25.87s·원 Docs8 PASS/35.69s다. 이전48/51개·재실행 횟수는 더하지 않는다. API architecture/i18n·생성 계약을 통과했다. 최종 문서·Python 검사와 새13파일 독립 인수 및 새 source의 필수 리뷰는 별도 단계다.
+
+현재 dev499aff33·main/prod9e9280df, full241/409 storage 실패/tests0, 새 운영 및 별도 Workbench 배포0다. 다음은 비활성2표 최소 Source service writer/profile이며 Core 사용자 권한 COMMIT fence·Source factory 연결·cross-hub content CAS·영속 unknown 복구·공식 서비스 cutover는 남아 있다. Native SDK/toolchain 실제 pin 검증·설치 및 개인 앱 자연어 전체 흐름도 필수 잔여다. 앱별 비필수 기능·다중 사용자는 보류한다.

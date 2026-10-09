@@ -556,3 +556,11 @@ Source6da7c943의 PR87/MR94 필수 pipeline242/job410은 FAILED/115.932917초였
 최종 신규 pure16 PASS/5.47s·native35 PASS/90.18s =51개, 기존 prepared/auth/composition466 PASS/311.04s·원 WB6 PASS/15.61s·원 Docs8 PASS/25.19s =480개다. 기존48개 및 첫 통과·재검사 횟수는 더하지 않는다. API architecture/i18n·생성 계약 통과이며 최종 문서 freeze·새 독립 인수·새 필수 리뷰는 별도로 진행한다.
 
 기존 PR87/MR94와 feature 브랜치를 그대로 사용해 정상 후속 commit/fast-forward push·새 필수 review·normal merge 뒤 exact tip cleanup을 진행한다. 원 실패 job을 재시도하거나 우회하지 않는다. 병합·새 운영 배포는 아직 완료하지 않았다.
+
+## 2026-10-09 05:08 — 최종 저장 대기 중 상태 보존
+
+Source705a13dc의 PR87/MR94 필수243/job411은 FAILED/78.614494초였다. P1은 공유 저장 슬롯4개가 포화됐을 때 최종 flush 전체에 적용한 cleanup timeout이 admission 대기를 취소하고 미저장 YDoc을 해제하는 문제다. 이전242/410의 상한 거절과 각각의 실제 실패·이전 로컬 성공을 보존하며 필수 리뷰 실패를 면제하거나 성공으로 바꾸지 않는다.
+
+최종 신규54개는 pure16 PASS/7.10s와 native38 PASS/131.44s다. 기존 영향480개는 prepared/auth/composition466 PASS/372.13s·원 Whiteboard6 PASS/25.87s·원 Docs8 PASS/35.69s다. 이전48/51개·재실행 횟수는 더하지 않는다. API architecture/i18n·생성 계약을 통과했다. 최종 문서·Python 검사와 새13파일 독립 인수 및 새 source의 필수 리뷰는 별도 단계다.
+
+기존 PR87/MR94·feature branch를 재사용한다. 실패 job 재시도·강제 push·gate 우회 없이 새 source로 정상 필수 리뷰를 받는다. 이 기록 시점에는 병합·새 배포를 완료하지 않았다.

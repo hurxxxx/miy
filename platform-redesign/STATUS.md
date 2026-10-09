@@ -10,10 +10,10 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
 
 ## 현재 위치
 
-- **전달:** dev는 `499aff33`, main/prod는 `9e9280df`다. Workbench cold resume, Whiteboard Source ACL callback, 최소 native executor 정의는 각각 필수 리뷰 뒤 양쪽 저장소에 정상 병합하고 소유 브랜치를 정리했다. 최신 full241/409은 저장 공간 선행조건에서 실패해 제품 테스트0이며 새 운영 배포는 없다. [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 전달 기록을 소유한다.
-- **공식 앱 경계:** 준비된 Source ACL의 현재 권한·취소/정리를 전달했다. 기존 collab row의 readOnly Source 초기 로더도 실제 미구현 red 뒤 새65개·영향157개 검사와 생성 계약 검사를 통과해 로컬 인수했다. 필수236/404 리뷰 뒤 PR84/MR91 정상 병합과 소유 브랜치 정리를 마쳤다. Docs Source ACL·별도 Core writer 읽기와 공용 Session guard를 구현했고 새143개·기존227개 검사가 통과했다. 기본 Docs 영향8개도 통과했으며, 첫 실행의 장시간 중단 원인은 미확인이다. 필수238/406 리뷰 뒤 PR85/MR92로 정상 전달하고 소유 브랜치를 정리했다. Docs 기존 room Source 초기 읽기는 actual red 뒤 신규104개·기존370개 검사와 생성 계약을 통과했으며 필수240/408 리뷰 뒤 PR86/MR93 정상 병합·소유 브랜치 정리를 마쳤다. 누락/stale 상태에 legacy 초기화·복구로 fallback하지 않는다. Source writer·room CAS·취소/COMMIT unknown이 보장된 초기화·영속화, Docs Source·공식 cutover는 필수 잔여다.
-- **Workbench:** 실제 원 Task의 계획→표시된 revision 승인 후 격리 수정→같은 thread 후속 요청과 최소 실행 정의 source-only 인수를 마쳤다. 영구 immutable cache·설치된 자원/mount/native 정책·보호 설정·Workbench 별도 서비스와 중단/단절·개인 앱 전체 흐름은 남아 있다.
-- **운영과 범위:** 서버 재시작 뒤19:39의 읽기 전용 검사에서 기존 API·worker·Beat healthy와 schema를 다시 확인했다. 10월9일02:52 측정 여유 공간14.2705GiB/14.5304% free는 두 기준 미달이므로 지속 여유와 최신 full 성공 뒤 MR81·fresh backup·guarded 배포를 이어간다. 앱별 비필수 기능·다중 사용자 범위는 추가하지 않는다.
+- **전달:** dev는 `499aff33`, main/prod는 `9e9280df`다. Docs Source room도 필수240/408 성공 뒤 PR86/MR93로 양쪽 병합하고 소유 브랜치를 정리했다. 최신 full241/409는 저장 공간 선행조건에서 실패해 제품 테스트0이며 새 운영 배포는 없다. [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 전달 기록을 소유한다.
+- **공식 앱 경계:** Source 인증·ACL·기존 room 초기 읽기를 전달했다. Whiteboard 저장 안전성은 필수 리뷰가 발견한 hub 전체 worker 상한과 최종 대기 중 내용 손실을 수정했고, 현재 신규54개·기존 영향480개와 생성 계약이 통과했다. PR87/MR94의 새 최종 인수·필수 리뷰·병합은 진행 중이다. 최소 Source writer/profile·현재 사용자 COMMIT fence·Source 연결·cross-hub content CAS·영속 unknown 복구와 공식 cutover는 남아 있다.
+- **Workbench:** 실제 원 Task의 계획→승인된 격리 수정→같은 thread 후속 요청과 최소 native 실행 정의를 인수했다. 영구 immutable cache·설치된 자원/mount/native 정책·보호 설정·별도 Workbench 서비스 및 개인 앱 자연어 전체 흐름은 남아 있다.
+- **운영과 범위:** 기존 운영 API·worker·Beat와 schema는 마지막 읽기 전용 검사에서 정상이었다. 최소15GiB 및15%의 지속 여유와 최신 full 성공 뒤 MR81·fresh backup·guarded 배포를 이어간다. 앱별 비필수 기능과 다중 사용자는 보류한다.
 
 ## 이전 단계별 인수 기록
 
@@ -166,3 +166,11 @@ Source6da7c943의 PR87/MR94 필수 pipeline242/job410은 FAILED/115.932917초였
 최종 신규 pure16 PASS/5.47s·native35 PASS/90.18s =51개, 기존 prepared/auth/composition466 PASS/311.04s·원 WB6 PASS/15.61s·원 Docs8 PASS/25.19s =480개다. 기존48개 및 첫 통과·재검사 횟수는 더하지 않는다. API architecture/i18n·생성 계약 통과이며 최종 문서 freeze·새 독립 인수·새 필수 리뷰는 별도로 진행한다.
 
 최소 Source writer/profile·현재 Core 사용자 COMMIT fence·같은 room의 cross-hub content CAS/convergence·영속 unknown/Docs 저장·operational 역할과 서비스 전환은 필수 잔여다. Next service-admission profile은 이번 단계에서 사용하지 않는19표98열 ACL 호환 grant를 미리 주지 않고 board/collab의 고정 최소열과 EXEC부터 독립 인수하도록 계획을 좁힌다. 현재 ACL reader는 보호하며 실제 ACL writer 연결은 후속이다. main/prod9e9280df·full241/409 storage 실패/tests0·새 운영/Workbench 배포0를 유지한다. 앱별 상세 기능과 다중 사용자는 보류한다.
+
+## 2026-10-09 05:08 — 최종 저장 대기 중 상태 보존
+
+Source705a13dc의 PR87/MR94 필수243/job411은 FAILED/78.614494초였다. P1은 공유 저장 슬롯4개가 포화됐을 때 최종 flush 전체에 적용한 cleanup timeout이 admission 대기를 취소하고 미저장 YDoc을 해제하는 문제다. 이전242/410의 상한 거절과 각각의 실제 실패·이전 로컬 성공을 보존하며 필수 리뷰 실패를 면제하거나 성공으로 바꾸지 않는다.
+
+최종 신규54개는 pure16 PASS/7.10s와 native38 PASS/131.44s다. 기존 영향480개는 prepared/auth/composition466 PASS/372.13s·원 Whiteboard6 PASS/25.87s·원 Docs8 PASS/35.69s다. 이전48/51개·재실행 횟수는 더하지 않는다. API architecture/i18n·생성 계약을 통과했다. 최종 문서·Python 검사와 새13파일 독립 인수 및 새 source의 필수 리뷰는 별도 단계다.
+
+현재 dev499aff33·main/prod9e9280df, full241/409 storage 실패/tests0, 새 운영 및 별도 Workbench 배포0다. 다음은 비활성2표 최소 Source service writer/profile이며 Core 사용자 권한 COMMIT fence·Source factory 연결·cross-hub content CAS·영속 unknown 복구·공식 서비스 cutover는 남아 있다. Native SDK/toolchain 실제 pin 검증·설치 및 개인 앱 자연어 전체 흐름도 필수 잔여다. 앱별 비필수 기능·다중 사용자는 보류한다.

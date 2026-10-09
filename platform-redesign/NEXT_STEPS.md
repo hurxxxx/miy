@@ -202,3 +202,11 @@ Source6da7c943의 PR87/MR94 필수 pipeline242/job410은 FAILED/115.932917초였
 Hub별 고정4개의 shared permit을 private shielded child 시작 전에 얻고 SQL worker·Session cleanup·결과 전달·TaskGroup join까지 보유한다. Permit 대기 취소는 Session0이며 child 시작 뒤 취소는 기존 owned join을 따른다. Permit을 얻은 뒤 terminal/disposing/current runtime/captured identity/YDoc/unknown을 재검사한다. Child 내부 limiter1은 shared token을 재획득하지 않으며 기존 adapter를 유지한다. Process 전체 상한이나 새 설정·운영 적용을 주장하지 않는다.
 
 최소 Source writer/profile·현재 Core 사용자 COMMIT fence·같은 room의 cross-hub content CAS/convergence·영속 unknown/Docs 저장·operational 역할과 서비스 전환은 필수 잔여다. Next service-admission profile은 이번 단계에서 사용하지 않는19표98열 ACL 호환 grant를 미리 주지 않고 board/collab의 고정 최소열과 EXEC부터 독립 인수하도록 계획을 좁힌다. 현재 ACL reader는 보호하며 실제 ACL writer 연결은 후속이다. main/prod9e9280df·full241/409 storage 실패/tests0·새 운영/Workbench 배포0를 유지한다. 앱별 상세 기능과 다중 사용자는 보류한다.
+
+## 2026-10-09 05:08 — 최종 저장 대기 중 상태 보존
+
+최종 disposal의 전체 lifecycle을 private shielded child가 소유하고 부모는 SQL·Session cleanup·native 해제·retiring 정리까지 join한다. 기존 flush_lock 아래 prior worker를 먼저 join하고 pending bytes를 admission 전에 보존한다. 최종 flush 전체의 outer cleanup timeout을 제거했으며 SQL deadline은 worker Session이 시작한 뒤, 개별 비SQL cleanup timeout은 각 단계에 적용한다. 일반 permit 대기 취소의 Session0·hub 상한4·기존 captured identity·postwait 검사·ACK/unknown 처리는 그대로다. 첫 수정의 native36 PASS/1FAIL97.94초와 동일 shutdown 진단1FAIL36.94초도 보존한다. 이 실패는 최상위 shutdown gather가 먼저 끝난 다른 취소를 전달해 final ACK보다 caller를 앞서 반환하는 경계였다. shutdown 전체와 마지막 cleanup task 대기도 private shielded owner와 parent join으로 보완했다. 이후 native36 PASS/2FAIL124.57초의 capacity 잠금 관측 실패도 보존한다. 스레드 open 순서를 room 순서로 가정한 fixture를 실제 captured collab ID의 SQL PID로 대응시켰으며 동시성·실제 잠금·상한·취소·교체 기대값을 유지했다. 최초 두 실패의 정확한 인과관계는 입증하지 않았고 unchanged 진단3PASS23.67초도 해결 증명으로 세지 않는다. Hard shutdown이나 network/driver의 강제 종료 보장은 하지 않는다.
+
+기존 PR87/MR94의 정상 후속 commit/push와 새 필수 리뷰 뒤 병합·소유 브랜치 정리를 진행한다. 다음 Source service profile은 불필요한 ACL 선행 grants 없이 최소2표에서 시작한다.
+
+현재 dev499aff33·main/prod9e9280df, full241/409 storage 실패/tests0, 새 운영 및 별도 Workbench 배포0다. 다음은 비활성2표 최소 Source service writer/profile이며 Core 사용자 권한 COMMIT fence·Source factory 연결·cross-hub content CAS·영속 unknown 복구·공식 서비스 cutover는 남아 있다. Native SDK/toolchain 실제 pin 검증·설치 및 개인 앱 자연어 전체 흐름도 필수 잔여다. 앱별 비필수 기능·다중 사용자는 보류한다.
