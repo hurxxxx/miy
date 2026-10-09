@@ -526,3 +526,23 @@ Source705a13dc의 PR87/MR94 필수243/job411은 FAILED/78.614494초였다. P1은
 Pristine705a13dc 별도 worktree에 동일 테스트를 복사해 실제 PostgreSQL/Yjs로1 FAIL/19.09초를 재현했다. Call assertion1935에서 아직 저장되지 않은 native YDoc 해제를 확인했으며 setup/collection/missing API 오류0·owned cleanup PASS다. 새 cleanup/shutdown2개는 실제4개 COMMIT 뒤 Session close gate로 슬롯을 보유하고 이전1초 timeout보다 오래 기다린 fifth의 bytes/identity 보존, shutdown 부모2회 취소 후 join, 실제 fifth ACK와 전체 native/Session 정리를 검증한다. 신규 cleanup 취소 검사도 실제 COMMIT 뒤 Session.close를 hold하고 부모 반복 취소가 native/Session 해제보다 먼저 반환하지 않는지 확인한다. 기존48case의29test와 helpers·보호46개·원래 roomtest bytes 및 새 final-disposal/cleanup3case AST는 유지했다. Capacity fixture1개는 실제 collab ID의 SQL PID로 잠금 대상을 대응하도록 관측을 고쳤고 모든 동시성·상한·취소·교체 assertion은 유지했다. Cleanup 반복 취소는 별도 pristine705에서1FAIL10.07초의 조기 반환을 재현했고 owned cleanup도 통과했다.
 
 최종 신규54개는 pure16 PASS/7.10s와 native38 PASS/131.44s다. 기존 영향480개는 prepared/auth/composition466 PASS/372.13s·원 Whiteboard6 PASS/25.87s·원 Docs8 PASS/35.69s다. 이전48/51개·재실행 횟수는 더하지 않는다. API architecture/i18n·생성 계약을 통과했다. 최종 문서·Python 검사와 새13파일 독립 인수 및 새 source의 필수 리뷰는 별도 단계다.
+
+## 2026-10-09 05:22 — 저장 안전성 전달과 최소 Source writer 착수
+
+Whiteboard 저장 안전성 최종 Source `ba9fee1e`/tree `fef48496`는 필수244/job412 SUCCESS/94.736405초 뒤 GitHub [PR87](https://github.com/hurxxxx/miy/pull/87)→`2c1cb019`와 내부 [MR94](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/94)→dev `aafbccb2`로 정상 병합했다. 양쪽 tree는 같고 소유 feature 브랜치의 양쪽 원격·로컬 정리를 완료했다. Dev는 persistent integration branch로 유지하며 main/prod는 `9e9280df`다.
+
+새 전체245/job413은30.366867초에 저장 공간 선행조건에서 실패했다. 제품 테스트0이며 필수 최소15GiB/15% 기준을 유지한다. 이 결과를 source 리뷰 성공으로 대체하지 않고 새 운영·별도 Workbench 배포0를 유지한다.
+
+다음 구현은 `aafbccb2` 기준 별도 worktree에서 비활성 Whiteboard Source service writer/profile이다. 실제 migration head `file_effect_20261007`, 기존 migration30개 및 보호85개를 다시 동결했다. 새 migration·service admission·role checker와 새 테스트·owner2, Root 추적6을 분담한다. 두 Source 표의 SELECT8열·UPDATE4열과 제한된 capability 하나부터 인수하며 공급된 LOGIN/NOLOGIN 역할·원래 principal identity·정확한 권한·기존 mapping replay·실제 session_user와 SQL 락을 검증한다. 현재는 구현 착수이며 새 테스트를 실행하거나 인수한 것으로 표시하지 않는다.
+
+Migration은 정상 legacy/hardened 환경에서 비활성 capability만 설치한다. 준비·admission에는 hardened guard가 필요하다. Session/factory/COMMIT/cleanup 수명은 caller가 소유하며 Core 사용자 ACL COMMIT fence·hub Source factory 연결·운영 역할/grant/config/service 전환은 이번 범위가 아니다. Current actor fence, cross-hub content CAS, 영속 unknown 복구와 공식 서비스 cutover는 여전히 필수 잔여다. 기존 skills/harness는 절차로 사용하지 않고 현재 코드·owner·중요 계약만 사용한다. 앱별 비필수 기능과 다중 사용자는 보류한다.
+
+## 2026-10-09 05:59 — 비활성 최소 Source writer 로컬 검증
+
+새 `whiteboard_source_service_admission_v1`은 두 Source 표의 SELECT8열·UPDATE4열과 실제 session_user에서 출발하는 private capability만 준비한다. 공급된 fresh LOGIN/NOLOGIN과 명시적인 원래 owner OIDs·role OID/name·generation/artifact를 고정하며 기존 broad/부분/회수된 역할을 확장하거나 복구하지 않는다. 정확한 complete replay는 grant/ALTER/audit0이다. 정상 legacy migration은 비활성 capability만 설치하며 실제 준비/admission은 기존 hardened guard를 요구한다. Caller-owned transaction의 SHARE 잠금은 실제 COMMIT/rollback까지 유지하고 caller의 감소하는 SQL deadline·cleanup 소유를 보존한다.
+
+독립 draft 검토의 PRIV-01은 이전 checker가 빠뜨린 Source guard owner의 MAINTAIN을 신규 local 검사로 보완하고 plain/grant-option 두 실제 거절로 검증했다. 첫 native64 실행은4 PASS/13 FAIL/47 setup ERROR/56.49초였다. 동일 source/test 단독 install1 FAIL/5.86초가 신규 `_schema_ceiling`의42809/not_sequence를 확인했다. WHERE 조건 평가 순서에 의존하던 sequence 전용 함수를 CASE로 보호했다. 전체 reverse-patch bytes와 해당 함수 외 AST·기존74 assertions가 동일하다. 원 실패/진단은 보존하며 이후 성공에 합산하지 않는다.
+
+새 migration의 정상 legacy downgrade→re-upgrade는 실제 board/collab bytes·기존 source trigger/ownership을 보존한다. Hardened active rollback은 상태/버전/함수/데이터 변경 없이 거절하고, 실제 Core drain 뒤 capability만 제거한다. 변조된 body/overload rollback도 거절하며 기존 role·principal·column ACL·guard·데이터를 보존한다. 신규 revision `wb_source_writer_20261009`는25자로 기존 head `file_effect_20261007` 뒤 하나만 추가했다. 이전30 migration·보호85개는 byte exact이고 원 inventory test는 정확한 새 head 한 항목만 갱신했다.
+
+최종 새 pure10 PASS/0.62s·실제 PG18 native69 PASS/56.98s =79개다. 기존 role/Source ACL/room/저장204 PASS/203.03s·원 migration 함수5 PASS/6.35s =209개는 별도 영향 범위다. API architecture/i18n·생성 API/schema/OpenAPI/contract-source와 scoped Python5 검사는 통과했다. Owner2·Root tracking6의 최종 Markdown freeze와 독립/필수 원격 리뷰·게시/병합은 별도로 진행한다. Network-none·실제 env/credentials0·소유 컨테이너 정리를 확인했다.

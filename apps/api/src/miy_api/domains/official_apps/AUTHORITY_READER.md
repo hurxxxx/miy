@@ -165,6 +165,83 @@ factory remain selected. The trusted runtime safety contract below adds captured
 incarnation checks and joined persistence without turning this reader into a writer.
 Separate Source authority, complete roles and operational activation remain pending.
 
+## Inactive Whiteboard Source service writer admission
+
+`whiteboard_source_writer_roles` owns the immutable
+`whiteboard_source_service_admission_v1` profile. It supplies no runtime factory
+or default service selection. Core may explicitly prepare fresh supplied roles
+in its existing admin/CAS transaction; product startup creates no roles,
+credentials, operational grants or activation.
+
+The Source LOGIN has column SELECT only on `whiteboards(id, trashed_at)` and
+`whiteboard_collab_documents(id, whiteboard_id, room_key, yjs_state, updated_at,
+writer_scope)`, column UPDATE only on `whiteboards(writer_scope)` and
+`whiteboard_collab_documents(yjs_state, updated_at, writer_scope)`, and one private
+authority EXEC, `public.miy_whiteboard_lock_source_writer(integer,text)`.
+Board `writer_scope` UPDATE enables the existing SELECT FOR SHARE; collab
+`writer_scope` SELECT/UPDATE enables the protected zero-row source trigger.
+This grants no board owner, target/share/group/PMS/meeting ACL or Core/auth reads.
+Table-wide grants, initialization/INSERT/DELETE, snapshot/key rewrite, other app
+data, membership, CREATE, ownership, sequences and grant options are forbidden.
+All current-database user namespaces use a literal `pg_` prefix exclusion; PUBLIC
+and effective column privileges are included. Harmless ordinary invoker function
+EXEC is not claimed absent: arbitrary executable SECURITY DEFINER, owned and
+grantable functions are refused, and the generic producer locker is never directly
+executable by this Source LOGIN.
+
+The fixed additive migration installs the inactive capability under the original
+Core migration owner, checks the exact canonical 88-source/2-transport inventory
+in either legacy or hardened mode, and revokes PUBLIC EXEC in the same transaction.
+It changes no existing function, role guard or role grants. Preparation and runtime
+admission additionally require the exact hardened source guard and immutable
+principal trigger. Fixed signatures, unique public-name overload inventories,
+UTF-8 body hashes, language/result/defaults, security/configuration and explicitly
+supplied original owner OIDs are checked for the new capability, producer locker,
+source guard and principal guard. An unexpected existing function is refused;
+there is no CREATE OR REPLACE or catalog repair.
+
+`install_whiteboard_source_writer_guard` runs only during an explicit Core draining
+CAS. Its supplied NOLOGIN owner must be fresh and restricted; the original expected
+migration owner OID is mandatory before ownership transfer. This owner has only
+the new capability ownership, public USAGE and existing producer locker EXEC.
+Temporary schema CREATE used for transfer is revoked in the same transaction.
+Exact complete owner replay performs no grants, ALTER or audit. Partial, altered
+or unexpectedly owned capabilities are not repaired. Principal preparation binds
+the supplied direct LOGIN once to original `official.suite/legacy`, generation
+and non-null SHA-256 artifact. Existing broad/read/Files, partial, revoked or
+different OID/name/identity bindings refuse. Exact complete replay validates the
+current catalog and immutable identity with mutation zero; there is no historical
+profile-version ledger or silent future profile expansion.
+
+The frozen server descriptor retains that original WriterIdentity, Source OID/name
+and original capability/producer/source-guard owner OIDs. In
+`admit_whiteboard_source_writer`, actual direct `session_user` OID/name must match
+the descriptor. The SQL capability independently obtains the safe LOGIN OID/name
+from actual `session_user`; its only arguments are original expected generation
+and artifact. Scope/owner remain fixed. SET ROLE, GUC values, detached users and
+room payloads do not provide identity, and current DB generation/artifact is never
+adopted. The existing producer primitive locks RuntimeOwnership followed by the
+immutable RuntimePrincipal FOR SHARE, re-evaluates after waits and holds locks
+through the caller's real COMMIT/rollback.
+
+Admission owns no Session, factory, save, COMMIT, rollback or close. It requires
+READ COMMITTED/non-autocommit, sets only a transaction-local canonical namespace,
+and preserves the caller's decreasing SQL budget and cleanup ownership. Private
+failure does not expose SQL or credentials. Catalog checks are admission-time
+checks; they do not freeze independent superuser DDL/grants. A successful service
+fence is neither current actor/resource ACL authority nor a persistence ACK.
+
+The current paired room reader's combined 8MiB JSON/Yjs limit is unchanged.
+This body-free capability implements no new Source-write payload limit or worker.
+Future factory wiring must first accept current Writer ACL closure and the
+separate current Core actor authority-through-COMMIT contract, detached write
+bounds, and reuse the existing per-hub cap4/flush-lock/private joined SQL worker,
+ACK/unknown/no-replay lifecycle below. Same-incarnation content revision/convergence,
+durable unknown/ACK restart history and Docs media/materialization remain later
+work. Hub, registry, trusted business factory and inactive HTTP/WS gates are
+unchanged. `tests/test_whiteboard_source_writer.py` owns isolated restricted-LOGIN
+SQL proof; its synthetic CAS authority does not prove a real user's resource ACL.
+
 ## Trusted Whiteboard runtime persistence safety
 
 Both native initialization and the prepared paired reader preserve the already
