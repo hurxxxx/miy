@@ -10,8 +10,8 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
 
 ## 현재 위치
 
-- **전달:** dev는 `499aff33`, main/prod는 `9e9280df`다. Docs Source room도 필수240/408 성공 뒤 PR86/MR93로 양쪽 병합하고 소유 브랜치를 정리했다. 최신 full241/409는 저장 공간 선행조건에서 실패해 제품 테스트0이며 새 운영 배포는 없다. [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 전달 기록을 소유한다.
-- **공식 앱 경계:** Source 인증·ACL·기존 room 초기 읽기를 전달했다. Whiteboard 저장 안전성은 필수 리뷰가 발견한 hub 전체 worker 상한과 최종 대기 중 내용 손실을 수정했고, 현재 신규54개·기존 영향480개와 생성 계약이 통과했다. PR87/MR94의 새 최종 인수·필수 리뷰·병합은 진행 중이다. 최소 Source writer/profile·현재 사용자 COMMIT fence·Source 연결·cross-hub content CAS·영속 unknown 복구와 공식 cutover는 남아 있다.
+- **전달:** dev는 `aafbccb2`, main/prod는 `9e9280df`다. Whiteboard 저장 안전성은 필수244/412 성공 뒤 PR87/MR94로 양쪽 병합하고 소유 브랜치를 정리했다. 최신 full245/413은 저장 공간 선행조건에서 실패해 제품 테스트0이며 새 운영 배포는 없다. [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 전달 기록을 소유한다.
+- **공식 앱 경계:** Source 인증·ACL·기존 room 초기 읽기와 Whiteboard 저장 안전성을 전달했다. 비활성 최소 Source service writer/profile은 신규79·영향209 로컬 검증을 마쳤고 최종 리뷰·전달을 진행한다. Core 사용자 COMMIT fence·Source 연결·cross-hub content CAS·영속 unknown 복구와 공식 서비스 cutover는 남아 있다.
 - **Workbench:** 실제 원 Task의 계획→승인된 격리 수정→같은 thread 후속 요청과 최소 native 실행 정의를 인수했다. 영구 immutable cache·설치된 자원/mount/native 정책·보호 설정·별도 Workbench 서비스 및 개인 앱 자연어 전체 흐름은 남아 있다.
 - **운영과 범위:** 기존 운영 API·worker·Beat와 schema는 마지막 읽기 전용 검사에서 정상이었다. 최소15GiB 및15%의 지속 여유와 최신 full 성공 뒤 MR81·fresh backup·guarded 배포를 이어간다. 앱별 비필수 기능과 다중 사용자는 보류한다.
 
@@ -174,3 +174,19 @@ Source705a13dc의 PR87/MR94 필수243/job411은 FAILED/78.614494초였다. P1은
 최종 신규54개는 pure16 PASS/7.10s와 native38 PASS/131.44s다. 기존 영향480개는 prepared/auth/composition466 PASS/372.13s·원 Whiteboard6 PASS/25.87s·원 Docs8 PASS/35.69s다. 이전48/51개·재실행 횟수는 더하지 않는다. API architecture/i18n·생성 계약을 통과했다. 최종 문서·Python 검사와 새13파일 독립 인수 및 새 source의 필수 리뷰는 별도 단계다.
 
 현재 dev499aff33·main/prod9e9280df, full241/409 storage 실패/tests0, 새 운영 및 별도 Workbench 배포0다. 다음은 비활성2표 최소 Source service writer/profile이며 Core 사용자 권한 COMMIT fence·Source factory 연결·cross-hub content CAS·영속 unknown 복구·공식 서비스 cutover는 남아 있다. Native SDK/toolchain 실제 pin 검증·설치 및 개인 앱 자연어 전체 흐름도 필수 잔여다. 앱별 비필수 기능·다중 사용자는 보류한다.
+
+## 2026-10-09 05:22 — 저장 안전성 전달과 최소 Source writer 착수
+
+Whiteboard 저장 안전성 최종 Source `ba9fee1e`/tree `fef48496`는 필수244/job412 SUCCESS/94.736405초 뒤 GitHub [PR87](https://github.com/hurxxxx/miy/pull/87)→`2c1cb019`와 내부 [MR94](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/94)→dev `aafbccb2`로 정상 병합했다. 양쪽 tree는 같고 소유 feature 브랜치의 양쪽 원격·로컬 정리를 완료했다. Dev는 persistent integration branch로 유지하며 main/prod는 `9e9280df`다.
+
+새 전체245/job413은30.366867초에 저장 공간 선행조건에서 실패했다. 제품 테스트0이며 필수 최소15GiB/15% 기준을 유지한다. 이 결과를 source 리뷰 성공으로 대체하지 않고 새 운영·별도 Workbench 배포0를 유지한다.
+
+다음 구현은 `aafbccb2` 기준 별도 worktree에서 비활성 Whiteboard Source service writer/profile이다. 실제 migration head `file_effect_20261007`, 기존 migration30개 및 보호85개를 다시 동결했다. 새 migration·service admission·role checker와 새 테스트·owner2, Root 추적6을 분담한다. 두 Source 표의 SELECT8열·UPDATE4열과 제한된 capability 하나부터 인수하며 공급된 LOGIN/NOLOGIN 역할·원래 principal identity·정확한 권한·기존 mapping replay·실제 session_user와 SQL 락을 검증한다. 현재는 구현 착수이며 새 테스트를 실행하거나 인수한 것으로 표시하지 않는다.
+
+Migration은 정상 legacy/hardened 환경에서 비활성 capability만 설치한다. 준비·admission에는 hardened guard가 필요하다. Session/factory/COMMIT/cleanup 수명은 caller가 소유하며 Core 사용자 ACL COMMIT fence·hub Source factory 연결·운영 역할/grant/config/service 전환은 이번 범위가 아니다. Current actor fence, cross-hub content CAS, 영속 unknown 복구와 공식 서비스 cutover는 여전히 필수 잔여다. 기존 skills/harness는 절차로 사용하지 않고 현재 코드·owner·중요 계약만 사용한다. 앱별 비필수 기능과 다중 사용자는 보류한다.
+
+## 2026-10-09 05:59 — 비활성 최소 Source writer 로컬 검증
+
+최종 새 pure10 PASS/0.62s·실제 PG18 native69 PASS/56.98s =79개다. 기존 role/Source ACL/room/저장204 PASS/203.03s·원 migration 함수5 PASS/6.35s =209개는 별도 영향 범위다. API architecture/i18n·생성 API/schema/OpenAPI/contract-source와 scoped Python5 검사는 통과했다. Owner2·Root tracking6의 최종 Markdown freeze와 독립/필수 원격 리뷰·게시/병합은 별도로 진행한다. Network-none·실제 env/credentials0·소유 컨테이너 정리를 확인했다.
+
+현재 dev `aafbccb2`·main/prod `9e9280df`, 최신 full245/413 저장 공간 선행조건 실패/제품 테스트0와 새 운영/별도 Workbench 배포0를 유지한다. 이 단계는 Source factory·저장 연결·사용자의 현재 Core/Source ACL COMMIT fence·cross-hub content CAS·영속 unknown 복구·Docs 저장·공식 서비스 cutover를 완료하지 않는다. 다음 actor fence는 현재 사용자 구현 승인 안에서 별도 범위와 보호표를 확정한다. Same-DB SQL 잠금을 실제 separate DB 보장으로 표시하지 않으며, queued Yjs의 credential attribution/expiry와 모든 owner/direct/group/PMS/meeting edit closure가 활성화 전 필수다. Native SDK/toolchain 실제 pin 검증/설치·개인 앱 전체 자연어 흐름도 남아 있다. 앱별 비필수 기능·다중 사용자는 보류한다.

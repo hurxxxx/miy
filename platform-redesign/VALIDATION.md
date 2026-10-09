@@ -1986,3 +1986,29 @@ Pristine705a13dc 별도 worktree에 동일 테스트를 복사해 실제 Postgre
 원 Docs default7PASS/1FAIL27.03초 및 이전19,462초 hang의 원인은 미확인으로 보존한다. 이번 PASS로 원인 해결이나 Whiteboard와의 인과관계를 주장하지 않는다. Native fixture·qualified default adapter와 driver-boundary fault injection은 canonical Redis/vector/full CI 또는 물리적 network failure 인수가 아니다. Network-none·실제 env/credentials0·owned cleanup PASS. Evidence: `.runtime/structural-next-delivery/whiteboard-persistence-required-review243-job411.json`, `post-whiteboard-final-disposal-red-persistence_final_disposal_red-result.json`, `whiteboard-persistence-final-disposal-red-and-test-proof.json`, `whiteboard-persistence-before-final-disposal-fix-*-result.json`, `post-whiteboard-persistence-*-result.json`.
 
 현재 dev499aff33·main/prod9e9280df, full241/409 storage 실패/tests0, 새 운영 및 별도 Workbench 배포0다. 다음은 비활성2표 최소 Source service writer/profile이며 Core 사용자 권한 COMMIT fence·Source factory 연결·cross-hub content CAS·영속 unknown 복구·공식 서비스 cutover는 남아 있다. Native SDK/toolchain 실제 pin 검증·설치 및 개인 앱 자연어 전체 흐름도 필수 잔여다. 앱별 비필수 기능·다중 사용자는 보류한다.
+
+## 2026-10-09 05:22 — 저장 안전성 전달과 최소 Source writer 착수
+
+Whiteboard 저장 안전성 최종 Source `ba9fee1e`/tree `fef48496`는 필수244/job412 SUCCESS/94.736405초 뒤 GitHub [PR87](https://github.com/hurxxxx/miy/pull/87)→`2c1cb019`와 내부 [MR94](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/94)→dev `aafbccb2`로 정상 병합했다. 양쪽 tree는 같고 소유 feature 브랜치의 양쪽 원격·로컬 정리를 완료했다. Dev는 persistent integration branch로 유지하며 main/prod는 `9e9280df`다.
+
+새 전체245/job413은30.366867초에 저장 공간 선행조건에서 실패했다. 제품 테스트0이며 필수 최소15GiB/15% 기준을 유지한다. 이 결과를 source 리뷰 성공으로 대체하지 않고 새 운영·별도 Workbench 배포0를 유지한다.
+
+다음 구현은 `aafbccb2` 기준 별도 worktree에서 비활성 Whiteboard Source service writer/profile이다. 실제 migration head `file_effect_20261007`, 기존 migration30개 및 보호85개를 다시 동결했다. 새 migration·service admission·role checker와 새 테스트·owner2, Root 추적6을 분담한다. 두 Source 표의 SELECT8열·UPDATE4열과 제한된 capability 하나부터 인수하며 공급된 LOGIN/NOLOGIN 역할·원래 principal identity·정확한 권한·기존 mapping replay·실제 session_user와 SQL 락을 검증한다. 현재는 구현 착수이며 새 테스트를 실행하거나 인수한 것으로 표시하지 않는다.
+
+Migration은 정상 legacy/hardened 환경에서 비활성 capability만 설치한다. 준비·admission에는 hardened guard가 필요하다. Session/factory/COMMIT/cleanup 수명은 caller가 소유하며 Core 사용자 ACL COMMIT fence·hub Source factory 연결·운영 역할/grant/config/service 전환은 이번 범위가 아니다. Current actor fence, cross-hub content CAS, 영속 unknown 복구와 공식 서비스 cutover는 여전히 필수 잔여다. 기존 skills/harness는 절차로 사용하지 않고 현재 코드·owner·중요 계약만 사용한다. 앱별 비필수 기능과 다중 사용자는 보류한다.
+
+이전 신규54개·영향480개는 전달된 Whiteboard 저장 안전성의 근거이며 이번 Source profile 검사 수에 더하지 않는다. 필수242/410·243/411 실패, native36/1·36/2와 Docs default 실패/hang 및 원인 미확인 qualification을 그대로 보존한다. 최종 manifest15b1cb12와 independent reviewa438fb21의 정확 Source13 인수는 remote review와 별도이며 operational activation은 증명하지 않는다.
+
+## 2026-10-09 05:59 — 비활성 최소 Source writer 로컬 검증
+
+최종 새 pure10 PASS/0.62s·실제 PG18 native69 PASS/56.98s =79개다. 기존 role/Source ACL/room/저장204 PASS/203.03s·원 migration 함수5 PASS/6.35s =209개는 별도 영향 범위다. API architecture/i18n·생성 API/schema/OpenAPI/contract-source와 scoped Python5 검사는 통과했다. Owner2·Root tracking6의 최종 Markdown freeze와 독립/필수 원격 리뷰·게시/병합은 별도로 진행한다. Network-none·실제 env/credentials0·소유 컨테이너 정리를 확인했다.
+
+독립 draft 검토의 PRIV-01은 이전 checker가 빠뜨린 Source guard owner의 MAINTAIN을 신규 local 검사로 보완하고 plain/grant-option 두 실제 거절로 검증했다. 첫 native64 실행은4 PASS/13 FAIL/47 setup ERROR/56.49초였다. 동일 source/test 단독 install1 FAIL/5.86초가 신규 `_schema_ceiling`의42809/not_sequence를 확인했다. WHERE 조건 평가 순서에 의존하던 sequence 전용 함수를 CASE로 보호했다. 전체 reverse-patch bytes와 해당 함수 외 AST·기존74 assertions가 동일하다. 원 실패/진단은 보존하며 이후 성공에 합산하지 않는다.
+
+새 migration의 정상 legacy downgrade→re-upgrade는 실제 board/collab bytes·기존 source trigger/ownership을 보존한다. Hardened active rollback은 상태/버전/함수/데이터 변경 없이 거절하고, 실제 Core drain 뒤 capability만 제거한다. 변조된 body/overload rollback도 거절하며 기존 role·principal·column ACL·guard·데이터를 보존한다. 신규 revision `wb_source_writer_20261009`는25자로 기존 head `file_effect_20261007` 뒤 하나만 추가했다. 이전30 migration·보호85개는 byte exact이고 원 inventory test는 정확한 새 head 한 항목만 갱신했다.
+
+최종 테스트에는 정상 rollback5개만 추가했다. 원래74 모든 function/helper AST가 같고 제품3·owner2·원 inventory test는 동일하다. 기존204/5 검사들은 신규 test module을 import하지 않아 해당 결과의 역사적 test SHA3fbd5053을 유지한다. 최종 신규79와 scoped Python은 최종 SHA543075d4에 묶는다. 불필요한 영향209 재실행이나 원 실패 면제를 하지 않았다. 이것은 canonical Redis/vector/full release CI나 실제 운영 역할 적용의 증거가 아니다.
+
+Evidence: `.runtime/structural-next-delivery/post-whiteboard-source-writer-*-result.json`, `whiteboard-source-writer-first-native-failure.json`, `whiteboard-source-writer-first-native-failure-diagnosis.json`, `whiteboard-source-writer-sequence-kind-fix-proof.json`, `whiteboard-source-writer-impact-binding-proof.json`, `whiteboard-source-writer-migration-inventory-test-proof.json`. 이전 WB/Docs 실패와 hang의 원인 미확인 기록을 이 새 성공으로 바꾸지 않는다.
+
+현재 dev `aafbccb2`·main/prod `9e9280df`, 최신 full245/413 저장 공간 선행조건 실패/제품 테스트0와 새 운영/별도 Workbench 배포0를 유지한다. 이 단계는 Source factory·저장 연결·사용자의 현재 Core/Source ACL COMMIT fence·cross-hub content CAS·영속 unknown 복구·Docs 저장·공식 서비스 cutover를 완료하지 않는다. 다음 actor fence는 현재 사용자 구현 승인 안에서 별도 범위와 보호표를 확정한다. Same-DB SQL 잠금을 실제 separate DB 보장으로 표시하지 않으며, queued Yjs의 credential attribution/expiry와 모든 owner/direct/group/PMS/meeting edit closure가 활성화 전 필수다. Native SDK/toolchain 실제 pin 검증/설치·개인 앱 전체 자연어 흐름도 남아 있다. 앱별 비필수 기능·다중 사용자는 보류한다.

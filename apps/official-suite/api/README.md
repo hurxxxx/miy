@@ -114,6 +114,21 @@ writes, HTTP creation/snapshots, hub persistence/relay writer reads and media/RA
 retain their native lifecycle. This inactive read seam does not install roles,
 activate a split service or complete Source-only persistence.
 
+An additive inactive Whiteboard Source service-admission profile now owns only
+column SELECT on two tables (8 columns), column UPDATE on 4 columns and one private
+authority capability. Core preparation accepts fresh supplied roles or exact
+complete mutation-free replay; broad, partial, revoked and altered bindings refuse.
+The frozen original writer and catalog owner identities are compared with actual
+direct `session_user`; the fixed SQL capability keeps service ownership/principal
+SHARE locks through the caller's COMMIT or rollback. It creates no credentials or
+roles, owns no transaction/worker lifecycle, and selects no Source factory. The
+[service writer owner](../../api/src/miy_api/domains/official_apps/AUTHORITY_READER.md#inactive-whiteboard-source-service-writer-admission)
+records migration-versus-hardened-admission rules, effective privilege limits and
+private refusal. User/resource ACL, current Core authority through COMMIT, detached
+write bounds and Source factory activation remain separate required steps. This
+service-only fence supplies no user authorization or saved ACK; current runtime
+persistence and inactive service gates retain their contracts.
+
 | Artifact                  | Current state                                                                                        |
 | ------------------------- | ---------------------------------------------------------------------------------------------------- |
 | Official UI               | Separate entry/build output; legacy UI/public-module bridge                                          |
