@@ -1930,3 +1930,59 @@ Source writer/CAS·COMMIT unknown·저장/media/RAG·정확 operational grants/c
 첫 formatter의 테스트 unused import F401은 테스트 실행 전에 발견했고 F401만 자동 제거한 뒤 전체 Source format/lint를 통과했다. 제품 동작·assertion이나 권한 완화는 없었다. 정확 원본·진단은 `.runtime/structural-next-delivery/{post-docs-room-native-before-null-wire-diagnosis,post-docs-room-null-wire-first-diagnosis,post-docs-room-before-after-native-null-wire-diagnosis}.json`, 기존 테스트 bytes는 `docs-room-test-before-native-wire-assertion-fix.py`, 교정은 소유 worktree의 `.runtime/prepared-docs-source-room/native-wire-assertion-fix.{json,patch}`에 보존한다. 결과는 `post-docs-room-*-result.json`이다.
 
 기존 native hub shutdown이 쓰는 기본 Core persistence는 보존하며, 새 Source callback의 읽기·SQL 무쓰기 증거와 분리한다. 기존 default8의 최초 장시간 지연 원인 미확인 기록도 유지한다. Source writer/CAS·초기화·media/RAG/영속화와 정확 operational grants·service cutover, native SDK/영구설치·보호 정책·별도 Workbench/운영 배포는 필수 잔여다.
+
+## 2026-10-09 02:50 — Docs room 최종 인수와 후속 검증 범위
+
+최종 Source6·추적6의 독립 수락 accepted=true/blockers0, manifest SHA256 `fa5ed21d4c4b197be2d6294b790731546724d10f2fb4b5d7b781feea9afcc405`와 보호40개를 확인했다. 신규 pure72 PASS/4.71초·native32 PASS/56.12초 =104개, 기존 영향362 PASS/241.23초와 원본 Docs default8 PASS/26.62초 =370개다. API architecture/i18n·생성 계약·Source Python·8개 owner/진행 Markdown 검사도 통과했다. 앞서 기록한 native NULL wire 진단·불변 assertions/시점 교정과 첫 default hang 원인 미확인 한계는 유지한다. 필수240/408 리뷰와 정상 양쪽 병합은 전달 검증이며 전체 릴리스241/409의 storage 실패/tests0를 제품 PASS로 해석하지 않는다.
+
+후속 Whiteboard 저장 안전성은 별도 owned worktree에서 actual native red부터 검증한다. Source7(+필수 captured-ID test1 조건부)와 추적6을 분리하고 DocRoom4·기존 core/역할/모델/마이그레이션/기존 hub test를 보호46개로 동결했다. 기존 skills/harness는 절차로 적용하지 않는다. 본 문서 갱신 시 후속 제품 구현·green 검증은 아직 완료되지 않았다.
+
+## 2026-10-09 02:57 — Whiteboard 저장의 actual red4
+
+원 Source499aff33과 신규 test SHA `429d24df513e2de2de8a5c339ec13cfebe1d7a4256ccf6546e557552d09fd9d2`에서 네 `red_contract` 함수가 모두 call AssertionError로 실패했다(4 FAIL/2 DESELECTED/15.44초, collection/setup error0). 실제 migrated PostgreSQL·native Yjs에서 오래된 room rotation overwrite, same-key 새 collab 행 ABA overwrite, 반복 host 취소 중 lock/SQL worker 분리, 기존 native WS finalizer의 교체 runtime 정리를 확인했다. 새 API 누락이나 persistence/encoder stub으로 실패시킨 결과가 아니다. Network-none·real env/credential0·owned container cleanup PASS다. 현재 원본과 네 함수 AST를 보존하고 수정 후 같은 기대값으로 재검증한다.
+
+Root ignored `whiteboard-persistence-original-red.json`·`whiteboard-persistence-original-red-test.py`·`whiteboard-persistence-red-ast.json`이 원본을 소유한다. Product4/owner2와 새 test1은 에이전트별 단독 소유로 분리하고 Root가 관련 검사·통합을 담당한다. 후속 green·운영 전환은 아직 완료하지 않았다.
+
+## 2026-10-09 03:17 — 원 red4의 첫 green
+
+불변 원본 SHA429d24df를 별도 ignored module에 그대로 복사해 같은 네 함수를 재실행했다. 실제4 PASS/16.13초·network-none·owned cleanup PASS다. 제품4 Ruff format/check와 owner2 format도 통과했다. 이 첫 green은 신규 최종 고유 수에 별도로 더하지 않는다. 추가 independent finding의 same-incarnation pending/unknown 재입장 경계 수정과 확대 native 검사·기존 영향 검증은 진행 중이며 전체 저장 인수·Source writer/Core COMMIT fence·운영 반영은 아직 완료하지 않았다.
+
+## 2026-10-09 03:53 — Whiteboard 저장 안전성 로컬 검증
+
+신규 pure16 PASS/5.15s·실제 PostgreSQL/Yjs32 PASS/60.64s =48개다. 기존 prepared/auth/composition466 PASS/329.54s·원 Whiteboard 구조6 PASS/16.96s·원 Docs default8 PASS/26.33s =고유 영향480개다. 원 red4의 첫 green과 이전 반복 검사는 더하지 않는다. API architecture/i18n·생성 계약은 통과했다. 최종 문서/범위 freeze와 독립 수락·필수 원격 리뷰/병합은 이후 별도로 기록한다.
+
+기존 room이 입장 때 캡처한 board ID·collab 행 ID·room key만 조건부 UPDATE한다. Board SHARE와 정확한 행 조건을 COMMIT까지 유지하고, 취소된 호출도 SQL worker/cleanup 종료까지 flush lock을 보유한다. ACK는 후속 정리 실패로 unknown으로 바꾸지 않으며 unknown은 원 identity/bytes를 보존하고 자동 재저장하지 않는다. 이전 WS finalizer·observer·대기 publish가 교체 runtime을 정리하거나 변경할 수 없고, pending/unknown 동일 identity 재입장은 거절한다.
+
+원 RED4는 4 FAIL/15.44초의 실제 AssertionError이며 collection/setup0이다. 후속 pure14 PASS/1 FAIL/5.20초와 exact native-frame3 PASS/1 FAIL/3.92초·진단3 PASS/1 FAIL/3.82초를 성공으로 덮어쓰지 않았다. 실제 encoder read의 native observer가 canonical empty2bytes로 replacement flush를 예약했음을 확인했다. 진단 wrapper는 원 handler를 그대로 호출한 관측 도구였으며 최종 검사는 이 wrapper를 로드하지 않는다. Product는 pinned ypy-websocket과 같은 정확한 b00 empty delta만 무시하며 state-vector 필터를 쓰지 않는다. 원 assertions는 그대로다. 새 실제 정상 debounce→SQL COMMIT ACK→read 무재예약과 delete-only delta positive를 함께 통과했다.
+
+COMMIT unknown 검사는 실제 driver COMMIT 전/후의 통제 fault injection을 포함하며 물리 네트워크 단절로 확대하지 않는다. Default14개는 원 함수/기대값을 fresh migrated PG와 기존 qualified adapter로 실행했고 canonical Redis/vector/full CI로 확대하지 않는다. 이번 Docs default 첫 실행은 원 test_active_docs_ws_frame_closes_and_retires_room_on_drain에서7 PASS/1 FAIL/27.03초였다. 고정 클래스/위치가 미관측이라 원인은 미확인이다. 동일 코드·원 assertions의 bounded 단독 진단은1 PASS/9.60초이며, 최종8개에는 fixed exception class/public code line 관측만 추가했다. 첫 실패는 whiteboard-persistence-docs-default-original-failure.json에 보존하고 재현되지 않았다는 이유로 원인 해결을 주장하지 않는다. 이전 Docs default 장시간 hang 원인도 여전히 미확인이다. Network-none·실제 env/credential0·owned cleanup을 확인했으며 raw SQL/parameters/로그를 저장·출력하지 않았다. 최종 test SHA `7e9e6091c6ea083c70160cb4cdd1ba5f51e607a0b286663fd980357170611801`다.
+
+증거는 ignored `.runtime/structural-next-delivery/post-whiteboard-persistence-*-result.json`과 `whiteboard-persistence-{original-red,pure-before-frame-diagnosis,original-native-frame-diagnosis,empty-observation-proof,final-new48}.json`에 보존한다. 이번 범위는 기존 trusted Core factory의 저장 안전성이다. 최소 Source writer 권한·현재 Core 사용자 권한의 COMMIT fence·동일 room의 다중 hub 내용 CAS/convergence·영속 unknown 복구·Docs media/RAG 저장·공식 서비스 전환은 필수 잔여다. 기존 readOnly Source/session/auth·모델·role·migration·원 tests를 포함한 보호 입력46개는 동일하다. 운영·별도 Workbench 배포는 없으며 full241/409 storage 실패/tests0를 유지한다. 비필수 앱 기능과 다중 사용자 작업은 별도 요청까지 보류한다.
+
+## 2026-10-09 04:24 — 필수 리뷰의 공유 저장 상한 수정
+
+Source6da7c943의 PR87/MR94 필수 pipeline242/job410은 FAILED/115.932917초였다. P2는 flush마다 새 limiter1을 생성해 room 간 전체 SQL worker 상한이 없다는 회귀다. 이 실패를 성공이나 면제로 바꾸지 않고 실제 거절 기록과 기존48·480 성공 receipt를 별도로 보존했다.
+
+수정 전 pristine6da7c943 별도 owned worktree에 동일 신규 테스트를 복사했다. 실제5번째 room의 Session/SQL 진입으로 첫 count assertion1726이 실패했다(1 FAIL/13.17초, setup/collection0, owned cleanup PASS). Missing constant/field/API를 RED로 세지 않았다. 실제5 rooms·4개 독립 PostgreSQL 행 잠금·COMMIT ACK 뒤 close-gate와 나머지3 SQL hold, fifth wait/cancel/replace를 검증했다. Cleanup join 전 fifth Session0과 이후 정상 ACK·slot 재사용·peak4·모든 Session close를 확인한다. 기존39개 defined function AST(원29test 포함)·RED4·보호46개와 기존 roomtest bytes는 동일하다.
+
+Hub별 고정4개의 shared permit을 private shielded child 시작 전에 얻고 SQL worker·Session cleanup·결과 전달·TaskGroup join까지 보유한다. Permit 대기 취소는 Session0이며 child 시작 뒤 취소는 기존 owned join을 따른다. Permit을 얻은 뒤 terminal/disposing/current runtime/captured identity/YDoc/unknown을 재검사한다. Child 내부 limiter1은 shared token을 재획득하지 않으며 기존 adapter를 유지한다. Process 전체 상한이나 새 설정·운영 적용을 주장하지 않는다.
+
+최종 신규 pure16 PASS/5.47s·native35 PASS/90.18s =51개, 기존 prepared/auth/composition466 PASS/311.04s·원 WB6 PASS/15.61s·원 Docs8 PASS/25.19s =480개다. 기존48개 및 첫 통과·재검사 횟수는 더하지 않는다. API architecture/i18n·생성 계약 통과이며 최종 문서 freeze·새 독립 인수·새 필수 리뷰는 별도로 진행한다.
+
+원 Docs default7PASS/1FAIL27.03초·단독1PASS9.60초·동일전체8PASS26.33초와 이전19,462초 hang은 원인 미확인으로 보존한다. 새로운 상한 검증의 통과가 그 원인 해결이나 WB와의 인과관계 증명은 아니다. Fresh migrated PG/qualified default adapter·native loop와 driver-boundary fault injection의 한계를 유지하며 canonical Redis/vector/full remote CI 완료로 확대하지 않는다. Network-none·실제 env/credentials0·owned cleanup을 확인했다. Evidence: `.runtime/structural-next-delivery/whiteboard-persistence-required-review242-job410.json`, `post-whiteboard-capacity-red-persistence_capacity_red-result.json`, `whiteboard-persistence-capacity-red-and-test-proof.json`, `whiteboard-persistence-before-shared-worker-fix-*-result.json`, `post-whiteboard-persistence-*-result.json`.
+
+최소 Source writer/profile·현재 Core 사용자 COMMIT fence·같은 room의 cross-hub content CAS/convergence·영속 unknown/Docs 저장·operational 역할과 서비스 전환은 필수 잔여다. Next service-admission profile은 이번 단계에서 사용하지 않는19표98열 ACL 호환 grant를 미리 주지 않고 board/collab의 고정 최소열과 EXEC부터 독립 인수하도록 계획을 좁힌다. 현재 ACL reader는 보호하며 실제 ACL writer 연결은 후속이다. main/prod9e9280df·full241/409 storage 실패/tests0·새 운영/Workbench 배포0를 유지한다. 앱별 상세 기능과 다중 사용자는 보류한다.
+
+## 2026-10-09 05:08 — 최종 저장 대기 중 상태 보존
+
+Source705a13dc의 PR87/MR94 필수243/job411은 FAILED/78.614494초였다. P1은 공유 저장 슬롯4개가 포화됐을 때 최종 flush 전체에 적용한 cleanup timeout이 admission 대기를 취소하고 미저장 YDoc을 해제하는 문제다. 이전242/410의 상한 거절과 각각의 실제 실패·이전 로컬 성공을 보존하며 필수 리뷰 실패를 면제하거나 성공으로 바꾸지 않는다.
+
+Pristine705a13dc 별도 worktree에 동일 테스트를 복사해 실제 PostgreSQL/Yjs로1 FAIL/19.09초를 재현했다. Call assertion1935에서 아직 저장되지 않은 native YDoc 해제를 확인했으며 setup/collection/missing API 오류0·owned cleanup PASS다. 새 cleanup/shutdown2개는 실제4개 COMMIT 뒤 Session close gate로 슬롯을 보유하고 이전1초 timeout보다 오래 기다린 fifth의 bytes/identity 보존, shutdown 부모2회 취소 후 join, 실제 fifth ACK와 전체 native/Session 정리를 검증한다. 신규 cleanup 취소 검사도 실제 COMMIT 뒤 Session.close를 hold하고 부모 반복 취소가 native/Session 해제보다 먼저 반환하지 않는지 확인한다. 기존48case의29test와 helpers·보호46개·원래 roomtest bytes 및 새 final-disposal/cleanup3case AST는 유지했다. Capacity fixture1개는 실제 collab ID의 SQL PID로 잠금 대상을 대응하도록 관측을 고쳤고 모든 동시성·상한·취소·교체 assertion은 유지했다. Cleanup 반복 취소는 별도 pristine705에서1FAIL10.07초의 조기 반환을 재현했고 owned cleanup도 통과했다.
+
+최종 disposal의 전체 lifecycle을 private shielded child가 소유하고 부모는 SQL·Session cleanup·native 해제·retiring 정리까지 join한다. 기존 flush_lock 아래 prior worker를 먼저 join하고 pending bytes를 admission 전에 보존한다. 최종 flush 전체의 outer cleanup timeout을 제거했으며 SQL deadline은 worker Session이 시작한 뒤, 개별 비SQL cleanup timeout은 각 단계에 적용한다. 일반 permit 대기 취소의 Session0·hub 상한4·기존 captured identity·postwait 검사·ACK/unknown 처리는 그대로다. 첫 수정의 native36 PASS/1FAIL97.94초와 동일 shutdown 진단1FAIL36.94초도 보존한다. 이 실패는 최상위 shutdown gather가 먼저 끝난 다른 취소를 전달해 final ACK보다 caller를 앞서 반환하는 경계였다. shutdown 전체와 마지막 cleanup task 대기도 private shielded owner와 parent join으로 보완했다. 이후 native36 PASS/2FAIL124.57초의 capacity 잠금 관측 실패도 보존한다. 스레드 open 순서를 room 순서로 가정한 fixture를 실제 captured collab ID의 SQL PID로 대응시켰으며 동시성·실제 잠금·상한·취소·교체 기대값을 유지했다. 최초 두 실패의 정확한 인과관계는 입증하지 않았고 unchanged 진단3PASS23.67초도 해결 증명으로 세지 않는다. Hard shutdown이나 network/driver의 강제 종료 보장은 하지 않는다.
+
+최종 신규54개는 pure16 PASS/7.10s와 native38 PASS/131.44s다. 기존 영향480개는 prepared/auth/composition466 PASS/372.13s·원 Whiteboard6 PASS/25.87s·원 Docs8 PASS/35.69s다. 이전48/51개·재실행 횟수는 더하지 않는다. API architecture/i18n·생성 계약을 통과했다. 최종 문서·Python 검사와 새13파일 독립 인수 및 새 source의 필수 리뷰는 별도 단계다.
+
+원 Docs default7PASS/1FAIL27.03초 및 이전19,462초 hang의 원인은 미확인으로 보존한다. 이번 PASS로 원인 해결이나 Whiteboard와의 인과관계를 주장하지 않는다. Native fixture·qualified default adapter와 driver-boundary fault injection은 canonical Redis/vector/full CI 또는 물리적 network failure 인수가 아니다. Network-none·실제 env/credentials0·owned cleanup PASS. Evidence: `.runtime/structural-next-delivery/whiteboard-persistence-required-review243-job411.json`, `post-whiteboard-final-disposal-red-persistence_final_disposal_red-result.json`, `whiteboard-persistence-final-disposal-red-and-test-proof.json`, `whiteboard-persistence-before-final-disposal-fix-*-result.json`, `post-whiteboard-persistence-*-result.json`.
+
+현재 dev499aff33·main/prod9e9280df, full241/409 storage 실패/tests0, 새 운영 및 별도 Workbench 배포0다. 다음은 비활성2표 최소 Source service writer/profile이며 Core 사용자 권한 COMMIT fence·Source factory 연결·cross-hub content CAS·영속 unknown 복구·공식 서비스 cutover는 남아 있다. Native SDK/toolchain 실제 pin 검증·설치 및 개인 앱 자연어 전체 흐름도 필수 잔여다. 앱별 비필수 기능·다중 사용자는 보류한다.

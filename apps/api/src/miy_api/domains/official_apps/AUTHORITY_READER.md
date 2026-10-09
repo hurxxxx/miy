@@ -117,9 +117,10 @@ After Source read cleanup, the route calls the same prepared auth dependency
 again and requires the original actor and source-session identity before continuing.
 Current source-session or app denial across a Source wait therefore refuses the
 frame. This is a current admission check, not an atomic freeze of ACL until a
-later write. Original room initialization, scene/Yjs state, hub persistence and
-their global business Source factory are unchanged. Those lifecycle operations,
-the full Source privilege profile and operational activation remain cutover work.
+later write. Original room initialization, scene/Yjs state and global business
+factory selection continue; trusted Whiteboard persistence safety is recorded
+below. Source-only lifecycle ownership, the full Source privilege profile and
+operational activation remain cutover work.
 `tests/test_prepared_whiteboard_source_access.py` owns the bounded ACL-role,
 namespace, ownership, wait/revocation and cancellation checks. Its room/bus and
 initialization factory remain isolated synthetic business fixtures.
@@ -159,9 +160,125 @@ and nine existing Source target/share table reads retain the ACL owner's limits.
 This is not exact operational Source-profile attestation; the private catalog-role
 check has the same documented limitation. Synthetic room/bus fixtures establish
 route ordering and callbacks, not deployed codec, relay or persistence operation.
-Default initialization, scene/Yjs code and the native hub's global persistence
-factory remain unchanged. Source writer/CAS, COMMIT-unknown, complete roles and
-operational activation require separate contracts and validation.
+Default initialization, scene/Yjs behavior and the native hub's global persistence
+factory remain selected. The trusted runtime safety contract below adds captured
+incarnation checks and joined persistence without turning this reader into a writer.
+Separate Source authority, complete roles and operational activation remain pending.
+
+## Trusted Whiteboard runtime persistence safety
+
+Both native initialization and the prepared paired reader preserve the already
+loaded collab row ID in `WhiteboardCollabContext.collab_document_id`. This is an
+opaque nonempty bounded String(36), including existing non-UUID IDs. The hub keeps
+the original board ID, collab row ID and room key as a frozen persistence identity;
+it does not discover or adopt a new row at flush time. Same-key incoming incarnation
+changes retire the old native runtime instead of returning its YDoc. Local YDoc,
+message, relay and queued publish callbacks check the exact current runtime, so a
+late old callback cannot schedule or publish through its replacement's key.
+Only the exact native empty transaction delta `b"\x00\x00"` is ignored before
+hashing, scheduling or publishing; delete-only and other real updates are retained.
+The relay wire format is unchanged; already accepted external publications and
+cross-process same-key incarnation isolation are separate work.
+
+The runtime always calls `scene_state.persist_runtime_yjs_state` with paired
+`expected_collab_id` and `expected_room_key`. It requires a fresh factory-owned
+Session on one PostgreSQL Engine, READ COMMITTED and non-autocommit. The local
+guard accepts the existing Session subclass instrumentation; it does not apply the
+prepared read-only role profile or install a new writer grant. Rejected borrowed,
+cached or pending caller work receives no rollback/close ownership. An owned
+transaction sets `pg_catalog, public, pg_temp` locally and locks the live board
+before an exact conditional collab UPDATE/RETURNING on board ID, captured row ID
+and key. Zero rows refuse. Runtime persistence never initializes, inserts, repairs,
+rotates a key or replaces a snapshot. Equal Yjs preserves the existing timestamp;
+native REST initialization/snapshot commands keep their existing contracts.
+
+The helper's deliberately trusted neither-expected-argument call form retains its
+original current-room lookup/initialization and `None` return. Supplying only one
+expected value is invalid. ID-less direct in-memory hub construction still permits
+slot tests, but its flush refuses before factory allocation; missing capture never
+selects that trusted compatibility branch. This is an internal distinction, not a
+new public app API or a Source writer activation switch.
+
+Each hub shares a fixed four-permit persistence limiter across all its rooms.
+The parent holds the room flush lock and acquires that shared permit before
+starting the private shielded AnyIO child. Ordinary flush shared-permit waits
+remain cancellable and allocate no Session. After the wait, terminal/disposing state, the original
+captured identity, native YDoc, uncertain incarnation and current hub runtime are
+checked again; the private disposing final flush keeps its existing allowance.
+The native encode/validation before child startup has no await. Ordinary flush
+cancellation while waiting for the shared permit allocates no Session; once the
+private child starts, parent cancellation joins it through owned cleanup and
+outcome transfer.
+The shared permit stays held through the actual SQL worker, complete owned cleanup,
+child outcome transfer and task-group join. Its internal one-worker thread limiter
+is the accepted owned-worker adapter, not another room admission budget; the outer
+shared four-permit limiter bounds active persistence workers across this hub.
+This bound is per hub, not process-wide, and adds no operational setting.
+Raw or repeated host cancellation joins the child before releasing the shared
+permit and room flush lock; a canceled lock waiter also allocates no Session.
+Only detached bytes cross to SQL. A decreasing
+per-Connection PostgreSQL statement/lock budget covers application SQL and is
+refreshed immediately before COMMIT. Transaction-local settings reset with the
+transaction. Pool acquisition, driver connection/cleanup, network failure, process
+kill and event-loop shutdown are not given a hard-stop guarantee.
+
+The worker records `acknowledged` immediately when `Session.commit()` returns,
+before best-effort close/invalidation. The private child transfers that outcome
+to the owning runtime before forwarding parent cancellation. Cleanup failure never
+demotes a known ACK. A COMMIT exception defaults to `unknown`; only the shared
+narrow explicit PostgreSQL rejection classifier plus successful rollback establishes
+`rejected`. Failed rollback remains unknown. Missing/stale identity gives `refused`.
+Only fixed private control reasons leave this worker, not SQL errors or body bytes.
+
+Unknown/refused/rejected runtimes become terminal, retaining original identity and
+their detached payload internally while retiring only their own room. Debounce,
+cleanup, disposal and shutdown never replay that terminal attempt.
+An unknown attempt also leaves a local incarnation tombstone after native room
+disposal. A fresh observation of the same board/row/key cannot clear uncertainty or
+admit another runtime for it; the hub preserves the original attempt internally.
+Removing a runtime from the map first marks its captured incarnation as retiring.
+Same-incarnation admission refuses while its SQL worker and native disposal remain
+pending. The marker clears only after complete joined disposal; an unknown result
+continues to refuse through its separate tombstone. If a same-incarnation runtime
+was already present when uncertainty was registered, it is terminally closed rather
+than left as an open connection whose frames are silently skipped.
+A different admitted incarnation can be reconstructed without adopting old bytes.
+This in-memory control has no claim to process-restart history or automatic recovery.
+Normal automatic final cleanup also skips bytes already acknowledged; a deliberate new current-room
+flush still verifies its captured row in a fresh transaction and can acknowledge an
+equal-byte timestamp no-op. Later distinct native edits remain possible after ACK.
+The production finalizer supplies `expected_runtime`; an old connection cannot
+remove, persist or release a same-key replacement. Disposal joins its own tasks and
+releases native YRoom state on the owning event loop.
+
+Final disposal has a private shielded lifecycle owner joined by its parent.
+An accepted `cleanup_room` disposal wait also has a private shielded joined owner;
+its caller cannot return on cancellation while that disposal still runs. The whole
+shutdown lifecycle runs in another private shielded joined owner, including room
+detachment, all disposal waits and bus shutdown. Caller cancellation cannot cancel
+the disposal gather and return after only its first completed child. Errors remain
+propagated rather than being converted to successful cleanup.
+Under the room flush lock final disposal first joins earlier work, compares the current native bytes
+to the last ACK and retains any final pending bytes before admission. Final flush
+then awaits the shared permit directly, without the non-SQL cleanup timeout
+wrapping that wait. The SQL statement/lock budget starts in the admitted worker's
+Session, while client/relay/room cleanup steps keep their separate time limits.
+Repeated cleanup/shutdown parent cancellation joins final admission, worker
+cleanup, outcome transfer and native disposal before being forwarded. Native YDoc
+and its captured identity stay owned until that final work completes; only a known
+ACK clears retained bytes. Refusal/unknown preserves the detached buffer and its
+existing terminal controls without automatic replay. There is no hard overall
+shutdown/admission, driver, network, process-kill or event-loop guarantee.
+
+This first step uses the existing trusted global business factory and statement
+writer fence. It does not provision minimal Source privileges or a new principal,
+hold current Core user authority through Source COMMIT, prove same-incarnation
+cross-hub content convergence, or keep durable historical ACK/restart receipts.
+An independent later observation is current stored state, not historical ACK and
+not replay permission. Docs materialization/media/projection persistence and the
+published split-service inactive gates are unchanged. The new focused persistence
+tests own actual isolated PostgreSQL/native Yjs proof; structural validation and
+release/service activation remain separately reported gates.
 
 ## Explicit inactive Docs ACL and Core writer reads
 

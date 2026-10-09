@@ -488,3 +488,41 @@ Source writer/CAS·COMMIT unknown·저장/media/RAG·정확 operational grants/c
 ## 2026-10-09 02:38 — Docs 기존 room Source 읽기 로컬 인수
 
 명시적 비활성 Source18 기존room loader를 구현하고 신규104개·기존370개 및 생성 계약·Source Python 검사를 통과했다. 현재 Source app/edit ACL·Core writer와 auth/session/callback identities를 확인하고, legacy repair가 필요한 상태는 private503/1013으로 거절한다. 합산8MiB를 전송 전 CASE와 DTO에서 제한한다. nullable SQLNULL/JSONnull/YjsNone·빈bytes의 genuine native positive와 native shutdown 후 size검사 시점 교정을 VALIDATION에 남겼다. Source6·추적6을 최종 독립 수락 뒤 일반 source 전달한다. 운영 활성화·Source writes/영속화·전체 플랫폼/Workbench 완료는 미완료다.
+
+## 2026-10-09 02:50 — Docs room source 전달 완료, 저장 안전성 재개
+
+최종12/보호40의 독립 수락을 실제 receipt와 대조해 일반 커밋 a9fe6bf8·GitHub PR86·GitLab MR93을 게시했다. 필수240/408 SUCCESS 뒤 양쪽 정상 병합과 exact tree를 확인하고 owned feature 원격/로컬만 정리했다. Primary dev499aff33, main/prod9e9280df다. 자동 full241/409는23.871109초 storage 검사 실패/tests0이며 운영 배포는 없다.
+
+다음 P0는 기존 Whiteboard 저장에서 stale runtime의 새 문서 덮어쓰기·취소 중 lock 유실·교체 runtime 정리·unknown COMMIT 자동 replay를 막는 것이다. 별도 worktree와 보호46개를 준비했고 작성 에이전트는 actual native red 테스트만, 독립 에이전트는 기존 identity/cleanup/ACK 영향 검토만 진행한다. Root는 검증·공유 계약·전달을 통합한다. Source writer 최소 역할·현재 Core 권한 COMMIT fence는 이 단계 이후이며 앱별 비필수 기능·다중 사용자는 보류한다.
+
+## 2026-10-09 02:57 — 저장 경쟁 actual red 확인
+
+변경 전 Source499aff33·test429d24df에서 실제4개 call AssertionError/15.44초·collection/setup0을 확인했다. R1 회전·same-key 새 collab 행 ABA·반복 host 취소·이전 WS finalizer의 교체 runtime 정리가 모두 실패했다. Network-none 합성 PostgreSQL/native Yjs, persistence/encoder stub0과 owned container cleanup PASS다. 원본 결과와 네 함수 AST를 보존하고 Source7 최소 수정에 착수한다. Green·Source writer/Core COMMIT fence·운영 반영은 아직 완료하지 않았다.
+
+## 2026-10-09 03:53 — Whiteboard 저장 안전성 로컬 검증
+
+기존 room이 입장 때 캡처한 board ID·collab 행 ID·room key만 조건부 UPDATE한다. Board SHARE와 정확한 행 조건을 COMMIT까지 유지하고, 취소된 호출도 SQL worker/cleanup 종료까지 flush lock을 보유한다. ACK는 후속 정리 실패로 unknown으로 바꾸지 않으며 unknown은 원 identity/bytes를 보존하고 자동 재저장하지 않는다. 이전 WS finalizer·observer·대기 publish가 교체 runtime을 정리하거나 변경할 수 없고, pending/unknown 동일 identity 재입장은 거절한다.
+
+신규 pure16 PASS/5.15s·실제 PostgreSQL/Yjs32 PASS/60.64s =48개다. 기존 prepared/auth/composition466 PASS/329.54s·원 Whiteboard 구조6 PASS/16.96s·원 Docs default8 PASS/26.33s =고유 영향480개다. 원 red4의 첫 green과 이전 반복 검사는 더하지 않는다. API architecture/i18n·생성 계약은 통과했다. 최종 문서/범위 freeze와 독립 수락·필수 원격 리뷰/병합은 이후 별도로 기록한다.
+
+보호46개·원 RED4 AST와 기존 test 함수/assertions를 유지했다. 테스트 관측으로 실제 Y.py encode-read가 생성하는 canonical empty delta의 불필요한 저장 예약을 발견했고 pinned upstream과 같은 정확한 empty byte 처리만 추가했다. 삭제-only update는 별도로 정상 동작을 확인했다. 이전 Docs 장시간 지연의 원인으로 연결하지 않는다.
+
+## 2026-10-09 04:24 — 필수 리뷰의 공유 저장 상한 수정
+
+Source6da7c943의 PR87/MR94 필수 pipeline242/job410은 FAILED/115.932917초였다. P2는 flush마다 새 limiter1을 생성해 room 간 전체 SQL worker 상한이 없다는 회귀다. 이 실패를 성공이나 면제로 바꾸지 않고 실제 거절 기록과 기존48·480 성공 receipt를 별도로 보존했다.
+
+Hub별 고정4개의 shared permit을 private shielded child 시작 전에 얻고 SQL worker·Session cleanup·결과 전달·TaskGroup join까지 보유한다. Permit 대기 취소는 Session0이며 child 시작 뒤 취소는 기존 owned join을 따른다. Permit을 얻은 뒤 terminal/disposing/current runtime/captured identity/YDoc/unknown을 재검사한다. Child 내부 limiter1은 shared token을 재획득하지 않으며 기존 adapter를 유지한다. Process 전체 상한이나 새 설정·운영 적용을 주장하지 않는다.
+
+수정 전 pristine6da7c943 별도 owned worktree에 동일 신규 테스트를 복사했다. 실제5번째 room의 Session/SQL 진입으로 첫 count assertion1726이 실패했다(1 FAIL/13.17초, setup/collection0, owned cleanup PASS). Missing constant/field/API를 RED로 세지 않았다. 실제5 rooms·4개 독립 PostgreSQL 행 잠금·COMMIT ACK 뒤 close-gate와 나머지3 SQL hold, fifth wait/cancel/replace를 검증했다. Cleanup join 전 fifth Session0과 이후 정상 ACK·slot 재사용·peak4·모든 Session close를 확인한다. 기존39개 defined function AST(원29test 포함)·RED4·보호46개와 기존 roomtest bytes는 동일하다.
+
+최종 신규 pure16 PASS/5.47s·native35 PASS/90.18s =51개, 기존 prepared/auth/composition466 PASS/311.04s·원 WB6 PASS/15.61s·원 Docs8 PASS/25.19s =480개다. 기존48개 및 첫 통과·재검사 횟수는 더하지 않는다. API architecture/i18n·생성 계약 통과이며 최종 문서 freeze·새 독립 인수·새 필수 리뷰는 별도로 진행한다.
+
+## 2026-10-09 05:08 — 최종 저장 대기 중 상태 보존
+
+Source705a13dc의 PR87/MR94 필수243/job411은 FAILED/78.614494초였다. P1은 공유 저장 슬롯4개가 포화됐을 때 최종 flush 전체에 적용한 cleanup timeout이 admission 대기를 취소하고 미저장 YDoc을 해제하는 문제다. 이전242/410의 상한 거절과 각각의 실제 실패·이전 로컬 성공을 보존하며 필수 리뷰 실패를 면제하거나 성공으로 바꾸지 않는다.
+
+최종 disposal의 전체 lifecycle을 private shielded child가 소유하고 부모는 SQL·Session cleanup·native 해제·retiring 정리까지 join한다. 기존 flush_lock 아래 prior worker를 먼저 join하고 pending bytes를 admission 전에 보존한다. 최종 flush 전체의 outer cleanup timeout을 제거했으며 SQL deadline은 worker Session이 시작한 뒤, 개별 비SQL cleanup timeout은 각 단계에 적용한다. 일반 permit 대기 취소의 Session0·hub 상한4·기존 captured identity·postwait 검사·ACK/unknown 처리는 그대로다. 첫 수정의 native36 PASS/1FAIL97.94초와 동일 shutdown 진단1FAIL36.94초도 보존한다. 이 실패는 최상위 shutdown gather가 먼저 끝난 다른 취소를 전달해 final ACK보다 caller를 앞서 반환하는 경계였다. shutdown 전체와 마지막 cleanup task 대기도 private shielded owner와 parent join으로 보완했다. 이후 native36 PASS/2FAIL124.57초의 capacity 잠금 관측 실패도 보존한다. 스레드 open 순서를 room 순서로 가정한 fixture를 실제 captured collab ID의 SQL PID로 대응시켰으며 동시성·실제 잠금·상한·취소·교체 기대값을 유지했다. 최초 두 실패의 정확한 인과관계는 입증하지 않았고 unchanged 진단3PASS23.67초도 해결 증명으로 세지 않는다. Hard shutdown이나 network/driver의 강제 종료 보장은 하지 않는다.
+
+Pristine705a13dc 별도 worktree에 동일 테스트를 복사해 실제 PostgreSQL/Yjs로1 FAIL/19.09초를 재현했다. Call assertion1935에서 아직 저장되지 않은 native YDoc 해제를 확인했으며 setup/collection/missing API 오류0·owned cleanup PASS다. 새 cleanup/shutdown2개는 실제4개 COMMIT 뒤 Session close gate로 슬롯을 보유하고 이전1초 timeout보다 오래 기다린 fifth의 bytes/identity 보존, shutdown 부모2회 취소 후 join, 실제 fifth ACK와 전체 native/Session 정리를 검증한다. 신규 cleanup 취소 검사도 실제 COMMIT 뒤 Session.close를 hold하고 부모 반복 취소가 native/Session 해제보다 먼저 반환하지 않는지 확인한다. 기존48case의29test와 helpers·보호46개·원래 roomtest bytes 및 새 final-disposal/cleanup3case AST는 유지했다. Capacity fixture1개는 실제 collab ID의 SQL PID로 잠금 대상을 대응하도록 관측을 고쳤고 모든 동시성·상한·취소·교체 assertion은 유지했다. Cleanup 반복 취소는 별도 pristine705에서1FAIL10.07초의 조기 반환을 재현했고 owned cleanup도 통과했다.
+
+최종 신규54개는 pure16 PASS/7.10s와 native38 PASS/131.44s다. 기존 영향480개는 prepared/auth/composition466 PASS/372.13s·원 Whiteboard6 PASS/25.87s·원 Docs8 PASS/35.69s다. 이전48/51개·재실행 횟수는 더하지 않는다. API architecture/i18n·생성 계약을 통과했다. 최종 문서·Python 검사와 새13파일 독립 인수 및 새 source의 필수 리뷰는 별도 단계다.

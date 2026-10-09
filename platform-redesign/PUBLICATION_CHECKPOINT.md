@@ -536,3 +536,31 @@ MR81 최신 full239/job407은 저장 공간 선행조건24.291815초 실패·제
 ## 2026-10-09 02:38 — Docs room Source 전달 준비
 
 Base deve25c1934/main9e/GitHub7242b865에서 Source6·추적6의 범위로 신규104·기존370 검사와 생성 계약을 통과했다. Native SQLNULL assertion 시점 문제의 원본·실제 진단·기대값 보존 교정은 VALIDATION을 참조한다. Owner format/check와 최종12개 독립 수락 뒤 일반 commit/push·양쪽 PR/MR·필수 Codex review·정상 merge·소유 feature 정리를 진행한다. 이 기록 시점은 커밋/병합 전이고 source/tree·원격ID는 실제 완료 receipt에서 추적한다. Full239/407 storage 실패·main/prod9e 유지·새 운영/별도 Workbench 배포 없음은 유지한다.
+
+## 2026-10-09 02:50 — Docs room PR86/MR93 전달 완료
+
+Source `a9fe6bf85a8c7884d5b8f659b4fc388c336802ea`는 Source6·추적6의 독립 수락 accepted=true/blockers0 뒤 일반 hook으로 커밋했다. 필수 pipeline240/job408은 SUCCESS/56.719112초, allow_failure=false다. [GitHub PR86](https://github.com/hurxxxx/miy/pull/86)은 `667047af4c27b9cc0c8257f360869323b3d8cc66`, [GitLab MR93](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/93)은 `499aff33c451ebaf893939928e497497b78d50ca`로 정상 병합했다. 두 merge tree는 `f3ba8ac08ab9266501e9bf29aa4beb60c6a3fd57`로 같다. 해당 feature만 양쪽 원격·로컬에서 exact tip으로 정리하고 detached 소스 worktree·persistent dev와 upstream direct push 차단을 보존했다.
+
+자동 후속 MR81 전체241/409는 FAILED/script_failure/23.871109초로 저장 공간 선행조건에서 종료됐다. 제품 테스트0이며 dev499aff33/main·prod9e9280df다. 운영 배포·별도 Workbench 배포와 영구 native config 설치는 하지 않았다. 최소15GiB 및15% 기준을 유지하며 지속 여유와 최신 source/target/tree 전체 성공 뒤 릴리스를 이어간다. 원본 실패·로컬 검증은 이전 기록으로 보존한다. 안전한 원본 receipt는 ignored `docs-room-source-feature-{commit,publish,status,merge,cleanup}.json`·`docs-room-source-independent-review.{md,json}`·`release241-job409-storage-before-tests.json`이다.
+
+## 2026-10-09 03:53 — Whiteboard 저장 안전성 로컬 검증
+
+Owned feature `feat/whiteboard-persistence-safety-20261009`, base `499aff33`, Source7+추적6=13개다. 신규 pure16 PASS/5.15s·실제 PostgreSQL/Yjs32 PASS/60.64s =48개다. 기존 prepared/auth/composition466 PASS/329.54s·원 Whiteboard 구조6 PASS/16.96s·원 Docs default8 PASS/26.33s =고유 영향480개다. 원 red4의 첫 green과 이전 반복 검사는 더하지 않는다. API architecture/i18n·생성 계약은 통과했다. 최종 문서/범위 freeze와 독립 수락·필수 원격 리뷰/병합은 이후 별도로 기록한다.
+
+소스 게시·필수 리뷰·정상 양쪽 병합·소유 브랜치 정리는 아직 진행 전이며 승인된 순서로 이어간다. Main/prod는 `9e9280df`다. Source-only 활성화·새 운영/Workbench 배포로 해석하지 않는다.
+
+## 2026-10-09 04:24 — 필수 리뷰의 공유 저장 상한 수정
+
+Source6da7c943의 PR87/MR94 필수 pipeline242/job410은 FAILED/115.932917초였다. P2는 flush마다 새 limiter1을 생성해 room 간 전체 SQL worker 상한이 없다는 회귀다. 이 실패를 성공이나 면제로 바꾸지 않고 실제 거절 기록과 기존48·480 성공 receipt를 별도로 보존했다.
+
+최종 신규 pure16 PASS/5.47s·native35 PASS/90.18s =51개, 기존 prepared/auth/composition466 PASS/311.04s·원 WB6 PASS/15.61s·원 Docs8 PASS/25.19s =480개다. 기존48개 및 첫 통과·재검사 횟수는 더하지 않는다. API architecture/i18n·생성 계약 통과이며 최종 문서 freeze·새 독립 인수·새 필수 리뷰는 별도로 진행한다.
+
+기존 PR87/MR94와 feature 브랜치를 그대로 사용해 정상 후속 commit/fast-forward push·새 필수 review·normal merge 뒤 exact tip cleanup을 진행한다. 원 실패 job을 재시도하거나 우회하지 않는다. 병합·새 운영 배포는 아직 완료하지 않았다.
+
+## 2026-10-09 05:08 — 최종 저장 대기 중 상태 보존
+
+Source705a13dc의 PR87/MR94 필수243/job411은 FAILED/78.614494초였다. P1은 공유 저장 슬롯4개가 포화됐을 때 최종 flush 전체에 적용한 cleanup timeout이 admission 대기를 취소하고 미저장 YDoc을 해제하는 문제다. 이전242/410의 상한 거절과 각각의 실제 실패·이전 로컬 성공을 보존하며 필수 리뷰 실패를 면제하거나 성공으로 바꾸지 않는다.
+
+최종 신규54개는 pure16 PASS/7.10s와 native38 PASS/131.44s다. 기존 영향480개는 prepared/auth/composition466 PASS/372.13s·원 Whiteboard6 PASS/25.87s·원 Docs8 PASS/35.69s다. 이전48/51개·재실행 횟수는 더하지 않는다. API architecture/i18n·생성 계약을 통과했다. 최종 문서·Python 검사와 새13파일 독립 인수 및 새 source의 필수 리뷰는 별도 단계다.
+
+기존 PR87/MR94·feature branch를 재사용한다. 실패 job 재시도·강제 push·gate 우회 없이 새 source로 정상 필수 리뷰를 받는다. 이 기록 시점에는 병합·새 배포를 완료하지 않았다.

@@ -98,6 +98,7 @@ from miy_api.domains.whiteboard.registry import (
 from miy_api.domains.whiteboard.scene_state import (
     apply_collab_snapshot,
     ensure_collab_session_state,
+    WhiteboardPersistenceRefused,
 )
 from miy_api.domains.whiteboard.service import create_whiteboard_for_user
 from miy_api.domains.whiteboard.realtime import publish_whiteboard_access_changed
@@ -353,6 +354,7 @@ def _ensure_whiteboard_collab_context(
         can_edit=access.can_edit,
         scene=whiteboard.scene or empty_scene(),
         default_actor_user_id=whiteboard.owner_id,
+        collab_document_id=scene_state.collab.id,
     )
     return context, scene_state.collab
 
@@ -1170,6 +1172,8 @@ async def whiteboard_collab_websocket(
             authorization_error_close=prepared_official_ws_close_choice,
         )
         await runtime.room.serve(yjs_websocket)
+    except WhiteboardPersistenceRefused:
+        await websocket.close(code=1013, reason="whiteboard_persistence_unavailable")
     except HTTPException as exc:
         await _close_websocket_for_http_error(websocket, exc)
     finally:
@@ -1180,8 +1184,8 @@ async def whiteboard_collab_websocket(
             await asyncio.gather(monitor_task, return_exceptions=True)
         if slot_acquired and runtime is not None and auth_user_id is not None:
             await hub.release_connection_slot(runtime, auth_user_id)
-        if room_key is not None:
-            await hub.cleanup_room(room_key)
+        if room_key is not None and runtime is not None:
+            await hub.cleanup_room(room_key, expected_runtime=runtime)
 
 
 @router.get("/shared-links/{share_token}", response_model=ResolveWhiteboardSharedLinkResponse)
