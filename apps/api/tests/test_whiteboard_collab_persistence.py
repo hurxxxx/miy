@@ -321,7 +321,7 @@ async def _release_test_orphan(hub, runtime):
         await hub._bus.close_pubsub(runtime.relay_pubsub, runtime.room_key)
     hub._stop_room(runtime)
     await asyncio.gather(runtime.room_task, return_exceptions=True)
-    hub._release_room_state(runtime)
+    await hub._release_room_state(runtime)
 
 
 def test_genuine_red_contract_old_websocket_finalizer_keeps_same_key_replacement(

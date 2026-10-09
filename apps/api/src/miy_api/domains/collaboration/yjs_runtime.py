@@ -5,10 +5,11 @@ import gc
 import hashlib
 import json
 import logging
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from collections.abc import Awaitable, Callable
-from contextlib import suppress
+from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass, field
+from threading import Lock
 from typing import Protocol, cast
 
 from fastapi import HTTPException, WebSocket
@@ -61,17 +62,152 @@ def hash_bytes(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def release_yroom_thread_bound_state(room: YRoom) -> None:
-    """Drop y_py objects on the event-loop thread that owns the room."""
-    room.on_message = None
-    for client in list(room.clients):
-        detach = getattr(client, "detach_room_runtime", None)
-        if detach is not None:
-            detach()
-    room.clients = []
-    room.awareness = None  # type: ignore[assignment]
-    room.ydoc = None  # type: ignore[assignment]
-    gc.collect()
+@dataclass(eq=False)
+class _NativePersistenceWaiter:
+    loop: asyncio.AbstractEventLoop
+    future: asyncio.Future[None]
+    disposal: bool
+    state: str = "waiting"
+
+
+class NativePersistenceGC:
+    """Process-wide exclusion between snapshot workers and explicit native GC.
+
+    Only counters and queues use the thread lock. Every wait remains on its own
+    event loop; readers run in parallel, while a waiting disposal closes new
+    reader admission until the active workers and their cleanup have joined.
+    """
+
+    def __init__(self) -> None:
+        self._lock = Lock()
+        self._readers = 0
+        self._disposing = False
+        self._waiting_readers: deque[_NativePersistenceWaiter] = deque()
+        self._waiting_disposals: deque[_NativePersistenceWaiter] = deque()
+
+    def _grant_locked(self) -> list[_NativePersistenceWaiter]:
+        if self._disposing:
+            return []
+        if self._waiting_disposals:
+            if self._readers:
+                return []
+            waiter = self._waiting_disposals.popleft()
+            waiter.state = "held"
+            self._disposing = True
+            return [waiter]
+        granted = list(self._waiting_readers)
+        self._waiting_readers.clear()
+        for waiter in granted:
+            waiter.state = "held"
+        self._readers += len(granted)
+        return granted
+
+    def _finish(self, waiter: _NativePersistenceWaiter) -> list[_NativePersistenceWaiter]:
+        with self._lock:
+            if waiter.state == "released":
+                return []
+            if waiter.state == "held":
+                if waiter.disposal:
+                    self._disposing = False
+                else:
+                    self._readers -= 1
+            else:
+                queue = self._waiting_disposals if waiter.disposal else self._waiting_readers
+                queue.remove(waiter)
+            waiter.state = "released"
+            return self._grant_locked()
+
+    def _notify(self, waiter: _NativePersistenceWaiter) -> None:
+        # This callback always runs on the Future's own loop. A cancellation
+        # between grant and delivery must also surrender the reserved lease.
+        if waiter.future.done():
+            self._wake(self._finish(waiter))
+        else:
+            waiter.future.set_result(None)
+
+    def _wake(self, granted: list[_NativePersistenceWaiter]) -> None:
+        pending = deque(granted)
+        while pending:
+            waiter = pending.popleft()
+            try:
+                waiter.loop.call_soon_threadsafe(self._notify, waiter)
+            except RuntimeError:
+                # A closed loop cannot consume its grant. Do not strand other
+                # loops or keep a phantom reader/exclusive owner indefinitely.
+                pending.extend(self._finish(waiter))
+
+    async def _acquire(self, *, disposal: bool) -> _NativePersistenceWaiter:
+        loop = asyncio.get_running_loop()
+        waiter = _NativePersistenceWaiter(loop, loop.create_future(), disposal)
+        with self._lock:
+            queue = self._waiting_disposals if disposal else self._waiting_readers
+            queue.append(waiter)
+            granted = self._grant_locked()
+        self._wake(granted)
+        try:
+            await waiter.future
+        except BaseException:
+            self._wake(self._finish(waiter))
+            raise
+        return waiter
+
+    @asynccontextmanager
+    async def persistence(self):
+        waiter = await self._acquire(disposal=False)
+        try:
+            yield
+        finally:
+            self._wake(self._finish(waiter))
+
+    @asynccontextmanager
+    async def disposal(self):
+        waiter = await self._acquire(disposal=True)
+        try:
+            yield
+        finally:
+            self._wake(self._finish(waiter))
+
+
+_native_persistence_gc = NativePersistenceGC()
+
+
+@asynccontextmanager
+async def native_persistence_lease():
+    async with _native_persistence_gc.persistence():
+        yield
+
+
+async def release_yroom_thread_bound_state(room: YRoom) -> None:
+    """Drain snapshot workers, then drop y_py on the room's original loop thread."""
+
+    async def dispose_owned():
+        async with _native_persistence_gc.disposal():
+            room.on_message = None
+            for client in list(room.clients):
+                detach = getattr(client, "detach_room_runtime", None)
+                if detach is not None:
+                    detach()
+            room.clients = []
+            room.awareness = None  # type: ignore[assignment]
+            room.ydoc = None  # type: ignore[assignment]
+            gc.collect()
+
+    disposal = asyncio.create_task(dispose_owned())
+    cancelled = False
+    try:
+        while True:
+            try:
+                await asyncio.shield(disposal)
+                break
+            except asyncio.CancelledError:
+                # Docs lacks Whiteboard's private disposal shield. Its new GC
+                # admission wait still must join native ownership on host cancel.
+                cancelled = True
+                if disposal.cancelled():
+                    raise
+    finally:
+        if cancelled:
+            raise asyncio.CancelledError
 
 
 @dataclass

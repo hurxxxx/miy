@@ -662,3 +662,27 @@ ACT-CI-04는 root/ops의 동일 `release_validation`에 `timeout: 2h`만 추가�
 공개 Native 코드는 새 `/opt/miy/miy-native-codex-01601-v1`에49files/446,771,872bytes/고정 executable34개로 설치했고, SDK는 `/opt/miy/miy-native-sdk-20261009-v1`에 정확 inventory를 검사했다. 두 cache는 root-owned readonly이며 모델·기존 Workbench 설정/서비스를 변경하지 않았다. 별도 canonical basic 앱의 실제 finite unit에서 kernel namespace·UID1000/cap0/NNP·CPU1/메모리1GiB/swap0/PIDs64와 읽기 전용 root/cache/Git 및 쓰기 Source를 확인했다. provisioning와 잘못된 bearer 거부·일반 `pnpm test`는 통과했으나 `pnpm run build` exit1의 정확 원인은 미확정이다. 초기 outer bwrap monitor PID 관측과 실제 exec-server child의 PID namespace 인수를 구분했다. 실패 근거를 유지하고3개 임시 unit을 stop/정리했으며, 자동 한도 확대·host fallback이나 실제 제품 Task 성공을 주장하지 않는다. SDK 재현 producer와 실제 Task 환경 profile도 별도 필수 구현 중이다.
 
 C1 checked CAS는 Core sealed cohort/payload·Source EXEC1/DML0·Core EXEC2/DML0와 durable receipt/원 attempt 잠금 취소의 비활성 후보다. 저자·독립 reviewer의 정적/pure 단계 뒤42 native case의 실제 disposable PG와 기존 Source8 최신 head 회귀 검증이 남아 있다. C2 원 provenance·C3 서비스 활성화와 앱별 비필수 기능은 후속 범위를 유지한다.
+
+## 2026-10-09 14:20 UTC — ACT-CI-04 게시·정상 병합
+
+Source47be5881의 필수256/job424 SUCCESS46.626996초 후 GitHub PR93은1eca4c85, GitLab MR100은02418067로 병합했다. 양쪽 treec7616793 동일·primary dev clean FF와 소유 feature 원격/로컬 정리를 확인했다. Persistent dev/main·upstream push DISABLED를 유지한다. 최신 full257/job425 source02418067/target9e9280df는 실행 중이며 MR81·운영 배포는 전체 성공 뒤 진행한다. C1/SDK v2/접근도구 후보는 로컬 미게시이고 별도 Workbench 배포는 없다.
+
+## 2026-10-09 15:25 UTC — 현재 로컬 경계와 릴리스 실패
+
+C1 신규56·기존ACL132·Source110·owner145·authority52는 현재 입력으로 통과했다. 초기51/1/4와 historical drain 실패를 보존했고 원래 migration marker 두 개만 추가해 기존 함수/assertions를 유지했다. SDK v2 설치·정상 공개 입력55개 취득/동일 archive 재현160.761초는 통과했지만 source preflight는 canonical starter의 vendor4와 verifier 필수 README5 불일치로 거부됐다. 이 필수 계약을 보완한 뒤 actual unit/Task를 인수한다. 이전 SDK source170/pure와 독립 리뷰는 보완 전 시점으로 구분한다.
+
+전체257/job425는3198.397초 FAILED다. API6422/1FAIL/3SKIP이며 마지막 shutdown 저장의 실제 status rejected를 확인했다. slow16·migration37·external15 통과는 전체 성공을 뜻하지 않는다. 예외·SQLSTATE·GC 관측만 추가하는 disposable 단독 재현을 준비하며 timeout/검사 면제와 동일 source 맹목 재시도는 하지 않는다. main/prod는9e9280df, 새 운영/Workbench 배포는 없다. 현재23 migration private 리허설과 독립 리뷰는 treec7616793 한정이다. 새 migration 통합 후에는 새 정확 tree/pending 수로 검증한다.
+
+Rejected payload는 현재 caller-held runtime에만 남고 자동 replay는 금지된다. 종료 후 durable owner/handoff 검증은 C2/C3 필수 구조 잔여이며 APP_ISSUES로 넘기지 않는다. 고객 데이터 손실을 관측했다는 뜻은 아니다. Docker는 root117GB에서 약47GB 여유와29/83 실행/전체 컨테이너를 확인했다. 앱별 비필수 기능과 다중 사용자는 계속 보류한다.
+
+## 2026-10-09 16:10 UTC — GC 저장 예산 재현과 통합 순서
+
+원본 shutdown 저장 사례는 진단 wrapper만 추가한 격리 CI 이미지에서 다시 실패했다. 첫 네 저장은 ACK, 마지막 저장은 transaction_rejected/WhiteboardPersistenceDeadline(SQLSTATE 없음)이었다. 마지막 저장의1.24초 구간에 full GC 세 번이 각각 약0.41초 겹쳤다. 원본 assertions·1초 SQL 예산·worker4개를 유지하고 process-wide concurrent reader/exclusive native GC drain을 Docs·Whiteboard 공통 계층에 적용한다. 새 await 뒤 Docs의 원 snapshot/actor capture 시점과 writer fence 재확인도 보존한다. 새 코드의 실제 인수는 아직 대기다.
+
+SDK source 보완185개·두 canonical starter/cache binding은 통과했다. 실제 basic unit의 pnpm test/build·readOnly/cache/외부 graph 거부는 통과했지만 Python/TestClient가 멈췄다. 후속 짧은 진단은 초기화에서 거부되어 Python IPC 원인을 확정하지 않았다. exact owned unit 정리는 통과했다. 제품 Task/model 요청0이며 SDK18개 후보는 이번 API 전달에 포함하지 않는다.
+
+C1·GC·접근 도구를 최신 dev02418067 기반으로 먼저 통합한다. C1의 기존 로컬56/132/110/145/52 증거는 정확 입력과 함께 보존하며 공통 runtime 변경의 영향 검사를 수행한다. 정상 필수 feature review/병합 뒤 새 current full로 이어간다. C1 migration34/pending24의 새 private 리허설과 이전 운영 이미지 호환이 필요하며 기존pending23 증거를 새 head의 완료로 사용하지 않는다. main/prod9e9280df·운영/Workbench 미배포·C2/C3 잔여·앱별 비필수/다중 사용자 보류를 유지한다.
+
+## 2026-10-09 17:43 UTC — API31개 전달 후보의 로컬 인수
+
+이번 후보는 dev02418067 기반 C1·Docs/Whiteboard 저장/GC drain·접근 도구와 추적 문서31개 경로다. 신규 C1 56·기존 권한132/110/145/52와 통합20·기존 협업106 및 구조/생성 계약을 인수했다. SDK18 및 controller 후속은 별도 로컬 후보로 제외한다. 필수 Codex review·GitHub feature PR·내부 dev MR·정상 병합/정리·새 current full은 아직 실행 전이며 이전 full257 실패는 유지한다. Persistent dev/main과 main/prod9e9280df를 보존한다. migration34/pending24의 새 운영 근거와 별도 Workbench 전달도 필요하다.
