@@ -20,7 +20,7 @@ cutover를 활성화한 것은 아니다. 게시 추적은
 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다. 이 문서는 우선순위·의존성과
 다음 착수 단위를 소유하며 별도 작업 대장을 만들지 않는다.
 
-현재 dev는 `5d909dc3`, main/prod는 `9e9280df`다. Workbench cold resume·Whiteboard Source ACL·최소 native executor 정의는 필수 리뷰와 양쪽 정상 병합·소유 브랜치 정리를 마쳤다. 최신 full237/405은 저장 공간 검사 실패로 테스트0이며 새 운영 배포는 없다. 기존 room 상태의 readOnly Source 초기 로더는 새65개·영향157개 검사 뒤 로컬 인수했고 필수236/404 뒤 PR84/MR91로 정상 전달하고 소유 브랜치를 정리했다. Docs Source17-model ACL·별도 Core writer 읽기와 공용 Session guard10경로는 actual red1 뒤 새143개·기존227개 검사가 통과했다. 기본 Docs 영향8개도 통과했으며, 첫 실행의 장시간 중단 원인은 미확인이다. 최종 리뷰·전달을 확인 중이다. 그 뒤 Source writer·room CAS·취소/COMMIT unknown과 현재 권한을 보장하는 초기화/영속화·Docs 경계, native immutable cache/실제 설치 enforcement·보호 설정·별도 Workbench 반영·개인 앱 전체 흐름을 각각 인수한다. Native pilot의 제한된 shell 외에 대표 SDK 앱의 실제 build/test 도구 체인도 전체 흐름에서 확인해야 한다. 아래 과거 단계 기록은 당시 결과다.
+현재 dev는 `e25c1934`, main/prod는 `9e9280df`다. Workbench cold resume·Whiteboard Source ACL·최소 native executor 정의는 필수 리뷰와 양쪽 정상 병합·소유 브랜치 정리를 마쳤다. 최신 full239/407은 저장 공간 검사 실패로 테스트0이며 새 운영 배포는 없다. 기존 room 상태의 readOnly Source 초기 로더는 새65개·영향157개 검사 뒤 로컬 인수했고 필수236/404 뒤 PR84/MR91로 정상 전달하고 소유 브랜치를 정리했다. Docs Source17-model ACL·별도 Core writer 읽기와 공용 Session guard10경로는 actual red1 뒤 새143개·기존227개 검사가 통과했다. 기본 Docs 영향8개도 통과했으며, 첫 실행의 장시간 중단 원인은 미확인이다. 필수238/406 리뷰 뒤 PR85/MR92로 정상 전달하고 소유 브랜치를 정리했다. Docs 기존 room Source 초기 읽기는 actual red 뒤 신규104개·기존370개 검사와 생성 계약을 통과했으며 최종 리뷰·전달 중이다. 그 뒤 Source writer·room CAS·취소/COMMIT unknown과 현재 권한을 보장하는 초기화/영속화·Docs 경계, native immutable cache/실제 설치 enforcement·보호 설정·별도 Workbench 반영·개인 앱 전체 흐름을 각각 인수한다. Native pilot의 제한된 shell 외에 대표 SDK 앱의 실제 build/test 도구 체인도 전체 흐름에서 확인해야 한다. 아래 과거 단계 기록은 당시 결과다.
 앞선 native/fixture·Docker 정리 보완은 리뷰217/383과 PR75/MR82 병합을 마쳤다.
 218/386의 API capture3개 실패는 두 테스트 파일의 보완으로 닫았고, 실제 CI
 이미지의 전체·역순3파일 각각188개 통과는 같은 검사로 중복 합산하지 않는다.
@@ -174,3 +174,9 @@ Workbench의 정확 Codex0.160.1은 표준 systemd-socket-proxyd ingress와 owne
 개인 앱 SDK를 실제 격리 환경에서 빌드·검사하는 필수 구조 후속이다. 현재 코어에 설치된 의존성 링크를 실행 환경에 노출하지 않고, 코어가 검증·고정한 템플릿별 Node/Python 의존성과 실행 파일 묶음을 비활성 SDK backend에 공급한다. 기존 Codex lifecycle·RPC·표준 ingress와 권한·자원 계약을 유지한다. 제품 변경 후보는 descriptor·lock·검증기·backend·검사·owner를 포함한8경로이며, 구현·설치·실행 검증 전 계획이다.
 
 Node/pnpm 공개 버전 metadata 확인과 실제 archive hash·Python/ELF/ABI·전체 파일 검증을 구분한다. 아직 descriptor_complete=false이며 테스트/설치0이다. 고정 artifact 확인 뒤 실제 kernel/mount/resource enforcement, 같은 원 Task의 자연어 SDK build/test·플랫폼 등록·개발/운영 반영과 별도 Workbench 배포를 각각 인수한다. 현재 저장 공간 조건을 충족하지 못해 영구 캐시나 서비스를 설치하지 않았다. 상세 계획과 공개 입력은 `.runtime/structural-next-delivery/next-native-sdk-toolchain.{md,json}`에 보존한다.
+
+## 2026-10-09 — Whiteboard 저장의 필수 안전 경계 후속 계획
+
+첫 단계는 기존 factory에서 admission 때 collab row ID와 room key를 캡처하고 조건부 CAS로 REST 방 회전·동일 key의 row 삭제/재생성 ABA를 모두 거절한다. 이전 runtime은 새 상태를 덮어쓰거나 row를 생성/수리/입양하지 않는다. SQL worker 정리가 끝날 때까지 flush_lock을 유지하고, 감소하는 SQL 시간 제한·expected_runtime cleanup·확정 ACK와 불명확 COMMIT 결과를 구분한다. 결과가 불명확하면 debounce/cleanup이 자동 재저장하지 않는다. 제품 변경 후보7경로와 필요한 DTO assertion 경계는 actual red·PG/Yjs/CAS/취소 검증 뒤 인수한다.
+
+Source writer principal·Core current authority의 COMMIT fence·정확 최소 Whiteboard grant profile은 별도 다음 단계다. 기존88표/Files profile을 Whiteboard 최소 profile로 사용하지 않고 same-room content revision CAS·durable ACK history도 미완료로 구분한다. 조사51개·보호42개와 최소 Source 후보는 `.runtime/structural-next-delivery/next-source-writer-cas-plan.{md,json}`에 기록했다. 현재 계획만이며 제품 수정·테스트/운영 활성화0이다. 비필수 앱 기능·다중 사용자 범위는 확대하지 않는다.

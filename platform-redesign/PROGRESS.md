@@ -474,3 +474,17 @@ Source/Core별 fresh readOnly Session과 기존 구조화 worker를 재사용해
 ## 2026-10-09 01:58 — Docs 읽기 경계 로컬 인수
 
 신규143개·기존227개와 생성 계약·Source Python 검사를 통과했다. 기본 Docs 원7함수/8cases는 첫 장시간 실행 종료 뒤 동일 입력의 bounded 재검사8 PASS/25.49초다. 첫 실행 원인은 미확인이고 VALIDATION에 원본과 제한을 남겼다. 제품10경로·진행 문서6의 최종 독립 freeze 리뷰와 정상 source 전달을 이어간다. Docs initial Source 읽기·writer/CAS·영속화·operational 최소 grant/cutover, native 영구 설치/enforcement·SDK/등록 전체 흐름은 필수 잔여다. 비필수 앱 상세 기능과 다중 사용자는 보류한다.
+
+## 2026-10-09 02:07 — Docs 기존 room Source 읽기 후속 계획
+
+Source ACL/Core writer10경로는 필수238/406 뒤 PR85/MR92 정상 병합·exact tree·소유 원격/로컬 브랜치 정리를 마쳤다. Dev는e25c1934, main/prod9e다. 최신 full239/407은storage 실패24.291815초/tests0로 REL-001/VAL-001 미완료다.
+
+후속 Source6은 기존 Docs initialized row의 readOnly loader·registry/router·새검사·owner2이며, 이전 Source17+DocsCollabDocument=18의 fresh singleEngine Session을 사용한다. Native canonical room key와 page.created_by_id, SQLNULL/JSONnull·YjsNone/빈bytes 의미를 보존한다. Page blocks가None이 아닌데 Yjs/snapshot이None이면 기존 codec/repair가 필요해 거절하며 []를None으로 바꾸지 않는다. 의미 있는 page/snapshot 내용이 있는데 null/빈Yjs인 경우도 빈 room으로 유실하지 않도록 거절한다. 빈nullable 상태는 실제 native positive로 인수한다. WB timestamp stale·suffix 회전·snapshot/page equality 규칙은 추가하지 않는다.
+
+Page/Doc/Collab 단일 projection의 page blocks+snapshot+Yjs합산8MiB를 SQL CASE로 전송 전에 제한하고 detachedDTO를 검증한다. 현재 Source ACL·Core pinned writer·원 auth/actor/session과 captured callback/hub identities를 모든 await 뒤 확인한다. 부분 조립·초기화/복구 필요 상태는 private5031013·무쓰기·무globalfactoryfallback이며 기존 defaultinit/persist/codec/roles/models/ASGI는 그대로다. 새 registry옵션 actual red1 FAIL/0.56초·collection/setup0·networknone·소유cleanup을 Source40b/redtestSHAbea7로 보존하고, prior merge e25로 FF할 때 Source/protected40을 유지했다. 제품 구현과 actual 최소PG/Yjs·권한회수·취소·bounds·default영향 검사는 진행 중이며 green·운영 활성화 완료를 주장하지 않는다.
+
+Source writer/CAS·COMMIT unknown·저장/media/RAG·정확 operational grants/cutover, native 영구 설치/enforcement·SDK 전체 자연어 등록/배포와 별도 Workbench 배포는 필수 잔여다. 앱별 비필수 기능과 다중 사용자는 별도 요청까지 보류한다. 계획·baseline/red는 `.runtime/structural-next-delivery/next-docs-source-room-slice.{md,json}`·`docs-room-source-red-base-integration.json`에서 추적한다.
+
+## 2026-10-09 02:38 — Docs 기존 room Source 읽기 로컬 인수
+
+명시적 비활성 Source18 기존room loader를 구현하고 신규104개·기존370개 및 생성 계약·Source Python 검사를 통과했다. 현재 Source app/edit ACL·Core writer와 auth/session/callback identities를 확인하고, legacy repair가 필요한 상태는 private503/1013으로 거절한다. 합산8MiB를 전송 전 CASE와 DTO에서 제한한다. nullable SQLNULL/JSONnull/YjsNone·빈bytes의 genuine native positive와 native shutdown 후 size검사 시점 교정을 VALIDATION에 남겼다. Source6·추적6을 최종 독립 수락 뒤 일반 source 전달한다. 운영 활성화·Source writes/영속화·전체 플랫폼/Workbench 완료는 미완료다.

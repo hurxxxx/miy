@@ -74,6 +74,20 @@ room initialization, COMMIT, hub relay writer reads, persistence/media/RAG remai
 on the native business lifecycle. This is an inactive frame/monitor seam; it
 provisions no roles or service settings and does not complete a Source-only runtime.
 
+A complete prepared Docs assembly can further select a separate existing-room
+Source factory and read budget. The initial read uses the current18-model closure,
+a coherent page/doc/collab projection and combined8MiB JSON/Yjs bound, with current
+ACL, pinned Core writer and same actor/source-session checks before native room
+admission. SQL NULL/JSON null and None/empty Yjs remain distinct; states requiring
+native initialization/repair refuse privately. The exact canonical key and page
+creator are preserved without a new timestamp/equality rule. Configured failure
+never falls back to global initial Source allocation. The
+[reader owner](../../api/src/miy_api/domains/official_apps/AUTHORITY_READER.md#explicit-inactive-docs-existing-room-source-reads)
+records the bounded native proof, independent budgets and limits. Default initial
+writes, HTTP creation/snapshots, hub persistence/relay writer reads and media/RAG
+retain their native lifecycle. This inactive read seam does not install roles,
+activate a split service or complete Source-only persistence.
+
 | Artifact                  | Current state                                                                                        |
 | ------------------------- | ---------------------------------------------------------------------------------------------------- |
 | Official UI               | Separate entry/build output; legacy UI/public-module bridge                                          |
