@@ -568,13 +568,17 @@ def test_actual_same_target_second_stage_cannot_overtake_or_duplicate(flat):
             finally:
                 event.remove(engine, "before_cursor_execute", backend)
 
-    with Session(flat.native.engine) as db, ThreadPoolExecutor(max_workers=1) as pool:
+    with (
+        flat.native.world.connect(autocommit=True) as observer,
+        Session(flat.native.engine) as db,
+        ThreadPoolExecutor(max_workers=1) as pool,
+    ):
         first = mutations.stage_native_root_folder_soft_delete(db, spec=flat.spec)
         blocker = db.scalar(text("SELECT pg_backend_pid()"))
         future = pool.submit(competing)
         assert started.wait(3)
         try:
-            wait_for_exact_blocker(flat.native.world, state["pid"], blocker)
+            wait_for_exact_blocker(flat.native.world, state["pid"], blocker, observer=observer)
             assert not future.done()
         finally:
             db.commit()

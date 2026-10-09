@@ -674,3 +674,12 @@ SDK는 올바른 user1000 호출의 socketpair send EPERM/portal 대기를 재�
 Docs 집중24/기존협업106(208.751168초)은 바뀌지 않은 runtime/test bytes에 한정한 이전 인수 근거다. 과거 C1 권한132/110/145/52는 그 당시 입력으로 구분한다. GitHub94/GitLab101의 새 수정 head 필수 리뷰·정상 병합·새 current full, 새 migration34/pending24 private 리허설과 이전 운영 이미지 호환·fresh backup/guarded 배포가 남아 있다. Dev02418067·main/prod9e9280df는 현재 그대로이며 배포 완료를 뜻하지 않는다.
 
 별도 Workbench 후보는 SDK source22/owned delta11의 신규74 PASS와 영향427 PASS/기존 PostgreSQL legacy fixture5 SKIP 및 독립 소스 리뷰를 마쳤다. 실제 원관리 정책 확인·controller/Task·private-notes와 별도 서비스 배포는 미완료다. C2-1 비활성 provenance3은 실제 native53 PASS와 독립 리뷰를 통과했으며 PostgreSQL pre-apply durable journal/discovery와 C3 원 attempt 복구·서비스 활성화는 필수 구조 잔여다. 앱별 비필수 기능과 다중 사용자는 보류한다.
+
+
+## 2026-10-09 21:58 UTC — 개발 반영과 current full 실패의 최소 보완
+
+PR95/MR102는 source62cd의 필수262/430 통과 후 정상 병합해 dev09aaf/treef73를 만들었고 소유 feature를 양쪽 원격/로컬에서 정리했다. 백업 후 개발 C1 head와 관리 API/Vite를 실제 반영하고 readiness·로그인/공개 앱·AppRoot official-suite import를 확인했다. 새 checked-save factory/operational role은 비활성이고 main/prod9e는 유지한다. Current source의 fresh private24는164표 동등·구형 이미지 read/write/no-op/rollback·최소 역할/PG18 제약·정리를 통과했지만 full263/431이 실패해 운영 전달을 진행하지 않았다.
+
+Full263은API6520/1FAIL/3SKIP, reason583 차이로 실패했다. 독립 원본 정상1PASS와 관찰용 연결 EXIT5.2초 control578/55P03를 구분해 원CI 직접 원인 미확정을 기록했다. 제품 제한/검증문을 바꾸지 않고 observer를 caller에서 사전 연결한 test1만 수정했다. 별도 새 packet의 정상13.848519초/동일지연17.226581초가 모두 실제 통과했고 모든 assertions·전후 source·소유 정리를 유지했다. 새 정상 게시·필수 리뷰·current full와 새 source의 private24/guarded 운영을 이어간다.
+
+Workbench 원 계획·구현 두 턴은 재실행하지 않고 같은 Task/thread read-only3번째 턴으로 전체17 items·명령4·Source/Git·cleanup8을 실제 확인했다. 총3턴/자동retry0이며 SDK network/kernel/관리 정책·두 starter·별도 전달은 필수 잔여다. C2 inactive journal8 native48/peer는 통과했고 offline causal14는 no-delta의 영구 무관성 가정을 반증했다. 모든 admitted originals/cohort와 durable closure/native completeness·C1/C3 연결을 후속 구조로 유지한다. 앱별 비필수 기능·다중 사용자·기존 skill/harness 절차는 보류한다.

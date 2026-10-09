@@ -1,10 +1,14 @@
 # 후속 구조작업
 
-## 현재 착수 — 2026-10-09 20:20 UTC
+## 현재 착수 — 2026-10-09 21:58 UTC
 
-먼저 full261에서 확인한 소유 WS 정리와 stale fixture의 최소 수정본(합성32·실제 PG26·독립 리뷰 통과)을 별도 feature로 게시한다. 필수 리뷰/정상 병합 뒤 최신 source의 full을 실행하고 pending24 private 리허설을 새 source/tree에 재결속해 정상 검증한 뒤 MR81·guarded 운영으로 이어간다. 개발 DB는 현재 actor ACL head이며 백업 후 C1 migration과 실행 서버를 함께 맞춘다.
+Full263/431의 folder-stage concurrency fixture 최소 수정(test1)을 정상 게시한다. Caller-owned observer 사전 연결로 한정했고 원47 assertions·제품5/15초 제한을 유지했다. 실제 정상/5.2초 close 지연 모두 통과했다. 필수 리뷰·양쪽 정상 병합·소유 feature 정리 뒤 최신 source의 새 full과 fresh pending24 private restore/이전 이미지 호환을 인수한 다음 MR81·guarded 운영으로 이어간다. 실패한263을 성공이나 면제 대상으로 사용하지 않는다.
 
-Workbench SDK22/13의 인수한 normal model0 이후 실제 native Task와 별도 서비스 반영, C2 journal8의 native48·독립 리뷰→C2 actual-applied checkpoint→C3 운영 경계는 병렬로 진행한다. C2/SDK 후보를 아직 이 release 소스에 섞지 않는다. 앱별 비필수 기능·다중 사용자·기존 skills/하네스 절차 재사용은 계속 보류한다. 아래 날짜별 문단은 해당 시점의 이력이다.
+개발09aaf의 C1 head/API/Vite·공개 smoke는 이미 반영했다. 운영9e와 신규 checked-save factory/role은 그대로 비활성이다. SDK22/13은 normal model0 및 같은 Task/thread3턴 인수 이후 두 canonical starter의 bounded native protocol/kernel·network/controller 관리 정책·UI admission과 별도 Workbench 전달을 진행한다. 기존 Task에4번째 턴을 붙이거나 구현을 반복하지 않는다. 공식 command/exec의 local-only 경로와 full-access thread shell을 remote 증거로 사용하지 않는다.
+
+C2 inactive journal8 native48·독립 리뷰는 완료했다. 다음은 모든 admitted originals의 보수적 authority cohort, actual append COMMIT, durable batch closure, 정확한 frozen native state와 공개 API completeness criterion을 한 소유 adapter에서 연결하는 C2-3다. No-delta만으로 원 contributor를 제거하지 않는다. C1 결과/unknown 관측과 C3 role/config/drain/recovery가 인수되기 전 ACK·자동 replay·서비스 활성화는 금지한다. SDK/C2 후보는 이 fixture 릴리스에 섞지 않는다. 앱별 비필수 기능·다중 사용자·기존 skills/하네스 절차는 계속 보류한다.
+
+아래 날짜별 문단은 그 시점의 이력이다.
 
 먼저 C1 비활성 checked-save·공통 native GC drain·실제 수신 주소 접근 보완을 최신 dev 기반에서 통합 인수하고 정상 feature 게시/필수 리뷰/병합한다. 그 수정본의 새 exact-source full artifact를 인수한 뒤에만 운영 전달한다. 기존257/job425의 GC/SQL 예산 실패와 최초 SDK Python/초기화 실패를 보존한다. C1 통합은 migration34/pending24이므로 새 정확 tree의 private restore·구형 운영 이미지 호환·metadata 계약을 다시 인수한다. SDK18개 후보의 Python 및 제품 Task는 별도 진행하며 C2/C3 durable payload owner/handoff는 구조 필수로 남긴다.
 

@@ -1,5 +1,15 @@
 # 검증 계획과 수행 근거
 
+## 2026-10-09 21:58 UTC — full263 동시성 fixture와 현재 실제 반영
+
+- Full263/job431/source09aaf: API6520 PASS/1 FAIL/3 SKIP/4 WARN2981.70초, 후속PG16/37/15 PASS, job FAILED3312.269779초다. 실패는 same-target folder stage583행의 typed reason 차이다. 원 CI SQLSTATE/직접 원인을 관측하지 않았다.
+- Original diagnostic: 동일 원 테스트 정상1 PASS19.461014초, observer EXIT5.2초 control1 FAIL17.841736초/578행/55P03였다. 이는 close가 lock 예산을 소모할 수 있다는 증거이며 원CI583의 직접 재현이 아니다. RED의 이후 데이터/Core assertions 실행을 주장하지 않는다. 원 packet·claim·결과를 보존했다.
+- Minimal test1: caller-owned observer를 first stage 전에 열고 기존 blocker helper에 전달해 COMMIT/future 검증 뒤 닫는다. 파일47 assertions·다른16 함수 AST와 제품/migration/timeouts는 동일하다. 실제 same target 정상1 PASS13.848519초(receipt866fff74), 동일5.2초 지연1 PASS17.226581초(receipt969023ee)다. 같은 case의 두 조건이므로 고유2개로 합산하지 않는다. Setup/call/teardown 각1 PASS, errors/skips/collection0, immutable eefe image/network none/4GiB/2CPU/ownedPG18/표준identity·전체3593 source/helper 전후·cluster/container/attach 정리 PASS다. Source427005f7/runner8443f33d/fixture47336c8b·독립 fixturec9fac192에 결속한다. 원 reason/data/Core 검증은 최종 PASS에서 실행됐다. 이후 pinned Ruff0.16.6가 helper 호출 한 줄의 서식만 정리했고 전체 모듈 AST는 동일하다(final testc04d6b1c). Ruff check/format과 진행 문서7의 Prettier를 통과했다.
+- Dev actual09aaf: 변경 전 DB 백업 후 head `wb_checked_cas_20261009`, 관리 `miy-dev.service` active/current API readiness·로그인/공개 앱 smoke와 Vite AppRoot import HTTP200을 확인했다. 새 C1 factory/operational role 활성화와 사용자 PC 검증은 아니다.
+- Current private24(09aaf/f73): fresh restore·24append·retained164 동등·old image read/write/no-op/rollback·90 guards·8 capabilities·41ledger columns/8CPF/34NOTNULL·소유cleanup PASS, Root private1b8bbddc/public3ed50715/peer8a51fba9다. 원47+실제 binding3=50 pure PASS다. 신규 feature에는 새 source binding/rehearsal/full이 필요하고 생산 쓰기0/배포0이다.
+- SDK22/faaf: actual original Task receipt6bb4a61c/peer2f907844 PASS35.159819초. 원 계획·구현2턴을 반복하지 않고 같은 Task/thread read-only3번째 턴을 실행했다. 원 전체17 items retained/after19·원 명령4확인·new command/fileChange/descendant0·Source/Git 불변·cleanup8 PASS·total model operations/turns3·automatic retry0이다. 앞선 matcher/Source inventory 준비 실패는 보존한다. 전체 network/kernel/관리 reload·two starters·UI/별도 Workbench 배포는 미검증이다.
+- C2 inactive: journal8 pure51/native48 PASS241.099421초·모든3phase/1234guards/cleanup PASS, receipt8485dfa1/peer99920f4f. Offline causal14 PASS0.406174초는 no-delta가 영구 무관성을 보증하지 않음을 확인했지만 자동 buffered 적용/actor 누락은 재현하지 않았다. Public Yjs snapshotContainsUpdate criterion은 설계 후보이며 아직 native interop/SQL checkpoint 검증이 아니다. 원 실패/비활성/Source/Core 역할 한도를 유지한다.
+
 ## 2026-10-09 full261 후속 소유 연결 정리
 
 - Full261/job429/source1efd2054: API6502 PASS/3 FAIL/3 SKIP/4 WARN3029.87초, 후속 PG16/37/15 PASS; job FAILED3313.759587초다. Raw trace/SQL/credentials/customer 자료를 기록하지 않았다.
