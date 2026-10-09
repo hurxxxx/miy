@@ -536,3 +536,15 @@ MR81 최신 full239/job407은 저장 공간 선행조건24.291815초 실패·제
 ## 2026-10-09 02:38 — Docs room Source 전달 준비
 
 Base deve25c1934/main9e/GitHub7242b865에서 Source6·추적6의 범위로 신규104·기존370 검사와 생성 계약을 통과했다. Native SQLNULL assertion 시점 문제의 원본·실제 진단·기대값 보존 교정은 VALIDATION을 참조한다. Owner format/check와 최종12개 독립 수락 뒤 일반 commit/push·양쪽 PR/MR·필수 Codex review·정상 merge·소유 feature 정리를 진행한다. 이 기록 시점은 커밋/병합 전이고 source/tree·원격ID는 실제 완료 receipt에서 추적한다. Full239/407 storage 실패·main/prod9e 유지·새 운영/별도 Workbench 배포 없음은 유지한다.
+
+## 2026-10-09 02:50 — Docs room PR86/MR93 전달 완료
+
+Source `a9fe6bf85a8c7884d5b8f659b4fc388c336802ea`는 Source6·추적6의 독립 수락 accepted=true/blockers0 뒤 일반 hook으로 커밋했다. 필수 pipeline240/job408은 SUCCESS/56.719112초, allow_failure=false다. [GitHub PR86](https://github.com/hurxxxx/miy/pull/86)은 `667047af4c27b9cc0c8257f360869323b3d8cc66`, [GitLab MR93](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/93)은 `499aff33c451ebaf893939928e497497b78d50ca`로 정상 병합했다. 두 merge tree는 `f3ba8ac08ab9266501e9bf29aa4beb60c6a3fd57`로 같다. 해당 feature만 양쪽 원격·로컬에서 exact tip으로 정리하고 detached 소스 worktree·persistent dev와 upstream direct push 차단을 보존했다.
+
+자동 후속 MR81 전체241/409는 FAILED/script_failure/23.871109초로 저장 공간 선행조건에서 종료됐다. 제품 테스트0이며 dev499aff33/main·prod9e9280df다. 운영 배포·별도 Workbench 배포와 영구 native config 설치는 하지 않았다. 최소15GiB 및15% 기준을 유지하며 지속 여유와 최신 source/target/tree 전체 성공 뒤 릴리스를 이어간다. 원본 실패·로컬 검증은 이전 기록으로 보존한다. 안전한 원본 receipt는 ignored `docs-room-source-feature-{commit,publish,status,merge,cleanup}.json`·`docs-room-source-independent-review.{md,json}`·`release241-job409-storage-before-tests.json`이다.
+
+## 2026-10-09 03:53 — Whiteboard 저장 안전성 로컬 검증
+
+Owned feature `feat/whiteboard-persistence-safety-20261009`, base `499aff33`, Source7+추적6=13개다. 신규 pure16 PASS/5.15s·실제 PostgreSQL/Yjs32 PASS/60.64s =48개다. 기존 prepared/auth/composition466 PASS/329.54s·원 Whiteboard 구조6 PASS/16.96s·원 Docs default8 PASS/26.33s =고유 영향480개다. 원 red4의 첫 green과 이전 반복 검사는 더하지 않는다. API architecture/i18n·생성 계약은 통과했다. 최종 문서/범위 freeze와 독립 수락·필수 원격 리뷰/병합은 이후 별도로 기록한다.
+
+소스 게시·필수 리뷰·정상 양쪽 병합·소유 브랜치 정리는 아직 진행 전이며 승인된 순서로 이어간다. Main/prod는 `9e9280df`다. Source-only 활성화·새 운영/Workbench 배포로 해석하지 않는다.

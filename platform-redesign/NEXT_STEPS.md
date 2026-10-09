@@ -1,6 +1,6 @@
 # 후속 구조작업
 
-2026-10-08 UTC. 사용자 요청에 따라 Source 명령 후속 게시 이후의 필수 작업을
+2026-10-09 UTC. 사용자 요청에 따라 Source 명령 후속 게시 이후의 필수 작업을
 식별했고, PR70 병합 후 사용자 지시로 다음 구현을 재개했다. 현재는 아래
 세 경계의 구현·검증·독립 리뷰와 PR71 게시·병합을 마쳤다. 승인된 개발 플랫폼과
 별도 Workbench 반영을 확인했다. 내부 리뷰 재인증은 완료했고 리뷰에서 발견한
@@ -20,7 +20,7 @@ cutover를 활성화한 것은 아니다. 게시 추적은
 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다. 이 문서는 우선순위·의존성과
 다음 착수 단위를 소유하며 별도 작업 대장을 만들지 않는다.
 
-현재 dev는 `e25c1934`, main/prod는 `9e9280df`다. Workbench cold resume·Whiteboard Source ACL·최소 native executor 정의는 필수 리뷰와 양쪽 정상 병합·소유 브랜치 정리를 마쳤다. 최신 full239/407은 저장 공간 검사 실패로 테스트0이며 새 운영 배포는 없다. 기존 room 상태의 readOnly Source 초기 로더는 새65개·영향157개 검사 뒤 로컬 인수했고 필수236/404 뒤 PR84/MR91로 정상 전달하고 소유 브랜치를 정리했다. Docs Source17-model ACL·별도 Core writer 읽기와 공용 Session guard10경로는 actual red1 뒤 새143개·기존227개 검사가 통과했다. 기본 Docs 영향8개도 통과했으며, 첫 실행의 장시간 중단 원인은 미확인이다. 필수238/406 리뷰 뒤 PR85/MR92로 정상 전달하고 소유 브랜치를 정리했다. Docs 기존 room Source 초기 읽기는 actual red 뒤 신규104개·기존370개 검사와 생성 계약을 통과했으며 최종 리뷰·전달 중이다. 그 뒤 Source writer·room CAS·취소/COMMIT unknown과 현재 권한을 보장하는 초기화/영속화·Docs 경계, native immutable cache/실제 설치 enforcement·보호 설정·별도 Workbench 반영·개인 앱 전체 흐름을 각각 인수한다. Native pilot의 제한된 shell 외에 대표 SDK 앱의 실제 build/test 도구 체인도 전체 흐름에서 확인해야 한다. 아래 과거 단계 기록은 당시 결과다.
+현재 dev는 `499aff33`, main/prod는 `9e9280df`다. Workbench cold resume·Whiteboard Source ACL·최소 native executor 정의는 필수 리뷰와 양쪽 정상 병합·소유 브랜치 정리를 마쳤다. 최신 full241/409은 저장 공간 검사 실패로 테스트0이며 새 운영 배포는 없다. 기존 room 상태의 readOnly Source 초기 로더는 새65개·영향157개 검사 뒤 로컬 인수했고 필수236/404 뒤 PR84/MR91로 정상 전달하고 소유 브랜치를 정리했다. Docs Source17-model ACL·별도 Core writer 읽기와 공용 Session guard10경로는 actual red1 뒤 새143개·기존227개 검사가 통과했다. 기본 Docs 영향8개도 통과했으며, 첫 실행의 장시간 중단 원인은 미확인이다. 필수238/406 리뷰 뒤 PR85/MR92로 정상 전달하고 소유 브랜치를 정리했다. Docs 기존 room Source 초기 읽기는 actual red 뒤 신규104개·기존370개 검사와 생성 계약을 통과했으며 필수240/408 리뷰 뒤 PR86/MR93 정상 병합·소유 브랜치 정리를 마쳤다. 그 뒤 Source writer·room CAS·취소/COMMIT unknown과 현재 권한을 보장하는 초기화/영속화·Docs 경계, native immutable cache/실제 설치 enforcement·보호 설정·별도 Workbench 반영·개인 앱 전체 흐름을 각각 인수한다. Native pilot의 제한된 shell 외에 대표 SDK 앱의 실제 build/test 도구 체인도 전체 흐름에서 확인해야 한다. 아래 과거 단계 기록은 당시 결과다.
 앞선 native/fixture·Docker 정리 보완은 리뷰217/383과 PR75/MR82 병합을 마쳤다.
 218/386의 API capture3개 실패는 두 테스트 파일의 보완으로 닫았고, 실제 CI
 이미지의 전체·역순3파일 각각188개 통과는 같은 검사로 중복 합산하지 않는다.
@@ -180,3 +180,17 @@ Node/pnpm 공개 버전 metadata 확인과 실제 archive hash·Python/ELF/ABI·
 첫 단계는 기존 factory에서 admission 때 collab row ID와 room key를 캡처하고 조건부 CAS로 REST 방 회전·동일 key의 row 삭제/재생성 ABA를 모두 거절한다. 이전 runtime은 새 상태를 덮어쓰거나 row를 생성/수리/입양하지 않는다. SQL worker 정리가 끝날 때까지 flush_lock을 유지하고, 감소하는 SQL 시간 제한·expected_runtime cleanup·확정 ACK와 불명확 COMMIT 결과를 구분한다. 결과가 불명확하면 debounce/cleanup이 자동 재저장하지 않는다. 제품 변경 후보7경로와 필요한 DTO assertion 경계는 actual red·PG/Yjs/CAS/취소 검증 뒤 인수한다.
 
 Source writer principal·Core current authority의 COMMIT fence·정확 최소 Whiteboard grant profile은 별도 다음 단계다. 기존88표/Files profile을 Whiteboard 최소 profile로 사용하지 않고 same-room content revision CAS·durable ACK history도 미완료로 구분한다. 조사51개·보호42개와 최소 Source 후보는 `.runtime/structural-next-delivery/next-source-writer-cas-plan.{md,json}`에 기록했다. 현재 계획만이며 제품 수정·테스트/운영 활성화0이다. 비필수 앱 기능·다중 사용자 범위는 확대하지 않는다.
+
+## 2026-10-09 02:50 — Whiteboard 저장 안전성 우선 구현
+
+Docs Source room 읽기는 필수 리뷰와 PR86/MR93 병합·소유 feature 정리를 마쳤다. 다음은 현재 Whiteboard 저장의 필수 데이터 유실 경계다. 실제 PostgreSQL/native Yjs로 오래된 room-key 회전·같은 key의 collab row 재생성·반복 취소·교체 runtime 정리를 먼저 재현한다. Admission에서 board ID·collab row ID·room key를 캡처하고 조건부 저장한다. 누락 캡처는 Session 생성 전에 거절하며 오래된 runtime은 새 row를 생성·복구·채택하지 않는다. 저장 중 취소에서도 직렬화 lock은 SQL worker 정리·join까지 유지한다. COMMIT 응답 유실은 unknown으로 보존해 자동 재실행하지 않는다.
+
+이 단계는 기존 저장 안전성 수정이다. 별도의 최소 Source writer 역할과 COMMIT까지의 현재 Core 권한 fence·동일 room 내용 수렴·durable recovery는 후속 독립 단계다. Source 읽기 역할을 쓰기 권한으로 확대하지 않는다. 원본 앱 상세 기능과 다중 사용자는 보류한다. Native SDK/toolchain의 실제 파일·ELF 검증과 영구 설치, 개인 앱 전체 흐름·별도 Workbench 배포도 남는다.
+
+## 2026-10-09 03:53 — Whiteboard 저장 안전성 로컬 검증
+
+기존 room이 입장 때 캡처한 board ID·collab 행 ID·room key만 조건부 UPDATE한다. Board SHARE와 정확한 행 조건을 COMMIT까지 유지하고, 취소된 호출도 SQL worker/cleanup 종료까지 flush lock을 보유한다. ACK는 후속 정리 실패로 unknown으로 바꾸지 않으며 unknown은 원 identity/bytes를 보존하고 자동 재저장하지 않는다. 이전 WS finalizer·observer·대기 publish가 교체 runtime을 정리하거나 변경할 수 없고, pending/unknown 동일 identity 재입장은 거절한다.
+
+신규 pure16 PASS/5.15s·실제 PostgreSQL/Yjs32 PASS/60.64s =48개다. 기존 prepared/auth/composition466 PASS/329.54s·원 Whiteboard 구조6 PASS/16.96s·원 Docs default8 PASS/26.33s =고유 영향480개다. 원 red4의 첫 green과 이전 반복 검사는 더하지 않는다. API architecture/i18n·생성 계약은 통과했다. 최종 문서/범위 freeze와 독립 수락·필수 원격 리뷰/병합은 이후 별도로 기록한다.
+
+다음 최소 착수는 별도 Source writer principal/least-privilege 프로필과 actor authority의 COMMIT 경계 설계/red 인수다. Native SDK immutable toolchain·설치/enforcement와 실제 개인 앱 전체 흐름도 남아 있다. 전체 구조 완료로 확대하지 않는다.

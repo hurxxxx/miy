@@ -1930,3 +1930,31 @@ Source writer/CAS·COMMIT unknown·저장/media/RAG·정확 operational grants/c
 첫 formatter의 테스트 unused import F401은 테스트 실행 전에 발견했고 F401만 자동 제거한 뒤 전체 Source format/lint를 통과했다. 제품 동작·assertion이나 권한 완화는 없었다. 정확 원본·진단은 `.runtime/structural-next-delivery/{post-docs-room-native-before-null-wire-diagnosis,post-docs-room-null-wire-first-diagnosis,post-docs-room-before-after-native-null-wire-diagnosis}.json`, 기존 테스트 bytes는 `docs-room-test-before-native-wire-assertion-fix.py`, 교정은 소유 worktree의 `.runtime/prepared-docs-source-room/native-wire-assertion-fix.{json,patch}`에 보존한다. 결과는 `post-docs-room-*-result.json`이다.
 
 기존 native hub shutdown이 쓰는 기본 Core persistence는 보존하며, 새 Source callback의 읽기·SQL 무쓰기 증거와 분리한다. 기존 default8의 최초 장시간 지연 원인 미확인 기록도 유지한다. Source writer/CAS·초기화·media/RAG/영속화와 정확 operational grants·service cutover, native SDK/영구설치·보호 정책·별도 Workbench/운영 배포는 필수 잔여다.
+
+## 2026-10-09 02:50 — Docs room 최종 인수와 후속 검증 범위
+
+최종 Source6·추적6의 독립 수락 accepted=true/blockers0, manifest SHA256 `fa5ed21d4c4b197be2d6294b790731546724d10f2fb4b5d7b781feea9afcc405`와 보호40개를 확인했다. 신규 pure72 PASS/4.71초·native32 PASS/56.12초 =104개, 기존 영향362 PASS/241.23초와 원본 Docs default8 PASS/26.62초 =370개다. API architecture/i18n·생성 계약·Source Python·8개 owner/진행 Markdown 검사도 통과했다. 앞서 기록한 native NULL wire 진단·불변 assertions/시점 교정과 첫 default hang 원인 미확인 한계는 유지한다. 필수240/408 리뷰와 정상 양쪽 병합은 전달 검증이며 전체 릴리스241/409의 storage 실패/tests0를 제품 PASS로 해석하지 않는다.
+
+후속 Whiteboard 저장 안전성은 별도 owned worktree에서 actual native red부터 검증한다. Source7(+필수 captured-ID test1 조건부)와 추적6을 분리하고 DocRoom4·기존 core/역할/모델/마이그레이션/기존 hub test를 보호46개로 동결했다. 기존 skills/harness는 절차로 적용하지 않는다. 본 문서 갱신 시 후속 제품 구현·green 검증은 아직 완료되지 않았다.
+
+## 2026-10-09 02:57 — Whiteboard 저장의 actual red4
+
+원 Source499aff33과 신규 test SHA `429d24df513e2de2de8a5c339ec13cfebe1d7a4256ccf6546e557552d09fd9d2`에서 네 `red_contract` 함수가 모두 call AssertionError로 실패했다(4 FAIL/2 DESELECTED/15.44초, collection/setup error0). 실제 migrated PostgreSQL·native Yjs에서 오래된 room rotation overwrite, same-key 새 collab 행 ABA overwrite, 반복 host 취소 중 lock/SQL worker 분리, 기존 native WS finalizer의 교체 runtime 정리를 확인했다. 새 API 누락이나 persistence/encoder stub으로 실패시킨 결과가 아니다. Network-none·real env/credential0·owned container cleanup PASS다. 현재 원본과 네 함수 AST를 보존하고 수정 후 같은 기대값으로 재검증한다.
+
+Root ignored `whiteboard-persistence-original-red.json`·`whiteboard-persistence-original-red-test.py`·`whiteboard-persistence-red-ast.json`이 원본을 소유한다. Product4/owner2와 새 test1은 에이전트별 단독 소유로 분리하고 Root가 관련 검사·통합을 담당한다. 후속 green·운영 전환은 아직 완료하지 않았다.
+
+## 2026-10-09 03:17 — 원 red4의 첫 green
+
+불변 원본 SHA429d24df를 별도 ignored module에 그대로 복사해 같은 네 함수를 재실행했다. 실제4 PASS/16.13초·network-none·owned cleanup PASS다. 제품4 Ruff format/check와 owner2 format도 통과했다. 이 첫 green은 신규 최종 고유 수에 별도로 더하지 않는다. 추가 independent finding의 same-incarnation pending/unknown 재입장 경계 수정과 확대 native 검사·기존 영향 검증은 진행 중이며 전체 저장 인수·Source writer/Core COMMIT fence·운영 반영은 아직 완료하지 않았다.
+
+## 2026-10-09 03:53 — Whiteboard 저장 안전성 로컬 검증
+
+신규 pure16 PASS/5.15s·실제 PostgreSQL/Yjs32 PASS/60.64s =48개다. 기존 prepared/auth/composition466 PASS/329.54s·원 Whiteboard 구조6 PASS/16.96s·원 Docs default8 PASS/26.33s =고유 영향480개다. 원 red4의 첫 green과 이전 반복 검사는 더하지 않는다. API architecture/i18n·생성 계약은 통과했다. 최종 문서/범위 freeze와 독립 수락·필수 원격 리뷰/병합은 이후 별도로 기록한다.
+
+기존 room이 입장 때 캡처한 board ID·collab 행 ID·room key만 조건부 UPDATE한다. Board SHARE와 정확한 행 조건을 COMMIT까지 유지하고, 취소된 호출도 SQL worker/cleanup 종료까지 flush lock을 보유한다. ACK는 후속 정리 실패로 unknown으로 바꾸지 않으며 unknown은 원 identity/bytes를 보존하고 자동 재저장하지 않는다. 이전 WS finalizer·observer·대기 publish가 교체 runtime을 정리하거나 변경할 수 없고, pending/unknown 동일 identity 재입장은 거절한다.
+
+원 RED4는 4 FAIL/15.44초의 실제 AssertionError이며 collection/setup0이다. 후속 pure14 PASS/1 FAIL/5.20초와 exact native-frame3 PASS/1 FAIL/3.92초·진단3 PASS/1 FAIL/3.82초를 성공으로 덮어쓰지 않았다. 실제 encoder read의 native observer가 canonical empty2bytes로 replacement flush를 예약했음을 확인했다. 진단 wrapper는 원 handler를 그대로 호출한 관측 도구였으며 최종 검사는 이 wrapper를 로드하지 않는다. Product는 pinned ypy-websocket과 같은 정확한 b00 empty delta만 무시하며 state-vector 필터를 쓰지 않는다. 원 assertions는 그대로다. 새 실제 정상 debounce→SQL COMMIT ACK→read 무재예약과 delete-only delta positive를 함께 통과했다.
+
+COMMIT unknown 검사는 실제 driver COMMIT 전/후의 통제 fault injection을 포함하며 물리 네트워크 단절로 확대하지 않는다. Default14개는 원 함수/기대값을 fresh migrated PG와 기존 qualified adapter로 실행했고 canonical Redis/vector/full CI로 확대하지 않는다. 이번 Docs default 첫 실행은 원 test_active_docs_ws_frame_closes_and_retires_room_on_drain에서7 PASS/1 FAIL/27.03초였다. 고정 클래스/위치가 미관측이라 원인은 미확인이다. 동일 코드·원 assertions의 bounded 단독 진단은1 PASS/9.60초이며, 최종8개에는 fixed exception class/public code line 관측만 추가했다. 첫 실패는 whiteboard-persistence-docs-default-original-failure.json에 보존하고 재현되지 않았다는 이유로 원인 해결을 주장하지 않는다. 이전 Docs default 장시간 hang 원인도 여전히 미확인이다. Network-none·실제 env/credential0·owned cleanup을 확인했으며 raw SQL/parameters/로그를 저장·출력하지 않았다. 최종 test SHA `7e9e6091c6ea083c70160cb4cdd1ba5f51e607a0b286663fd980357170611801`다.
+
+증거는 ignored `.runtime/structural-next-delivery/post-whiteboard-persistence-*-result.json`과 `whiteboard-persistence-{original-red,pure-before-frame-diagnosis,original-native-frame-diagnosis,empty-observation-proof,final-new48}.json`에 보존한다. 이번 범위는 기존 trusted Core factory의 저장 안전성이다. 최소 Source writer 권한·현재 Core 사용자 권한의 COMMIT fence·동일 room의 다중 hub 내용 CAS/convergence·영속 unknown 복구·Docs media/RAG 저장·공식 서비스 전환은 필수 잔여다. 기존 readOnly Source/session/auth·모델·role·migration·원 tests를 포함한 보호 입력46개는 동일하다. 운영·별도 Workbench 배포는 없으며 full241/409 storage 실패/tests0를 유지한다. 비필수 앱 기능과 다중 사용자 작업은 별도 요청까지 보류한다.

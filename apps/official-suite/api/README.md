@@ -55,8 +55,25 @@ Source cleanup. Complete server assembly is checked before room or slot admissio
 failure never falls back to the global initial factory. The
 [initial-room reader owner](../../api/src/miy_api/domains/official_apps/AUTHORITY_READER.md#explicit-inactive-whiteboard-initial-room-reads)
 records separate budgets, restricted fixture scope and current-observation limits.
-Default initialization and native hub persistence remain unchanged; this option
-does not provision a Source writer, roles, durable room CAS or service activation.
+Default initialization and the native global persistence factory remain selected;
+this option does not provision a Source writer, roles or service activation.
+
+The trusted Whiteboard runtime now retains the admitted collab row ID and room key
+and conditionally saves only that same live incarnation. Rotation or same-key row
+recreation cannot make an old flush adopt a replacement. Its SQL worker stays
+joined under cancellation until owned cleanup, with decreasing local SQL budgets;
+ACK is preserved before close, and unknown/refused attempts retire without automatic
+replay. A local unknown-incarnation tombstone blocks re-admission from a same-row
+Source observation until separate resolution; it is not durable restart history.
+The same incarnation also refuses admission while a removed runtime still has
+pending SQL/disposal; only complete joined disposal clears that temporary marker.
+The native finalizer and local callbacks preserve replacement runtime
+identity. ID-less memory-only room construction grants no persistence authority.
+The [runtime persistence owner](../../api/src/miy_api/domains/official_apps/AUTHORITY_READER.md#trusted-whiteboard-runtime-persistence-safety)
+distinguishes this existing global-factory safety change from a separately accepted
+Source writer/profile, current Core authority through COMMIT, cross-hub content CAS,
+relay incarnation and durable historical ACK recovery. Docs persistence and all
+inactive service gates retain their original contracts.
 
 An explicit prepared assembly can also pair a separate Docs ACL-read factory
 with a separate Core writer-read factory and their positive budgets. The Docs

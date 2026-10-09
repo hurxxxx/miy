@@ -488,3 +488,21 @@ Source writer/CAS·COMMIT unknown·저장/media/RAG·정확 operational grants/c
 ## 2026-10-09 02:38 — Docs 기존 room Source 읽기 로컬 인수
 
 명시적 비활성 Source18 기존room loader를 구현하고 신규104개·기존370개 및 생성 계약·Source Python 검사를 통과했다. 현재 Source app/edit ACL·Core writer와 auth/session/callback identities를 확인하고, legacy repair가 필요한 상태는 private503/1013으로 거절한다. 합산8MiB를 전송 전 CASE와 DTO에서 제한한다. nullable SQLNULL/JSONnull/YjsNone·빈bytes의 genuine native positive와 native shutdown 후 size검사 시점 교정을 VALIDATION에 남겼다. Source6·추적6을 최종 독립 수락 뒤 일반 source 전달한다. 운영 활성화·Source writes/영속화·전체 플랫폼/Workbench 완료는 미완료다.
+
+## 2026-10-09 02:50 — Docs room source 전달 완료, 저장 안전성 재개
+
+최종12/보호40의 독립 수락을 실제 receipt와 대조해 일반 커밋 a9fe6bf8·GitHub PR86·GitLab MR93을 게시했다. 필수240/408 SUCCESS 뒤 양쪽 정상 병합과 exact tree를 확인하고 owned feature 원격/로컬만 정리했다. Primary dev499aff33, main/prod9e9280df다. 자동 full241/409는23.871109초 storage 검사 실패/tests0이며 운영 배포는 없다.
+
+다음 P0는 기존 Whiteboard 저장에서 stale runtime의 새 문서 덮어쓰기·취소 중 lock 유실·교체 runtime 정리·unknown COMMIT 자동 replay를 막는 것이다. 별도 worktree와 보호46개를 준비했고 작성 에이전트는 actual native red 테스트만, 독립 에이전트는 기존 identity/cleanup/ACK 영향 검토만 진행한다. Root는 검증·공유 계약·전달을 통합한다. Source writer 최소 역할·현재 Core 권한 COMMIT fence는 이 단계 이후이며 앱별 비필수 기능·다중 사용자는 보류한다.
+
+## 2026-10-09 02:57 — 저장 경쟁 actual red 확인
+
+변경 전 Source499aff33·test429d24df에서 실제4개 call AssertionError/15.44초·collection/setup0을 확인했다. R1 회전·same-key 새 collab 행 ABA·반복 host 취소·이전 WS finalizer의 교체 runtime 정리가 모두 실패했다. Network-none 합성 PostgreSQL/native Yjs, persistence/encoder stub0과 owned container cleanup PASS다. 원본 결과와 네 함수 AST를 보존하고 Source7 최소 수정에 착수한다. Green·Source writer/Core COMMIT fence·운영 반영은 아직 완료하지 않았다.
+
+## 2026-10-09 03:53 — Whiteboard 저장 안전성 로컬 검증
+
+기존 room이 입장 때 캡처한 board ID·collab 행 ID·room key만 조건부 UPDATE한다. Board SHARE와 정확한 행 조건을 COMMIT까지 유지하고, 취소된 호출도 SQL worker/cleanup 종료까지 flush lock을 보유한다. ACK는 후속 정리 실패로 unknown으로 바꾸지 않으며 unknown은 원 identity/bytes를 보존하고 자동 재저장하지 않는다. 이전 WS finalizer·observer·대기 publish가 교체 runtime을 정리하거나 변경할 수 없고, pending/unknown 동일 identity 재입장은 거절한다.
+
+신규 pure16 PASS/5.15s·실제 PostgreSQL/Yjs32 PASS/60.64s =48개다. 기존 prepared/auth/composition466 PASS/329.54s·원 Whiteboard 구조6 PASS/16.96s·원 Docs default8 PASS/26.33s =고유 영향480개다. 원 red4의 첫 green과 이전 반복 검사는 더하지 않는다. API architecture/i18n·생성 계약은 통과했다. 최종 문서/범위 freeze와 독립 수락·필수 원격 리뷰/병합은 이후 별도로 기록한다.
+
+보호46개·원 RED4 AST와 기존 test 함수/assertions를 유지했다. 테스트 관측으로 실제 Y.py encode-read가 생성하는 canonical empty delta의 불필요한 저장 예약을 발견했고 pinned upstream과 같은 정확한 empty byte 처리만 추가했다. 삭제-only update는 별도로 정상 동작을 확인했다. 이전 Docs 장시간 지연의 원인으로 연결하지 않는다.

@@ -4,9 +4,11 @@ import asyncio
 import base64
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from functools import partial
 from typing import Any
 
+from anyio import CancelScope, CapacityLimiter, create_task_group, to_thread
 import y_py as Y
 from ypy_websocket.yroom import YRoom
 from ypy_websocket.yutils import YMessageType
@@ -23,7 +25,13 @@ from miy_api.domains.collaboration.yjs_runtime import (
     hash_bytes,
     release_yroom_thread_bound_state,
 )
-from miy_api.domains.whiteboard.scene_state import persist_runtime_yjs_state
+from miy_api.domains.whiteboard.scene_state import (
+    WhiteboardPersistenceIdentity,
+    WhiteboardPersistenceRefused,
+    WhiteboardPersistenceResult,
+    persist_runtime_yjs_state,
+    persistence_identity,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +45,15 @@ class WhiteboardCollabContext:
     can_edit: bool
     scene: dict[str, Any]
     default_actor_user_id: str
+    collab_document_id: str | None = None
+
+
+@dataclass
+class _WhiteboardRoomRuntime(CollabRoomRuntime):
+    persistence_identity: WhiteboardPersistenceIdentity | None = None
+    persistence_outcome: WhiteboardPersistenceResult | None = None
+    retained_yjs_state: bytes | None = field(default=None, repr=False)
+    last_acknowledged_yjs_state: bytes | None = field(default=None, repr=False)
 
 
 class WhiteboardCollabHub:
@@ -49,6 +66,13 @@ class WhiteboardCollabHub:
         self._settings = get_settings()
         self._lock = asyncio.Lock()
         self._rooms: dict[str, CollabRoomRuntime] = {}
+        self._disposals: set[asyncio.Task[None]] = set()
+        # Local unresolved attempts survive native room disposal; observing an
+        # existing Source row cannot establish their historical COMMIT outcome.
+        self._uncertain_rooms: dict[WhiteboardPersistenceIdentity, _WhiteboardRoomRuntime] = {}
+        self._retiring_rooms: dict[
+            WhiteboardPersistenceIdentity, dict[int, _WhiteboardRoomRuntime]
+        ] = {}
         self._session_factory = get_session_factory()
         self._instance_id = instance_id or self._settings.instance_id or new_id()
         self._bus = bus
@@ -76,10 +100,31 @@ class WhiteboardCollabHub:
         context: WhiteboardCollabContext,
         yjs_state: bytes | None,
     ) -> CollabRoomRuntime:
+        identity = (
+            persistence_identity(
+                context.whiteboard_id, context.collab_document_id, context.room_key
+            )
+            if context.collab_document_id is not None
+            else None
+        )
         async with self._lock:
+            if identity is not None and identity in self._uncertain_rooms:
+                raise WhiteboardPersistenceRefused("unresolved_incarnation")
+            if identity is not None and identity in self._retiring_rooms:
+                raise WhiteboardPersistenceRefused("retiring_incarnation")
             runtime = self._rooms.get(context.room_key)
-            if runtime is not None:
+            if (
+                runtime is not None
+                and not self._terminal(runtime)
+                and (runtime.persistence_identity == identity)
+            ):
                 return runtime
+            if runtime is not None:
+                self._mark_retiring(runtime)
+                self._rooms.pop(context.room_key)
+                self._retire_runtime(
+                    runtime, WhiteboardPersistenceResult("refused", "incarnation_replaced")
+                )
 
             room = YRoom(ready=True, log=logger)
             room_task = asyncio.create_task(room.start())
@@ -87,20 +132,23 @@ class WhiteboardCollabHub:
             if yjs_state:
                 Y.apply_update(room.ydoc, yjs_state)
 
-            runtime = CollabRoomRuntime(
+            runtime = _WhiteboardRoomRuntime(
                 room_key=context.room_key,
                 default_actor_user_id=context.default_actor_user_id,
                 room=room,
                 room_task=room_task,
                 metadata={"whiteboard_id": context.whiteboard_id},
+                persistence_identity=identity,
             )
-            room.on_message = lambda message, room_key=context.room_key: self._handle_room_message(
-                room_key,
+            if identity is not None:
+                runtime.metadata["collab_document_id"] = identity.collab_document_id
+            room.on_message = lambda message: self._handle_room_message(
+                runtime,
                 message,
             )
             room.ydoc.observe_after_transaction(
-                lambda event, room_key=context.room_key: self._handle_room_update(
-                    room_key,
+                lambda event: self._handle_room_update(
+                    runtime,
                     event.get_update(),
                 )
             )
@@ -116,7 +164,7 @@ class WhiteboardCollabHub:
         user_id: str,
     ) -> None:
         async with self._lock:
-            if self._rooms.get(runtime.room_key) is not runtime:
+            if not self._current(runtime):
                 raise RuntimeError("Collaboration room is no longer active.")
             if runtime.active_connection_count >= self._settings.collab_max_room_clients:
                 raise CollabConnectionLimitExceeded()
@@ -155,13 +203,85 @@ class WhiteboardCollabHub:
                 runtime.active_user_connections.get(user_id, 0),
             )
 
-    async def cleanup_room(self, room_key: str) -> None:
+    def _terminal(self, runtime):
+        return bool(
+            runtime.metadata.get("persistence_terminal") or runtime.metadata.get("disposing")
+        )
+
+    def _current(self, runtime):
+        return (
+            self._rooms.get(runtime.room_key) is runtime
+            and not self._terminal(runtime)
+            and runtime.persistence_identity not in self._uncertain_rooms
+        )
+
+    def _retire_runtime(self, runtime, outcome):
+        runtime.persistence_outcome = outcome
+        runtime.metadata["persistence_terminal"] = outcome.status
+        self._mark_retiring(runtime)
+        if outcome.status == "unknown" and runtime.persistence_identity is not None:
+            self._uncertain_rooms.setdefault(runtime.persistence_identity, runtime)
+        key = (
+            runtime.persistence_identity.room_key
+            if runtime.persistence_identity
+            else runtime.room_key
+        )
+        if self._rooms.get(key) is runtime:
+            self._rooms.pop(key)
+        elif outcome.status == "unknown":
+            resident = self._rooms.get(key)
+            if (
+                resident is not None
+                and resident.persistence_identity == runtime.persistence_identity
+            ):
+                # Cover a same-incarnation replacement already present before
+                # uncertainty was registered. Do not leave a silently skipped socket.
+                self._retire_runtime(
+                    resident, WhiteboardPersistenceResult("refused", "unresolved_incarnation")
+                )
+        self._start_disposal(runtime, persist=False, close_code=1013)
+
+    def _mark_retiring(self, runtime):
+        if runtime.persistence_identity is not None and runtime.room.ydoc is not None:
+            self._retiring_rooms.setdefault(runtime.persistence_identity, {})[id(runtime)] = runtime
+
+    def _forget_retiring(self, runtime):
+        owners = self._retiring_rooms.get(runtime.persistence_identity)
+        if owners is not None:
+            owners.pop(id(runtime), None)
+            if not owners:
+                self._retiring_rooms.pop(runtime.persistence_identity)
+
+    def _start_disposal(self, runtime, *, persist, close_code=None):
+        if runtime.metadata.get("disposing"):
+            return None
+        self._mark_retiring(runtime)
+        runtime.metadata["disposing"] = "true"
+        task = asyncio.create_task(
+            self._dispose_runtime(runtime, persist=persist, close_code=close_code)
+        )
+        self._disposals.add(task)
+        task.add_done_callback(self._disposals.discard)
+        return task
+
+    async def cleanup_room(self, room_key: str, *, expected_runtime=None) -> None:
         async with self._lock:
             runtime = self._rooms.get(room_key)
-            if runtime is None or runtime.room.clients or runtime.active_connection_count:
+            if (
+                runtime is None
+                or expected_runtime is not None
+                and runtime is not expected_runtime
+                or runtime.room.clients
+                or runtime.active_connection_count
+            ):
                 return
+            self._mark_retiring(runtime)
             self._rooms.pop(room_key, None)
+        task = self._start_disposal(runtime, persist=True)
+        if task is not None:
+            await asyncio.shield(task)
 
+    async def _dispose_runtime(self, runtime, *, persist, close_code):
         if runtime.flush_task is not None:
             runtime.flush_task.cancel()
             await self._run_cleanup_step(
@@ -169,7 +289,36 @@ class WhiteboardCollabHub:
                 "flush task cancellation",
                 asyncio.gather(runtime.flush_task, return_exceptions=True),
             )
-        await self._run_cleanup_step(runtime, "flush", self._flush_runtime(runtime))
+        # The debounce pointer may have been replaced while an older shielded
+        # worker still owns this lock. Even an acknowledged-byte skip must join it.
+        async with runtime.flush_lock:
+            needs_flush = (
+                persist
+                and not runtime.metadata.get("persistence_terminal")
+                and runtime.room.ydoc is not None
+                and bytes(Y.encode_state_as_update(runtime.room.ydoc))
+                != runtime.last_acknowledged_yjs_state
+            )
+        if needs_flush:
+            await self._run_cleanup_step(
+                runtime, "flush", self._flush_runtime(runtime, allow_disposing=True)
+            )
+        if runtime.metadata.get("persistence_terminal"):
+            close_code = 1013
+        if close_code is not None:
+            for client in list(runtime.room.clients):
+                await self._run_cleanup_step(
+                    runtime,
+                    "client close",
+                    client.close(
+                        code=close_code,
+                        reason=(
+                            "whiteboard_persistence_unavailable"
+                            if close_code == 1013
+                            else "Server shutdown."
+                        ),
+                    ),
+                )
         if runtime.relay_task is not None:
             runtime.relay_task.cancel()
             await self._run_cleanup_step(
@@ -190,44 +339,21 @@ class WhiteboardCollabHub:
             asyncio.gather(runtime.room_task, return_exceptions=True),
         )
         self._release_room_state(runtime)
+        # Clear only after joined SQL and this native disposal complete. Unknown
+        # attempts remain blocked by their separate retained incarnation tombstone.
+        self._forget_retiring(runtime)
 
     async def shutdown(self) -> None:
         async with self._lock:
             runtimes = list(self._rooms.values())
+            for runtime in runtimes:
+                self._mark_retiring(runtime)
             self._rooms.clear()
 
         for runtime in runtimes:
-            if runtime.flush_task is not None:
-                runtime.flush_task.cancel()
-                await self._run_cleanup_step(
-                    runtime,
-                    "flush task cancellation",
-                    asyncio.gather(runtime.flush_task, return_exceptions=True),
-                )
-            await self._run_cleanup_step(runtime, "flush", self._flush_runtime(runtime))
-            for client in list(runtime.room.clients):
-                await client.close(code=1001, reason="Server shutdown.")
-            if runtime.relay_task is not None:
-                runtime.relay_task.cancel()
-                await self._run_cleanup_step(
-                    runtime,
-                    "relay task cancellation",
-                    asyncio.gather(runtime.relay_task, return_exceptions=True),
-                )
-            if runtime.relay_pubsub is not None:
-                await self._run_cleanup_step(
-                    runtime,
-                    "relay pubsub close",
-                    self._bus.close_pubsub(runtime.relay_pubsub, runtime.room_key),
-                )
-            self._stop_room(runtime)
-            await self._run_cleanup_step(
-                runtime,
-                "room task stop",
-                asyncio.gather(runtime.room_task, return_exceptions=True),
-            )
-            self._release_room_state(runtime)
-
+            self._start_disposal(runtime, persist=True, close_code=1001)
+        while self._disposals:
+            await asyncio.gather(*tuple(self._disposals))
         await self._bus.shutdown()
 
     async def _run_cleanup_step(
@@ -290,6 +416,8 @@ class WhiteboardCollabHub:
         runtime: CollabRoomRuntime,
         raw_payload: object,
     ) -> None:
+        if not self._current(runtime):
+            return
         if not isinstance(raw_payload, (bytes, bytearray)):
             return
         payload = json.loads(raw_payload.decode("utf-8"))
@@ -316,19 +444,24 @@ class WhiteboardCollabHub:
 
         if payload.get("type") == "awareness":
             for client in list(runtime.room.clients):
+                if not self._current(runtime):
+                    return
                 await client.send(data)
 
-    def _handle_room_message(self, room_key: str, message: bytes) -> bool:
+    def _handle_room_message(self, runtime, message: bytes) -> bool:
+        if not self._current(runtime):
+            return True  # Pinned YRoom skips native frame processing only for True.
         if not message or not self._bus.available:
             return False
         if message[0] == YMessageType.AWARENESS:
-            asyncio.create_task(self._publish_awareness(room_key, message))
+            asyncio.create_task(self._publish_awareness(runtime, message))
         return False
 
-    def _handle_room_update(self, room_key: str, update: bytes) -> None:
-        runtime = self._rooms.get(room_key)
-        if runtime is None:
+    def _handle_room_update(self, runtime, update: bytes) -> None:
+        if not self._current(runtime):
             return
+        if update == b"\x00\x00":
+            return  # Native read transactions can emit this exact empty delta.
         update_hash = hash_bytes(update)
         should_publish = not runtime.consume_remote_update_hash(update_hash)
         self._schedule_flush(runtime)
@@ -341,6 +474,8 @@ class WhiteboardCollabHub:
         update: bytes,
         update_hash: str,
     ) -> None:
+        if not self._current(runtime) or not self._bus.available:
+            return
         try:
             await self._bus.publish(
                 runtime.room_key,
@@ -356,13 +491,15 @@ class WhiteboardCollabHub:
         except Exception as exc:
             await self._handle_relay_failure(exc)
 
-    async def _publish_awareness(self, room_key: str, message: bytes) -> None:
+    async def _publish_awareness(self, runtime, message: bytes) -> None:
+        if not self._current(runtime) or not self._bus.available:
+            return
         try:
             await self._bus.publish(
-                room_key,
+                runtime.room_key,
                 {
                     "instance_id": self._instance_id,
-                    "room_key": room_key,
+                    "room_key": runtime.room_key,
                     "type": "awareness",
                     "data": base64.b64encode(message).decode("ascii"),
                 },
@@ -371,6 +508,8 @@ class WhiteboardCollabHub:
             await self._handle_relay_failure(exc)
 
     def _schedule_flush(self, runtime: CollabRoomRuntime) -> None:
+        if not self._current(runtime):
+            return
         if runtime.flush_task is not None:
             runtime.flush_task.cancel()
         runtime.flush_task = asyncio.create_task(self._flush_after_delay(runtime))
@@ -382,20 +521,67 @@ class WhiteboardCollabHub:
         except asyncio.CancelledError:
             return
 
-    async def _flush_runtime(self, runtime: CollabRoomRuntime) -> None:
+    async def _flush_runtime(self, runtime: CollabRoomRuntime, *, allow_disposing=False) -> bool:
         async with runtime.flush_lock:
-            yjs_state = bytes(Y.encode_state_as_update(runtime.room.ydoc))
+            if runtime.metadata.get("persistence_terminal") or (
+                runtime.metadata.get("disposing") and not allow_disposing
+            ):
+                return False
             try:
-                await asyncio.to_thread(
-                    persist_runtime_yjs_state,
-                    self._session_factory,
-                    whiteboard_id=runtime.metadata["whiteboard_id"],
-                    yjs_state=yjs_state,
+                identity = persistence_identity(
+                    runtime.metadata.get("whiteboard_id"),
+                    runtime.metadata.get("collab_document_id"),
+                    runtime.room_key,
                 )
-            except Exception as exc:
-                logger.exception(
-                    "Failed to persist whiteboard collaboration room %s: %s", runtime.room_key, exc
-                )
+                if identity != runtime.persistence_identity or runtime.room.ydoc is None:
+                    raise WhiteboardPersistenceRefused("invalid_capture")
+                if identity in self._uncertain_rooms:
+                    self._retire_runtime(
+                        runtime, WhiteboardPersistenceResult("unknown", "unresolved_incarnation")
+                    )
+                    return False
+            except WhiteboardPersistenceRefused as exc:
+                self._retire_runtime(runtime, WhiteboardPersistenceResult("refused", exc.reason))
+                return False
+            # Native objects remain on this loop; only detached bytes cross to SQL.
+            yjs_state = bytes(Y.encode_state_as_update(runtime.room.ydoc))
+
+            async def persist_owned():
+                with CancelScope(shield=True):
+                    try:
+                        outcome = await to_thread.run_sync(
+                            partial(
+                                persist_runtime_yjs_state,
+                                self._session_factory,
+                                whiteboard_id=identity.whiteboard_id,
+                                yjs_state=yjs_state,
+                                expected_collab_id=identity.collab_document_id,
+                                expected_room_key=identity.room_key,
+                                timeout_seconds=self._settings.collab_cleanup_timeout_seconds,
+                            ),
+                            limiter=CapacityLimiter(1),
+                            abandon_on_cancel=False,
+                        )
+                        if not isinstance(outcome, WhiteboardPersistenceResult):
+                            outcome = WhiteboardPersistenceResult(
+                                "unknown", "worker_outcome_unknown"
+                            )
+                    except WhiteboardPersistenceRefused as exc:
+                        outcome = WhiteboardPersistenceResult("refused", exc.reason)
+                    except BaseException:
+                        outcome = WhiteboardPersistenceResult("unknown", "worker_outcome_unknown")
+                    # Transfer the result before the group forwards host cancellation.
+                    runtime.persistence_outcome = outcome
+                    if outcome.status == "acknowledged":
+                        runtime.last_acknowledged_yjs_state = yjs_state
+                        runtime.retained_yjs_state = None
+                    else:
+                        runtime.retained_yjs_state = yjs_state
+                        self._retire_runtime(runtime, outcome)
+
+            async with create_task_group() as group:
+                group.start_soon(persist_owned)
+            return runtime.persistence_outcome.status == "acknowledged"
 
     async def _handle_relay_failure(self, exc: Exception) -> None:
         if not self._bus.available:

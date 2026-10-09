@@ -239,3 +239,19 @@ Source writer/CAS·COMMIT unknown·저장/media/RAG·정확 operational grants/c
 ## 2026-10-09 02:38 — Docs 기존 room Source 읽기 로컬 인수
 
 명시적 비활성 Source18 기존room loader를 구현하고 신규104개·기존370개 및 생성 계약·Source Python 검사를 통과했다. 현재 Source app/edit ACL·Core writer와 auth/session/callback identities를 확인하고, legacy repair가 필요한 상태는 private503/1013으로 거절한다. 합산8MiB를 전송 전 CASE와 DTO에서 제한한다. nullable SQLNULL/JSONnull/YjsNone·빈bytes의 genuine native positive와 native shutdown 후 size검사 시점 교정을 VALIDATION에 남겼다. Source6·추적6을 최종 독립 수락 뒤 일반 source 전달한다. 운영 활성화·Source writes/영속화·전체 플랫폼/Workbench 완료는 미완료다.
+
+## 2026-10-09 02:50 — Docs room 전달과 저장 경계 착수
+
+`OFF-002B`의 Docs Source 기존 room 읽기는 신규104·기존370 PASS와 독립 수락 뒤 필수240/408/PR86/MR93 병합·소유 브랜치 정리를 마쳤다. 다음 기존 Whiteboard 저장 안전성은 actual red 준비 중이다. Board/collab row/key 캡처·조건부 쓰기, repeated cancellation worker join·replacement cleanup·COMMIT unknown 무재실행이 필수 완료 조건이다. 별도 Source writer/Core COMMIT fence·Docs 저장/media/RAG·최소 operational grant/cutover는 후속 필수로 남는다.
+
+`REL-001`·`VAL-001`은 latest241/409 storage 실패/tests0로 미완료다. Native 영구 설치/enforcement·SDK/등록/배포 전체 흐름·별도 Workbench 서비스 인수는 유지한다. 비필수 앱 세부 기능·다중 사용자 범위는 추가하지 않는다.
+
+## 2026-10-09 02:57 — Whiteboard 저장 경계 구현
+
+변경 전 네 actual native red가 모두 call assertion으로 실패해 필수 데이터 유실 경계를 확인했다. Source7·추적6의 구현을 재개하며 기존 assertions·Core/역할/모델·기존 hub/prepared 검사와 앞선 Docs room을 보존한다. 최소 캡처/CAS·취소 worker join·교체 runtime identity·unknown 무재실행을 인수한 뒤 별도 Source writer 권한 경계를 진행한다.
+
+## 2026-10-09 03:53 — Whiteboard 저장 안전성 로컬 검증
+
+`OFF-002B`의 기존 Whiteboard 저장 안전성 하위 범위는 신규48·기존480개 검사를 통과했다. 기존 room이 입장 때 캡처한 board ID·collab 행 ID·room key만 조건부 UPDATE한다. Board SHARE와 정확한 행 조건을 COMMIT까지 유지하고, 취소된 호출도 SQL worker/cleanup 종료까지 flush lock을 보유한다. ACK는 후속 정리 실패로 unknown으로 바꾸지 않으며 unknown은 원 identity/bytes를 보존하고 자동 재저장하지 않는다. 이전 WS finalizer·observer·대기 publish가 교체 runtime을 정리하거나 변경할 수 없고, pending/unknown 동일 identity 재입장은 거절한다.
+
+이번 범위는 기존 trusted Core factory의 저장 안전성이다. 최소 Source writer 권한·현재 Core 사용자 권한의 COMMIT fence·동일 room의 다중 hub 내용 CAS/convergence·영속 unknown 복구·Docs media/RAG 저장·공식 서비스 전환은 필수 잔여다. 기존 readOnly Source/session/auth·모델·role·migration·원 tests를 포함한 보호 입력46개는 동일하다. 운영·별도 Workbench 배포는 없으며 full241/409 storage 실패/tests0를 유지한다. 비필수 앱 기능과 다중 사용자 작업은 별도 요청까지 보류한다.
