@@ -48,6 +48,7 @@ def _migration_config(dsn: str | None = None) -> Config:
 def test_repository_starts_at_company_deployment_baseline() -> None:
     revisions = list(ScriptDirectory.from_config(_migration_config()).walk_revisions())
     assert [revision.revision for revision in revisions] == [
+        "wb_actor_acl_20261009",
         "wb_actor_owner_20261009",
         "wb_source_writer_20261009",
         "file_effect_20261007",

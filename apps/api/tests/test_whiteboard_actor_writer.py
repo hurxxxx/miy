@@ -17,12 +17,15 @@ from dataclasses import FrozenInstanceError, replace
 from datetime import timedelta
 from importlib import import_module
 import json
+from pathlib import Path
 import re
+from shutil import copyfile
 import time
 from types import SimpleNamespace
 from uuid import uuid4
 
 from alembic import command
+from alembic.script import ScriptDirectory
 from fastapi import HTTPException
 import psycopg
 from psycopg import sql
@@ -43,7 +46,7 @@ from test_prepared_official_http_auth import (
     authority as authority,  # noqa: F401
     bound_official as bound_official,  # noqa: F401
     client as client,  # noqa: F401
-    http_world as http_world,  # noqa: F401
+    http_world as current_head_http_world,  # noqa: F401
     isolated_data_cluster as isolated_data_cluster,  # noqa: F401
     role_template as role_template,  # noqa: F401
 )
@@ -52,6 +55,34 @@ CAPABILITY = "public.miy_whiteboard_lock_owner_actor(integer,text,text,text,text
 SERVICE = "public.miy_whiteboard_lock_source_writer(integer,text)"
 PRODUCER = "public.miy_recording_lock_producer(bigint,text,integer,text)"
 ROLE_GUARD = "public.miy_guard_official_source_writer_by_role()"
+
+
+@pytest.fixture
+def http_world(current_head_http_world, request, tmp_path, monkeypatch):  # noqa: F811
+    """Keep actor behavior at head; pin only the owner revision's own checks."""
+    revision = getattr(request, "param", None)
+    if revision is None:
+        return current_head_http_world
+    assert revision == "wb_actor_owner_20261009"
+    with current_head_http_world.core() as db:
+        dsn = db.get_bind().url.render_as_string(hide_password=False)
+    original_config = _migration_config
+    config = original_config(dsn)
+    ancestors = list(ScriptDirectory.from_config(config).walk_revisions(base="base", head=revision))
+    command.downgrade(config, revision)
+    versions = tmp_path / "owner_migration_versions"
+    versions.mkdir()
+    for ancestor in ancestors:
+        source = Path(ancestor.path)
+        copyfile(source, versions / source.name)
+
+    def owner_config(dsn=None):
+        scoped = original_config(dsn)
+        scoped.set_main_option("version_locations", str(versions))
+        return scoped
+
+    monkeypatch.setattr(__name__ + "._migration_config", owner_config)
+    return current_head_http_world
 
 
 def _api():
@@ -1423,6 +1454,7 @@ def _migration_snapshot(c):
         }
 
 
+@pytest.mark.parametrize("http_world", ["wb_actor_owner_20261009"], indirect=True)
 def test_genuine_normal_legacy_actor_migration_roundtrip_preserves_source_data_and_guards(
     http_world,
 ):
@@ -1459,6 +1491,7 @@ def test_genuine_normal_legacy_actor_migration_roundtrip_preserves_source_data_a
     assert _migration_snapshot(c) == before
 
 
+@pytest.mark.parametrize("http_world", ["wb_actor_owner_20261009"], indirect=True)
 def test_genuine_hardened_active_actor_migration_refuses_rollback_without_changes(actor_prepared):
     c = actor_prepared
     before = _migration_snapshot(c)
@@ -1491,6 +1524,7 @@ def test_genuine_hardened_draining_actor_migration_removes_only_inactive_capabil
 
 
 @pytest.mark.parametrize("tamper", ["body", "overload"])
+@pytest.mark.parametrize("http_world", ["wb_actor_owner_20261009"], indirect=True)
 def test_genuine_actor_migration_refuses_tampered_capability_without_version_or_data_changes(
     actor_boundary, tamper
 ):
