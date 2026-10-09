@@ -4,7 +4,6 @@ from collections.abc import Callable
 from functools import partial
 
 from anyio import CapacityLimiter
-from sqlalchemy import Engine, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -14,8 +13,14 @@ from miy_api.domains.auth.models import CompanyAppControl, User, UserSystemRole
 from miy_api.domains.groups.models import Group, GroupMember
 from miy_api.domains.meeting.models import Meeting, MeetingAttendee
 from miy_api.domains.official_apps.owned_read import run_owned_read
+from miy_api.domains.official_apps.owned_read_session import (
+    CORE_POLICY_READ_COLUMNS as CORE_POLICY_READ_COLUMNS,
+    OwnedReadSessionRefused,
+    cleanup_owned_read_session,
+    require_fresh_owned_read_session,
+    require_owned_read_transaction,
+)
 from miy_api.domains.official_apps.writer import WriterControlError
-from miy_api.domains.official_apps.writer_roles import _role
 from miy_api.domains.pms.models import TaskList
 from miy_api.domains.pms.space_models import SpaceGroupBinding, Team, TeamMember
 from miy_api.domains.whiteboard.access import (
@@ -29,24 +34,6 @@ from miy_api.domains.whiteboard.models import (
     WhiteboardUserShare,
 )
 
-# Columns used by current app/group/admin predicates, already within the F2
-# policy contract. This module neither prepares nor widens a runtime profile.
-CORE_POLICY_READ_COLUMNS = {
-    "users": (
-        "id",
-        "status",
-        "login_blocked",
-        "must_change_password",
-        "primary_organization_unit_id",
-    ),
-    "user_system_roles": ("user_id", "role"),
-    "company_app_controls": ("app_id", "enabled"),
-    "app_access_policies": ("app_id", "audience"),
-    "app_user_grants": ("app_id", "user_id"),
-    "app_group_grants": ("app_id", "group_id"),
-    "groups": ("id", "source", "active"),
-    "group_members": ("group_id", "user_id"),
-}
 _MODELS = (
     User,
     UserSystemRole,
@@ -76,59 +63,22 @@ class WhiteboardSourceReaderRefused(ValueError):
 
 
 def _fresh(db: Session, *, models: tuple = _MODELS) -> None:
-    if getattr(db.get_bind, "__func__", None) is not Session.get_bind:
-        raise WhiteboardSourceReaderRefused("standard_session_binding_required")
     try:
-        engine = db.get_bind()
-        if not isinstance(engine, Engine):
-            raise WhiteboardSourceReaderRefused("engine_binding_required")
-        for model in models:
-            if (
-                db.get_bind(mapper=model) is not engine
-                or db.get_bind(clause=select(model.__table__)) is not engine
-            ):
-                raise WhiteboardSourceReaderRefused("single_engine_required")
-    except SQLAlchemyError:
-        raise WhiteboardSourceReaderRefused("engine_binding_required") from None
-    if (
-        db.in_transaction()
-        or db.in_nested_transaction()
-        or db.new
-        or db.dirty
-        or db.deleted
-        or db.identity_map
-    ):
-        raise WhiteboardSourceReaderRefused("fresh_session_required")
+        require_fresh_owned_read_session(db, models=models)
+    except OwnedReadSessionRefused as exc:
+        raise WhiteboardSourceReaderRefused(exc.reason) from None
 
 
 def _cleanup(db: Session) -> None:
-    for action in (db.rollback, db.close):
-        try:
-            action()
-        except BaseException:
-            try:
-                db.invalidate()
-            except BaseException:
-                pass
+    cleanup_owned_read_session(db)
 
 
 def require_whiteboard_source_read_transaction(db: Session) -> None:
     """Admit the existing owned read transaction; this is not a grant profile."""
-    if db.get_bind().dialect.name != "postgresql":
-        raise WhiteboardSourceReaderRefused("postgresql_required")
-    if db.connection().connection.driver_connection.autocommit is True:
-        raise WhiteboardSourceReaderRefused("read_committed_required")
-    if db.scalar(text("SHOW transaction_isolation")) != "read committed":
-        raise WhiteboardSourceReaderRefused("read_committed_required")
-    db.execute(text("SET TRANSACTION READ ONLY"))
-    db.execute(text("SET LOCAL search_path = pg_catalog, public, pg_temp"))
-    db.execute(text("SET LOCAL lock_timeout = '5s'"))
-    db.execute(text("SET LOCAL statement_timeout = '15s'"))
-    current, session = db.execute(text("SELECT CURRENT_USER, SESSION_USER")).one()
-    if current != session:
-        raise WhiteboardSourceReaderRefused("direct_login_required")
-    # Catalog-only reuse, preserving the accepted ACL reader's limitation.
-    _role(db, session, login=True)
+    try:
+        require_owned_read_transaction(db)
+    except OwnedReadSessionRefused as exc:
+        raise WhiteboardSourceReaderRefused(exc.reason) from None
 
 
 def require_prepared_whiteboard_edit_access(
