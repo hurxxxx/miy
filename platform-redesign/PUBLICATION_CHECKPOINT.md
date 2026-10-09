@@ -1,6 +1,12 @@
 # GitHub 게시 체크포인트
 
-## 최신 전달 — PR94/MR101 정상 병합 후 full261의 필수 보완
+## 최신 전달 — PR95/MR102 병합과 full263 최소 fixture 보완
+
+Source62cd8210은 필수262/job430 SUCCESS52.553173초 후 [GitHub PR95](https://github.com/hurxxxx/miy/pull/95)(a3ee1221)·[GitLab MR102](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/102)(09aaf143)로 정상 병합했다. 두 treef73dc3ed와 소유 feature 양쪽 원격/로컬 정리를 확인했고 protected dev/main을 유지했다. 개발 C1 schema/현재 API·Vite는 반영했지만 운영main/prod9e9280df와 기존image/schema는 유지한다.
+
+후속 full263/job431은 API6520 PASS/1 FAIL/3 SKIP·job3312.269779초로 실패했다. 원 CI583의 reason 차이와 controlled578/55P03를 구분하며 직접 원인은 미확정이다. Folder-stage observer test1의 최소 수정은 정상13.848519초와 동일 close-delay17.226581초 모두 실제 PASS, 원 검증문/제품 제한/다른 source는 그대로다. 새 feature의 필수 리뷰·정상 병합·current full·fresh source-bound private24·MR81/guarded 운영이 필요하다. SDK22/C2 후보와 앱별 비필수 기능은 이 전달에 포함하지 않는다. 다음 기록은 역사적 시점이다.
+
+## 이전 전달 — PR94/MR101 정상 병합 후 full261의 필수 보완
 
 Source8b7555a0은 필수260/job428 SUCCESS113.328338초 뒤 [GitHub PR94](https://github.com/hurxxxx/miy/pull/94)(999726a6)·[GitLab MR101](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/101)(1efd2054)으로 정상 병합했다. Tree4b5d8bab이 같고 소유 feature의 두 원격/로컬 브랜치를 정리했다. Persistent dev/main과 upstream 직접 push 차단은 유지한다.
 
