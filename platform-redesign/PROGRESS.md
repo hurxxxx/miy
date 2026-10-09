@@ -579,12 +579,28 @@ Docker 이전 후 정상 게시 전 독립 리뷰에서 ACT-CI-01을 발견해 �
 
 Python6·API architecture/i18n·schema/OpenAPI/contract sources를 통과했다. 최종 문서 검사·동결 후 새 독립 인수와 정상 게시/필수 원격 리뷰를 진행한다. 현재 dev746258cd·main/prod9e9280df 및 최신 full247/415 storage 실패/tests0를 유지하며 새로운 commit/push/PR/MR/merge는 아직 없다. Docker 이전/원본 정리·서비스 복구는 완료했고 제품/별도 Workbench 버전 배포는 없다. 전체 ACL·같은 Source connection/transaction 조립·실제 공식 서비스 cutover·Native 전체 자연어 앱 흐름 등 구조상 필수 잔여는 남아 있다.
 
+## 2026-10-09 10:13 — owner 경계 전달 완료와 전체 편집 ACL 착수
+
+필수 원격 리뷰248/job416은 Source `3b39f5b9`에서 성공했다. PR89와 MR96을 정상 병합해 dev `8bf0bbee`를 만들고 소유 임시 브랜치를 양쪽 원격 및 로컬에서 정리했다. main/prod `9e9280df`를 유지하고 최신 full249/job417을 시작했다. 이전 full247/415 storage 실패/tests0는 기록으로 보존한다.
+
+후속 full actor draft의 NULL 수정 이전 해시와 owner 인수 대기 상태를 폐기하고, 실제 병합된 owner 코드와32개 기존 migration에 맞춰 다시 동결했다. 새 작업 공간은 현재 릴리스 소스를 바꾸지 않는다. 새3개 구현 경로와 테스트를 병렬 작성하고 기존 owner/Source/auth profile·런타임 factory·Source 저장·서비스는 유지한다. App별 비필수 기능과 다중 사용자는 계속 보류한다.
+
 ## 2026-10-09 10:48 — 실제 전체 릴리스의 파일 migration 호환 문제
 
 Actor-owner는 정상 commit `3b39f5b9`, GitHub PR89·GitLab MR96 병합과 필수 review248/job416 성공으로 전달했다. 개발 통합은 `8bf0bbee`, 운영 main/prod는 `9e9280df`이며 기능 브랜치는 양쪽 원격/로컬에서 정리했다. Docker 데이터의 루트 볼륨 이전과 기존 서비스 복구는 완료했다.
 
 MR81의 새 full249/job417은 저장 공간 검사를 지나 실제 백엔드를 실행했고 6,283 PASS/8 FAIL/3 SKIP를 기록했다. 실패는 기존 파일 migration의 여섯 함수·여덟 case가 최신 head에서도 `file_effect_20261007`을 기대하는 호환 문제다. 정상 CI에서 수집되는 revision별 fixture를 별도 브랜치에서 수정한다. 전체 릴리스는 아직 성공하지 않았고 운영·별도 Workbench 버전 배포는 하지 않았다.
 
+## 2026-10-09 10:54 — 전체 edit ACL 로컬 검증 완료
+
+비활성 whiteboard_actor_edit_v1에 소유자·직접/그룹 편집·PMS space/list·회의 organizer/attendee의 현재 권한을 잠그는 capability를 추가했다. 실행 LOGIN은 EXEC1/business SELECT·DML0, 별도 NOLOGIN owner는24테이블/100 SELECT-column/24 locking UPDATE-column이다. 기존 Core/Source/owner 역할은 넓히지 않았다. 원 contributor capture를 재사용하며 실제 caller transaction 종료까지 선택한 현재 권한 행을 유지한다.
+
+신규132·기존312와 API/Python 계약을 실제 영향 검증으로 통과했다. 테스트 데이터 ID 누락과 원 owner revision4개 fixture 문제는 원 검증문을 유지하며 수정하고 최초 실패도 보존했다. 최종 문서 동결·독립 인수·필수 원격 review는 다음 조건이다. Full249는 파일 revision8개에서 실패했으므로 별도 수정이 release보다 우선이다. 현재 dev8bf0bbee·main/prod9e9280df이며 새 ACL commit/merge/배포는 아직 없다.
+
 ## 2026-10-09 11:05 — ACT-CI-02 로컬 영향 검증 완료
 
 ACT-CI-02 수정본의 원본 네 모듈270개 전체 PASS/469.15초를 확인했다. 제외/ignored adapter 없이 여섯 역사적 함수의8 case만 정상 revision fixture를 사용했고 기존 모든 검증문은 유지했다. 독립 최종 인수 뒤 정상 commit/push·GitHub PR·GitLab MR 및 필수 review를 진행한다. 현재 dev8bf0bbee·main/prod9e9280df이며 운영/별도 Workbench 신규 배포는 아직 없다.
+
+## 2026-10-09 11:23 — 정상 fixture 전달과 ACL 통합 준비
+
+파일 revision 수정은 GitHub PR90·내부 MR97 병합 완료, 필수250/job418 SUCCESS다. Dev e3e2591로 통합했고 기능 브랜치를 양쪽 원격/로컬에서 정리했다. ACL은 로컬2c9d0528에서 새 base에 rebase해e16c2b32로 보존했다. 문서6의 양쪽 기록을 시간 순서로 유지했으며 runtime/owned test8과 전체33 migration은 동일하다. 통합8-case 검사도 PASS다. ACL 최종 문서·독립 통합 리뷰·필수 remote review를 이어간다. 운영 main/prod9e9280df와 별도 Workbench 버전은 유지한다.

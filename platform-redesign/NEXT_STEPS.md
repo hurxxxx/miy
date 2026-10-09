@@ -237,10 +237,31 @@ Docker executor의 validation workspace와 Docker data가 새 root filesystem에
 
 Python6·API architecture/i18n·schema/OpenAPI/contract sources를 통과했다. 최종 문서 검사·동결 후 새 독립 인수와 정상 게시/필수 원격 리뷰를 진행한다. 현재 dev746258cd·main/prod9e9280df 및 최신 full247/415 storage 실패/tests0를 유지하며 새로운 commit/push/PR/MR/merge는 아직 없다. Docker 이전/원본 정리·서비스 복구는 완료했고 제품/별도 Workbench 버전 배포는 없다. 전체 ACL·같은 Source connection/transaction 조립·실제 공식 서비스 cutover·Native 전체 자연어 앱 흐름 등 구조상 필수 잔여는 남아 있다.
 
+## 2026-10-09 10:13 — owner 경계 전달 완료와 전체 편집 ACL 착수
+
+1. 비활성 전체 edit ACL capability를 독립 인수한다. 기존 owner/direct/local·HR group/PMS space·nonarchived task list의 member/admin/owner와 meeting organizer/attendee의 실제 편집 규칙을 따라 current positive witness를 잠근다. Company/admin의 read 권한·unknown target·normal tokenNone link 공유는 write를 허용하지 않는다. Python과 SQL의 strip/lower 차이를 결정적으로 검증한다.
+2. 별도 checked captured-CAS 저장 capability를 검토한다. 실제 한 Connection/transaction에서 actor 검사와 board/collab/id/key 조건부 쓰기를 결합하며, LOGIN의 직접 사업 DML0을 우선 유지한다. 다른 Session/factory 호출 두 개를 하나의 COMMIT으로 간주하지 않는다.
+3. 대기/relay 변경의 원 execution 귀속과 durable content revision/attempt/unknown 복구를 연결한다. 마지막 editor나 relay의 user ID는 credential이 아니며 모든 미확정 contributor의 원 자격 또는 변경별 확정 경계가 필요하다.
+4. 전체 write/relay 경로·최소 role·immutable config/factory epoch·drain/rollback을 인수한 뒤 같은 DB의 제한된 운영 pilot을 진행한다. 물리적 별도 DB는 Core authority→Source COMMIT의 별도 계약이 필요하다.
+
+현재 구현은1번만으로, fresh LOGIN private EXEC1·사업 SELECT/DML0과 후보 owner24표/100 SELECT열/24 잠금열이다. 이전 owner15/74·Source8/4·auth14/87은 확장하지 않는다. Session/SQL deadline/COMMIT/cleanup은 caller 소유이고 실제 Source/Yjs 저장·서비스 활성화는 이 범위에 포함하지 않는다. 현재 full249의 source `8bf0bbee`를 고정하고 성공 후 guarded 운영/별도 Workbench 전달을 별도로 수행한다.
+
 ## 2026-10-09 10:48 — 다음 실행 순서
 
 먼저 실제 full249에서 실패한 기존 파일 migration의 revision별 fixture를 정상 CI 수집 경로에 반영하고 영향 모듈 전체를 검증한다. 필수 review 후 dev 통합·새 full release를 실행한다. 성공한 최신 source/target/tree를 확인한 뒤에만 정상 MR81 병합, fresh backup, guarded 운영 prepare/deploy/smoke를 수행한다. 전체 edit ACL 후속 구현은 별도 격리 검증을 유지하며 릴리스 source가 바뀌면 기존 성공 근거를 재사용하지 않는다. 별도 Workbench 배포와 실제 자연어 앱 전체 흐름 검증은 이후 필수 단계다.
 
+## 2026-10-09 10:54 — 검증 이후 구조 작업 순서
+
+전체 ACL의 신규132·기존312 PASS를 최종 문서와 독립 인수에 반영한다. ACT-CI-02 파일 migration fixture 수정은 별도 정상 CI review 후 dev에 먼저 통합한다. ACL 전달 시 새 base의 문서·계약 충돌을 검토하고 실제 tested source/tree를 다시 고정한다. 최신 통합 source의 full release 성공 후에만 운영 병합/backup/guarded deployment를 진행한다. 이어 같은 실제 Source transaction의 checked CAS 저장, 모든 원 contributor 검증과 영속 복구를 구현한다. 별도 Workbench 배포·native 자연어 전체 앱 흐름은 여전히 구조상 필수다.
+
 ## 2026-10-09 11:05 — ACT-CI-02 로컬 영향 검증 완료
 
 ACT-CI-02 영향 모듈270 PASS를 최종 문서/독립 인수에 반영하고 정상 필수 review를 거쳐 dev에 먼저 통합한다. 이후 이미 로컬444 PASS인 전체 edit ACL을 새 base에 통합하면서 runtime/fixture 영향과 문서 충돌을 확인한다. 최종 dev source의 새 full 성공 후에만 운영 MR81/backup/guarded 배포를 진행한다. 실제 Source 저장과 별도 Workbench/native 전체 흐름은 그다음 필수 단계다.
+
+## 2026-10-09 11:23 — 정상 fixture 전달과 ACL 통합 준비
+
+파일 revision 수정의 정상 전달은 완료했고 ACL의 최종 통합/필수 review를 진행한다. 최신 source/tree의 full 성공 후 MR81 병합·fresh backup·정확한23 migration/세 비공개 capability 상태를 검사하는 guarded prepare/deploy/smoke를 수행한다. 현재 검증 helper의 과거file_effect 기대값은 배포 전에 최신 candidate에 맞춰 갱신한다.
+
+다음 구현 C1: Core-authoritative immutable save_attempts/contributors, collab incarnation/content revision 및 기존 writer도 덮어쓰기를 검출하는 owned revision trigger, 새 Source EXEC1/DML0·trusted Core seal/resolve EXEC2/DML0 profile을 추가한다. Source는 Core가 봉인한 payload/전체 contributor만 사용하고 같은 실제 SQL transaction에서 모두의 현재 ACL·최종 expiry clock·CAS·receipt를 처리한다. Unknown은 원 attempt 행 잠금으로 committed receipt를 확인하거나 cancelled_not_committed로 봉인하며 자동 재실행하지 않는다.
+
+C1은 합성 완전 cohort의 비활성 capability 인수다. C2에서 실제 Y.apply_update 경계의 원 execution·durable intake·relay 신뢰 receipt 및 bounded pending cohort를 구현하고, C3에서 명시적 factory/config epoch·drain·역할 provision·restart recovery를 조립한다. 공유 last_editor·원 user ID·Python digest만으로 complete cohort를 증명하지 않는다. 물리적으로 분리된 Core/Source DB는 별도 commit protocol이 필요하며 현재 same-DB SQL을 그대로 사용하지 않는다.

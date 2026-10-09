@@ -318,10 +318,31 @@ Migration은 정상 legacy/hardened 환경에서 비활성 capability만 설치�
 
 Python6·API architecture/i18n·schema/OpenAPI/contract sources를 통과했다. 최종 문서 검사·동결 후 새 독립 인수와 정상 게시/필수 원격 리뷰를 진행한다. 현재 dev746258cd·main/prod9e9280df 및 최신 full247/415 storage 실패/tests0를 유지하며 새로운 commit/push/PR/MR/merge는 아직 없다. Docker 이전/원본 정리·서비스 복구는 완료했고 제품/별도 Workbench 버전 배포는 없다. 전체 ACL·같은 Source connection/transaction 조립·실제 공식 서비스 cutover·Native 전체 자연어 앱 흐름 등 구조상 필수 잔여는 남아 있다.
 
+## 2026-10-09 10:13 — owner 경계 전달 완료와 전체 편집 ACL 착수
+
+- WB-ACTOR-OWNER 전달: 완료. Source `3b39f5b9`, PR89/MR96, 필수248/416 성공, dev `8bf0bbee`, 원격/로컬 임시 브랜치 정리. 비활성 owner-only이며 전체 actor ACL/Source 저장 완료가 아니다.
+- REL-FULL:249/job417 실행 중. Source dev `8bf0bbee`, target main `9e9280df`. Docker 이전 뒤 실제 전체 gate를 다시 검증한다. 새 제품/별도 Workbench 버전 배포0.
+- WB-ACTOR-EDIT SQL: 신규 revision `wb_actor_acl_20261009`/private edit capability 구현 중. 이전32 migration 보호, 현재 resource edit 조건과 선택한 positive witness 잠금, NULL/expiry/lexical proof 계약 유지.
+- WB-ACTOR-EDIT role/runtime: 별도 EXEC1/DML0 profile과 server-only original capture를 재사용한 caller-owned primitive 구현 중. 기존 owner/Source/auth profile·factory·운영 역할은 유지한다.
+- WB-ACTOR-EDIT 검증: 신규 actual migrated PG18 parity/lock/refusal/replay 테스트 작성 중. 신규 migration을 발견하는 기존 owner revision 테스트도 정상 CI에 version-specific fixture가 필요한지 확인한다. 기존 모든 assertion을 유지하며 ignored adapter만으로 CI 호환을 인수하지 않는다.
+- 후속 구조 필수: 같은 actual transaction의 captured-CAS 저장, contributor credential 귀속, durable unknown/restart 복구, cross-hub convergence, 공식 서비스 cutover와 Native 전체 자연어 앱 흐름. 비필수 app 기능·다중 사용자는 별도 지시까지 보류.
+
 ## 2026-10-09 10:48 — ACT-CI-02 필수 release 호환 수정
 
 진행: 기존 파일 migration의 버전 전용 여덟 case를 정상 CI에서도 원래 revision 입력으로 실행한다. 네 테스트 모듈과 작은 공통 fixture만 수정하며 기존 assertion·최신 head를 검사하는 나머지 case·현재 제품 권한 계약은 보존한다. 실제 영향 모듈 전체 재검증과 필수 원격 review 후 dev에 통합하고 새로운 source/target에 대해 full release를 다시 실행한다. 기존 full249의 실패를 생략하거나 운영 gate를 우회하지 않는다. 앱별 기능 개선은 이 작업에 포함하지 않는다.
 
+## 2026-10-09 10:54 — 전체 ACL 인수와 후속 계약 범위
+
+전체 edit ACL은 로컬 신규132·기존312 PASS로 최종 문서/독립 리뷰 단계다. 게시 후 같은 실제 Source connection/transaction에서 checked content-CAS 저장, 대기 중 모든 contributor의 원 execution 보존, 영속 revision/attempt 및 unknown outcome 복구를 연결해야 한다. 현재 LOGIN DML0과 inactive migration은 실제 저장/운영 활성화 완료를 뜻하지 않는다.
+
+후속 계약 기록: 현재 GroupUpdateRequest는 source 변경을 허용하지 않지만 DB에는 source 불변 제약이 없다. 현재 capability는 선택 group ID를 유지하고 잠근 현재 source에 따라 local/HR membership을 확인한다. 향후 source 변환 API를 추가한다면 해당 lens의 대기 전 identity 고정/변환 경계와 회귀 검증을 함께 정의한다. Known-other DB 거부 시 private capability 미호출을 직접 관측하는 추가 테스트는 낮은 우선순위로 남긴다. 현재 code ordering 자체는 독립 리뷰에서 확인했다. 앱별 기능·비필수 상세 검증 및 다중 사용자는 별도 요청까지 보류한다.
+
+Release 우선: full249의 기존 파일 revision8개 FAIL을 ACT-CI-02로 수정·정상 review·새 full 검증한다. 운영 gate를 우회하지 않고 별도 Workbench release 및 native 자연어 앱 전체 흐름 인수도 유지한다.
+
 ## 2026-10-09 11:05 — ACT-CI-02 로컬 영향 검증 완료
 
 ACT-CI-02의 실제 영향 검증270 PASS와 기존115함수/270assertion 동일을 확인했다. 남은 전달 조건은 최종 문서·독립 인수, 정상 source 게시와 필수 remote review다. 이후 전체 ACL 변경의 새 base 통합 및 최신 source의 full release를 진행한다. 기존 full249의 실패를 우회하지 않는다.
+
+## 2026-10-09 11:23 — 정상 fixture 전달과 ACL 통합 준비
+
+필수 ACT-CI-02 전달은 완료했다(PR90/MR97, review250/418 SUCCESS). 다음은 byte-identical ACL의 새 base 최종 전달·필수 review와 최신 dev full release다. 추가Source 저장 C1은 신뢰된 Core가 payload와 모든 원 contributor를 immutable attempt로 봉인하고, Source DML0 LOGIN이 같은 실제 connection에서 전체 ACL·incarnation/content revision CAS·영속 receipt를 처리하는 최소 비활성 단계다. Source가 contributor를 임의로 빠뜨리거나 last_editor로 대체할 수 없어야 한다. 이후 native apply/relay의 완전한 provenance와 운영 factory/config epoch를 연결한다. 앱별 비필수 기능과 다중 사용자는 여전히 보류한다.
