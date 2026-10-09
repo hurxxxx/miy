@@ -36,6 +36,7 @@ from miy_api.domains.whiteboard.scene_state import (
 logger = logging.getLogger(__name__)
 
 COLLAB_RELAY_CHANNEL_PREFIX = "whiteboard-collab"
+COLLAB_PERSISTENCE_MAX_WORKERS = 4
 
 
 @dataclass(frozen=True)
@@ -65,6 +66,7 @@ class WhiteboardCollabHub:
     ) -> None:
         self._settings = get_settings()
         self._lock = asyncio.Lock()
+        self._persistence_limiter = CapacityLimiter(COLLAB_PERSISTENCE_MAX_WORKERS)
         self._rooms: dict[str, CollabRoomRuntime] = {}
         self._disposals: set[asyncio.Task[None]] = set()
         # Local unresolved attempts survive native room disposal; observing an
@@ -543,45 +545,79 @@ class WhiteboardCollabHub:
             except WhiteboardPersistenceRefused as exc:
                 self._retire_runtime(runtime, WhiteboardPersistenceResult("refused", exc.reason))
                 return False
-            # Native objects remain on this loop; only detached bytes cross to SQL.
-            yjs_state = bytes(Y.encode_state_as_update(runtime.room.ydoc))
-
-            async def persist_owned():
-                with CancelScope(shield=True):
-                    try:
-                        outcome = await to_thread.run_sync(
-                            partial(
-                                persist_runtime_yjs_state,
-                                self._session_factory,
-                                whiteboard_id=identity.whiteboard_id,
-                                yjs_state=yjs_state,
-                                expected_collab_id=identity.collab_document_id,
-                                expected_room_key=identity.room_key,
-                                timeout_seconds=self._settings.collab_cleanup_timeout_seconds,
-                            ),
-                            limiter=CapacityLimiter(1),
-                            abandon_on_cancel=False,
+            # Parent admission stays cancellable before the private shielded child.
+            # Its hub-wide permit includes worker cleanup and outcome transfer/join.
+            async with self._persistence_limiter:
+                if (
+                    runtime.metadata.get("persistence_terminal")
+                    or (runtime.metadata.get("disposing") and not allow_disposing)
+                    or (not allow_disposing and self._rooms.get(runtime.room_key) is not runtime)
+                ):
+                    return False
+                try:
+                    current_identity = persistence_identity(
+                        runtime.metadata.get("whiteboard_id"),
+                        runtime.metadata.get("collab_document_id"),
+                        runtime.room_key,
+                    )
+                    if (
+                        current_identity != identity
+                        or identity != runtime.persistence_identity
+                        or runtime.room.ydoc is None
+                    ):
+                        raise WhiteboardPersistenceRefused("invalid_capture")
+                    if identity in self._uncertain_rooms:
+                        self._retire_runtime(
+                            runtime,
+                            WhiteboardPersistenceResult("unknown", "unresolved_incarnation"),
                         )
-                        if not isinstance(outcome, WhiteboardPersistenceResult):
+                        return False
+                except WhiteboardPersistenceRefused as exc:
+                    self._retire_runtime(
+                        runtime, WhiteboardPersistenceResult("refused", exc.reason)
+                    )
+                    return False
+                # Native objects remain on this loop; only detached bytes cross to SQL.
+                yjs_state = bytes(Y.encode_state_as_update(runtime.room.ydoc))
+
+                async def persist_owned():
+                    with CancelScope(shield=True):
+                        try:
+                            outcome = await to_thread.run_sync(
+                                partial(
+                                    persist_runtime_yjs_state,
+                                    self._session_factory,
+                                    whiteboard_id=identity.whiteboard_id,
+                                    yjs_state=yjs_state,
+                                    expected_collab_id=identity.collab_document_id,
+                                    expected_room_key=identity.room_key,
+                                    timeout_seconds=self._settings.collab_cleanup_timeout_seconds,
+                                ),
+                                limiter=CapacityLimiter(1),
+                                abandon_on_cancel=False,
+                            )
+                            if not isinstance(outcome, WhiteboardPersistenceResult):
+                                outcome = WhiteboardPersistenceResult(
+                                    "unknown", "worker_outcome_unknown"
+                                )
+                        except WhiteboardPersistenceRefused as exc:
+                            outcome = WhiteboardPersistenceResult("refused", exc.reason)
+                        except BaseException:
                             outcome = WhiteboardPersistenceResult(
                                 "unknown", "worker_outcome_unknown"
                             )
-                    except WhiteboardPersistenceRefused as exc:
-                        outcome = WhiteboardPersistenceResult("refused", exc.reason)
-                    except BaseException:
-                        outcome = WhiteboardPersistenceResult("unknown", "worker_outcome_unknown")
-                    # Transfer the result before the group forwards host cancellation.
-                    runtime.persistence_outcome = outcome
-                    if outcome.status == "acknowledged":
-                        runtime.last_acknowledged_yjs_state = yjs_state
-                        runtime.retained_yjs_state = None
-                    else:
-                        runtime.retained_yjs_state = yjs_state
-                        self._retire_runtime(runtime, outcome)
+                        # Transfer the result before the group forwards host cancellation.
+                        runtime.persistence_outcome = outcome
+                        if outcome.status == "acknowledged":
+                            runtime.last_acknowledged_yjs_state = yjs_state
+                            runtime.retained_yjs_state = None
+                        else:
+                            runtime.retained_yjs_state = yjs_state
+                            self._retire_runtime(runtime, outcome)
 
-            async with create_task_group() as group:
-                group.start_soon(persist_owned)
-            return runtime.persistence_outcome.status == "acknowledged"
+                async with create_task_group() as group:
+                    group.start_soon(persist_owned)
+                return runtime.persistence_outcome.status == "acknowledged"
 
     async def _handle_relay_failure(self, exc: Exception) -> None:
         if not self._bus.available:

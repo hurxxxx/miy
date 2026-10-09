@@ -60,7 +60,10 @@ this option does not provision a Source writer, roles or service activation.
 
 The trusted Whiteboard runtime now retains the admitted collab row ID and room key
 and conditionally saves only that same live incarnation. Rotation or same-key row
-recreation cannot make an old flush adopt a replacement. Its SQL worker stays
+recreation cannot make an old flush adopt a replacement. Each hub admits at most
+four persistence workers across its rooms and holds each permit through owned
+cleanup and joined outcome transfer; canceled admission waits allocate no Session.
+This is a per-hub bound with no new operational setting. Its SQL worker stays
 joined under cancellation until owned cleanup, with decreasing local SQL budgets;
 ACK is preserved before close, and unknown/refused attempts retire without automatic
 replay. A local unknown-incarnation tombstone blocks re-admission from a same-row

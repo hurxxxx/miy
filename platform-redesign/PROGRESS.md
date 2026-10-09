@@ -506,3 +506,13 @@ Source writer/CAS·COMMIT unknown·저장/media/RAG·정확 operational grants/c
 신규 pure16 PASS/5.15s·실제 PostgreSQL/Yjs32 PASS/60.64s =48개다. 기존 prepared/auth/composition466 PASS/329.54s·원 Whiteboard 구조6 PASS/16.96s·원 Docs default8 PASS/26.33s =고유 영향480개다. 원 red4의 첫 green과 이전 반복 검사는 더하지 않는다. API architecture/i18n·생성 계약은 통과했다. 최종 문서/범위 freeze와 독립 수락·필수 원격 리뷰/병합은 이후 별도로 기록한다.
 
 보호46개·원 RED4 AST와 기존 test 함수/assertions를 유지했다. 테스트 관측으로 실제 Y.py encode-read가 생성하는 canonical empty delta의 불필요한 저장 예약을 발견했고 pinned upstream과 같은 정확한 empty byte 처리만 추가했다. 삭제-only update는 별도로 정상 동작을 확인했다. 이전 Docs 장시간 지연의 원인으로 연결하지 않는다.
+
+## 2026-10-09 04:24 — 필수 리뷰의 공유 저장 상한 수정
+
+Source6da7c943의 PR87/MR94 필수 pipeline242/job410은 FAILED/115.932917초였다. P2는 flush마다 새 limiter1을 생성해 room 간 전체 SQL worker 상한이 없다는 회귀다. 이 실패를 성공이나 면제로 바꾸지 않고 실제 거절 기록과 기존48·480 성공 receipt를 별도로 보존했다.
+
+Hub별 고정4개의 shared permit을 private shielded child 시작 전에 얻고 SQL worker·Session cleanup·결과 전달·TaskGroup join까지 보유한다. Permit 대기 취소는 Session0이며 child 시작 뒤 취소는 기존 owned join을 따른다. Permit을 얻은 뒤 terminal/disposing/current runtime/captured identity/YDoc/unknown을 재검사한다. Child 내부 limiter1은 shared token을 재획득하지 않으며 기존 adapter를 유지한다. Process 전체 상한이나 새 설정·운영 적용을 주장하지 않는다.
+
+수정 전 pristine6da7c943 별도 owned worktree에 동일 신규 테스트를 복사했다. 실제5번째 room의 Session/SQL 진입으로 첫 count assertion1726이 실패했다(1 FAIL/13.17초, setup/collection0, owned cleanup PASS). Missing constant/field/API를 RED로 세지 않았다. 실제5 rooms·4개 독립 PostgreSQL 행 잠금·COMMIT ACK 뒤 close-gate와 나머지3 SQL hold, fifth wait/cancel/replace를 검증했다. Cleanup join 전 fifth Session0과 이후 정상 ACK·slot 재사용·peak4·모든 Session close를 확인한다. 기존39개 defined function AST(원29test 포함)·RED4·보호46개와 기존 roomtest bytes는 동일하다.
+
+최종 신규 pure16 PASS/5.47s·native35 PASS/90.18s =51개, 기존 prepared/auth/composition466 PASS/311.04s·원 WB6 PASS/15.61s·원 Docs8 PASS/25.19s =480개다. 기존48개 및 첫 통과·재검사 횟수는 더하지 않는다. API architecture/i18n·생성 계약 통과이며 최종 문서 freeze·새 독립 인수·새 필수 리뷰는 별도로 진행한다.

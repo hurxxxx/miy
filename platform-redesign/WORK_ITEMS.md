@@ -255,3 +255,9 @@ Source writer/CAS·COMMIT unknown·저장/media/RAG·정확 operational grants/c
 `OFF-002B`의 기존 Whiteboard 저장 안전성 하위 범위는 신규48·기존480개 검사를 통과했다. 기존 room이 입장 때 캡처한 board ID·collab 행 ID·room key만 조건부 UPDATE한다. Board SHARE와 정확한 행 조건을 COMMIT까지 유지하고, 취소된 호출도 SQL worker/cleanup 종료까지 flush lock을 보유한다. ACK는 후속 정리 실패로 unknown으로 바꾸지 않으며 unknown은 원 identity/bytes를 보존하고 자동 재저장하지 않는다. 이전 WS finalizer·observer·대기 publish가 교체 runtime을 정리하거나 변경할 수 없고, pending/unknown 동일 identity 재입장은 거절한다.
 
 이번 범위는 기존 trusted Core factory의 저장 안전성이다. 최소 Source writer 권한·현재 Core 사용자 권한의 COMMIT fence·동일 room의 다중 hub 내용 CAS/convergence·영속 unknown 복구·Docs media/RAG 저장·공식 서비스 전환은 필수 잔여다. 기존 readOnly Source/session/auth·모델·role·migration·원 tests를 포함한 보호 입력46개는 동일하다. 운영·별도 Workbench 배포는 없으며 full241/409 storage 실패/tests0를 유지한다. 비필수 앱 기능과 다중 사용자 작업은 별도 요청까지 보류한다.
+
+## 2026-10-09 04:24 — 필수 리뷰의 공유 저장 상한 수정
+
+`OFF-002B` 기존 WB 저장 상한 필수 수정의 로컬 검증은51+480개다. Hub별 고정4개의 shared permit을 private shielded child 시작 전에 얻고 SQL worker·Session cleanup·결과 전달·TaskGroup join까지 보유한다. Permit 대기 취소는 Session0이며 child 시작 뒤 취소는 기존 owned join을 따른다. Permit을 얻은 뒤 terminal/disposing/current runtime/captured identity/YDoc/unknown을 재검사한다. Child 내부 limiter1은 shared token을 재획득하지 않으며 기존 adapter를 유지한다. Process 전체 상한이나 새 설정·운영 적용을 주장하지 않는다.
+
+최소 Source writer/profile·현재 Core 사용자 COMMIT fence·같은 room의 cross-hub content CAS/convergence·영속 unknown/Docs 저장·operational 역할과 서비스 전환은 필수 잔여다. Next service-admission profile은 이번 단계에서 사용하지 않는19표98열 ACL 호환 grant를 미리 주지 않고 board/collab의 고정 최소열과 EXEC부터 독립 인수하도록 계획을 좁힌다. 현재 ACL reader는 보호하며 실제 ACL writer 연결은 후속이다. main/prod9e9280df·full241/409 storage 실패/tests0·새 운영/Workbench 배포0를 유지한다. 앱별 상세 기능과 다중 사용자는 보류한다.

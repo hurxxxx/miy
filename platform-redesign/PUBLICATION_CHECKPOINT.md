@@ -548,3 +548,11 @@ Source `a9fe6bf85a8c7884d5b8f659b4fc388c336802ea`는 Source6·추적6의 독립 
 Owned feature `feat/whiteboard-persistence-safety-20261009`, base `499aff33`, Source7+추적6=13개다. 신규 pure16 PASS/5.15s·실제 PostgreSQL/Yjs32 PASS/60.64s =48개다. 기존 prepared/auth/composition466 PASS/329.54s·원 Whiteboard 구조6 PASS/16.96s·원 Docs default8 PASS/26.33s =고유 영향480개다. 원 red4의 첫 green과 이전 반복 검사는 더하지 않는다. API architecture/i18n·생성 계약은 통과했다. 최종 문서/범위 freeze와 독립 수락·필수 원격 리뷰/병합은 이후 별도로 기록한다.
 
 소스 게시·필수 리뷰·정상 양쪽 병합·소유 브랜치 정리는 아직 진행 전이며 승인된 순서로 이어간다. Main/prod는 `9e9280df`다. Source-only 활성화·새 운영/Workbench 배포로 해석하지 않는다.
+
+## 2026-10-09 04:24 — 필수 리뷰의 공유 저장 상한 수정
+
+Source6da7c943의 PR87/MR94 필수 pipeline242/job410은 FAILED/115.932917초였다. P2는 flush마다 새 limiter1을 생성해 room 간 전체 SQL worker 상한이 없다는 회귀다. 이 실패를 성공이나 면제로 바꾸지 않고 실제 거절 기록과 기존48·480 성공 receipt를 별도로 보존했다.
+
+최종 신규 pure16 PASS/5.47s·native35 PASS/90.18s =51개, 기존 prepared/auth/composition466 PASS/311.04s·원 WB6 PASS/15.61s·원 Docs8 PASS/25.19s =480개다. 기존48개 및 첫 통과·재검사 횟수는 더하지 않는다. API architecture/i18n·생성 계약 통과이며 최종 문서 freeze·새 독립 인수·새 필수 리뷰는 별도로 진행한다.
+
+기존 PR87/MR94와 feature 브랜치를 그대로 사용해 정상 후속 commit/fast-forward push·새 필수 review·normal merge 뒤 exact tip cleanup을 진행한다. 원 실패 job을 재시도하거나 우회하지 않는다. 병합·새 운영 배포는 아직 완료하지 않았다.

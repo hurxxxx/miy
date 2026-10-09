@@ -1615,3 +1615,238 @@ def test_genuine_native_debounce_ack_then_encode_read_has_no_new_timer_or_sql(pe
             event.remove(c.engine, "before_cursor_execute", observe)
 
     asyncio.run(exercise())
+
+
+def _capacity_source_contexts(c):
+    """Five genuine captured admissions in the existing disposable migrated DB."""
+    entries = [SimpleNamespace(context=c.context, collab_id=c.collab_id)]
+    with c.world.core() as db:
+        user = db.get(User, c.world.state["member_id"])
+        for ordinal in range(1, 5):
+            board = Whiteboard(
+                id=f"owned-capacity-board-{ordinal}",
+                owner_id=user.id,
+                title=f"Owned capacity board {ordinal}",
+            )
+            db.add(board)
+            db.flush()
+            context, record = router._ensure_whiteboard_collab_context(db, user, board.id)
+            record.yjs_state = c.yjs
+            record.updated_at = board.updated_at + timedelta(seconds=1)
+            entries.append(SimpleNamespace(context=context, collab_id=record.id))
+        db.commit()
+    return entries
+
+
+@pytest.mark.parametrize("queued_action", ["wait", "cancel", "replace"])
+def test_genuine_shared_worker_capacity_holds_slots_through_cleanup_and_rechecks_queued_room(
+    persistence_world, queued_action
+):
+    from threading import Lock
+
+    from test_official_writer_fence import wait_for_blockers
+
+    c = persistence_world
+    entries = _capacity_source_contexts(c)
+    holders, holder_pids = [], []
+    opened, active, committed, active_peaks = [], [], [], []
+    worker_ordinals, sql_pids = {}, {}
+    close_entered, close_release = Event(), Event()
+    tracking_lock = Lock()
+
+    class ObservedSession(Session):
+        def commit(self):
+            result = super().commit()
+            committed.append(self)
+            return result
+
+        def close(self):
+            try:
+                super().close()
+                if self is opened[0]:
+                    close_entered.set()
+                    assert close_release.wait(10), (
+                        "The bounded capacity close gate was not released"
+                    )
+            finally:
+                with tracking_lock:
+                    active.remove(self)
+
+    def factory():
+        db = ObservedSession(c.engine, autoflush=False)
+        with tracking_lock:
+            worker_ordinals[get_ident()] = len(opened)
+            opened.append(db)
+            active.append(db)
+            active_peaks.append(len(active))
+        return db
+
+    def observe(connection, _cursor, statement, *_):
+        ordinal = worker_ordinals.get(get_ident())
+        if (
+            ordinal is not None
+            and statement.lstrip().upper().startswith("UPDATE")
+            and ("whiteboard_collab_documents" in statement)
+        ):
+            sql_pids[ordinal] = connection.connection.driver_connection.info.backend_pid
+
+    async def exercise():
+        hub = collab.WhiteboardCollabHub(
+            bus=InProcessCollabBus(instance_id="native-shared-capacity")
+        )
+        await hub.startup()
+        hub._session_factory = factory
+        hub._settings = hub._settings.model_copy(
+            update={
+                "collab_snapshot_debounce_ms": 60000,
+                "collab_cleanup_timeout_seconds": 15,
+            }
+        )
+        tasks, runtimes, expected = [], [], []
+        fifth = replacement_task = None
+        try:
+            for ordinal, entry in enumerate(entries):
+                state = _native_state(f"owned-capacity-native-{ordinal}")
+                runtime = await hub.get_room(entry.context, state)
+                runtimes.append(runtime)
+                expected.append(bytes(Y.encode_state_as_update(runtime.room.ydoc)))
+            # Launch room zero first so its observed Session is the close-gated worker.
+            tasks.append(asyncio.create_task(hub._flush_runtime(runtimes[0])))
+            await _eventually(lambda: 0 in sql_pids)
+            for runtime in runtimes[1:4]:
+                tasks.append(asyncio.create_task(hub._flush_runtime(runtime)))
+            await _eventually(lambda: len(sql_pids) == 4)
+            for ordinal in range(4):
+                await asyncio.to_thread(
+                    wait_for_blockers, c.world.core, sql_pids[ordinal], {holder_pids[ordinal]}
+                )
+            assert len(opened) == len(active) == 4
+            fifth = asyncio.create_task(hub._flush_runtime(runtimes[4]))
+
+            def queued_or_real_overflow():
+                limiter = getattr(hub, "_persistence_limiter", None)
+                return len(sql_pids) >= 5 or bool(
+                    limiter is not None and limiter.statistics().tasks_waiting == 1
+                )
+
+            await _eventually(queued_or_real_overflow)
+            # Baseline per-flush limiters reach real fifth SQL before this assertion.
+            assert len(opened) == 4 and len(sql_pids) == 4, (
+                "A fifth native room opened a Session/SQL worker beyond the shared bound"
+            )
+            assert not fifth.done() and max(active_peaks) == 4
+            assert hub._persistence_limiter.statistics().borrowed_tokens == 4
+            if queued_action == "cancel":
+                fifth.cancel()
+                await asyncio.sleep(0)
+                fifth.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await fifth
+                assert len(opened) == len(sql_pids) == 4
+                assert runtimes[4].persistence_outcome is None
+                assert hub._persistence_limiter.statistics().borrowed_tokens == 4
+                fifth = asyncio.create_task(hub._flush_runtime(runtimes[4]))
+                await _eventually(lambda: hub._persistence_limiter.statistics().tasks_waiting == 1)
+            elif queued_action == "replace":
+                replacement_state = _native_state("owned-capacity-new-incarnation")
+                with c.world.core() as db:
+                    db.delete(db.get(WhiteboardCollabDocument, entries[4].collab_id))
+                    db.flush()
+                    replacement_row = WhiteboardCollabDocument(
+                        id="owned-capacity-new-row",
+                        whiteboard_id=entries[4].context.whiteboard_id,
+                        room_key=entries[4].context.room_key,
+                        yjs_state=replacement_state,
+                        snapshot_scene={"elements": [], "appState": {}, "files": {}},
+                        updated_at=db.get(Whiteboard, entries[4].context.whiteboard_id).updated_at
+                        + timedelta(seconds=1),
+                    )
+                    db.add(replacement_row)
+                    db.flush()
+                    incoming, row = router._ensure_whiteboard_collab_context(
+                        db, db.get(User, c.world.state["member_id"]), replacement_row.whiteboard_id
+                    )
+                    assert incoming.collab_document_id == row.id == replacement_row.id
+                    db.commit()
+                replacement = await hub.get_room(incoming, replacement_state)
+                assert replacement is not runtimes[4]
+                assert runtimes[4].persistence_outcome.status == "refused"
+                assert not fifth.done() and len(opened) == len(sql_pids) == 4
+
+            # Only worker zero's real DB COMMIT proceeds; three other SQL locks stay held.
+            holders[0].rollback()
+            await _eventually(close_entered.is_set)
+            assert committed == [opened[0]]
+            assert not tasks[0].done() and runtimes[0].flush_lock.locked()
+            assert len(active) == len(opened) == len(sql_pids) == 4
+            assert not fifth.done(), "A permit was released at COMMIT before Session cleanup joined"
+            assert hub._persistence_limiter.statistics().borrowed_tokens == 4
+            for ordinal in range(1, 4):
+                await asyncio.to_thread(
+                    wait_for_blockers, c.world.core, sql_pids[ordinal], {holder_pids[ordinal]}
+                )
+            close_release.set()
+            assert await tasks[0] is True
+            if queued_action == "replace":
+                assert await fifth is False
+                assert len(opened) == len(sql_pids) == 4, "A retired slot waiter entered SQL"
+                assert hub._rooms[incoming.room_key] is replacement
+                replacement_task = asyncio.create_task(hub._flush_runtime(replacement))
+                assert await replacement_task is True
+                saved_entry = SimpleNamespace(
+                    context=incoming, collab_id=incoming.collab_document_id
+                )
+                saved_state = replacement_state
+            else:
+                assert await fifth is True
+                saved_entry, saved_state = entries[4], expected[4]
+            assert len(opened) == 5 and len(sql_pids) == 5 and max(active_peaks) == 4
+            assert len(active) == 3 and len(committed) == 2
+            with c.world.core() as db:
+                assert (
+                    db.get(WhiteboardCollabDocument, saved_entry.collab_id).yjs_state == saved_state
+                )
+            for holder in holders[1:]:
+                holder.rollback()
+            assert await asyncio.gather(*tasks) == [True] * 4
+            assert active == [] and len(opened) == len(committed) == 5
+            assert hub._persistence_limiter.statistics().borrowed_tokens == 0
+            for ordinal, entry in enumerate(entries[:4]):
+                assert runtimes[ordinal].persistence_outcome.status == "acknowledged"
+                with c.world.core() as db:
+                    assert (
+                        db.get(WhiteboardCollabDocument, entry.collab_id).yjs_state
+                        == expected[ordinal]
+                    )
+            await hub.shutdown()
+            assert active == [] and len(opened) == len(committed) == 5
+        finally:
+            close_release.set()
+            for holder in holders:
+                holder.rollback()
+            await asyncio.gather(
+                *tasks,
+                *(task for task in (fifth, replacement_task) if task is not None),
+                return_exceptions=True,
+            )
+            await hub.shutdown()
+
+    try:
+        for entry in entries[:4]:
+            holder = c.world.core()
+            holders.append(holder)
+            holder.scalar(
+                select(WhiteboardCollabDocument)
+                .where(WhiteboardCollabDocument.id == entry.collab_id)
+                .with_for_update()
+            )
+            holder_pids.append(holder.scalar(text("SELECT pg_backend_pid()")))
+        event.listen(c.engine, "before_cursor_execute", observe)
+        asyncio.run(exercise())
+    finally:
+        close_release.set()
+        for holder in holders:
+            holder.rollback()
+            holder.close()
+        if event.contains(c.engine, "before_cursor_execute", observe):
+            event.remove(c.engine, "before_cursor_execute", observe)

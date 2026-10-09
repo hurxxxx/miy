@@ -199,10 +199,23 @@ slot tests, but its flush refuses before factory allocation; missing capture nev
 selects that trusted compatibility branch. This is an internal distinction, not a
 new public app API or a Source writer activation switch.
 
-The runtime flush lock surrounds native encoding on its owning loop, a local
-private shielded AnyIO child, actual SQL worker and complete owned cleanup. Raw or
-repeated host cancellation joins the child before releasing this lock; a canceled
-lock waiter allocates no Session. Only detached bytes cross to SQL. A decreasing
+Each hub shares a fixed four-permit persistence limiter across all its rooms.
+The parent holds the room flush lock and acquires that shared permit before
+starting the private shielded AnyIO child. Shared-permit waits remain cancellable
+and allocate no Session. After the wait, terminal/disposing state, the original
+captured identity, native YDoc, uncertain incarnation and current hub runtime are
+checked again; the private disposing final flush keeps its existing allowance.
+The native encode/validation before child startup has no await. Cancellation while
+waiting for the shared permit allocates no Session; once the private child starts,
+parent cancellation joins it through owned cleanup and outcome transfer.
+The shared permit stays held through the actual SQL worker, complete owned cleanup,
+child outcome transfer and task-group join. Its internal one-worker thread limiter
+is the accepted owned-worker adapter, not another room admission budget; the outer
+shared four-permit limiter bounds active persistence workers across this hub.
+This bound is per hub, not process-wide, and adds no operational setting.
+Raw or repeated host cancellation joins the child before releasing the shared
+permit and room flush lock; a canceled lock waiter also allocates no Session.
+Only detached bytes cross to SQL. A decreasing
 per-Connection PostgreSQL statement/lock budget covers application SQL and is
 refreshed immediately before COMMIT. Transaction-local settings reset with the
 transaction. Pool acquisition, driver connection/cleanup, network failure, process

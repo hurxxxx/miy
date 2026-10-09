@@ -194,3 +194,11 @@ Docs Source room 읽기는 필수 리뷰와 PR86/MR93 병합·소유 feature 정
 신규 pure16 PASS/5.15s·실제 PostgreSQL/Yjs32 PASS/60.64s =48개다. 기존 prepared/auth/composition466 PASS/329.54s·원 Whiteboard 구조6 PASS/16.96s·원 Docs default8 PASS/26.33s =고유 영향480개다. 원 red4의 첫 green과 이전 반복 검사는 더하지 않는다. API architecture/i18n·생성 계약은 통과했다. 최종 문서/범위 freeze와 독립 수락·필수 원격 리뷰/병합은 이후 별도로 기록한다.
 
 다음 최소 착수는 별도 Source writer principal/least-privilege 프로필과 actor authority의 COMMIT 경계 설계/red 인수다. Native SDK immutable toolchain·설치/enforcement와 실제 개인 앱 전체 흐름도 남아 있다. 전체 구조 완료로 확대하지 않는다.
+
+## 2026-10-09 04:24 — 필수 리뷰의 공유 저장 상한 수정
+
+Source6da7c943의 PR87/MR94 필수 pipeline242/job410은 FAILED/115.932917초였다. P2는 flush마다 새 limiter1을 생성해 room 간 전체 SQL worker 상한이 없다는 회귀다. 이 실패를 성공이나 면제로 바꾸지 않고 실제 거절 기록과 기존48·480 성공 receipt를 별도로 보존했다.
+
+Hub별 고정4개의 shared permit을 private shielded child 시작 전에 얻고 SQL worker·Session cleanup·결과 전달·TaskGroup join까지 보유한다. Permit 대기 취소는 Session0이며 child 시작 뒤 취소는 기존 owned join을 따른다. Permit을 얻은 뒤 terminal/disposing/current runtime/captured identity/YDoc/unknown을 재검사한다. Child 내부 limiter1은 shared token을 재획득하지 않으며 기존 adapter를 유지한다. Process 전체 상한이나 새 설정·운영 적용을 주장하지 않는다.
+
+최소 Source writer/profile·현재 Core 사용자 COMMIT fence·같은 room의 cross-hub content CAS/convergence·영속 unknown/Docs 저장·operational 역할과 서비스 전환은 필수 잔여다. Next service-admission profile은 이번 단계에서 사용하지 않는19표98열 ACL 호환 grant를 미리 주지 않고 board/collab의 고정 최소열과 EXEC부터 독립 인수하도록 계획을 좁힌다. 현재 ACL reader는 보호하며 실제 ACL writer 연결은 후속이다. main/prod9e9280df·full241/409 storage 실패/tests0·새 운영/Workbench 배포0를 유지한다. 앱별 상세 기능과 다중 사용자는 보류한다.

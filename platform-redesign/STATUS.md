@@ -158,3 +158,11 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
 신규 pure16 PASS/5.15s·실제 PostgreSQL/Yjs32 PASS/60.64s =48개다. 기존 prepared/auth/composition466 PASS/329.54s·원 Whiteboard 구조6 PASS/16.96s·원 Docs default8 PASS/26.33s =고유 영향480개다. 원 red4의 첫 green과 이전 반복 검사는 더하지 않는다. API architecture/i18n·생성 계약은 통과했다. 최종 문서/범위 freeze와 독립 수락·필수 원격 리뷰/병합은 이후 별도로 기록한다.
 
 이번 범위는 기존 trusted Core factory의 저장 안전성이다. 최소 Source writer 권한·현재 Core 사용자 권한의 COMMIT fence·동일 room의 다중 hub 내용 CAS/convergence·영속 unknown 복구·Docs media/RAG 저장·공식 서비스 전환은 필수 잔여다. 기존 readOnly Source/session/auth·모델·role·migration·원 tests를 포함한 보호 입력46개는 동일하다. 운영·별도 Workbench 배포는 없으며 full241/409 storage 실패/tests0를 유지한다. 비필수 앱 기능과 다중 사용자 작업은 별도 요청까지 보류한다.
+
+## 2026-10-09 04:24 — 필수 리뷰의 공유 저장 상한 수정
+
+Source6da7c943의 PR87/MR94 필수 pipeline242/job410은 FAILED/115.932917초였다. P2는 flush마다 새 limiter1을 생성해 room 간 전체 SQL worker 상한이 없다는 회귀다. 이 실패를 성공이나 면제로 바꾸지 않고 실제 거절 기록과 기존48·480 성공 receipt를 별도로 보존했다.
+
+최종 신규 pure16 PASS/5.47s·native35 PASS/90.18s =51개, 기존 prepared/auth/composition466 PASS/311.04s·원 WB6 PASS/15.61s·원 Docs8 PASS/25.19s =480개다. 기존48개 및 첫 통과·재검사 횟수는 더하지 않는다. API architecture/i18n·생성 계약 통과이며 최종 문서 freeze·새 독립 인수·새 필수 리뷰는 별도로 진행한다.
+
+최소 Source writer/profile·현재 Core 사용자 COMMIT fence·같은 room의 cross-hub content CAS/convergence·영속 unknown/Docs 저장·operational 역할과 서비스 전환은 필수 잔여다. Next service-admission profile은 이번 단계에서 사용하지 않는19표98열 ACL 호환 grant를 미리 주지 않고 board/collab의 고정 최소열과 EXEC부터 독립 인수하도록 계획을 좁힌다. 현재 ACL reader는 보호하며 실제 ACL writer 연결은 후속이다. main/prod9e9280df·full241/409 storage 실패/tests0·새 운영/Workbench 배포0를 유지한다. 앱별 상세 기능과 다중 사용자는 보류한다.
