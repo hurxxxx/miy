@@ -619,3 +619,45 @@ connection; existing service v1 must not be widened. An independent-database
 cutover requires an explicit current Core authority API and reviewed Source COMMIT
 fence semantics. Tests prove synthetic same-database authority only; operational
 activation, full ACL and production delivery remain incomplete.
+
+## Inactive full-edit actor ACL capability
+
+`whiteboard_actor_acl_writer` reuses the original public
+`CapturedWhiteboardWriteExecution` and auth-only capture without a credential
+serialization API. Its distinct `whiteboard_actor_edit_v1` LOGIN has private
+`miy_whiteboard_lock_edit_actor` EXEC1 and business/Core SELECT/DML0. The supplied
+NOLOGIN capability owner has exactly24 metadata tables/100 SELECT columns and one
+FOR SHARE UPDATE column per table. Existing owner15/74, Source8/4 and auth14/87
+profiles remain unchanged.
+
+`lock_whiteboard_actor_edit_write` verifies the standard Session binding closure
+for all current auth/resource models and the actual original service/credential,
+installation/release/proof/binding, Whiteboard and target app admission. The SQL
+capability locks one positive owner/direct/local-or-HR-group/PMS space or live
+task-list member/admin/owner/meeting organizer-or-attendee edit witness. Current
+company visibility and platform admin read, viewer, unknown targets and normal
+tokenNone link shares do not become edit permission. A selected witness is fixed
+before its wait, rechecked afterward and never replaced with an alternate in that
+decision. Expiry uses UTC clock_timestamp after all witness waits.
+
+PMS roles use the Python3.12 Unicode15 strip whitespace set and ASCII translation
+with C equality; the accepted role words have no non-ASCII lowercase preimages.
+Changes to those role words or Unicode/runtime identity require contract review
+and regeneration. Current built-in Whiteboard/PMS/Meeting catalogs have no extra
+feature flags or required system roles; the SQL policy parity is limited to this
+reviewed catalog. Operational immutable config/factory epoch remains required.
+
+The manifest checker is a separate adapter because the owner-only checker has a
+closed15-table ceiling. It reuses the current role/schema/catalog/Source/admin-CAS
+primitives, preserves exact replay with grant/ALTER/audit0 and refuses partial,
+broad, revoked or tampered authority. The adapter gap is the full resource model
+binding and fixed24-table privilege closure; native parity, grants and failure
+checks own its validation.
+
+This primitive is inactive and performs no Yjs or business DML, factory selection,
+COMMIT or cleanup. Caller owns actual same-database Connection/transaction,
+decreasing SQL budget and rollback after deadlock/timeout. Decision-time expiry
+is not a physical COMMIT-time deadline, and database locators are not unique
+cluster identity. Same-transaction checked captured-CAS storage, every queued
+contributor's original execution, relay attribution, durable unknown recovery and
+operational drain/cutover are separate activation gates.

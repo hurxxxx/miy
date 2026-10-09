@@ -617,12 +617,28 @@ revision fixture를 원본 테스트에 포함해17파일/보호94로 범위를 
 
 Python6·API architecture/i18n·schema/OpenAPI/contract sources를 통과했다. 최종 문서 검사·동결 후 새 독립 인수와 정상 게시/필수 원격 리뷰를 진행한다. 현재 dev746258cd·main/prod9e9280df 및 최신 full247/415 storage 실패/tests0를 유지하며 새로운 commit/push/PR/MR/merge는 아직 없다. Docker 이전/원본 정리·서비스 복구는 완료했고 제품/별도 Workbench 버전 배포는 없다. 전체 ACL·같은 Source connection/transaction 조립·실제 공식 서비스 cutover·Native 전체 자연어 앱 흐름 등 구조상 필수 잔여는 남아 있다.
 
+## 2026-10-09 10:13 — owner 경계 전달 완료와 전체 편집 ACL 착수
+
+Owner actor Source `3b39f5b9`/tree `68ca858e`의17파일·보호94·이전31 migration과 신규145/영향167을 독립 인수한 뒤 정상 commit/push했다. 필수248/job416 SUCCESS/allow_failure=false·137.448817초를 확인하고 PR89→`55e53403`, MR96→dev `8bf0bbee`로 병합했다. 두 merge tree가 같으며 소유 feature의 양쪽 원격과 로컬은 정리했다. 새 dev source의 전체249/job417이 실행 중이다. 운영 main/prod는 `9e9280df`이며 full 성공/새 운영/Workbench 배포를 주장하지 않는다.
+
+다음 edit ACL은 `8bf0bbee` 기준 별도 worktree와 새 feature다. 현재32개 migration과 기존 owner/Source/auth profile을 보호한다. 구현 중이며 커밋·게시·실제 서비스 활성화는 없고, 현재 전체 릴리스가 검증하는 source를 바꾸지 않는다.
+
 ## 2026-10-09 10:48 — owner 전달 완료와 release 재검증 조건
 
 Owner commit `3b39f5b9`의 GitHub PR89·GitLab MR96은 정상 병합했다. 필수248/job416 SUCCESS·allow_failure=false, 양쪽 merge tree `68ca858ec1390e43037fec7d1d277feaec409ad6` 동일이다. dev는 `8bf0bbee`로 fast-forward했고 해당 기능 브랜치만 원격/로컬 정리했다.
 
 MR81의 full249/job417에서 파일 migration 여덟 case가 실패했으므로 현재 source의 운영 병합·배포 근거가 없다. 버전 전용 fixture 수정은 새 필수 review와 새 exact-source full 검증을 거친다. 보호된 dev/main 및 upstream direct-push 비활성 계약을 유지한다.
 
+## 2026-10-09 10:54 — 전체 ACL의 정상 전달 조건
+
+전체 ACL14경로는 신규132·기존312·API/Python 검사 PASS, 보호98개·기존32 migration 동일이다. 원 owner revision4개 fixture를 커밋 범위에 포함했고 원 assertion은 유지했다. 초기3개 테스트 데이터 실패와4개 revision 실패는 보존한다. Root tracking6의 마지막 변경은 Markdown 검사와 최종 독립 리뷰로 별도 동결한다.
+
+현재 owner commit3b39f5b9·PR89/MR96 전달 이후 dev8bf0bbee이며 운영 main/prod9e9280df다. Full249의 file revision8 FAIL은 별도 ACT-CI-02 전달로 먼저 해결한다. 이 ACL은 아직 commit/push/PR/MR/merge되지 않았고 최종 scope·새 base·필수 review를 확인해 정상 전달한다. 운영/별도 Workbench 배포의 증거로 로컬 성공을 사용하지 않는다.
+
 ## 2026-10-09 11:05 — ACT-CI-02 로컬 영향 검증 완료
 
 ACT-CI-02는5개 test/helper+root tracking6=11경로다. 정상 원본270 PASS, 원115함수/270assertion 유지, 보호99개·기존32 migration 및 제품786개 동일을 확인했다. 최종 문서와 독립 인수 후 정상 commit/push·양쪽 PR/MR·필수 codex_review를 진행한다. Merge 전 현재 source/target/tree를 다시 확인하고 owned feature만 정리한다. 보호된 dev/main과 upstream direct push 비활성은 유지한다.
+
+## 2026-10-09 11:23 — 정상 fixture 전달과 ACL 통합 준비
+
+ACT-CI-02 commitcdc6103e·GitHub PR90 merge268363f0·GitLab MR97 mergee3e2591c, 필수250/job418 SUCCESS/55.90초/allow_failure=false다. Merge treecc54e4d9 동일, origin/main9e9280df 유지, owned feature만 정확한 tip으로 양쪽 원격/로컬 삭제했다. 첫 GitHub PR 생성 요청 실패는 보존했고 원인은 단정하지 않는다. 재조회에서 기존 PR0을 확인한 뒤 정상 재요청해PR90을 만들었다. ACL은 rebase 후 동일 runtime8+최신head8-case PASS를 확인했으며 최종14경로/독립 통합 인수·필수 review를 새 source에 고정한다.

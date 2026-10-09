@@ -233,10 +233,24 @@ Source 검사 파일에 case-scoped `world` 래퍼와 정확히4개 함수의 �
 
 Python6·API architecture/i18n·schema/OpenAPI/contract sources를 통과했다. 최종 문서 검사·동결 후 새 독립 인수와 정상 게시/필수 원격 리뷰를 진행한다. 현재 dev746258cd·main/prod9e9280df 및 최신 full247/415 storage 실패/tests0를 유지하며 새로운 commit/push/PR/MR/merge는 아직 없다. Docker 이전/원본 정리·서비스 복구는 완료했고 제품/별도 Workbench 버전 배포는 없다. 전체 ACL·같은 Source connection/transaction 조립·실제 공식 서비스 cutover·Native 전체 자연어 앱 흐름 등 구조상 필수 잔여는 남아 있다.
 
+## 2026-10-09 10:13 — owner 경계 전달 완료와 전체 편집 ACL 착수
+
+비활성 owner actor 경계 Source `3b39f5b9`/tree `68ca858e`는 필수248/job416 SUCCESS/137.448817초 뒤 GitHub [PR89](https://github.com/hurxxxx/miy/pull/89)→`55e53403`, 내부 [MR96](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/96)→dev `8bf0bbee`로 정상 병합했다. 양쪽 tree 동일·임시 브랜치 양쪽 원격/로컬 정리·persistent dev 유지·main/prod `9e9280df`를 확인했다. 최종 신규145·고유 영향167과 정상 Source79 전체 통과이며 ACT-CI-01의 기존 원 assertions와 실제 실패/수정 증거를 보존한다.
+
+Docker 이전 완료 후 최신 전체249/job417은 dev `8bf0bbee`에서 실제 테스트를 진행 중이다. 최종 full 성공·운영/별도 Workbench 버전 배포는 아직 없다. 다음은 해당 통합 commit을 기준으로 별도 worktree에서 비활성 전체 edit ACL capability다. SQL, role/runtime, tests를 분담해 구현 중이며 새 검사 실행/인수/게시/실제 쓰기 연결은 아직 하지 않았다.
+
 ## 2026-10-09 10:48 — 통합과 운영의 현재 상태
 
 Actor-owner 전달 완료: GitHub PR89·GitLab MR96 병합, 필수 review248/job416 성공, dev `8bf0bbee`. Docker 루트 볼륨 이전 및 기존 서비스 복구 완료. 운영 main/prod는 `9e9280df`이고 새 플랫폼·별도 Workbench 버전은 미배포다. Full249/job417의 백엔드 6,283 PASS/8 FAIL로 운영 release 인수는 보류한다. 기존 파일 migration revision fixture의 정상 CI 호환 수정과 새 full 검증이 우선이다. 전체 edit ACL 후속 구현은 격리된 브랜치에서 검증 중이며 아직 dev에 통합하지 않았다.
 
+## 2026-10-09 10:54 — 전체 edit ACL 로컬 인수 상태
+
+격리 브랜치의 전체 edit ACL은 신규132·기존312와 API/Python 계약 PASS다. 실행 LOGIN DML0·서버 원 execution·caller transaction·현재 app/resource 권한 경계를 유지한다. 최종 문서/독립 인수와 필수 원격 review는 아직 남았으며 실제 Source 저장·factory·운영 활성화는 없다. Dev8bf0bbee의 full249는 기존 파일 migration8 FAIL로 실패했으므로 운영 main/prod9e9280df와 별도 Workbench 버전은 유지한다. ACT-CI-02 수정 및 최신 source의 새 full 검증을 먼저 전달한다.
+
 ## 2026-10-09 11:05 — ACT-CI-02 로컬 영향 검증 완료
 
 ACT-CI-02 수정은 로컬270 PASS와 독립 정적 리뷰0 blocker다. 제품 코드·기존32 migration을 변경하지 않았다. 최종 문서·정상 commit/PR/MR·필수 review 및 새 full release는 아직 남았다. 개발 dev8bf0bbee·운영 main/prod9e9280df와 별도 Workbench 버전 상태는 유지한다.
+
+## 2026-10-09 11:23 — 정상 fixture 전달과 ACL 통합 준비
+
+ACT-CI-02는 PR90/MR97 정상 병합·필수250/418 SUCCESS·브랜치 정리 완료다. 현재 dev e3e2591, 운영 main/prod9e9280df다. ACL은 로컬444 PASS의 runtime8을 유지하며 새 base에 rebase했고, 새33-head file revision8도 PASS다. 최종 문서/독립 통합 리뷰 및 필수 remote review는 남았다. Full251은 e3 source로 진행 중이고 ACL 통합 후 최신 source를 확인한다. 새 운영/Workbench 버전 배포와 실제 Source 저장 활성화는 아직 없다.

@@ -158,3 +158,18 @@ combined into one SQL transaction or an independent-database fence.
 The [worker owner](../../worker/README.md) records the inactive profiles, matching wheel evidence and remaining claim/lease/outbox activation requirements.
 
 The [cutover owner](../../../platform-redesign/OFFICIAL_API_CUTOVER.md) records the concrete shared writes, fencing, identity delegation, router generation, database roles and worker/outbox steps required before activation. Publishing a health endpoint or building a wheel does not satisfy those steps.
+
+## Inactive Whiteboard full-edit actor boundary
+
+The distinct Core-owned `whiteboard_actor_edit_v1` capability checks current edit
+ACL and retains one positive owner/direct/group/PMS/Meeting witness through the
+caller transaction. Its LOGIN has EXEC1 and business/Core SELECT/DML0; existing
+owner-only, auth and Source profiles remain unchanged. This is the same-database
+metadata boundary documented by the [authority owner](../../api/src/miy_api/domains/official_apps/AUTHORITY_READER.md#inactive-full-edit-actor-acl-capability).
+
+The API supplies an explicit prepared descriptor and the original auth-only
+capture. It selects no operational role, runtime factory or SQL lifecycle and
+performs no Source/Yjs DML. Checked CAS storage on the same actual Connection,
+contributor credentials, durable unknown/restart recovery and complete guarded
+service cutover remain required. These inactive primitives do not establish a
+physical separate-database Core-authority COMMIT guarantee.

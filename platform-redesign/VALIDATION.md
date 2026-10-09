@@ -2051,12 +2051,36 @@ Docker 이전: 첫 bulk rsync23 및 두 번째 동일 오류238 mknod/ENOENT를 
 
 Python6·API architecture/i18n·schema/OpenAPI/contract sources를 통과했다. 최종 문서 검사·동결 후 새 독립 인수와 정상 게시/필수 원격 리뷰를 진행한다. 현재 dev746258cd·main/prod9e9280df 및 최신 full247/415 storage 실패/tests0를 유지하며 새로운 commit/push/PR/MR/merge는 아직 없다. Docker 이전/원본 정리·서비스 복구는 완료했고 제품/별도 Workbench 버전 배포는 없다. 전체 ACL·같은 Source connection/transaction 조립·실제 공식 서비스 cutover·Native 전체 자연어 앱 흐름 등 구조상 필수 잔여는 남아 있다.
 
+## 2026-10-09 10:13 — owner 경계 전달 완료와 전체 편집 ACL 착수
+
+최종 owner actor 신규 native138+pure7=145와 정상 Source79+role31+authority52+migration5=고유 영향167, Python·Markdown·API 구조/i18n·생성 계약을 인수했다. Native 실행 중 바뀐 입력은 실행에 사용하지 않는 tracking Markdown6개뿐이며 실제 코드/owner11 입력은 before/after 동일하고 최종 Markdown 검사로 기록을 다시 확인했다. 모든17 입력의 행동 검증 hash가 동일했다고 주장하지 않는다. ACT-CI-01 실제5 FAIL→5 PASS와 원본 모든 assertion은 유지한다.
+
+필수248/job416은 Source `3b39f5b9`에서137.448817초에 성공했다. 최신 full249/job417은 병합 dev `8bf0bbee`에서 실행 중이고 최종 결과가 아니다. 다음 full-edit ACL 테스트는 작성 중이며 아직 수집/실행/인수하지 않았다. 이전32개 migration과 기존 Source/auth/owner profile을 유지하며 actual PG18·정상 Alembic·current predicate parity·positive witness lock·caller commit/rollback·SQL normalization을 검증할 예정이다.
+
 ## 2026-10-09 10:48 — ACT-CI-02: 파일 migration revision 입력
 
 Full249/job417의 실제 백엔드 결과는 6,283 PASS/8 FAIL/3 SKIP/4 warnings, 2,445.04초다. 실패 여섯 함수는 extraction2·effect2·projection1·partition1이며 extraction의 세 boundary parameter로 여덟 case다. 이들은 `file_effect_20261007` 버전이나 그 revision의 왕복을 검증하지만 공통 fixture는 실제 최신 `wb_actor_owner_20261009`까지 올라간다. 제품 guard나 기존 migration을 완화하지 않고, 해당 case만 정상 Alembic downgrade와 원래 ancestor inventory로 버전을 고정하는 방식을 적용한다. 원 함수 body/signature/assertion은 유지한다.
 
 Full249/job417은 최종 FAILED/script_failure/2,730.55초다. 후속 백엔드 세 그룹16·37·15 PASS도 기록했으며 앞선8 FAIL을 무효화하지 않는다. 이후 전체 릴리스 성공 또는 새 수정본 통과의 근거가 아니다. 새 fixture의 실제 PostgreSQL 검증·정상 원격 review와 새 full release는 별도로 확인한다. 근거는 `.runtime/structural-next-delivery/release249-job417-final-failed.json`과 후속 ACT-CI-02 영수증에 보존한다.
 
+## 2026-10-09 10:54 — 전체 edit ACL의 실제 영향 검증
+
+신규 132개는 actual PG18 native119 PASS/324.12초와 pure13 PASS/3.25초다. 기존 정상 owner 모듈145 PASS/349.43초·Source/role110 PASS/105.25초·authority52 PASS/80.80초·원 migration5 PASS/8.82초 =고유 기존312개다. Owner revision 진단4·반복 수집은 더하지 않는다. Python6·API architecture·generated schema/OpenAPI·contract sources도 PASS다. Network-none의 합성 DB에서 실행했고 각 owned container 정리를 확인했다. 실제 Source DML·factory·운영 역할·독립 Workbench 배포는 검증 범위가 아니다.
+
+최초 native는116 PASS/3 FAIL/363.58초였다. 원인은 세 관리자 fixture의 필수 UserSystemRole.id 누락이며 ID만 보완했다. 만료 사례는 실제 새 직접 공유 ACL 행 대기 후 decision clock을 검사하도록 holder를 수정했고 기존90개 assertion AST는 동일하다. 원 owner revision 진단은4 FAIL/25.02초에서 게시되는 간접 http_world fixture 보완 후4 PASS/34.55초로 바뀌었다. 원46개 함수 body/signature/assertion은 동일하고3개 함수·4개 case만 정상 downgrade/32 ancestor inventory를 사용한다. 나머지141개는 최신 head다. 두 실패 기록은 별도로 보존한다.
+
+Full249/job417은 다른 기존 파일 migration 여덟 case 때문에 최종 FAILED다. 이 ACL의 로컬 통과는 전체 release 성공 근거가 아니다. 별도 ACT-CI-02 수정의 정상 전달·새 exact-source full 검증 후 운영 gate를 진행한다. 현재14입력의 실행 전후 해시·보호98개·기존32 migration은 동일하며, 이후 바뀌는 root tracking6은 문서 검사/독립 리뷰로 별도 동결한다.
+
 ## 2026-10-09 11:05 — ACT-CI-02 로컬 영향 검증 완료
 
 원본 네 모듈 전체를 제외 없이 실행해270 PASS/469.15초·cleanup PASS다. 진단8 PASS/29.10초는 고유 합계에 더하지 않는다. 원115개 함수 body/signature/return과270 assertion은 AST 동일하며 다른262 case는 실제 최신 head다. Python5·문서6·collect270도 PASS다. 보호99개·기존32 migration 및 제품 API786개는 동일하다. 실행 이후 업데이트한 tracking6은 최종 Markdown/독립 리뷰로 별도 확인하고 source5의 실행 전후 해시를 유지한다. 기존 full249/job417의8 FAIL은 보존하며 새 전체 release 성공으로 취급하지 않는다.
+
+## 2026-10-09 11:23 — 정상 fixture 전달과 ACL 통합 준비
+
+ACT-CI-02 원본270 PASS/469.15초·필수250/job418 SUCCESS/allow_failure=false를 거쳐 PR90/MR97을 정상 병합했다. ACL local commit2c9d0528을 새 dev e3e2591 위에 rebase했고 제품 충돌은 없었다. 이전 검증본 대비 변경은 incoming file-test/helper5와 진행 문서6뿐이며 ACL runtime6·owner 문서2·제품 API·전체33 migration은 동일하다. 기존444 PASS는 이 byte identity로 범위를 한정해 유지한다. 새33-head에서도 파일 revision 진단8 PASS/34.67초·cleanup PASS다. 진단은 고유444에 더하지 않는다. 전체 release251은 e3 source로 진행 중이며 ACL 통합 후 최신 source의 새 full을 확인한다.
+
+## 2026-10-09 11:41 — 명시적 통합 입력과 합성23 리허설
+
+Incoming file-test/helper5를 해당 committed base와 동일한 해시로 보호 입력에 포함했고, 합성 리허설 testcase1도 실행 전후 동결했다. 이 입력에서 같은 file revision8 PASS/52.07초·합성23 chain1 PASS/6.73초·cleanup PASS를 확인했다. 고유444에 반복/리허설을 더하지 않는다. 보호 입력은 기존98+incoming5=103이고 원32 migration은 동일하다. 이전8-case/리허설 관측은 별도 보존하며 해당 실행에서 없었던 dependency 해시 증거를 소급하지 않는다.
+
+합성 검증은 artifact_sequences 기준부터 최신ACL까지23 migration, 원래 모든 column/row 보존(합성 User/Whiteboard/Collab 포함), legacy ownership·principal0·cooperative guard90와 새3 함수의 body/owner/SECDEF·volatile/kind/language·nonowner EXEC 부재를 확인했다. 운영 데이터 리허설·fresh backup·배포 후 함수의 전체 metadata/overload attestation을 완료했다는 주장은 아니다. 그 확인은 실제 최신 release candidate에 맞춰 guarded 배포 전에 진행한다.
