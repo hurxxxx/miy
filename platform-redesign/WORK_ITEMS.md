@@ -392,3 +392,7 @@ C1·GC·접근 도구를 최신 dev02418067 기반으로 먼저 통합한다. C1
 OFF-002B/C1·공통 저장 drain: 로컬 인수 완료(신규56·권한132/110/145/52·통합20·기존106·구조/생성 계약),31개 경로 게시/필수 review·정상 병합 및 latest full 대기. 기본 native/factory·운영 역할·Source principal0/비활성을 유지한다. C2 원 contributor provenance와 pre-apply durable intake/handoff, C3 원 attempt 관측/복구·명시적 서비스 활성화는 필수 구조 잔여다. terminal rejected/unknown/refused 자동 replay를 금지하며 현재 caller-held bytes만으로 종료 후 복구를 완료로 표시하지 않는다.
 
 WB-001/002·ENV-001: SDK 185/starter/cache·JavaScript와 supported empty allowlist의 실제 Python/IPC23은 인수했지만 기존 Codex controller/SQLite binding 연결·실제 Task·private-notes unit·별도 Workbench 배포는 진행 중이다. REL-001은 새 pending24의 완전한 리허설·이전 이미지 호환·fresh actual evidence/full/guarded delivery가 남아 있다. APP_ISSUES 상세 기능과 다중 사용자 Workbench는 계속 보류한다.
+
+## 2026-10-09 18:03 UTC — 종료 저장 필수 P1 및 잔여
+
+구조 필수 Docs 종료 admission/취소 P1을 이번 전달에서 수정하고 실제4개 포함 focused24·원본106을 통과했다. GitHub94/GitLab101 수정 head의 필수 재리뷰/병합 및 latest full은 아직 남아 있다. C1은 비활성이며 C2 pre-apply durable intake와 전체 원 contributor provenance, C3 원 attempt 복구·서비스 활성화는 필수 잔여다. Workbench의 controller/세션 연결은 별도 검증하며 individual app 상세 기능과 다중 사용자는 계속 보류한다.

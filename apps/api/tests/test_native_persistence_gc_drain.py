@@ -692,3 +692,100 @@ def test_genuine_other_app_disposal_drains_actual_transaction_close_before_owner
         asyncio.run(exercise())
     finally:
         close_release.set()
+
+
+@pytest.mark.parametrize("closing", ["last_disconnect", "shutdown"])
+@pytest.mark.parametrize("cancel_parent", [False, True])
+def test_genuine_docs_final_save_retains_native_state_past_cleanup_budget_until_admission(
+    persistence_world, monkeypatch, closing, cancel_parent
+):
+    c = persistence_world
+    monkeypatch.setattr(native, "_native_persistence_gc", native.NativePersistenceGC())
+    opened, committed, closed = [], [], []
+
+    class ObservedSession(Session):
+        def commit(self):
+            value = super().commit()
+            committed.append(True)
+            return value
+
+        def close(self):
+            super().close()
+            closed.append(True)
+
+    def factory():
+        opened.append(True)
+        return ObservedSession(c.engine, autoflush=False)
+
+    async def exercise():
+        hub = docs.DocsCollabHub(bus=native.InProcessCollabBus(instance_id="docs-final-drain"))
+        await hub.startup()
+        hub._settings = hub._settings.model_copy(
+            update={"collab_snapshot_debounce_ms": 60000, "collab_cleanup_timeout_seconds": 1}
+        )
+        actor, page = c.world.state["admin"]["user"]["id"], c.world.ids["page"]
+        context = docs.CollabPageContext(
+            docs.make_page_ref("native_doc_page", page),
+            "native_doc_page",
+            page,
+            docs.make_room_key("native_doc_page", page),
+            True,
+            [],
+            actor,
+        )
+        runtime = await hub.get_room(context, None)
+        hub._session_factory = factory
+        with runtime.room.ydoc.begin_transaction() as transaction:
+            runtime.room.ydoc.get_map("synthetic").set(transaction, "marker", "final-edit")
+        expected = bytes(Y.encode_state_as_update(runtime.room.ydoc))
+        assert runtime.flush_task is not None
+        blocker = native.native_persistence_lease()
+        await blocker.__aenter__()
+        orphan = SimpleNamespace(on_message=None, clients=[], awareness=None, ydoc=Y.YDoc())
+        disposal = asyncio.create_task(native.release_yroom_thread_bound_state(orphan))
+        finishing = None
+        try:
+            for _ in range(4):
+                await asyncio.sleep(0)
+            finishing = asyncio.create_task(
+                hub.cleanup_room(runtime.room_key, expected_runtime=runtime)
+                if closing == "last_disconnect"
+                else hub.shutdown()
+            )
+            await eventually(lambda: runtime.metadata.get("disposing"))
+            # A real native GC waiter keeps new SQL admission closed beyond the
+            # unchanged one-second cleanup/SQL budget. This is not SQL time.
+            await asyncio.sleep(1.2)
+            assert opened == committed == closed == []
+            assert runtime.room.ydoc is not None and not finishing.done()
+            assert bytes(Y.encode_state_as_update(runtime.room.ydoc)) == expected
+            if cancel_parent:
+                finishing.cancel()
+                await asyncio.sleep(0)
+                finishing.cancel()
+                for _ in range(4):
+                    await asyncio.sleep(0)
+                assert not finishing.done() and runtime.room.ydoc is not None
+                assert opened == []
+        finally:
+            await blocker.__aexit__(None, None, None)
+            await asyncio.wait_for(disposal, 5)
+            if finishing is not None:
+                result = await asyncio.wait_for(
+                    asyncio.gather(finishing, return_exceptions=True), 5
+                )
+            await hub.shutdown()
+        assert opened == committed == closed == [True]
+        assert runtime.room.ydoc is None and not hub._disposals
+        if cancel_parent:
+            assert isinstance(result[0], asyncio.CancelledError)
+        else:
+            assert result == [None]
+        with Session(c.engine) as db:
+            saved = db.query(docs.DocsCollabDocument).filter_by(room_key=context.room_key).one()
+            assert saved.yjs_state == expected
+            restored = Y.YDoc()
+            Y.apply_update(restored, saved.yjs_state)
+            assert restored.get_map("synthetic").get("marker") == "final-edit"
+
+    asyncio.run(exercise())

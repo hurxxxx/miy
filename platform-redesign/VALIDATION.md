@@ -2144,3 +2144,9 @@ Ruff/format, API architecture, generated API·app·contract source 검사를 통
 SDK actual receipt5df15b32는 supported empty allowlist의 native20단계·pytest3, 양쪽 process drain, 임시 파일 제거·원본19/32f 입력 보존/0모델 요청을 확인한다. errno101/111은 시험한 경로의 거부이며 seccomp EPERM 전체 증명이 아니다. Unix socket errno1과 HTTP/CONNECT403을 별도 구분한다. 기존 facf/715eee 실패는 보존한다. 일반 Task·수정 중인 controller adapter·Workbench 배포의 인수로 확대하지 않는다.
 
 운영 도구는 공개6개/모형26·실제 PG18 query8의 제한 인수다. 현재 source/tree24단계 data restore·이전 이미지 호환·full release·fresh actual backup/before/deploy/after는 별도 필수다.
+
+## 2026-10-09 18:03 UTC — Docs 최종 admission 수정본
+
+입력3bae62b8/runnerd6e4fb47의 focused24는56.868848초, 같은 수정본의 원본106은208.751168초에 setup/call/teardown 전부 PASS, 실패/skip/error0이었다. 추가4개는 실제 PG commit·Session close와 native 상태 보존/해제 및 원 저장 bytes를 확인한다. PG/main/필요한 sidecar3 정리와31개·보호1185개·의존성9개·helper/asset before/after가 통과했다. 소스/helper 독립 리뷰eb65a5b9 accepted/blockers0, fresh Ruff/format PASS다. Runner의 기존20/c5/674 설명 필드는 역사적 복사 정보이며 실제 실행 gate/receipt는3bae와 정확24/106에 바인딩한다.
+
+이후 문서7개만 갱신하며 이번 코드·테스트 및 owner3개와 나머지 입력은 불변으로 대조한다. 최초 source858/필수258/job426 P1과 원본 full257 실패, 이전20/106의 모든 RED/PASS 기록은 보존한다. 수정 head 필수 CI·새 전체 release·실제 pending24 복제/이전 이미지·fresh backup/배포는 별도 필수다.

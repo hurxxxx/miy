@@ -686,3 +686,7 @@ C1·GC·접근 도구를 최신 dev02418067 기반으로 먼저 통합한다. C1
 ## 2026-10-09 17:43 UTC — API31개 전달 후보의 로컬 인수
 
 이번 후보는 dev02418067 기반 C1·Docs/Whiteboard 저장/GC drain·접근 도구와 추적 문서31개 경로다. 신규 C1 56·기존 권한132/110/145/52와 통합20·기존 협업106 및 구조/생성 계약을 인수했다. SDK18 및 controller 후속은 별도 로컬 후보로 제외한다. 필수 Codex review·GitHub feature PR·내부 dev MR·정상 병합/정리·새 current full은 아직 실행 전이며 이전 full257 실패는 유지한다. Persistent dev/main과 main/prod9e9280df를 보존한다. migration34/pending24의 새 운영 근거와 별도 Workbench 전달도 필요하다.
+
+## 2026-10-09 18:03 UTC — GitHub94/GitLab101 필수 재리뷰
+
+최초858632eb/tree40f560da 게시와 정상 commit/push는 완료했지만 필수258/job426은 Docs 종료 P1로 실패했다. 수정31개 후보는 focused24·원본106을 새로 통과했으며 새 head를 정상 푸시해 필수 리뷰를 다시 받는다. 실패를 면제하거나 이전 검사로 병합하지 않는다. Persistent dev/main과 main/prod9e9280df를 유지하며 SDK/C2 후보는 별도다.

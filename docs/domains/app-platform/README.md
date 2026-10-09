@@ -185,6 +185,9 @@ without blocking the event loop, then releases native state and runs its explici
 the room's owner thread. Cancellation joins that owned disposal before propagating. This coordinates
 the platform's explicit room-disposal `gc.collect()` only; automatic or third-party GC is not disabled
 or covered by this exclusion. SQL budgets, identity checks and retry/unknown-outcome policy stay fixed.
+Final Docs and Whiteboard disposal joins snapshot admission and persistence before releasing native
+state, even after caller cancellation. Admission waits do not consume the non-SQL cleanup timeout;
+that timeout still bounds client/relay/room cleanup, and the SQL budget begins after admission.
 Docs and Whiteboard ignore only the exact empty Yjs delta emitted by native read transactions, so
 snapshot encoding cannot cancel its own scheduled save. Delete-only updates still save and relay.
 

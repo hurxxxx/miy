@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from time import monotonic
 from typing import Any
 
+from anyio import CancelScope, create_task_group
 from fastapi import HTTPException
 import y_py as Y
 from sqlalchemy import delete, event, select
@@ -709,67 +710,85 @@ class DocsCollabHub:
             self._rooms.pop(room_key)
         task = self._start_disposal(runtime, persist=True)
         if task is not None:
-            await asyncio.shield(task)
+
+            async def wait_disposal_owned():
+                with CancelScope(shield=True):
+                    await task
+
+            async with create_task_group() as group:
+                group.start_soon(wait_disposal_owned)
 
     async def _dispose_runtime(
         self, runtime: CollabRoomRuntime, *, persist: bool, close_code: int | None
     ) -> None:
-        if runtime.flush_task is not None:
-            runtime.flush_task.cancel()
-            await self._run_cleanup_step(
-                runtime,
-                "flush task cancellation",
-                asyncio.gather(runtime.flush_task, return_exceptions=True),
-            )
-        if persist and not runtime.metadata.get("writer_fenced"):
-            await self._run_cleanup_step(runtime, "flush", self._flush_runtime(runtime))
-        if runtime.metadata.get("writer_fenced"):
-            close_code = 1013
-        if close_code is not None:
-            for client in list(runtime.room.clients):
+        async def dispose_owned(close_code):
+            # Final admission and SQL/Session completion have one private owner.
+            # Parent cancellation and non-SQL cleanup deadlines cannot discard it.
+            with CancelScope(shield=True):
+                if runtime.flush_task is not None:
+                    runtime.flush_task.cancel()
+                    await self._run_cleanup_step(
+                        runtime,
+                        "flush task cancellation",
+                        asyncio.gather(runtime.flush_task, return_exceptions=True),
+                    )
+                if persist and not runtime.metadata.get("writer_fenced"):
+                    await self._flush_runtime(runtime)
+                if runtime.metadata.get("writer_fenced"):
+                    close_code = 1013
+                if close_code is not None:
+                    for client in list(runtime.room.clients):
+                        await self._run_cleanup_step(
+                            runtime,
+                            "client close",
+                            client.close(
+                                code=close_code,
+                                reason=(
+                                    "official_writer_unavailable"
+                                    if close_code == 1013
+                                    else "Server shutdown."
+                                ),
+                            ),
+                        )
+                if runtime.relay_task is not None:
+                    runtime.relay_task.cancel()
+                    await self._run_cleanup_step(
+                        runtime,
+                        "relay task cancellation",
+                        asyncio.gather(runtime.relay_task, return_exceptions=True),
+                    )
+                if runtime.relay_pubsub is not None:
+                    await self._run_cleanup_step(
+                        runtime,
+                        "relay pubsub close",
+                        self._bus.close_pubsub(runtime.relay_pubsub, runtime.room_key),
+                    )
+                self._stop_room(runtime)
                 await self._run_cleanup_step(
                     runtime,
-                    "client close",
-                    client.close(
-                        code=close_code,
-                        reason=(
-                            "official_writer_unavailable"
-                            if close_code == 1013
-                            else "Server shutdown."
-                        ),
-                    ),
+                    "room task stop",
+                    asyncio.gather(runtime.room_task, return_exceptions=True),
                 )
-        if runtime.relay_task is not None:
-            runtime.relay_task.cancel()
-            await self._run_cleanup_step(
-                runtime,
-                "relay task cancellation",
-                asyncio.gather(runtime.relay_task, return_exceptions=True),
-            )
-        if runtime.relay_pubsub is not None:
-            await self._run_cleanup_step(
-                runtime,
-                "relay pubsub close",
-                self._bus.close_pubsub(runtime.relay_pubsub, runtime.room_key),
-            )
-        self._stop_room(runtime)
-        await self._run_cleanup_step(
-            runtime,
-            "room task stop",
-            asyncio.gather(runtime.room_task, return_exceptions=True),
-        )
-        await self._release_room_state(runtime)
+                await self._release_room_state(runtime)
+
+        async with create_task_group() as group:
+            group.start_soon(dispose_owned, close_code)
 
     async def shutdown(self) -> None:
-        async with self._lock:
-            runtimes = list(self._rooms.values())
-            self._rooms.clear()
-        for runtime in runtimes:
-            self._start_disposal(runtime, persist=True, close_code=1001)
-        # Includes rooms already retired by a frame, relay or background flush.
-        while self._disposals:
-            await asyncio.gather(*tuple(self._disposals))
-        await self._bus.shutdown()
+        async def shutdown_owned():
+            with CancelScope(shield=True):
+                async with self._lock:
+                    runtimes = list(self._rooms.values())
+                    self._rooms.clear()
+                for runtime in runtimes:
+                    self._start_disposal(runtime, persist=True, close_code=1001)
+                # Includes rooms already retired by a frame, relay or background flush.
+                while self._disposals:
+                    await asyncio.gather(*tuple(self._disposals))
+                await self._bus.shutdown()
+
+        async with create_task_group() as group:
+            group.start_soon(shutdown_owned)
 
     def require_writer(self) -> None:
         with self._session_factory() as db:

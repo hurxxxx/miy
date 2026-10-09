@@ -654,3 +654,7 @@ C1·GC·접근 도구를 최신 dev02418067 기반으로 먼저 통합한다. C1
 원본 full257 실패를 재현한 뒤 명시적 native GC를 공통 snapshot worker/Session 정리와 분리했다. 초기 새 테스트 fixture17/1과 실제 Docs 자동 저장18/1 RED를 구분해 보존했고, 정확한 빈 Yjs delta만 제외해 실질 회귀를 수정했다. 현재 집중20개와 기존 협업106개가 모두 통과했다. 기존106의83/23 및84/22 setup RED는 소유 임시 인프라와 누락된 pgvector를 갖춘 뒤 같은 선택으로 해결했으며 product assertions/SQL 예산/worker 한도는 완화하지 않았다.
 
 SDK는 올바른 user1000 호출의 socketpair send EPERM/portal 대기를 재현했고, 공식 API가 거부하는 전역 wildcard와 지원되는 빈 allowlist를 구분했다. 후속 native20+pytest3 검증은0모델 요청으로 통과했다. 구독 Task 및 controller policy/SQLite binding 연결은 후속 로컬 구현이고 이번 API 전달과 분리한다.
+
+## 2026-10-09 18:03 UTC — 필수 리뷰의 Docs 종료 결함 수정
+
+최초 게시858632eb의 필수258/job426은 Docs 최종 flush 전체를 cleanup timeout에 넣으면 GC admission에서 취소되어 저장 없이 native 상태가 폐기되는 P1을 발견했다. 정상 병합을 멈추고 최종 admission/SQL·Session/native 해제를 private owner로 join하도록 수정했다. last disconnect/shutdown 양쪽에서 기존1초 budget보다 긴 대기와 두 번의 caller 취소를 실제 PG 저장·종료까지 검증한4개를 추가했다. 집중24·기존106 모두 통과했으며 기존 assertions와 SQL 예산/현재 권한은 유지했다. 수정 head의 새 필수 리뷰를 요청한다.
