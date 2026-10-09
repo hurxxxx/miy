@@ -54,6 +54,7 @@ export function expectedGitlabPipelineConfig() {
     stages: ['validate', 'review', 'publish'],
     release_validation: {
       stage: 'validate',
+      timeout: '2h',
       image: VALIDATION_IMAGE,
       services: [
         {

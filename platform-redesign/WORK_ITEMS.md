@@ -352,3 +352,13 @@ ACT-CI-02의 실제 영향 검증270 PASS와 기존115함수/270assertion 동일
 ACT-CI-02는 PR90/MR97로 전달 완료이고 owner/전체 edit ACL은 PR89/MR96 및 PR91/MR98로 전달했다. ACT-CI-03은 full251의 Workbench Ruff I001을 원 테스트 import 순서만으로 고치는 필수 CI 호환 작업이다. Local lint/24 cases PASS, 최종 문서·독립 리뷰/게시·latest full은 남아 있다. 구조 runtime 활성화로 확대하지 않는다.
 
 운영 pending23 private restore/data/old-image compatibility는 통과했으나 final candidate binding/full/before/deploy/after는 남아 있다. 필수 후속은 checked-save C1/C2/C3, 실제 official source/queue/service 전환, Workbench SDK/immutable install 및 개인 앱 UI→DB 자연어 전체 흐름이다. 세부 앱 기능과 다중 사용자는 후속 별도 지시 대상으로 유지한다.
+
+## 2026-10-09 12:55 — 전달 갱신과 다음 비활성 C1
+
+ACT-CI-03은 PR92/MR99/required254-422 정상 병합·소유 feature 정리 완료다. 현재 dev0d259이며 latest full255-423은 실행 중이다. 개발 before/after schema와 private cap·legacy writer/90 guards,18개 app entry/browser logout을 확인했다. Actual prod는 main9e를 유지한다. 운영23 migration의 최종 tree private rehearsal과 독립 인수는 준비 근거이며 actual flags/role catalog/full/deploy를 대체하지 않는다.
+
+`OFF-002B`의 다음 local C1은 Core-sealed immutable complete original contributor/payload attempt + Source EXEC1/DML0 checked CAS + durable original-attempt receipt/lock-and-cancel이다. 현재 ACL 통합 base0d259에서 새 worktree로 계획/정확 column/function ceiling을 동결하고 구현한다. 기본 native/factory/operational role은 유지하고 C2 provenance/C3 activation을 완료로 표시하지 않는다. `WB-001/ENV-001`은 별도 immutable Node/Python/pnpm·SDK cache/verifier/inactive backend를 준비한다. App source/manifest/scripts는 checkout 소유로 유지하며 두 starter graph의 availability를 임의 앱 전체 지원으로 확장하지 않는다. 기존 업무별 상세 기능·다중 사용자는 계속 보류한다.
+
+### ACT-CI-04 — 전체 릴리스 실행 예산
+
+상태: `in_progress` — 후보70/70·독립 소스 리뷰 완료, 게시/필수 리뷰/병합·최신 full 대기. 실제255/job423의3604.73초 timeout과 project3600/Runner7200 근거에 따라 릴리스 job에만2h를 선언한다. 두 YAML과 checker의 현재 계약을 함께 갱신하며 테스트·gate·현재 ref binding·생략 정책은 유지한다. Workbench build/E2E까지 끝난 새로운 current full 성공이 완료 조건이다.

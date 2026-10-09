@@ -10,12 +10,13 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
 
 ## 현재 위치
 
-- **전달:** dev `92e77670`, main/prod `9e9280df`. Actor-owner PR89/MR96와 파일 revision fixture PR90/MR97에 이어 전체 edit ACL [PR91](https://github.com/hurxxxx/miy/pull/91)·[MR98](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/98)을 필수252/job420 SUCCESS 후 병합했다. 각 소유 feature 브랜치를 양쪽 원격·로컬에서 정리했고 persistent dev/main은 유지했다.
-- **릴리스:** full251/job419는 API main6291·slow16·migration37·external15, 웹 단위911·브라우저42, Workbench 웹183·타입 검사를 통과한 뒤 Python Ruff I001 한 건으로 실패했다. full253/job421은 ACL 통합 source에서 실행 중이다. 동일 오류를 포함한 기존 Workbench 테스트의 import 정렬만 수정하고 같은 CI 이미지의 전체 Python 린트·원 모듈24개를 통과했다. 수정본 최종 인수·필수 리뷰와 최신 full 성공 전 운영 MR81은 병합하지 않는다.
-- **공식 앱 경계:** 비활성 전체 edit ACL 신규132·기존312=444 로컬 검증과 독립·필수 리뷰를 마쳤다. 실제 Source checked save·원 contributor 보존·factory/역할 활성화·전사 서비스 전환은 미완료다. 운영 복사본의 pending23·기존164 relation 데이터·새 세 capability catalog·이전 이미지 호환 검증은 통과했으나 실제 운영 반영을 대신하지 않는다.
-- **저장 공간:** Docker 저장소를 루트의 `/var/lib/miy-docker-data`로 이전하고 canonical `/var/lib/docker` bind, fstab/systemd 의존성, 기존 서비스·Runner를 복구했다. 전체 checksum/metadata 차이0과 컨테이너83·볼륨286·이미지18 보존을 확인했다. 실제 full251의 storage gate가 통과했으며 원래 여유 기준은 유지한다.
-- **Workbench·개인 앱:** 기존 단일 사용자 SQLite·원 Task/native 정의를 유지한다. 실제 immutable cache/Node·Python SDK toolchain 설치, 최신 등록 개인 앱의 자연어 전체 흐름과 필요한 별도 Workbench release/service 확인은 남아 있다. 플랫폼 배포로 Workbench 배포를 주장하지 않는다.
-- **범위:** 구조·권한·데이터 보존에 필수인 변경만 진행한다. 앱별 상세 기능은 이슈로 남기며 다중 사용자는 보류한다. 기존 skills/하네스를 절차로 재사용하지 않고 핵심 계약과 현재 코드·실제 검증을 기준으로 작업한다.
+- **전달:** dev `0d259c30`, main/prod `9e9280df`. Actor-owner PR89/MR96·파일 revision fixture PR90/MR97·전체 edit ACL PR91/MR98에 이어 Workbench import 정렬 [PR92](https://github.com/hurxxxx/miy/pull/92)·[MR99](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/99)을 필수254/job422 SUCCESS 후 병합했다. 양쪽 merge tree는 `04d144c1`이며 소유 feature 브랜치는 원격·로컬에서 정리했다.
+- **릴리스:** 이전 full251은 Workbench Ruff I001로 실패했다. 같은 오류를 가진 ACL source의 full253은 수정본 리뷰 대기열을 위해 정상 취소했고 실제 canceled를 확인했다. full255/job423도 3,604.73초에 `job_execution_timeout`으로 실패했다. API6423·slow16·migration37·external15·Web911·WorkbenchWeb183·WorkbenchPython822는 통과했지만 후속 build/E2E와 전체 완료는 미확정이다. 프로젝트 기본3600초·Runner 최대7200초를 실제 확인했고, 릴리스 작업만 `timeout: 2h`로 고정하는 ACT-CI-04 후보는 동일 이미지에서70/70을 통과했다. 새 정확 source/target/tree의 전체 성공 전 MR81을 병합·운영 배포하지 않는다.
+- **개발 반영:** 관리 서비스를 재시작해 `wb_actor_acl_20261009`를 반영했다. 세 private capability의 전체 정의·권한, legacy owner·Source principal0·기존 보호90개를 확인했다. 실제 수신 주소를 사용한 로그인·직접/공개 health/readiness/bootstrap/shell과 공개 브라우저의18개 앱 진입·로그아웃을 통과했다. 기존 접근 도구의 loopback 고정은 별도 후보에서 보완 중이며, 사용자 PC 접속은 미검증이다.
+- **운영 준비:** 최종 `22913094`/tree `04d144c1`의 private restore/pending23·기존164 relation 데이터·세 capability catalog·이전 이미지 호환 리허설과 독립 리뷰를 통과했다. clone owner/ACL은 정규화했고 flags는 합성 상수이므로 실제 운영 before/after 검사·fresh backup·guarded 배포를 대신하지 않는다. 운영은 기존 이미지를 유지한다.
+- **Workbench 설치 근거:** 공개 Native49개·446,771,872bytes와 SDK4,596members·415,841,975bytes를 각각 새 root-owned 읽기 전용 cache에 설치·정확 검증했다. 기존 Workbench 서비스/설정은 유지한다. 새 basic 임시 unit의 실제 UID/cap0/NNP·mnt/net/PID·cgroup 한도·root/SDK/.git 읽기 전용·Source 쓰기와 기존 provisioning·bad/no bearer·`pnpm test`를 확인했다. `pnpm run build` exit1의 원인은 조사 중이고, 임시 unit은 정리했다. 합성 고정 환경 변수의 실행이며 실제 Workbench Task 인수는 아니다.
+- **후속 구조:** C1은 별도 worktree에서 Core가 전체 원 contributor·payload를 봉인한 attempt, Source private EXEC1/DML0 checked CAS와 영속 receipt/lock-and-cancel 복구를 구현한다. 기본 native·factory·기존 role/profile은 유지하며 C2 원 apply/relay provenance와 C3 활성화는 후속이다. Workbench의 immutable Node/Python·SDK cache와 실제 설치·개인 앱 자연어 전체 흐름도 병행한다.
+- **저장 공간·범위:** Docker를 루트 `/var/lib/miy-docker-data`로 이전해 checksum/metadata 차이0, 컨테이너83·볼륨286·이미지18 보존을 확인했다. 루트 여유는13:28 약51GB이며 원래15GiB/15% floor는 유지한다. 앱별 비필수 기능·다중 사용자는 보류하고 기존 skills/하네스를 절차로 재사용하지 않는다.
 
 ## 이전 단계별 인수 기록
 

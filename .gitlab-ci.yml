@@ -14,6 +14,7 @@ stages:
 
 release_validation:
   stage: validate
+  timeout: 2h
   image: miy-validation:node22-python312
   services:
     - name: redis@sha256:5a77f0f4698389019f828f6387049ce1d5adbea204e56422aa7720dab7034287
