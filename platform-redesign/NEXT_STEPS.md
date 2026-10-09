@@ -265,3 +265,9 @@ ACT-CI-02 영향 모듈270 PASS를 최종 문서/독립 인수에 반영하고 �
 다음 구현 C1: Core-authoritative immutable save_attempts/contributors, collab incarnation/content revision 및 기존 writer도 덮어쓰기를 검출하는 owned revision trigger, 새 Source EXEC1/DML0·trusted Core seal/resolve EXEC2/DML0 profile을 추가한다. Source는 Core가 봉인한 payload/전체 contributor만 사용하고 같은 실제 SQL transaction에서 모두의 현재 ACL·최종 expiry clock·CAS·receipt를 처리한다. Unknown은 원 attempt 행 잠금으로 committed receipt를 확인하거나 cancelled_not_committed로 봉인하며 자동 재실행하지 않는다.
 
 C1은 합성 완전 cohort의 비활성 capability 인수다. C2에서 실제 Y.apply_update 경계의 원 execution·durable intake·relay 신뢰 receipt 및 bounded pending cohort를 구현하고, C3에서 명시적 factory/config epoch·drain·역할 provision·restart recovery를 조립한다. 공유 last_editor·원 user ID·Python digest만으로 complete cohort를 증명하지 않는다. 물리적으로 분리된 Core/Source DB는 별도 commit protocol이 필요하며 현재 same-DB SQL을 그대로 사용하지 않는다.
+
+## 2026-10-09 12:20 — 현재 필수 순서
+
+ACT-CI-03의 원 Workbench 테스트 import 정렬1개와 현재 추적6을 최종 인수하고 정상 feature 게시·필수 review·병합·소유 branch 정리를 진행한다. 이미 확인된 같은 정렬 오류를 포함한 실행은 최신 수정본의 full 성공을 대신하지 않는다. 새 exact-source full 성공 뒤에만 MR81·clean prod main FF·fresh backup·guarded prepare/deploy/smoke 및 candidate23 전후 metadata를 수행한다. 현재 운영/새 Workbench 배포는 없다.
+
+후속 checked-save C1→native intake C2→factory/drain/recovery C3는 비활성 계약·원 cohort·같은 transaction/CAS/최종 expiry를 먼저 확정한다. Workbench의 immutable cache와 Node/Python SDK toolchain 설치·실제 개인 UI 앱 자연어 생성/등록/preview/build/배포/복구 인수는 전사 앱 전체 cutover와 병렬 준비할 수 있다. 검증된 native-only pilot을 SDK build 가능으로 표시하지 않는다. 이어 DB 앱 권한·데이터 보존과 최소 자연어/템플릿 결과 평가, 네 영역 독립 릴리스/복구를 확인한다. 앱별 비필수 상세 개선·다중 사용자는 보류한다.
