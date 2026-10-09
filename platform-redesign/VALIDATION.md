@@ -2084,3 +2084,11 @@ ACT-CI-02 원본270 PASS/469.15초·필수250/job418 SUCCESS/allow_failure=false
 Incoming file-test/helper5를 해당 committed base와 동일한 해시로 보호 입력에 포함했고, 합성 리허설 testcase1도 실행 전후 동결했다. 이 입력에서 같은 file revision8 PASS/52.07초·합성23 chain1 PASS/6.73초·cleanup PASS를 확인했다. 고유444에 반복/리허설을 더하지 않는다. 보호 입력은 기존98+incoming5=103이고 원32 migration은 동일하다. 이전8-case/리허설 관측은 별도 보존하며 해당 실행에서 없었던 dependency 해시 증거를 소급하지 않는다.
 
 합성 검증은 artifact_sequences 기준부터 최신ACL까지23 migration, 원래 모든 column/row 보존(합성 User/Whiteboard/Collab 포함), legacy ownership·principal0·cooperative guard90와 새3 함수의 body/owner/SECDEF·volatile/kind/language·nonowner EXEC 부재를 확인했다. 운영 데이터 리허설·fresh backup·배포 후 함수의 전체 metadata/overload attestation을 완료했다는 주장은 아니다. 그 확인은 실제 최신 release candidate에 맞춰 guarded 배포 전에 진행한다.
+
+## 2026-10-09 12:20 — full251 결과와 ACT-CI-03
+
+Full251/job419 최종 FAILED/script_failure3121.651538초. API main6291 PASS/3 SKIP/4 warnings2361.5초, slow16 PASS79.93초, migration37 PASS54.04초, external15 PASS42.70초다. Web Vitest164 files/911 PASS와 browser42 PASS, Workbench web15 files/183 PASS·typecheck 뒤 Ruff I001 at tests/test_remote_runtime.py:1:1에서 종료했다. 접속 거절 proxy 로그는 브라우저 실패 원인으로 단정하지 않는다. 린트 이후 Workbench Python/build/E2E 성공은 이 실행에서 주장하지 않는다.
+
+ACT-CI-03의 원 파일52f058f7→정렬본5d036f4b는 non-import AST·8 함수/30 assertions·import AST/nonblank import line multiset과 첫 test decorator 이후 바이트가 같다. Same image eefe09d5, Python3.12.14의 frozen public dependency 환경에서 Ruff0.16.8 전체 Python lint와 원 remote-runtime 모듈24 PASS/2 warnings/14.19초다. 원 assertion·기대값·pytest selection은 유지한다. 실행은 public dependency 준비를 포함한 bridge container이며 network-none으로 주장하지 않는다. 실제 credential/운영 연결0, 파일1·보호181 입력/출력 동일 및 소유 container cleanup PASS다. Root 추적6은 이 행동 실행 뒤 갱신하고 최종 Markdown/범위 인수로 따로 결속한다.
+
+운영 백업의 격리 PostgreSQL18.6 private23 복원은 b395/tree93744905, 코드848 before/after 동일, 원164 relation 데이터 보존, 정확23 pending/current33 migration, 새 세 capability 전체 catalog/owner/argument/EXEC 확인과 이전 image164 table/160 mapper/88 rollback-only writer/합성 auth8을 통과했다. Clone 복원은 owner/ACL을 정규화하며 probe flags는 공급한 상수이므로 실제 운영 역할/flags 인수로 확대하지 않는다. 임시2 containers/network 정리와 독립 aggregate 리뷰 blocker0다. 최종 source/tree가 바뀌면 그 결속을 갱신하고 실제 before/after metadata·fresh backup·guarded 배포를 별도로 확인한다.

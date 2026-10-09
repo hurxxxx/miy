@@ -10,10 +10,12 @@ immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인�
 
 ## 현재 위치
 
-- **전달:** 현재 dev는 `746258cd`, main/prod는 `9e9280df`다. 비활성 최소 Whiteboard Source writer/profile은 필수246/job414 성공 뒤 [PR88](https://github.com/hurxxxx/miy/pull/88)·[MR95](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/95)로 정상 병합하고 소유 feature 브랜치를 양쪽 원격·로컬에서 정리했다. 최신 full247/job415는 저장 공간 선행조건에서22.79551초에 실패해 제품 테스트0이며 새 운영·별도 Workbench 배포는 없다.
-- **공식 앱 경계:** 최소 Source writer/profile 신규79·영향209 로컬 검증과 독립·필수 리뷰를 마쳤다. 다음 Core actor-owner capability는 구현·테스트 작성 중이며 아직 인수하지 않았다.
-- **Workbench:** 기존 원 Task와 native 실행 정의는 보존한다. 영구 cache/설치·개인 앱 자연어 전체 흐름·별도 서비스 배포는 남아 있다.
-- **범위:** 구조·권한·데이터 보존에 필수인 변경만 진행한다. 앱별 상세 기능과 다중 사용자는 보류한다.
+- **전달:** dev `92e77670`, main/prod `9e9280df`. Actor-owner PR89/MR96와 파일 revision fixture PR90/MR97에 이어 전체 edit ACL [PR91](https://github.com/hurxxxx/miy/pull/91)·[MR98](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/98)을 필수252/job420 SUCCESS 후 병합했다. 각 소유 feature 브랜치를 양쪽 원격·로컬에서 정리했고 persistent dev/main은 유지했다.
+- **릴리스:** full251/job419는 API main6291·slow16·migration37·external15, 웹 단위911·브라우저42, Workbench 웹183·타입 검사를 통과한 뒤 Python Ruff I001 한 건으로 실패했다. full253/job421은 ACL 통합 source에서 실행 중이다. 동일 오류를 포함한 기존 Workbench 테스트의 import 정렬만 수정하고 같은 CI 이미지의 전체 Python 린트·원 모듈24개를 통과했다. 수정본 최종 인수·필수 리뷰와 최신 full 성공 전 운영 MR81은 병합하지 않는다.
+- **공식 앱 경계:** 비활성 전체 edit ACL 신규132·기존312=444 로컬 검증과 독립·필수 리뷰를 마쳤다. 실제 Source checked save·원 contributor 보존·factory/역할 활성화·전사 서비스 전환은 미완료다. 운영 복사본의 pending23·기존164 relation 데이터·새 세 capability catalog·이전 이미지 호환 검증은 통과했으나 실제 운영 반영을 대신하지 않는다.
+- **저장 공간:** Docker 저장소를 루트의 `/var/lib/miy-docker-data`로 이전하고 canonical `/var/lib/docker` bind, fstab/systemd 의존성, 기존 서비스·Runner를 복구했다. 전체 checksum/metadata 차이0과 컨테이너83·볼륨286·이미지18 보존을 확인했다. 실제 full251의 storage gate가 통과했으며 원래 여유 기준은 유지한다.
+- **Workbench·개인 앱:** 기존 단일 사용자 SQLite·원 Task/native 정의를 유지한다. 실제 immutable cache/Node·Python SDK toolchain 설치, 최신 등록 개인 앱의 자연어 전체 흐름과 필요한 별도 Workbench release/service 확인은 남아 있다. 플랫폼 배포로 Workbench 배포를 주장하지 않는다.
+- **범위:** 구조·권한·데이터 보존에 필수인 변경만 진행한다. 앱별 상세 기능은 이슈로 남기며 다중 사용자는 보류한다. 기존 skills/하네스를 절차로 재사용하지 않고 핵심 계약과 현재 코드·실제 검증을 기준으로 작업한다.
 
 ## 이전 단계별 인수 기록
 

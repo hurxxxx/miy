@@ -4,13 +4,14 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from conftest import FakeRPC, complete, send_message
+from test_app_sources import app_checkout as app_checkout
+from test_app_sources import bind, launch
+
 from codex_console import remote_environments
 from codex_console.errors import ConsoleError
 from codex_console.models import Task
 from codex_console.runtime import Runtime
-from conftest import FakeRPC, complete, send_message
-from test_app_sources import app_checkout as app_checkout
-from test_app_sources import bind, launch
 
 
 @pytest.mark.parametrize(
