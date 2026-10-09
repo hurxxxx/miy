@@ -148,16 +148,16 @@ Docker mount sources; an old path alias alone does not prove that execution move
 
 `scripts/release-validation.mjs` owns deterministic selection. It compares the complete current target/source trees, including deletions and both sides of renames, and requires the tested tree to equal the merge result. It does not classify only the last commit or ignore pending app changes elsewhere in the release.
 
-| Diff | Fast-request outcome |
-| --- | --- |
-| Known Markdown docs/instructions only | Whitespace, skills checker, skill-harness and Claude bridge tests; omit application suites |
-| Skills, native agent setup/hooks, tested Codex review tooling | Whitespace and `pnpm ci:harness`; omit API, generated contract, web build/test and browser E2E suites |
-| Web source/E2E or core-web source | `pnpm ci:web`; omit API and Codex Console suites |
-| Shared UI source/styles | `pnpm ci:web` and `pnpm ci:codex-console`; omit API suites |
-| Codex Console source/tests | `pnpm ci:codex-console`; omit miy API and Web suites |
-| Mixed known focused surfaces | Stable union of their checks; omit unrelated suites |
-| Dependencies/lockfiles, worker, shared/generated contracts, miy DB migrations, env, dev/runtime startup, Compose, images, release selector/CI routing/gates, or unknown paths | Full `pnpm ci:all` |
-| More than 40 files or 1,000 added/deleted lines; binary, symlink/submodule or mode changes | Full `pnpm ci:all` |
+| Diff                                                                                                                                                                          | Fast-request outcome                                                                                  |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Known Markdown docs/instructions only                                                                                                                                         | Whitespace, skills checker, skill-harness and Claude bridge tests; omit application suites            |
+| Skills, native agent setup/hooks, tested Codex review tooling                                                                                                                 | Whitespace and `pnpm ci:harness`; omit API, generated contract, web build/test and browser E2E suites |
+| Web source/E2E or core-web source                                                                                                                                             | `pnpm ci:web`; omit API and Codex Console suites                                                      |
+| Shared UI source/styles                                                                                                                                                       | `pnpm ci:web` and `pnpm ci:codex-console`; omit API suites                                            |
+| Codex Console source/tests                                                                                                                                                    | `pnpm ci:codex-console`; omit miy API and Web suites                                                  |
+| Mixed known focused surfaces                                                                                                                                                  | Stable union of their checks; omit unrelated suites                                                   |
+| Dependencies/lockfiles, worker, shared/generated contracts, miy DB migrations, env, dev/runtime startup, Compose, images, release selector/CI routing/gates, or unknown paths | Full `pnpm ci:all`                                                                                    |
+| More than 40 files or 1,000 added/deleted lines; binary, symlink/submodule or mode changes                                                                                    | Full `pnpm ci:all`                                                                                    |
 
 The size limits are conservative routing policy, not measured correctness thresholds. Focused application routing is an allowlist of Web and Codex Console source and test trees, not a generic extension rule: API/worker code, dependency manifests, generated/shared contracts, database migrations, runtime configuration/topology and unknown paths remain full. Shared UI runs both of its consumers' suites. A `.sh`, `.yml`, or “setup/CI” name alone does not prove low impact. Release-control changes, including introducing or changing this selector, cannot choose their own abbreviated validation.
 
@@ -290,10 +290,10 @@ PostgreSQL's connection limit belongs to the physical server, including when dev
 and production use different databases on it. Budget every API process and Celery child,
 plus migration/operator capacity, below the server's non-reserved connection limit.
 
-| Runtime | Retained connections per process | Extra concurrent connections | Settings |
-| --- | --- | --- | --- |
-| API | 5 | 5 | `MIY_API_DB_POOL_SIZE`, `MIY_API_DB_MAX_OVERFLOW` |
-| Worker child | 1 | 2 | `MIY_WORKER_DB_POOL_SIZE`, `MIY_WORKER_DB_MAX_OVERFLOW` |
+| Runtime      | Retained connections per process | Extra concurrent connections | Settings                                                |
+| ------------ | -------------------------------- | ---------------------------- | ------------------------------------------------------- |
+| API          | 5                                | 5                            | `MIY_API_DB_POOL_SIZE`, `MIY_API_DB_MAX_OVERFLOW`       |
+| Worker child | 1                                | 2                            | `MIY_WORKER_DB_POOL_SIZE`, `MIY_WORKER_DB_MAX_OVERFLOW` |
 
 Both `MIY_API_DB_POOL_TIMEOUT` and `MIY_WORKER_DB_POOL_TIMEOUT`
 default to 45 seconds. These are lazy pool limits, not connections opened at startup.
@@ -353,6 +353,8 @@ After startup, reboot or recovery, follow the shared [development access checks]
 ## Build and test storage
 
 `scripts/docker-storage.mjs` owns project image retention and capacity preflight. Before building a validation image or when production candidate preparation needs a new image, run `node scripts/docker-storage.mjs check` against the local Docker daemon. Require at least 15 GiB **and** 15% available on its filesystem; these are conservative minimums, not a guarantee that an arbitrary build fits. Reusing an already matching candidate does not require build headroom. Release CI checks its workspace filesystem before launching suites and records a failed preflight without running them. If CI services use another filesystem/host, inspect that storage at its owner too. Do not disable OpenSearch disk watermarks or index-creation protection to make tests pass.
+
+When an authorized maintenance moves Docker data to another filesystem, follow the [host storage relocation procedure](installation-operations.md#docker-storage-relocation), including service shutdown, metadata verification, mount dependencies and recovery.
 
 Harness fixtures also run capacity checks on their temporary workspaces. If the default temporary directory is a small tmpfs, set `TMPDIR` to an ignored, owner-only directory on a filesystem that satisfies the same capacity threshold before running `pnpm ci:harness`. Check that filesystem's free space; do not lower the threshold or bypass preflight. For console tests, temporary attachment directories must also be outside every Git checkout; do not reuse a repository-local harness `TMPDIR` for `ci:codex-console`.
 

@@ -562,3 +562,60 @@ This seam does not activate the suite or remove the inactive composition gate.
 namespace/session-ownership cases; evidence belongs to `platform-redesign/VALIDATION.md`.
 `tests/test_prepared_official_http_auth.py` owns explicit HTTP assembly, separate
 restricted auth-role admission, real current Source ACL and cancellation boundaries.
+
+## Inactive Whiteboard owner actor fence
+
+`whiteboard_actor_writer.py` captures the original delegated token digest and
+user/source-session/installation/generation/binding/release/verification/artifact/
+origin/environment through a separate fresh auth14/87 Session. It reuses the
+current official bridge and its `identity:read` intersection; it adds no token,
+permission or login protocol. The frozen server-only descriptor has no logging or
+serialization API. A nonsecret database name/OID/server address/port locator
+rejects known different reader/caller databases. This is not a unique cluster
+identity: trusted immutable same-cluster composition is still required, and
+proxy/cluster collisions are not independent-database revocation fencing.
+
+The separate actor LOGIN has public schema USAGE and one private authority EXEC,
+with no business/Core SELECT or DML. `whiteboard_actor_writer_roles.py` owns its
+exact profile. The fresh NOLOGIN capability owner receives SELECT on 74 metadata
+columns across 15 tables, UPDATE on one locking column per table, and the existing
+private Source service capability EXEC. PostgreSQL requires UPDATE authority for
+`FOR SHARE`; only this owner receives those column grants, and its exact attested
+body contains no business/Core DML. Effective table/column authority, grant
+options, MAINTAIN, membership, ownership, schemas, sequences and executable
+SECURITY DEFINER functions are checked across literal user namespaces. Ordinary
+invoker functions cannot exceed the role's authority. Preparation accepts supplied
+fresh roles or exact complete mutation-free replay; partial/broad/revoked or
+altered bindings refuse without repair. The additive inactive migration preserves
+canonical legacy rollback and requires draining for hardened rollback. It creates
+no roles, credentials or settings and changes no existing Source/auth profile.
+
+In the caller-owned READ COMMITTED transaction, the fixed SQL capability first
+locks the original service ownership/principal, then current User, source session,
+delegated session, installation, release, verification and binding. It locks both
+company controls and one positive installation/app audience witness, then the
+untrashed Whiteboard owned by the original user. App policy supports its current
+all/direct/local-group/HR-group/platform-admin admission predicates; admin or
+company visibility alone never permits editing a nonowned board. Owner admission
+does not add PMS/meeting gates. JSON verification checks retain exact integer-zero
+lexical semantics (`false`, `0.0` and `0e0` deny). Chosen positive rows remain
+SHARE-locked through the caller's actual COMMIT/rollback. User-before-AuthSession
+agrees with update; existing reset/delete order can deadlock (Core autoflush is disabled). The caller owns the
+decreasing SQL budget, private failure, rollback and complete cleanup; no decision
+survives rollback or supplies an automatic alternate-witness retry. Catalog
+attestation does not freeze privileged DDL. Expiry uses the current DB clock after
+waits at decision time, not wall-clock validity at physical COMMIT.
+
+This SQL translation is an explicitly tested adapter to deterministic Core
+predicates, not a generic app ACL engine. Platform-origin settings are checked by
+capture/current composition but cannot be held by database row locks. Direct/
+group/PMS/meeting resource closure, config epoch, coalesced Yjs credential
+attribution/expiry and captured incarnation integration remain activation
+blockers. This DML0 primitive chooses no factory, stores no Yjs and issues no saved
+ACK. Separate auth and Source LOGIN Sessions are not one SQL transaction. Future
+persistence requires a separately prepared fresh integrated profile or checked
+Source write capability retaining these locks and captured CAS on the same actual
+connection; existing service v1 must not be widened. An independent-database
+cutover requires an explicit current Core authority API and reviewed Source COMMIT
+fence semantics. Tests prove synthetic same-database authority only; operational
+activation, full ACL and production delivery remain incomplete.
