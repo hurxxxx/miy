@@ -48,6 +48,9 @@ test('CI has the feature review and release validation lanes', () => {
 test('contract rejects extra or weakened jobs', () => {
   const source = readRootCi();
   const mutations = [
+    source.replace('  timeout: 2h\n', ''),
+    source.replace('  timeout: 2h\n', '  timeout: 1h\n'),
+    source.replace('  timeout: 2h\n', '  timeout: 24h\n'),
     `${source}\nunexpected_check:\n  script: [true]\n`,
     source.replace(
       '  allow_failure: false\n  rules:\n',
