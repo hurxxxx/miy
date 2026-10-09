@@ -1,5 +1,12 @@
 # 재설계 작업 목록
 
+## 현재 실행 — 2026-10-09 20:20 UTC
+
+- `OFF-002B`/`REL-001`/`VAL-001`: C1/GC는 PR94/MR101로 정상 병합했다. Full261의 WS cleanup/stale 실패3건은 최소 source5·합성32/실제PG26·독립 리뷰까지 완료했으며 후속 정상 게시와 exact-source full/운영 전달이 남아 있다.
+- `ENV-001`/`WB-001`/`WB-002`: SDK22/13 어댑터 보완·합성146·독립 composite source review를 마쳤다. Fresh normal model0와 원관리 제한·구독·RPC/unit 정리를 실제 인수했다. Task/관리 정책 변경/PrivateNotes/network/별도 Workbench 배포는 미완료다.
+- `OFF-002B`/C2: inactive journal8·pure51은 완료했고 native48 초기화 실패를 최소 fixture/SQL 문법 수정 후 재검증한다. Actual-applied fullcohort/checkpoint와 C3 복구·서비스 활성화는 필수 잔여이며 자동 replay는 금지한다.
+- 개발 DB actor ACL head의 변경 전 백업을 마쳤다. 신규 C1 migration/서버 반영, 후속 source private24 재검증·full·MR81/guarded 운영이 필요하다. 앱별 상세 기능과 다중 사용자는 보류한다. 아래 항목별 이력은 당시 상태다.
+
 **이전 재시작 뒤 구현 재개 기록 — 2026-10-07:** [RESTART_CHECKPOINT.md](RESTART_CHECKPOINT.md)의 동결 입력을 확인했다. PMS 부모 통합과 Recording managed의 비활성 권한·전달·legacy 영향 검증·독립 리뷰를 마쳤다. 공식 UI source/build 12/12개와 최종 두 build·브라우저 통합을 마쳤다. 독립 API·데이터·worker 서비스와 Workbench native 실행은 필수 잔여다. 일회성 [긴급 백업](EMERGENCY_BACKUP.md)은 완료했으며 추가 게시·배포 없이 로컬 작업을 이어간다.
 작업별 상태와 의존성의 원본이다. 목표와 설계는 [PLAN.md](PLAN.md), 현재 위치는 [STATUS.md](STATUS.md), 증거는 [VALIDATION.md](VALIDATION.md)를 참조한다.
 

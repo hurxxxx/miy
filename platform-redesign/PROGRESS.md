@@ -1,5 +1,11 @@
 # 재설계 진행 기록
 
+## 2026-10-09 20:20 UTC — 정상 병합 후 전체 검증의 필수 후속 수정
+
+PR94/MR101은 필수260/job428 뒤 정상 병합했고 dev1efd2054와 같은 tree4b5d8bab, 소유 브랜치 정리를 확인했다. full261/job429의 API 실패3건을 보존한다. WS 취소가 monitor join/slot/room 정리를 끊는 결함12개를 재현하고, private shielded child를 route가 join하도록 수정했다. 원 인증·정리 순서·예외/cancellation 의미를 유지했고 synthetic32와 실제 PG26 및 독립 리뷰를 통과했다. Stale fixture는 board timestamp를 앞으로 이동해 실제 stale를 증명하며 C1 no-op trigger를 유지한다.
+
+Source1efd의 정상 pending24 private 리허설은 데이터164표·이전 이미지·PG18 metadata와 정리를 통과했다. 후속 source가 바뀌면 새 증거가 필요하다. 실제 dev listener 로그인/공개앱 smoke 및 actor ACL head 확인·DB 백업을 마쳤으며 신규 migration/운영 전달은 미완료다. SDK22/13 합성146·독립 소스 리뷰 뒤 fresh normal model0 연결·공식 구독·관리 제한·RPC/unit 정리를 실제로 통과했다. 실제 Task/관리 정책 변경/Workbench 배포는 미완료다. C2 pure51과 SQL 문법 수정은 별도 후보의 근거이며 실제48은 재검증 중이다. C2 native 초기화 실패와 model0 어댑터 실패를 보존하며 완료로 합산하지 않는다.
+
 ## 2026-10-07 — Docs/PMS/Meeting의 원본·코어 전달 분리 착수
 
 공식 UI 12개 통합을 마친 뒤 다음 서버 구조 변경을 확정했다. 기존 원본 변경·코어 검색 작업의 동일 Session bridge를 기본 legacy 실행에서는 유지하되, 명시적으로 준비한 제한 원본 Session에서는 원본과 실제 outbox만 같은 transaction에 기록한다. 코어는 커밋된 동일 event ID/digest를 별도 transaction에서 수락하며 결과를 검색 완료로 표시하지 않는다. 응답 유실은 동일 ID로 관측하고 업무 변경이나 외부 요청을 자동 반복하지 않는다.
