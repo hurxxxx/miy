@@ -27,6 +27,7 @@ from sqlalchemy import create_engine, event, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
+from _migration_revision_fixtures import migration_revision_world
 from company_admission_fixture import seed_company_app_access
 from miy_api.domains.auth.app_access_models import AppAccessPolicy, AppGroupGrant, AppUserGrant
 from miy_api.domains.auth.models import User, UserSystemRole
@@ -50,7 +51,7 @@ from test_prepared_official_http_auth import (
     authority as authority,  # noqa: F401
     bound_official as bound_official,  # noqa: F401
     client as client,  # noqa: F401
-    http_world as http_world,  # noqa: F401
+    http_world as current_head_http_world,  # noqa: F401
     isolated_data_cluster as isolated_data_cluster,  # noqa: F401
     role_template as role_template,  # noqa: F401
 )
@@ -71,6 +72,25 @@ CAPABILITY = "public.miy_whiteboard_lock_edit_actor(integer,text,text,text,text,
 REVISION = "wb_actor_acl_20261009"
 PARENT_REVISION = "wb_actor_owner_20261009"
 MUTATING_COMMANDS = {"GRANT", "REVOKE", "ALTER", "INSERT", "UPDATE", "DELETE"}
+
+
+@pytest.fixture
+def http_world(current_head_http_world, request, tmp_path, monkeypatch):  # noqa: F811
+    if getattr(request, "param", None) is None:
+        return current_head_http_world
+    with current_head_http_world.core() as db:
+        dsn = make_conninfo(
+            **db.get_bind().url.translate_connect_args(username="user", database="dbname")
+        )
+    migration_revision_world(
+        SimpleNamespace(dsn=dsn),
+        request,
+        tmp_path,
+        monkeypatch,
+        expected_revision=REVISION,
+        config_alias_module=__name__,
+    )
+    return current_head_http_world
 
 
 def _api():
@@ -1278,6 +1298,7 @@ def _snapshot(c):
     return {**original, "acl": acl}
 
 
+@pytest.mark.parametrize("http_world", [REVISION], indirect=True)
 def test_genuine_acl_legacy_roundtrip_preserves_owner_source_guards_roles_and_data(http_world):
     import y_py as Y
 
@@ -1314,6 +1335,7 @@ def test_genuine_acl_legacy_roundtrip_preserves_owner_source_guards_roles_and_da
     assert _snapshot(c) == before
 
 
+@pytest.mark.parametrize("http_world", [REVISION], indirect=True)
 def test_genuine_acl_active_rollback_refuses_without_changes_and_admission_still_works(
     acl_prepared,
 ):
@@ -1329,6 +1351,7 @@ def test_genuine_acl_active_rollback_refuses_without_changes_and_admission_still
         db.rollback()
 
 
+@pytest.mark.parametrize("http_world", [REVISION], indirect=True)
 def test_genuine_acl_drained_rollback_removes_only_new_inactive_capability(acl_prepared):
     c = acl_prepared
     drained = move(c.control, ACTIVE, "active", state="draining", artifact=ACTIVE.artifact)
@@ -1346,6 +1369,7 @@ def test_genuine_acl_drained_rollback_removes_only_new_inactive_capability(acl_p
 
 
 @pytest.mark.parametrize("tamper", ["body", "overload"])
+@pytest.mark.parametrize("http_world", [REVISION], indirect=True)
 def test_genuine_acl_rollback_refuses_tampered_shape_without_partial_downgrade(
     acl_boundary, tamper
 ):

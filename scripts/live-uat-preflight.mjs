@@ -151,6 +151,28 @@ function localPort(name, fallback, env = process.env) {
   return value;
 }
 
+export function developmentListenerUrl(host, port) {
+  const selectedHost = host ?? '127.0.0.1';
+  const reachableHost =
+    selectedHost === '0.0.0.0'
+      ? '127.0.0.1'
+      : selectedHost === '::'
+        ? '::1'
+        : selectedHost;
+  if (
+    typeof reachableHost !== 'string' ||
+    (!isIP(reachableHost) &&
+      !/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(reachableHost))
+  ) {
+    throw new Error(
+      'development listener host must be an IP address or hostname',
+    );
+  }
+  const formattedHost =
+    isIP(reachableHost) === 6 ? `[${reachableHost}]` : reachableHost;
+  return new URL(`http://${formattedHost}:${port}/`);
+}
+
 export async function runPublicDevSmoke({
   env = process.env,
   requireWorker = false,
@@ -160,8 +182,8 @@ export async function runPublicDevSmoke({
   const publicBaseUrl = normalizePublicBaseUrl(env.MIY_UAT_BASE_URL);
   const apiPort = localPort('MIY_API_DEV_PORT', '8001', env);
   const webPort = localPort('MIY_WEB_DEV_PORT', '4200', env);
-  const localApi = new URL(`http://127.0.0.1:${apiPort}/`);
-  const localWeb = new URL(`http://127.0.0.1:${webPort}/`);
+  const localApi = developmentListenerUrl(env.MIY_DEV_API_HOST, apiPort);
+  const localWeb = developmentListenerUrl(env.MIY_WEB_DEV_HOST, webPort);
 
   const requiredServices = requireWorker
     ? ['web', 'api', 'worker']
@@ -229,9 +251,7 @@ export async function runPreflight({ env = process.env } = {}) {
     env.MIY_MINIO_ENDPOINT ?? 'http://127.0.0.1:59010',
   );
   if (objectStorageEndpoint.username || objectStorageEndpoint.password) {
-    throw new Error(
-      'MIY_MINIO_ENDPOINT must not contain credentials',
-    );
+    throw new Error('MIY_MINIO_ENDPOINT must not contain credentials');
   }
 
   let workerPing;

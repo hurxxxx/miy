@@ -66,3 +66,4 @@ def import_all_models() -> None:
     from miy_api.domains.usage import models as usage_models  # noqa: F401
     from miy_api.domains.video_chat import models as video_chat_models  # noqa: F401
     from miy_api.domains.whiteboard import models as whiteboard_models  # noqa: F401
+    import miy_api.domains.official_apps.whiteboard_checked_models  # noqa: F401

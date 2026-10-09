@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    BigInteger,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -14,6 +16,7 @@ from sqlalchemy import (
     LargeBinary,
     String,
     UniqueConstraint,
+    Uuid,
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -192,6 +195,8 @@ class WhiteboardLinkShare(OfficialWriterSource, Base):
 
 class WhiteboardCollabDocument(OfficialWriterSource, Base):
     __tablename__ = "whiteboard_collab_documents"
+    # Keep historical INSERT RETURNING and restricted Source reads unchanged.
+    __mapper_args__ = {"eager_defaults": False}
     __table_args__ = (
         UniqueConstraint("room_key", name="uq_whiteboard_collab_documents_room_key"),
         UniqueConstraint("whiteboard_id", name="uq_whiteboard_collab_documents_board"),
@@ -201,6 +206,16 @@ class WhiteboardCollabDocument(OfficialWriterSource, Base):
     room_key: Mapped[str] = mapped_column(String(128), nullable=False)
     whiteboard_id: Mapped[str] = mapped_column(ForeignKey("whiteboards.id"), index=True)
     yjs_state: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    # PostgreSQL owns both values through its content revision trigger.
+    content_incarnation_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        server_default=text("'00000000-0000-0000-0000-000000000000'"),
+        nullable=False,
+        deferred=True,
+    )
+    content_revision: Mapped[int] = mapped_column(
+        BigInteger, server_default=text("0"), nullable=False, deferred=True
+    )
     snapshot_scene: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     last_snapshot_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow_naive, nullable=False)
