@@ -661,3 +661,88 @@ is not a physical COMMIT-time deadline, and database locators are not unique
 cluster identity. Same-transaction checked captured-CAS storage, every queued
 contributor's original execution, relay attribution, durable unknown recovery and
 operational drain/cutover are separate activation gates.
+
+## Inactive Core-sealed checked Whiteboard storage
+
+`whiteboard/checked_save.py` supplies caller-owned Core seal/resolve and Source
+stage APIs. It selects no native hub, route, factory, settings or operational role.
+Core's trusted supplied principal seals the exact bounded Yjs/snapshot payload,
+original full captured contributor cohort (1–128), Source role/service identity,
+protocol epoch, board/collab/room, captured incarnation/base revision, cutoff and
+stable attempt UUID. A frozen descriptor or digest is not provenance proof:
+authoritative complete-cohort capture at the actual native apply boundary is still
+required before activation. Source supplies only the sealed UUID/digest; it cannot
+trim the cohort, supply another payload or adopt a last editor's fresh credentials.
+The combined raw Yjs and snapshot UTF-8 representation is bounded at8 MiB in both
+Python and PostgreSQL; PostgreSQL's canonical JSON representation may be larger.
+
+The new Source LOGIN has private save EXEC1 and Core/business SELECT/DML0. The
+separate trusted Core LOGIN has seal/resolve EXEC2 and SELECT/DML0. Supplied fresh
+NOLOGIN owners have closed ceilings in `whiteboard_checked_writer_roles.py`:
+Source SELECT54 columns across5 tables and UPDATE8 (collab payload/scope/timestamp
+and terminal receipt), plus unchanged full-edit ACL EXEC. Core SELECT41 across the
+immutable attempt/contributor tables, INSERT38 and UPDATE only state/completed_at,
+plus unchanged producer EXEC. Source owns save and Core owns seal/resolve; original
+auth14/87, Source8/4, owner15/74 and actor24/100/24 profiles are unchanged.
+New function bodies, names/modes, overload/result/config/owner/private ACL and
+invoker revision/immutability trigger shapes are attested. Preparation retains
+Core admin/draining/CAS, exact grant/ALTER/audit-free replay and caller savepoints;
+partial, broad, revoked or tampered authority refuses without repair. Migration
+refuses named nonowner creator defaults for new tables/functions rather than
+inheriting grants into immutable private intent.
+
+`wb_checked_cas_20261009` adds Core-owned attempt/contributor tables and two collab
+columns. A PostgreSQL invoker trigger always derives a fresh incarnation and
+revision zero from insert sentinels, refuses caller-chosen nonzero identity/version
+and preserves incarnation on update. It increments BIGINT revision for changed
+Yjs/snapshot or identity/board/key, refuses overflow, and preserves existing
+writers' changed timestamp contract. Semantic no-op retains old revision and
+updated_at. Recreate, even with the same row ID/key/content, gets a new incarnation.
+The two columns are deferred and collab eager-default fetching is disabled to
+preserve existing restricted Source8 SELECT and historical INSERT RETURNING;
+checked storage uses explicit SQL projections. SQLite metadata defaults are not
+checked-storage authority; every C1 operation requires actual PostgreSQL.
+
+Upgrade initializes existing rows through owner DDL: `ADD COLUMN` uses a volatile
+`pg_catalog.gen_random_uuid()` default for a distinct nonzero incarnation per row
+and a NOT NULL zero revision, then restores the incarnation's zero INSERT sentinel
+default. It issues no business UPDATE and leaves all existing Source statement
+guards enabled, including in legacy and role-hardened draining states. The volatile
+default rewrites the table under an ACCESS EXCLUSIVE lock; drain, clone rehearsal,
+available disk and lock admission remain deployment requirements. This is not an
+online or metadata-only migration. Changing the default afterwards leaves the
+initialized rows unchanged. [PostgreSQL 18 ALTER TABLE](https://www.postgresql.org/docs/18/sql-altertable.html).
+
+On the same actual Source caller Connection/outer READ COMMITTED transaction,
+save locks the original attempt, validates every sealed original contributor using
+the unchanged full-edit capability, then locks the exact collab incarnation/version.
+After every contributor and collab wait, one final UTC database clock rereads all
+already-locked original source/delegated expiries. Only then does the same
+transaction store sealed payload and its immutable terminal receipt. Conflict
+refuses; there is no automatic rebase, alternate cohort or replay. A stage DTO is
+not an ACK. Caller owns its decreasing SQL budget, mandatory rollback and cleanup;
+any rollback invalidates the stage, and only this exact outer transaction's actual
+COMMIT return permits a saved ACK. Nested caller savepoints refuse before SQL.
+Decision-time expiry is not a physical COMMIT deadline and locators are not unique
+cluster identity; trusted same-physical-PostgreSQL composition remains necessary.
+
+For unknown outcome, trusted Core must take the original attempt row lock on the
+authoritative primary, waiting behind the actual saver COMMIT/rollback. A committed
+receipt proves that attempt historically, even if later content changed. A sealed
+attempt becomes cancelled_not_committed under that same lock; cancellation's own
+COMMIT must return before treating it as authoritative, preventing a queued late
+Source save. Absence, timeouts, a replica or current byte equality are no outcome
+proof. Seal-COMMIT uncertainty blocks dispatch until exact fresh Core replay
+observes the sealed original intent. These APIs issue no COMMIT, cleanup or ACK.
+There is no ledger DELETE/retention API; guarded downgrade refuses any attempt
+history, including cancelled/committed rows, pending separately approved explicit
+retirement. Empty legacy/drained rollback removes only C1 and preserves prior
+roles, guards, capabilities and payload.
+
+Native complete-cohort intake/cutoff and trusted relay handoff, immutable operational
+config/factory epoch, actual supplied-role provisioning, drain/cutover and restart
+are still activation gates. Independent Core/Source databases require a separate
+reviewed commit protocol. `test_whiteboard_checked_save` and its concurrency peer
+own synthetic current-head, grant closure, final aggregate expiry, captured CAS,
+ABA, real transaction/receipt and lock-and-cancel recovery checks; historical
+migration-only cases are explicitly revision-pinned without changing assertions.

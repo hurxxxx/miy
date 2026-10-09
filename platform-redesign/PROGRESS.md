@@ -626,3 +626,45 @@ ACT-CI-04는 root/ops의 동일 `release_validation`에 `timeout: 2h`만 추가�
 공개 Native 코드는 새 `/opt/miy/miy-native-codex-01601-v1`에49files/446,771,872bytes/고정 executable34개로 설치했고, SDK는 `/opt/miy/miy-native-sdk-20261009-v1`에 정확 inventory를 검사했다. 두 cache는 root-owned readonly이며 모델·기존 Workbench 설정/서비스를 변경하지 않았다. 별도 canonical basic 앱의 실제 finite unit에서 kernel namespace·UID1000/cap0/NNP·CPU1/메모리1GiB/swap0/PIDs64와 읽기 전용 root/cache/Git 및 쓰기 Source를 확인했다. provisioning와 잘못된 bearer 거부·일반 `pnpm test`는 통과했으나 `pnpm run build` exit1의 정확 원인은 미확정이다. 초기 outer bwrap monitor PID 관측과 실제 exec-server child의 PID namespace 인수를 구분했다. 실패 근거를 유지하고3개 임시 unit을 stop/정리했으며, 자동 한도 확대·host fallback이나 실제 제품 Task 성공을 주장하지 않는다. SDK 재현 producer와 실제 Task 환경 profile도 별도 필수 구현 중이다.
 
 C1 checked CAS는 Core sealed cohort/payload·Source EXEC1/DML0·Core EXEC2/DML0와 durable receipt/원 attempt 잠금 취소의 비활성 후보다. 저자·독립 reviewer의 정적/pure 단계 뒤42 native case의 실제 disposable PG와 기존 Source8 최신 head 회귀 검증이 남아 있다. C2 원 provenance·C3 서비스 활성화와 앱별 비필수 기능은 후속 범위를 유지한다.
+
+## 2026-10-09 14:20 UTC — 최신 전달과 실패 원인 수정
+
+ACT-CI-04의 PR93/MR100·필수256/424 전달과 소유 branch 정리를 마쳤다. Dev02418067/treec7616793에서 full257/425를 실행한다. 최신tree 운영23 migration private 리허설은164 relation 데이터·이전 이미지 호환·90guard·소유cleanup을 통과했다. 재바인딩 첫 입력 실패는 source-manifest 자체 해시 변경 누락이며 clone/운영 쓰기 전 중단한 근거를 보존했다.
+
+C1 첫 actual native는51PASS/1FAIL/4ERROR로 보존했다. Room identity와 새 migration fixture DSN 오류를 수정하며 기존 Source8/권한/native guard는 유지한다. SDK v1 일반build의 ENOENT .vite-temp를 확인해16MiB scratch·재현 producer·Task profile을 v2에서 준비한다. 기존v1/cache/실패를 덮어쓰지 않는다. 현재 운영·별도Workbench 배포 완료는 아니다.
+
+## 2026-10-09 15:25 UTC — 현재 로컬 경계와 릴리스 실패
+
+C1 신규56·기존ACL132·Source110·owner145·authority52는 현재 입력으로 통과했다. 초기51/1/4와 historical drain 실패를 보존했고 원래 migration marker 두 개만 추가해 기존 함수/assertions를 유지했다. SDK v2 설치·정상 공개 입력55개 취득/동일 archive 재현160.761초는 통과했지만 source preflight는 canonical starter의 vendor4와 verifier 필수 README5 불일치로 거부됐다. 이 필수 계약을 보완한 뒤 actual unit/Task를 인수한다. 이전 SDK source170/pure와 독립 리뷰는 보완 전 시점으로 구분한다.
+
+전체257/job425는3198.397초 FAILED다. API6422/1FAIL/3SKIP이며 마지막 shutdown 저장의 실제 status rejected를 확인했다. slow16·migration37·external15 통과는 전체 성공을 뜻하지 않는다. 예외·SQLSTATE·GC 관측만 추가하는 disposable 단독 재현을 준비하며 timeout/검사 면제와 동일 source 맹목 재시도는 하지 않는다. main/prod는9e9280df, 새 운영/Workbench 배포는 없다. 현재23 migration private 리허설과 독립 리뷰는 treec7616793 한정이다. 새 migration 통합 후에는 새 정확 tree/pending 수로 검증한다.
+
+Rejected payload는 현재 caller-held runtime에만 남고 자동 replay는 금지된다. 종료 후 durable owner/handoff 검증은 C2/C3 필수 구조 잔여이며 APP_ISSUES로 넘기지 않는다. 고객 데이터 손실을 관측했다는 뜻은 아니다. Docker는 root117GB에서 약47GB 여유와29/83 실행/전체 컨테이너를 확인했다. 앱별 비필수 기능과 다중 사용자는 계속 보류한다.
+
+## 2026-10-09 16:10 UTC — GC 저장 예산 재현과 통합 순서
+
+원본 shutdown 저장 사례는 진단 wrapper만 추가한 격리 CI 이미지에서 다시 실패했다. 첫 네 저장은 ACK, 마지막 저장은 transaction_rejected/WhiteboardPersistenceDeadline(SQLSTATE 없음)이었다. 마지막 저장의1.24초 구간에 full GC 세 번이 각각 약0.41초 겹쳤다. 원본 assertions·1초 SQL 예산·worker4개를 유지하고 process-wide concurrent reader/exclusive native GC drain을 Docs·Whiteboard 공통 계층에 적용한다. 새 await 뒤 Docs의 원 snapshot/actor capture 시점과 writer fence 재확인도 보존한다. 새 코드의 실제 인수는 아직 대기다.
+
+SDK source 보완185개·두 canonical starter/cache binding은 통과했다. 실제 basic unit의 pnpm test/build·readOnly/cache/외부 graph 거부는 통과했지만 Python/TestClient가 멈췄다. 후속 짧은 진단은 초기화에서 거부되어 Python IPC 원인을 확정하지 않았다. exact owned unit 정리는 통과했다. 제품 Task/model 요청0이며 SDK18개 후보는 이번 API 전달에 포함하지 않는다.
+
+C1·GC·접근 도구를 최신 dev02418067 기반으로 먼저 통합한다. C1의 기존 로컬56/132/110/145/52 증거는 정확 입력과 함께 보존하며 공통 runtime 변경의 영향 검사를 수행한다. 정상 필수 feature review/병합 뒤 새 current full로 이어간다. C1 migration34/pending24의 새 private 리허설과 이전 운영 이미지 호환이 필요하며 기존pending23 증거를 새 head의 완료로 사용하지 않는다. main/prod9e9280df·운영/Workbench 미배포·C2/C3 잔여·앱별 비필수/다중 사용자 보류를 유지한다.
+
+## 2026-10-09 17:43 UTC — 통합 저장 경계와 격리 Python 실행
+
+원본 full257 실패를 재현한 뒤 명시적 native GC를 공통 snapshot worker/Session 정리와 분리했다. 초기 새 테스트 fixture17/1과 실제 Docs 자동 저장18/1 RED를 구분해 보존했고, 정확한 빈 Yjs delta만 제외해 실질 회귀를 수정했다. 현재 집중20개와 기존 협업106개가 모두 통과했다. 기존106의83/23 및84/22 setup RED는 소유 임시 인프라와 누락된 pgvector를 갖춘 뒤 같은 선택으로 해결했으며 product assertions/SQL 예산/worker 한도는 완화하지 않았다.
+
+SDK는 올바른 user1000 호출의 socketpair send EPERM/portal 대기를 재현했고, 공식 API가 거부하는 전역 wildcard와 지원되는 빈 allowlist를 구분했다. 후속 native20+pytest3 검증은0모델 요청으로 통과했다. 구독 Task 및 controller policy/SQLite binding 연결은 후속 로컬 구현이고 이번 API 전달과 분리한다.
+
+## 2026-10-09 18:03 UTC — 필수 리뷰의 Docs 종료 결함 수정
+
+최초 게시858632eb의 필수258/job426은 Docs 최종 flush 전체를 cleanup timeout에 넣으면 GC admission에서 취소되어 저장 없이 native 상태가 폐기되는 P1을 발견했다. 정상 병합을 멈추고 최종 admission/SQL·Session/native 해제를 private owner로 join하도록 수정했다. last disconnect/shutdown 양쪽에서 기존1초 budget보다 긴 대기와 두 번의 caller 취소를 실제 PG 저장·종료까지 검증한4개를 추가했다. 집중24·기존106 모두 통과했으며 기존 assertions와 SQL 예산/현재 권한은 유지했다. 수정 head의 새 필수 리뷰를 요청한다.
+
+## 2026-10-09 18:37 UTC — draining 마이그레이션 필수 P1 수정
+
+필수259/job427(source0059196a)은 C1 migration의 기존행 UPDATE backfill이 draining 상태의 statement writer guard에 걸리는 P1을 발견했다. 빈 테이블도 guard가 실행되므로 기존 trigger/role/ACL을 우회하지 않고 두 column을 owner DDL의 NOT NULL/default로 초기화한다. UUID의 행별 생성 뒤 미래 INSERT default만 기존 sentinel로 복원한다. 기존 SQL 함수·guard·downgrade·22개 테스트 정의와 기본 비활성 경로를 보존했다.
+
+현재 코드의 실제 PostgreSQL18 회귀는 기존56개+legacy/hardened×empty/existing_rows4개로 **60 PASS/179.90909초**다. Setup/call/teardown 모두60/실패·skip·collection error0이며 소유 cluster/container 정리와 입력 전후 검증을 통과했다. Native 입력31 c34454d1·수정3 ddabcea8 및 receipt e988110b를 보존했다. Canonical 문서 서식만 후속 whitespace로 정리했고 코드·테스트·migration bytes는 같다. 현재 입력31 4d19d222·수정3 23abcea3에 결속한 frozen CI Ruff0.16.6 check/format과 owner Markdown도 통과했다. 이전 잘못된 도구 버전 기대와 문서 format RED는 보존하며 검사 결과를 성공으로 덮어쓰지 않는다.
+
+Docs 집중24/기존협업106(208.751168초)은 바뀌지 않은 runtime/test bytes에 한정한 이전 인수 근거다. 과거 C1 권한132/110/145/52는 그 당시 입력으로 구분한다. GitHub94/GitLab101의 새 수정 head 필수 리뷰·정상 병합·새 current full, 새 migration34/pending24 private 리허설과 이전 운영 이미지 호환·fresh backup/guarded 배포가 남아 있다. Dev02418067·main/prod9e9280df는 현재 그대로이며 배포 완료를 뜻하지 않는다.
+
+별도 Workbench 후보는 SDK source22/owned delta11의 신규74 PASS와 영향427 PASS/기존 PostgreSQL legacy fixture5 SKIP 및 독립 소스 리뷰를 마쳤다. 실제 원관리 정책 확인·controller/Task·private-notes와 별도 서비스 배포는 미완료다. C2-1 비활성 provenance3은 실제 native53 PASS와 독립 리뷰를 통과했으며 PostgreSQL pre-apply durable journal/discovery와 C3 원 attempt 복구·서비스 활성화는 필수 구조 잔여다. 앱별 비필수 기능과 다중 사용자는 보류한다.

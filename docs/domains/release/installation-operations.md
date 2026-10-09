@@ -234,6 +234,7 @@ Chrome·Chromium·Snap 경로를 동일하게 가정하지 않는다. 정책은 
 시작·재부팅·복구 후 검사 조건은 다음과 같다. 먼저 같은 체크아웃에서 `./dev.sh --status`로 선택한 서비스 상태를 확인하고,
 실제 수신 주소·포트와 로컬 API `/readyz`의 HTTP 성공 및 JSON `status: ok`를 확인한다. Worker를 선택한 환경은 `./dev.sh --with-worker --status`를 사용한다.
 `pnpm dev:login-smoke`는 API health·로그인·사용자·앱 bootstrap을 검사하며 readiness·화면 렌더링·로그아웃을 대신하지 않는다.
+기본 직접 검사 주소는 실제 `MIY_DEV_API_HOST`·`MIY_WEB_DEV_HOST`와 서비스 포트를 따른다. wildcard IPv4/IPv6 bind는 같은 호스트의 loopback으로 검사한다. `dev:login-smoke`의 명시적인 `MIY_DEV_SMOKE_API_URL`은 이 기본값보다 우선하며, 공개 주소와 직접 주소의 health identity 비교·HTTPS 요구는 유지한다.
 
 | 접속 구성                     | 필요한 접속 검사                                                                                                                                               |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |

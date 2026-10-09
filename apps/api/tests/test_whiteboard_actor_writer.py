@@ -1506,6 +1506,7 @@ def test_genuine_hardened_active_actor_migration_refuses_rollback_without_change
         db.rollback()
 
 
+@pytest.mark.parametrize("http_world", ["wb_actor_owner_20261009"], indirect=True)
 def test_genuine_hardened_draining_actor_migration_removes_only_inactive_capability(actor_prepared):
     c = actor_prepared
     drained = move(c.control, ACTIVE, "active", state="draining", artifact=ACTIVE.artifact)

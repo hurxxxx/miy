@@ -1,6 +1,6 @@
 # 후속 구조작업
 
-현재 전달의 첫 선행조건은 ACT-CI-04의 정상 게시·필수 리뷰/병합과 새 최신 full이다. 이전255/job423은 기본3600초에서 실패했고 Runner는7200초를 허용한다. 전체 항목을 유지한 job-only 2h 후보70/70을 확인했다. 성공 전 main/prod `9e9280df`를 유지하며 운영 배포하지 않는다. Workbench actual `pnpm test` 이후 빌드 실패는 구조 인수의 필수 잔여로 조사하고 실제 Task 환경·재현 producer와 함께 완료한다.
+먼저 C1 비활성 checked-save·공통 native GC drain·실제 수신 주소 접근 보완을 최신 dev 기반에서 통합 인수하고 정상 feature 게시/필수 리뷰/병합한다. 그 수정본의 새 exact-source full artifact를 인수한 뒤에만 운영 전달한다. 기존257/job425의 GC/SQL 예산 실패와 최초 SDK Python/초기화 실패를 보존한다. C1 통합은 migration34/pending24이므로 새 정확 tree의 private restore·구형 운영 이미지 호환·metadata 계약을 다시 인수한다. SDK18개 후보의 Python 및 제품 Task는 별도 진행하며 C2/C3 durable payload owner/handoff는 구조 필수로 남긴다.
 
 2026-10-09 UTC. 사용자 요청에 따라 Source 명령 후속 게시 이후의 필수 작업을
 식별했고, PR70 병합 후 사용자 지시로 다음 구현을 재개했다. 현재는 아래
@@ -22,7 +22,7 @@ cutover를 활성화한 것은 아니다. 게시 추적은
 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다. 이 문서는 우선순위·의존성과
 다음 착수 단위를 소유하며 별도 작업 대장을 만들지 않는다.
 
-현재 dev는 `0d259c30`, main/prod는 `9e9280df`다. ACL과 필수 CI import 보완을 정상 전달했고 기본1시간에서 실패한 full255/job423을 보존하고 ACT-CI-04 이후의 새 current full 검증을 기다린다. 개발 스키마·private capability·legacy writer와 공개 브라우저 진입은 확인했다. 운영은 exact full artifact 인수→MR81 정상 병합→prod clean FF→guarded prepare→실제 metadata before/fresh backup→guarded deploy→metadata after/owner smoke 순서로 진행한다. 최신 소스와 같은 tree의23 migration private 리허설은 통과했으나 실제 운영 권한·flags 검사를 대체하지 않는다.
+현재 dev는 `02418067`, main/prod는 `9e9280df`다. GitHub94/GitLab101의 최초258/job426 Docs 종료 P1과 후속259/job427 draining 마이그레이션 P1을 보존하고 모두 수정했다. 실제 종료24·기존 협업106과 현재 C1 60개를 통과했다. 수정 head의 필수 review→양쪽 정상 병합→소유 브랜치 정리→새 current full→pending24 private 리허설/이전 이미지 호환→MR81/guarded 운영 순서로 진행한다. 별도 SDK22/owned11은 로컬74·영향427/기존skip5와 독립 리뷰까지 완료했으며 실제 controller/Task 검증이 필요하다. 비활성 C2-1 provenance53은 로컬 인수했고 C2-2 PostgreSQL durable intake/discovery 계약과 C3 복구·서비스 활성화는 필수 잔여다.
 
 동시에 **C1 비활성 checked save**를 현재 인수된 ACL base에서 구현한다. Core만 complete original cohort/payload를 봉인하며, Source는 봉인된 attempt UUID와 digest만 받아 SELECT/DML0·private save EXEC1로 같은 caller transaction에서 모든 ACL/최종 expiry·content incarnation/revision CAS·durable receipt를 처리한다. 기존 Source/auth/actor ceilings·33 migrations·default native/factory를 보존한다. 정확 schema/grant manifest를 코드 작성 전에 동결하고 native PG의 contributor 회수·wait·CAS/ABA·ACK loss/lock-and-cancel·역할 거부를 검증한다. C2 실제 apply/relay의 완전한 provenance와 C3 config/role/drain/recovery는 이어서 진행한다. Workbench SDK toolchain/cache 준비는 별도 경로로 병행하며 사용자 app manifest/scripts를 shadow하지 않는다.
 

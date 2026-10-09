@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from time import monotonic
 from typing import Any
 
+from anyio import CancelScope, create_task_group
 from fastapi import HTTPException
 import y_py as Y
 from sqlalchemy import delete, event, select
@@ -35,6 +36,7 @@ from miy_api.domains.collaboration.yjs_runtime import (
     CollabRoomRuntime,
     RedisCollabBus,
     hash_bytes,
+    native_persistence_lease,
     release_yroom_thread_bound_state,
 )
 from miy_api.domains.docs.collab_codec import blocks_to_yjs_state, yjs_state_to_blocks
@@ -708,67 +710,85 @@ class DocsCollabHub:
             self._rooms.pop(room_key)
         task = self._start_disposal(runtime, persist=True)
         if task is not None:
-            await asyncio.shield(task)
+
+            async def wait_disposal_owned():
+                with CancelScope(shield=True):
+                    await task
+
+            async with create_task_group() as group:
+                group.start_soon(wait_disposal_owned)
 
     async def _dispose_runtime(
         self, runtime: CollabRoomRuntime, *, persist: bool, close_code: int | None
     ) -> None:
-        if runtime.flush_task is not None:
-            runtime.flush_task.cancel()
-            await self._run_cleanup_step(
-                runtime,
-                "flush task cancellation",
-                asyncio.gather(runtime.flush_task, return_exceptions=True),
-            )
-        if persist and not runtime.metadata.get("writer_fenced"):
-            await self._run_cleanup_step(runtime, "flush", self._flush_runtime(runtime))
-        if runtime.metadata.get("writer_fenced"):
-            close_code = 1013
-        if close_code is not None:
-            for client in list(runtime.room.clients):
+        async def dispose_owned(close_code):
+            # Final admission and SQL/Session completion have one private owner.
+            # Parent cancellation and non-SQL cleanup deadlines cannot discard it.
+            with CancelScope(shield=True):
+                if runtime.flush_task is not None:
+                    runtime.flush_task.cancel()
+                    await self._run_cleanup_step(
+                        runtime,
+                        "flush task cancellation",
+                        asyncio.gather(runtime.flush_task, return_exceptions=True),
+                    )
+                if persist and not runtime.metadata.get("writer_fenced"):
+                    await self._flush_runtime(runtime)
+                if runtime.metadata.get("writer_fenced"):
+                    close_code = 1013
+                if close_code is not None:
+                    for client in list(runtime.room.clients):
+                        await self._run_cleanup_step(
+                            runtime,
+                            "client close",
+                            client.close(
+                                code=close_code,
+                                reason=(
+                                    "official_writer_unavailable"
+                                    if close_code == 1013
+                                    else "Server shutdown."
+                                ),
+                            ),
+                        )
+                if runtime.relay_task is not None:
+                    runtime.relay_task.cancel()
+                    await self._run_cleanup_step(
+                        runtime,
+                        "relay task cancellation",
+                        asyncio.gather(runtime.relay_task, return_exceptions=True),
+                    )
+                if runtime.relay_pubsub is not None:
+                    await self._run_cleanup_step(
+                        runtime,
+                        "relay pubsub close",
+                        self._bus.close_pubsub(runtime.relay_pubsub, runtime.room_key),
+                    )
+                self._stop_room(runtime)
                 await self._run_cleanup_step(
                     runtime,
-                    "client close",
-                    client.close(
-                        code=close_code,
-                        reason=(
-                            "official_writer_unavailable"
-                            if close_code == 1013
-                            else "Server shutdown."
-                        ),
-                    ),
+                    "room task stop",
+                    asyncio.gather(runtime.room_task, return_exceptions=True),
                 )
-        if runtime.relay_task is not None:
-            runtime.relay_task.cancel()
-            await self._run_cleanup_step(
-                runtime,
-                "relay task cancellation",
-                asyncio.gather(runtime.relay_task, return_exceptions=True),
-            )
-        if runtime.relay_pubsub is not None:
-            await self._run_cleanup_step(
-                runtime,
-                "relay pubsub close",
-                self._bus.close_pubsub(runtime.relay_pubsub, runtime.room_key),
-            )
-        self._stop_room(runtime)
-        await self._run_cleanup_step(
-            runtime,
-            "room task stop",
-            asyncio.gather(runtime.room_task, return_exceptions=True),
-        )
-        self._release_room_state(runtime)
+                await self._release_room_state(runtime)
+
+        async with create_task_group() as group:
+            group.start_soon(dispose_owned, close_code)
 
     async def shutdown(self) -> None:
-        async with self._lock:
-            runtimes = list(self._rooms.values())
-            self._rooms.clear()
-        for runtime in runtimes:
-            self._start_disposal(runtime, persist=True, close_code=1001)
-        # Includes rooms already retired by a frame, relay or background flush.
-        while self._disposals:
-            await asyncio.gather(*tuple(self._disposals))
-        await self._bus.shutdown()
+        async def shutdown_owned():
+            with CancelScope(shield=True):
+                async with self._lock:
+                    runtimes = list(self._rooms.values())
+                    self._rooms.clear()
+                for runtime in runtimes:
+                    self._start_disposal(runtime, persist=True, close_code=1001)
+                # Includes rooms already retired by a frame, relay or background flush.
+                while self._disposals:
+                    await asyncio.gather(*tuple(self._disposals))
+                await self._bus.shutdown()
+
+        async with create_task_group() as group:
+            group.start_soon(shutdown_owned)
 
     def require_writer(self) -> None:
         with self._session_factory() as db:
@@ -805,9 +825,9 @@ class DocsCollabHub:
         except RuntimeError:
             return
 
-    def _release_room_state(self, runtime: CollabRoomRuntime) -> None:
+    async def _release_room_state(self, runtime: CollabRoomRuntime) -> None:
         try:
-            release_yroom_thread_bound_state(runtime.room)
+            await release_yroom_thread_bound_state(runtime.room)
         except Exception as exc:
             logger.warning(
                 "Failed to release docs collaboration room state: room_key=%s error=%s",
@@ -900,6 +920,8 @@ class DocsCollabHub:
     def _handle_room_update(self, runtime: CollabRoomRuntime, update: bytes) -> None:
         if self._rooms.get(runtime.room_key) is not runtime:
             return
+        if update == b"\x00\x00":
+            return  # Native read transactions can emit this exact empty delta.
         update_hash = hash_bytes(update)
         should_publish = not runtime.consume_remote_update_hash(update_hash)
         self._schedule_flush(runtime)
@@ -964,51 +986,57 @@ class DocsCollabHub:
         async with runtime.flush_lock:
             if runtime.metadata.get("writer_fenced"):
                 return False
+            # Capture this snapshot and its original actor before shared admission waits.
             yjs_state = bytes(Y.encode_state_as_update(runtime.room.ydoc))
             actor_user_id = runtime.last_editor_user_id or runtime.default_actor_user_id
-            persistence = asyncio.create_task(
-                asyncio.to_thread(
-                    _persist_docs_runtime_state_sync,
-                    self._session_factory,
-                    source_type=runtime.metadata["source_type"],
-                    source_page_id=runtime.metadata["source_page_id"],
-                    room_key=runtime.room_key,
-                    fallback_actor_user_id=runtime.default_actor_user_id,
-                    yjs_state=yjs_state,
-                    actor_user_id=actor_user_id,
-                    writer_identity=self.writer_identity,
-                    timeout_seconds=self._settings.collab_cleanup_timeout_seconds,
+            # Shared admission remains cancellable before the existing joined worker.
+            async with native_persistence_lease():
+                if runtime.metadata.get("writer_fenced"):
+                    return False
+                persistence = asyncio.create_task(
+                    asyncio.to_thread(
+                        _persist_docs_runtime_state_sync,
+                        self._session_factory,
+                        source_type=runtime.metadata["source_type"],
+                        source_page_id=runtime.metadata["source_page_id"],
+                        room_key=runtime.room_key,
+                        fallback_actor_user_id=runtime.default_actor_user_id,
+                        yjs_state=yjs_state,
+                        actor_user_id=actor_user_id,
+                        writer_identity=self.writer_identity,
+                        timeout_seconds=self._settings.collab_cleanup_timeout_seconds,
+                    )
                 )
-            )
-            cancelled = False
-            try:
-                while True:
-                    try:
-                        await asyncio.shield(persistence)
-                        break
-                    except asyncio.CancelledError:
-                        # Cancelling a debounce/cleanup task cannot stop SQL in
-                        # a thread. Repeated cancellation must not release the
-                        # flush lock before its transaction has finished.
-                        cancelled = True
-                        if persistence.cancelled():
-                            raise
-            except Exception as exc:
-                if _is_writer_unavailable(exc):
-                    self.fence_runtime(runtime)
-                elif _is_persistence_timeout(exc):
-                    logger.warning(
-                        "Docs collaboration persistence timed out: room_key=%s", runtime.room_key
-                    )
-                else:
-                    logger.exception(
-                        "Failed to persist docs collaboration room %s", runtime.room_key
-                    )
-                return False
-            finally:
-                if cancelled:
-                    raise asyncio.CancelledError
-            return True
+                cancelled = False
+                try:
+                    while True:
+                        try:
+                            await asyncio.shield(persistence)
+                            break
+                        except asyncio.CancelledError:
+                            # Cancelling a debounce/cleanup task cannot stop SQL in
+                            # a thread. Repeated cancellation must not release the
+                            # flush lock before its transaction has finished.
+                            cancelled = True
+                            if persistence.cancelled():
+                                raise
+                except Exception as exc:
+                    if _is_writer_unavailable(exc):
+                        self.fence_runtime(runtime)
+                    elif _is_persistence_timeout(exc):
+                        logger.warning(
+                            "Docs collaboration persistence timed out: room_key=%s",
+                            runtime.room_key,
+                        )
+                    else:
+                        logger.exception(
+                            "Failed to persist docs collaboration room %s", runtime.room_key
+                        )
+                    return False
+                finally:
+                    if cancelled:
+                        raise asyncio.CancelledError
+                return True
 
     async def _handle_relay_failure(self, exc: Exception) -> None:
         if not self._bus.available:

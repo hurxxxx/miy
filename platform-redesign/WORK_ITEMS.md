@@ -362,3 +362,47 @@ ACT-CI-03은 PR92/MR99/required254-422 정상 병합·소유 feature 정리 완�
 ### ACT-CI-04 — 전체 릴리스 실행 예산
 
 상태: `in_progress` — 후보70/70·독립 소스 리뷰 완료, 게시/필수 리뷰/병합·최신 full 대기. 실제255/job423의3604.73초 timeout과 project3600/Runner7200 근거에 따라 릴리스 job에만2h를 선언한다. 두 YAML과 checker의 현재 계약을 함께 갱신하며 테스트·gate·현재 ref binding·생략 정책은 유지한다. Workbench build/E2E까지 끝난 새로운 current full 성공이 완료 조건이다.
+
+## 2026-10-09 14:20 UTC — 현재 필수 착수 상태
+
+- ACT-CI-04: 필수256/424·PR93/MR100 정상 병합과 소유branch 정리 완료. 최신full257/425는 실행 중이며 운영MR81/배포는 대기.
+- OFF-002B/C1: 첫actualnative51PASS/1FAIL/4ERROR를 보존하고 canonicalroom·migrationDSN의 ownedfixture 수정/재검증 중. 권한/source/native기본값 유지, C2/C3 후속.
+- WB-001/002·ENV-001: v1actualtest/kernelPASS와 ordinarybuild ENOENT를 구분, v2재현 producer/16MiB scratch/Task profile 구현 중. 실제제품Task·별도Workbench배포 미완료.
+- REL-001: 최신tree private23리허설PASS, 독립리뷰 재결속 중. actualfull→MR81→prod FF→guarded image/freshbackup/before/deploy/after 순서 유지.
+- APP_ISSUES의 비필수 앱별기능과 다중사용자는 계속보류.
+
+## 2026-10-09 15:25 UTC — 현재 로컬 경계와 릴리스 실패
+
+C1 신규56·기존ACL132·Source110·owner145·authority52는 현재 입력으로 통과했다. 초기51/1/4와 historical drain 실패를 보존했고 원래 migration marker 두 개만 추가해 기존 함수/assertions를 유지했다. SDK v2 설치·정상 공개 입력55개 취득/동일 archive 재현160.761초는 통과했지만 source preflight는 canonical starter의 vendor4와 verifier 필수 README5 불일치로 거부됐다. 이 필수 계약을 보완한 뒤 actual unit/Task를 인수한다. 이전 SDK source170/pure와 독립 리뷰는 보완 전 시점으로 구분한다.
+
+전체257/job425는3198.397초 FAILED다. API6422/1FAIL/3SKIP이며 마지막 shutdown 저장의 실제 status rejected를 확인했다. slow16·migration37·external15 통과는 전체 성공을 뜻하지 않는다. 예외·SQLSTATE·GC 관측만 추가하는 disposable 단독 재현을 준비하며 timeout/검사 면제와 동일 source 맹목 재시도는 하지 않는다. main/prod는9e9280df, 새 운영/Workbench 배포는 없다. 현재23 migration private 리허설과 독립 리뷰는 treec7616793 한정이다. 새 migration 통합 후에는 새 정확 tree/pending 수로 검증한다.
+
+Rejected payload는 현재 caller-held runtime에만 남고 자동 replay는 금지된다. 종료 후 durable owner/handoff 검증은 C2/C3 필수 구조 잔여이며 APP_ISSUES로 넘기지 않는다. 고객 데이터 손실을 관측했다는 뜻은 아니다. Docker는 root117GB에서 약47GB 여유와29/83 실행/전체 컨테이너를 확인했다. 앱별 비필수 기능과 다중 사용자는 계속 보류한다.
+
+## 2026-10-09 16:10 UTC — GC 저장 예산 재현과 통합 순서
+
+원본 shutdown 저장 사례는 진단 wrapper만 추가한 격리 CI 이미지에서 다시 실패했다. 첫 네 저장은 ACK, 마지막 저장은 transaction_rejected/WhiteboardPersistenceDeadline(SQLSTATE 없음)이었다. 마지막 저장의1.24초 구간에 full GC 세 번이 각각 약0.41초 겹쳤다. 원본 assertions·1초 SQL 예산·worker4개를 유지하고 process-wide concurrent reader/exclusive native GC drain을 Docs·Whiteboard 공통 계층에 적용한다. 새 await 뒤 Docs의 원 snapshot/actor capture 시점과 writer fence 재확인도 보존한다. 새 코드의 실제 인수는 아직 대기다.
+
+SDK source 보완185개·두 canonical starter/cache binding은 통과했다. 실제 basic unit의 pnpm test/build·readOnly/cache/외부 graph 거부는 통과했지만 Python/TestClient가 멈췄다. 후속 짧은 진단은 초기화에서 거부되어 Python IPC 원인을 확정하지 않았다. exact owned unit 정리는 통과했다. 제품 Task/model 요청0이며 SDK18개 후보는 이번 API 전달에 포함하지 않는다.
+
+C1·GC·접근 도구를 최신 dev02418067 기반으로 먼저 통합한다. C1의 기존 로컬56/132/110/145/52 증거는 정확 입력과 함께 보존하며 공통 runtime 변경의 영향 검사를 수행한다. 정상 필수 feature review/병합 뒤 새 current full로 이어간다. C1 migration34/pending24의 새 private 리허설과 이전 운영 이미지 호환이 필요하며 기존pending23 증거를 새 head의 완료로 사용하지 않는다. main/prod9e9280df·운영/Workbench 미배포·C2/C3 잔여·앱별 비필수/다중 사용자 보류를 유지한다.
+
+## 2026-10-09 17:43 UTC — 현재 로컬 전달 및 필수 잔여
+
+OFF-002B/C1·공통 저장 drain: 로컬 인수 완료(신규56·권한132/110/145/52·통합20·기존106·구조/생성 계약),31개 경로 게시/필수 review·정상 병합 및 latest full 대기. 기본 native/factory·운영 역할·Source principal0/비활성을 유지한다. C2 원 contributor provenance와 pre-apply durable intake/handoff, C3 원 attempt 관측/복구·명시적 서비스 활성화는 필수 구조 잔여다. terminal rejected/unknown/refused 자동 replay를 금지하며 현재 caller-held bytes만으로 종료 후 복구를 완료로 표시하지 않는다.
+
+WB-001/002·ENV-001: SDK 185/starter/cache·JavaScript와 supported empty allowlist의 실제 Python/IPC23은 인수했지만 기존 Codex controller/SQLite binding 연결·실제 Task·private-notes unit·별도 Workbench 배포는 진행 중이다. REL-001은 새 pending24의 완전한 리허설·이전 이미지 호환·fresh actual evidence/full/guarded delivery가 남아 있다. APP_ISSUES 상세 기능과 다중 사용자 Workbench는 계속 보류한다.
+
+## 2026-10-09 18:03 UTC — 종료 저장 필수 P1 및 잔여
+
+구조 필수 Docs 종료 admission/취소 P1을 이번 전달에서 수정하고 실제4개 포함 focused24·원본106을 통과했다. GitHub94/GitLab101 수정 head의 필수 재리뷰/병합 및 latest full은 아직 남아 있다. C1은 비활성이며 C2 pre-apply durable intake와 전체 원 contributor provenance, C3 원 attempt 복구·서비스 활성화는 필수 잔여다. Workbench의 controller/세션 연결은 별도 검증하며 individual app 상세 기능과 다중 사용자는 계속 보류한다.
+
+## 2026-10-09 18:37 UTC — draining 마이그레이션 필수 P1 수정
+
+필수259/job427(source0059196a)은 C1 migration의 기존행 UPDATE backfill이 draining 상태의 statement writer guard에 걸리는 P1을 발견했다. 빈 테이블도 guard가 실행되므로 기존 trigger/role/ACL을 우회하지 않고 두 column을 owner DDL의 NOT NULL/default로 초기화한다. UUID의 행별 생성 뒤 미래 INSERT default만 기존 sentinel로 복원한다. 기존 SQL 함수·guard·downgrade·22개 테스트 정의와 기본 비활성 경로를 보존했다.
+
+현재 코드의 실제 PostgreSQL18 회귀는 기존56개+legacy/hardened×empty/existing_rows4개로 **60 PASS/179.90909초**다. Setup/call/teardown 모두60/실패·skip·collection error0이며 소유 cluster/container 정리와 입력 전후 검증을 통과했다. Native 입력31 c34454d1·수정3 ddabcea8 및 receipt e988110b를 보존했다. Canonical 문서 서식만 후속 whitespace로 정리했고 코드·테스트·migration bytes는 같다. 현재 입력31 4d19d222·수정3 23abcea3에 결속한 frozen CI Ruff0.16.6 check/format과 owner Markdown도 통과했다. 이전 잘못된 도구 버전 기대와 문서 format RED는 보존하며 검사 결과를 성공으로 덮어쓰지 않는다.
+
+Docs 집중24/기존협업106(208.751168초)은 바뀌지 않은 runtime/test bytes에 한정한 이전 인수 근거다. 과거 C1 권한132/110/145/52는 그 당시 입력으로 구분한다. GitHub94/GitLab101의 새 수정 head 필수 리뷰·정상 병합·새 current full, 새 migration34/pending24 private 리허설과 이전 운영 이미지 호환·fresh backup/guarded 배포가 남아 있다. Dev02418067·main/prod9e9280df는 현재 그대로이며 배포 완료를 뜻하지 않는다.
+
+별도 Workbench 후보는 SDK source22/owned delta11의 신규74 PASS와 영향427 PASS/기존 PostgreSQL legacy fixture5 SKIP 및 독립 소스 리뷰를 마쳤다. 실제 원관리 정책 확인·controller/Task·private-notes와 별도 서비스 배포는 미완료다. C2-1 비활성 provenance3은 실제 native53 PASS와 독립 리뷰를 통과했으며 PostgreSQL pre-apply durable journal/discovery와 C3 원 attempt 복구·서비스 활성화는 필수 구조 잔여다. 앱별 비필수 기능과 다중 사용자는 보류한다.

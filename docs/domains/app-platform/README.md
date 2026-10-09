@@ -177,6 +177,20 @@ Whiteboard Yjs transport checks the current session, app and source edit rights 
 frame before room mutation and every outgoing frame after acquiring the send lock; the periodic
 monitor also closes idle revoked connections.
 
+Docs and Whiteboard snapshot workers share one process-wide admission lease across hubs and event
+loops. Workers stay parallel, including Whiteboard's existing four-worker limit, and hold this lease
+through transaction outcome and Session cleanup. Once a native room disposal waits, new workers
+await admission before opening a Session or starting their SQL budget. Disposal drains active workers
+without blocking the event loop, then releases native state and runs its explicit full collection on
+the room's owner thread. Cancellation joins that owned disposal before propagating. This coordinates
+the platform's explicit room-disposal `gc.collect()` only; automatic or third-party GC is not disabled
+or covered by this exclusion. SQL budgets, identity checks and retry/unknown-outcome policy stay fixed.
+Final Docs and Whiteboard disposal joins snapshot admission and persistence before releasing native
+state, even after caller cancellation. Admission waits do not consume the non-SQL cleanup timeout;
+that timeout still bounds client/relay/room cleanup, and the SQL budget begins after admission.
+Docs and Whiteboard ignore only the exact empty Yjs delta emitted by native read transactions, so
+snapshot encoding cannot cancel its own scheduled save. Delete-only updates still save and relay.
+
 Common and collaborative WebSockets authenticate with the first `auth` message. URL `token`
 authentication is rejected, including a valid or empty query token. Session credentials must not
 appear in socket URLs. Docs and Whiteboard share `createAuthenticatedCollabProvider` in the UI

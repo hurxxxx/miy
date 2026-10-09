@@ -1,6 +1,6 @@
 # MIY 플랫폼 재설계
 
-최신 확인: Docker root 볼륨 이전과 공개 Native/SDK 읽기 전용 cache 설치를 마쳤다. 전체255/job423은 기본1시간 timeout으로 실패해 ACT-CI-04의 릴리스 job-only 2h 후보를 동일 검증 이미지70/70으로 준비했다. 새 full 성공 전 운영 배포는 대기하며, Workbench actual SDK build와 실제 Task 연결·C1 native PG 인수는 진행 중이다.
+최신 확인: Docker 이전 후 약47GB 여유를 확보했다. 필수 리뷰에서 발견한 Docs 종료 저장 결함과 draining 마이그레이션 P1을 수정했다. 현재 실제 C1 회귀60개와 앞선 종료24개·협업106개를 통과했으며 필수 재리뷰·정상 병합·새 전체 릴리스 CI 및 운영/별도 Workbench 배포가 남아 있다. C2/C3 구조 완성은 계속 진행한다.
 
 공통 플랫폼, 공식 앱, 현업 제작 앱, MIY Workbench의 개발·실행·배포 경계를 분리하기 위한 계획과 진행 기록이다. Workbench는 기존 Codex 개발 체계를 활용하는 **단일 사용자 관리 도구**로 개선한다. 다중 사용자 Workbench는 후속 범위다.
 

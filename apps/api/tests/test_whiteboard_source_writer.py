@@ -1387,6 +1387,7 @@ def test_genuine_hardened_active_migration_rollback_refuses_without_changes(writ
         db.rollback()
 
 
+@pytest.mark.parametrize("world", ["wb_source_writer_20261009"], indirect=True)
 def test_genuine_hardened_draining_migration_removes_only_inactive_capability(writer_prepared):
     from alembic import command
     from test_alembic_migrations import _migration_config
