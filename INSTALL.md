@@ -591,6 +591,7 @@ docker info --format '{{.ServerVersion}}'
 ```
 
 `docker` 실행 파일만 존재하거나 기존 컨테이너가 보인다는 이유로 준비 완료로 판단하지 않는다.
+Docker 데이터가 놓인 실제 파일시스템의 여유 공간도 확인하고, 다른 디스크로 옮길 때는 [호스트 저장 공간 이전 절차](docs/domains/release/installation-operations.md#docker-storage-relocation)를 따른다.
 첫 Python 의존성 설치에는 AI 라이브러리도 포함되어 다운로드가 클 수 있다.
 추가 기능의 모델 다운로드·브라우저 설치까지 고려하고, 서버 사양이 검증되었다고 추정하지 않는다.
 

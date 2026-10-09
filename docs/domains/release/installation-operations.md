@@ -5,6 +5,69 @@
 `<...>`는 실제 설치 환경에서 확인해 대체할 값이다. 공식 설정 파일 경로·설정 키·프로토콜 주소는 그대로 표기한다.
 호스트별 값과 검사 결과는 설치 인계에 기록하고 비밀값은 [로그인 정보 관리](../../../INSTALL.md#11-로그인-정보-파일-관리)를 따른다.
 
+## Docker storage relocation
+
+Docker 저장 공간 이전은 명시적으로 승인된 호스트 유지보수에서 수행한다. 경로와 파일시스템은
+실제 설치에서 확인하며, 앱 배포나 이미지 정리 명령으로 이전을 대신하지 않는다.
+[저장 공간 기준](README.md#build-and-test-storage)을 유지하고 기존 이미지·볼륨·컨테이너를 보존한다.
+
+1. 현재 `DockerRootDir`와 그 경로의 실제 마운트 소스, 새 저장 경로의 파일시스템·여유 공간을 확인한다.
+   `/`의 여유 공간이 Docker 데이터가 놓인 다른 마운트의 여유 공간을 뜻하지 않는다.
+   전체 복사 후에도 대상에 최소 15 GiB와 15%가 모두 남아야 하며, 복사 중 증가량과 검증 작업 공간도 예산에 포함한다.
+   저장 드라이버와 `live-restore` 상태, 별도 containerd 데이터 경로도 확인한다.
+   [Docker 데이터 디렉터리 설정](https://docs.docker.com/engine/daemon/#daemon-data-directory)에 따라
+   containerd image store의 데이터는 `data-root` 변경만으로 이동하지 않는다. 이미 충분한 파일시스템에 있는
+   containerd 저장소를 함께 옮길 필요는 없으며, 이동한다면 그 소유 서비스와 소비자도 별도로 정지·검증한다.
+
+   ```bash
+   docker info --format '{{.DockerRootDir}} {{.Driver}} {{.LiveRestoreEnabled}}'
+   findmnt -T '<현재-Docker-경로>'
+   findmnt -T '<새-저장-경로>'
+   df -h '<현재-Docker-경로>' '<새-저장-경로>'
+   ```
+
+2. 실행·정지·생성 상태의 모든 컨테이너 ID와 이미지 ID, 전체 이미지·볼륨의 식별자,
+   각 컨테이너의 마운트 참조, 이전 실행 집합과 health 상태를 기록한다. 현재·이전 운영 이미지와
+   검증 이미지를 포함하며, 정지한 서비스의 데이터도 보존한다. 조회는 필요한 필드만 선택하고
+   환경변수·자격증명·볼륨 내용·애플리케이션 로그를 기록하지 않는다.
+   기존 마운트 설정·서비스 drop-in·데몬 설정은 관리자 전용 복구 위치에 보존한다.
+
+3. 새 경로는 다른 데몬이나 작업이 사용하지 않는 전용 디렉터리로 준비한다.
+   CI Runner의 새 작업, 빌드·검증·배포 및 데이터를 쓰는 자동 작업을 멈춘다.
+   서비스가 실행 중인 사전 복사는 중단 시간을 줄이는 용도로만 사용한다.
+   최종 전환 전에는 기록한 실행 컨테이너를 정상 종료하고 Docker 서비스와 소켓을 정지해
+   데몬의 자동 재기동을 막는다. [live restore](https://docs.docker.com/engine/daemon/live-restore/)가
+   활성화되어 있으면 데몬 정지만으로 컨테이너가 멈추지 않으므로 컨테이너를 먼저 명시적으로 종료한다.
+   최종 복사 때 남은 프로세스나 마운트가 원본을 사용하지 않는지 확인한다.
+
+4. 쓰기가 중단된 원본에서 최종 동기화를 수행한다. 숫자 UID/GID, 권한·시간, 하드링크·심볼릭 링크,
+   ACL·확장 속성, sparse 파일 등 기존 저장 드라이버의 메타데이터를 보존한다.
+   전체 파일 checksum과 메타데이터를 다시 비교하여 차이가 없음을 확인한다.
+   변경 목록이나 데이터 내용을 공개 로그에 남기지 않고 오류·차이의 집계만 인계한다.
+   디렉터리 크기나 파일 개수만 같다는 이유로 전환하지 않는다. 이전 작업과 함께 Docker 버전이나
+   저장 드라이버·image store를 변경하지 않는다.
+
+5. 기존 Docker 경로를 유지하는 bind 마운트와 `data-root` 변경 중 실제 설치에 맞는 방식 하나를 선택한다.
+   bind 방식은 기존 `/etc/fstab`의 해당 항목만 새 소스로 바꾸고 다른 마운트 항목을 보존한다.
+   systemd mount 의존성과 Docker 서비스·소켓의 drop-in을 함께 검토하여 새 저장소가 먼저 준비되고,
+   필요한 마운트가 없을 때 빈 경로에서 데몬이 시작하지 않게 한다. `data-root`를 변경하면 기존 데몬 설정에
+   해당 키만 병합하고 런타임·네트워크·GC 설정을 유지한다. 명령행 옵션과 설정 파일에 같은 키를 중복 지정하지 않는다.
+   설정을 바꾼 경우 해당 설치의 설정 파일로 `dockerd --validate --config-file '<데몬-설정-파일>'`를 실행한다.
+   서비스 설정을 다시 읽히고 실제 마운트 소스·대상·파일시스템과 부팅 시 의존성을 검증한 뒤 데몬을 시작한다.
+
+6. 기록한 전체 컨테이너·이미지·볼륨 식별자와 마운트 참조가 그대로인지 비교한다.
+   이전 실행 집합만 다시 기동하고, 원래 정지한 컨테이너를 일괄 기동하지 않는다.
+   이전에 healthy였던 서비스의 health, 현재·이전 운영 및 검증 이미지 ID, 서비스의 실제 readiness와
+   [개발 접속](#development-access-checks)을 확인한다. 운영·GitLab·Workbench가 같은 데몬을 쓰면
+   각각의 기존 운영 확인도 수행한다. 대상 파일시스템의 여유 공간과 실제 Docker 저장 경로를 다시 확인하고,
+   서비스 검증이 끝난 다음 이전에 실행 중이던 Runner와 자동 작업을 복구한다.
+
+7. 기존 복사본의 정리는 새 마운트와 전체 전환 검증을 마친 뒤 허용된 정리 범위에서만 수행한다.
+   삭제할 원본이 현재 데몬·컨테이너에서 사용되지 않고, 새 경로와 다른 실제 소스인지 다시 확인한다.
+   새 저장소에서 쓰기가 발생한 뒤에는 오래된 복사본으로 경로만 되돌리면 데이터를 잃을 수 있다.
+   복귀가 필요하면 다시 쓰기를 중단하고 최신 데이터의 역방향 동기화 또는 검증된 데이터 복구 절차를 수행한다.
+   호스트별 경로·식별자·검증 결과와 복구 가능 상태는 설치 인계에 기록한다.
+
 ## Memory and swap
 
 앱·개발 도구·GitLab을 함께 실행하는 서버에서는 물리 메모리 표시 외에 실제 cgroup 제한과
@@ -85,12 +148,12 @@ libc·ICU 변경으로 collation version 경고가 발생하면 [PostgreSQL coll
 설치한 `agent-browser --version`, `agent-browser --help`와 OS·CPU를 확인하고
 [공식 설치 안내](https://agent-browser.dev/installation)의 지원 범위에 따라 선택한다.
 
-| 조건 | 선택과 검증 |
-| --- | --- |
-| 자동 다운로드가 지원되고 사용 가능한 브라우저가 없음 | `agent-browser install`; OS 라이브러리 누락은 지원되는 환경에서 `agent-browser install --with-deps` |
-| 검증된 시스템 Chromium이 있음 | `--executable-path '<Chromium-실행파일>'`로 실행하고 실제 페이지를 검사 |
-| OS·CPU 조합에 자동 다운로드 빌드가 없음 | 해당 배포판·CPU를 지원하는 시스템 Chromium을 설치하고 실제 실행·샌드박스를 확인. 다른 CPU의 바이너리로 대체하지 않음 |
-| 패키지 격리로 자동 시작·연결이 실패함 | 시스템 Chromium을 직접 실행하고 [공식 CDP 연결](https://agent-browser.dev/cdp-mode) 사용 |
+| 조건                                                 | 선택과 검증                                                                                                          |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 자동 다운로드가 지원되고 사용 가능한 브라우저가 없음 | `agent-browser install`; OS 라이브러리 누락은 지원되는 환경에서 `agent-browser install --with-deps`                  |
+| 검증된 시스템 Chromium이 있음                        | `--executable-path '<Chromium-실행파일>'`로 실행하고 실제 페이지를 검사                                              |
+| OS·CPU 조합에 자동 다운로드 빌드가 없음              | 해당 배포판·CPU를 지원하는 시스템 Chromium을 설치하고 실제 실행·샌드박스를 확인. 다른 CPU의 바이너리로 대체하지 않음 |
+| 패키지 격리로 자동 시작·연결이 실패함                | 시스템 Chromium을 직접 실행하고 [공식 CDP 연결](https://agent-browser.dev/cdp-mode) 사용                             |
 
 CLI 바이너리 지원과 브라우저 다운로드 지원은 별개다. Linux ARM64의 Chrome for Testing 빌드 부재처럼
 다운로드가 지원되지 않는 경우 `--with-deps`만 반복해 해결하려 하지 않는다. Ubuntu의 Chromium 패키지는 Snap으로 제공될 수 있다.
@@ -139,13 +202,13 @@ OS, CLI 런타임, 브라우저, Runner와 컨테이너는 서로 다른 인증�
 신뢰할 수 있는 경로로 CA **공개 인증서**와 지문을 확인하고 필요한 실행 환경마다 등록한다.
 CA·서버 개인키는 클라이언트나 이미지에 배포하지 않는다. 기존 CA·정책은 보존한다.
 
-| 실행 환경 | 공식 설정과 확인 |
-| --- | --- |
-| Debian/Ubuntu 호스트 | PEM 형식의 CA 공개 인증서를 인증서당 하나의 `.crt` 파일로 배포판의 로컬 CA 디렉터리에 추가하고 `sudo update-ca-certificates`. 기존 파일·목록을 덮어쓰지 않음. [공식 명령](https://manpages.debian.org/bookworm/ca-certificates/update-ca-certificates.8.en.html) 참고 |
-| 다른 OS·클라이언트 PC | OS 공식 신뢰 저장소에 등록. Windows의 신뢰할 수 있는 루트 인증 기관, macOS의 키체인 등에서 실제 사용자·시스템 적용 범위를 확인 |
-| Git·curl·glab·Node/Python 등 CLI | 각 도구·런타임 버전의 공식 CA 설정 사용. 대화형 셸과 서비스 실행 계정을 각각 확인. CA 번들을 재정의할 때 기존에 필요한 신뢰를 유지 |
-| Chromium·Chrome | 실제 패키지의 인증서 관리자 또는 지원되는 관리 정책 사용. 아래 절차로 적용 확인 |
-| Runner·helper·작업 컨테이너 | [Runner TLS 설정](https://docs.gitlab.com/runner/configuration/tls-self-signed/) 적용. 호스트 등록이 이미지 내부로 전파된다고 가정하지 말고 helper와 작업 이미지의 HTTPS 연결을 각각 확인 |
+| 실행 환경                        | 공식 설정과 확인                                                                                                                                                                                                                                                      |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Debian/Ubuntu 호스트             | PEM 형식의 CA 공개 인증서를 인증서당 하나의 `.crt` 파일로 배포판의 로컬 CA 디렉터리에 추가하고 `sudo update-ca-certificates`. 기존 파일·목록을 덮어쓰지 않음. [공식 명령](https://manpages.debian.org/bookworm/ca-certificates/update-ca-certificates.8.en.html) 참고 |
+| 다른 OS·클라이언트 PC            | OS 공식 신뢰 저장소에 등록. Windows의 신뢰할 수 있는 루트 인증 기관, macOS의 키체인 등에서 실제 사용자·시스템 적용 범위를 확인                                                                                                                                        |
+| Git·curl·glab·Node/Python 등 CLI | 각 도구·런타임 버전의 공식 CA 설정 사용. 대화형 셸과 서비스 실행 계정을 각각 확인. CA 번들을 재정의할 때 기존에 필요한 신뢰를 유지                                                                                                                                    |
+| Chromium·Chrome                  | 실제 패키지의 인증서 관리자 또는 지원되는 관리 정책 사용. 아래 절차로 적용 확인                                                                                                                                                                                       |
+| Runner·helper·작업 컨테이너      | [Runner TLS 설정](https://docs.gitlab.com/runner/configuration/tls-self-signed/) 적용. 호스트 등록이 이미지 내부로 전파된다고 가정하지 말고 helper와 작업 이미지의 HTTPS 연결을 각각 확인                                                                             |
 
 인증서 체인·유효기간과 URL의 호스트명 또는 IP에 맞는 SAN을 확인한다. IP로 접속하면 SAN의 IP 항목에 그 주소가 있어야 한다.
 각 환경의 기본 신뢰 설정으로 실제 HTTPS 요청을 수행하고, 브라우저에서는 인증서 경고 없이 로그인 화면과 로그인을 확인한다.
@@ -172,11 +235,11 @@ Chrome·Chromium·Snap 경로를 동일하게 가정하지 않는다. 정책은 
 실제 수신 주소·포트와 로컬 API `/readyz`의 HTTP 성공 및 JSON `status: ok`를 확인한다. Worker를 선택한 환경은 `./dev.sh --with-worker --status`를 사용한다.
 `pnpm dev:login-smoke`는 API health·로그인·사용자·앱 bootstrap을 검사하며 readiness·화면 렌더링·로그아웃을 대신하지 않는다.
 
-| 접속 구성 | 필요한 접속 검사 |
-| --- | --- |
-| HTTP 개발 접속 | `MIY_DEV_SMOKE_API_URL='http://<개발-호스트>:<Web-포트>' pnpm dev:login-smoke`와 같은 주소의 브라우저 로그인·앱 화면·로그아웃 |
+| 접속 구성                     | 필요한 접속 검사                                                                                                                                               |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HTTP 개발 접속                | `MIY_DEV_SMOKE_API_URL='http://<개발-호스트>:<Web-포트>' pnpm dev:login-smoke`와 같은 주소의 브라우저 로그인·앱 화면·로그아웃                                  |
 | HTTPS 공개 도메인의 개발 접속 | 개발 `.env`의 `MIY_UAT_BASE_URL`을 `https://<개발-공개-도메인>:<HTTPS-포트>`로 맞춘 뒤 `pnpm dev:public-smoke` 실행. 실제 브라우저 로그인·화면·로그아웃도 확인 |
-| HTTPS IP 기반 개발 접속 | [CA 신뢰](#https-trust)와 IP SAN을 확인한 뒤 HTTPS Web 주소로 `dev:login-smoke`와 브라우저 검사. `dev:public-smoke`에는 IP URL을 넣지 않음 |
+| HTTPS IP 기반 개발 접속       | [CA 신뢰](#https-trust)와 IP SAN을 확인한 뒤 HTTPS Web 주소로 `dev:login-smoke`와 브라우저 검사. `dev:public-smoke`에는 IP URL을 넣지 않음                     |
 
 `dev:public-smoke`는 **HTTPS 공개 도메인 origin**을 요구한다. IP 주소·localhost·`.local`·단일 호스트명과
 경로·쿼리·자격증명이 포함된 URL은 허용하지 않는다. 루트 개발 `.env`의 해당 설정만 실제 origin에 맞추고 다른 설정은 보존한다.

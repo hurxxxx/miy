@@ -11,11 +11,15 @@ from contextlib import contextmanager
 from dataclasses import FrozenInstanceError, replace
 from datetime import datetime, timedelta
 from importlib import import_module
+from pathlib import Path
 import re
+from shutil import copyfile
 import time
 from types import SimpleNamespace
 from uuid import uuid4
 
+from alembic import command
+from alembic.script import ScriptDirectory
 from fastapi import HTTPException
 import psycopg
 from psycopg import sql
@@ -41,6 +45,7 @@ from miy_api.domains.official_apps.writer_roles import (
 )
 from miy_api.domains.whiteboard.models import Whiteboard, WhiteboardCollabDocument
 from miy_api.domains.whiteboard.scene_state import _persistence_sql_deadline
+import test_alembic_migrations as migration_tests
 from test_independent_app_data import isolated_data_cluster as isolated_data_cluster  # noqa: F401
 from test_official_writer_roles import (
     ACTIVE,
@@ -51,7 +56,7 @@ from test_official_writer_roles import (
     move,
     role_template as role_template,  # noqa: F401
     sa_dsn,
-    world as world,  # noqa: F401
+    world as current_head_world,  # noqa: F401
 )
 
 CAPABILITY = "public.miy_whiteboard_lock_source_writer(integer,text)"
@@ -74,6 +79,32 @@ UPDATE_COLUMNS = {
 USER_NAMESPACE = (
     "n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname !~ '^pg_(toast|temp)(_|$)'"
 )
+
+
+@pytest.fixture
+def world(current_head_world, request, tmp_path, monkeypatch):  # noqa: F811
+    """Keep service tests at head; pin only the Source revision's own contract."""
+    revision = getattr(request, "param", None)
+    if revision is None:
+        return current_head_world
+    assert revision == "wb_source_writer_20261009"
+    original_config = migration_tests._migration_config
+    config = original_config(sa_dsn(current_head_world.dsn))
+    ancestors = list(ScriptDirectory.from_config(config).walk_revisions(base="base", head=revision))
+    command.downgrade(config, revision)
+    versions = tmp_path / "source_migration_versions"
+    versions.mkdir()
+    for ancestor in ancestors:
+        source = Path(ancestor.path)
+        copyfile(source, versions / source.name)
+
+    def source_config(dsn=None):
+        scoped = original_config(dsn)
+        scoped.set_main_option("version_locations", str(versions))
+        return scoped
+
+    monkeypatch.setattr(migration_tests, "_migration_config", source_config)
+    return current_head_world
 
 
 def _api():
@@ -376,6 +407,7 @@ def test_pure_unprepared_descriptor_and_non_session_refuse_before_connection():
         assert str(caught.value) == "whiteboard_source_writer_refused"
 
 
+@pytest.mark.parametrize("world", ["wb_source_writer_20261009"], indirect=True)
 def test_genuine_full_migration_installs_private_inactive_capability_with_legacy_guard(world):
     _api()
     with world.connect() as conn:
@@ -1301,6 +1333,7 @@ def _migration_boundary_snapshot(world):
         }
 
 
+@pytest.mark.parametrize("world", ["wb_source_writer_20261009"], indirect=True)
 def test_genuine_legacy_migration_roundtrip_preserves_existing_whiteboard_boundary(world):
     from alembic import command
     from test_alembic_migrations import _migration_config
@@ -1339,6 +1372,7 @@ def test_genuine_legacy_migration_roundtrip_preserves_existing_whiteboard_bounda
     assert _migration_boundary_snapshot(world) == before
 
 
+@pytest.mark.parametrize("world", ["wb_source_writer_20261009"], indirect=True)
 def test_genuine_hardened_active_migration_rollback_refuses_without_changes(writer_prepared):
     from alembic import command
     from test_alembic_migrations import _migration_config
@@ -1374,6 +1408,7 @@ def test_genuine_hardened_draining_migration_removes_only_inactive_capability(wr
 
 
 @pytest.mark.parametrize("tamper", ["body", "overload"])
+@pytest.mark.parametrize("world", ["wb_source_writer_20261009"], indirect=True)
 def test_genuine_migration_rollback_refuses_tampered_capability_without_changes(
     writer_boundary, tamper
 ):
