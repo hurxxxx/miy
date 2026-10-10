@@ -1,13 +1,13 @@
 # 현재 진행 상태
 
-**2026-10-10 필수 구조 구현과 서비스 반영을 진행 중이다.** 개발 first-party 전환과 공개 공식 API·인증 WS 연결은 반영했다. 개발 proxy 수정은 required278/job446 성공 뒤 GitHub PR100·내부 MR108로 병합했고 소유 브랜치를 정리했다. 최신 full279/job447은 릴리스 UI 입력 묶음의 공통 helper 누락으로 실패하여 이를 보완 중이다. 운영·Workbench 새 배포는 아직 수행하지 않았다. 고도화·앱별 상세 기능 검증은 계속 보류한다.
+**2026-10-10 필수 구조 구현과 서비스 반영을 진행 중이다.** 개발 first-party 전환과 공개 공식 API·인증 WS 연결은 반영했다. 릴리스 UI 입력 누락 수정은 required280/job448 성공 뒤 GitHub PR101·내부 MR109로 병합했고 소유 브랜치를 정리했다. 최신 full281/job449에서 확인된 테스트 입력 오류 세 건을 최소 범위로 보완 중이다. 운영·Workbench 새 배포는 아직 수행하지 않았다. 고도화·앱별 상세 기능 검증은 계속 보류한다.
 
 기록 기준: 2026-10-10 UTC. 작업별 상태는 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다.
 
 ## 최신 전달 상태와 필수 잔여
 
-- 현재 통합 기준은 dev `eb2f4712`, GitHub main `de572ac9`, 동일 tree `44efe8d2`다. Proxy 수정 source `3975cf8d`의 required278/job446은 SUCCESS50.787914초/MERGE_READY다. Full277/job445는 알려진 개발 proxy 오류 때문에 canceled이며 성공 근거로 쓰지 않는다.
-- Full279/job447은 FAILED36.721582초다. 실제 `ActualOfficialSliceTests.setUpClass`가 Git archive의 UI 입력을 해석하는 과정에서 새 `scripts/development-listener.mjs`와 선언이 누락됐다. Fixture에만 파일을 덧붙이면 실제 릴리스 결함이 가려지므로 소유 UI 입력의 전이 의존성을 연결하고 실제 Git 소스 기반 회귀를 확인한다. Missing-input 거부·공유 입력의 full-release 판정과 전체 CI는 유지한다.
+- 현재 통합 기준은 dev `0d1523af`, GitHub main `da0e52e4`, 동일 tree `e1f7b6e2`다. UI 입력 수정 source `5c572c66`의 required280/job448은 SUCCESS50.083838초/MERGE_READY이며 PR101/MR109를 정상 병합했다. Full277/job445의 canceled·full279/job447의 실패는 성공 근거로 쓰지 않는다.
+- Full281/job449는 FAILED3187.327992초다. API fast6568 PASS/3 FAIL/5 SKIP이며 slow16·migration37·external15는 통과했다. 이후 전체 단계의 성공은 확인되지 않았다. 두 production Settings fixture가 개발 seed-login 환경을 상속했고, 한 큐 발행 fixture는 실제 Files 함수에 없는 인자를 전달했다. 테스트 두 파일의 입력만 보완하며 제품 설정 검증·native task 인자 검사·큐 소유 계약과 전체 CI를 유지한다.
 - 개발 서비스는 06:02UTC에 소유 임시 restart 보류 drop-in만 제거해 `Restart=always`를 복원했다. 서비스 재시작 없이 Main PID가 유지됐으며 정상 Main-only 종료·SIGKILL 금지·warm grace 정책은 보존했다.
 - 수정의 정상 리뷰·병합 뒤 최신 full CI를 통과시키고 Workbench의 세 역할/두 release 링크·fresh SQLite backup·공개 UI 인수, 운영의 정상 release merge·fresh DB backup·세 이미지/여섯 서비스 전환·공개 인수를 완료한다. Workbench 재사용 artifact는 실제 source37ef44ec/digest2ae5a15b 그대로다. 현재 Workbench0c1bf0fe와 운영9cbf9c5c/image389d는 유지한다.
 

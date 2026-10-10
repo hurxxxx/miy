@@ -1,5 +1,13 @@
 # GitHub 게시 체크포인트
 
+## 2026-10-10 PR101/MR109 병합과 full281 후속 보완
+
+UI 입력 source `5c572c66`의 required280/job448 SUCCESS50.083838초/MERGE_READY 뒤 [GitHub PR101](https://github.com/hurxxxx/miy/pull/101)·[내부 MR109](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/109)를 정상 병합했다. Dev `0d1523af`와 GitHub `da0e52e4`의 tree `e1f7b6e2`가 같고 소유 원격/로컬 feature와 snapshot 브랜치는 정리했다. Protected dev/main과 upstream direct-push 차단을 유지했다.
+
+[Release MR105](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/105)의 full281/job449는 FAILED3187.327992초다. API fast6568 PASS/3 FAIL/5 SKIP이며 slow16·migration37·external15는 통과했다. Production Settings fixture의 개발 seed-login 상속 두 건과 실제 Files 함수에 없는 인자 한 건만 테스트 입력으로 보완한다. 제품 계약·native 검사·필수 리뷰와 전체 CI는 유지하며 실패 실행을 성공으로 표시하지 않는다.
+
+새 후보의 정상 리뷰·게시/병합과 최신 전체 CI 이후 release merge·운영 배포·별도 Workbench 전환을 진행한다. 개발 first-party는 반영됐고 restart 정책도 복원됐으며 운영9cbf9c5c/image389d·Workbench0c1bf0fe는 그대로다. 앱별 상세 기능과 고도화는 후속 문서 범위로 남긴다.
+
 ## 2026-10-10 PR100/MR108 병합과 후속 입력 보완
 
 Proxy source3975cf8d의 required278/job446 SUCCESS50.787914초/MERGE_READY 뒤 [GitHub PR100](https://github.com/hurxxxx/miy/pull/100)·내부 MR108을 정상 병합했다. Dev eb2f4712와 GitHub de572ac9의 tree44efe8d2가 같다. 소유 feature/snapshot 브랜치를 원격·로컬에서 정리하고 protected dev/main·upstream direct-push 차단을 유지했다.

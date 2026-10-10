@@ -1,5 +1,13 @@
 # 검증 계획과 수행 근거
 
+## 2026-10-10 full281 실패와 최소 영향 검사
+
+UI 입력 수정의 required280/job448 SUCCESS50.083838초/MERGE_READY 뒤 PR101/MR109를 병합했다. 통합 dev `0d1523af`·GitHub `da0e52e4`의 tree `e1f7b6e2`가 같다. Full281/job449는 FAILED3187.327992초이며 API fast6568 PASS/3 FAIL/5 SKIP(2889.66초), slow16 PASS·migration37 PASS·external15 PASS다. Storage/diff는 통과했지만 `pnpm ci:all`은 실패했다. 이후 web/Workbench 단계는 이 실행의 성공 근거로 쓰지 않는다.
+
+Settings 실패 두 건의 공개 조건은 production에서 개발 로그인 seed가 금지된다는 것이다. `_env_file=None`은 process environment 상속을 막지 못하므로 fixture helper에 production-safe seed/storage 값을 명시한다. 발행 실패는 실제 `cleanup_file_storage_object(job_id)`에 없는 `attempt_id`를 전달한 native TypeError다. 실제 등록된 Files/recording 작업 계약으로 payload·소유 큐를 검사하며 잘못된 인자를 통과시키는 우회는 추가하지 않는다.
+
+두 테스트 파일을 같은 immutable CI image492의 network-none/read-only-root/nonroot/cap0/NNP 환경에서 묶어 검사해24 PASS를 확인했다. Ruff check/format도 통과했고 전체 도구 실행은6.928초였다. Synthetic seed=true/storage=false·default worker group·memory broker로 환경 상속과 실제 등록 task 경계를 확인했으며 업무 task body·DB/서비스 실행은 없다. 독립 리뷰에서 실제 task import가 현재 Celery app을 바꾸는 fixture 격리를 추가로 보완했다. Import/정리 실패도 이전 app을 복원하며 변경된 routing4개와 Ruff check/format만 재검사해 모두 통과했다(6.309초). Settings20개는 재실행하지 않아 고유 검사는24개다. 제품 source·validator·task typing·CI/하네스 변경은 없다. 새 source의 필수 리뷰와 최신 전체 릴리스 CI는 계속 필요하다. Private 실패 receipt와 공개 validation context만 보존하며 raw trace·예외 데이터는 저장·출력하지 않았다.
+
 ## 2026-10-10 최신 필수 리뷰와 UI 입력 실패 경계
 
 Proxy source3975cf8d의 required278/job446은 SUCCESS50.787914초/MERGE_READY다. PR100/MR108 병합 후 dev eb2f4712·GitHub de572ac9의 tree44efe8d2가 같다. Full277/job445는 canceled928.121633초이며 검증 성공으로 쓰지 않는다. Full279/job447은 FAILED36.721582초로 storage/git-diff는 통과했지만 `pnpm ci:all`은 실패했다. Raw trace를 저장·출력하지 않고 공개 class/error 경계만 분류했다.

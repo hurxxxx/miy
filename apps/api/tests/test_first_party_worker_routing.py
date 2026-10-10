@@ -1,31 +1,72 @@
 from __future__ import annotations
 
-from celery import Celery
+import importlib
+
+from celery import Celery, current_app
 import pytest
 
 from miy_api.core.first_party_worker_routing import configure_first_party_celery_routes
-from miy_api.core.worker_queue_contract import worker_profile_task_routes
+from miy_api.core.worker_queue_contract import TASK_QUEUE_ROUTES, worker_profile_task_routes
 
 
-def test_native_publication_keeps_payload_and_uses_owned_queue():
-    app = Celery("first-party-route-fixture", broker="memory://", set_as_current=False)
-    configure_first_party_celery_routes(app)
-    name = "files.cleanup_storage_object"
-    queue_name = worker_profile_task_routes("official")[name]["queue"]
+@pytest.mark.parametrize(
+    "name,module,attribute,args,kwargs",
+    [
+        (
+            "files.cleanup_storage_object",
+            "miy_worker.tasks.file_storage_cleanup",
+            "cleanup_file_storage_object",
+            ["job-id"],
+            {},
+        ),
+        (
+            "recording.transcribe",
+            "miy_worker.tasks.recording",
+            "transcribe_recording",
+            ["recording-id"],
+            {"attempt_id": "attempt-id"},
+        ),
+    ],
+    ids=("files-cleanup", "recording-transcribe"),
+)
+def test_native_publication_keeps_payload_and_uses_owned_queue(
+    name, module, attribute, args, kwargs
+):
+    previous_app = current_app._get_current_object()
+    app = None
     try:
-        app.signature(name, args=["job-id"], kwargs={"attempt_id": "attempt-id"}).apply_async(
-            queue="celery", task_id="fixed-first-party-task", retry=False, ignore_result=True
+        actual = getattr(importlib.import_module(module), attribute)
+        app = Celery("first-party-route-fixture", broker="memory://", set_as_current=False)
+        configure_first_party_celery_routes(app)
+        queue_name = worker_profile_task_routes("official")[name]["queue"]
+        # Exercise the real task's native argument check regardless of import order.
+        task = app.tasks[name]
+        assert task.typing
+        assert getattr(task.run, "__func__", task.run) is getattr(
+            actual.run, "__func__", actual.run
+        )
+        signature = app.signature(name, args=args, kwargs=kwargs)
+        assert signature.type is task
+        signature.apply_async(
+            queue=TASK_QUEUE_ROUTES[name],
+            task_id="fixed-first-party-task",
+            retry=False,
+            ignore_result=True,
         )
         with app.connection_for_write() as connection:
             with connection.SimpleQueue(queue_name) as queue:
                 message = queue.get(block=False)
                 assert message.headers["task"] == name
                 assert message.headers["id"] == "fixed-first-party-task"
-                assert message.payload[:2] == [["job-id"], {"attempt_id": "attempt-id"}]
+                assert message.payload[:2] == [args, kwargs]
                 message.ack()
                 queue.queue.delete()
     finally:
-        app.close()
+        try:
+            if app is not None:
+                app.close()
+        finally:
+            previous_app.set_current()
 
 
 @pytest.mark.parametrize(

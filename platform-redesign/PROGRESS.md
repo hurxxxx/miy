@@ -1,5 +1,13 @@
 # 재설계 진행 기록
 
+## 2026-10-10 UI 입력 병합과 전체 검증의 테스트 입력 보완
+
+UI archive 수정 source `5c572c66`의 required280/job448은 SUCCESS50.083838초/MERGE_READY다. [GitHub PR101](https://github.com/hurxxxx/miy/pull/101)·내부 MR109를 정상 병합하고 소유 브랜치를 양쪽 원격과 로컬에서 정리했다. Dev `0d1523af`·GitHub `da0e52e4`의 tree `e1f7b6e2`가 같다.
+
+Full281/job449는 FAILED3187.327992초다. API fast6568 PASS/3 FAIL/5 SKIP, slow16·migration37·external15 PASS이며 이후 전체 단계의 성공은 확인되지 않았다. 두 에이전트가 원문 trace를 저장·출력하지 않고 공개 예외만 분류했다. Production 성공 fixture 두 건은 상속된 seed-login=true를 거부하는 정상 제품 규칙에 걸렸고, 큐 발행 fixture는 실제 Files task에 없는 attempt_id를 전달했다. 해당 테스트 helper의 안전 설정과 실제 등록 작업의 payload를 보완한다. 제품 검증·native 인자 검사·큐 계약·CI/하네스는 수정하지 않는다.
+
+Root가 영향받은 두 파일을 동일 immutable CI image에서 묶어24 PASS와 Ruff check/format PASS를 확인했다(도구 전체6.928초). 독립 리뷰가 지적한 native task import의 현재 Celery app 상태 복원을 추가하고 routing4개·Ruff만 재검사해 통과했다(6.309초). 기존 Settings20 PASS를 재사용하며 새 후보를 정상 게시한다. 전체 로컬 검사를 반복하지 않으며 새 source의 필수 리뷰·정상 병합·최신 전체 CI 이후 실제 운영/Workbench 반영을 진행한다. 개발 서비스 재시작·운영/Workbench 변경은 없다.
+
 ## 2026-10-10 proxy 병합과 실제 UI 입력 누락 보완
 
 개발 proxy source `3975cf8d`는 required278/job446 SUCCESS50.787914초/MERGE_READY 뒤 [GitHub PR100](https://github.com/hurxxxx/miy/pull/100)·내부 MR108로 정상 병합했다. Dev `eb2f4712`와 GitHub `de572ac9`의 tree44efe8d2가 같고 소유 feature 브랜치는 양쪽 원격과 로컬에서 정리했다. Full277/job445 canceled는 성공으로 해석하지 않는다.
