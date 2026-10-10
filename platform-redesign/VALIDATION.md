@@ -1,5 +1,13 @@
 # 검증 계획과 수행 근거
 
+## 2026-10-10 최신 필수 리뷰와 UI 입력 실패 경계
+
+Proxy source3975cf8d의 required278/job446은 SUCCESS50.787914초/MERGE_READY다. PR100/MR108 병합 후 dev eb2f4712·GitHub de572ac9의 tree44efe8d2가 같다. Full277/job445는 canceled928.121633초이며 검증 성공으로 쓰지 않는다. Full279/job447은 FAILED36.721582초로 storage/git-diff는 통과했지만 `pnpm ci:all`은 실패했다. Raw trace를 저장·출력하지 않고 공개 class/error 경계만 분류했다.
+
+좁은 재현에서 실제 `ActualOfficialSliceTests.setUpClass`의 UI archive에 runtime helper·선언이 모두 없음을 확인했다. 두 tracked blob을 메모리에 보완하면 같은 parser는 통과하므로 실제 archive 소유 입력을 수정한다. 이전 overlay 사례 성공은 실제 archive 완전성 근거로 대체하지 않는다. 실제 Git HEAD→HEAD와 missing-input 거부를 확인하고 공유 helper 변경의 full-release 요구를 유지한다. 전체 CI 로컬 반복·앱별 상세 기능 검증은 추가하지 않는다.
+
+06:02UTC 개발의 소유 임시 drop-in만 제거하고 daemon-reload를 수행했다. Active/Main PID 유지·Restart always·KillMode process·SendSIGKILL no를 확인했다. 서비스 재시작·Task/모델 실행·큐 변경은0이다. Private receipt `DEV_HANDOFF_RESTART_POLICY_RESTORED.receipt.json`은0600이다. 실제 개발 공개 연결 인수는 기존 receipt를 재사용하며 운영 compiled artifact guard·기존 Source/Yjs 긍정 인수의 미검증 한계는 그대로 유지한다.
+
 ## 2026-10-10 실제 publisher-off 전환과 개발 proxy 경계
 
 Python fixture source `61f842c8`의 required276/job444는 SUCCESS33.343359초/MERGE_READY이며 PR99/MR107을 정상 병합했다. Dev `cbde1423`·GitHub `764a5e8c`의 tree555596a5가 같다. 소유 원격/로컬 브랜치를 정리하고 protected dev/main을 보존했다.

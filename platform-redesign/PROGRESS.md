@@ -1,5 +1,13 @@
 # 재설계 진행 기록
 
+## 2026-10-10 proxy 병합과 실제 UI 입력 누락 보완
+
+개발 proxy source `3975cf8d`는 required278/job446 SUCCESS50.787914초/MERGE_READY 뒤 [GitHub PR100](https://github.com/hurxxxx/miy/pull/100)·내부 MR108로 정상 병합했다. Dev `eb2f4712`와 GitHub `de572ac9`의 tree44efe8d2가 같고 소유 feature 브랜치는 양쪽 원격과 로컬에서 정리했다. Full277/job445 canceled는 성공으로 해석하지 않는다.
+
+통합 후 full279/job447은36.721582초에 실패했다. `ActualOfficialSliceTests.setUpClass`의 실제 Git UI archive가 새 공통 listener helper와 선언 파일을 포함하지 못했다. 앞선 overlay 기반 단독 검사는 실제 입력 누락을 드러내지 못했으므로 소유 입력 묶음을 연결하고 immutable Git 소스 기반 회귀로 보완한다. 제품 import resolver·missing-input 거부·공유 입력 full-release 판정·필수 CI를 완화하지 않는다.
+
+Root는 기존 공개 개발 API/인증 WS 인수와 required278 성공을 확인하고 06:02UTC에 소유 임시 restart 보류 drop-in만 제거했다. Main PID 유지·재시작0·`Restart=always` 복원을 확인했으며 Main-only/no-SIGKILL/warm grace는 보존한다. Workbench와 운영은 이전 릴리스 그대로이며 새 서비스 반영은 최신 전체 CI 이후다. 기존 결과는 재사용하고 새 결함의 영향 경계만 추가 검사한다.
+
 ## 2026-10-10 정상 fixture 병합과 실제 개발 전환
 
 Python fixture source `61f842c8`의 required276/job444는 SUCCESS33.343359초/MERGE_READY이며 PR99/MR107을 정상 병합했다. Dev `cbde1423`·GitHub `764a5e8c`의 tree555596a5가 같다. 소유 원격/로컬 브랜치를 정리하고 protected dev/main을 보존했다.

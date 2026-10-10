@@ -329,10 +329,9 @@ class ActualOfficialSliceTests(unittest.TestCase):
         helper = "scripts/development-listener.mjs"
         declaration = "scripts/development-listener.d.mts"
         routing = "packages/official-suite-web/vite/ui-routing.mts"
-        candidate = self.ui_sources | {
-            name: (ROOT / name).read_text() for name in (helper, declaration, routing)
-        }
-        shared = slice_contract.shared_ui_consumers(candidate)
+        for name in (helper, declaration, routing):
+            self.assertIn(name, self.ui_sources)
+        shared = self.ui_shared
         self.assertIn(helper, shared)
         self.assertIn(routing, shared)
         for name in (helper, routing):
@@ -343,6 +342,11 @@ class ActualOfficialSliceTests(unittest.TestCase):
                 slice_contract.assert_owned([name], *self.owners, shared)
         with self.assertRaisesRegex(ValueError, "shared_source"):
             slice_contract.assert_owned([declaration], *self.owners, shared)
+        missing = dict(self.ui_sources)
+        del missing[helper]
+        del missing[declaration]
+        with self.assertRaises(subprocess.CalledProcessError):
+            slice_contract.shared_ui_consumers(missing)
 
     def test_slice_uses_both_reviewed_ui_trees(self):
         shared = "packages/official-suite-web/src/manifests/pms.ts"
