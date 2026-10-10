@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { ProxyOptions } from 'vite';
 import contracts from '../../contracts/app-contracts.json';
+import { developmentListenerUrl } from '../../../scripts/development-listener.mjs';
 
 const ids = new Set<string>(contracts.official_app_ids);
 const bases = contracts.apps
@@ -39,6 +40,10 @@ export function firstPartyApiDevelopmentProxies(
   mode: string,
 ): Record<string, ProxyOptions> {
   if (mode !== 'first-party') return {};
+  const target = developmentListenerUrl(
+    process.env.MIY_DEV_API_HOST,
+    18781,
+  ).origin;
   const file = fileURLToPath(
     new URL('../../../.runtime/first-party-api-routes.json', import.meta.url),
   );
@@ -69,7 +74,7 @@ export function firstPartyApiDevelopmentProxies(
     patterns.map((pattern: string) => [
       `${pattern.slice(0, -1)}(?:\\?.*)?$`,
       {
-        target: 'http://127.0.0.1:18781',
+        target,
         timeout: 0,
         proxyTimeout: 0,
         ws: true,

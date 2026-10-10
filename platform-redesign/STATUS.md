@@ -1,6 +1,6 @@
 # 현재 진행 상태
 
-**2026-10-10 사용자 지시로 필수 구조 구현을 재개했다.** 공통 등록/개인 앱, 공식 묶음 API/worker, Workbench의 경로를 나누어 구현하고 Root가 통합한다. 고도화는 계속 보류한다. GitHub PR97·내부 MR104는 필수272/job440 성공 뒤 정상 병합했고 소유 브랜치를 정리했다. 새 분리 구조의 실제 배포는 아직 수행하지 않았다. 아래 중단 기록은 재개 전 보존 상태다.
+**2026-10-10 사용자 지시로 필수 구조 구현을 재개했다.** 공통 등록/개인 앱, 공식 묶음 API/worker, Workbench의 경로를 나누어 구현하고 Root가 통합한다. 고도화는 계속 보류한다. GitHub PR97·내부 MR104는 필수272/job440 성공 뒤 정상 병합했고 소유 브랜치를 정리했다. 개발 first-party의 native 전환은 수행했으며 공개 API/공통 인증 WS·전사 인증 거부 경계를 확인했다. 수정 source의 새 리뷰와 나머지 서비스 반영은 남아 있다. 운영·Workbench 새 배포는 아직 수행하지 않았다. 아래 중단 기록은 재개 전 보존 상태다.
 
 기록 기준: 2026-10-10 UTC. 작업별 상태는 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다.
 
@@ -8,9 +8,19 @@
 
 공식 API/worker, 개인 앱 승격 계약, Workbench의 격리 SDK 실행 후보를 통합·리뷰·병합했다. 영향 검사·실제 격리 실행·공통 gateway/배포 도구와 대표 브라우저 검사를 마쳤다. 최신 full CI·후속 fixture 리뷰·새 플랫폼/Workbench 배포와 실제 로그인 인수는 남아 있다. 현재 로컬 결과는 [통합 검사 기록](VALIDATION.md#2026-10-10-필수-구조-통합-검사)이 소유한다.
 
-구조 source `b4fdccb2`의 필수272/job440 SUCCESS 뒤 PR97/MR104를 정상 병합했다. 후속 fixture `efdafe1c`도 필수274/job442 SUCCESS61.998562초/MERGE_READY 뒤 PR98/MR106으로 병합했다. 현재 dev `d7882e65`·GitHub `08c8a3b8`의 tree `25420447`가 같다. Release MR105의 full275/job443은49.182128초에 개발 topology 테스트의 Python 검색 경로 차이로 실패했다(관련69 PASS/2 FAIL/1 SKIP). 제품 런처·전환 보호를 유지하고 fixture만 현재 pinned interpreter 경로를 사용하도록 보완한다. 이전 full273의 Docker metadata adapter 누락과 리뷰271/439·270/438 실패는 보존한다. 새 리뷰·최신 full CI·실제 서비스 전환이 남아 있으며 변경 없는 기존 검사·CI 이미지·Workbench 산출물은 재사용한다.
+Python fixture source `61f842c8`의 required276/job444는 SUCCESS33.343359초/MERGE_READY이며 PR99/MR107을 정상 병합했다. Dev `cbde1423`·GitHub `764a5e8c`의 tree555596a5가 같다. 소유 원격/로컬 브랜치를 정리하고 protected dev/main을 보존했다.
 
-Workbench 실제 clean37ef 산출물과 기존 owner의 정상 로그인 readonly preflight는 준비됐으며 새 서비스·실제 공개 UI 인수는 아직 수행하지 않았다. 개발 first-party와 운영 local gateway도 아직 미반영이다. 외부 TLS 설정 변경 없이 Core gateway가 기존 공개 포트를 인계하도록 구현했다.
+개발 서버는 Root가 기존 native worker와 prefork의 warm 완료를 확인한 뒤 API·UI·Beat를 종료했다. 옛 Vite의 상대 경로 실행은 현재 ownership matcher와 달라 Root가 원래 unit·UID·cwd·entry·start ticks를 재확인하고 해당 PID에만 정상 TERM을 보냈다. 강제 종료·큐 purge/revoke/copy/reissue는 없다. 단일 legacy witness를 통한 **publisher-off native exact drain PASS** 후 first-party selection, platform/official worker 각1개·Beat1개를 실제 확인했고 witness는 success/inactive 및 cgroup empty다. 원 unit 백업과 Main-only/no-SIGKILL/unbounded-grace policy를 보존한다.
+
+실제 개발 연결에서 공식 API가 기존 `MIY_DEV_API_HOST`의172.17.0.1로 bind되지만 Vite 공식 API target은127.0.0.1로 고정된 계약 불일치를 발견했다. 이는 앱별 기능과 무관한 필수 구조 경계다. 기존 host 계약을 그대로 쓰도록 보완했고 공개 공식 API500→401 및 정상 개발 로그인·공통 인증 WS·전사 빈 인증 WS 거부 경계를 확인했다. 알려진 불일치가 있는 source의 full277/job445에는 취소를 요청했다. 이 취소를 성공으로 해석하지 않으며 수정 source의 새 필수 리뷰·최신 full release CI는 운영 배포 전에 유지한다.
+
+Workbench의37ef44ec 실제 산출물은 b4fdccb2→cbde1423의 두 fixture/4개 계획 문서가329소비 입력과 비중첩임을 확인해 재사용한다. 전체 hash/build/model/검사 재실행은 없다. Workbench 서비스는0c1bf0fe·운영 main/prod는9cbf9c5c/image389d로 유지되며 별도 서비스 교체·SQLite/운영 DB fresh backup·공개 인수가 남아 있다. 이전 실패와 전달 이력은 아래에 보존한다.
+
+필수 개발 proxy 보완은 기존 strict `developmentListenerUrl`을 순수 공통 모듈과 타입 선언으로 추출하고 `MIY_DEV_API_HOST`+고정18781을 사용하는 최소 변경이다. 기존 UAT public export·공통 proxy 설정·generated patterns·WS/query/timeouts·공식 slice selector는 유지한다. 실제 두 Vite factory의 server/preview host8·invalid5 검사와 기존 listener 검사, runtime helper/type declaration 변경의 full-release 판정은 통과했다. 최초 fixture의 부수 loader metadata assertion 실패는 실제 dependency guard 검사가 대체했으며 해당 실패 사례만 재검증했다.
+
+수정 소스를 고정한 뒤 실제 `https://dev.1punicorn.com`에서 전사 Docs hub는500→JSON401, 정상 native 개발 관리자 로그인은200, 공통 WebSocket 정상 auth/빈 auth1008, 전사 Docs WebSocket 빈 auth4401을 확인했다. 양쪽 health/ready와공식 pairing metadata도 정상이다. 새 문서·Task·모델 turn·편집은 없고 auth secrets/응답/데이터를 저장·출력하지 않았다. 개발은live Vite 모듈·null buildID·runtime_revision unmanaged이므로 운영 immutable build guard 통과로 표시하지 않는다. 기존 disposable 공식 문서를 사용한 Yjs 양성 room/Source ACL 인수는 미검증이며 앱별 상세 기능으로 확장하지 않는다.
+
+외부 TLS 설정을 찾거나 변경할 필요가 없다. 운영에서는 Core gateway가 기존 공개 포트를 인계하며 generated HTTP/WS owner map으로 공통 API18779·공식 API18780에 연결한다. 개발은 기존 Core Vite4200·공식 Vite4201와 두 API를 유지한다.
 
 - 공식 서비스는 기존 서버 auth/ACL·공통 PostgreSQL·안전한 트랜잭션을 재사용하는 명시적인 first-party process 경로다. 이전 비활성 Source-only artifact를 플래그로 열지 않는다. 별도 공식 wheel/artifact·소유 queue·단일 Beat와 generated ingress owner map을 구현했다. 기존 큐와 예약/실행 작업을 확인하고 구형 writer를 종료하는 cutover 및 공식 UI 독립 산출물 연결은 진행 중이다.
 - 개인 앱은 같은 control-plane 등록 DB에 있는 성공한 개발 설치의 불변 산출물을 Core 관리자가 운영 installation으로 승격한다. 개발 증거를 운영 증거로 바꾸지 않으며 실제 runtime 관측 전에는 첫 운영 설치를 활성화하지 않는다. 서버 개발 preview도 선택적인 별도 HTTPS 출처·loopback 포트 연결을 지원한다. 설치별 build/state·데이터 분리와 기존 dev-only 위임을 유지한다. 다른 플랫폼 DB 사이의 증거 전송은 ENH-010으로 보류한다.

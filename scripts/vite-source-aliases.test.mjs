@@ -1,5 +1,15 @@
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import {
+  copyFile,
+  mkdir,
+  mkdtemp,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { before, after, test } from 'node:test';
 import { createServer, loadConfigFromFile } from 'vite';
 
@@ -120,6 +130,104 @@ before(async () => {
   });
 });
 after(async () => server?.close());
+test('first-party API proxies use the configured listener in both native Vite factories', async () => {
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'miy-vite-first-party-'));
+  try {
+    for (const name of [
+      'apps/web/vite.config.mts',
+      'apps/official-suite/vite.config.mts',
+      'apps/official-suite/vite/platform-compatibility.mts',
+      'packages/official-suite-web/vite/ui-routing.mts',
+      'packages/official-suite-web/vite/platform-ui-boundary.mts',
+      'packages/official-suite-web/vite/fixed-assets.mts',
+      'packages/contracts/app-contracts.json',
+      'scripts/development-listener.mjs',
+    ]) {
+      const target = path.join(sandbox, name);
+      await mkdir(path.dirname(target), { recursive: true });
+      await copyFile(path.join(workspace, name), target);
+    }
+    await symlink(
+      path.join(workspace, 'node_modules'),
+      path.join(sandbox, 'node_modules'),
+      'dir',
+    );
+    await writeFile(path.join(sandbox, 'package.json'), '{"type":"module"}\n');
+    await mkdir(path.join(sandbox, '.runtime'));
+    await writeFile(
+      path.join(sandbox, '.runtime/first-party-api-routes.json'),
+      JSON.stringify({
+        api_prefix: '/api/v1',
+        official_patterns: [
+          '^/api/v1/docs/items/[0-9]+$',
+          '^/api/v1/docs/collab/pages/[0-9]+$',
+        ],
+      }),
+    );
+    const result = spawnSync(process.execPath, ['--input-type=module', '-'], {
+      cwd: sandbox,
+      encoding: 'utf8',
+      env: { PATH: process.env.PATH, NODE_ENV: 'test' },
+      timeout: 30_000,
+      input: `
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import { loadConfigFromFile } from 'vite';
+const environment = { command: 'serve', mode: 'first-party' };
+const configs = ['apps/web/vite.config.mts', 'apps/official-suite/vite.config.mts'];
+const commonTarget = 'http://192.0.2.15:9007';
+process.env.MIY_WEB_API_PROXY_TARGET = commonTarget;
+const hosts = [
+  [undefined, 'http://127.0.0.1:18781'],
+  ['127.0.0.1', 'http://127.0.0.1:18781'],
+  ['192.0.2.10', 'http://192.0.2.10:18781'],
+  ['0.0.0.0', 'http://127.0.0.1:18781'],
+  ['::', 'http://[::1]:18781'],
+  ['::1', 'http://[::1]:18781'],
+  ['2001:db8::5', 'http://[2001:db8::5]:18781'],
+  ['dev.example.com', 'http://dev.example.com:18781'],
+];
+for (const [host, expected] of hosts) {
+  if (host === undefined) delete process.env.MIY_DEV_API_HOST;
+  else process.env.MIY_DEV_API_HOST = host;
+  for (const name of configs) {
+    const loaded = await loadConfigFromFile(environment, path.resolve(name));
+    for (const section of ['server', 'preview']) {
+      const proxy = loaded.config[section].proxy;
+      assert.equal(proxy['/api'].target, commonTarget);
+      assert.equal(proxy['/api'].ws, true);
+      const officialKeys = Object.keys(proxy).filter(key => key.startsWith('^/api/v1/docs/'));
+      assert.equal(officialKeys.length, 2);
+      for (const key of officialKeys) {
+        assert.equal(proxy[key].target, expected);
+        assert.equal(proxy[key].ws, true);
+        assert.equal(proxy[key].timeout, 0);
+        assert.equal(proxy[key].proxyTimeout, 0);
+      }
+      const key = officialKeys.find(key => new RegExp(key).test('/api/v1/docs/items/7?version=2'));
+      assert.ok(key);
+      assert.equal(proxy[key].target, expected);
+      assert.ok(officialKeys.some(key => new RegExp(key).test('/api/v1/docs/collab/pages/7')));
+    }
+  }
+}
+for (const host of ['', 'http://host', 'user@host', 'host/path', 'host?key=x']) {
+  process.env.MIY_DEV_API_HOST = host;
+  for (const name of configs)
+    await assert.rejects(loadConfigFromFile(environment, path.resolve(name)), /development listener host/);
+}
+console.log('native routing listeners8/configs2/sections2/invalid5: PASS');
+`,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(
+      result.stdout.trim(),
+      'native routing listeners8/configs2/sections2/invalid5: PASS',
+    );
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
+  }
+});
 for (const entry of entries) {
   test(`resolves ${entry} without a package symlink or Nx plugin`, async () => {
     const resolved = await server.pluginContainer.resolveId(
