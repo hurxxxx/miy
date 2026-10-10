@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -14,6 +14,14 @@ const targetPath = path.join(
 );
 const tempDir = mkdtempSync(path.join(tmpdir(), 'miy-openapi-'));
 const schemaPath = path.join(tempDir, 'openapi.json');
+const routeContractPath = path.join(
+  repoRoot,
+  'apps/api/src/miy_api/core/first_party_routes.generated.json',
+);
+const generatedRouteContractPath = path.join(
+  tempDir,
+  'first_party_routes.generated.json',
+);
 const generatedPath = checkOnly
   ? path.join(tempDir, 'openapi.generated.d.ts')
   : targetPath;
@@ -41,11 +49,16 @@ try {
         'from pathlib import Path',
         'from miy_api.app import create_app',
         'from miy_api.openapi_contract import assert_openapi_contract',
+        'from miy_api.first_party_route_contract import native_route_contract',
         'app = create_app(initialize_runtime=False)',
         'schema = app.openapi()',
         'assert_openapi_contract(schema)',
         'Path(os.environ["MIY_OPENAPI_OUTPUT"]).write_text(',
         '    json.dumps(schema, ensure_ascii=False, indent=2) + "\\n",',
+        '    encoding="utf-8",',
+        ')',
+        'Path(os.environ["MIY_OPENAPI_OUTPUT"]).with_name("first_party_routes.generated.json").write_text(',
+        '    json.dumps(native_route_contract(), ensure_ascii=False, indent=2) + "\\n",',
         '    encoding="utf-8",',
         ')',
       ].join('\n'),
@@ -62,6 +75,23 @@ try {
       },
     },
   );
+
+  if (checkOnly) {
+    if (
+      readFileSync(routeContractPath, 'utf8') !==
+      readFileSync(generatedRouteContractPath, 'utf8')
+    ) {
+      throw new Error(
+        'Ingress route contract is out of date. Run `pnpm generate:api-client`.',
+      );
+    }
+  } else {
+    writeFileSync(
+      routeContractPath,
+      readFileSync(generatedRouteContractPath, 'utf8'),
+      'utf8',
+    );
+  }
 
   run('pnpm', ['exec', 'openapi-typescript', schemaPath, '-o', generatedPath]);
 

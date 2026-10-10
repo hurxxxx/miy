@@ -1,0 +1,1646 @@
+{
+  "schema_version": 1,
+  "app_contract_revision": "sha256:2b033df33d968a6f7ca323d0a9c909d07b448dc3bdbfd5baf3beae1230fe1661",
+  "routes": [
+    {
+      "path": "/admin/ai-model-settings",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-model-settings/connections",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-model-settings/connections/{provider_id}/probe",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-model-settings/defaults/{route}",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-model-settings/models",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-model-settings/models/{model_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-model-settings/providers/{provider_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-model-settings/providers/{provider_id}/discover-models",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-model-settings/workloads/{workload_id}/route",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-security/data-protection",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-security/detected-values/details",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-security/detected-values/groups",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-security/enforcement",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-security/exceptions",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-security/exceptions/{exception_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-security/monitoring",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-security/rules",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-security/rules/{rule_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-security/simulate",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai-security/summary",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/ai/runtime/retention/scrub",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/app-bar-categories",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/app-bar-categories/layout",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/app-bar-categories/{category_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/apps/company-controls",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/apps/{app_id}/access-policy",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/audit-logs",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/document-processing",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/groups",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/groups/{group_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/groups/{group_id}/members",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/groups/{group_id}/members/{user_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/hermes",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/hermes/profiles",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/hermes/profiles/{binding_id}/inventory",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/hermes/profiles/{binding_id}/mcp-servers",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/hermes/profiles/{binding_id}/mcp-servers/{server_name}",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/hermes/profiles/{binding_id}/model/enforce",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/hermes/profiles/{binding_id}/reconcile",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/hermes/profiles/{binding_id}/skills",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/hermes/research-sources",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/hermes/research-sources/{source_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/hermes/runtime-health",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/model-runtime-status",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/platform-api-keys",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/platform-api-keys/{key_id}/reveal",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/platform-api-keys/{key_id}/revoke",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/usage/dashboard",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/usage/excluded-users",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/usage/targets",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/users",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/users/{user_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/admin/users/{user_id}/reset-password",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent-terminal/codex/threads",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent-terminal/config",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent-terminal/roots/{root_key}/git/commits/{commit}",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent-terminal/roots/{root_key}/git/commits/{commit}/diff",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent-terminal/roots/{root_key}/git/diff",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent-terminal/roots/{root_key}/git/history",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent-terminal/roots/{root_key}/git/status",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent-terminal/roots/{root_key}/git/summary",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent-terminal/sessions",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent-terminal/sessions/{session_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent-terminal/sessions/{session_id}/stop",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent-terminal/sessions/{session_id}/ws",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/file-revisions/{revision_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/file-revisions/{revision_id}/content",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/file-revisions/{revision_id}/preview-asset",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/files/{file_id}/content",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/jobs",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/jobs/{job_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/jobs/{job_id}/{action}",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/runs",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/runs/{run_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/runs/{run_id}/approval",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/runs/{run_id}/events",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/runs/{run_id}/steer",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/runs/{run_id}/stop",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/sessions",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/sessions/{session_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/sessions/{session_id}/file-revisions",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/sessions/{session_id}/files",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/sessions/{session_id}/messages",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/sessions/{session_id}/runs",
+      "owner": "platform"
+    },
+    {
+      "path": "/agent/status",
+      "owner": "platform"
+    },
+    {
+      "path": "/ai/artifacts",
+      "owner": "platform"
+    },
+    {
+      "path": "/ai/artifacts/{artifact_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/ai/artifacts/{artifact_id}/index-generations",
+      "owner": "platform"
+    },
+    {
+      "path": "/ai/artifacts/{artifact_id}/queries",
+      "owner": "platform"
+    },
+    {
+      "path": "/ai/artifacts/{artifact_id}/sources",
+      "owner": "platform"
+    },
+    {
+      "path": "/ai/graph-runs",
+      "owner": "platform"
+    },
+    {
+      "path": "/ai/graph-runs/{run_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/announcements",
+      "owner": "official"
+    },
+    {
+      "path": "/announcements/{announcement_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/apps/bootstrap",
+      "owner": "platform"
+    },
+    {
+      "path": "/auth/bootstrap-status",
+      "owner": "platform"
+    },
+    {
+      "path": "/auth/change-password",
+      "owner": "platform"
+    },
+    {
+      "path": "/auth/codex-console-session-links",
+      "owner": "platform"
+    },
+    {
+      "path": "/auth/codex-console-session-links/exchange",
+      "owner": "platform"
+    },
+    {
+      "path": "/auth/desktop-session-links",
+      "owner": "platform"
+    },
+    {
+      "path": "/auth/desktop-session-links/exchange",
+      "owner": "platform"
+    },
+    {
+      "path": "/auth/dev-admin-login",
+      "owner": "platform"
+    },
+    {
+      "path": "/auth/dev-login",
+      "owner": "platform"
+    },
+    {
+      "path": "/auth/login",
+      "owner": "platform"
+    },
+    {
+      "path": "/auth/logout",
+      "owner": "platform"
+    },
+    {
+      "path": "/auth/me",
+      "owner": "platform"
+    },
+    {
+      "path": "/auth/preferences",
+      "owner": "platform"
+    },
+    {
+      "path": "/auth/sessions",
+      "owner": "platform"
+    },
+    {
+      "path": "/auth/sessions/{session_id}/revoke",
+      "owner": "platform"
+    },
+    {
+      "path": "/auth/setup",
+      "owner": "platform"
+    },
+    {
+      "path": "/auth/signup",
+      "owner": "platform"
+    },
+    {
+      "path": "/bento/ai-jobs",
+      "owner": "official"
+    },
+    {
+      "path": "/bento/ai-jobs/{job_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/bento/ai-jobs/{job_id}/cancel",
+      "owner": "official"
+    },
+    {
+      "path": "/bento/hub",
+      "owner": "official"
+    },
+    {
+      "path": "/bento/items",
+      "owner": "official"
+    },
+    {
+      "path": "/bento/items/generate",
+      "owner": "official"
+    },
+    {
+      "path": "/bento/items/{document_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/bento/items/{document_id}/ai-edit",
+      "owner": "official"
+    },
+    {
+      "path": "/bento/items/{document_id}/permanent",
+      "owner": "official"
+    },
+    {
+      "path": "/bento/items/{document_id}/restore",
+      "owner": "official"
+    },
+    {
+      "path": "/calendar/events",
+      "owner": "official"
+    },
+    {
+      "path": "/chatbot/approvals/{approval_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/chatbot/approvals/{approval_id}/abandon",
+      "owner": "platform"
+    },
+    {
+      "path": "/chatbot/approvals/{approval_id}/resolve",
+      "owner": "platform"
+    },
+    {
+      "path": "/chatbot/apps/{app_id}/manifest",
+      "owner": "platform"
+    },
+    {
+      "path": "/chatbot/apps/{app_id}/openapi.json",
+      "owner": "platform"
+    },
+    {
+      "path": "/chatbot/capabilities/manifest",
+      "owner": "platform"
+    },
+    {
+      "path": "/chatbot/capabilities/openapi.json",
+      "owner": "platform"
+    },
+    {
+      "path": "/chatbot/chat",
+      "owner": "platform"
+    },
+    {
+      "path": "/chatbot/chat/resume",
+      "owner": "platform"
+    },
+    {
+      "path": "/chatbot/chat/stream",
+      "owner": "platform"
+    },
+    {
+      "path": "/chatbot/conversations",
+      "owner": "platform"
+    },
+    {
+      "path": "/chatbot/conversations/{conversation_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/chatbot/health",
+      "owner": "platform"
+    },
+    {
+      "path": "/chatbot/runtime/runs/{run_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/chatbot/tools/{tool_name}/invoke",
+      "owner": "platform"
+    },
+    {
+      "path": "/community/admin/channels",
+      "owner": "official"
+    },
+    {
+      "path": "/community/admin/channels/{channel_key}",
+      "owner": "official"
+    },
+    {
+      "path": "/community/channels",
+      "owner": "official"
+    },
+    {
+      "path": "/community/channels/{channel_key}/posts",
+      "owner": "official"
+    },
+    {
+      "path": "/community/posts/{post_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/community/posts/{post_id}/comments",
+      "owner": "official"
+    },
+    {
+      "path": "/community/posts/{post_id}/comments/{comment_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/community/posts/{post_id}/media/resolve",
+      "owner": "official"
+    },
+    {
+      "path": "/community/posts/{post_id}/read",
+      "owner": "official"
+    },
+    {
+      "path": "/community/posts/{post_id}/unlock",
+      "owner": "official"
+    },
+    {
+      "path": "/connectors/ocr/route",
+      "owner": "platform"
+    },
+    {
+      "path": "/content",
+      "owner": "platform"
+    },
+    {
+      "path": "/diagrams/hub",
+      "owner": "official"
+    },
+    {
+      "path": "/diagrams/items",
+      "owner": "official"
+    },
+    {
+      "path": "/diagrams/items/{item_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/diagrams/items/{item_id}/preview.png",
+      "owner": "official"
+    },
+    {
+      "path": "/diagrams/items/{item_id}/restore",
+      "owner": "official"
+    },
+    {
+      "path": "/directory/groups",
+      "owner": "platform"
+    },
+    {
+      "path": "/directory/people",
+      "owner": "platform"
+    },
+    {
+      "path": "/dm/attachments/{attachment_id}/download",
+      "owner": "official"
+    },
+    {
+      "path": "/dm/attachments/{attachment_id}/preview",
+      "owner": "official"
+    },
+    {
+      "path": "/dm/conversations",
+      "owner": "official"
+    },
+    {
+      "path": "/dm/conversations/{conversation_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/dm/conversations/{conversation_id}/attachments",
+      "owner": "official"
+    },
+    {
+      "path": "/dm/conversations/{conversation_id}/messages",
+      "owner": "official"
+    },
+    {
+      "path": "/dm/conversations/{conversation_id}/participants",
+      "owner": "official"
+    },
+    {
+      "path": "/dm/conversations/{conversation_id}/participants/me",
+      "owner": "official"
+    },
+    {
+      "path": "/dm/conversations/{conversation_id}/participants/{user_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/dm/conversations/{conversation_id}/read",
+      "owner": "official"
+    },
+    {
+      "path": "/dm/threads",
+      "owner": "official"
+    },
+    {
+      "path": "/dm/threads/{conversation_id}/messages",
+      "owner": "official"
+    },
+    {
+      "path": "/dm/threads/{conversation_id}/read",
+      "owner": "official"
+    },
+    {
+      "path": "/dm/users",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/collab/pages/{page_ref}/session",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/collab/pages/{page_ref}/snapshot",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/collab/pages/{page_ref}/ws",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/collab/pages/{page_ref}/ws/{room_name}",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/collections",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/collections/{collection_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/favorites",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/hub",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/items",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/items/{item_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/items/{item_id}/duplicate",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/items/{item_id}/favorite",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/items/{item_id}/pages",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/items/{item_id}/pms-tasks",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/items/{item_id}/pms-tasks/{task_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/items/{item_id}/sharing",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/items/{item_id}/sharing/company",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/items/{item_id}/sharing/groups",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/items/{item_id}/sharing/groups/{group_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/items/{item_id}/sharing/link",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/items/{item_id}/sharing/users/{user_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/items/{item_id}/target",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/items/{item_id}/view",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/pages/{page_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/recent-pages",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/shareable-users",
+      "owner": "official"
+    },
+    {
+      "path": "/docs/shared-links/{share_token}",
+      "owner": "official"
+    },
+    {
+      "path": "/files",
+      "owner": "official"
+    },
+    {
+      "path": "/files/archive",
+      "owner": "official"
+    },
+    {
+      "path": "/files/bulk-delete",
+      "owner": "official"
+    },
+    {
+      "path": "/files/corpora",
+      "owner": "official"
+    },
+    {
+      "path": "/files/folders",
+      "owner": "official"
+    },
+    {
+      "path": "/files/folders/{folder_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/files/search",
+      "owner": "official"
+    },
+    {
+      "path": "/files/upload",
+      "owner": "official"
+    },
+    {
+      "path": "/files/{file_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/files/{file_id}/download",
+      "owner": "official"
+    },
+    {
+      "path": "/files/{file_id}/preview",
+      "owner": "official"
+    },
+    {
+      "path": "/hermes-terminal/config",
+      "owner": "platform"
+    },
+    {
+      "path": "/hermes-terminal/sessions",
+      "owner": "platform"
+    },
+    {
+      "path": "/hermes-terminal/sessions/{session_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/hermes-terminal/sessions/{session_id}/approvals",
+      "owner": "platform"
+    },
+    {
+      "path": "/hermes-terminal/sessions/{session_id}/approvals/{approval_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/hermes-terminal/sessions/{session_id}/files",
+      "owner": "platform"
+    },
+    {
+      "path": "/hermes-terminal/sessions/{session_id}/files/download",
+      "owner": "platform"
+    },
+    {
+      "path": "/hermes-terminal/sessions/{session_id}/stop",
+      "owner": "platform"
+    },
+    {
+      "path": "/hermes-terminal/sessions/{session_id}/ws",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/_data/{collection}",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/_data/{collection}/{record_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/_files/authorize-selection",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/_files/candidates",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/_files/content",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/_files/selection-request",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/bootstrap",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/bootstrap-authorizations",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/bootstrap-authorizations/exchange",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/bootstrap-authorizations/{authorization_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/bootstrap-authorizations/{authorization_id}/bootstrap",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/bootstrap-authorizations/{authorization_id}/receipt",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/bootstrap/{operation_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/catalog",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/definitions",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/builds",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/builds/{build_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/context",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/deployments",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/deployments/{request_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/sync",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/exchange",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/launch",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/session",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/{app_id}/company-control",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/{app_id}/deployments",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/{app_id}/deployments/{request_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/{app_id}/installations",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/{app_id}/installations/{installation_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/{app_id}/installations/{installation_id}/delegations",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/{app_id}/installations/{installation_id}/delegations/{grant_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/{app_id}/installations/{installation_id}/owner-preview",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/{app_id}/promotions",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/{app_id}/releases",
+      "owner": "platform"
+    },
+    {
+      "path": "/integrations/apps",
+      "owner": "platform"
+    },
+    {
+      "path": "/integrations/apps/{app_id}/installations",
+      "owner": "platform"
+    },
+    {
+      "path": "/integrations/apps/{app_id}/usage",
+      "owner": "platform"
+    },
+    {
+      "path": "/integrations/directory/organization-units",
+      "owner": "platform"
+    },
+    {
+      "path": "/integrations/directory/people",
+      "owner": "platform"
+    },
+    {
+      "path": "/internal/hermes/mcp",
+      "owner": "platform"
+    },
+    {
+      "path": "/mail/accounts",
+      "owner": "official"
+    },
+    {
+      "path": "/mail/accounts/test",
+      "owner": "official"
+    },
+    {
+      "path": "/mail/accounts/{account_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/mail/accounts/{account_id}/sync",
+      "owner": "official"
+    },
+    {
+      "path": "/mail/drafts",
+      "owner": "official"
+    },
+    {
+      "path": "/mail/drafts/{draft_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/mail/drafts/{draft_id}/send",
+      "owner": "official"
+    },
+    {
+      "path": "/mail/messages",
+      "owner": "official"
+    },
+    {
+      "path": "/mail/messages/{message_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/mail/messages/{message_id}/flags",
+      "owner": "official"
+    },
+    {
+      "path": "/mail/messages/{message_id}/reply-draft",
+      "owner": "official"
+    },
+    {
+      "path": "/mail/messages/{message_id}/summarize",
+      "owner": "official"
+    },
+    {
+      "path": "/media/cleanup-orphans",
+      "owner": "platform"
+    },
+    {
+      "path": "/media/link",
+      "owner": "platform"
+    },
+    {
+      "path": "/media/resolve",
+      "owner": "platform"
+    },
+    {
+      "path": "/media/upload",
+      "owner": "platform"
+    },
+    {
+      "path": "/meeting/availability",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings/{meeting_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings/{meeting_id}/attendees",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings/{meeting_id}/docs",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings/{meeting_id}/docs/{doc_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings/{meeting_id}/files",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings/{meeting_id}/files/{file_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings/{meeting_id}/notes/ensure",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings/{meeting_id}/recordings/import",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings/{meeting_id}/recordings/staging",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings/{meeting_id}/recordings/staging/{staging_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings/{meeting_id}/recordings/staging/{staging_id}/chunks/{seq}",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings/{meeting_id}/recordings/staging/{staging_id}/complete",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings/{meeting_id}/recordings/{recording_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings/{meeting_id}/recordings/{recording_id}/media",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings/{meeting_id}/recordings/{recording_id}/playback",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings/{meeting_id}/recordings/{recording_id}/retry",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings/{meeting_id}/tasks",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/meetings/{meeting_id}/tasks/{task_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/meeting/users",
+      "owner": "official"
+    },
+    {
+      "path": "/notifications",
+      "owner": "official"
+    },
+    {
+      "path": "/notifications/read-all",
+      "owner": "official"
+    },
+    {
+      "path": "/notifications/unread-count",
+      "owner": "official"
+    },
+    {
+      "path": "/notifications/{notification_id}/read",
+      "owner": "official"
+    },
+    {
+      "path": "/personal-widgets/memo",
+      "owner": "official"
+    },
+    {
+      "path": "/personal-widgets/pms/tasks/assigned",
+      "owner": "official"
+    },
+    {
+      "path": "/personal-widgets/todos",
+      "owner": "official"
+    },
+    {
+      "path": "/personal-widgets/todos/{todo_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/planner/events",
+      "owner": "official"
+    },
+    {
+      "path": "/planner/events/{event_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/attachments/{attachment_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/checklist/{item_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/custom-fields/{field_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/dashboard/summary",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/folders",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/folders/{folder_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/labels/{label_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/lists",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/lists/{list_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/lists/{list_id}/custom-fields",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/lists/{list_id}/export",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/lists/{list_id}/labels",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/lists/{list_id}/milestones",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/lists/{list_id}/status-mode",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/lists/{list_id}/statuses",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/lists/{list_id}/tasks",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/lists/{list_id}/tasks/bulk",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/lists/{list_id}/tasks/reorder",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/lists/{list_id}/templates",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/milestones/{milestone_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/space-statuses/{status_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/spaces",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/spaces/{space_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/spaces/{space_id}/groups",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/spaces/{space_id}/groups/{group_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/spaces/{space_id}/lists",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/spaces/{space_id}/lists/reorder",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/spaces/{space_id}/members",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/spaces/{space_id}/members/{user_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/spaces/{space_id}/statuses",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/task-list-statuses/{status_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/tasks/assigned",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/tasks/today-overdue",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/tasks/{task_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/tasks/{task_id}/activity-logs",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/tasks/{task_id}/assignees",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/tasks/{task_id}/attachments",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/tasks/{task_id}/checklist",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/tasks/{task_id}/checklist/reorder",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/tasks/{task_id}/comments",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/tasks/{task_id}/custom-field-values",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/tasks/{task_id}/docs",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/tasks/{task_id}/docs/{doc_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/tasks/{task_id}/followers",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/templates/{template_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/users",
+      "owner": "official"
+    },
+    {
+      "path": "/pms/view-preferences",
+      "owner": "official"
+    },
+    {
+      "path": "/rag/query",
+      "owner": "platform"
+    },
+    {
+      "path": "/rag/reindex",
+      "owner": "platform"
+    },
+    {
+      "path": "/rag/sources",
+      "owner": "platform"
+    },
+    {
+      "path": "/realtime/ws",
+      "owner": "platform"
+    },
+    {
+      "path": "/recording/recordings",
+      "owner": "official"
+    },
+    {
+      "path": "/recording/recordings/import",
+      "owner": "official"
+    },
+    {
+      "path": "/recording/recordings/staging",
+      "owner": "official"
+    },
+    {
+      "path": "/recording/recordings/staging/{staging_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/recording/recordings/staging/{staging_id}/chunks/{seq}",
+      "owner": "official"
+    },
+    {
+      "path": "/recording/recordings/staging/{staging_id}/complete",
+      "owner": "official"
+    },
+    {
+      "path": "/recording/recordings/staging/{staging_id}/tus",
+      "owner": "official"
+    },
+    {
+      "path": "/recording/recordings/tus",
+      "owner": "official"
+    },
+    {
+      "path": "/recording/recordings/{recording_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/recording/recordings/{recording_id}/media",
+      "owner": "official"
+    },
+    {
+      "path": "/recording/recordings/{recording_id}/playback",
+      "owner": "official"
+    },
+    {
+      "path": "/recording/recordings/{recording_id}/publications/docs",
+      "owner": "official"
+    },
+    {
+      "path": "/recording/recordings/{recording_id}/retry",
+      "owner": "official"
+    },
+    {
+      "path": "/recording/recordings/{recording_id}/targets",
+      "owner": "official"
+    },
+    {
+      "path": "/recording/recordings/{recording_id}/targets/{target_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/release-notes",
+      "owner": "platform"
+    },
+    {
+      "path": "/release-notes/current",
+      "owner": "platform"
+    },
+    {
+      "path": "/release-notes/{release_note_id}/dismiss",
+      "owner": "platform"
+    },
+    {
+      "path": "/retrieval/query",
+      "owner": "platform"
+    },
+    {
+      "path": "/retrieval/sources",
+      "owner": "platform"
+    },
+    {
+      "path": "/search/query",
+      "owner": "platform"
+    },
+    {
+      "path": "/tetris/decision",
+      "owner": "platform"
+    },
+    {
+      "path": "/tetris/models",
+      "owner": "platform"
+    },
+    {
+      "path": "/usage/events",
+      "owner": "platform"
+    },
+    {
+      "path": "/video-chat/sessions",
+      "owner": "official"
+    },
+    {
+      "path": "/video-chat/sessions/{session_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/video-chat/sessions/{session_id}/captions/start",
+      "owner": "official"
+    },
+    {
+      "path": "/video-chat/sessions/{session_id}/captions/stop",
+      "owner": "official"
+    },
+    {
+      "path": "/video-chat/sessions/{session_id}/end",
+      "owner": "official"
+    },
+    {
+      "path": "/video-chat/sessions/{session_id}/join-token",
+      "owner": "official"
+    },
+    {
+      "path": "/video-chat/sessions/{session_id}/recording/start",
+      "owner": "official"
+    },
+    {
+      "path": "/video-chat/sessions/{session_id}/recording/stop",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/collab/items/{item_id}/session",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/collab/items/{item_id}/snapshot",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/collab/items/{item_id}/ws",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/collab/items/{item_id}/ws/{room_name}",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/contexts/slot",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/hub",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/items",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/items/{item_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/items/{item_id}/favorite",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/items/{item_id}/permanent",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/items/{item_id}/restore",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/items/{item_id}/sharing",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/items/{item_id}/sharing/company",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/items/{item_id}/sharing/groups",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/items/{item_id}/sharing/groups/{group_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/items/{item_id}/sharing/link",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/items/{item_id}/sharing/users/{user_id}",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/items/{item_id}/target",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/items/{item_id}/view",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/shareable-users",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/shared-links/{share_token}",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/shared-links/{share_token}/item",
+      "owner": "official"
+    },
+    {
+      "path": "/whiteboard/shared-links/{share_token}/view",
+      "owner": "official"
+    }
+  ]
+}

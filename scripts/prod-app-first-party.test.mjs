@@ -286,7 +286,10 @@ for (const changed of [false, true]) {
     const result = run(`
 ROOT_DIR=/owned ENV_FILE=/owned/.env
 node() { printf '/api/v1'; }
-docker() { if [[ "$*" == *'${id('b')}'* ]]; then
+docker() {
+  [[ "$*" == 'run --rm --network none --read-only --workdir /tmp --cap-drop ALL --security-opt no-new-privileges --entrypoint /opt/miy/apps/api/.venv/bin/python '* ]] || return 97
+  [[ "$*" != *--env* && "$*" == *' -m miy_api.first_party_routes --json --api-prefix /api/v1' ]] || return 97
+  if [[ "$*" == *'${id('b')}'* ]]; then
   printf '%s\\n' '{"api_prefix":"/api/v1","official_patterns":["${changed ? '^/api/v1/new$' : '^/api/v1/owned$'}"]}';
   else printf '%s\\n' '{"api_prefix":"/api/v1","official_patterns":["^/api/v1/owned$"]}'; fi; }
 if require_official_gateway_compatibility '${id('a')}' '${id('b')}'; then printf 'accepted\\n'; else printf 'held\\n'; fi

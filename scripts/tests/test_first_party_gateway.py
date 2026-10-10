@@ -10,12 +10,14 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
 import socket
 import subprocess
 import sys
 from threading import Event, Thread
 import time
 from uuid import uuid4
+import zipfile
 
 import pytest
 
@@ -28,6 +30,84 @@ module_spec = importlib.util.spec_from_file_location(
 gateway = importlib.util.module_from_spec(module_spec)
 sys.modules[module_spec.name] = gateway
 module_spec.loader.exec_module(gateway)
+
+
+@pytest.fixture(scope="module")
+def isolated_api_wheel(tmp_path_factory):
+    directory = tmp_path_factory.mktemp("gateway-api-wheel")
+    subprocess.run(
+        [
+            "uv",
+            "build",
+            "--wheel",
+            "--out-dir",
+            str(directory),
+            "--directory",
+            str(ROOT / "apps/api"),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    (wheel,) = directory.glob("miy_api-*.whl")
+    site = directory / "site"
+    with zipfile.ZipFile(wheel) as archive:
+        assert "miy_api/core/first_party_routes.generated.json" in archive.namelist()
+        assert all(
+            not Path(name).is_absolute() and ".." not in Path(name).parts
+            for name in archive.namelist()
+        )
+        archive.extractall(site)
+    cwd = directory / "cwd"
+    cwd.mkdir()
+    assert all(not (ancestor / ".env").exists() for ancestor in (cwd, *cwd.parents))
+    return site, cwd
+
+
+def native_configuration(isolated_api_wheel, settings):
+    site, cwd = isolated_api_wheel
+    # Use the actual matching API wheel and pinned API interpreter/dependencies.
+    # The private package path wins over the editable source checkout, and no
+    # project/env-file ancestor or application setting is supplied to this process.
+    program = """
+import os, pathlib, runpy, sys
+import miy_api
+assert {key for key in os.environ if key.startswith('MIY_')} == {
+    'MIY_APP_BIND_HOST', 'MIY_APP_PORT', 'MIY_API_PREFIX', 'MIY_APP_FORWARDED_ALLOW_IPS'
+}
+assert pathlib.Path(miy_api.__file__).parent == pathlib.Path(sys.argv[1]) / 'miy_api'
+entry = sys.argv[2]
+sys.argv = [entry, '--print-config']
+runpy.run_path(entry, run_name='__main__')
+assert not any(name in sys.modules for name in ('miy_api.core.settings', 'miy_api.app', 'miy_api.api_registry'))
+assert not any(name.startswith('miy_api.domains.') for name in sys.modules)
+"""
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            program,
+            str(site),
+            str(ROOT / "ops/first-party/gateway.py"),
+        ],
+        cwd=cwd,
+        env={
+            "PATH": os.environ.get("PATH", os.defpath),
+            "PYTHONPATH": str(site),
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "MIY_APP_BIND_HOST": settings.host,
+            "MIY_APP_PORT": str(settings.port),
+            "MIY_API_PREFIX": settings.api_prefix,
+            "MIY_APP_FORWARDED_ALLOW_IPS": ",".join(settings.proxies),
+        },
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    assert result.returncode == 0, result.stderr
+    assert not result.stderr
+    return result.stdout
 
 
 @pytest.fixture
@@ -81,6 +161,42 @@ def test_render_uses_actual_owner_projection_and_preserves_native_boundaries(set
     assert "127.0.0.1:18779" in configuration and "127.0.0.1:18780" in configuration
 
 
+def test_gateway_wheel_prints_configuration_without_application_settings(
+    settings, isolated_api_wheel
+):
+    configuration = native_configuration(isolated_api_wheel, settings)
+    assert "map $uri $miy_api_owner" in configuration
+    assert "map $uri $miy_ui_owner" in configuration
+    assert "listen 127.0.0.1:19499;" in configuration
+    assert "127.0.0.1:18779" in configuration and "127.0.0.1:18780" in configuration
+
+
+def test_default_gateway_writes_private_config_before_native_exec(settings, monkeypatch):
+    captured = []
+
+    def observe_exec(executable, arguments):
+        assert executable == "/usr/sbin/nginx"
+        assert arguments[:2] == ["nginx", "-c"]
+        assert arguments[3:] == ["-g", "daemon off;"]
+        path = Path(arguments[2])
+        captured.append(path)
+        assert path.stat().st_mode & 0o777 == 0o600
+        assert path.parent.stat().st_mode & 0o777 == 0o700
+        configuration = path.read_text()
+        assert "map $uri $miy_api_owner" in configuration
+        assert "listen 127.0.0.1:19499;" in configuration
+
+    monkeypatch.setattr(sys, "argv", ["gateway.py"])
+    monkeypatch.setattr(gateway.os, "execv", observe_exec)
+    try:
+        gateway.main()
+        assert len(captured) == 1
+    finally:
+        for path in captured:
+            assert path.parent.name.startswith("miy-first-party-gateway-")
+            shutil.rmtree(path.parent)
+
+
 def test_health_probes_only_gateway_fixed_local_paths(settings, monkeypatch):
     probes = []
 
@@ -106,7 +222,12 @@ def test_health_probes_only_gateway_fixed_local_paths(settings, monkeypatch):
     gateway.check(settings)
     assert probes == [
         ("GET", path)
-        for path in ("/healthz", "/readyz", "/official-suite/healthz", "/official-suite/readyz")
+        for path in (
+            "/healthz",
+            "/readyz",
+            "/official-suite/healthz",
+            "/official-suite/readyz",
+        )
     ]
     Connection.status = 302
     with pytest.raises(ValueError, match="gateway_health_failed"):
@@ -117,7 +238,9 @@ def test_health_probes_only_gateway_fixed_local_paths(settings, monkeypatch):
     os.environ.get("MIY_TEST_INDEPENDENT_DOCKER") != "1",
     reason="Explicit local Docker opt-in required",
 )
-def test_actual_nginx_routes_sanitizes_headers_streams_and_tunnels_websocket(settings):
+def test_actual_nginx_routes_sanitizes_headers_streams_and_tunnels_websocket(
+    settings, isolated_api_wheel
+):
     subprocess.run(["docker", "image", "inspect", NGINX], check=True, capture_output=True)
     release_stream = Event()
     servers = []
@@ -178,7 +301,13 @@ def test_actual_nginx_routes_sanitizes_headers_streams_and_tunnels_websocket(set
             listener.bind(("127.0.0.1", 0))
             port = listener.getsockname()[1]
         native = gateway.GatewaySettings("127.0.0.1", port, "/api/v1", ("127.0.0.1",))
-        configuration = gateway.render(native, directory=Path("/tmp"))
+        configuration = native_configuration(isolated_api_wheel, native)
+        # --print-config uses the same private-directory renderer as startup.
+        # The immutable NGINX tool's rootless tmpfs must own that directory too.
+        private_directory = configuration.split("pid ", 1)[1].split("/nginx.pid;", 1)[0]
+        assert private_directory.startswith("/tmp/miy-first-party-gateway-")
+        assert len(Path(private_directory).parts) == 3
+        assert all(character.isalnum() or character in "_-/" for character in private_directory)
         # Synthetic upstreams use ephemeral ports. The product has no target override.
         configuration = configuration.replace(
             gateway.PLATFORM, f"127.0.0.1:{servers[0].server_port}"
@@ -206,7 +335,7 @@ def test_actual_nginx_routes_sanitizes_headers_streams_and_tunnels_websocket(set
                 "/bin/sh",
                 NGINX,
                 "-c",
-                "umask 077; cat > /tmp/nginx.conf; exec nginx -c /tmp/nginx.conf -g 'daemon off;'",
+                f"umask 077; mkdir -p {private_directory}; cat > /tmp/nginx.conf; exec nginx -c /tmp/nginx.conf -g 'daemon off;'",
             ],
             text=True,
             stdin=subprocess.PIPE,
@@ -223,7 +352,9 @@ def test_actual_nginx_routes_sanitizes_headers_streams_and_tunnels_websocket(set
             )
             try:
                 connection.request(
-                    "GET", path, headers={"Host": "portal.example.test:443", **(headers or {})}
+                    "GET",
+                    path,
+                    headers={"Host": "portal.example.test:443", **(headers or {})},
                 )
                 response = connection.getresponse()
                 assert response.status == 200

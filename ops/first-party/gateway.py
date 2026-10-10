@@ -13,6 +13,7 @@ import ipaddress
 import os
 from pathlib import Path
 import re
+import shutil
 import sys
 import tempfile
 
@@ -141,7 +142,12 @@ http {{
 
 
 def check(settings: GatewaySettings) -> None:
-    for path in ("/healthz", "/readyz", "/official-suite/healthz", "/official-suite/readyz"):
+    for path in (
+        "/healthz",
+        "/readyz",
+        "/official-suite/healthz",
+        "/official-suite/readyz",
+    ):
         connection = http.client.HTTPConnection("127.0.0.1", settings.port, timeout=3)
         try:
             connection.request("GET", path)
@@ -155,7 +161,13 @@ def check(settings: GatewaySettings) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--check", action="store_true", help="Probe only fixed local health routes")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--check", action="store_true", help="Probe only fixed local health routes")
+    mode.add_argument(
+        "--print-config",
+        action="store_true",
+        help="Print the owned NGINX configuration without starting it",
+    )
     args = parser.parse_args()
     settings = GatewaySettings.from_environment()
     if args.check:
@@ -164,8 +176,14 @@ def main() -> None:
     directory = Path(tempfile.mkdtemp(prefix="miy-first-party-gateway-", dir="/tmp"))
     directory.chmod(0o700)
     configuration = render(settings, directory=directory)
+    if args.print_config:
+        try:
+            print(configuration, end="")
+        finally:
+            shutil.rmtree(directory)
+        return
     path = directory / "nginx.conf"
-    with path.open("x", opener=lambda name, flags: os.open(name, flags, 0o600)) as output:
+    with open(path, "x", opener=lambda name, flags: os.open(name, flags, 0o600)) as output:
         output.write(configuration)
     os.execv("/usr/sbin/nginx", ["nginx", "-c", str(path), "-g", "daemon off;"])
 
@@ -174,5 +192,8 @@ if __name__ == "__main__":
     try:
         main()
     except (OSError, ValueError):
-        print("First-party gateway configuration or local health is unavailable.", file=sys.stderr)
+        print(
+            "First-party gateway configuration or local health is unavailable.",
+            file=sys.stderr,
+        )
         sys.exit(1)

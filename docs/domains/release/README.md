@@ -321,7 +321,16 @@ existing authenticated browser/realtime entrypoints for representative common
 and official HTTP/WebSocket flows. Source-only checks and local image preparation
 do not prove public runtime acceptance.
 
-The pinned Core image includes its matching gateway and generated-map source,
+The ingress inventory is the packaged
+`miy_api/core/first_party_routes.generated.json` resource. The existing
+`pnpm generate:api-client` owner produces it from the complete native HTTP and
+WebSocket router inventory and current app contracts; `pnpm check:api-contract`
+checks drift together with OpenAPI. Runtime projection validates both owners
+and compiles the configured API prefix with Starlette without importing app
+settings or business routers. Gateway startup and clean-image compatibility
+checks require no database configuration or runtime application initialization.
+
+The pinned Core image includes its matching gateway and generated route metadata,
 so the paired service rollback restores routing with the same immutable runtime;
 it does not require an external HTTPS map switch. Restoring legacy removes the
 managed gateway and restores the prior API to the original app listener. A

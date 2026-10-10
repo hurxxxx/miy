@@ -1,5 +1,13 @@
 # 재설계 진행 기록
 
+## 2026-10-10 설정 없는 gateway 기동 보완
+
+후보 `772e5ffb`의 필수271/job439는449.505612초에 MERGE_BLOCKED로 실패했다. 네 공개 설정만 받는 gateway와 이미지 호환 CLI가 업무 router를 import하면서 PostgreSQL 설정까지 요구하는 P1을 확인했다. Fresh no-env 과정에서 실제 실패를 재현했고 앱 설정 fallback을 추가하지 않았다.
+
+기존 OpenAPI 생성·검사가 실제 HTTP/WebSocket router와 앱 계약에서410개 path/owner 메타데이터를 생성·검사한다. Runtime은 packaged JSON과 현재 계약 revision을 검증하고 Starlette로 경로를 컴파일하며 업무 router·설정을 import하지 않는다. 두 Dockerfile의 설치 wheel 검사와 기존 이미지 호환 검사가 같은 reader를 사용한다. 기본 gateway의 `Path.open(opener=...)` 오류도 builtin exclusive open으로 고쳤다. 별도 route 수기 목록·의존성·CI entry·harness는 추가하지 않았다.
+
+Route8개, 실제 격리 wheel과 rootless native NGINX를 포함한 gateway17개, 두 이미지의 동일 경로 검사2개와 lint·구문·형식 검사가 통과했다. Default 기동은 실제0600 파일 쓰기까지 확인하고 exec만 stub했으며 실제 Core Debian image의 default NGINX 기동으로 확대하지 않는다. 새 리뷰·전체 CI·개발 전환·운영 세 산출물/여섯 서비스·별도 Workbench와 공개 인수는 남아 있다. 외부 TLS 경로는 유지하고 Core gateway가 기존 공개 포트를 인계한다.
+
 ## 2026-10-10 문서 분리 회귀 두 건 보완
 
 Native 종료 후보 `1115b6e7`의 필수270/job438은472.351421초에 MERGE_BLOCKED로 실패했다. 진행 중 Files 업로드의 문서 전환 보호와 iframe widget theme 누락을 발견한 결과를 보존하며 병합·서비스 변경을 보류했다. 이전269/437 성공은 최신 후보의 성공으로 사용하지 않는다.

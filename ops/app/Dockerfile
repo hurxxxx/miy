@@ -92,7 +92,8 @@ RUN --mount=type=bind,from=python-build,source=/usr/local/bin/uv,target=/usr/loc
     uv pip install --no-cache --no-deps --python apps/api/.venv/bin/python \
       /wheels/miy_api-*.whl /wheels/miy_official_api-*.whl \
   && uv pip install --no-cache --no-deps --python apps/worker/.venv/bin/python \
-      /wheels/miy_api-*.whl /wheels/miy_worker-*.whl /wheels/miy_official_worker-*.whl
+      /wheels/miy_api-*.whl /wheels/miy_worker-*.whl /wheels/miy_official_worker-*.whl \
+  && apps/api/.venv/bin/python -m miy_api.first_party_routes --json >/dev/null
 COPY --chown=miy:miy pnpm-workspace.yaml pnpm-workspace.yaml
 COPY --chown=miy:miy config config
 COPY --chown=miy:miy ops/first-party/gateway.py ops/first-party/gateway.py

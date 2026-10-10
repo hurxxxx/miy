@@ -80,7 +80,8 @@ COPY --from=dependencies /opt/miy/apps/api/.venv apps/api/.venv
 RUN --mount=type=bind,from=uv-toolchain,source=/uv,target=/usr/local/bin/uv \
     --mount=type=bind,from=wheels,source=/wheels,target=/wheels \
     uv pip install --no-cache --no-deps --python apps/api/.venv/bin/python \
-      /wheels/miy_api-*.whl /wheels/miy_official_api-*.whl
+      /wheels/miy_api-*.whl /wheels/miy_official_api-*.whl \
+  && apps/api/.venv/bin/python -m miy_api.first_party_routes --json >/dev/null
 COPY --from=wheels /opt/miy/pnpm-workspace.yaml pnpm-workspace.yaml
 COPY --from=wheels /opt/miy/config config
 COPY --from=wheels /opt/miy/packages/contracts/miy-desktop-update-feed.manifest.json packages/contracts/miy-desktop-update-feed.manifest.json

@@ -1,4 +1,4 @@
-"""Project the server-owned router inventory into an ingress owner map."""
+"""Project checked, packaged router ownership without application settings."""
 
 from __future__ import annotations
 
@@ -8,11 +8,8 @@ import os
 import re
 from typing import TypedDict
 
-from fastapi.routing import iter_route_contexts
-from starlette.routing import compile_path
-
-from miy_api.api_registry import router_specs
 from miy_api.core.app_contracts_generated import APP_CONTRACTS, OFFICIAL_APP_IDS
+from miy_api.first_party_route_contract import generated_route_contract, route_pattern
 
 
 class ApiOwnerInventory(TypedDict):
@@ -23,21 +20,13 @@ class ApiOwnerInventory(TypedDict):
 def api_owner_inventory(*, api_prefix: str = "/api/v1") -> ApiOwnerInventory:
     if not re.fullmatch(r"/[A-Za-z0-9/_-]+", api_prefix) or api_prefix.endswith("/"):
         raise ValueError("first_party_api_prefix_invalid")
-    patterns: dict[str, str] = {}
-    for spec in router_specs():
-        # FastAPI 0.141 keeps included routers lazy. Its native iterator preserves
-        # their effective prefixes for both HTTP and WebSocket routes.
-        for route in iter_route_contexts(spec.router.routes):
-            path = getattr(route, "path", None)
-            if not isinstance(path, str):
-                raise ValueError("first_party_route_path_required")
-            pattern = compile_path(api_prefix + path)[0].pattern
-            # Nginx only needs matching; named Python captures grant no identity.
-            pattern = re.sub(r"\(\?P<[^>]+>", "(?:", pattern)
-            previous = patterns.setdefault(pattern, spec.owner)
-            if previous != spec.owner:
-                raise ValueError("first_party_route_owner_conflict")
-    official = sorted(pattern for pattern, owner in patterns.items() if owner == "official")
+    official = sorted(
+        {
+            route_pattern(api_prefix + route["path"])
+            for route in generated_route_contract()["routes"]
+            if route["owner"] == "official"
+        }
+    )
     return {"api_prefix": api_prefix, "official_patterns": official}
 
 

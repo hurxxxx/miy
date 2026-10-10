@@ -8,7 +8,7 @@
 
 공식 API/worker, 개인 앱 승격 계약, Workbench의 격리 SDK 실행 후보를 로컬에 통합했다. 영향 검사·실제 격리 실행·공통 gateway/배포 도구와 대표 브라우저 검사를 마쳤다. 필수 리뷰·CI·새 플랫폼/Workbench 배포와 실제 로그인 인수는 남아 있다. 현재 로컬 결과는 [통합 검사 기록](VALIDATION.md#2026-10-10-필수-구조-통합-검사)이 소유한다.
 
-후속 `37ef44ec`의 필수269/job437은 성공했다. 실제 개발 native Main/pool 식별·warm 종료·setsid 경계를 보완한 `1115b6e7`의 필수270/job438은472.351421초에 문서 이동 시 업로드 보호와 widget theme 누락을 발견해 실패했다. 두 실제 분리 회귀를 최소 수정하며 병합·서비스 변경은 보류한다. 최신 source의 새 필수 리뷰와 전체 릴리스 CI를 유지하고 변경 없는 기존 검사·산출물은 재사용한다.
+후속 `37ef44ec`의 필수269/job437은 성공했다. Native 종료 후보 `1115b6e7`의 필수270/job438에서 발견한 업로드 보호·widget theme 회귀를 `772e5ffb`로 보완했다. 최신 필수271/job439는449.505612초에 gateway의 앱 설정 의존성을 발견해 실패했다. 실제 router에서 기존 OpenAPI owner가 생성한 경로 메타데이터를 runtime이 설정 없이 읽도록 수정하고 기본 기동의 exclusive 파일 쓰기도 보완했다. 직접 route8·격리 wheel/native NGINX 포함 gateway17·이미지 호환2개를 통과했으며 새 필수 리뷰 전에는 병합·서비스 변경을 하지 않는다. 전체 릴리스 CI를 유지하고 변경 없는 기존 검사·산출물은 재사용한다.
 
 Workbench 실제 clean37ef 산출물과 기존 owner의 정상 로그인 readonly preflight는 준비됐으며 새 서비스·실제 공개 UI 인수는 아직 수행하지 않았다. 개발 first-party와 운영 local gateway도 아직 미반영이다. 외부 TLS 설정 변경 없이 Core gateway가 기존 공개 포트를 인계하도록 구현했다.
 

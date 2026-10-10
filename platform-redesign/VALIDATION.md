@@ -1,5 +1,15 @@
 # 검증 계획과 수행 근거
 
+## 2026-10-10 필수439 실패와 설정 없는 ingress 보완
+
+Pipeline271/job439는 source `772e5ffb91daf1b7a2a1f22899f1dae7696c5547`/tree358414d1에서 FAILED449.505612초, MERGE_BLOCKED다. Gateway와 no-env 이미지 reader가 전체 API registry를 import하여 필수 PostgreSQL 설정을 요구하는 P1이다. Fresh isolated workspace·완전히 비운 환경에서 실제 실패를 재현했고 오류 분류만 기록했다. 앞선 configured-process NGINX 검사를 no-env wheel 기동의 성공으로 사용하지 않는다.
+
+- 기존 `generate:api-client`/`check:api-contract`가 실제 native HTTP/WS inventory와 현재 앱 계약에서410개 path/owner(공통194·공식216)를 생성·검사한다. Runtime은 packaged JSON을 읽고 현재 revision·양쪽 owner·순서/중복·capture 이름과 무관한 동일 pattern 충돌을 검증한다. 업무 router·Settings를 import하지 않으며 prefix는 기존 Starlette compiler를 사용한다. Native inventory 일치·stale/unknown/duplicate/conflict·fresh no-env CLI3모드·기존 common/official WS 분할의 고유8개 PASS4.75초, owner emit/check·Ruff·JS syntax·format/whitespace PASS다. OpenAPI types·package/lock·CI entry 변경0이다.
+- 실제 새 API wheel을 private site에 풀어 gateway를 네 공개 MIY 설정만으로 실행했다. .env ancestor와 app/settings/registry/domain import 부재를 확인했다. 그 renderer 출력으로 기존 immutable NGINX tool을 UID10001·read-only·cap0·no-new-privileges·ephemeral tmp에서 실제 기동해 HTTP/header/stream/WS101/frame을 확인했다. Gateway17개는 첫 배치2.827초 PASS이며 upstream은 합성·DB/auth 업무 검사는 아니다. 기본 기동의 실제 exclusive0600 파일 생성·exec 인자를 검증했으나 host native exec는 stub이며 실제 Core Debian packaging/기동은 아직 남아 있다.
+- 양쪽 Dockerfile은 설치 직후 같은 pure reader를 실행한다. 기존 호환 검사는 no-network·read-only·cwd/tmp·cap0·NNP에서 두 이미지의 projection을 비교한다. Matching/mismatch 고유2개 PASS0.153초는 실제 reader invocation/hold 정책의 shell fixture이며 제품 이미지 두 개를 빌드한 증거는 아니다. Lint·shell syntax·whitespace도 PASS다.
+
+현재12개 owner 소스를 고정했고 peer 배치 뒤 reader/resource 변경0을 확인했다. Safe `codex-review-439.md`, `APP_CONTRACTS_CHECKS.md`, `GATEWAY_CHECKS.md`와 route/gateway source-freeze receipts는 private runtime에 보존한다. 기존 CI image 계약 입력과 무관한 검사·Workbench 산출물은 재사용한다. 새 required review·full release CI·서비스/DB backup·공개 HTTP/WS 인수는 아직 수행하지 않았다. 이전 실패 이력과 각 검사의 실제 한계를 보존한다.
+
 ## 2026-10-10 필수438 실패와 문서 경계 최소 수정
 
 Pipeline270/job438은 source `1115b6e77375333b3aa228563f670bf00a2660e7`/tree655e3303에서 FAILED472.351421초, MERGE_BLOCKED다. Files의 진행 중 XHR/순차 대기열이 full-document 이동으로 사라질 수 있고 widget iframe이 사용자 theme를 적용하지 않는 P2 두 건이다. 실제 구조 변경 회귀를 보완하며 이전269/437 PASS로 새 리뷰를 대신하지 않는다. 새 서비스·병합·배포는 아직 없다.

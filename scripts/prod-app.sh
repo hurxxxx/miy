@@ -717,7 +717,9 @@ require_official_gateway_compatibility() {
   api_prefix="$(node "$ROOT_DIR/scripts/prod-app-config.mjs" "$ENV_FILE" --print-api-prefix)" || return 1
   [[ "$api_prefix" =~ ^/[A-Za-z0-9/_-]+$ && "$api_prefix" != */ ]] || return 1
   for image in "$platform_image" "$official_image"; do
-    projection="$(docker run --rm --network none --entrypoint apps/api/.venv/bin/python "$image" \
+    projection="$(docker run --rm --network none --read-only --workdir /tmp \
+      --cap-drop ALL --security-opt no-new-privileges \
+      --entrypoint /opt/miy/apps/api/.venv/bin/python "$image" \
       -m miy_api.first_party_routes --json --api-prefix "$api_prefix")" || return 1
     [[ "${#projection}" -le 1048576 ]] || return 1
     printf '%s' "$projection" | python3 -c '

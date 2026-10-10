@@ -53,6 +53,13 @@ Only the configured external peers may supply a forwarded scheme or client IP;
 the internal APIs trust the loopback gateway. Arbitrary client headers do not
 create proxy trust.
 
+`gateway.py --print-config` prints the same validated NGINX configuration without
+starting a service. It reads the reviewed wheel's generated route metadata and
+requires only the four public gateway settings, with no application or database
+configuration. The existing OpenAPI generator owns metadata generation and
+drift checks. Default startup writes a private configuration before native exec;
+`--check` separately probes the fixed local health routes.
+
 For an operator-managed direct NGINX front door, the optional TLS example can
 also consume those maps. It is not required for the local gateway topology.
 Generate both NGINX owner maps from the same reviewed router inventory and app
