@@ -2,7 +2,21 @@
 
 **2026-10-10 범위 확정:** 아래 현재 순서는 [필수 구조 작업](PLAN.md#이번-범위)에만 적용한다. 고급 UX·모니터링·모델 반복 평가·부하 측정·저장 프로토콜 확장은 [후속 고도화](FOLLOW_UP_ENHANCEMENTS.md)로 분리했다. 과거 문단의 넓은 인수 조건을 다시 추가하지 않는다.
 
-## 필수 구현 재개 — 운영 전달 완료 이후
+## 현재 남은 단계 — 필수 구조 전달 문서 마무리
+
+2026-10-10의 축소한 [필수 범위](PLAN.md#이번-범위)는 구현·최신 full CI·개발/운영의 실제 first-party 반영·별도 Workbench 서비스 전환까지 마쳤다. 이 문서 동결 시점에는 이번 결과와 설치 안내의 정상 커밋·필수 리뷰·GitLab dev MR 및 GitHub snapshot PR 병합·소유 브랜치 정리를 준비한다. 이 문서 묶음의 최종 전달 결과는 해당 PR/MR의 최종 상태가 원본이다. 제품 코드·산출물 입력이 바뀌지 않은 문서 전달 때문에 전체 테스트·이미지/Workbench 재빌드·같은 서비스 배포를 반복하지 않는다.
+
+- 플랫폼 source `4a8ab880`의 full287/job455는 SUCCESS다. Release MR105 정상 병합 뒤 운영은 `707895b9`, 세 불변 이미지/여섯 healthy 서비스/단일 Beat다. 기존 HTTPS 앞단은 그대로 사용하며 Core local gateway가 공식 API·UI와 공통 API를 소유 경로로 전달한다. 별도 외부 프록시 설정 변경은 필요하지 않았다.
+- Workbench는 source `37ef44ec`/digest `2ae5a15b…`의 동일 산출물로 두 링크와 세 서비스가 반영됐다. 원 SQLite와 이력을 보존하고 fresh native backup·정상 종료·health를 확인했다. 공용 Codex0.162.0의 실제 RPC 스키마 차이는 검증된 고정0.160.1 선택으로 해결했다. 템플릿0.159.2와 원 PID를 유지했다. 현재 기존 Task 모델 목록200·ChatGPT 연결200/connected=true이며 새 Task/model turn은 만들지 않았다.
+- 필수 공개 UI는 실제 앱 선택·기존 세션·서버 권한·에이전트 표시 관측과 현재 native 조회 결과를 결속했다. 통계 POST를 차단한 원 strict 검사 FAIL과 account 응답 관측 전에 닫힌 진단 FAIL은 보존하며 성공으로 다시 표시하지 않는다. 모든 미승인 쓰기·Task 쓰기·WS 전달은0이다. 자세한 결과와 범위는 [VALIDATION.md](VALIDATION.md)가 소유한다.
+
+이 완료는 모든 앱 기능과 모든 자연어 작업의 종단 간 검증을 뜻하지 않는다. 기존 대표 UI·DB/API·배포/복구·native3턴·SDK 격리 근거를 재사용했고, 이번에 새 앱 생성부터 자연어 배포까지 전 과정을 다시 실행하지 않았다. 운영 정상 사용자 로그인·기존 Docs 양성 Yjs/Source ACL 및 NULL build-ID의 미동작 guard(409/4409)는 미검증으로 남긴다. 검증되지 않은 Source-only/C2/Files profile을 활성화하지 않는다.
+
+앱별 세부 테스트·개선은 [APP_ISSUES.md](APP_ISSUES.md), 고급 Workbench UX·모니터링·추가 템플릿·반복 모델 평가·부하 측정·다중 사용자·원격 registry 동기화는 [FOLLOW_UP_ENHANCEMENTS.md](FOLLOW_UP_ENHANCEMENTS.md)에 보류한다. 다른 서버의 `/projects/open-work-hub` 등록 DB에 있는 앱은 이번 서버의 카탈로그에 자동 동기화되지 않는다. 별도 사용자 지시 전에는 이 후속 작업에 착수하지 않는다.
+
+## 이전 시점의 구현 재개 계획
+
+아래는 당시의 계획·진행 이력이며 현재 완료된 단계를 다시 실행하는 지시가 아니다. 현재 상태는 위 절과 [STATUS.md](STATUS.md)를 우선한다.
 
 2026-10-10 범위 점검 후 사용자 지시로 필수 구조 구현을 재개했다. 보존 Git/후보·검증·소유 자원 상태는 [RESTART_CHECKPOINT.md](RESTART_CHECKPOINT.md), 실제 현재 상태는 [STATUS.md](STATUS.md)를 확인한다.
 

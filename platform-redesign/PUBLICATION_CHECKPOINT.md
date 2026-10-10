@@ -1,5 +1,32 @@
 # GitHub 게시 체크포인트
 
+## 현재 checkpoint — 2026-10-10 필수 최소 구조 게시·반영 완료
+
+필수 최소 구조의 정상 리뷰·병합·전체 gate 및 플랫폼/공식 묶음·별도 Workbench 실제 반영은 완료했다. 현재 남은 전달은 이 여섯 owner 문서의 정상 required review·PR/MR이다. 전체 자연어 앱 E2E·다중 사용자·격리 앱 운영 전면 가동 완료와 구분하며, 아래 dated checkpoint는 이전 시점 기록으로 보존한다.
+
+| 전달 경계             | 현재 확정 결과                                                                                                                                                                                                                                  |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 필수 리뷰             | Sourcef652 required286/job454 SUCCESS41.835358초/MERGE_READY                                                                                                                                                                                    |
+| 정상 통합             | [MR112](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/112) → dev4a8ab880/[GitHub PR104](https://github.com/hurxxxx/miy/pull/104) → main67d4d6a1·동일tree94a8212e; 소유 remote/local branch cleanup 완료·protected dev/main 보존      |
+| 전체 release gate     | Full287/job455 SUCCESS4656.144209초·source4a8ab880/tree94a8212e·requested/selected full·passed·skipped suites 없음; API6572/16/37/15·web928·Workbench backend1160 및 frontend/native chain PASS                                                 |
+| 정상 release          | [MR105](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/105) source4a8ab880 → main707895b9f78eb018c211bfb64ddc180bd8855767·동일tree94a8212e·2026-10-10T12:04:32.289Z; clean prod FF·native prod105 source/merge/pipeline287 gate PASS  |
+| 백업·준비·배포        | Fresh env/PG18 online backup1,122,961bytes·TOC/cluster identity PASS; native3artifact prepare573.551초·deploy123.499초 PASS                                                                                                                     |
+| 실제 운영             | Core849764f4…/Official API+web86472fa2…/Official workerbeb51af7… exact3immutable IDs·6서비스 healthy·Beat1개·runtime707895b9·old389d 보존; gateway UID10001/read-only/cap0/NNP/host                                                             |
+| 별도 Workbench 전달   | Old3역할 정상stop/CG0·native SQLite backup17,444,864bytes/integrityok/schema0008·두 링크→20261010-37ef44ec·새3역할/source37/digest2ae/dirtyfalse·direct/publichealth200; 원 속성·기존 Task 상태·unknown8 보존                                   |
+| Workbench native 정합 | 0.162.0 experimental Core/Remote 비호환을 확인하고 검증된 immutable0.160.1 cache로 session binary 한 항목만 교체.0600 backup·admission close·관련2역할 정상stop/noSIGKILL·원 속성 복원·동일37/2ae 새2PID health PASS·template0.159.2 원PID 유지 |
+| 실제 Workbench 확인   | ADMIN_CATALOG 앱선택/기존 Task/permissions/agents/handoff 관측 TRUE. 이후 existing-task models200/nonempty/code NULL·별도 account-only200/connected=true/auth_type=chatgpt/error_code=NULL PASS; 통계 POST 차단·other/Task 쓰기/WS forward0     |
+| 공개 인수의 한계      | HTTPS health/ready·container/public JS bytes 일치·JSON401/빈WS1008/4401 PASS지만 helper LIMITED(finished=true/complete=false/exit2). Actual build-ID NULL/guard inactive,409/4409·정상 운영 로그인·기존 Doc 양성 Yjs/Source ACL 미검증          |
+
+Workbench 재사용 산출물의 원 source는 `37ef44ecfba37307576d0c43bd6eeca4ecbf9fd0`, digest는 `sha256:2ae5a15bd2adb347f46895d2df32f9b36369d2e691104e9eb6f1967fdaab6b0e`다. Source37 소유329입력/72build입력 불변 근거로 재사용했고 최신 Git SHA로 relabel/rebuild하지 않았다.0.160.1 cache49pin files의 SHA/owner/immutable 및 Core/Remote 호환 TRUE와 template0.159.2 호환 TRUE를 확인해 native 불일치를 해결했다. 실제 새 모델 턴/전체 자연어 앱 E2E 성공으로 확대하지 않는다.
+
+Full28578 FAIL/1082 PASS·원 CI metadata 미관측과 국소307/계약70 PASS는 보존한다. Workbench 최초 strict 종료/health adapter 관측 실패, corrected ADMIN_CATALOG 전체 FAIL(network_execution_boundary), 계정 응답 관측 전에 닫힌 모델 진단 전체 FAIL, 마지막 build.json 경로 FileNotFound 기록 실패를 모두 보존한다. 후속 actual qualification PASS·models PASS·별도 account-only PASS는 각기 확인한 범위만 유효하며 이전 전체 FAIL을 덮어쓰지 않는다.
+
+대표 UI·DB/API/Docker·native SDK·기존 정상3턴·최신 full·실제 서비스 반영을 합친 이번 필수 최소 범위 인수를 완료했다. 앱별 양성 기능 미검증과 후속 ENH를 새 release prerequisite로 추가하지 않는다. Docs-only 후속은 정상 required review·PR/MR로 전달하고 제품 입력이 같은 전체 suite·artifact build·서비스 deploy를 반복하지 않는다. 문서 게시 완료의 실제 MR/PR은 그 결과가 생긴 뒤 기록한다.
+
+## 이전 시점 기록
+
+아래 날짜별 `현재`·미반영·HOLD는 그 시점의 상태다. 최신 게시·운영 상태는 위 checkpoint가 소유한다.
+
 ## 2026-10-10 웹 소유 경계 병합과 Workbench CI 권한 준비
 
 Source `13d6711a`의 required284/job452는 SUCCESS63.086425초/MERGE_READY다. [GitHub PR103](https://github.com/hurxxxx/miy/pull/103)·[내부 MR111](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/111)을 정상 병합하고 소유 원격·로컬 feature/snapshot을 정리했다. Dev `4c8b5190`·GitHub `f6363323`의 tree `8dd50b3e`가 같다.

@@ -1034,8 +1034,11 @@ HTTP 개발 사이트를 유지하면서 별도 TLS 프록시 포트를 연결�
 [MIY Workbench 소유 문서](docs/apps/codex-console/README.md)의 설치·서비스 실행·개인 앱 연결
 절차를 수행한다. miy PostgreSQL에 의존하지 않는 전용 로컬 SQLite 파일을 준비하고, Codex를 구독으로
 로그인한 OS 사용자로 서비스를 실행한다. 콘솔은 [현재 기준 버전](docs/apps/codex-console/README.md#설치)
-이상의 안정 CLI를 사용한다. 서비스의 `MIY_CODEX_CONSOLE_BINARY`와 검증 명령의 CLI가
-같은지 확인한다. 시작 시 RPC 스키마 호환성을 검사하며
+이상의 안정 CLI를 사용한다. `MIY_CODEX_CONSOLE_BINARY`는 버전별 디렉터리의 검증된 실제
+실행 파일을 명시적으로 선택하고, 검증 명령도 같은 파일을 사용한다. 전역 CLI 업데이트와
+Workbench의 CLI 전환을 분리하며, 최소 버전·선택 RPC 스키마와 원격 실행의 고정 버전 계약은
+[서비스 실행](docs/apps/codex-console/README.md#서비스로-실행)과 [검증과 복구](docs/apps/codex-console/README.md#검증과-복구)를 따른다.
+시작 시 RPC 스키마 호환성을 검사하며
 기본 개발·복구 기능에는 Platform API 키나 miy AI 공급자 설정을 요구하지 않는다. 운영 앱 집계 연결은 아래 별도 조회 키를 사용한다.
 
 - [독립 저장소와 백업](docs/apps/codex-console/README.md#독립-저장소와-백업)에 따라 영구 데이터 경로·0600 권한·online backup을 준비한다. Python에 포함된 SQLite의 WAL 수정 버전을 확인한다. 기존 PostgreSQL 설치는 원본을 보존하며 검증된 이전 도구로 복사한다.
