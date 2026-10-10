@@ -414,6 +414,8 @@ EVENTS=${shellQuote(events)}
 FAIL_STAGE=${shellQuote(failStage)}
 CLEANUP_COUNT=0
 ${functions}
+# This recovery fixture owns an existing legacy runtime; retain the real gate.
+current_runtime_topology() { printf 'legacy\\n'; }
 docker() {
   if [[ "$1" == image ]]; then printf '%s\\n' ${shellQuote(f.revision)}; return 0; fi
   if [[ "$1" == tag ]]; then
@@ -655,6 +657,8 @@ DEPLOY_IMAGE=""
 TOPOLOGY=legacy RELEASE_SLICE=full ROLLBACK_TOPOLOGY=legacy
 OFFICIAL_API_IMAGE="" OFFICIAL_WORKER_IMAGE=""
 ROLLBACK_OFFICIAL_API_IMAGE="" ROLLBACK_OFFICIAL_WORKER_IMAGE=""
+${functions}
+current_runtime_topology() { printf 'legacy\\n'; }
 require_prod_checkout() { printf 'checkout\\n'; }
 require_release_source() { printf 'release\\n'; }
 acquire_operation_lock() { printf 'lock\\n'; }

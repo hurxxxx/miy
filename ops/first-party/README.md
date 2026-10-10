@@ -16,6 +16,13 @@ Compose example alone is not a guarded release or evidence of a completed
 cutover; the image/review/CI and rollback contract covers the complete service
 inventory before activation.
 
+Once a split runtime exists, every mutating command must explicitly select
+`--topology first-party`. Omitting it holds before image promotion, service
+changes or migrations. The same inspection rejects leftover split services
+without a known owned worker. A coordinated full split release still supports
+legacy-to-split drain, and paired split-to-legacy recovery uses the explicit
+first-party current topology with its pinned legacy rollback bundle.
+
 | Owner                                      | Entry                                         | Artifact                                                     |
 | ------------------------------------------ | --------------------------------------------- | ------------------------------------------------------------ |
 | Public service routing                     | `ops/first-party/gateway.py` and native NGINX | Platform image                                               |
@@ -29,7 +36,9 @@ The official artifact contains a matching common compatibility wheel. Changing
 an official business handler therefore rebuilds that wheel in the official
 artifact, but does not require replacing the running platform image. Changes to
 shared database schema or public platform contracts still require impact-based
-coordination. Physical extraction of the remaining API compatibility sources is
+coordination. Changes consumed by the portal, including shared manifests,
+summary clients and build inputs, also require a coordinated full release.
+Physical extraction of the remaining API compatibility sources is
 a later improvement, not a claim made by the process split.
 
 ## Routing

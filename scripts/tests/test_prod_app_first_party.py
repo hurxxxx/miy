@@ -112,9 +112,8 @@ class DrainContractTests(unittest.TestCase):
                 ):
                     drain.assert_empty(app, expected)
         app, expected, _ = self.fixture()
-        with app.connection_for_read() as connection:
-            with connection.channel() as channel:
-                del channel.qos
+        with app.connection_for_read() as connection, connection.channel() as channel:
+            del channel.qos
         with self.assertRaisesRegex(drain.DrainUnavailable, "unacked_inventory"):
             drain.assert_empty(app, expected)
 
@@ -235,6 +234,10 @@ class OfficialSliceTests(unittest.TestCase):
             "apps/worker/src/miy_worker/tasks/unknown.py",
             "apps/official-suite/project.json",
             "apps/official-suite/vite.config.ts",
+            "packages/official-suite-web/project.json",
+            "packages/official-suite-web/tsconfig.json",
+            "packages/official-suite-web/vite.config.mts",
+            "packages/official-suite-web/src/package.json",
         ):
             with self.subTest(name=name), self.assertRaises(ValueError):
                 slice_contract.assert_owned([name], domains, tasks)
@@ -258,6 +261,16 @@ class ActualOfficialSliceTests(unittest.TestCase):
             )
         )
         cls.shared = slice_contract.shared_consumers(cls.sources, *cls.owners)
+        cls.ui_sources = slice_contract.ui_sources(ROOT, cls.revision)
+        cls.ui_shared = slice_contract.shared_ui_consumers(cls.ui_sources)
+        # While the CSS split is uncommitted, overlay that actual owner blob
+        # alone. Other agents may have untracked source additions; delivery and
+        # the next reviewed baseline always read complete immutable Git trees.
+        candidate = dict(cls.ui_sources)
+        candidate["apps/web/src/index.css"] = (
+            ROOT / "apps/web/src/index.css"
+        ).read_text()
+        cls.candidate_ui_shared = slice_contract.shared_ui_consumers(candidate)
 
     def test_real_task_inventory_and_same_revision_slice(self):
         self.assertIn(
@@ -284,6 +297,153 @@ class ActualOfficialSliceTests(unittest.TestCase):
         name = "apps/api/src/miy_api/domains/pms/router.py"
         self.assertNotIn(name, self.shared)
         slice_contract.assert_owned([name], *self.owners, self.shared)
+
+    def test_actual_portal_manifest_and_transitive_summary_require_full_release(self):
+        for shared in (self.ui_shared, self.candidate_ui_shared):
+            for name in (
+                "packages/official-suite-web/src/manifests/pms.ts",
+                "packages/official-suite-web/src/pms/summary-api.ts",
+                "packages/official-suite-web/src/pms/api/pms-api.ts",
+                "packages/official-suite-web/vite/ui-routing.mts",
+            ):
+                with self.subTest(name=name):
+                    self.assertIn(name, shared)
+                    with self.assertRaisesRegex(ValueError, "shared_consumer"):
+                        slice_contract.assert_owned([name], *self.owners, shared)
+
+    def test_actual_official_ui_is_independent_after_css_owner_split(self):
+        for name in (
+            "packages/official-suite-web/src/pms/views/SpaceTasksView.tsx",
+            "apps/official-suite/src/main.tsx",
+        ):
+            self.assertIn(name, self.ui_sources)
+            self.assertNotIn(name, self.candidate_ui_shared)
+            slice_contract.assert_owned([name], *self.owners, self.candidate_ui_shared)
+        if "source(none)" not in self.ui_sources["apps/web/src/index.css"]:
+            self.assertIn(
+                "packages/official-suite-web/src/pms/views/SpaceTasksView.tsx",
+                self.ui_shared,
+            )
+
+    def test_slice_uses_both_reviewed_ui_trees(self):
+        shared = "packages/official-suite-web/src/manifests/pms.ts"
+        native_git = slice_contract.git
+        with (
+            patch.object(
+                sys, "argv", ["slice", str(ROOT), self.revision, self.revision]
+            ),
+            patch.object(slice_contract, "git", wraps=slice_contract.git) as git,
+            patch.object(
+                slice_contract, "ui_sources", return_value=self.ui_sources
+            ) as blobs,
+            patch.object(
+                slice_contract, "shared_ui_consumers", side_effect=({shared}, set())
+            ) as projection,
+        ):
+            git.side_effect = lambda root, *args: (
+                shared.encode()
+                if args[:2] == ("diff", "--name-only")
+                else native_git(root, *args)
+            )
+            with self.assertRaisesRegex(ValueError, "shared_consumer"):
+                slice_contract.main()
+            self.assertEqual(blobs.call_count, 2)
+            self.assertEqual(projection.call_count, 2)
+
+
+class UiSharedConsumerProjectionTests(unittest.TestCase):
+    def fixture(self, entry, extra=None, *, css=None):
+        files = {
+            "package.json": '{"dependencies":{"tailwindcss":"pinned"}}',
+            "tsconfig.base.json": '{"compilerOptions":{"paths":{"@official/*":["packages/official-suite-web/src/*"]}}}',
+            "apps/web/tsconfig.json": '{"extends":"../../tsconfig.base.json"}',
+            "apps/web/vite.config.mts": 'export default {root: import.meta.dirname, resolve:{alias:{"@official":path.resolve(import.meta.dirname,"../../packages/official-suite-web/src")}}}',
+            "apps/web/index.html": '<script type="module" src="/src/main.ts"></script>',
+            "apps/web/src/main.ts": entry,
+            "packages/official-suite-web/src/shared.ts": "export const value = 1",
+            "packages/official-suite-web/src/business.tsx": "export const ui = <div />",
+        }
+        files.update(extra or {})
+        if css is not None:
+            files["apps/web/src/main.ts"] += '\nimport "./index.css"'
+            files["apps/web/src/index.css"] = css
+        return files
+
+    def test_alias_reexport_and_literal_dynamic_import_are_transitive(self):
+        files = self.fixture(
+            'import "@official/bridge"; import("@official/dynamic")',
+            {
+                "packages/official-suite-web/src/bridge.ts": 'export * from "./shared.js"',
+                "packages/official-suite-web/src/dynamic.ts": 'export {value} from "./shared.js"',
+            },
+        )
+        self.assertIn(
+            "packages/official-suite-web/src/shared.ts",
+            slice_contract.shared_ui_consumers(files),
+        )
+
+    def test_unknown_dynamic_module_alias_or_glob_holds(self):
+        for entry in (
+            "import(runtimeModule)",
+            'import "@unknown/helper"',
+            'import.meta.glob("./*.tsx")',
+        ):
+            with (
+                self.subTest(entry=entry),
+                self.assertRaises(subprocess.CalledProcessError),
+            ):
+                slice_contract.shared_ui_consumers(self.fixture(entry))
+
+    def test_common_asset_and_worker_url_are_shared(self):
+        files = self.fixture(
+            'import "@official/guide.html?raw"; new Worker(new URL("./worker.ts",import.meta.url))',
+            {
+                "packages/official-suite-web/src/guide.html": "<p>Shared guide</p>",
+                "apps/web/src/worker.ts": 'export {value} from "@official/shared"',
+            },
+        )
+        shared = slice_contract.shared_ui_consumers(files)
+        self.assertIn("packages/official-suite-web/src/guide.html", shared)
+        self.assertIn("packages/official-suite-web/src/shared.ts", shared)
+
+    def test_css_source_ownership_and_implicit_scan_are_honest(self):
+        business = "packages/official-suite-web/src/business.tsx"
+        isolated = '@import "tailwindcss" source(none); @source ".";'
+        self.assertNotIn(
+            business, slice_contract.shared_ui_consumers(self.fixture("", css=isolated))
+        )
+        for css in (
+            '@import "tailwindcss";',
+            isolated + '@source "../../../packages/official-suite-web/src";',
+        ):
+            with self.subTest(css=css):
+                self.assertIn(
+                    business,
+                    slice_contract.shared_ui_consumers(self.fixture("", css=css)),
+                )
+        with self.assertRaises(subprocess.CalledProcessError):
+            slice_contract.shared_ui_consumers(
+                self.fixture("", css='@source "../../../packages/*/src";')
+            )
+
+    def test_dev_only_route_projection_requires_exact_owner_guard_and_binding(self):
+        name = "packages/official-suite-web/vite/ui-routing.mts"
+        source = "export function firstPartyApiDevelopmentProxies(mode: string) {if (mode !== 'first-party') return {}; const file = new URL('../../../.runtime/first-party-api-routes.json', import.meta.url); return {}; }"
+        files = self.fixture(
+            'import "../../../packages/official-suite-web/vite/ui-routing.mts"',
+            {name: source},
+        )
+        self.assertIn(name, slice_contract.shared_ui_consumers(files))
+        for changed in (
+            source.replace("mode !==", "mode ==="),
+            source.replace("firstPartyApiDevelopmentProxies", "anotherFunction"),
+            source.replace("first-party-api-routes.json", "another.json"),
+        ):
+            with (
+                self.subTest(changed=changed),
+                self.assertRaises(subprocess.CalledProcessError),
+            ):
+                slice_contract.shared_ui_consumers(files | {name: changed})
 
 
 class SharedConsumerProjectionTests(unittest.TestCase):

@@ -7,9 +7,9 @@ import {
   RequireAuth,
   useAppsBootstrap,
 } from '@miy/web-official-suite-bridge';
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BrowserRouter, useLocation } from 'react-router-dom';
+import { BrowserRouter } from 'react-router-dom';
+import { FirstPartyDocumentBoundary } from '@/src/platform/deployment/FirstPartyDocumentBoundary';
 import { ShellPersonalWidgetHost } from './OfficialPersonalWidgetHost';
 
 function Widgets() {
@@ -26,21 +26,6 @@ function Widgets() {
   );
 }
 
-function WidgetDocument() {
-  const location = useLocation();
-  const href = `${location.pathname}${location.search}${location.hash}`;
-  const isWidgetRoute = location.pathname === '/official-suite/widgets';
-  useEffect(() => {
-    if (!isWidgetRoute)
-      (window.parent === window ? window : window.parent).location.assign(href);
-  }, [href, isWidgetRoute]);
-  return isWidgetRoute ? (
-    <RequireAuth>
-      <Widgets />
-    </RequireAuth>
-  ) : null;
-}
-
 export default function OfficialWidgetRoot() {
   const { t } = useTranslation('common');
   return (
@@ -53,7 +38,11 @@ export default function OfficialWidgetRoot() {
     >
       <BrowserRouter>
         <AuthProvider>
-          <WidgetDocument />
+          <FirstPartyDocumentBoundary owner="widget">
+            <RequireAuth>
+              <Widgets />
+            </RequireAuth>
+          </FirstPartyDocumentBoundary>
         </AuthProvider>
       </BrowserRouter>
     </FeedbackProvider>

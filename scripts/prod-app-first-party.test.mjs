@@ -5,13 +5,192 @@ import test from 'node:test';
 
 const script = readFileSync(new URL('./prod-app.sh', import.meta.url), 'utf8');
 const functions = script.slice(script.indexOf('usage()'), script.indexOf('COMMAND='));
+const dispatcher = script.slice(script.indexOf('COMMAND='));
+const defaults = script.slice(script.indexOf('COMPOSE_PROJECT_NAME='), script.indexOf('usage()'));
 const id = (value) => `sha256:${value.repeat(64)}`;
+const containerId = (value) => value.repeat(64);
+const shellQuote = (value) => `'${value.replaceAll("'", "'\\''")}'`;
 
 function run(body) {
   return spawnSync('bash', ['-c', `set -euo pipefail\n${functions}\n${body}`], {
     encoding: 'utf8', env: { PATH: process.env.PATH },
   });
 }
+
+function runCli(body, args) {
+  return spawnSync('bash', ['-c', `set -euo pipefail
+ROOT_DIR=/synthetic/prod ENV_FILE=/synthetic/prod/.env
+COMPOSE_FILE=/synthetic/prod/ops/compose/miy-prod.app.yml
+${defaults}
+${functions}
+${body}
+${dispatcher}`, 'test', ...args], {
+    encoding: 'utf8', env: { PATH: process.env.PATH },
+  });
+}
+
+// Exercise the real topology detector against only native read-only Docker
+// metadata. Any service/image/database path becomes an observable mutation.
+function nativeTopology({
+  worker = 'legacy', orphan = '', multipleWorker = false,
+  multipleOrphan = false, shortWorker = false, metadataFailure = false,
+} = {}) {
+  const workerId = worker === 'none' ? '' : shortWorker ? '1234' : containerId('1');
+  const workerIds = multipleWorker ? [workerId, containerId('2')] : [workerId];
+  const workerCommand = worker === 'legacy'
+    ? '["celery","-A","miy_worker.celery_app:celery_app"]'
+    : worker === 'first-party'
+      ? '["celery","-A","miy_worker.first_party_platform:celery_app"]'
+      : '["celery","-A","unowned_worker:app"]';
+  const orphanIds = multipleOrphan ? [containerId('3'), containerId('4')] : [containerId('3')];
+  return `
+COMPOSE_PROJECT_NAME=miy-prod-app
+compose() {
+  if [[ "$*" != 'ps --all --quiet worker' || "\${TOPOLOGY:-legacy}" != legacy ]]; then
+    printf 'MUTATION compose %s\\n' "$*"; return 97
+  fi
+  printf '%s\\n' ${workerIds.map(shellQuote).join(' ')}
+}
+docker() {
+  if [[ "$1" == ps ]]; then
+    [[ "$#" == 8 && "$2 $3 $4" == '--all --quiet --no-trunc' && "$5" == --filter
+      && "$6" == 'label=com.docker.compose.project=miy-prod-app' && "$7" == --filter ]] || {
+      printf 'MUTATION unowned-metadata\\n'; return 97;
+    }
+    ${metadataFailure ? 'return 7' : ''}
+    case "$8" in
+      label=com.docker.compose.service=official-api|label=com.docker.compose.service=official-worker|label=com.docker.compose.service=gateway)
+        if [[ "$8" == ${shellQuote(`label=com.docker.compose.service=${orphan}`)} ]]; then
+          printf '%s\\n' ${orphanIds.map(shellQuote).join(' ')}
+        fi
+        return 0;;
+      *) printf 'MUTATION unowned-service\\n'; return 97;;
+    esac
+  fi
+  if [[ "$1" == inspect && "$#" == 4 && "$2" == --format && "$3" == '{{json .Config.Cmd}}' && "$4" == ${shellQuote(workerId)} ]]; then
+    printf '%s\\n' ${shellQuote(workerCommand)}; return 0
+  fi
+  printf 'MUTATION docker %s\\n' "$*"; return 97
+}
+`;
+}
+
+const rejectMutation = `
+require_prod_checkout() { printf 'checkout\\n'; }
+require_release_source() { printf 'release\\n'; }
+acquire_operation_lock() { printf 'lock\\n'; }
+validate_environment() { printf 'MUTATION validation-after-hold\\n'; return 97; }
+prepare_rollback_runtime() { printf 'MUTATION rollback-bundle\\n'; return 97; }
+load_release_contract() { printf 'MUTATION release-after-hold\\n'; return 97; }
+prepare_candidate_image() { printf 'MUTATION build\\n'; return 97; }
+promote_image() { printf 'MUTATION tag\\n'; return 97; }
+run_migrations() { printf 'MUTATION database\\n'; return 97; }
+start_forward_runtime() { printf 'MUTATION start\\n'; return 97; }
+start_runtime() { printf 'MUTATION start\\n'; return 97; }
+capture_prior_runtime() { printf 'MUTATION capture-after-hold\\n'; return 97; }
+node() { printf 'MUTATION node %s\\n' "$*"; return 97; }
+`;
+
+for (const command of ['prepare', 'deploy', 'migrate', 'rollback', 'up']) {
+  test(`${command} without first-party selection holds an existing split runtime before mutation`, () => {
+    const args = [command];
+    if (command === 'prepare' || command === 'deploy') args.push('--release-mr', '49');
+    if (command === 'deploy') args.push('--image', id('a'));
+    const result = runCli(`${nativeTopology({ worker: 'first-party', orphan: 'gateway' })}\n${rejectMutation}`, args);
+    assert.equal(result.status, 1, result.stderr);
+    assert.equal(result.stdout, 'checkout\nrelease\nlock\n');
+    assert.match(result.stderr, /Requested topology differs/);
+    assert.doesNotMatch(result.stdout + result.stderr, /MUTATION/);
+  });
+}
+
+for (const operation of ['deploy', 'restore']) {
+  test(`direct ${operation} also holds an existing split runtime before mutation`, () => {
+    const result = run(`
+TOPOLOGY=legacy CURRENT_IMAGE=miy-app:prod PREVIOUS_IMAGE=miy-app:prod-previous
+ROLLBACK_IMAGE='${id('a')}' ROLLBACK_BUNDLE=/synthetic/rollback
+${nativeTopology({ worker: 'first-party', orphan: 'official-api' })}
+${rejectMutation}
+if ${operation === 'deploy' ? `deploy '${id('b')}'` : 'restore_previous_runtime'}; then printf 'accepted\\n'; else printf 'held\\n'; fi
+`);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, 'held\n');
+    assert.match(result.stderr, /Requested topology differs/);
+    assert.doesNotMatch(result.stdout + result.stderr, /MUTATION/);
+  });
+}
+
+for (const command of ['up', 'migrate']) {
+  test(`${command} cannot switch a legacy namespace through first-party selection`, () => {
+    const result = runCli(`${nativeTopology()}\n${rejectMutation}`, [command, '--topology', 'first-party']);
+    assert.equal(result.status, 1, result.stderr);
+    assert.equal(result.stdout, 'checkout\nrelease\nlock\n');
+    assert.match(result.stderr, /Requested topology differs/);
+    assert.doesNotMatch(result.stdout + result.stderr, /MUTATION/);
+  });
+}
+
+test('native topology metadata rejects split orphans, ambiguous IDs, unknown profiles and failed inspection', () => {
+  const cases = [
+    ...['official-api', 'official-worker', 'gateway'].flatMap((orphan) => [
+      { worker: 'none', orphan }, { worker: 'legacy', orphan },
+    ]),
+    { multipleWorker: true }, { shortWorker: true }, { worker: 'unknown' },
+    { worker: 'first-party', orphan: 'gateway', multipleOrphan: true },
+    { metadataFailure: true },
+  ];
+  for (const fixture of cases) {
+    const result = run(`
+${nativeTopology(fixture)}
+if current_runtime_topology; then printf 'accepted\\n'; else printf 'held\\n'; fi
+`);
+    assert.equal(result.status, 0, `${JSON.stringify(fixture)}: ${result.stderr}`);
+    assert.equal(result.stdout, 'held\n', JSON.stringify(fixture));
+    assert.doesNotMatch(result.stdout + result.stderr, /MUTATION/);
+  }
+});
+
+test('known owned legacy, split and empty metadata retain their exact topology', () => {
+  for (const worker of ['legacy', 'first-party', 'none']) {
+    const result = run(`${nativeTopology({ worker })}\ncurrent_runtime_topology`);
+    assert.equal(result.status, 0, `${worker}: ${result.stderr}`);
+    assert.equal(result.stdout, `${worker}\n`);
+  }
+});
+
+test('existing legacy topology still permits all five legacy operations', () => {
+  const result = run(`
+TOPOLOGY=legacy
+${nativeTopology()}
+for action in prepare deploy migrate rollback up; do require_runtime_topology "$action"; printf '%s\\n' "$action"; done
+`);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, 'prepare\ndeploy\nmigrate\nrollback\nup\n');
+});
+
+test('explicit full split release and paired recovery retain legacy transition admission', () => {
+  const result = run(`
+TOPOLOGY=first-party RELEASE_SLICE=full ROLLBACK_IMAGE='${id('a')}'
+${nativeTopology()}
+for action in prepare deploy rollback; do require_runtime_topology "$action"; printf '%s\\n' "$action"; done
+`);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, 'prepare\ndeploy\nrollback\n');
+});
+
+test('official-only release cannot admit a legacy transition as a full split release', () => {
+  for (const worker of ['legacy', 'none']) {
+    for (const action of ['prepare', 'deploy']) {
+      const result = run(`
+TOPOLOGY=first-party RELEASE_SLICE=official
+${nativeTopology({ worker })}
+if require_runtime_topology '${action}'; then printf 'accepted\\n'; else printf 'held\\n'; fi
+`);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stdout, 'held\n', `${worker}/${action}`);
+    }
+  }
+});
 
 for (const refused of [false, true]) {
   test(`legacy-to-first-party ${refused ? 'holds at a refused drain' : 'drains before stopping the consumer'}`, () => {

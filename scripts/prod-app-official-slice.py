@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ast
 import io
+import json
 import re
 import subprocess
 import sys
@@ -101,9 +102,14 @@ def assert_owned(
         *sorted(domains),
     )
     for name in paths:
+        basename = Path(name).name
+        if basename in ("package.json", "project.json") or basename.startswith(
+            ("tsconfig.", "vite.config.")
+        ):
+            raise ValueError("shared_build_config_change_requires_full_release")
         if shared is not None and name in shared:
             raise ValueError("shared_consumer_change_requires_full_release")
-        if name.endswith("/models.py") or "/models/" in name or name.endswith(".sql"):
+        if name.endswith(("/models.py", ".sql")) or "/models/" in name:
             raise ValueError("shared_storage_change_requires_full_release")
         if name not in tasks and not name.startswith(prefixes):
             raise ValueError("shared_source_change_requires_full_release")
@@ -115,6 +121,50 @@ SOURCE_ROOTS = (
     "apps/official-suite/api/src/",
     "apps/official-suite/worker/src/",
 )
+
+UI_ROOTS = (
+    "apps/web/",
+    "apps/official-suite/",
+    "packages/",
+    "tsconfig.base.json",
+    "package.json",
+)
+UI_TEXT = re.compile(r"\.(?:[cm]?[jt]sx?|css|html|json|md|mdx)$")
+
+
+def ui_sources(root: Path, revision: str) -> dict[str, str | None]:
+    """Archive tracked frontend blobs; assets need only their exact tracked name."""
+    archive = git(root, "archive", "--format=tar", revision, "--", *UI_ROOTS)
+    result = {}
+    with tarfile.open(fileobj=io.BytesIO(archive)) as tree:
+        for entry in tree.getmembers():
+            if entry.issym() or entry.islnk():
+                raise ValueError("unresolved_frontend_symlink_owner")
+            if entry.isfile():
+                result[entry.name] = (
+                    tree.extractfile(entry).read().decode()
+                    if UI_TEXT.search(entry.name)
+                    else None
+                )
+    return result
+
+
+def shared_ui_consumers(sources: dict[str, str | None]) -> set[str]:
+    """The pinned TypeScript parser reads blobs, never imports application code."""
+    result = subprocess.run(
+        ["node", str(Path(__file__).with_name("prod-app-official-ui.mjs"))],
+        input=json.dumps(sources).encode(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        timeout=45,
+        check=True,
+    )
+    names = json.loads(result.stdout)
+    if not isinstance(names, list) or any(
+        not isinstance(name, str) or name not in sources for name in names
+    ):
+        raise ValueError("unresolved_frontend_input_owner")
+    return set(names)
 
 
 def python_sources(root: Path, revision: str) -> dict[str, str]:
@@ -346,13 +396,19 @@ def main() -> None:
     if any(name.endswith(".py") for name in paths):
         shared = shared_consumers(python_sources(root, revision), *previous)
         shared.update(shared_consumers(python_sources(root, target), *current))
+    if any(
+        name.startswith(("apps/official-suite/src/", "packages/official-suite-web/"))
+        for name in paths
+    ):
+        shared.update(shared_ui_consumers(ui_sources(root, revision)))
+        shared.update(shared_ui_consumers(ui_sources(root, target)))
     assert_owned(paths, *current, shared)
 
 
 if __name__ == "__main__":
     try:
         main()
-    except Exception:
+    except Exception:  # noqa: BLE001 -- Fail closed without echoing reviewed source.
         print(
             "Official slice includes shared source or cannot prove ownership; use a coordinated full release.",
             file=sys.stderr,

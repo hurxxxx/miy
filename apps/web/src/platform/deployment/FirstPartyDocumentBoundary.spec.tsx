@@ -1,5 +1,12 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { BrowserRouter, useNavigate } from 'react-router-dom';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from '@testing-library/react';
+import { useState } from 'react';
+import { BrowserRouter, useLocation, useNavigate } from 'react-router-dom';
 import { afterEach, expect, it, vi } from 'vitest';
 import { FirstPartyDocumentBoundary } from './FirstPartyDocumentBoundary';
 import {
@@ -16,7 +23,76 @@ afterEach(() => {
   cleanup();
   vi.mocked(reloadFirstPartyDocument).mockClear();
   window.history.replaceState(null, '', '/');
+  vi.useRealTimers();
 });
+
+it.each([
+  ['official', '/apps/docs', false],
+  ['official', '/apps/docs', true],
+  ['widget', '/official-suite/widgets', false],
+  ['widget', '/official-suite/widgets', true],
+] as const)(
+  'retains the mounted %s UI at %s while saves are pending (cancel=%s)',
+  async (owner, from, cancel) => {
+    vi.useFakeTimers();
+    window.history.replaceState(null, '', from);
+    const handoff = { aiDraft: 'Synthetic handoff' };
+    function PendingNavigation() {
+      const navigate = useNavigate();
+      const visibleLocation = useLocation();
+      const [body, setBody] = useState('');
+      const [pending, setPending] = useState(true);
+      return (
+        <>
+          <input
+            aria-label="Draft"
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+          />
+          <div data-miy-pending-save={pending ? 'true' : undefined} />
+          <output aria-label="Owned location">
+            {visibleLocation.pathname}
+          </output>
+          <button
+            onClick={() =>
+              navigate('/apps/chatbot?draft=synthetic#handoff', {
+                state: handoff,
+              })
+            }
+          >
+            Cross
+          </button>
+          <button onClick={() => setPending(false)}>Saved</button>
+          <button onClick={() => navigate(from, { replace: true })}>
+            Cancel
+          </button>
+        </>
+      );
+    }
+    render(
+      <BrowserRouter>
+        <FirstPartyDocumentBoundary owner={owner}>
+          <PendingNavigation />
+        </FirstPartyDocumentBoundary>
+      </BrowserRouter>,
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'Draft' }), {
+      target: { value: 'Unsaved input' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Cross' }));
+    await act(async () => vi.advanceTimersByTime(300));
+    expect(reloadFirstPartyDocument).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue('Unsaved input')).toBeTruthy();
+    expect(screen.getByLabelText('Owned location').textContent).toBe(from);
+    expect(window.history.state.usr).toEqual(handoff);
+    if (cancel) fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Saved' }));
+    await act(async () => vi.advanceTimersByTime(100));
+    expect(reloadFirstPartyDocument).toHaveBeenCalledTimes(cancel ? 0 : 1);
+    expect(screen.getByDisplayValue('Unsaved input')).toBeTruthy();
+    expect(window.location.pathname).toBe(cancel ? from : '/apps/chatbot');
+  },
+);
 
 it.each([
   [
@@ -72,7 +148,8 @@ it.each([
     expect(window.history.state.usr).toEqual(draft);
     expect(window.history.state.key).toEqual(expect.any(String));
     expect(window.history.length).toBe(previousLength + (replace ? 0 : 1));
-    expect(screen.queryByRole('button', { name: 'Open' })).toBeNull();
+    // Keep the old owner/unload protection mounted; the new owner never renders.
+    expect(screen.getByRole('button', { name: 'Open' })).toBeTruthy();
   },
 );
 

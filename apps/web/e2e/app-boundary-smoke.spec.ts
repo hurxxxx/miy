@@ -43,7 +43,195 @@ async function stubFullShell(page: Page) {
   await stubConversationsApi(page);
 }
 
+async function stubStructuralShell(page: Page) {
+  const unhandled: string[] = [];
+  await page.route(
+    (url) => url.pathname === '/api' || url.pathname.startsWith('/api/'),
+    (route) => {
+      unhandled.push(new URL(route.request().url()).pathname);
+      return route.fulfill({
+        status: 503,
+        json: { detail: 'unstubbed structural request' },
+      });
+    },
+  );
+  await stubFullShell(page);
+  return unhandled;
+}
+
 test.describe('AI-friendly app boundary smoke', () => {
+  test('waits for the embedded memo autosave before a document link leaves', async ({
+    page,
+  }) => {
+    const unhandled = await stubStructuralShell(page);
+    const errors = collectBrowserErrors(page);
+    let savedBody: string | null = null;
+    let acknowledge!: () => void;
+    const acknowledgement = new Promise<void>((resolve) => {
+      acknowledge = resolve;
+    });
+    await page.route('**/api/v1/personal-widgets/memo', async (route) => {
+      if (route.request().method() === 'PUT') {
+        savedBody = route.request().postDataJSON().body;
+        await acknowledgement;
+      }
+      await route.fulfill({
+        json: {
+          id: null,
+          body: savedBody ?? '',
+          createdAt: null,
+          updatedAt: null,
+        },
+      });
+    });
+    await page.goto('/');
+    const widget = page.frameLocator('iframe[src="/official-suite/widgets"]');
+    await widget.getByRole('button', { name: /메모 열기|Open memo/ }).click();
+    const memo = widget.getByRole('textbox', {
+      name: /개인 메모|Personal memo/,
+    });
+    await memo.fill('Synthetic pending memo');
+    // The open memo panel legitimately overlaps the launcher card. Keyboard
+    // activation exercises the real captured link without forcing a hit area.
+    await page.locator('a[href="/apps/docs"]').focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/$/);
+    await expect(memo).toHaveValue('Synthetic pending memo');
+    await expect.poll(() => savedBody).toBe('Synthetic pending memo');
+    await expect(page).toHaveURL(/\/$/);
+    acknowledge();
+    await expect(page).toHaveURL(/\/apps\/docs$/);
+    await expect(
+      page.getByRole('heading', { level: 1, name: /All Docs|전체 문서/ }),
+    ).toBeVisible();
+    expect(unhandled).toEqual([]);
+    errors.expectClean();
+  });
+
+  test('includes the actual widget task-detail body portal in the iframe hit area', async ({
+    page,
+  }) => {
+    const unhandled = await stubStructuralShell(page);
+    const errors = collectBrowserErrors(page);
+    // Only enough synthetic data to open the existing modal; no task workflow.
+    const task = {
+      archived: false,
+      assignee_id: null,
+      assignee_ids: [],
+      assignee_name: null,
+      assignee_names: [],
+      board_position: 1,
+      checklist_done: 0,
+      checklist_total: 0,
+      comments_count: 0,
+      completed_date: null,
+      description: '',
+      description_blocks: null,
+      due_date: null,
+      follower_ids: [],
+      follower_names: [],
+      id: 'structural-task',
+      labels: [],
+      list_id: 'structural-list',
+      milestone_id: null,
+      milestone_title: null,
+      parent_id: null,
+      priority: 'medium',
+      priority_label: 'Medium',
+      progress: 0,
+      recurrence_rule: null,
+      reference: 'STRUCT-1',
+      reporter_id: 'synthetic-user',
+      reporter_name: 'Synthetic user',
+      start_date: null,
+      status: 'todo',
+      status_label: 'Todo',
+      subtask_count: 0,
+      title: 'Synthetic modal surface',
+      updated_at: '2026-10-10T00:00:00Z',
+    };
+    await page.route(
+      '**/api/v1/personal-widgets/pms/tasks/assigned**',
+      (route) =>
+        route.fulfill({
+          json: { items: [task], total: 1, page: 1, page_size: 100 },
+        }),
+    );
+    await page.route('**/api/v1/pms/lists**', (route) =>
+      route.fulfill({
+        json: {
+          items: [
+            {
+              id: 'structural-list',
+              name: 'Synthetic list',
+              role: 'viewer',
+              team_id: null,
+              team_name: null,
+              folder_id: null,
+              folder_name: null,
+              status_mode: 'inherit',
+            },
+          ],
+          total: 1,
+          page: 1,
+          page_size: 100,
+        },
+      }),
+    );
+    await page.route('**/api/v1/pms/lists/structural-list/statuses', (route) =>
+      route.fulfill({ json: { items: [] } }),
+    );
+    await page.route('**/api/v1/pms/tasks/structural-task', (route) =>
+      route.fulfill({
+        json: {
+          task,
+          attachments: [],
+          checklist_items: [],
+          comments: [],
+          linked_docs: [],
+          subtasks: [],
+        },
+      }),
+    );
+    await page.route(
+      '**/api/v1/pms/tasks/structural-task/activity-logs**',
+      (route) =>
+        route.fulfill({
+          json: { items: [], total: 0, page: 1, page_size: 50 },
+        }),
+    );
+    await page.route('**/api/v1/recording/recordings**', (route) =>
+      route.fulfill({ json: { items: [], total: 0, page: 1, page_size: 50 } }),
+    );
+    await page.goto('/');
+    const frame = page.locator('iframe[src="/official-suite/widgets"]');
+    const widget = page.frameLocator('iframe[src="/official-suite/widgets"]');
+    await widget.getByRole('button', { name: /PMS 열기|Open PMS/ }).click();
+    await widget
+      .getByRole('button', {
+        name: /Synthetic modal surface 상세 열기|Open Synthetic modal surface details/,
+      })
+      .click();
+    await expect(widget.locator('[data-ui-overlay]')).toBeVisible();
+    await expect
+      .poll(() =>
+        frame.evaluate((element) => {
+          return (
+            document.elementFromPoint(5, 5) === element &&
+            document.elementFromPoint(5, innerHeight - 5) === element
+          );
+        }),
+      )
+      .toBe(true);
+    // The backdrop is outside the dock's narrow rectangle and must be clickable.
+    await widget
+      .locator('[data-ui-overlay] > button')
+      .click({ position: { x: 5, y: 5 } });
+    await expect(widget.locator('[data-ui-overlay]')).toHaveCount(0);
+    expect(unhandled).toEqual([]);
+    errors.expectClean();
+  });
+
   test('preserves first-party document navigation and the shared widget session', async ({
     page,
   }) => {

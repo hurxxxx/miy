@@ -2,6 +2,8 @@
 
 ## 2026-10-10 필수 리뷰 후 구조 경계 보완
 
+`61bcf20b`로 후속 후보를 게시했지만 필수 리뷰436이 공유 UI release 분류·split 운영의 default legacy 거부·iframe 상세 surface·미저장 메모 보호를 차단했다. 세 에이전트가 disjoint 경로에서 slice graph, UI/build 입력, topology 경계 검사를 보완하고 Root가 운영 shell·계약과 통합을 담당했다. 양쪽 reviewed Git의 실제 TS/CSS 소비자를 분석하고 Core/공식 CSS 입력을 분리했다. 기존 메모 저장을 유지하며 문서 이동은 저장 완료를 기다리고 이전 UI와 unload 보호를 보존한다. 직접 영향 slice26·topology76·UI22, 두 typecheck·빌드와 합성 브라우저2사례를 확인해 소스를 고정했다. 앱별 기능 고도화로 확대하지 않고 구조 변경의 실제 회귀를 해결했다. 해당 새 후보의 리뷰·CI·서비스 반영은 아직 남아 있다.
+
 통합 후보의 필수 리뷰434에서 Worker의 API-only 협업 dependency import와 official-only 분류의 공통 소비자 누락을 수정해 `848f4af1`로 게시했다. 후속 리뷰435는 프로그램 방식의 앱 문서 이동과 mutable metadata를 통한 이전 JavaScript의 build ID 갱신을 차단했다. 양쪽 공통 router 경계와 compiled compatibility ID를 보완하고 영향10개·두 typecheck·두 UI build를 통과했다. 실제 개발 broker 관측에서 찾은 native Redis 문자열404 처리도 같은 후속 후보에 모았다. 해당 preflight는43.409초에 통과했지만 발행자를 정지하거나 namespace를 전환하지 않았다.
 
 사용자에게 별도 외부 프록시를 찾아 수정할 필요가 없음을 설명했다. Core local gateway가 기존 공개 포트를 유지하고 등록 계약에서 공통/공식 전달을 생성한다. 운영 게이트웨이·새 개발 토폴로지·Workbench 실제 서비스 반영은 필수 리뷰·CI와 각 배포 확인 후 완료로 기록한다. 개별 앱 기능 및 후속 고도화의 보류 범위는 유지한다.

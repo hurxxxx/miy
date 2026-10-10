@@ -7,7 +7,7 @@ import {
   installStaleAssetReloadHandler,
 } from '@/src/platform/deployment/stale-asset-reload';
 import '@miy/ui/styles.css';
-import '@/src/index.css';
+import './index.css';
 import '@miy/official-suite-web/calendar/fullcalendar-theme.css';
 import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';

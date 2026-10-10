@@ -456,15 +456,53 @@ runtime_service_image() {
 }
 
 current_runtime_topology() {
-  local id command
+  local id command service extra_id split_present=0
   id="$(TOPOLOGY=legacy compose ps --all --quiet worker)" || return 1
-  if [[ -z "$id" ]]; then printf 'none\n'; return; fi
+  [[ -z "$id" || "$id" =~ ^[a-f0-9]{64}$ ]] || return 1
+  # Inspect project labels without loading the requested Compose topology or
+  # inferring ownership from mutable image tags. Split orphans are not 'none'.
+  for service in official-api official-worker gateway; do
+    extra_id="$(docker ps --all --quiet --no-trunc \
+      --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" \
+      --filter "label=com.docker.compose.service=$service")" || return 1
+    [[ -z "$extra_id" || "$extra_id" =~ ^[a-f0-9]{64}$ ]] || return 1
+    if [[ -n "$extra_id" ]]; then split_present=1; fi
+  done
+  if [[ -z "$id" ]]; then
+    if [[ "$split_present" == 1 ]]; then
+      echo 'Split service containers remain without a known worker; activation HOLD.' >&2
+      return 1
+    fi
+    printf 'none\n'; return
+  fi
   command="$(docker inspect --format '{{json .Config.Cmd}}' "$id")" || return 1
   case "$command" in
-    *miy_worker.celery_app:celery_app*) printf 'legacy\n' ;;
+    *miy_worker.celery_app:celery_app*)
+      if [[ "$split_present" == 1 ]]; then
+        echo 'Legacy worker and split service containers conflict; activation HOLD.' >&2
+        return 1
+      fi
+      printf 'legacy\n' ;;
     *miy_worker.first_party_platform:celery_app*) printf 'first-party\n' ;;
     *) echo 'Current worker profile is not a known owned runtime; activation HOLD.' >&2; return 1 ;;
   esac
+}
+
+require_runtime_topology() {
+  local action="${1:?operation is required}" current
+  current="$(current_runtime_topology)" || return 1
+  case "${TOPOLOGY:-legacy}:$current:$action" in
+    legacy:legacy:*|legacy:none:*|first-party:first-party:*) return 0 ;;
+    # An explicit full split prepare/deploy owns the legacy drain transition.
+    first-party:legacy:prepare|first-party:legacy:deploy|first-party:none:prepare|first-party:none:deploy)
+      [[ "${RELEASE_SLICE:-full}" == 'full' ]] && return 0 ;;
+    # Paired rollback can recover an initial split activation that failed before
+    # replacing the old namespace, or after removing failed candidate containers.
+    first-party:legacy:rollback|first-party:none:rollback)
+      [[ "${RELEASE_SLICE:-full}" == 'full' && -n "${ROLLBACK_IMAGE:-}" ]] && return 0 ;;
+  esac
+  echo 'Requested topology differs from the existing runtime; use an explicit coordinated first-party release or paired rollback. No runtime changes were made.' >&2
+  return 1
 }
 
 drain_current_workers() {
@@ -789,6 +827,7 @@ rollback_compose() {
 }
 
 restore_previous_runtime() {
+  require_runtime_topology rollback || return 1
   if [[ -n "$ROLLBACK_IMAGE" ]]; then
     if [[ -z "$ROLLBACK_BUNDLE" ]]; then
       echo "An explicit rollback requires a validated image/environment bundle." >&2
@@ -878,6 +917,7 @@ report_deployment_failure() {
 
 deploy() {
   local image="${1:?image is required}"
+  require_runtime_topology deploy || return 1
   # Exact verified candidate IDs remain usable if a role-tag operation fails
   # partway through initial split promotion. Recovery does not depend on tags
   # which the failed operation may not yet have created.
@@ -1012,6 +1052,7 @@ case "$COMMAND" in
     require_prod_checkout
     require_release_source
     acquire_operation_lock
+    require_runtime_topology prepare
     validate_environment
     load_release_contract "$RELEASE_MR"
     if [[ "$TOPOLOGY" == 'first-party' ]]; then
@@ -1039,6 +1080,7 @@ case "$COMMAND" in
     require_prod_checkout
     require_release_source
     acquire_operation_lock
+    require_runtime_topology deploy
     prepare_rollback_runtime "$CURRENT_IMAGE"
     validate_environment
     require_terminal_broker_port_available
@@ -1058,6 +1100,8 @@ case "$COMMAND" in
   migrate)
     require_prod_checkout
     require_release_source
+    acquire_operation_lock
+    require_runtime_topology migrate
     validate_environment
     run_migrations
     ;;
@@ -1065,6 +1109,7 @@ case "$COMMAND" in
     require_prod_checkout
     require_release_source
     acquire_operation_lock
+    require_runtime_topology rollback
     if [[ -n "$ROLLBACK_IMAGE" ]]; then
       if [[ "$RELEASE_SLICE" == 'official' ]]; then prepare_rollback_runtime "$CURRENT_IMAGE";
       else prepare_rollback_runtime "$PREVIOUS_IMAGE"; fi
@@ -1087,6 +1132,7 @@ case "$COMMAND" in
     require_prod_checkout
     require_release_source
     acquire_operation_lock
+    require_runtime_topology up
     validate_environment
     require_terminal_broker_port_available
     docker image inspect "$CURRENT_IMAGE" >/dev/null

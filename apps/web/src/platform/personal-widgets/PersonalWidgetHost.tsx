@@ -29,6 +29,7 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/src/lib/utils';
 import { useAuth } from '@/src/platform/auth/auth-provider';
+import { usePendingDocumentSaveProtection } from '../deployment/pending-document-save';
 
 import {
   PERSONAL_TODO_PMS_TASK_CREATED_EVENT,
@@ -162,6 +163,7 @@ export function PersonalWidgetHost({
     ? 'dockPanel'
     : 'personal';
   const memoDirty = memoBody !== (memo?.body ?? '');
+  usePendingDocumentSaveProtection(memoDirty || memoSaving);
   const activeWidgetTitle =
     activeWidget === 'memo'
       ? t('personalWidgets.memo.title')
@@ -1065,6 +1067,7 @@ export function PersonalWidgetHost({
         ))}
 
       <nav
+        data-miy-pending-save={memoDirty || memoSaving ? 'true' : undefined}
         data-miy-embedded-surface
         aria-label={t('personalWidgets.dockLabel')}
         className="scrollbar-none relative z-[var(--ui-z-dock)] flex h-full w-10 shrink-0 flex-col overflow-x-hidden overflow-y-auto border-l border-app-border bg-app-bg/95 shadow-[var(--ui-shadow-side-dock)] backdrop-blur"

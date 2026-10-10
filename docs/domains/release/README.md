@@ -286,6 +286,23 @@ exactly; registered AI capability modules use the existing app registration
 inventory, while other unresolved dynamic imports hold the slice. Router
 composition and worker profile loaders retain their existing explicit inventory
 boundaries; this source check does not relax the immutable gateway route check.
+The frontend projection reads both reviewed Git trees with the lock-pinned
+TypeScript parser, starting at the portal HTML, Vite configuration and its real
+TS/Vite aliases. It follows transitive imports/reexports, literal dynamic imports,
+worker/asset URLs and CSS imports/source directives. Portal-consumed official
+manifests, home-summary clients, shared assets and release configuration require
+a full release. An implicit Tailwind scan also retains its actual source coupling;
+independent official UI delivery becomes possible only after a coordinated full
+release establishes the explicit Core/official CSS source boundary. Ambiguous
+resolution, dynamic targets and unsupported build-input directives hold the slice.
+The release host needs Node and the repository's installed, lock-pinned TypeScript
+dependency; a missing parser/toolchain holds admission. No app, Vite configuration
+or plugin code is imported or evaluated by this source projection.
+The existing development route projection is excluded only when its exact
+owner function, first `mode !== 'first-party'` empty return and fixed URL binding
+are present in each reviewed tree. The ignored runtime file is never read;
+changes to that shared Vite owner still require a full release, and a changed
+guard or binding holds admission.
 Shared contracts, storage models,
 migrations, locks, ownership or deployment definitions require a full release.
 Both official artifacts have the same reviewed release identity and must match

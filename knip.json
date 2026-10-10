@@ -25,6 +25,7 @@
         "scripts/check-web-app-boundaries.mjs",
         "scripts/check-web-app-boundaries.test.mjs",
         "scripts/check-official-suite-ownership.mjs",
+        "scripts/prod-app-official-ui.mjs",
         "scripts/dev-login-browser-smoke.mjs",
         "scripts/web-i18n-message-checker.test.mjs",
         "packages/official-suite-web/src/index.ts",
