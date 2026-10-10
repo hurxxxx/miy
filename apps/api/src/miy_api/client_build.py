@@ -17,12 +17,16 @@ CLIENT_BUILD_MISMATCH_CODE = "CLIENT_BUILD_MISMATCH"
 _VALID_BUILD_ID = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
 
 
+def is_valid_client_build_id(build_id: str) -> bool:
+    return _VALID_BUILD_ID.fullmatch(build_id) is not None
+
+
 def read_frontend_build_id(frontend_dir: str | Path) -> str | None:
     build_file = Path(frontend_dir).expanduser().resolve() / CLIENT_BUILD_FILE_NAME
     if not build_file.is_file():
         return None
     build_id = build_file.read_text(encoding="utf-8").strip()
-    if not _VALID_BUILD_ID.fullmatch(build_id):
+    if not is_valid_client_build_id(build_id):
         raise RuntimeError(f"Invalid frontend build id in {build_file}")
     return build_id
 

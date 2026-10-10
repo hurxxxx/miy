@@ -149,7 +149,7 @@ async def preflight(environment):
             },
             **SOCKET_OPTIONS,
         ) as socket:
-            await initialize(Peer(socket), environment.source_root)
+            return await initialize(Peer(socket), environment.source_root)
 
 
 async def check(peer, root, canary):

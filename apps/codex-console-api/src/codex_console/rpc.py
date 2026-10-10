@@ -15,7 +15,7 @@ from pathlib import Path
 from jsonschema import Draft7Validator
 from jsonschema.exceptions import ValidationError
 
-from . import remote_environments
+from . import controller_launch, remote_environments
 from .errors import ConsoleError
 from .models import uid
 from .protocol_contract import (
@@ -23,6 +23,7 @@ from .protocol_contract import (
     schemas_are_compatible,
     supports_contract_version,
 )
+from .toolchain_profiles import SDK_PROFILE, selected_profile
 
 MAX_MESSAGE_BYTES = 4 * 1024 * 1024
 
@@ -59,12 +60,21 @@ class CodexRPC:
         self.remote_environment = None
         self.startup_overrides = {}
         self.dynamic_requests = set()
+        self.sdk_requirements_schema = None
+        self.sdk_launch = None
+        self.sdk_turn_thread_id = None
+        self.sdk_stop_task = None
+        self.sdk_cleanup_uncertain = False
+        self.sdk_baseline = None
+        self.sdk_baseline_stop_task = None
+        self.sdk_baseline_probe = False
 
     @property
     def connected(self):
         return self.process is not None and self.process.returncode is None and not self.closing
 
     async def start(self):
+        sdk = self.remote_environment and selected_profile(self.remote_environment) == SDK_PROFILE
         environment = {
             k: os.environ[k]
             for k in ("HOME", "PATH", "USER", "LOGNAME", "LANG", "LC_ALL", "SHELL", "CODEX_HOME")
@@ -82,6 +92,8 @@ class CodexRPC:
             stderr=asyncio.subprocess.DEVNULL,
             env=environment,
         )
+        if self.sdk_baseline_probe:
+            self.process = version
         try:
             output, _ = await asyncio.wait_for(version.communicate(), 10)
         except TimeoutError:
@@ -110,6 +122,8 @@ class CodexRPC:
                 stderr=asyncio.subprocess.DEVNULL,
                 env=environment,
             )
+            if self.sdk_baseline_probe:
+                self.process = schema
             try:
                 await asyncio.wait_for(schema.wait(), 30)
             except TimeoutError:
@@ -122,11 +136,15 @@ class CodexRPC:
                 REMOTE_CONTRACT, Path(directory)
             ):
                 raise ConsoleError("app_executor_version_mismatch", 503)
+            if sdk:
+                self.sdk_requirements_schema = controller_launch.requirements_schema(
+                    Path(directory)
+                )
         if self.remote_environment:
             from .executor_probe import ProbeFailure, preflight
 
             try:
-                await preflight(self.remote_environment)
+                info = await preflight(self.remote_environment)
             except ProbeFailure as exc:
                 if str(exc) == "executor_version_mismatch":
                     raise ConsoleError("app_executor_version_mismatch", 503) from None
@@ -135,10 +153,23 @@ class CodexRPC:
                 raise ConsoleError("app_executor_unavailable", 503) from None
             except Exception:
                 raise ConsoleError("app_executor_unavailable", 503) from None
+            if sdk and (
+                not isinstance(info, dict)
+                or not isinstance(info.get("capabilities"), dict)
+                or info["capabilities"].get("networkProxyLaunch") is not True
+            ):
+                raise ConsoleError("app_executor_configuration", 503)
         arguments = []
-        for name, value in self.startup_overrides.items():
+        startup_overrides = self.startup_overrides
+        if sdk:
+            startup_overrides = {
+                **startup_overrides,
+                "sandbox_mode": "read-only",
+                "approval_policy": "never",
+            }
+        for name, value in startup_overrides.items():
             arguments.extend(["-c", name + "=" + json.dumps(value)])
-        self.process = await asyncio.create_subprocess_exec(
+        command = [
             self.binary,
             "app-server",
             "--listen",
@@ -150,48 +181,83 @@ class CodexRPC:
             "--disable",
             "plugins",
             *arguments,
-            cwd=self.cwd,
-            env=environment,
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL,
-            limit=MAX_MESSAGE_BYTES,
-        )
+        ]
+        spawn_options = {}
+        prepared = None
+        if sdk:
+            if self.closing:
+                raise ConsoleError("app_executor_unavailable", 503)
+            await self._verify_sdk_original_requirements()
+            if self.closing:
+                raise ConsoleError("app_executor_unavailable", 503)
+        try:
+            if sdk:
+                self.sdk_launch = controller_launch.launch(
+                    self.binary, self.cwd, environment, command[1:]
+                )
+                prepared = self.sdk_launch.__enter__()
+                command, spawn_options = prepared.argv, prepared.spawn_options
+            self.process = await asyncio.create_subprocess_exec(
+                *command,
+                **spawn_options,
+                cwd=self.cwd,
+                env=environment,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,
+                limit=MAX_MESSAGE_BYTES,
+            )
+        except BaseException:
+            self._release_sdk_launch()
+            raise
+        finally:
+            if prepared is not None:
+                prepared.close_parent_fd()
         self.reader = asyncio.create_task(self._read())
         self.dispatcher = asyncio.create_task(self._dispatch())
-        await self.call(
-            "initialize",
-            {
-                "clientInfo": {"name": "miy_codex_console", "version": "0.1.0"},
-                "capabilities": {"experimentalApi": True},
-            },
-        )
-        await self.send({"method": "initialized", "params": {}})
-        if self.remote_environment:
-            selected = self.remote_environment
-            config = await self.call("config/read", {"cwd": str(self.cwd), "includeLayers": False})
-            remote_environments.verify_overrides(config["config"])
+        try:
             await self.call(
-                "environment/add",
+                "initialize",
                 {
-                    "environmentId": remote_environments.ENVIRONMENT_ID,
-                    "execServerUrl": selected.exec_server_url,
-                    "authBearerToken": selected.auth_bearer_token.get_secret_value(),
-                    "connectTimeoutMs": 5000,
+                    "clientInfo": {"name": "miy_codex_console", "version": "0.1.0"},
+                    "capabilities": {"experimentalApi": True},
                 },
             )
-            info = await self.call(
-                "environment/info", {"environmentId": remote_environments.ENVIRONMENT_ID}
-            )
-            if info.get("cwd") != selected.source_root.as_uri():
-                raise ConsoleError("app_executor_changed", 409)
-            try:
-                await self.call("environment/info", {"environmentId": "local"})
-            except ConsoleError as exc:
-                if exc.code != "codex_request_failed":
-                    raise
-            else:
-                raise ConsoleError("app_executor_configuration", 503)
+            await self.send({"method": "initialized", "params": {}})
+            if sdk:
+                config = await self._verify_sdk_requirements()
+            if self.remote_environment:
+                selected = self.remote_environment
+                if not sdk:
+                    config = await self.call(
+                        "config/read", {"cwd": str(self.cwd), "includeLayers": False}
+                    )
+                remote_environments.verify_overrides(config["config"], self.remote_environment)
+                await self.call(
+                    "environment/add",
+                    {
+                        "environmentId": remote_environments.ENVIRONMENT_ID,
+                        "execServerUrl": selected.exec_server_url,
+                        "authBearerToken": selected.auth_bearer_token.get_secret_value(),
+                        "connectTimeoutMs": 5000,
+                    },
+                )
+                info = await self.call(
+                    "environment/info", {"environmentId": remote_environments.ENVIRONMENT_ID}
+                )
+                if info.get("cwd") != selected.source_root.as_uri():
+                    raise ConsoleError("app_executor_changed", 409)
+                try:
+                    await self.call("environment/info", {"environmentId": "local"})
+                except ConsoleError as exc:
+                    if exc.code != "codex_request_failed":
+                        raise
+                else:
+                    raise ConsoleError("app_executor_configuration", 503)
+        except BaseException:
+            if sdk:
+                await self.close()
+            raise
 
     async def send(self, message):
         if not self.connected:
@@ -203,7 +269,68 @@ class CodexRPC:
             except (BrokenPipeError, ConnectionResetError):
                 raise ConsoleError("codex_disconnected", 503) from None
 
+    async def _verify_sdk_requirements(self):
+        try:
+            response = await self.call("configRequirements/read", {})
+            controller_launch.verify_requirements(response, self.sdk_requirements_schema)
+            config = await self.call("config/read", {"cwd": str(self.cwd), "includeLayers": False})
+            remote_environments.verify_overrides(config["config"], self.remote_environment)
+            return config
+        except BaseException:
+            await self.close()
+            raise
+
+    async def _verify_sdk_original_requirements(self):
+        async def ignored(*_):
+            pass
+
+        baseline = self.sdk_baseline = CodexRPC(self.binary, self.cwd, ignored, ignored)
+        baseline.sdk_baseline_probe = True
+        try:
+            await baseline.start()
+            response = await baseline.call("configRequirements/read", {})
+            controller_launch.verify_original_requirements(response, self.sdk_requirements_schema)
+        finally:
+            await self._stop_sdk_baseline()
+
+    async def _stop_sdk_baseline(self):
+        async def stop():
+            baseline = self.sdk_baseline
+            try:
+                await asyncio.wait_for(baseline.close(), 12)
+                if baseline.process is not None and baseline.process.returncode is None:
+                    raise TimeoutError
+            except BaseException:
+                self.sdk_cleanup_uncertain = True
+                raise ConsoleError("app_executor_unavailable", 503) from None
+            self.sdk_baseline = None
+
+        if self.sdk_baseline_stop_task is None:
+            self.sdk_baseline_stop_task = asyncio.create_task(stop())
+            self.sdk_baseline_stop_task.add_done_callback(
+                lambda task: None if task.cancelled() else task.exception()
+            )
+        await asyncio.shield(self.sdk_baseline_stop_task)
+
+    def _release_sdk_launch(self):
+        if self.sdk_launch is not None:
+            context, self.sdk_launch = self.sdk_launch, None
+            context.__exit__(None, None, None)
+
     async def call(self, method, params):
+        sdk = self.remote_environment and selected_profile(self.remote_environment) == SDK_PROFILE
+        if sdk and method in ("thread/start", "thread/resume", "turn/start", "turn/steer"):
+            try:
+                controller_launch.verify_request(method, params)
+                if method == "turn/steer" and (
+                    self.sdk_turn_thread_id is None
+                    or params.get("threadId") != self.sdk_turn_thread_id
+                ):
+                    raise ConsoleError("app_executor_configuration", 503)
+                await self._verify_sdk_requirements()
+            except BaseException:
+                await self.close()
+                raise
         schema = METHOD_SCHEMAS.get(method)
         if schema:
             Draft7Validator(CONTRACT["schemas"][schema]).validate(params)
@@ -222,7 +349,12 @@ class CodexRPC:
         self.pending[request_id] = future
         try:
             await self.send({"id": request_id, "method": method, "params": params})
-            return await asyncio.wait_for(future, 30)
+            result = await asyncio.wait_for(future, 30)
+            if sdk and method == "turn/start":
+                self.sdk_turn_thread_id = params["threadId"]
+            elif sdk and method in ("thread/start", "thread/resume"):
+                self.sdk_turn_thread_id = None
+            return result
         except TimeoutError:
             raise ConsoleError("codex_request_uncertain", 503) from None
         finally:
@@ -323,17 +455,59 @@ class CodexRPC:
         # Reconnecting may close/cancel this reader while the durable callback is
         # waiting for the runtime gate. Preserve that callback across transport teardown.
         self.failure_task = asyncio.create_task(self.on_disconnect(reason))
-        await asyncio.shield(self.failure_task)
+        try:
+            await asyncio.shield(self.failure_task)
+        finally:
+            if self.sdk_launch is not None:
+                await self._stop_sdk_controller()
+
+    async def _stop_sdk_controller(self):
+        async def stop():
+            if self.process and self.process.returncode is None:
+                with contextlib.suppress(ProcessLookupError):
+                    self.process.terminate()
+                try:
+                    await asyncio.wait_for(self.process.wait(), 5)
+                except TimeoutError:
+                    with contextlib.suppress(ProcessLookupError):
+                        self.process.kill()
+                    try:
+                        await asyncio.wait_for(self.process.wait(), 5)
+                    except TimeoutError:
+                        # Keep the original process/context for explicit recovery;
+                        # removing a still-mounted path is not verified cleanup.
+                        self.sdk_cleanup_uncertain = True
+                        raise ConsoleError("app_executor_unavailable", 503) from None
+            self._release_sdk_launch()
+            for task in (self.reader, self.dispatcher):
+                if task and task is not asyncio.current_task():
+                    task.cancel()
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await task
+
+        if self.sdk_stop_task is None:
+            self.sdk_stop_task = asyncio.create_task(stop())
+            self.sdk_stop_task.add_done_callback(
+                lambda task: None if task.cancelled() else task.exception()
+            )
+        # Caller cancellation cannot cancel the one owned cleanup. Repeated close
+        # joins that same task, without respawning or inventing another identity.
+        await asyncio.shield(self.sdk_stop_task)
 
     async def close(self):
         self.closing = True
-        if self.process and self.process.returncode is None:
+        if self.sdk_baseline is not None or self.sdk_baseline_stop_task is not None:
+            await self._stop_sdk_baseline()
+        if self.sdk_launch is not None or self.sdk_stop_task is not None:
+            await self._stop_sdk_controller()
+        elif self.process and self.process.returncode is None:
             self.process.terminate()
             try:
                 await asyncio.wait_for(self.process.wait(), 5)
             except TimeoutError:
                 self.process.kill()
                 await self.process.wait()
+        self._release_sdk_launch()
         for task in (self.reader, self.dispatcher):
             if task:
                 task.cancel()

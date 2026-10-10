@@ -129,6 +129,16 @@ def template_directory(settings, factory, definition):
 
 def seed(factory):
     common = "Read AGENTS.md and the applicable repository instructions. Preserve unrelated work. "
+    previous_validation_prompts = {
+        "코드 검토": (
+            "Review {{request}}. Inspect the actual changes and relevant contracts and tests. "
+            "Report actionable findings with evidence. Do not modify code or publish comments."
+        ),
+        "테스트": (
+            "Validate {{request}} using relevant behavior and contract checks. Report commands, "
+            "results and anything not verified. Do not weaken checks, publish or deploy changes."
+        ),
+    }
     choices = [
         (
             "MR 리뷰",
@@ -144,7 +154,9 @@ def seed(factory):
             "request",
             "검토할 변경이나 범위",
             "Review {{request}}. Inspect the actual changes and relevant contracts and tests. "
-            "Report actionable findings with evidence. Do not modify code or publish comments.",
+            "Reuse current verification evidence for unchanged code and inputs; do not rerun "
+            "tests merely to review. Report actionable findings with evidence and any "
+            "unverified critical boundary. Do not modify code or publish comments.",
             [],
         ),
         (
@@ -152,8 +164,14 @@ def seed(factory):
             "요청한 동작을 검증하고 실패와 미검증 범위를 보고합니다.",
             "request",
             "검증할 앱·변경·동작",
-            "Validate {{request}} using relevant behavior and contract checks. Report commands, "
-            "results and anything not verified. Do not weaken checks, publish or deploy changes.",
+            "Validate {{request}} as one consolidated run after the requested changes are "
+            "integrated. Deduplicate checks and reuse current results for unchanged code and "
+            "inputs. Use the existing validation entrypoints, complete required checks, clean "
+            "up resources created by this run and report commands, results and unverified "
+            "boundaries. Let required CI own the full suite instead of duplicating it locally. "
+            "After a fix, rerun the failed boundary and directly affected checks first; broaden "
+            "only for new changes, unresolved failures or required contracts. Do not weaken "
+            "checks, publish or deploy changes.",
             [],
         ),
         (
@@ -256,8 +274,6 @@ def seed(factory):
         for name, description, key, label, prompt, skills in choices:
             # Stable seed IDs retain existing templates and their execution history.
             ident = str(uuid5(NAMESPACE_URL, "mty-codex-template:" + name))
-            if db.get(TaskTemplate, ident):
-                continue
             definition = TemplateDefinition(
                 name=name,
                 description=description,
@@ -274,7 +290,22 @@ def seed(factory):
                     "앱 복구": "recovery",
                 }.get(name),
             )
-            db.add(TaskTemplate(id=ident, definition=definition.model_dump(mode="json")))
+            value = definition.model_dump(mode="json")
+            existing = db.get(TaskTemplate, ident)
+            if existing is None:
+                db.add(TaskTemplate(id=ident, definition=value))
+            elif name in previous_validation_prompts:
+                previous = {**value, "prompt": common + previous_validation_prompts[name]}
+                # Only untouched initial defaults transition. User edits, archived
+                # templates and the immutable snapshots on existing Tasks stay intact.
+                if (
+                    existing.version == 1
+                    and not existing.archived
+                    and existing.definition == previous
+                ):
+                    existing.definition = value
+                    existing.version += 1
+                    existing.updated_at = now()
 
 
 def register(app, owner, runtime_for):

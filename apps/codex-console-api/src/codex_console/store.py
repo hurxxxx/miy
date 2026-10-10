@@ -1,6 +1,6 @@
 from sqlalchemy import delete, func, or_, select, update
 
-from . import planning
+from . import planning, remote_environments
 from .errors import ConsoleError
 from .models import (
     Agent,
@@ -359,6 +359,9 @@ def detail(factory, task_id, settings):
         failed = db.get(Operation, task.current_operation_id) if task.current_operation_id else None
         return {
             **task_out(task, db),
+            "implementation_permissions": remote_environments.implementation_permissions(
+                settings, task
+            ),
             "failed_request_text": failed.display_text
             if failed and failed.state == "failed" and task.status == "failed"
             else task.template_snapshot.get("text")

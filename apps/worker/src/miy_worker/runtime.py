@@ -8,7 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlparse
 
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from miy_worker.settings import get_settings
@@ -29,6 +29,39 @@ def ensure_api_src_on_path() -> None:
     api_src = workspace_root() / "apps" / "api" / "src"
     if str(api_src) not in sys.path:
         sys.path.insert(0, str(api_src))
+
+
+def ensure_official_worker_src_on_path() -> None:
+    """Use the installed owner wheel; source fallback is checkout-only."""
+    if find_spec("miy_official_worker") is not None:
+        return
+    source = workspace_root() / "apps" / "official-suite" / "worker" / "src"
+    if not (source / "miy_official_worker" / "__init__.py").is_file():
+        raise RuntimeError("matching_official_worker_artifact_required")
+    if str(source) not in sys.path:
+        sys.path.insert(0, str(source))
+
+
+def assert_llm_routing_control_plane_ready(*, settings) -> None:
+    """Keep the existing worker's database startup contract across compositions."""
+    if not settings.postgres_dsn.strip():
+        raise RuntimeError("Worker PostgreSQL DSN is not configured.")
+    engine = create_engine(settings.postgres_dsn, pool_pre_ping=True)
+    try:
+        with Session(engine) as session:
+            for statement in (
+                "SELECT provider_id, provider_kind, credential_kind FROM ai_model_provider_configs LIMIT 1",
+                "SELECT id FROM ai_model_catalog_entries LIMIT 1",
+                "SELECT app_id, workload_id FROM ai_model_route_overrides LIMIT 1",
+                "SELECT app_id, route_mode FROM ai_model_policy_defaults LIMIT 1",
+            ):
+                session.execute(text(statement)).all()
+    except Exception as error:
+        raise RuntimeError(
+            "AI model control plane is unavailable. Run API migrations before starting the worker."
+        ) from error
+    finally:
+        engine.dispose()
 
 
 @lru_cache(maxsize=1)

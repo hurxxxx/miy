@@ -51,19 +51,17 @@ from miy_api.domains.docs.timestamps import touch_native_doc
 from miy_api.domains.media.service import sync_embedded_media
 from miy_api.domains.rag.contracts import RagSyncOperation
 from miy_api.domains.official_apps.writer import (
+    LEGACY_WRITER_IDENTITY as DOCS_WRITER_IDENTITY,
     WriterIdentity,
     bind_transaction,
     require_active_writer,
 )
-from miy_api.domains.official_apps.writer_contracts import SUITE_SCOPE
 
 logger = logging.getLogger(__name__)
 
 PAGE_SOURCE_NATIVE_DOC = "native_doc_page"
 
 COLLAB_RELAY_CHANNEL_PREFIX = "docs-collab"
-# Pinned composition identity. Never adopt a database generation at reconnect.
-DOCS_WRITER_IDENTITY = WriterIdentity(SUITE_SCOPE, "legacy", 1)
 
 
 def writer_close_choice(error: HTTPException) -> tuple[int, str] | None:

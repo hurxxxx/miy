@@ -1,4 +1,45 @@
-# 서버 재시작 전 중단 지점
+# 작업 중단과 재개 체크포인트
+
+**재개 기록:** 2026-10-10 필수 범위 확정 후 사용자가 “계획대로 진행”을 지시해 구현을 재개했다. 아래 중단 상태·패킷·검증 자료는 보존 시점 기록이다. 현재 실행은 [STATUS.md](STATUS.md)의 필수 범위를 따르며 미채택 고도화는 보류한다.
+
+**2026-10-10 최신 범위:** [필수 구조 변경](PLAN.md#이번-범위)만 이번에 수행하고 [후속 고도화](FOLLOW_UP_ENHANCEMENTS.md)는 별도 지시까지 보류한다. 아래 미게시 후보는 보존 자료이며 모두 통합할 의무가 아니다. C2/Files 저장 확장은 실제 분리 장애·치명적 결함의 최소 해결에 필요한 부분만 선택한다. 필수 구조 완료에 고급 UX·모니터링·부하/반복 평가를 다시 추가하지 않는다.
+
+2026-10-10 UTC. 사용자가 중간 진행 점검을 위해 현재 작업만 마무리한 뒤 중단하도록 지시했다. 현재 실행하던 C2 검증과 소유 임시 자원 정리를 완료하고 수정본·문서를 보존한다. **사용자의 재개 지시 전 추가 구현·검증·게시·배포를 시작하지 않는다.**
+
+이후 사용자 요청으로 검증 계획만 [최종 통합 검증 방식](VALIDATION.md#2026-10-10-검증-일괄-수행-원칙)으로 조정했다. 재개 후 아래 후보와 남은 구조 구현을 최대한 통합한 뒤 필요한 검토·준비·실행·정리를 한 번에 진행한다. 후보별 기능 검증·게시·배포를 반복하지 않고 필수 리뷰·CI와 승인된 반영 확인까지 연속 진행한다. 기존 통과 자료와 CI 검사를 로컬에서 중복 실행하지 않는다. 후보별 최종 검토 대기는 유지하되 준비 결과나 검증 도구마다 별도의 독립 리뷰를 자동 추가하지 않는다. 이번 요청은 구현 재개가 아니다.
+
+## 현재 반영과 보존 범위
+
+- Dev `c40e70910ccc3b148b8c00e504be2122a346d0c8`, main/prod `9cbf9c5c9e623433e23daab767fffb29748adc76`, tree `64e456b4cacf2af723d47f88a1fa35f7030607e3`다. PR96/MR103·필수264/432·full265/433·MR81·guarded 운영 전달을 마쳤다. 운영 API/worker/Beat는 immutable image `389d1e67…`와 C1 head `wb_checked_cas_20261009`로 정상이며 이전 image/env/백업을 보존한다. [전달 기록](PUBLICATION_CHECKPOINT.md)이 정확 범위를 소유한다.
+- Docker 실제 저장소 `/var/lib/miy-docker-data`와 canonical `/var/lib/docker` bind로 이전·복구했다. 마지막 확인 root117GiB/약40GiB 여유, 기존 컨테이너/볼륨 보존이다. OS reboot는 미검증이며 미확인 orphan220개는 보존한다.
+- 중단 시 Main의 중간 점검 문서9개를 미커밋으로 보존했고, 이후 검증 계획 조정도 문서 변경으로만 남긴다. SDK·C2 제품 후보는 아래 별도 worktree에 보존하며 main/prod에 새로 통합하지 않았다. 모든 작업은 구조 필수 변경/치명적 경계에 한정한다. 앱별 상세 기능·다중 사용자는 보류한다.
+
+## 미게시 후보와 정확한 재개 지점
+
+| 후보                         | 보존 위치·근거                                                                                                                                                                                                                      | 재개 후 필요한 단계                                                                                                    |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Workbench SDK/UI/cache       | `/tmp/miy-sdk-integration-ux-20261009`; source manifest SHA `0b57fcb3303583501a6e4f79cd0a749a12aff08256d3e2100ade7a6ee52490b0`; UI peer `d0abe93c…`, cache peer `1502c583…`                                                         | 정상 controller 결과 증거 인수, feature 리뷰/게시/병합, 별도 Workbench 릴리스·SQLite 백업·서비스 전환·실제 로그인/화면 |
+| C2 단일 journal35/checkpoint | `/tmp/miy-c2-closed-journal-20261009`; constraint-catalog correction source `25f14b24cafdb9091485bd574d588aead9e5f297e847a2b2764b7c3a4b1174ba`; actual96 receipt `4c29ad144f47b2e96140448ffe47a03b490e17c18b2604f5e6f5dfc981b58d2a` | 최종 adapter와 정확 source 조립·실제 SQL/native/C1 통합·리뷰/릴리스                                                    |
+| C2 trusted adapter           | `/tmp/miy-c2-trusted-adapter-20261009`; 합성56 PASS, 기본 owned isolation verifier 미설정은 fail-closed                                                                                                                             | 최종 동결 source 독립 리뷰·실제 통합·native fullRSS/ABI boundary·room final retirement/C3; 현재 활성화하지 않음        |
+
+SDK 원 Task/thread의 계획·구현2턴과 read-only3번째 인수를 보존한다. 원 Task에4번째 턴을 붙이지 않는다. 두 starter의 수동 carrier native protocol 증거를 정상 carrier 성공으로 바꾸지 않는다.
+
+최신 정상 controller 단일 claim은 결과 파일 O_EXCL 충돌로 최종 결과가 저장되지 않아 **HOLD**다. Ephemeral 실행 결과·정확 모델 제출 횟수(최대1)를 추정하지 않는다. 기존 before-claim negative `e153bb04…`, manager start `4fdf299f…`/stop `d36e92d7…`, Root post-safety `49985ec5aad7626c148e1cf1b15505b7f07b05fa93c248239b4f4fd761a0670f`를 보존한다. 소유3unit 파일/프로세스/cgroup/port 정리와 Source/Git/current3607/전체 cache/native 불변은 별도 실제 확인했다. 해당 claim을 재실행하거나 결과를 재구성하지 않는다. 결과 파일 선예약의 최소 보완 패킷은 동결까지만 마무리하며 새 준비·모델·서비스 실행은 재개 이후다.
+
+## 이번 중단에서 동결을 마친 패킷
+
+- 정상 Workbench 결과 선예약 helper: `.runtime/structural-next-delivery/SDK-normal-controller-receipt-reservation-author/frozen-author-packet.json`, SHA `b941d2425a94c2df0cb2066fb08949bedfd0426ca72d364bb1d95693112ae4e8`, inputs `8084da8be937aef27000692908ff5382e1298382985eb8242c5b962e43102bcb`, 합성12 PASS. Source0b57과 기존 route/execute/정책/예산은 보존했고 새 path/ports28461·28462 및 결과 FD 선확보만 수정했다. **최종 독립 리뷰 대기**, 새로운 준비/실제 모델/서비스 실행0이다.
+- C2 adapter: `/tmp/miy-c2-trusted-adapter-20261009/.runtime/C2-trusted-adapter-author/frozen-author-packet.json`, SHA `83b0276a7b41936c64dac3aa7bcf8091d6f46b393f299c70d350eb2930c25b3c`, source20 manifest `02dd1f400efc76881988ba3a35caa42d6b319e430fbaea47e9a9c37536f4877a`, 합성56 PASS1.33초·Ruff/format/diff/source guards다. Handoff는 같은 owner의 `handoff.md`(`b8ce9d9beabb20bb7538533356568990c45aa55e408c7d25200950091d79a0ec`)가 소유한다. Unknown checkpoint COMMIT/stale capture는 원본/F/S·GC lease를 보존한다. 이미 checkpoint handoff로 lease가 풀린 후 발생한 native 변경의 final room retirement는 활성화 전 필수 잔여다. 최종 독립 리뷰·실제 통합·전체 RSS/ABI·C1/C3는 미완료다.
+
+모든 담당 에이전트가 동결과 인계를 마치고 중단했다. 진행 중인 이번 작업의 검증·모델·임시 서비스는 없다. 기존 개발/운영 서비스는 유지한다. 현재 중단 기록과 후보는 미커밋이며 새 게시/배포를 수행하지 않았다.
+
+## 검증 종료와 재개 순서
+
+C2 source25f14의 actual96은509.356302초에 setup/call/teardown 각각96 PASS, 오류/skip0, source guards·owned cluster/container/sidecar 정리 PASS다. 이전 source3908/629fc 실패와 catalog 진단을 그대로 보존한다. 이 결과는 adapter56이나 전체 runtime의 인수 증거가 아니다.
+
+재개 시 현재 Git와 필요한 보존 후보부터 확인한다. 종료한 agent/session/process가 살아 있다고 가정하지 않는다. 필수 구조를 먼저 구현·통합한 뒤 Workbench 정상 실행과 UI·DB 대표 앱 흐름, 공식 묶음 전환의 필요한 검사를 한 최종 흐름에 모은다. C2 adapter 전체 연결/인수는 기본 재개 단계에서 제외하고 조건부 필수 부분만 채택한다. 미채택 후보의 독립 리뷰·실제 통합은 후속으로 남긴다. 실제 서비스 전환의 권한·구형 writer 정리·데이터 보존·복구와 필수 릴리스 리뷰/CI는 유지한다. Platform deployment가 Workbench deployment를 대신하지 않으며 현재 새 factory/roles·공식 cutover는 계속 비활성이다.
+
+## 이전 중단 기록 — 2026-10-07 서버 재시작
 
 2026-10-07 UTC. 사용자가 서버 재시작을 위해 현재 하던 작업만 마무리하고 일시중단하도록 지시했다. 새 구현·검사를 시작하지 않았고 실행 중이던 검사와 정확히 소유한 임시 자원만 정리했다. **사용자의 재개 지시 전까지 작업을 시작하지 않는다.** 서버 재시작은 사용자가 수행하며 이 작업에서 서비스를 재시작하지 않았다.
 

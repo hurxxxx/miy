@@ -17,6 +17,16 @@
           "env -u OPENROUTER_API_KEY MIY_WORKER_QUEUE_GROUP=beat uv run --python 3.12 celery -A miy_worker.celery_app:celery_app beat --loglevel=info"
         ],
         "parallel": true
+      },
+      "configurations": {
+        "first-party": {
+          "commands": [
+            "env -u OPENROUTER_API_KEY sh -c 'queues=\"$(uv run --python 3.12 python -m miy_worker.first_party_queues --profile platform)\" && MIY_WORKER_QUEUE_GROUP=all uv run --python 3.12 celery -A miy_worker.first_party_platform:celery_app worker --loglevel=info -Q \"$queues\" --hostname=miy-dev-platform@%h'",
+            "env -u OPENROUTER_API_KEY sh -c 'queues=\"$(uv run --python 3.12 python -m miy_worker.first_party_queues --profile official)\" && PYTHONPATH=../official-suite/worker/src MIY_WORKER_QUEUE_GROUP=all uv run --python 3.12 celery -A miy_official_worker.runtime:celery_app worker --loglevel=info -Q \"$queues\" --hostname=miy-dev-official@%h'",
+            "env -u OPENROUTER_API_KEY MIY_WORKER_QUEUE_GROUP=beat uv run --python 3.12 celery -A miy_worker.first_party_beat:celery_app beat --loglevel=info --schedule=../../.runtime/first-party-celerybeat-schedule"
+          ],
+          "parallel": true
+        }
       }
     },
     "lint": {

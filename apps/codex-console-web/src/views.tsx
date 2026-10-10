@@ -591,6 +591,7 @@ export function Confirm({
   description,
   t,
   busy,
+  disabled = false,
   onClose,
   onConfirm,
   children,
@@ -601,6 +602,7 @@ export function Confirm({
   description: Copy;
   t: Translate;
   busy: boolean;
+  disabled?: boolean;
   onClose: () => void;
   onConfirm: () => void;
   children?: ReactNode;
@@ -618,7 +620,11 @@ export function Confirm({
       actions={
         <>
           <Button onClick={onClose}>{t('Cancel')}</Button>
-          <Button variant="primary" disabled={busy} onClick={onConfirm}>
+          <Button
+            variant="primary"
+            disabled={busy || disabled}
+            onClick={onConfirm}
+          >
             {t(action)}
           </Button>
         </>

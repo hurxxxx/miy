@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 _profile: str | None = None
 _app: Celery | None = None
+_first_party_compatibility = False
 
 
 def assert_profile_available(profile: str) -> None:
@@ -22,12 +23,13 @@ def assert_profile_available(profile: str) -> None:
         raise RuntimeError("worker_profile_process_conflict")
 
 
-def bind_task_app(profile: str, app: Celery) -> None:
-    global _profile, _app
+def bind_task_app(profile: str, app: Celery, *, first_party_compatibility: bool = False) -> None:
+    global _profile, _app, _first_party_compatibility
     assert_profile_available(profile)
     if _app is not None and _app is not app:
         raise RuntimeError("worker_profile_process_conflict")
     _profile, _app = profile, app
+    _first_party_compatibility = first_party_compatibility
 
 
 def selected_profile() -> str:
@@ -51,7 +53,7 @@ def task_app(module_name: str) -> Celery:
 def mail_task_time_limit() -> int:
     from miy_worker.settings import Settings, get_settings
 
-    if selected_profile() == "legacy":
+    if selected_profile() == "legacy" or _first_party_compatibility:
         return get_settings().mail_sync_processing_lease_seconds
     # Inactive artifact inspection must not read host credentials/.env. This is
     # the canonical default, not a configurable executable runtime profile.

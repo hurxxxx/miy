@@ -6,6 +6,7 @@ from typing import Protocol
 
 from fastapi import FastAPI
 
+from miy_api.api_composition import ApiComposition, require_composition
 from miy_api.core.db import get_session_factory
 from miy_api.core.realtime import AppRealtimeHub, InProcessAppRealtimeHub
 from miy_api.core.settings import Settings, get_settings
@@ -44,16 +45,20 @@ class _ComposedApiExternalRuntime:
     def __init__(
         self,
         *,
-        agent_terminal_factory: ServiceFactory,
-        app_realtime_factory: ServiceFactory,
-        docs_collab_factory: ServiceFactory,
-        whiteboard_collab_factory: ServiceFactory,
+        agent_terminal_factory: ServiceFactory | None = None,
+        app_realtime_factory: ServiceFactory | None = None,
+        docs_collab_factory: ServiceFactory | None = None,
+        whiteboard_collab_factory: ServiceFactory | None = None,
     ) -> None:
-        self._service_factories = (
-            ("agent_terminal_runtime", agent_terminal_factory),
-            ("app_realtime", app_realtime_factory),
-            ("docs_collab", docs_collab_factory),
-            ("whiteboard_collab", whiteboard_collab_factory),
+        self._service_factories = tuple(
+            (name, factory)
+            for name, factory in (
+                ("agent_terminal_runtime", agent_terminal_factory),
+                ("app_realtime", app_realtime_factory),
+                ("docs_collab", docs_collab_factory),
+                ("whiteboard_collab", whiteboard_collab_factory),
+            )
+            if factory is not None
         )
 
     @asynccontextmanager
@@ -109,6 +114,36 @@ class ProductionApiExternalRuntime(_ComposedApiExternalRuntime):
 
     def prepare(self) -> None:
         self._storage_prepare()
+
+
+class FirstPartyApiExternalRuntime(_ComposedApiExternalRuntime):
+    """Owned services; existing Redis/storage/DB contracts remain shared.
+
+    Realtime is a common Redis service consumed by both processes. Only the
+    official process hosts business collaboration rooms; only platform hosts
+    the terminal. Neither process seeds identity, migrates or provisions storage.
+    """
+
+    def __init__(self, *, composition: ApiComposition, settings: Settings | None = None) -> None:
+        selected = require_composition(composition)
+        if selected == "legacy":
+            raise ValueError("First-party runtime requires one service owner")
+        settings = settings or get_settings()
+        super().__init__(
+            agent_terminal_factory=(
+                (lambda: AgentTerminalRuntime(settings, get_session_factory()))
+                if selected == "platform"
+                else None
+            ),
+            app_realtime_factory=lambda: AppRealtimeHub(
+                settings.realtime_redis_url, instance_id=settings.instance_id
+            ),
+            docs_collab_factory=DocsCollabHub if selected == "official" else None,
+            whiteboard_collab_factory=WhiteboardCollabHub if selected == "official" else None,
+        )
+
+    def prepare(self) -> None:
+        return None
 
 
 class InProcessApiExternalRuntime(_ComposedApiExternalRuntime):

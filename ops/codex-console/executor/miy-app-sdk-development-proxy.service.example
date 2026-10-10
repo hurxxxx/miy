@@ -1,0 +1,32 @@
+# Core-owned companion to miy-app-sdk-development.service; never auto-installed.
+[Unit]
+Description=MIY persistent SDK development ingress
+BindsTo=miy-app-sdk-development.service miy-app-sdk-development-proxy.socket
+After=miy-app-sdk-development.service miy-app-sdk-development-proxy.socket
+JoinsNamespaceOf=miy-app-sdk-development.service
+
+[Service]
+Type=notify
+User=@EXECUTOR_UID@
+Group=@EXECUTOR_GID@
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+PrivateNetwork=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+CPUQuota=100%
+MemoryMax=1073741824
+MemorySwapMax=0
+TasksMax=64
+# Keep active native connections; exit-idle-time still retires an idle proxy.
+RuntimeMaxSec=infinity
+TimeoutStopSec=3
+KillMode=control-group
+Restart=no
+LimitCORE=0
+StandardOutput=null
+StandardError=null
+ExecStart=/usr/lib/systemd/systemd-socket-proxyd \
+    --connections-max=2 --exit-idle-time=10s 127.0.0.1:@PRIVATE_PORT@

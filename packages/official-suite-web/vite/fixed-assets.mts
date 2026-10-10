@@ -21,9 +21,11 @@ export function officialFixedAssets(): Plugin {
     name: 'miy-official-fixed-assets',
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
-        const asset = assets.find(
-          (candidate) =>
-            request.url?.split('?', 1)[0] === `/${candidate.fileName}`,
+        const asset = assets.find((candidate) =>
+          [
+            `/${candidate.fileName}`,
+            `${server.config.base}${candidate.fileName}`,
+          ].includes(request.url?.split('?', 1)[0] ?? ''),
         );
         if (!asset) {
           next();

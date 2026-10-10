@@ -48,6 +48,12 @@ class WriterIdentity:
             raise WriterControlError("writer_identity_invalid")
 
 
+# Fixed compatibility composition identity. Never discover/adopt a database
+# generation at startup or reconnect. Keep this common boundary independent of
+# API-only collaboration libraries so API, Worker and Beat use the same fence.
+LEGACY_WRITER_IDENTITY = WriterIdentity(SUITE_SCOPE, "legacy", 1)
+
+
 def snapshot(record: RuntimeOwnership) -> dict:
     return {
         "scope": record.scope,

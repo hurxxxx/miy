@@ -53,6 +53,7 @@ beforeEach(() => {
     agents: [],
     pending_count: 0,
     permissions: 'read-only',
+    implementation_permissions: ['ask', 'yolo'],
     thread_id: 'thread',
     turn_id: null,
     root: '/repo/dev',
@@ -1007,6 +1008,110 @@ it('does not override the native model when only permissions change', async () =
     ),
   );
 });
+
+it('offers only server-supported permissions and normalizes a saved YOLO choice for an SDK task', async () => {
+  detail = {
+    ...detail,
+    stage: 'implement',
+    permissions: 'yolo',
+    implementation_permissions: ['ask'],
+  };
+  await openAndCompose();
+  const permissions = screen.getByLabelText('실행 권한');
+  expect(permissions).toHaveProperty('value', 'ask');
+  expect(within(permissions).getAllByRole('option')).toHaveLength(1);
+  expect(screen.queryByRole('option', { name: /YOLO/ })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '보내기' }));
+  await waitFor(() =>
+    expect(api).toHaveBeenCalledWith(
+      `/tasks/${taskId}/implement`,
+      expect.objectContaining({
+        permissions: 'ask',
+        model: null,
+        effort: null,
+      }),
+    ),
+  );
+});
+
+it('uses the current server permission choices when a plan confirmation is already open', async () => {
+  const dialog = await openPlanConfirmation();
+  fireEvent.change(within(dialog).getByLabelText('실행 권한'), {
+    target: { value: 'yolo' },
+  });
+  detail = { ...detail, implementation_permissions: ['ask'], event_id: 2 };
+  await act(async () => {
+    Stream.current.dispatchEvent(new Event('changed'));
+  });
+  await waitFor(() =>
+    expect(within(dialog).getByLabelText('실행 권한')).toHaveProperty(
+      'value',
+      'ask',
+    ),
+  );
+  expect(within(dialog).queryByRole('option', { name: /YOLO/ })).toBeNull();
+  fireEvent.click(
+    within(dialog).getByRole('button', { name: '이 계획으로 실행' }),
+  );
+  await waitFor(() =>
+    expect(api).toHaveBeenCalledWith(
+      `/tasks/${taskId}/implement`,
+      expect.objectContaining({
+        revision_id: 7,
+        permissions: 'ask',
+        model: null,
+        effort: null,
+      }),
+    ),
+  );
+});
+
+it.each(['empty', 'missing'] as const)(
+  'keeps history inspectable and blocks execution when server permission choices are %s',
+  async (capability) => {
+    detail.items = [
+      {
+        id: 'prior-result',
+        type: 'agentMessage',
+        text: 'Preserved prior result',
+      },
+    ];
+    if (capability === 'empty') detail.implementation_permissions = [];
+    else Reflect.deleteProperty(detail, 'implementation_permissions');
+    const dialog = await openPlanConfirmation();
+    expect(screen.getByText('Preserved prior result')).toBeTruthy();
+    expect(
+      screen.getAllByText('이 앱의 격리 실행 환경을 연결하세요.').length,
+    ).toBeGreaterThan(0);
+    expect(within(dialog).getByLabelText('실행 권한')).toHaveProperty(
+      'disabled',
+      true,
+    );
+    const confirm = within(dialog).getByRole('button', {
+      name: '이 계획으로 실행',
+    });
+    expect(confirm).toHaveProperty('disabled', true);
+    fireEvent.click(confirm);
+    fireEvent.click(within(dialog).getByRole('button', { name: '취소' }));
+    fireEvent.change(screen.getByLabelText('실행 모드'), {
+      target: { value: 'implement' },
+    });
+    fireEvent.change(screen.getByLabelText('요청 내용 입력'), {
+      target: { value: 'Follow up' },
+    });
+    const send = screen.getByRole('button', { name: '보내기' });
+    expect(send).toHaveProperty('disabled', true);
+    expect(screen.getByLabelText('실행 권한')).toHaveProperty('disabled', true);
+    fireEvent.click(send);
+    expect(
+      vi
+        .mocked(api)
+        .mock.calls.filter(
+          ([path]) => path.endsWith('/implement') || path.endsWith('/messages'),
+        ),
+    ).toHaveLength(0);
+  },
+);
 
 it('uses the first available model when Codex marks no catalog default', async () => {
   const original = vi.mocked(api).getMockImplementation()!;

@@ -146,7 +146,10 @@ function isPrivateOrLoopbackIpv4(value) {
   );
 }
 
-export function assertProductionAppEnv(values) {
+export function assertProductionAppEnv(values, { firstParty = false } = {}) {
+  const apiPrefix = (values.get('MIY_API_PREFIX') ?? '/api/v1').trim();
+  if (firstParty && (!/^\/[A-Za-z0-9/_-]+$/.test(apiPrefix) || apiPrefix.endsWith('/')))
+    throw new Error('MIY_API_PREFIX must match the native first-party route projection contract');
   requireExact(values, 'MIY_ENV_PROFILE', 'prod');
   requireExact(values, 'MIY_API_ENVIRONMENT', 'production');
   requireBoolean(values, 'MIY_API_ALLOW_DEV_ADMIN_LOGIN', false);
@@ -188,6 +191,12 @@ export function assertProductionAppEnv(values) {
     const port = parsePort(values, key);
     if (port === appPort) {
       throw new Error(`MIY_APP_PORT must not collide with ${key}`);
+    }
+  }
+  if (firstParty) {
+    for (const key of ['MIY_APP_PORT', ...PORT_KEYS]) {
+      if ([18779, 18780].includes(parsePort(values, key)))
+        throw new Error(`${key} collides with a reserved first-party internal API port`);
     }
   }
 
@@ -347,7 +356,11 @@ export function assertProductionAppEnv(values) {
     );
   }
   requireExact(values, 'MIY_HERMES_PROFILE_CLONE_SOURCE', 'default');
+  if (firstParty && [opfServiceBaseUrl, hermesRuntimeBaseUrl, hermesManagementBaseUrl, hermesMcpServerUrl, hermesTerminalBrokerBaseUrl]
+    .some((url) => [18779, 18780].includes(Number(url.port))))
+    throw new Error('A runtime service collides with a reserved first-party internal API port');
   return {
+    apiPrefix,
     appPort,
     bentoBindHost,
     bentoServerUrl,
@@ -365,8 +378,17 @@ export function assertProductionAppEnv(values) {
 
 function runCli() {
   const envPath = process.argv[2] ?? '.env';
-  const config = assertProductionAppEnv(readEnvFile(envPath));
   const outputMode = process.argv[3];
+  const firstParty = outputMode === '--topology' && process.argv[4] === 'first-party' && process.argv.length === 5;
+  const config = assertProductionAppEnv(readEnvFile(envPath), { firstParty });
+  if (firstParty) {
+    process.stdout.write('Production first-party environment preflight passed: existing app listener and reserved internal API ports are separated.\n');
+    return;
+  }
+  if (outputMode === '--print-api-prefix') {
+    process.stdout.write(config.apiPrefix);
+    return;
+  }
   if (outputMode === '--print-bento-server-url') {
     process.stdout.write(config.bentoServerUrl.href);
     return;

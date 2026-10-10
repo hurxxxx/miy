@@ -27,6 +27,23 @@ def inspect_profile(profile: str, wheels: list[Path]) -> dict:
     # Resolve only the supplied wheels, never this checkout's API fallback.
     sys.path[:0] = [str(wheel) for wheel in wheels]
     import importlib
+    import importlib.metadata
+    import importlib.util
+
+    roots = tuple(str(wheel) + os.sep for wheel in wheels)
+    versions = {
+        importlib.metadata.version(name)
+        for name in ("miy-api", "miy-worker", "miy-official-worker")
+    }
+    assert len(versions) == 1, "matching_runtime_wheels_required"
+    for entry in (
+        "miy_worker.first_party_platform",
+        "miy_worker.first_party_beat",
+        "miy_official_worker.runtime",
+    ):
+        specification = importlib.util.find_spec(entry)
+        assert specification is not None and specification.origin
+        assert specification.origin.startswith(roots), ("missing_runtime_entry", entry)
 
     import miy_api.platform_extensions as extensions
     from miy_worker import runtime, settings
@@ -59,6 +76,17 @@ def inspect_profile(profile: str, wheels: list[Path]) -> dict:
     assert "miy_worker.celery_app" not in sys.modules
     other = "platform" if profile == "official" else "official"
     assert not set(worker_profile_modules(other)).intersection(sys.modules)
+    if profile == "official":
+        official_wheel = next(
+            wheel for wheel in wheels if wheel.name.startswith("miy_official_worker-")
+        )
+        for name in worker_profile_modules("official"):
+            owner = name.replace("miy_worker.tasks.", "miy_official_worker.tasks.")
+            assert sys.modules[name] is sys.modules[owner], ("task_alias_identity", name)
+            assert sys.modules[owner].__file__.startswith(str(official_wheel) + os.sep), (
+                "business_task_not_in_owner_wheel",
+                name,
+            )
     task = app.tasks[min(own_tasks)]
     for invoke in (
         lambda: app.Worker(queues="celery"),
@@ -74,7 +102,6 @@ def inspect_profile(profile: str, wheels: list[Path]) -> dict:
             pass
         else:
             raise AssertionError("inactive_profile_executed")
-    roots = tuple(str(wheel) + os.sep for wheel in wheels)
     imports = {}
     for name, module in sys.modules.items():
         if name in {"miy_api", "miy_worker", "miy_official_worker"} or name.startswith(

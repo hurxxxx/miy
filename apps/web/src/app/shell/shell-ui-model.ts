@@ -1,47 +1,14 @@
 import type { ShellAppId } from '@/src/platform/apps/app-links';
-import type { ThemePreference } from '@/src/platform/auth/auth-api';
-import {
-  APP_CONTRACT_BY_ID,
-  type AppId,
-} from '@miy/contracts/app-contracts';
+import { APP_CONTRACT_BY_ID, type AppId } from '@miy/contracts/app-contracts';
 
-export type ResolvedThemePreference = 'light' | 'dark';
+export {
+  DARK_MODE_QUERY,
+  getSystemDarkModeSnapshot,
+  resolveThemePreference,
+  subscribeSystemDarkMode,
+  type ResolvedThemePreference,
+} from '@miy/platform-web/theme/document-theme';
 export type AppDisplayScope = 'company' | 'personal';
-
-export const DARK_MODE_QUERY = '(prefers-color-scheme: dark)';
-
-export function resolveThemePreference(
-  themePreference: ThemePreference,
-  systemDarkMode: boolean,
-): ResolvedThemePreference {
-  if (themePreference === 'system') {
-    return systemDarkMode ? 'dark' : 'light';
-  }
-
-  return themePreference;
-}
-
-export function getSystemDarkModeSnapshot(): boolean {
-  if (
-    typeof window === 'undefined' ||
-    typeof window.matchMedia !== 'function'
-  ) {
-    return false;
-  }
-  return window.matchMedia(DARK_MODE_QUERY).matches;
-}
-
-export function subscribeSystemDarkMode(onStoreChange: () => void): () => void {
-  if (
-    typeof window === 'undefined' ||
-    typeof window.matchMedia !== 'function'
-  ) {
-    return () => undefined;
-  }
-  const mediaQuery = window.matchMedia(DARK_MODE_QUERY);
-  mediaQuery.addEventListener('change', onStoreChange);
-  return () => mediaQuery.removeEventListener('change', onStoreChange);
-}
 
 export function getInitials(label: string, fallback: string): string {
   const initials = label

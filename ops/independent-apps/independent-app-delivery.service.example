@@ -1,7 +1,9 @@
 # Example only. A core operator must select a checkout and protected settings.
 # This unit is never installed or started by MIY or Workbench.
+# A production control-plane may keep isolated development installations in
+# its registry. Production targets require MIY_ENVIRONMENT=production.
 [Unit]
-Description=MIY independent development app delivery consumer
+Description=MIY operator-bound independent app delivery consumer
 After=network-online.target
 
 [Service]

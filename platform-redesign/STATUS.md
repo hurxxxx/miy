@@ -1,22 +1,35 @@
 # 현재 진행 상태
 
-기록 기준: 2026-10-09 UTC. 작업별 상태는 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다.
+**2026-10-10 사용자 지시로 필수 구조 구현을 재개했다.** 공통 등록/개인 앱, 공식 묶음 API/worker, Workbench의 경로를 나누어 구현하고 Root가 통합한다. 고도화는 계속 보류한다. 후보는 GitHub PR97·내부 MR104로 게시했으며 새 분리 구조의 실제 배포는 아직 수행하지 않았다. 아래 중단 기록은 재개 전 보존 상태다.
 
-사용자의 최신 지시로 인수한 세 경계의 게시·개발/운영 배포를 진행한다.
-소스 commit·upstream PR과 내부 protected dev/main 릴리스 검증, 플랫폼
-immutable image와 별도 Workbench SQLite migration/릴리스를 각각 확인한다.
-아래 로컬 인수 기록은 배포 전 시점이며 실제 결과는
-[게시 체크포인트](PUBLICATION_CHECKPOINT.md)의 후속 추적에서 구분한다.
+기록 기준: 2026-10-10 UTC. 작업별 상태는 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다.
+
+## 현재 구현 후보
+
+공식 API/worker, 개인 앱 승격 계약, Workbench의 격리 SDK 실행 후보를 로컬에 통합했다. 영향 검사·실제 격리 실행·공통 gateway/배포 도구와 대표 브라우저 검사를 마쳤다. 필수 리뷰·CI·새 플랫폼/Workbench 배포와 실제 로그인 인수는 남아 있다. 현재 로컬 결과는 [통합 검사 기록](VALIDATION.md#2026-10-10-필수-구조-통합-검사)이 소유한다.
+
+후속 `37ef44ec`의 필수269/job437은 성공했다. Native 종료 후보 `1115b6e7`의 필수270/job438에서 발견한 업로드 보호·widget theme 회귀를 `772e5ffb`로 보완했다. 최신 필수271/job439는449.505612초에 gateway의 앱 설정 의존성을 발견해 실패했다. 실제 router에서 기존 OpenAPI owner가 생성한 경로 메타데이터를 runtime이 설정 없이 읽도록 수정하고 기본 기동의 exclusive 파일 쓰기도 보완했다. 직접 route8·격리 wheel/native NGINX 포함 gateway17·이미지 호환2개를 통과했으며 새 필수 리뷰 전에는 병합·서비스 변경을 하지 않는다. 전체 릴리스 CI를 유지하고 변경 없는 기존 검사·산출물은 재사용한다.
+
+Workbench 실제 clean37ef 산출물과 기존 owner의 정상 로그인 readonly preflight는 준비됐으며 새 서비스·실제 공개 UI 인수는 아직 수행하지 않았다. 개발 first-party와 운영 local gateway도 아직 미반영이다. 외부 TLS 설정 변경 없이 Core gateway가 기존 공개 포트를 인계하도록 구현했다.
+
+- 공식 서비스는 기존 서버 auth/ACL·공통 PostgreSQL·안전한 트랜잭션을 재사용하는 명시적인 first-party process 경로다. 이전 비활성 Source-only artifact를 플래그로 열지 않는다. 별도 공식 wheel/artifact·소유 queue·단일 Beat와 generated ingress owner map을 구현했다. 기존 큐와 예약/실행 작업을 확인하고 구형 writer를 종료하는 cutover 및 공식 UI 독립 산출물 연결은 진행 중이다.
+- 개인 앱은 같은 control-plane 등록 DB에 있는 성공한 개발 설치의 불변 산출물을 Core 관리자가 운영 installation으로 승격한다. 개발 증거를 운영 증거로 바꾸지 않으며 실제 runtime 관측 전에는 첫 운영 설치를 활성화하지 않는다. 서버 개발 preview도 선택적인 별도 HTTPS 출처·loopback 포트 연결을 지원한다. 설치별 build/state·데이터 분리와 기존 dev-only 위임을 유지한다. 다른 플랫폼 DB 사이의 증거 전송은 ENH-010으로 보류한다.
+- Workbench의 기존 단일 소유자 SQLite·native Codex Task/이력/중단·재개를 유지하고 SDK capability/permission UI·캐시 pin·지속 개발용 격리 service 예제를 연결했다. 변경되지 않은 검증 근거 재사용과 최종 묶음 검사를 기본 테스트/리뷰 템플릿에 반영했다. 새 실제 정상 controller 실행은 1회로 제한하고 기존 Task·유실 claim을 재실행하지 않는다.
+- 운영 first-party는 Core의 로컬 NGINX gateway가 기존 공개 포트를 받고 공통 API18779·공식 API18780로 전달한다. 외부 TLS 경로를 수동 변경해야 했던 초안을 대체하며 세 이미지·여섯 서비스와 복구를 guarded release에 연결한다. 개인 앱의 별도 HTTPS 설정 예제는 자동 활성화하지 않는다. 실제 서비스 반영은 공개 인수까지 확인해야 완료로 집계한다.
+
+사용자 지시로 이번 범위를 [필수 구조 변경](PLAN.md#이번-범위)에 한정하고 고도화는 [별도 후속 문서](FOLLOW_UP_ENHANCEMENTS.md)로 분리했다. 공통 등록·네 영역 독립 변경/배포·최소 Codex/개인 앱 연결·권한/데이터 보존과 대표 흐름 확인만 완료 조건으로 남긴다. 고급 UX/모니터링·반복 평가·부하 측정·복잡 저장 프로토콜 확장은 인수 의존성에서 제외한다. 이미 구현·검증·배포한 결과는 보존하며 실제 전달은 [게시 체크포인트](PUBLICATION_CHECKPOINT.md)가 소유한다.
+
+**이전 중단 기록:** 사용자 요청으로 2026-10-10 중간 점검에서 중단했으며, 이후 “계획대로 진행” 지시로 재개했다. 아래 날짜별 기록은 보존 이력이다.
 
 ## 현재 위치
 
-- **전달:** dev `09aaf143`, main/prod `9e9280df`. Source62cd8210은 필수262/job430 SUCCESS52.553173초 후 [GitHub PR95](https://github.com/hurxxxx/miy/pull/95)·[GitLab MR102](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/102)로 정상 병합했다. 두 merge tree `f73dc3ed`와 소유 feature의 양쪽 원격/로컬 정리를 확인했다. Persistent dev/main을 유지한다.
-- **릴리스:** full263/job431은3312.269779초에 실패했다(API6520 PASS/1 FAIL/3 SKIP, 별도 PG16/37/15 PASS). Folder same-target stage는 기대 `mutation_observation_required` 대신 `source_database_refused`를 반환했다. 원 CI의 SQLSTATE/직접 원인은 미확정이다. 별도 controlled observer-close5.2초는55P03/578행을 재현했으며 원583행과 구분한다. 기존 observer를 caller에서 미리 열어 COMMIT/future 검사 뒤 닫도록 한 test1개 최소 수정은 원47 assertions·다른16 함수·제품 제한을 유지했고 정상13.848519초/동일 지연17.226581초 모두 실제 통과했다. 새 feature 리뷰·병합·current full·MR81/guarded 운영은 남아 있다.
-- **개발 반영:** 실제 typed dev DB head는 `wb_checked_cas_20261009`다. 변경 전 백업 후 기존 `miy-dev.service`를 현재09aaf로 재시작했고 API readiness·로그인/공개 앱 smoke 및 Vite AppRoot의 official-suite import HTTP200을 확인했다. 이는 C1 스키마/현재 서버 반영이며 새 checked-save factory·operational role 활성화는 아니다. 사용자 PC/앱별 상세 기능은 미검증·보류다.
-- **운영 준비:** 현재09aaf/treef73의 fresh private24 restore·append·164표 데이터 동등·이전 이미지 실제 read/write/no-op/rollback·90 guards·8 capabilities·PG18 NOTNULL34/기존 제약8과 소유 정리는 통과했고 독립 공개증거 리뷰를 마쳤다. 운영은9e/기존 schema/image이며 신규 배포0이다. 후속 feature의 source/tree가 바뀌면 fresh binding/rehearsal와 전체 CI를 다시 인수한다.
-- **Workbench:** 별도 SDK source22/owned13은 합성146·독립 source review와 fresh normal model0 controller 인수를 통과했다. 원 Task의 계획·구현 두 턴을 재실행 없이 대조하고 같은 Task/thread의 read-only3번째 턴으로 실제 인수를 마쳤다(35.159819초, receipt6bb4a61c/peer2f907844). 원17 items 보존·명령4개 확인·새 command/fileChange/descendant0·Source/Git 불변·cleanup8개 PASS다. 총 모델 작업/턴3개이며 자동 retry0이다. 전체 network/kernel/관리 정책 reload·두 starter·SDK UI admission·별도 Workbench 배포는 미완료이며 SDK 후보는 아직 게시하지 않았다.
-- **C1/C2/C3:** C1 비활성 checked-save는 병합/개발 migration까지 반영했다. 새 factory/role과 공식 service cutover는 활성화하지 않았다. 별도 C2-1 provenance는 native53, C2-2 journal8은 pure51/native48 PASS와 독립 리뷰를 마쳤다. 초기 fixture/CASE 오류도 보존한다. Offline causal14 PASS는 즉시 native no-delta가 영구 무관성을 보증하지 않음을 확인했으며 automatic buffered 적용/actor 누락은 재현하지 않았다. 모든 admitted originals의 보수적 authority cohort와 closed batch·native completeness·C1 결과 연결·C3 drain/recovery는 필수 잔여다. ACK/자동 replay/전체 복구 완료를 주장하지 않는다.
-- **저장 공간·범위:** Docker 실제 저장소 `/var/lib/miy-docker-data`, canonical `/var/lib/docker` bind의 root117GB/약46GB 여유를 확인했다. 이전 시 차이0·컨테이너83/볼륨286/이미지18 보존과 실행29 복구를 확인했으며 이후 CI 산출물이 추가됐다. 실제 OS 재부팅은 검증하지 않았다. 미확인 orphan220개·15GiB/15% floor를 보존한다. 앱별 비필수 기능·다중 사용자·기존 skills/하네스 절차 재사용은 보류한다.
+현재 C2 journal/adapter·Files 확장 후보는 보존하되 모두 자동 필수로 취급하지 않는다. 최소 구조와 안전성을 기존 경로로 확보할 수 있는지 판단하고, 실제 분리 장애·치명적 결함의 최소 부분만 채택한다. 아래 후보별 과거 미완료 목록은 채택 여부에 따라 적용하며 미채택 고도화의 리뷰·통합·활성화를 진행하지 않는다.
+
+- **전달·운영:** PR96/MR103 필수264/432 성공·정상 병합·소유 feature 정리, full265/433 성공, MR81 정상 병합·prod FF·guarded 배포를 완료했다. Dev `c40e7091`, main/prod `9cbf9c5c`, 같은 tree `64e456b4`다. 운영 API·worker·Beat는 새 image `389d1e67…`로 healthy, DB는 `wb_checked_cas_20261009`이며 공개 smoke를 확인했다. 이전 이미지·env·fresh DB 백업을 보존한다. 세부 전달은 [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 소유한다.
+- **개발:** C1 head/API/Vite·로그인/공개 앱 smoke와 AppRoot 공식 앱 import HTTP200을 이미 확인했다. c40은 후속 fixture·문서 변경으로 제품 source가09aaf와 같아 반복 재시작하지 않았다. 사용자 PC·앱별 상세 기능은 보류한다.
+- **Workbench:** 원 Task의 계획·구현2턴과 같은 thread의 read-only3번째 인수는 완료했고 추가 턴을 만들지 않았다. 이전 cache timeout·준비 포트 충돌·exclusive 결과 파일 충돌은 보존 이력이다. 재개 후 현재 정상 controller는 모델1회·고정8경로·자동 retry0와 소유 RPC/unit/process/port 정리, Source/Git/native/cache 불변을 실제 확인했다. Backend426/UI56 등 직접 영향 검사는 통과했다. clean37ef 실제 릴리스 산출물의 source/digest·schema0008·고정 CLI를 확인했으며 기존 current/template-current는0c1bf0fe다. 새 후보의 필수 리뷰·별도 서비스 교체·fresh SQLite online backup·정상 공개 로그인/Apps/기존 Task/permissions/AgentTree 인수는 남아 있다. 새 Task·모델 실행과 임의 native unknown 회복은 추가하지 않는다.
+- **저장·전환 후보:** C1 checked-save source/schema는 반영했지만 새 factory/role은 비활성이다. C2 provenance·journal·native completeness/cleanup의 이전 근거를 보존한다. 확장 journal35/checkpoint source25f14b24의 실제96 PASS(509.356302초, 오류/skip0·소유 정리/전후 guards)와 별도 비활성 adapter의 합성56 PASS 수정본은 미게시 후보다. 전체 연결·독립 리뷰·native isolation/운영 활성화는 완료하지 않았으며 verifier 부재는 fail-closed다. 이번에는 전체 C2 완성을 기본 필수에서 제외하고 ENH-005로 보류한다. 실제 분리·유실 방지에 필요한 최소 부분만 채택하며 서비스 전환의 권한·구형 writer 정리·데이터 보존·복구는 유지한다.
+- **저장 공간·범위:** Docker 실제 경로 `/var/lib/miy-docker-data`와 canonical `/var/lib/docker` bind로 이전했다. 마지막 확인은 root117GiB/약40GiB 여유다. 이전 시 컨테이너83/볼륨286/이미지18 보존·실행29 복구를 확인했다. OS 재부팅은 미검증이고 미확인 orphan220개는 보존한다. 앱별 비필수 기능·다중 사용자·기존 skills/하네스 절차 재사용은 보류한다.
 
 ## 이전 단계별 인수 기록
 

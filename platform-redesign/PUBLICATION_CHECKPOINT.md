@@ -1,6 +1,20 @@
 # GitHub 게시 체크포인트
 
-## 최신 전달 — PR95/MR102 병합과 full263 최소 fixture 보완
+## 2026-10-10 필수 구조 통합 후보
+
+공통 플랫폼·공식 묶음 UI/API/worker·개인 앱의 Core-admin 승격·단일 소유자 Workbench SDK 연결을 하나의 후보로 통합했다. Core local gateway는 기존 공개 포트·TLS 연결을 유지하며 guarded release는 세 이미지·여섯 서비스와 이전 토폴로지 복구를 소유한다. 기존 Source-only role/DB grant와 미채택 C2/Files 고도화는 활성화하지 않는다.
+
+현재 로컬 영향·실제 Docker/native/NGINX·대표 브라우저 결과는 [VALIDATION](VALIDATION.md#2026-10-10-필수-구조-통합-검사)에 기록했다. 다음 전달은 작업 branch의 필수 리뷰 후 GitHub PR·내부 dev MR 정상 병합, 현재 dev→main full CI, guarded platform 반영과 독립 Workbench release/SQLite 백업·실제 로그인 인수다. 단계마다 전체 로컬 검사를 반복하지 않는다. 이 절은 게시 전 후보 기록이며 이후 SHA·PR/MR·실제 배포 결과는 해당 PR/MR와 private 실행 receipt가 원본이다.
+
+## 현재 전달 — 2026-10-09 운영 플랫폼 반영 완료
+
+[GitHub PR96](https://github.com/hurxxxx/miy/pull/96)·[GitLab MR103](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/103)는 필수264/job432 성공 후 정상 병합했다. Dev `c40e7091`과 두 병합의 tree `64e456b4`를 확인했고 소유 feature만 원격 두 곳과 로컬에서 정리했다. Full265/job433은 **SUCCESS, 4,671.914044초**이며 전체 릴리스 artifact·source/target/tree를 인수한 뒤 [MR81](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/81)을 정상 병합했다. Main/prod는 `9cbf9c5c`, persistent dev는 `c40e7091`이다. 실패한263은 보존하며 성공 근거로 사용하지 않는다.
+
+Fresh private 백업·pending24 리허설과 이전 이미지 호환을 통과한 뒤 표준 guarded prepare/deploy를 완료했다. 실제 운영 API·worker·Beat는 immutable image `sha256:389d1e67414caf58c1b796e2b20317101c00f105c87ffba2d156a57cc2f5243d`로 healthy이며 DB head는 `wb_checked_cas_20261009`다. 표준 공개 smoke·worker 응답·Beat freshness·migration24 bytes를 확인했고 이전 이미지/env/DB 백업을 보존한다. 공개 전달 witness SHA `4d1a98ad3d6c10ee98cc37084a624b7b6dd70bf03aba5f05dc97b2a3e1b5cebf`가 결속한다. 신규 C1 factory/role, C2/C3와 공식 operational cutover는 비활성이다. **플랫폼 배포는 별도 Workbench 배포가 아니다.**
+
+아래 기록은 당시 시점의 이력이다.
+
+## 이전 전달 — PR95/MR102 병합과 full263 최소 fixture 보완
 
 Source62cd8210은 필수262/job430 SUCCESS52.553173초 후 [GitHub PR95](https://github.com/hurxxxx/miy/pull/95)(a3ee1221)·[GitLab MR102](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/102)(09aaf143)로 정상 병합했다. 두 treef73dc3ed와 소유 feature 양쪽 원격/로컬 정리를 확인했고 protected dev/main을 유지했다. 개발 C1 schema/현재 API·Vite는 반영했지만 운영main/prod9e9280df와 기존image/schema는 유지한다.
 

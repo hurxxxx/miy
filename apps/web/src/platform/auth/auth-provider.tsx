@@ -42,6 +42,7 @@ import {
   type AuthState,
 } from './auth-session-model';
 import {
+  AUTH_TOKEN_STORAGE_KEY,
   clearStoredAuthToken,
   markPostLogoutHomeRedirect,
   persistAuthToken,
@@ -195,6 +196,23 @@ function useAuthProviderElement(children: ReactNode) {
       setState(projection.state);
     }
   }, [invalidateSession, requestIsCurrent]);
+
+  useEffect(() => {
+    const onStoredSessionChanged = (event: StorageEvent) => {
+      if (
+        event.storageArea !== window.localStorage ||
+        (event.key !== null && event.key !== AUTH_TOKEN_STORAGE_KEY)
+      )
+        return;
+      // Another trusted document changed the same stored session. Retire browser
+      // callbacks immediately, then let the existing server bootstrap verify it.
+      invalidateSession();
+      setState(initialAuthState());
+      void refreshSession();
+    };
+    window.addEventListener('storage', onStoredSessionChanged);
+    return () => window.removeEventListener('storage', onStoredSessionChanged);
+  }, [invalidateSession, refreshSession]);
 
   const refreshAccessUser = useCallback(async (): Promise<AuthUser> => {
     const sessionToken = state.token;

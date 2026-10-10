@@ -28,6 +28,7 @@
     "../../packages/contracts/src/realtime.ts",
     "../../packages/core-web/src/navigation-types.ts",
     "../../packages/core-web/src/help-guide.ts",
+    "../../packages/platform-web/src/chatbot/manifest.ts",
     "../../packages/official-suite-web/src/index.ts",
     "../../packages/official-suite-web/src/help-guides.ts",
     "../../packages/official-suite-web/src/manifests/*.ts"

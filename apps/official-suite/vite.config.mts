@@ -1,9 +1,21 @@
 import path from 'node:path';
 import { defineConfig, type ViteUserConfig } from 'vitest/config';
 import legacyWebConfig from '../web/vite.config.mts';
+import { officialFixedAssets } from '../../packages/official-suite-web/vite/fixed-assets.mts';
+import { officialUiProxyKeys } from '../../packages/official-suite-web/vite/ui-routing.mts';
+import type { ProxyOptions } from 'vite';
+import { officialPlatformCompatibility } from './vite/platform-compatibility.mts';
 
-// Share the existing UI toolchain/proxy configuration during the source-boundary stage.
-// This bridge is not a separate API, authentication protocol, or deployment unit.
+const withoutSelfProxy = (
+  proxy: Record<string, string | ProxyOptions> | undefined,
+) =>
+  Object.fromEntries(
+    Object.entries(proxy ?? {}).filter(
+      ([key]) => !officialUiProxyKeys.includes(key),
+    ),
+  );
+
+// Toolchain/common SDK reuse does not make the platform artifact compile official screens.
 export default defineConfig(async (environment) => {
   const shared: ViteUserConfig =
     typeof legacyWebConfig === 'function'
@@ -11,11 +23,30 @@ export default defineConfig(async (environment) => {
       : await legacyWebConfig;
   return {
     ...shared,
+    base: '/official-suite/',
     root: import.meta.dirname,
     publicDir: path.resolve(import.meta.dirname, '../web/public'),
     cacheDir: '../../node_modules/.vite/apps/official-suite',
-    server: { ...shared.server, port: 4201 },
-    preview: { ...shared.preview, port: 4201 },
+    server: {
+      ...shared.server,
+      port: 4201,
+      proxy: withoutSelfProxy(shared.server?.proxy),
+    },
+    preview: {
+      ...shared.preview,
+      port: 4201,
+      proxy: withoutSelfProxy(shared.preview?.proxy),
+    },
+    plugins: [
+      ...(shared.plugins ?? []).filter(
+        (plugin) =>
+          !plugin ||
+          !('name' in plugin) ||
+          plugin.name !== 'miy-platform-ui-boundary',
+      ),
+      officialFixedAssets(),
+      officialPlatformCompatibility(process.env.MIY_PLATFORM_WEB_BUILD_ID),
+    ],
     build: { ...shared.build, outDir: '../../dist/apps/official-suite' },
     test: {
       ...shared.test,

@@ -8,4 +8,4 @@
 - Platform ORM schema changes require an Alembic migration from current head; do not use `create_all`, hand SQL compatibility, `stamp`, or destructive repair. Independent app data profiles use their [core-owned versioned migrations and checksum journal](src/miy_api/domains/independent_apps/DATA.md); app-authored SQL cannot change that schema.
 - AI, retrieval, and external file/URL changes follow the root boundaries and their owner ADRs/docs.
 - Rendered API errors use the existing localized message contract; preserve interpolation and locale parity. Developer logs and identifiers are not product translations. Run `pnpm check:api-i18n` for message changes.
-- Run focused pytest first, then `pnpm check:api-architecture`; add `pnpm check:api-contract` for API shape and Alembic checks for models/migrations.
+- Consolidate affected pytest, `pnpm check:api-architecture`, API shape and required Alembic checks after the requested changes are integrated. Reuse current evidence for unchanged inputs; let required CI own the full suite. Recheck failed or newly affected boundaries after a fix.

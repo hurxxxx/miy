@@ -139,6 +139,43 @@ async function authenticatedProvider() {
 }
 
 describe('AuthProvider credential snapshots', () => {
+  it('retires the previous document session before verifying a stored session change', async () => {
+    await authenticatedProvider();
+    const previous = currentGuard();
+    let verify!: (value: AuthUser) => void;
+    apiMocks.getCurrentUser.mockImplementationOnce(
+      () =>
+        new Promise<AuthUser>((resolve) => {
+          verify = resolve;
+        }),
+    );
+    act(() => {
+      window.localStorage.setItem(
+        AUTH_TOKEN_STORAGE_KEY,
+        'another-document-token',
+      );
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: AUTH_TOKEN_STORAGE_KEY,
+          storageArea: window.localStorage,
+        }),
+      );
+      expect(previous()).toBe(false);
+    });
+    expect(apiMocks.getCurrentUser).toHaveBeenCalledWith(
+      'another-document-token',
+    );
+    expect(currentGuard()()).toBe(false);
+    await act(async () => {
+      verify(user());
+    });
+    await waitFor(() =>
+      expect(currentAuth.token).toBe('another-document-token'),
+    );
+    expect(previous()).toBe(false);
+    expect(currentGuard()()).toBe(true);
+  });
+
   it.each(['same token', 'rotated token', 'logout then same token'])(
     'invalidates the previous snapshot synchronously for %s',
     async (boundary) => {

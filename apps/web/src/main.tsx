@@ -1,4 +1,5 @@
 import { installMatomoTracking } from '@/src/platform/analytics/matomo';
+import { installFirstPartyNavigation } from '@/src/platform/deployment/first-party-navigation';
 import { installClientBuildGuards } from '@/src/platform/deployment/client-build-guard';
 import {
   clearStaleAssetReloadMarker,
@@ -10,10 +11,10 @@ import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
-import '@miy/official-suite-web/calendar/fullcalendar-theme.css';
 
 installStaleAssetReloadHandler();
 installClientBuildGuards();
+installFirstPartyNavigation('platform');
 installMatomoTracking();
 
 function StaleAssetReloadMarkerCleanup() {

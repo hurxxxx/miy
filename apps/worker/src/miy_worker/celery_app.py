@@ -14,8 +14,6 @@ from celery.signals import (
     celeryd_init,
     worker_process_init,
 )
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import Session
 
 from miy_worker.beat_health import install_beat_health
 from miy_worker.task_catalog import legacy_beat_schedule
@@ -26,7 +24,11 @@ from miy_worker.queue_contract import (
     worker_bootstrap_group_requires_llm_routing,
 )
 from miy_worker.settings import get_settings
-from miy_worker.runtime import configure_database, reset_database_after_fork
+from miy_worker.runtime import (
+    assert_llm_routing_control_plane_ready,
+    configure_database,
+    reset_database_after_fork,
+)
 
 
 def _workspace_root() -> Path:
@@ -113,30 +115,7 @@ initialize_platform_extensions(settings)
 
 
 def _assert_llm_routing_control_plane_ready() -> None:
-    if not settings.postgres_dsn.strip():
-        raise RuntimeError("Worker PostgreSQL DSN is not configured.")
-
-    engine = create_engine(settings.postgres_dsn, pool_pre_ping=True)
-    try:
-        with Session(engine) as session:
-            session.execute(
-                text(
-                    "SELECT provider_id, provider_kind, credential_kind FROM ai_model_provider_configs LIMIT 1"
-                )
-            ).all()
-            session.execute(text("SELECT id FROM ai_model_catalog_entries LIMIT 1")).all()
-            session.execute(
-                text("SELECT app_id, workload_id FROM ai_model_route_overrides LIMIT 1")
-            ).all()
-            session.execute(
-                text("SELECT app_id, route_mode FROM ai_model_policy_defaults LIMIT 1")
-            ).all()
-    except Exception as error:
-        raise RuntimeError(
-            "AI model control plane is unavailable. Run API migrations before starting the worker."
-        ) from error
-    finally:
-        engine.dispose()
+    assert_llm_routing_control_plane_ready(settings=settings)
 
 
 if worker_bootstrap_group_requires_llm_routing(settings.queue_group):

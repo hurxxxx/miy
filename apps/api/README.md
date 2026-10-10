@@ -1,5 +1,14 @@
 # API App
 
+The explicit first-party platform entry is `miy_api.platform_runtime:app`.
+It executes only common platform routers and terminal/realtime/AI startup;
+official business HTTP/WS handlers and collaboration run in
+`miy_official_api.runtime:app`. The [official runtime owner](../official-suite/api/README.md#explicit-first-party-runtime)
+records shared PostgreSQL/authority compatibility, single migration/seed owner,
+generated ingress ownership and old-writer drain requirements. Existing
+`miy_api.main:app` remains the legacy composition; `platform_main:app` and the
+delegated official `main:app` remain inactive artifacts.
+
 FastAPI composition layer for health, auth, app bootstrap, domains, AI Gateway, retrieval/search, OpenAPI, and Alembic migrations.
 
 ## Dev
@@ -7,6 +16,13 @@ FastAPI composition layer for health, auth, app bootstrap, domains, AI Gateway, 
 ```bash
 ./dev.sh --api-only
 ```
+
+The default starts the legacy composition. After selecting the first-party topology through
+the [development runtime procedure](../../ops/first-party/README.md),
+`./dev.sh --first-party --api-only` starts the common API on `8001` and
+`miy_official_api.development:app` on `18781`. The root launcher owns the single migration
+preflight; the official process does not migrate or seed. A selected topology survives a stop
+or reboot; changing its queue namespace requires the native consumer drain described by the owner.
 
 - Default API port: `8001`
 - Runtime env contract: root `.env.example` plus ignored `.env`

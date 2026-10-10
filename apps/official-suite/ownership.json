@@ -88,5 +88,13 @@
     "realtime",
     "content_access",
     "media"
-  ]
+  ],
+  "worker_implementation_sources": {
+    "miy_worker.tasks.mail": "apps/official-suite/worker/src/miy_official_worker/tasks/mail.py",
+    "miy_worker.tasks.meeting": "apps/official-suite/worker/src/miy_official_worker/tasks/meeting.py",
+    "miy_worker.tasks.recording": "apps/official-suite/worker/src/miy_official_worker/tasks/recording.py",
+    "miy_worker.tasks.file_storage_cleanup": "apps/official-suite/worker/src/miy_official_worker/tasks/file_storage_cleanup.py"
+  },
+  "ui_business_composition_source": "packages/official-suite-web/src/modules.ts",
+  "portal_official_descriptor_source": "apps/web/src/app/shell/official-app-modules.ts"
 }

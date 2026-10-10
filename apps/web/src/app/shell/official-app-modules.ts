@@ -1,32 +1,30 @@
-import { OFFICIAL_APP_IDS } from '@miy/contracts/app-contracts';
-import { pmsModule } from '@miy/official-suite-web/pms/module';
-import { docsModule } from '@miy/official-suite-web/docs/module';
-import { filesModule } from '@miy/official-suite-web/files/module';
-import { mailModule } from '@miy/official-suite-web/mail/module';
-import { communityModule } from '@miy/official-suite-web/community/module';
-import { whiteboardModule } from '@miy/official-suite-web/whiteboard/module';
-import { diagramsModule } from '@miy/official-suite-web/diagrams/module';
-import { bentoModule } from '@miy/official-suite-web/bento/module';
-import { plannerModule } from '@miy/official-suite-web/planner/module';
-import { meetingModule } from '@miy/official-suite-web/meeting/module';
-import { videoChatModule } from '@miy/official-suite-web/video-chat/module';
-import { recordingModule } from '@miy/official-suite-web/recording/module';
+import { OFFICIAL_APP_MANIFESTS } from '@miy/official-suite-web';
+import { createElement } from 'react';
+import { APP_ROUTE_BY_ID } from '@miy/contracts/app-contracts';
+import { DocumentNavigation } from './document-navigation';
+import type { AppModuleRegistration } from './app-registry-factory';
 
-// The suite owns all official UI module implementations.
-// Source ownership does not activate their independent services or releases.
-// The shared contract owns membership/order for both UI compositions.
-const modules = {
-  pms: pmsModule,
-  docs: docsModule,
-  files: filesModule,
-  mail: mailModule,
-  community: communityModule,
-  whiteboard: whiteboardModule,
-  diagrams: diagramsModule,
-  bento: bentoModule,
-  planner: plannerModule,
-  meeting: meetingModule,
-  'video-chat': videoChatModule,
-  recording: recordingModule,
-} as const;
-export const OFFICIAL_APP_MODULES = OFFICIAL_APP_IDS.map((id) => modules[id]);
+const routeChrome = new Map(
+  [...APP_ROUTE_BY_ID.values()].map((route) => [
+    `${route.route_base}${route.suffix}`,
+    route.chrome,
+  ]),
+);
+
+/** The portal owns launcher metadata, while the official artifact runs business UI. */
+export const OFFICIAL_APP_MODULES: readonly AppModuleRegistration[] =
+  OFFICIAL_APP_MANIFESTS.map((manifest) => ({
+    manifest,
+    appRoutes: manifest.appRoutePaths.map((path) => ({
+      appId: manifest.appBarItem.id,
+      chrome: routeChrome.get(path),
+      element: createElement(DocumentNavigation),
+      path,
+    })),
+    globalRoutes: (manifest.globalRoutePaths ?? []).map((path) => ({
+      appId: manifest.appBarItem.id,
+      chrome: routeChrome.get(path),
+      element: createElement(DocumentNavigation),
+      path,
+    })),
+  }));

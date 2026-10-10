@@ -21,12 +21,24 @@ RELEASE_PLATFORM=""
 RELEASE_BENTO_URL_SHA256=""
 RELEASE_PIPELINE=""
 RELEASE_CONTRACT=""
+TOPOLOGY="legacy"
+RELEASE_SLICE="full"
+OFFICIAL_API_IMAGE=""
+OFFICIAL_WORKER_IMAGE=""
+ROLLBACK_TOPOLOGY="legacy"
+ROLLBACK_OFFICIAL_API_IMAGE=""
+ROLLBACK_OFFICIAL_WORKER_IMAGE=""
+FIRST_PARTY_COMPOSE_FILE="$ROOT_DIR/ops/first-party/compose.override.yml.example"
+OFFICIAL_API_REPOSITORY="miy-official-api"
+OFFICIAL_WORKER_REPOSITORY="miy-official-worker"
 
 usage() {
   echo "Usage: $0 {prepare|deploy|migrate|rollback|smoke|status|up}" >&2
   echo "  prepare --release-mr <iid>" >&2
   echo "  deploy --release-mr <iid> --image sha256:<image-id> [--rollback-env-file <secure-backup> --rollback-image sha256:<image-id>]" >&2
   echo "  rollback [--rollback-env-file <secure-backup> --rollback-image sha256:<image-id>]" >&2
+  echo "  first-party: --topology first-party [--slice official] --official-api-image sha256:<id> --official-worker-image sha256:<id>" >&2
+  echo "  first-party deploy/rollback requires a secure rollback image/environment pair; add --rollback-topology first-party and both --rollback-official-*-image IDs for a split prior runtime." >&2
 }
 
 require_prod_checkout() {
@@ -55,7 +67,35 @@ require_release_source() {
 }
 
 validate_environment() {
+  if [[ "${TOPOLOGY:-legacy}" == 'first-party' ]]; then
+    node "$ROOT_DIR/scripts/prod-app-config.mjs" "$ENV_FILE" --topology first-party || return 1
+    require_first_party_ports_available
+    return
+  fi
   node "$ROOT_DIR/scripts/prod-app-config.mjs" "$ENV_FILE"
+}
+
+require_first_party_ports_available() {
+  local port service id command expected_image definition hash
+  command -v ss >/dev/null 2>&1 || return 1
+  for port in 18779 18780; do
+    if ! ss -H -ltn "sport = :$port" | grep -q .; then continue; fi
+    service=api
+    [[ "$port" != 18780 ]] || service=official-api
+    id="$(compose ps --all --quiet "$service")" || return 1
+    [[ "$id" =~ ^[a-f0-9]{64}$ ]] || return 1
+    expected_image="$(runtime_service_image "$service" "$(image_id "$CURRENT_IMAGE")")" || return 1
+    definition="$(prior_runtime_definition "$id")" || return 1
+    hash="${definition##*|}"
+    [[ "$hash" =~ ^[a-f0-9]{64}$ && "$definition" == "$expected_image|$COMPOSE_PROJECT_NAME|$service|$hash" ]] || return 1
+    [[ "$(docker inspect --format '{{.State.Running}}|{{.HostConfig.NetworkMode}}' "$id")" == 'true|host' ]] || return 1
+    command="$(docker inspect --format '{{json .Config.Cmd}}' "$id")" || return 1
+    if [[ "$service" == api ]]; then
+      [[ "$command" == *miy_api.platform_runtime:app* && "$command" == *'--host 127.0.0.1'* && "$command" == *'--port 18779'* ]] || return 1
+    else
+      [[ "$command" == *miy_official_api.runtime:app* && "$command" == *'"--host","127.0.0.1"'* && "$command" == *'"--port","18780"'* ]] || return 1
+    fi
+  done
 }
 
 acquire_operation_lock() {
@@ -123,10 +163,21 @@ compose() (
       MIY_*|"$compose_product_prefix"*|OPENROUTER_API_KEY) unset "$compose_env_name" || return 1 ;;
     esac
   done < <(compgen -e)
+  local -a override=()
+  if [[ "${TOPOLOGY:-legacy}" == "first-party" ]]; then
+    local api_image worker_image
+    api_image="${COMPOSE_OFFICIAL_API_IMAGE:-$(image_id "$OFFICIAL_API_REPOSITORY:prod")}" || return 1
+    worker_image="${COMPOSE_OFFICIAL_WORKER_IMAGE:-$(image_id "$OFFICIAL_WORKER_REPOSITORY:prod")}" || return 1
+    [[ "$api_image" =~ ^sha256:[a-f0-9]{64}$ && "$worker_image" =~ ^sha256:[a-f0-9]{64}$ ]] || return 1
+    # These are private operation bindings, never values from the product .env.
+    export MIY_OFFICIAL_API_IMAGE="$api_image" MIY_OFFICIAL_WORKER_IMAGE="$worker_image"
+    override=(-f "$FIRST_PARTY_COMPOSE_FILE")
+  fi
   docker compose \
     --project-name "$COMPOSE_PROJECT_NAME" \
     --env-file "$ENV_FILE" \
     -f "$COMPOSE_FILE" \
+    "${override[@]}" \
     "$@"
 )
 
@@ -195,15 +246,49 @@ candidate_matches_contract() {
 verify_release_image() {
   local image="${1:?image is required}"
   local expected_revision="${2:?revision is required}"
+  local role="${3:-platform}"
   if [[ "$(image_revision "$image")" != "$expected_revision" ]]; then
     echo "Release image revision does not match the production source." >&2
     return 1
+  fi
+  if [[ "$role" != "platform" ]]; then
+    [[ "$(image_label "$image" 'io.miy.artifact.activation')" == 'first-party-runtime' \
+      && "$(image_label "$image" 'io.miy.artifact.source-dirty')" == 'false' ]] || return 1
+    case "$role" in
+      official-api)
+        docker run --rm --network none --entrypoint /bin/sh "$image" -ec '
+          test "$(id -u)" = 10001
+          test -x apps/api/.venv/bin/uvicorn
+          test -f dist/apps/official-suite/index.html
+          test -f scripts/blocknote-collab-codec.mjs
+          apps/api/.venv/bin/python -c "from importlib.util import find_spec; assert find_spec(\"miy_official_api.runtime\")"
+          node scripts/blocknote-collab-codec.mjs encode </dev/null >/dev/null
+        '
+        ;;
+      official-worker)
+        docker run --rm --network none --entrypoint /bin/sh "$image" -ec '
+          test "$(id -u)" = 10001
+          test -x apps/worker/.venv/bin/celery
+          test -f scripts/blocknote-collab-codec.mjs
+          apps/worker/.venv/bin/python -c "from importlib.util import find_spec; assert find_spec(\"miy_official_worker.runtime\")"
+          node scripts/blocknote-collab-codec.mjs encode </dev/null >/dev/null
+        '
+        ;;
+      *) return 1 ;;
+    esac
+    return
   fi
   docker run --rm --entrypoint /bin/sh "$image" -ec '
     test "$(id -u)" = 10001
     test -x apps/api/.venv/bin/uvicorn
     test -x apps/worker/.venv/bin/celery
     test -f dist/apps/web/index.html
+    test -f dist/apps/official-suite/index.html
+    test -f dist/apps/official-suite/.miy-platform-build-id
+    test -f ops/first-party/gateway.py
+    test -x /usr/sbin/nginx
+    /usr/sbin/nginx -v
+    apps/api/.venv/bin/python -c "from pathlib import Path; core=Path(\"dist/apps/web/.miy-build-id\"); expected=core.read_text().strip() if core.is_file() else \"\"; assert Path(\"dist/apps/official-suite/.miy-platform-build-id\").read_text().strip() == expected"
     test -f scripts/blocknote-collab-codec.mjs
     node --version >/dev/null
     node scripts/blocknote-collab-codec.mjs encode </dev/null >/dev/null
@@ -228,13 +313,14 @@ verify_files_gate_executable() {
 
 verify_candidate_image() {
   local image="${1:?image is required}"
+  local role="${2:-platform}"
   local actual_id
   actual_id="$(image_id "$image")" || return 1
   if [[ ! "$actual_id" =~ ^sha256:[a-f0-9]{64}$ ]]; then
     echo "Release candidate does not have an immutable image ID." >&2
     return 1
   fi
-  verify_release_image "$image" "$RELEASE_REVISION" || return 1
+  verify_release_image "$image" "$RELEASE_REVISION" "$role" || return 1
   local label expected
   while IFS=$'\t' read -r label expected; do
     if [[ "$(image_label "$image" "$label")" != "$expected" ]]; then
@@ -257,22 +343,39 @@ EOF
     echo "Release candidate does not record valid build-time pipeline evidence." >&2
     return 1
   fi
-  verify_files_gate_executable "$actual_id"
+  if [[ "$role" == 'platform' ]]; then verify_files_gate_executable "$actual_id"; fi
 }
 
 prepare_candidate_image() {
-  local bento_server_url build_image
-  build_image="$IMAGE_REPOSITORY:candidate-${RELEASE_CONTRACT:0:12}"
-  if docker image inspect "$CANDIDATE_IMAGE" >/dev/null 2>&1 \
-    && candidate_matches_contract "$CANDIDATE_IMAGE"; then
-    verify_candidate_image "$CANDIDATE_IMAGE" || return 1
-    image_id "$CANDIDATE_IMAGE"
+  local role="${1:-platform}" repository="$IMAGE_REPOSITORY" dockerfile='ops/app/Dockerfile' target='runtime'
+  case "$role" in
+    platform) ;;
+    official-api) repository="$OFFICIAL_API_REPOSITORY"; dockerfile='ops/official-suite-api/Dockerfile'; target='service-runtime' ;;
+    official-worker) repository="$OFFICIAL_WORKER_REPOSITORY"; dockerfile='ops/official-suite-worker/Dockerfile' ;;
+    *) return 1 ;;
+  esac
+  local bento_server_url build_image candidate_image="$repository:candidate" platform_build_id=''
+  if [[ "$role" == 'platform' ]]; then candidate_image="$CANDIDATE_IMAGE"; fi
+  if [[ "$role" == 'official-api' ]]; then
+    platform_build_id="$(platform_web_build_id "${PREPARED_PLATFORM_IMAGE:-$CURRENT_IMAGE}")" || return 1
+  fi
+  build_image="$repository:candidate-${RELEASE_CONTRACT:0:12}"
+  if [[ "$role" == 'official-api' ]]; then
+    local compatibility_digest
+    compatibility_digest="$(printf '%s' "$platform_build_id" | sha256sum | awk '{print $1}')" || return 1
+    build_image="$build_image-${compatibility_digest:0:12}"
+  fi
+  if docker image inspect "$candidate_image" >/dev/null 2>&1 \
+    && candidate_matches_contract "$candidate_image" \
+    && { [[ "$role" != 'official-api' ]] || require_official_web_compatibility "${PREPARED_PLATFORM_IMAGE:-$CURRENT_IMAGE}" "$candidate_image"; }; then
+    verify_candidate_image "$candidate_image" "$role" || return 1
+    image_id "$candidate_image"
     return
   fi
   if docker image inspect "$build_image" >/dev/null 2>&1; then
-    verify_candidate_image "$build_image" || return 1
-    docker tag "$build_image" "$CANDIDATE_IMAGE" || return 1
-    image_id "$CANDIDATE_IMAGE"
+    verify_candidate_image "$build_image" "$role" || return 1
+    docker tag "$build_image" "$candidate_image" || return 1
+    image_id "$candidate_image"
     return
   fi
   node "$ROOT_DIR/scripts/docker-storage.mjs" check >&2 || return 1
@@ -283,11 +386,13 @@ prepare_candidate_image() {
   )" || return 1
   git -C "$ROOT_DIR" archive --format=tar HEAD \
     | docker build \
-    --file ops/app/Dockerfile \
-    --target runtime \
+    --file "$dockerfile" \
+    --target "$target" \
     --platform "$RELEASE_PLATFORM" \
     --build-arg "MIY_BENTO_SERVER_URL=$bento_server_url" \
     --build-arg "MIY_BUILD_REVISION=$RELEASE_REVISION" \
+    --build-arg "MIY_BUILD_SOURCE_DIRTY=false" \
+    --build-arg "MIY_PLATFORM_WEB_BUILD_ID=$platform_build_id" \
     --build-arg "MIY_RELEASE_CONTRACT=$RELEASE_CONTRACT" \
     --build-arg "MIY_RELEASE_SOURCE_REVISION=$RELEASE_SOURCE_REVISION" \
     --build-arg "MIY_RELEASE_TREE=$RELEASE_TREE" \
@@ -297,13 +402,14 @@ prepare_candidate_image() {
     --build-arg "MIY_RELEASE_PIPELINE=$RELEASE_PIPELINE" \
     --tag "$build_image" \
     - >&2 || return 1
-  verify_candidate_image "$build_image" || return 1
-  docker tag "$build_image" "$CANDIDATE_IMAGE" || return 1
-  image_id "$CANDIDATE_IMAGE"
+  verify_candidate_image "$build_image" "$role" || return 1
+  docker tag "$build_image" "$candidate_image" || return 1
+  image_id "$candidate_image"
 }
 
 require_deploy_image() {
   local image="${1:?image is required}"
+  local role="${2:-platform}"
   local actual_id
   if [[ ! "$image" =~ ^sha256:[a-f0-9]{64}$ ]]; then
     echo "Deployment requires the full immutable candidate image ID." >&2
@@ -314,11 +420,12 @@ require_deploy_image() {
     echo "Deployment image ID does not resolve to the requested candidate." >&2
     return 1
   fi
-  verify_candidate_image "$image"
+  verify_candidate_image "$image" "$role"
 }
 
 promote_image() {
   local image="${1:?image is required}"
+  local CURRENT_IMAGE="${2:-$CURRENT_IMAGE}" PREVIOUS_IMAGE="${3:-$PREVIOUS_IMAGE}"
   local candidate_id current_id
   candidate_id="$(image_id "$image")" || return 1
   if docker image inspect "$CURRENT_IMAGE" >/dev/null 2>&1; then
@@ -335,8 +442,110 @@ run_migrations() {
   compose run --rm migrate
 }
 
+runtime_services() {
+  printf '%s\n' api worker beat
+  if [[ "${TOPOLOGY:-legacy}" == 'first-party' ]]; then printf '%s\n' official-api official-worker gateway; fi
+}
+
+runtime_service_image() {
+  case "${1:?service is required}" in
+    official-api) image_id "$OFFICIAL_API_REPOSITORY:prod" ;;
+    official-worker) image_id "$OFFICIAL_WORKER_REPOSITORY:prod" ;;
+    *) printf '%s\n' "${2:?platform image is required}" ;;
+  esac
+}
+
+current_runtime_topology() {
+  local id command service extra_id split_present=0
+  id="$(TOPOLOGY=legacy compose ps --all --quiet worker)" || return 1
+  [[ -z "$id" || "$id" =~ ^[a-f0-9]{64}$ ]] || return 1
+  # Inspect project labels without loading the requested Compose topology or
+  # inferring ownership from mutable image tags. Split orphans are not 'none'.
+  for service in official-api official-worker gateway; do
+    extra_id="$(docker ps --all --quiet --no-trunc \
+      --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" \
+      --filter "label=com.docker.compose.service=$service")" || return 1
+    [[ -z "$extra_id" || "$extra_id" =~ ^[a-f0-9]{64}$ ]] || return 1
+    if [[ -n "$extra_id" ]]; then split_present=1; fi
+  done
+  if [[ -z "$id" ]]; then
+    if [[ "$split_present" == 1 ]]; then
+      echo 'Split service containers remain without a known worker; activation HOLD.' >&2
+      return 1
+    fi
+    printf 'none\n'; return
+  fi
+  command="$(docker inspect --format '{{json .Config.Cmd}}' "$id")" || return 1
+  case "$command" in
+    *miy_worker.celery_app:celery_app*)
+      if [[ "$split_present" == 1 ]]; then
+        echo 'Legacy worker and split service containers conflict; activation HOLD.' >&2
+        return 1
+      fi
+      printf 'legacy\n' ;;
+    *miy_worker.first_party_platform:celery_app*) printf 'first-party\n' ;;
+    *) echo 'Current worker profile is not a known owned runtime; activation HOLD.' >&2; return 1 ;;
+  esac
+}
+
+require_runtime_topology() {
+  local action="${1:?operation is required}" current
+  current="$(current_runtime_topology)" || return 1
+  case "${TOPOLOGY:-legacy}:$current:$action" in
+    legacy:legacy:*|legacy:none:*|first-party:first-party:*) return 0 ;;
+    # An explicit full split prepare/deploy owns the legacy drain transition.
+    first-party:legacy:prepare|first-party:legacy:deploy|first-party:none:prepare|first-party:none:deploy)
+      [[ "${RELEASE_SLICE:-full}" == 'full' ]] && return 0 ;;
+    # Paired rollback can recover an initial split activation that failed before
+    # replacing the old namespace, or after removing failed candidate containers.
+    first-party:legacy:rollback|first-party:none:rollback)
+      [[ "${RELEASE_SLICE:-full}" == 'full' && -n "${ROLLBACK_IMAGE:-}" ]] && return 0 ;;
+  esac
+  echo 'Requested topology differs from the existing runtime; use an explicit coordinated first-party release or paired rollback. No runtime changes were made.' >&2
+  return 1
+}
+
+drain_current_workers() {
+  local current="${1:?current topology is required}" id hostname service profile
+  local -a bindings=() services=(worker)
+  if [[ "$current" == 'first-party' ]]; then services+=(official-worker); fi
+  for service in "${services[@]}"; do
+    id="$(compose ps --all --quiet "$service")" || return 1
+    [[ "$id" =~ ^[a-f0-9]{64}$ ]] || return 1
+    hostname="$(docker inspect --format '{{.Config.Hostname}}' "$id")" || return 1
+    [[ "$hostname" =~ ^[A-Za-z0-9_.-]+$ ]] || return 1
+    if [[ "$current" == 'legacy' ]]; then
+      bindings+=(--consumer "prod-worker@$hostname|legacy")
+    elif [[ "$service" == 'worker' ]]; then
+      bindings+=(--consumer "prod-platform-worker@$hostname|platform")
+    else
+      bindings+=(--consumer "prod-official-worker@$hostname|official")
+    fi
+  done
+  id="$(compose ps --all --quiet worker)" || return 1
+  command -v timeout >/dev/null 2>&1 || return 1
+  timeout --signal=TERM --kill-after=5 3930 \
+    docker exec -i "$id" apps/worker/.venv/bin/python - "${bindings[@]}" \
+    <"$ROOT_DIR/scripts/prod-app-drain.py"
+}
+
 stop_previous_writers() {
   # Honor each service definition: worker graceful shutdown can take 65 minutes.
+  if [[ "${TOPOLOGY:-legacy}" == 'first-party' ]]; then
+    local current
+    current="$(current_runtime_topology)" || return 1
+    [[ "$current" != 'none' ]] || return 0
+    if [[ "$current" == 'legacy' ]]; then
+      compose stop api beat || return 1
+      drain_current_workers legacy || return 1
+      compose stop worker
+    else
+      compose stop gateway || return 1
+      compose stop api official-api beat || return 1
+      compose stop worker official-worker
+    fi
+    return
+  fi
   compose stop api worker beat
 }
 
@@ -361,7 +570,8 @@ prior_runtime_definition() {
 
 capture_prior_runtime() {
   local image="${1:?pre-up image is required}" service id hash definition actual_image project role index state status running health present=0 recoverable=1
-  local -a services=(api worker beat) ids=() definitions=()
+  local -a services=() ids=() definitions=()
+  mapfile -t services < <(runtime_services)
   UP_PRIOR_IMAGE=""
   UP_PRIOR_IDS=()
   UP_PRIOR_DEFINITIONS=()
@@ -375,13 +585,13 @@ capture_prior_runtime() {
   done
   # First startup has no recovery target; only the forward gate may start it.
   [[ "$present" -ne 0 ]] || return 0
-  [[ "$present" -eq 3 ]] || return 1
-  for index in 0 1 2; do
+  [[ "$present" -eq "${#services[@]}" ]] || return 1
+  for index in "${!services[@]}"; do
     service="${services[$index]}"
     definition="$(prior_runtime_definition "${ids[$index]}")" || return 1
     IFS='|' read -r actual_image project role hash <<<"$definition"
     [[ "$hash" =~ ^[a-f0-9]{64}$ \
-      && "$definition" == "$image|$COMPOSE_PROJECT_NAME|$service|$hash" ]] || return 1
+      && "$definition" == "$(runtime_service_image "$service" "$image")|$COMPOSE_PROJECT_NAME|$service|$hash" ]] || return 1
     state="$(docker inspect --format '{{.State.Status}}|{{.State.Running}}|{{if .State.Health}}{{.State.Health.Status}}{{end}}' "${ids[$index]}")" || return 1
     IFS='|' read -r status running health <<<"$state"
     [[ "$state" == "$status|$running|$health" ]] || return 1
@@ -410,11 +620,12 @@ capture_prior_runtime() {
 
 wait_prior_runtime() {
   local deadline=$((SECONDS + 600)) index service id state ready
-  local -a services=(api worker beat)
+  local -a services=()
+  mapfile -t services < <(runtime_services)
   while ((SECONDS < deadline)); do
     [[ "$(image_id "$CURRENT_IMAGE")" == "$UP_PRIOR_IMAGE" ]] || return 1
     ready=1
-    for index in 0 1 2; do
+    for index in "${!services[@]}"; do
       service="${services[$index]}"
       id="$(compose ps --all --quiet "$service")" || return 1
       [[ "$id" == "${UP_PRIOR_IDS[$index]}" \
@@ -434,7 +645,8 @@ wait_prior_runtime() {
 
 restore_same_runtime() {
   local expected_image="${1:?pre-up image identity is required}" index service id definition
-  local -a services=(api worker beat)
+  local -a services=()
+  mapfile -t services < <(runtime_services)
   # No image-tag inference, no newly created containers and no partial-start recovery.
   if [[ "${UP_PRIOR_IMAGE:-}" != "$expected_image" \
     || "${FORWARD_START_ATTEMPTED:-0}" != 0 \
@@ -442,7 +654,7 @@ restore_same_runtime() {
     echo "No unchanged attested pre-up runtime is available; refusing restoration." >&2
     return 1
   fi
-  for index in 0 1 2; do
+  for index in "${!services[@]}"; do
     service="${services[$index]}"
     id="$(compose ps --all --quiet "$service")" || return 1
     [[ "$id" == "${UP_PRIOR_IDS[$index]}" ]] || return 1
@@ -454,6 +666,8 @@ restore_same_runtime() {
 }
 
 start_runtime() {
+  local -a official_services=()
+  if [[ "${TOPOLOGY:-legacy}" == 'first-party' ]]; then official_services=(official-api official-worker gateway); fi
   compose up \
     --detach \
     --force-recreate \
@@ -462,14 +676,108 @@ start_runtime() {
     --wait-timeout 600 \
     hermes-bootstrap hermes-gateway hermes-dashboard \
     hermes-terminal-egress hermes-terminal-broker \
-    privacy-filter api worker beat
+    privacy-filter api worker beat "${official_services[@]}"
 }
 
 run_smoke() {
   local revision
   revision="$(image_revision "$CURRENT_IMAGE")" || return 1
+  if [[ "${TOPOLOGY:-legacy}" == 'first-party' ]]; then
+    MIY_EXPECTED_REVISION="$revision" \
+      MIY_EXPECTED_OFFICIAL_REVISION="$(image_revision "$OFFICIAL_API_REPOSITORY:prod")" \
+      node "$ROOT_DIR/scripts/prod-app-smoke.mjs" "$ENV_FILE" --topology first-party
+    return
+  fi
   MIY_EXPECTED_REVISION="$revision" \
     node "$ROOT_DIR/scripts/prod-app-smoke.mjs" "$ENV_FILE"
+}
+
+platform_web_build_id() {
+  local value
+  value="$(docker run --rm --network none --entrypoint /bin/sh "${1:?platform image is required}" \
+    -ec 'if test -f dist/apps/web/.miy-build-id; then test "$(wc -c <dist/apps/web/.miy-build-id)" -le 129; cat dist/apps/web/.miy-build-id; fi')" || return 1
+  [[ -z "$value" || "$value" =~ ^[A-Za-z0-9_.-]{1,128}$ ]] || return 1
+  printf '%s\n' "$value"
+}
+
+require_official_web_compatibility() {
+  local expected actual
+  expected="$(platform_web_build_id "${1:?platform image is required}")" || return 1
+  actual="$(docker run --rm --network none --entrypoint /bin/sh "${2:?official API image is required}" \
+    -ec 'test -f dist/apps/official-suite/.miy-platform-build-id; test "$(wc -c <dist/apps/official-suite/.miy-platform-build-id)" -le 129; cat dist/apps/official-suite/.miy-platform-build-id')" || return 1
+  [[ "$actual" == "$expected" ]] || {
+    echo 'Official frontend is not compatible with the exact platform web artifact; activation HOLD.' >&2
+    return 1
+  }
+}
+
+require_official_gateway_compatibility() {
+  local platform_image="${1:?platform image is required}" official_image="${2:?official API image is required}"
+  local image projection prior='' api_prefix
+  api_prefix="$(node "$ROOT_DIR/scripts/prod-app-config.mjs" "$ENV_FILE" --print-api-prefix)" || return 1
+  [[ "$api_prefix" =~ ^/[A-Za-z0-9/_-]+$ && "$api_prefix" != */ ]] || return 1
+  for image in "$platform_image" "$official_image"; do
+    projection="$(docker run --rm --network none --read-only --workdir /tmp \
+      --cap-drop ALL --security-opt no-new-privileges \
+      --entrypoint /opt/miy/apps/api/.venv/bin/python "$image" \
+      -m miy_api.first_party_routes --json --api-prefix "$api_prefix")" || return 1
+    [[ "${#projection}" -le 1048576 ]] || return 1
+    printf '%s' "$projection" | python3 -c '
+import json,sys
+projection=json.load(sys.stdin)
+assert isinstance(projection,dict) and set(projection)=={"api_prefix","official_patterns"}
+assert projection["api_prefix"]==sys.argv[1]
+patterns=projection["official_patterns"]
+assert isinstance(patterns,list) and patterns and all(isinstance(pattern,str) for pattern in patterns)
+assert patterns==sorted(set(patterns))
+' "$api_prefix" || return 1
+    if [[ -n "$prior" && "$projection" != "$prior" ]]; then
+      echo 'Official route ownership differs from the retained Core gateway; use a coordinated full release.' >&2
+      return 1
+    fi
+    prior="$projection"
+  done
+}
+
+require_official_slice() {
+  [[ "$(current_runtime_topology)" == 'first-party' && "$ROLLBACK_TOPOLOGY" == 'first-party' ]] || return 1
+  cmp -s "$ENV_FILE" "$ROLLBACK_BUNDLE/.env" || {
+    echo 'An official slice cannot change shared production configuration.' >&2; return 1;
+  }
+  local platform_image prior_revision
+  platform_image="$(image_id "$CURRENT_IMAGE")" || return 1
+  capture_prior_runtime "$platform_image" || return 1
+  [[ "${UP_PRIOR_IMAGE:-}" == "$platform_image" ]] || return 1
+  slice_platform_identity || return 1
+  prior_revision="$(image_revision "$OFFICIAL_API_REPOSITORY:prod")" || return 1
+  [[ "$(image_revision "$OFFICIAL_WORKER_REPOSITORY:prod")" == "$prior_revision" ]] || return 1
+  python3 "$ROOT_DIR/scripts/prod-app-official-slice.py" "$ROOT_DIR" "$prior_revision" || return 1
+  require_official_web_compatibility "$platform_image" "$OFFICIAL_API_IMAGE" || return 1
+  require_official_gateway_compatibility "$platform_image" "$OFFICIAL_API_IMAGE"
+}
+
+slice_platform_identity() {
+  local image index service id definition hash state
+  local -a services=(api worker beat gateway) ids=() definitions=()
+  image="$(image_id "$CURRENT_IMAGE")" || return 1
+  [[ -z "${SLICE_PLATFORM_IMAGE:-}" || "$image" == "$SLICE_PLATFORM_IMAGE" ]] || return 1
+  for index in "${!services[@]}"; do
+    service="${services[$index]}"
+    id="$(compose ps --all --quiet "$service")" || return 1
+    [[ "$id" =~ ^[a-f0-9]{64}$ ]] || return 1
+    definition="$(prior_runtime_definition "$id")" || return 1
+    hash="${definition##*|}"
+    [[ "$hash" =~ ^[a-f0-9]{64}$ && "$definition" == "$image|$COMPOSE_PROJECT_NAME|$service|$hash" ]] || return 1
+    state="$(docker inspect --format '{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$id")" || return 1
+    [[ "$state" == 'running|healthy' ]] || return 1
+    if [[ -n "${SLICE_PLATFORM_IMAGE:-}" ]]; then
+      [[ "$id" == "${SLICE_PLATFORM_IDS[$index]}" && "$definition" == "${SLICE_PLATFORM_DEFINITIONS[$index]}" ]] || return 1
+    fi
+    ids+=("$id"); definitions+=("$definition")
+  done
+  SLICE_PLATFORM_IMAGE="$image"
+  SLICE_PLATFORM_IDS=("${ids[@]}")
+  SLICE_PLATFORM_DEFINITIONS=("${definitions[@]}")
 }
 
 prepare_rollback_runtime() {
@@ -477,20 +785,34 @@ prepare_rollback_runtime() {
   if [[ -z "$ROLLBACK_IMAGE" ]]; then
     return 0
   fi
+  local -a extra=()
+  if [[ "${ROLLBACK_TOPOLOGY:-legacy}" == 'first-party' ]]; then
+    local expected_official_tag='prod'
+    if [[ "${COMMAND:-deploy}" == 'rollback' ]]; then expected_official_tag='prod-previous'; fi
+    extra=(--topology first-party --official-api-image "$ROLLBACK_OFFICIAL_API_IMAGE" --official-worker-image "$ROLLBACK_OFFICIAL_WORKER_IMAGE"
+      --expected-official-api-image "$OFFICIAL_API_REPOSITORY:$expected_official_tag" --expected-official-worker-image "$OFFICIAL_WORKER_REPOSITORY:$expected_official_tag")
+  fi
   ROLLBACK_BUNDLE="$(
     node "$ROOT_DIR/scripts/prod-app-rollback.mjs" prepare \
-      "$ROOT_DIR" "$ROLLBACK_ENV_FILE" "$ROLLBACK_IMAGE" "$expected_image"
+      "$ROOT_DIR" "$ROLLBACK_ENV_FILE" "$ROLLBACK_IMAGE" "$expected_image" "${extra[@]}"
   )" || return 1
   local metadata
   local -a fields
   metadata="$(node "$ROOT_DIR/scripts/prod-app-rollback.mjs" runtime "$ROLLBACK_BUNDLE")" || return 1
   mapfile -t fields <<<"$metadata"
-  [[ "${#fields[@]}" -eq 5 ]] || return 1
+  [[ "${#fields[@]}" -eq 5 || "${#fields[@]}" -eq 9 ]] || return 1
   ROLLBACK_COMPOSE_FILE="$ROLLBACK_BUNDLE/${fields[0]}"
   ROLLBACK_PROJECT="${fields[1]}"
   ROLLBACK_CURRENT_IMAGE="${fields[2]}"
   ROLLBACK_BROKER="${fields[3]}"
   ROLLBACK_REVISION_ENV="${fields[4]}"
+  if [[ "${#fields[@]}" -eq 9 ]]; then
+    ROLLBACK_TOPOLOGY='first-party'
+    ROLLBACK_OFFICIAL_API_IMAGE="${fields[5]}"
+    ROLLBACK_OFFICIAL_WORKER_IMAGE="${fields[6]}"
+    ROLLBACK_FIRST_PARTY_COMPOSE_FILE="$ROLLBACK_BUNDLE/${fields[7]}"
+    ROLLBACK_OFFICIAL_REVISION="${fields[8]}"
+  fi
   require_terminal_broker_port_available \
     "$ROLLBACK_BUNDLE/scripts/prod-app-config.mjs" "$ROLLBACK_BUNDLE/.env" "$ROLLBACK_BROKER" || return 1
 }
@@ -499,16 +821,53 @@ rollback_compose() {
   local ENV_FILE="$ROLLBACK_BUNDLE/.env"
   local COMPOSE_FILE="${ROLLBACK_COMPOSE_FILE:?pinned rollback Compose is required}"
   local COMPOSE_PROJECT_NAME="${ROLLBACK_PROJECT:?pinned rollback project is required}"
+  local TOPOLOGY="${ROLLBACK_TOPOLOGY:-legacy}"
+  local FIRST_PARTY_COMPOSE_FILE="${ROLLBACK_FIRST_PARTY_COMPOSE_FILE:-${FIRST_PARTY_COMPOSE_FILE:-}}"
+  local COMPOSE_OFFICIAL_API_IMAGE="${ROLLBACK_OFFICIAL_API_IMAGE:-}"
+  local COMPOSE_OFFICIAL_WORKER_IMAGE="${ROLLBACK_OFFICIAL_WORKER_IMAGE:-}"
   compose "$@"
 }
 
 restore_previous_runtime() {
+  require_runtime_topology rollback || return 1
   if [[ -n "$ROLLBACK_IMAGE" ]]; then
     if [[ -z "$ROLLBACK_BUNDLE" ]]; then
       echo "An explicit rollback requires a validated image/environment bundle." >&2
       return 1
     fi
     echo "Restoring the pinned production image, environment, and deployment definitions." >&2
+    if [[ "${RELEASE_SLICE:-full}" == 'official' ]]; then
+      # The slice cannot change environment or topology. Keep every existing
+      # platform/Beat definition and container identity untouched on recovery.
+      [[ "$ROLLBACK_TOPOLOGY" == 'first-party' ]] || return 1
+      cmp -s "$ENV_FILE" "$ROLLBACK_BUNDLE/.env" || return 1
+      [[ "$(current_runtime_topology)" == 'first-party' ]] || return 1
+      local platform_image platform_revision
+      platform_image="$(image_id "$CURRENT_IMAGE")" || return 1
+      # A failed official candidate need not be healthy to restore its prior
+      # pair. The platform/Beat must remain the exact healthy retained runtime.
+      slice_platform_identity || return 1
+      platform_revision="$(image_revision "$CURRENT_IMAGE")" || return 1
+      python3 "$ROOT_DIR/scripts/prod-app-official-slice.py" "$ROOT_DIR" "$ROLLBACK_OFFICIAL_REVISION" "$platform_revision" || return 1
+      require_official_web_compatibility "$platform_image" "$ROLLBACK_OFFICIAL_API_IMAGE" || return 1
+      require_official_gateway_compatibility "$platform_image" "$ROLLBACK_OFFICIAL_API_IMAGE" || return 1
+      compose stop official-api official-worker || return 1
+      docker tag "$ROLLBACK_OFFICIAL_API_IMAGE" "$OFFICIAL_API_REPOSITORY:prod" || return 1
+      docker tag "$ROLLBACK_OFFICIAL_WORKER_IMAGE" "$OFFICIAL_WORKER_REPOSITORY:prod" || return 1
+      rollback_compose up -d --no-deps --force-recreate --wait --wait-timeout 600 official-api official-worker || return 1
+      slice_platform_identity || return 1
+      run_smoke
+      return
+    fi
+    if [[ "${TOPOLOGY:-legacy}" == 'first-party' && "${ROLLBACK_TOPOLOGY:-legacy}" == 'legacy' ]]; then
+      local current
+      current="$(current_runtime_topology)" || return 1
+      if [[ "$current" == 'first-party' ]]; then
+        compose stop gateway || return 1
+        compose stop api official-api beat || return 1
+        drain_current_workers first-party || return 1
+      fi
+    fi
     # Stop every container in this application project, including new release
     # orphans. Persistent volumes and the separate database project are retained.
     compose down --remove-orphans || return 1
@@ -516,11 +875,23 @@ restore_previous_runtime() {
       "$ROOT_DIR" "$ROLLBACK_BUNDLE" "$ROLLBACK_IMAGE" || return 1
     docker tag "$ROLLBACK_IMAGE" "$CURRENT_IMAGE" || return 1
     docker tag "$ROLLBACK_IMAGE" "$ROLLBACK_CURRENT_IMAGE" || return 1
+    if [[ "${ROLLBACK_TOPOLOGY:-legacy}" == 'first-party' ]]; then
+      docker tag "$ROLLBACK_OFFICIAL_API_IMAGE" "$OFFICIAL_API_REPOSITORY:prod" || return 1
+      docker tag "$ROLLBACK_OFFICIAL_WORKER_IMAGE" "$OFFICIAL_WORKER_REPOSITORY:prod" || return 1
+    fi
     rollback_compose up -d --remove-orphans --wait --wait-timeout 600 || return 1
     local revision
     revision="$(image_revision "$ROLLBACK_IMAGE")" || return 1
-    (export "$ROLLBACK_REVISION_ENV=$revision"
-      node "$ROLLBACK_BUNDLE/scripts/prod-app-smoke.mjs" "$ROLLBACK_BUNDLE/.env") || return 1
+    if [[ "${ROLLBACK_TOPOLOGY:-legacy}" == 'first-party' ]]; then
+      (export "$ROLLBACK_REVISION_ENV=$revision" MIY_EXPECTED_OFFICIAL_REVISION="$ROLLBACK_OFFICIAL_REVISION"
+        node "$ROLLBACK_BUNDLE/scripts/prod-app-smoke.mjs" "$ROLLBACK_BUNDLE/.env" --topology first-party) || return 1
+    else
+      (export "$ROLLBACK_REVISION_ENV=$revision"
+        node "$ROLLBACK_BUNDLE/scripts/prod-app-smoke.mjs" "$ROLLBACK_BUNDLE/.env") || return 1
+      # An older pinned smoke predates split ingress. Check restored locations
+      # with its own config owner before claiming public routing was recovered.
+      node "$ROOT_DIR/scripts/prod-app-rollback.mjs" smoke-routing "$ROLLBACK_BUNDLE" || return 1
+    fi
     return 0
   fi
   if ! docker image inspect "$PREVIOUS_IMAGE" >/dev/null 2>&1; then
@@ -548,6 +919,38 @@ report_deployment_failure() {
 
 deploy() {
   local image="${1:?image is required}"
+  require_runtime_topology deploy || return 1
+  # Exact verified candidate IDs remain usable if a role-tag operation fails
+  # partway through initial split promotion. Recovery does not depend on tags
+  # which the failed operation may not yet have created.
+  local COMPOSE_OFFICIAL_API_IMAGE="${OFFICIAL_API_IMAGE:-}"
+  local COMPOSE_OFFICIAL_WORKER_IMAGE="${OFFICIAL_WORKER_IMAGE:-}"
+  if [[ "${TOPOLOGY:-legacy}" == 'first-party' ]]; then
+    local current platform_image
+    current="$(current_runtime_topology)" || return 1
+    if [[ "$RELEASE_SLICE" == 'official' ]]; then
+      require_official_slice || return 1
+    else
+      # Check all existing writer image/Compose identities before changing tags.
+      if [[ "$current" != 'none' ]]; then
+        platform_image="$(image_id "$CURRENT_IMAGE")" || return 1
+        TOPOLOGY="$current" capture_prior_runtime "$platform_image" || return 1
+      fi
+      [[ "$ROLLBACK_TOPOLOGY" == "$current" ]] || return 1
+    fi
+    promote_image "$OFFICIAL_API_IMAGE" "$OFFICIAL_API_REPOSITORY:prod" "$OFFICIAL_API_REPOSITORY:prod-previous" \
+      && promote_image "$OFFICIAL_WORKER_IMAGE" "$OFFICIAL_WORKER_REPOSITORY:prod" "$OFFICIAL_WORKER_REPOSITORY:prod-previous" || {
+        report_deployment_failure yes; return 1;
+      }
+    if [[ "$RELEASE_SLICE" == 'official' ]]; then
+      if ! compose stop official-api official-worker \
+        || ! compose up -d --no-deps --force-recreate --wait --wait-timeout 600 official-api official-worker \
+        || ! slice_platform_identity \
+        || ! run_smoke; then report_deployment_failure yes; return 1; fi
+      echo 'Official bundle deployment completed; platform, Beat and gateway container identities were retained.'
+      return
+    fi
+  fi
   if ! promote_image "$image"; then
     report_deployment_failure yes
     return 1
@@ -582,6 +985,24 @@ while [[ $# -gt 0 ]]; do
       DEPLOY_IMAGE="$2"
       shift 2
       ;;
+    --topology)
+      if [[ $# -lt 2 || "$TOPOLOGY" != 'legacy' || "$2" != 'first-party' ]]; then usage; exit 2; fi
+      TOPOLOGY="$2"; shift 2 ;;
+    --slice)
+      if [[ $# -lt 2 || "$RELEASE_SLICE" != 'full' || "$2" != 'official' ]]; then usage; exit 2; fi
+      RELEASE_SLICE="$2"; shift 2 ;;
+    --official-api-image|--official-worker-image|--rollback-official-api-image|--rollback-official-worker-image)
+      if [[ $# -lt 2 || ! "$2" =~ ^sha256:[a-f0-9]{64}$ ]]; then usage; exit 2; fi
+      case "$1" in
+        --official-api-image) [[ -z "$OFFICIAL_API_IMAGE" ]] || exit 2; OFFICIAL_API_IMAGE="$2" ;;
+        --official-worker-image) [[ -z "$OFFICIAL_WORKER_IMAGE" ]] || exit 2; OFFICIAL_WORKER_IMAGE="$2" ;;
+        --rollback-official-api-image) [[ -z "$ROLLBACK_OFFICIAL_API_IMAGE" ]] || exit 2; ROLLBACK_OFFICIAL_API_IMAGE="$2" ;;
+        --rollback-official-worker-image) [[ -z "$ROLLBACK_OFFICIAL_WORKER_IMAGE" ]] || exit 2; ROLLBACK_OFFICIAL_WORKER_IMAGE="$2" ;;
+      esac
+      shift 2 ;;
+    --rollback-topology)
+      if [[ $# -lt 2 || "$ROLLBACK_TOPOLOGY" != 'legacy' || "$2" != 'first-party' ]]; then usage; exit 2; fi
+      ROLLBACK_TOPOLOGY="$2"; shift 2 ;;
     --rollback-env-file)
       if [[ $# -lt 2 || -n "$ROLLBACK_ENV_FILE" || -z "$2" ]]; then usage; exit 2; fi
       ROLLBACK_ENV_FILE="$2"
@@ -601,13 +1022,25 @@ if [[ "$COMMAND" == "prepare" ]]; then
     exit 2
   fi
 elif [[ "$COMMAND" == "deploy" ]]; then
-  if [[ -z "$RELEASE_MR" || -z "$DEPLOY_IMAGE" ]]; then
+  if [[ -z "$RELEASE_MR" || ( "$RELEASE_SLICE" == 'full' && -z "$DEPLOY_IMAGE" ) || ( "$RELEASE_SLICE" == 'official' && -n "$DEPLOY_IMAGE" ) ]]; then
     usage
     exit 2
   fi
 elif [[ -n "$RELEASE_MR" || -n "$DEPLOY_IMAGE" ]]; then
   usage
   exit 2
+fi
+if [[ "$TOPOLOGY" == 'legacy' ]]; then
+  if [[ "$RELEASE_SLICE" != 'full' || -n "$OFFICIAL_API_IMAGE$OFFICIAL_WORKER_IMAGE$ROLLBACK_OFFICIAL_API_IMAGE$ROLLBACK_OFFICIAL_WORKER_IMAGE" || "$ROLLBACK_TOPOLOGY" != 'legacy' ]]; then usage; exit 2; fi
+else
+  if [[ "$COMMAND" == 'deploy' ]]; then
+    if [[ -z "$OFFICIAL_API_IMAGE" || -z "$OFFICIAL_WORKER_IMAGE" || -z "$ROLLBACK_IMAGE" ]]; then usage; exit 2; fi
+  elif [[ -n "$OFFICIAL_API_IMAGE$OFFICIAL_WORKER_IMAGE" ]]; then usage; exit 2; fi
+  if [[ "$COMMAND" == 'rollback' && -z "$ROLLBACK_IMAGE" ]]; then usage; exit 2; fi
+  if [[ "$ROLLBACK_TOPOLOGY" == 'first-party' ]]; then
+    if [[ -z "$ROLLBACK_OFFICIAL_API_IMAGE" || -z "$ROLLBACK_OFFICIAL_WORKER_IMAGE" || -z "$ROLLBACK_IMAGE" ]]; then usage; exit 2; fi
+  elif [[ -n "$ROLLBACK_OFFICIAL_API_IMAGE$ROLLBACK_OFFICIAL_WORKER_IMAGE" ]]; then usage; exit 2; fi
+  if [[ "$RELEASE_SLICE" == 'official' && "$COMMAND" != 'prepare' && "$COMMAND" != 'deploy' && "$COMMAND" != 'rollback' ]]; then usage; exit 2; fi
 fi
 if [[ -n "$ROLLBACK_ENV_FILE" || -n "$ROLLBACK_IMAGE" ]]; then
   if [[ -z "$ROLLBACK_ENV_FILE" || -z "$ROLLBACK_IMAGE" || ( "$COMMAND" != "deploy" && "$COMMAND" != "rollback" ) ]]; then
@@ -621,24 +1054,56 @@ case "$COMMAND" in
     require_prod_checkout
     require_release_source
     acquire_operation_lock
+    require_runtime_topology prepare
     validate_environment
     load_release_contract "$RELEASE_MR"
-    prepare_candidate_image
+    if [[ "$TOPOLOGY" == 'first-party' ]]; then
+      if [[ "$RELEASE_SLICE" == 'full' ]]; then
+        PREPARED_PLATFORM_IMAGE="$(prepare_candidate_image)"
+        printf 'platform=%s\n' "$PREPARED_PLATFORM_IMAGE"
+      else
+        [[ "$(current_runtime_topology)" == 'first-party' ]] || exit 1
+        PREPARED_PLATFORM_IMAGE="$(image_id "$CURRENT_IMAGE")"
+        prior_revision="$(image_revision "$OFFICIAL_API_REPOSITORY:prod")"
+        python3 "$ROOT_DIR/scripts/prod-app-official-slice.py" "$ROOT_DIR" "$prior_revision"
+      fi
+      prepared_api="$(prepare_candidate_image official-api)"
+      require_official_web_compatibility "$PREPARED_PLATFORM_IMAGE" "$prepared_api"
+      if [[ "$RELEASE_SLICE" == 'official' ]]; then
+        require_official_gateway_compatibility "$PREPARED_PLATFORM_IMAGE" "$prepared_api"
+      fi
+      prepared_worker="$(prepare_candidate_image official-worker)"
+      printf 'official-api=%s\nofficial-worker=%s\n' "$prepared_api" "$prepared_worker"
+    else
+      prepare_candidate_image
+    fi
     ;;
   deploy)
     require_prod_checkout
     require_release_source
     acquire_operation_lock
+    require_runtime_topology deploy
     prepare_rollback_runtime "$CURRENT_IMAGE"
     validate_environment
     require_terminal_broker_port_available
     load_release_contract "$RELEASE_MR"
-    require_deploy_image "$DEPLOY_IMAGE"
-    deploy "$DEPLOY_IMAGE"
+    if [[ "$TOPOLOGY" == 'first-party' ]]; then
+      require_deploy_image "$OFFICIAL_API_IMAGE" official-api
+      require_deploy_image "$OFFICIAL_WORKER_IMAGE" official-worker
+      if [[ "$RELEASE_SLICE" == 'full' ]]; then
+        require_deploy_image "$DEPLOY_IMAGE"
+        require_official_web_compatibility "$DEPLOY_IMAGE" "$OFFICIAL_API_IMAGE"
+      fi
+    else
+      require_deploy_image "$DEPLOY_IMAGE"
+    fi
+    deploy "${DEPLOY_IMAGE:-$CURRENT_IMAGE}"
     ;;
   migrate)
     require_prod_checkout
     require_release_source
+    acquire_operation_lock
+    require_runtime_topology migrate
     validate_environment
     run_migrations
     ;;
@@ -646,8 +1111,10 @@ case "$COMMAND" in
     require_prod_checkout
     require_release_source
     acquire_operation_lock
+    require_runtime_topology rollback
     if [[ -n "$ROLLBACK_IMAGE" ]]; then
-      prepare_rollback_runtime "$PREVIOUS_IMAGE"
+      if [[ "$RELEASE_SLICE" == 'official' ]]; then prepare_rollback_runtime "$CURRENT_IMAGE";
+      else prepare_rollback_runtime "$PREVIOUS_IMAGE"; fi
     else
       validate_environment
       require_terminal_broker_port_available
@@ -667,6 +1134,7 @@ case "$COMMAND" in
     require_prod_checkout
     require_release_source
     acquire_operation_lock
+    require_runtime_topology up
     validate_environment
     require_terminal_broker_port_available
     docker image inspect "$CURRENT_IMAGE" >/dev/null

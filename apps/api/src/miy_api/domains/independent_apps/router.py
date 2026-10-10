@@ -63,6 +63,16 @@ def request_deployment(
     return delivery.request_deployment(db, app_id, data, context)
 
 
+@router.post("/{app_id}/promotions", response_model=DeploymentOut, status_code=202)
+def request_promotion(
+    app_id: str,
+    data: DeploymentInput,
+    context: AuthContext = Depends(require_auth_context),
+    db: Session = Depends(get_db_session),
+):
+    return delivery.request_deployment(db, app_id, data, context, production_promotion=True)
+
+
 @router.get("/{app_id}/deployments/{request_id}", response_model=DeploymentOut)
 def deployment_status(
     app_id: str,

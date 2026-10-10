@@ -18,6 +18,7 @@ export function TaskDetailModal({
 }: TaskDetailModalProps) {
   return (
     <m.div
+      data-ui-overlay
       key="task-detail-modal"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}

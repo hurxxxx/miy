@@ -12,3 +12,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/miy_official_worker"]
+
+# The moved compatibility tasks retain their existing worker lint contract.
+[tool.ruff]
+extend = "../../worker/pyproject.toml"

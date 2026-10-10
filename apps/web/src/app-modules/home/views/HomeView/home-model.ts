@@ -1,7 +1,9 @@
-import type { RecentPageItem } from '@miy/official-suite-web/docs';
-import type { MeetingListItem } from '@miy/official-suite-web/meeting';
-import type { PlannerEvent } from '@miy/official-suite-web/planner/public-api';
-import type { PmsTask } from '@miy/official-suite-web/pms';
+import type {
+  RecentPageItem,
+  MeetingListItem,
+  PlannerEvent,
+  PmsTask,
+} from '@miy/official-suite-web/summaries';
 import {
   diffDateOnlyDays,
   formatDateOnly,

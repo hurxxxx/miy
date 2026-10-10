@@ -34,7 +34,9 @@ import { mailModule as oldMail } from '@/src/app-modules/mail';
 import { whiteboardModule as oldWhiteboard } from '@/src/app-modules/whiteboard';
 import { lazyRoute, LazyRouteErrorBoundary } from './lazy-route';
 import { LazyRouteFallback } from './lazy-route-fallback';
-import { OFFICIAL_APP_MODULES } from './official-app-modules';
+import { OFFICIAL_APP_MODULES } from '@miy/official-suite-web/modules';
+import { OFFICIAL_APP_MODULES as portalDescriptors } from './official-app-modules';
+import { DocumentNavigation } from './document-navigation';
 
 // Importing a module must not evaluate its business screen before route render.
 vi.mock('@miy/official-suite-web/diagrams/views/DiagramsView', () => {
@@ -112,6 +114,21 @@ it('assembles the actual suite-owned modules without a second registry or eager 
       ),
     ).toBe(module);
   expect(bentoModule.backgroundWorkSources).toHaveLength(1);
+  expect(portalDescriptors.map((module) => module.manifest)).toEqual(
+    OFFICIAL_APP_MODULES.map((module) => module.manifest),
+  );
+  for (const descriptor of portalDescriptors) {
+    expect('backgroundWorkSources' in descriptor).toBe(false);
+    expect('shellProviders' in descriptor).toBe(false);
+    for (const route of [
+      ...(descriptor.appRoutes ?? []),
+      ...(descriptor.globalRoutes ?? []),
+    ]) {
+      expect(isValidElement(route.element) && route.element.type).toBe(
+        DocumentNavigation,
+      );
+    }
+  }
 });
 it('retains canonical route identity, chrome and the same route elements', () => {
   for (const [routes, ids] of [

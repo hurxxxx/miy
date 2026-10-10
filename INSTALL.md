@@ -651,23 +651,17 @@ Hermes 구조화 작업의 기본 의존성은 API와 Worker 양쪽에 설치되
 챗봇 UI 의존성도 위 `pnpm install --frozen-lockfile`로 설치한다. 별도 Desktop 설치는 필요 없으며, 채택 버전과 연결 방식은 [챗봇 UI 문서](docs/apps/chatbot/hermes-desktop/README.md)에서 관리한다.
 실패한 패키지·인증·네트워크·빌드 도구 문제를 구분하여 해결한다.
 
-환경설정은 먼저 기존 파일 유무와 키 목록을 확인한다. 이 도구는 값을 출력하지 않는다.
+환경설정은 기존 파일을 보존하며, 파일이 없을 때만 소유자 전용 개발 템플릿을 설치한다. 설치에 별도 skill 실행은 필요하지 않다.
 
 ```bash
-bash .agents/skills/miy-env-contracts/scripts/local-env-files.sh status --source .env.example --target .env
+if [ ! -e .env ] && [ ! -L .env ]; then
+  install -m 600 .env.example .env
+fi
 ```
 
-결과가 `status=missing_target`일 때만 다음 명령으로 개발용 템플릿을 설치한다.
+이미 `.env`가 있다면 유지한다. 템플릿과 값이 다르다는 이유로 덮어쓰지 않는다. 필요한 키만 기존 값을 보존하여 맞추고 `pnpm check:env-contract`로 키 목록과 순서를 확인한다. 이 검사는 설정 값을 출력하지 않는다. 비밀 값·파일을 Git에 추가하지 않는다.
 
-```bash
-bash .agents/skills/miy-env-contracts/scripts/local-env-files.sh install --source .env.example --target .env
-```
-
-이미 `.env`가 있다면 유지한다. `status=different`는 사용자 설정이 있다는 뜻일 수 있으며
-템플릿으로 덮어쓸 이유가 아니다. 필요한 키만 기존 값을 보존하여 맞춘다.
-환경 파일 취급은 [환경설정 절차](.agents/skills/miy-env-contracts/references/env-files.md)를 따른다.
-
-독립 앱을 시범 사용할 때는 `MIY_INDEPENDENT_APP_PLATFORM_ORIGINS`에 플랫폼의 실제 브라우저 출처를 JSON 배열로 설정한다. 예를 들어 API와 Vite가 분리된 로컬 구성은 `["http://127.0.0.1:4200", "http://127.0.0.1:8001"]`처럼 실제 사용하는 값을 지정한다. 기본값 `[]`에서는 독립 앱 설치·세션 발급이 닫히며 기존 내장 앱에는 영향을 주지 않는다. 출처 경계·등록·SDK·아직 연결하지 않은 운영 배포 단계는 [독립 앱 계약](apps/api/src/miy_api/domains/independent_apps/README.md), 별도 저장소 생성과 앱 서버의 공개 설정은 [독립 앱 템플릿](templates/independent-app/README.md)을 따른다.
+독립 앱을 시범 사용할 때는 `MIY_INDEPENDENT_APP_PLATFORM_ORIGINS`에 플랫폼의 실제 브라우저 출처를 JSON 배열로 설정한다. 예를 들어 API와 Vite가 분리된 로컬 구성은 `["http://127.0.0.1:4200", "http://127.0.0.1:8001"]`처럼 실제 사용하는 값을 지정한다. 기본값 `[]`에서는 독립 앱 설치·세션 발급이 닫히며 기존 내장 앱에는 영향을 주지 않는다. 출처 경계·등록·SDK·개발 설치와 운영 승격은 [독립 앱 계약](apps/api/src/miy_api/domains/independent_apps/README.md), 별도 저장소 생성과 앱 서버의 공개 설정은 [독립 앱 템플릿](templates/independent-app/README.md)을 따른다.
 
 최초 등록에는 최소 `independent_bootstrap_20261006`을 포함한 현재 Alembic head를 적용한 코어 API와 해당 포털 UI가 필요하다. Workbench의 등록 초안 JSON을 MIY 포털 `/apps/register`에서 현재 소유자 로그인으로 확인하면 personal 정의와 소유자만 대상으로 하는 비활성 development 설치를 원자적으로 만든다. 기존 앱을 덮어쓰거나 개발 서버·executor를 기동하지 않는다. 파일 인계와 응답 유실 복구는 [최초 앱 등록 절차](docs/apps/codex-console/README.md#등록-초안-파일로-최초-앱-등록)를 따른다.
 
@@ -675,21 +669,27 @@ Workbench에서 파일 없이 최초 등록을 이어갈 설치는 `registration
 
 독립 앱의 사용자 선택 파일 읽기는 별도 선택 기능이다. 코어에만 `MIY_INDEPENDENT_APP_FILE_SELECTION_SIGNING_KEY`를 설치하며 기본 빈 값은 이 기능을 비활성화한다. 키는 비기본·비placeholder 32바이트 이상이어야 하고 앱 소스·Workbench·브라우저에 전달하지 않는다. `MIY_INDEPENDENT_APP_FILE_SELECTION_STORAGE_REGION`은 기존 객체 저장소의 실제 region과 맞춘다(기본 `us-east-1`). 앱은 `identity:read`와 `files:read-selected`를 요청하고 설치에서 명시적으로 허용받아야 한다. 기존 앱 권한은 자동 확대하지 않는다. 사용자가 고른 최대 10 MiB 파일 하나만 짧은 유효기간 안에 현재 세션·원본 권한·버전을 재확인해 읽으며 이미 전달한 bytes는 회수할 수 없다. 계약과 검증 범위는 [선택 파일 읽기 계약](apps/api/src/miy_api/domains/independent_apps/README.md#selected-platform-files)를 따른다. 실제 키 설정이나 서비스 활성화는 소스 구현에 포함되지 않는다.
 
-로컬 독립 앱 배포 실행기는 별도 선택 기능이다. 기존 마이그레이션 명령으로 현재 Alembic head까지 적용하고, 코어 운영자가 승인한 로컬 빌드·nginx 이미지 ID, Docker 접근, 권한 `0700`의 전용 상태 디렉터리를 준비한다. 플랫폼 체크아웃에서만 [코어 배포 CLI](apps/api/src/miy_api/domains/independent_apps/README.md#local-development-delivery)를 실행한다. 앱 작업 디렉터리에는 플랫폼 DB·로그인·Docker 자격을 넣지 않는다. 앱 세션 교환에는 컨테이너에서 도달 가능한 플랫폼 API 경로가 필요하며, 호스트 loopback 전용 API는 자동으로 외부 수신으로 변경하지 않는다. 현재 실행기는 loopback 개발 설치만 지원하고 운영 배포를 활성화하지 않는다.
+독립 앱 배포 실행기는 별도 선택 기능이다. 기존 마이그레이션 명령으로 현재 Alembic head까지 적용하고, 코어 운영자가 승인한 로컬 빌드·nginx 이미지 ID, Docker 접근, 권한 `0700`의 전용 상태 디렉터리를 준비한다. 플랫폼 체크아웃에서만 [코어 배포 CLI](apps/api/src/miy_api/domains/independent_apps/README.md#local-development-delivery)를 실행한다. 앱 작업 디렉터리에는 플랫폼 DB·로그인·Docker 자격을 넣지 않는다. 앱 세션 교환에는 컨테이너에서 도달 가능한 플랫폼 API 경로가 필요하며, 호스트 loopback 전용 API는 자동으로 외부 수신으로 변경하지 않는다. 기본 개발 설치는 loopback HTTP를 사용한다. 서버 개발 미리보기와 운영 설치에는 아래의 명시적인 HTTPS 연결이 필요하다.
+
+서버 개발 미리보기는 delivery target에 `environment: "development"`, 플랫폼과 분리된 `app_origin: "https://app.example.com"`, `loopback_port: 19431`을 함께 지정한다. 운영 target은 `environment: "production"`과 이 두 필드가 필수이며 코어 런타임도 `MIY_ENVIRONMENT=production`이어야 한다. 개발·운영 target마다 HTTPS 출처와 loopback 포트가 달라야 하고, installation마다 scratch/state 경로를 분리한다. 앱 컨테이너 수신은 `127.0.0.1`을 유지하며 앞단에서 [HTTPS 프록시 예제](ops/independent-apps/app-https.nginx.conf.example)의 도메인·인증서·포트를 정확한 운영자 설정과 맞춘다. WebSocket upgrade 전달과 응답 buffering 설정은 [NGINX 공식 문서](https://nginx.org/en/docs/http/websocket.html)를 따른다. 예제는 자동 설치하지 않으며 실제 HTTPS 도달·세션 교환·포털 embedding 확인이 배포 완료 조건이다.
+
+개인 앱 운영 승격은 같은 플랫폼 등록 DB에 기록된 성공한 개발 설치의 불변 산출물을 사용한다. 운영 포털에서 개발할 앱은 그 포털의 등록 DB에 별도 개발 installation을 만들며, 앱 데이터는 설치별로 격리한다. 코어 관리자가 비활성 운영 installation과 정확한 target을 준비하고 `/independent-apps/{app_id}/promotions`로 승격을 요청한다. 정상 관측과 현재 관리자 권한 확인 전에는 운영 설치가 활성화되지 않는다. 플랫폼 자체의 개발 DB에서 운영 DB로 앱 등록·빌드 증거를 복사하는 기능은 이번 범위에 포함하지 않는다.
 
 Workbench의 위임된 요청을 자동 소비하려면 코어 설정의 `MIY_INDEPENDENT_APP_DELIVERY_TARGETS`에 앱·설치·독립 소스 경로·전용 scratch/state·승인된 이미지·플랫폼 출처를 명시한다. 기본값 `[]`는 비활성이다. [설정 계약과 명령](apps/api/src/miy_api/domains/independent_apps/README.md#optional-core-queue-consumer)의 `poll-once`는 요청 하나만, `serve`는 foreground 반복 소비를 수행한다. 예시 service 파일만 제공하며 설치·기동은 자동 수행하지 않는다. 중단된 running/unknown/cleanup 요청은 같은 ID로 기존 runtime을 관측하고 확인된 정리를 이어간다. 불확실한 배포를 새로 재실행하지 않으며, 저장된 관측 근거가 부족하면 상태를 유지하고 운영자 확인을 기다린다.
 
 DB가 필요한 독립 앱에는 `web-api-postgres-v1` 프로파일과 [개인 메모 템플릿](templates/independent-app-data/README.md)을 사용한다. 별도의 앱 데이터 PostgreSQL 클러스터를 준비하고 코어 API·실행기 설정에만 `MIY_INDEPENDENT_APP_DATA_POSTGRES_DSN`과 `MIY_INDEPENDENT_APP_DATA_CREDENTIAL_KEY`를 설치한다. 기본 빈 값은 비활성이다. 기존 코어·개발 DB에 대한 권한을 자동 변경하지 않으며, 클러스터의 `PUBLIC CONNECT` 제한을 확인하지 못하면 프로비저닝을 거부한다. 앱 DB·역할 분리, 고정 v1 마이그레이션, 설치별 백업과 키 변경 절차는 [데이터 계약](apps/api/src/miy_api/domains/independent_apps/DATA.md)이 소유한다. 이 키를 바꾸는 것은 자동 회전이 아니며 기존 로그인 실패로 드러난다. 데이터 경계 검사는 [검증 환경 소유 계약](docs/domains/release/README.md#validation-image-platform-and-database)의 같은 메이저 일회용 네이티브 클러스터를 사용하며, CI 바이너리 부재 시 실패하고 로컬에서만 같은 메이저 Docker no-pull 대안을 허용한다.
 
-공식 업무 앱의 별도 UI 조립·빌드 대상은 [공식 suite](apps/official-suite/README.md)가 소유한다. 루트에서 `pnpm nx dev official-suite`로 포트 4201의 UI를 실행하고 `pnpm nx build official-suite`로 `dist/apps/official-suite`에 별도 산출물을 만든다. 현재는 기존 웹의 공용 UI·인증 클라이언트·설정과 기존 개발 API를 사용하는 0단계이며 별도 API·worker·마이그레이션을 기동하지 않는다. 운영 배포 대상·공식 앱 ID 실행 소유자·DB writer를 전환하지 않는다.
+공식 업무 앱은 [공식 suite](apps/official-suite/README.md)의 별도 UI·API·worker 산출물로 전달한다. `pnpm nx build web`은 포털을, `pnpm nx build official-suite`는 공식 업무 화면을 각각 빌드한다. 같은 브라우저 출처에서 기존 `/apps/<공식 앱 ID>` 주소를 공식 UI로 전달하며, 포털의 업무 위젯은 `/official-suite/widgets`의 신뢰된 문서를 사용한다. 기존 로그인·입장·원본 ACL은 서버에서 계속 검사한다. 공식 산출물에는 호환되는 플랫폼 UI build ID를 고정하며, 다른 ID의 플랫폼에 임의로 연결하거나 stale-client 쓰기 차단을 해제하지 않는다.
 
-공식 API 분리 기반은 `pnpm nx api-contract official-suite`로 검사하고 `pnpm nx api-build official-suite`로 공식 entry wheel과 같은 checkout의 MIY API 호환 wheel을 `dist/apps/official-suite-api`에 만든다. [공식 API](apps/official-suite/api/README.md)의 `miy_official_api.main:app`과 `miy_api.platform_main:app`은 아직 inactive이며 업무 HTTP/WS를 거부하고 readiness는 503이다. health 200이나 wheel 생성은 서비스 활성화 완료가 아니다. 기존 `miy_api.main:app`·worker·Beat만 현재 실행 체계를 유지하며 [writer 전환 계약](platform-redesign/OFFICIAL_API_CUTOVER.md)의 후속 검증 전에는 새 서비스로 교체하지 않는다.
+개발 환경은 기존 진입점으로 최초 migration·seed와 정상 legacy 소비자를 준비한 뒤 `./dev.sh --first-party --restart`로 전환한다. 전환은 API·Beat의 새 작업 발행을 멈추고 정확한 소비자와 큐의 작업 종료를 확인한다. 불명확한 broker 상태는 전환을 보류하며 메시지를 삭제하지 않는다. 성공한 전환의 선택 상태를 소유자 전용 로컬 runtime 파일에 보존해 같은 토폴로지는 완전 중단·재부팅 후에도 바로 재시작한다. 반대 토폴로지로의 전환에는 계속 살아 있는 소비자의 종료 증명이 필요하다. 포털 Vite는 4200, 공식 Vite는 4201, 공식 개발 API는 18781을 사용한다. `--api-only`·`--web-only`의 시작 범위는 유지한다. 운영 first-party는 Core의 로컬 NGINX gateway가 기존 `MIY_APP_BIND_HOST`·`MIY_APP_PORT`를 유지하고 공통 API `127.0.0.1:18779`·공식 API `127.0.0.1:18780`로 등록 계약에 따른 요청을 전달한다. 기존 도메인·TLS 앞단의 경로 설정을 바꾸지 않으며 gateway는 최소 수신·신뢰 설정만 받고 앱 비밀 설정과 runtime 저장소를 공유하지 않는다. 두 내부 포트 충돌과 기존 proxy 신뢰 계약을 guarded release에서 확인한다.
 
-별도 [비활성 API 이미지](ops/official-suite-api/README.md)는 명시한 소스 입력을 먼저 고정한 뒤 같은 checkout의 두 wheel과 기존 고정 의존성을 포장한다. 해당 문서의 네트워크 없는 일회성 검사로 실제 설치 wheel·리소스·코덱과 inactive 응답을 확인한다. 이 검사는 포트를 열거나 서비스를 설치하지 않으며 기존 운영 Compose·배포 절차를 변경하지 않는다.
+실행 가능한 분리 entry는 `miy_api.platform_runtime:app`과 `miy_official_api.runtime:app`이다. 플랫폼·공식 소비자는 각각 소유 namespace만 처리하고 `miy_worker.first_party_beat:celery_app` 하나가 기존 스케줄을 유지한다. [서비스 전환 owner](ops/first-party/README.md)의 guarded release가 플랫폼 이미지와 공식 API/worker 이미지, 다섯 프로세스의 검증·복구·ingress를 함께 관리한다. UI/API owner map은 등록 계약과 실제 RouterSpec에서 생성한다. 예제 파일·소스 동기화·wheel 생성만으로 배포 완료가 되지 않는다. `pnpm nx api-build official-suite`와 `pnpm nx worker-build official-suite`는 각각 호환 wheel을 포함한 별도 빌드 대상이다.
 
-공식 HTTP의 [인증 위임 bridge](apps/api/src/miy_api/domains/official_apps/README.md)는 코어가 승인한 검증 artifact·설치 generation의 앱 세션만 기존 사용자/입장/원본 ACL에 연결한다. `official_auth_binding_20261006` migration은 승인 테이블만 추가하며 자동 binding이나 활성화를 만들지 않는다. 현재 공통 DB에서 권한을 조회하는 내부 adapter 단계이며 별도 서비스 실행·DB role 변경·WS 위임은 아직 제공하지 않는다.
+이 경로는 현재 공통 DB의 기존 트랜잭션·인증·writer를 사용하는 신뢰된 first-party 구성이다. 이전 [비활성 Source-only API 후보](ops/official-suite-api/README.md)의 `miy_official_api.main:app`·`miy_api.platform_main:app`과 기본 Docker target은 업무 HTTP/WS를 거부하는 별도 후보로 남는다. 새 경로에서 역할·writer generation을 자동 생성·입양하거나 기존 보호를 우회하지 않는다. 별도 source principal과 전체 journal 확장은 [후속 고도화](platform-redesign/FOLLOW_UP_ENHANCEMENTS.md)로 보류했다.
 
-공식 writer source는 현재 19개이며 기존 Personal Widgets의 할 일·메모, Planner 일정과 DM 대화·참여자·메시지·첨부를 포함한다. `official_widget_writer_20261006`과 뒤이은 `official_planner_writer_20261006`은 새 revision으로 범위를 확장하고 과거 migration snapshot을 보존한다. 이후 `registration_auth_20261007` 뒤의 `official_dm_writer_20261007`은 DM 네 원본을 추가한다. [DM 보호·첨부 commit 경계](platform-redesign/OFFICIAL_API_CUTOVER.md#dm-4개-원본-보호와-첨부-commit-경계--로컬-검증-완료)와 미완료 범위를 함께 확인한다. 기존 cooperative guard는 그대로 유지한다. 이미 역할 guard를 설치한 DB는 [강화된 DB 업그레이드 순서](platform-redesign/OFFICIAL_API_CUTOVER.md#personal-widgets-두-원본-추가와-강화된-db의-업그레이드)와 뒤의 Planner 계약에 따라 writer drain/중단 → migration → 새 generation의 새 principal 명시 준비와 현재 19-table 검증 → 이전 principal 회수 → exact CAS 순서로 준비한다. migration이나 기존 principal 재조회는 권한을 자동 확대하지 않는다. 이 내부 준비 경계는 운영 전환·공식 서비스 활성화 명령이 아니며 인증·ACL·partition·감사 등 전체 API 실행 권한도 아직 완성되지 않았다. role guard 사용 중 schema downgrade는 명시 retirement 없이 거부되며 호환 image rollback과 구분한다.
+이전 Source-only 후보의 [인증 위임 bridge](apps/api/src/miy_api/domains/official_apps/README.md)는 코어가 승인한 검증 artifact·설치 generation의 앱 세션만 기존 사용자/입장/원본 ACL에 연결한다. `official_auth_binding_20261006` migration은 승인 테이블만 추가하며 자동 binding이나 활성화를 만들지 않는다. 현재 공통 DB에서 권한을 조회하는 내부 adapter 단계이며, 위 first-party 서비스의 필수 실행 절차로 적용하지 않는다.
+
+이전 Source-only writer 후보의 아래 migration·role 준비 기록은 first-party 전환의 추가 절차가 아니다. 해당 기록의 공식 writer source는 19개이며 기존 Personal Widgets의 할 일·메모, Planner 일정과 DM 대화·참여자·메시지·첨부를 포함한다. `official_widget_writer_20261006`과 뒤이은 `official_planner_writer_20261006`은 새 revision으로 범위를 확장하고 과거 migration snapshot을 보존한다. 이후 `registration_auth_20261007` 뒤의 `official_dm_writer_20261007`은 DM 네 원본을 추가한다. [DM 보호·첨부 commit 경계](platform-redesign/OFFICIAL_API_CUTOVER.md#dm-4개-원본-보호와-첨부-commit-경계--로컬-검증-완료)와 미완료 범위를 함께 확인한다. 기존 cooperative guard는 그대로 유지한다. 이미 역할 guard를 설치한 DB는 [강화된 DB 업그레이드 순서](platform-redesign/OFFICIAL_API_CUTOVER.md#personal-widgets-두-원본-추가와-강화된-db의-업그레이드)와 뒤의 Planner 계약에 따라 writer drain/중단 → migration → 새 generation의 새 principal 명시 준비와 현재 19-table 검증 → 이전 principal 회수 → exact CAS 순서로 준비한다. migration이나 기존 principal 재조회는 권한을 자동 확대하지 않는다. 이 내부 준비 경계는 운영 전환·공식 서비스 활성화 명령이 아니며 인증·ACL·partition·감사 등 전체 API 실행 권한도 아직 완성되지 않았다. role guard 사용 중 schema downgrade는 명시 retirement 없이 거부되며 호환 image rollback과 구분한다.
 
 챗봇에서 PMS 등 앱의 승인 기반 쓰기를 사용하려면 [앱 도구 활성화와 실제 동작 검증](docs/domains/ai/hermes.md#app-tool-enablement-and-verification)을 따른다. 기본 설치는 읽기 전용이며, 코드 갱신만으로 쓰기 도구가 켜지지는 않는다. 기능 플래그, 프로세스의 도구 목록 갱신, PMS 편집 권한, 건별 승인을 함께 확인한다.
 
@@ -1042,6 +1042,7 @@ HTTP 개발 사이트를 유지하면서 별도 TLS 프록시 포트를 연결�
   세 포트·management 단일 프록시 경로·읽기 전용 모니터·병렬 작업 제한을 설정한다. 템플릿 실행기는 별도 고정 CLI와 `template-current` 릴리스를 사용한다.
 - 앱 운영 집계를 제공할 설치는 [운영 조회와 개발 화면 연결](docs/apps/codex-console/README.md#운영-조회와-개발-화면-연결)에 따라 MIY 조회 API를 먼저 배포하고 전용 키·origin을 Workbench 환경 파일에 설치한다. `glab`은 서비스 OS 사용자로 내부 GitLab에 인증한다. Studio·앱 관리·플랫폼 화면, 미설정/권한 거부 표시, 기존 작업, SQLite 백업·복원을 확인한다.
 - 독립 앱 소스를 연결하려면 Console의 별도 환경 파일에 `MIY_CODEX_CONSOLE_APP_SOURCE_ROOTS`를 절대 경로 JSON 배열로 설치한다. 기본 `[]`는 비활성이다. 운영·자격 증명·Console 저장소를 제외하고, 앱 목록의 **앱 소스 연결**에서 `app.manifest.json`이 있는 실제 체크아웃을 선택한다. `console_sqlite_0005` 마이그레이션과 기존 작업 경로 보존 규칙은 [독립 앱 소스 연결](docs/apps/codex-console/README.md#독립-앱-소스-연결)을 따른다. 환경 파일 설치와 별도 서비스 전환은 각각 해당 설치·배포 절차를 따른다.
+- SDK를 사용하는 격리 앱 개발 환경은 [SDK 프로파일 계약](docs/apps/codex-console/README.md#지속-앱-개발용-sdk-executor)에 따라 검증된 native/SDK 캐시와 코어 운영자 소유의 executor·socket proxy를 준비한다. 기존 `MIY_CODEX_CONSOLE_APP_EXECUTION_ENVIRONMENTS`의 정확한 소스·endpoint·capability에 `toolchain_profile: "miy-native-sdk-20261009-v2"`를 연결한다. 지속 개발용 service 예제는 자원·네트워크·mount·인증 격리를 유지하면서 운영자 중단 전까지 살아 있으며, 기존 270초 pilot을 덮어쓰지 않는다. native Task 중단·동일 thread 재개·unknown 관측·실제 종료를 인수하고 새 Workbench release를 별도로 반영한 후 사용한다. 예제만 추가한 상태를 SDK 활성화로 표시하지 않는다.
 - 새 프로젝트에서 템플릿 앱 소스를 준비하려면 `MIY_CODEX_CONSOLE_APP_CREATION_ROOTS`를 명시한다. 기본 `[]`는 생성 비활성이고, 각 경로는 `APP_SOURCE_ROOTS` 안의 서비스 사용자 소유·그룹/다른 사용자 쓰기 불가 디렉터리여야 한다. 현재 스키마 `console_sqlite_0008`까지 적용한 뒤 Studio 프로젝트의 **앱 소스 준비**에서 템플릿과 저장소 주소를 선택한다. `0006`은 소스 준비 기록, `0007`은 기존 결과와 분리된 nullable native agent 관측을 추가한다. 기존 파일을 덮지 않고 첫 로컬 Git revision과 소스 연결을 만들며, 중단·응답 유실은 저장된 같은 요청으로 조회·재개한다. 이 단계는 플랫폼 등록·설치·원격 Git 게시·executor 설치를 수행하지 않는다. 스키마 변경 전 서비스 중지·백업은 [저장소 계약](docs/apps/codex-console/README.md#독립-저장소와-백업), 준비 절차는 [프로젝트에서 새 앱 소스 준비](docs/apps/codex-console/README.md#프로젝트에서-새-앱-소스-준비)의 계약을 따른다.
 - 최초 플랫폼 등록은 **앱 등록 초안 내려받기** → MIY 포털 `/apps/register`의 파일 가져오기·현재 소유자 확인으로 진행할 수 있다. 원본 manifest는 64 KiB, 인계 파일은 256 KiB 상한이다. 응답 유실은 같은 operation UUID로 조회하며 불명확한 요청을 자동 재실행하지 않는다. receipt는 최초 등록 기록으로 현재 실행 준비 완료를 뜻하지 않는다. [파일 등록 절차](docs/apps/codex-console/README.md#등록-초안-파일로-최초-앱-등록)는 COOP·토큰 경계를 유지하며, 아래 선택 기능을 켜지 않은 서버에서도 유지한다.
 - 파일 없는 등록 연결은 `console_sqlite_0008`과 별도 Workbench release를 준비한 뒤 `MIY_CODEX_CONSOLE_REGISTRATION_AUTHORIZATION_ENABLED=true`로 명시 활성화한다(기본 false). Core audience allowlist와 현재 MIY issuer/소유자 UUID 설정이 일치해야 한다. 새 등록 작업에서 현재 MIY 사용자가 한 번 승인하고, Codex 구현 승인 아래 실제 저장된 앱 정의를 등록한다. 서버 credential 디렉터리는 SQLite 파일 옆 `registration-credentials`이며 앱 작업 경로 밖에 둔다. 0700 디렉터리·0600 단일 링크 파일, 원래 Workbench 세션/Task binding, 응답 유실의 같은 operation 조회·만료 후 명시 재연결은 [Workbench 최초 등록 위임](docs/apps/codex-console/README.md#workbench에서-최초-등록-한-번-허용)을 따른다. 기존 Task에 도구가 자동 추가되거나 등록으로 executor·배포 권한이 생기지 않는다. 서비스 중지·백업·migration·독립 release 검증은 기존 저장/배포 계약을 적용한다.
@@ -1135,6 +1136,7 @@ Hermes가 필요 없다. 생성 모델은 추론을 끈 실제 호출을 확인�
 다른 터미널에서 중지할 때는 실행 대상에 맞춰 `./dev.sh --stop` 또는
 `./dev.sh --with-worker --stop`을 사용한다. 호스트 감독 서비스로 실행 중이면
 [지속 실행 계약](docs/domains/release/README.md#persistent-development-runtime)에 따라 그 감독 서비스를 사용한다.
+Worker 종료 대상은 UID·정확한 checkout cwd·인터프리터·명령·부모 관계로 확인한 네이티브 Main이며, 같은 명령을 가진 prefork 자식과 shell/uv 래퍼에는 신호를 보내지 않는다. 식별이 불명확하면 종료를 보류한다. 일반 종료·같은 구조 재시작은 Worker 작업 완료를 기다린 뒤 API·UI·Beat를 정리한다. 네이티브 `setsid --wait`가 Nx를 별도 세션으로 실행해 터미널 신호를 Bash 종료 처리로 모으므로 설치되어 있어야 한다. 감독 서비스는 Main만 신호를 받게 하고 전체 warm 종료 유예를 보존한다(`KillMode=process`, `SendSIGKILL=no`). 이 소스 변경은 이미 실행 중인 launcher 코드를 갱신하지 않는다. 구조 전환은 기존 API·Beat 발행 중지 후 새 native drain 절차를 유지한다.
 네이티브 DB·Redis를 멈춰야 한다면 대상이 이 프로젝트 전용인지 확인한 뒤 해당 systemd unit만 중지한다.
 공유 서비스는 임의로 중지하지 않는다. Docker 최소 인프라만 멈출 때는 `pnpm dev:infra:minimal:down`을 사용한다.
 데이터 디렉터리나 볼륨을 삭제하지 않는다.

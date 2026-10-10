@@ -1,5 +1,136 @@
 # 검증 계획과 수행 근거
 
+## 2026-10-10 필수439 실패와 설정 없는 ingress 보완
+
+Pipeline271/job439는 source `772e5ffb91daf1b7a2a1f22899f1dae7696c5547`/tree358414d1에서 FAILED449.505612초, MERGE_BLOCKED다. Gateway와 no-env 이미지 reader가 전체 API registry를 import하여 필수 PostgreSQL 설정을 요구하는 P1이다. Fresh isolated workspace·완전히 비운 환경에서 실제 실패를 재현했고 오류 분류만 기록했다. 앞선 configured-process NGINX 검사를 no-env wheel 기동의 성공으로 사용하지 않는다.
+
+- 기존 `generate:api-client`/`check:api-contract`가 실제 native HTTP/WS inventory와 현재 앱 계약에서410개 path/owner(공통194·공식216)를 생성·검사한다. Runtime은 packaged JSON을 읽고 현재 revision·양쪽 owner·순서/중복·capture 이름과 무관한 동일 pattern 충돌을 검증한다. 업무 router·Settings를 import하지 않으며 prefix는 기존 Starlette compiler를 사용한다. Native inventory 일치·stale/unknown/duplicate/conflict·fresh no-env CLI3모드·기존 common/official WS 분할의 고유8개 PASS4.75초, owner emit/check·Ruff·JS syntax·format/whitespace PASS다. OpenAPI types·package/lock·CI entry 변경0이다.
+- 실제 새 API wheel을 private site에 풀어 gateway를 네 공개 MIY 설정만으로 실행했다. .env ancestor와 app/settings/registry/domain import 부재를 확인했다. 그 renderer 출력으로 기존 immutable NGINX tool을 UID10001·read-only·cap0·no-new-privileges·ephemeral tmp에서 실제 기동해 HTTP/header/stream/WS101/frame을 확인했다. Gateway17개는 첫 배치2.827초 PASS이며 upstream은 합성·DB/auth 업무 검사는 아니다. 기본 기동의 실제 exclusive0600 파일 생성·exec 인자를 검증했으나 host native exec는 stub이며 실제 Core Debian packaging/기동은 아직 남아 있다.
+- 양쪽 Dockerfile은 설치 직후 같은 pure reader를 실행한다. 기존 호환 검사는 no-network·read-only·cwd/tmp·cap0·NNP에서 두 이미지의 projection을 비교한다. Matching/mismatch 고유2개 PASS0.153초는 실제 reader invocation/hold 정책의 shell fixture이며 제품 이미지 두 개를 빌드한 증거는 아니다. Lint·shell syntax·whitespace도 PASS다.
+
+현재12개 owner 소스를 고정했고 peer 배치 뒤 reader/resource 변경0을 확인했다. Safe `codex-review-439.md`, `APP_CONTRACTS_CHECKS.md`, `GATEWAY_CHECKS.md`와 route/gateway source-freeze receipts는 private runtime에 보존한다. 기존 CI image 계약 입력과 무관한 검사·Workbench 산출물은 재사용한다. 새 required review·full release CI·서비스/DB backup·공개 HTTP/WS 인수는 아직 수행하지 않았다. 이전 실패 이력과 각 검사의 실제 한계를 보존한다.
+
+## 2026-10-10 필수438 실패와 문서 경계 최소 수정
+
+Pipeline270/job438은 source `1115b6e77375333b3aa228563f670bf00a2660e7`/tree655e3303에서 FAILED472.351421초, MERGE_BLOCKED다. Files의 진행 중 XHR/순차 대기열이 full-document 이동으로 사라질 수 있고 widget iframe이 사용자 theme를 적용하지 않는 P2 두 건이다. 실제 구조 변경 회귀를 보완하며 이전269/437 PASS로 새 리뷰를 대신하지 않는다. 새 서비스·병합·배포는 아직 없다.
+
+- Files provider는 실제 uploading record를 기존 `data-miy-pending-save` 표시로 연결한다. batch 전체 대기와 native beforeunload 보호를 재사용하며 새 취소 UI·marker·권한·업로드 프로토콜은 추가하지 않는다. Memo 보호 hook을 공용 모듈로 옮겨 기존 export alias를 보존한다. 실제 API adapter/batch와 controlled slow XHR의 신규4개는 link/programmatic × 성공/실패, queued second request·진행률·기존 UI/input·history·abort 없음·완료 후1회 이동·native unload 경계를 확인한다. 기존 boundary9/provider4와 합쳐 고유17개 PASS다.
+- 최초17 setup FAIL은 inherited production NODE_ENV의 React.act 부재로 행동 assertions 이전에 종료했다. Test 환경만 명시해 같은 실패 파일을 재검증했고 기존13/new programmatic2 PASS 뒤 link2가 jsdom Location.assign Proxy fixture로 실패했다. Plain typed target으로 fixture만 수정해 실패link2 PASS0.074초/최종 unhandled error0을 확인했다. 성공 수에 전후 실행을 중복 합산하지 않는다.
+- 기존 shell theme 계산·native media 구독·document class 적용을 public `document-theme` hook으로 공유하고 AppContent/OfficialWidgetRoot가 함께 사용한다. Same-origin parent class는 표시만 상속하고 외부 parent/top-level은 현재 user/system 상태를 적용한다. Native/DOM 구독 cleanup을 유지한다. 공통hook2(1.85초)·실제 WidgetRoot3(4.13초)·기존 shell model3(2.04초), 총3파일8개 PASS다. 사용자/system 변경·부모 live class·foreign fallback·다른 HTML class 보존·cleanup을 확인했고 auth/realtime/bootstrap/Host는 합성 stub이다.
+- Core/Official typecheck20.88/17.66초·web boundary0.77초와 소유 Prettier/whitespace는 PASS다. 두 에이전트가 disjoint 소스에서 작업하고 shared 검사 담당을 조정했다. 서버 로그인·native browser dialog·제품 image·서비스 전환의 증거로 확대하지 않는다. 기존 CI가 새 spec을 수집하며 package/lock 변경0이다.
+
+Safe `codex-review-438.md`, `APP_CONTRACTS_CHECKS.md`, `OFFICIAL_CHECKS.md`와 각 review438 source freeze/명령 receipt는 private runtime 경로에 보존한다. 새 candidate의 필수 리뷰·최신 full release와 실제 개발/운영·별도 Workbench 전환/공개 인수는 남아 있다. 기존 무관한 성공 검사는 반복하지 않는다.
+
+## 2026-10-10 최신 리뷰와 native 종료 수정 근거
+
+- Source `37ef44ecfba37307576d0c43bd6eeca4ecbf9fd0`, tree `ba72490be019696af60bfeaa1a6410d2a0ff64c5`: pipeline269/job437 SUCCESS450.249534초, required/allow_failure=false, MERGE_READY. 리뷰는 변경 Python82개 AST·shell/주요 JS·first-party Node 검사·기존 task 함수 AST 보존을 확인했으며 전체 의존성/DB/브라우저 suite를 실행한 결과가 아니다. 이전434/435/436 실패는 보존한다. 아래 새 종료 수정은 최신 후보의 새 리뷰가 필요하다.
+- 실제 읽기 전용 native 선택은 기존 legacy Celery Main/Beat만 반환하고 동일 argv prefork 자식·shell/uv wrapper를 제외했다. 제품 task/broker/DB와 서비스는 변경하지 않았다. 새 stdlib helper는 전체 ancestry/unknown metadata에서 HOLD하며 Bash가 실패를 전파한다. 일반 stop/restart는 worker warm 완료 후 publisher/Beat를 정리한다. namespace 전환의 publisher-off/fresh native drain은 유지한다.
+- 실패 경계별 실행은 native/status 고유17개와 기존 topology2개를 포괄한다. 최초11 PASS/ancestry cycle1 FAIL 뒤 실패6개만 PASS0.02초, script/snapshot2 PASS0.03초, topology2 PASS0.57초, warm/order/native setsid/metadata5 PASS0.04초, synthetic Bash TERM1 PASS0.31초, same-namespace restart1 PASS0.56초다. 서로 겹치는 선택을 합산하지 않는다. synthetic TERM은 생성한 테스트 Bash에만 적용했다. 실행 중인 MIY Main/pool을 signal한 증거가 아니다.
+- 기존 topology test의 Ruff import/implicit check3 findings는 import 정렬과 동작이 같은 `check=False`로 해결했다. import recheck의 여분 blank line 실패도 보존한다. 최종 소유 Ruff check/format·Bash syntax·whitespace PASS, 기존 `ci:all → ci:python-contract-guardrails → test:runtime-config` 연결 유지, package/lock 변경0이다. Source freeze와 상세 근거는 private `native-shutdown-source-freeze.json`, `APP_CONTRACTS_CHECKS.md`가 소유한다.
+- 기존 immutable CI image `sha256:492d5dd78a96bcdb2a7e9aa255943d870c1bc471147e7bab1872bdf7d27fb907`를 network none/read-only/cap0/NNP/user65534로 실행하여 native setsid 존재와 `setsid --wait` exit27 전달을 PASS 확인했다. 이미지·의존성 재빌드는 하지 않았다. 이 결과는 제품 lifecycle·Docker cutover 검사와 구분한다.
+- 별도 Workbench build는 clean source37ef/treeba724에서16.757초 PASS다. 실제 digest `sha256:2ae5a15bd2adb347f46895d2df32f9b36369d2e691104e9eb6f1967fdaab6b0e`, packaged source414 files·schema0008·native pins/고정 CLI를 확인했다. Runtime/SQLite migration/links/서비스 변경0이며 새 종료 후보 SHA로 산출물의 원 source를 재표기하지 않는다. 합법적 기존 dev owner 로그인·admission의 readonly preflight만 통과했다. 실제 공개 UI script는 syntax만 PASS, 로그인·Task·모델 실행0이며 실제 서비스 반영 후 한 번 실행한다.
+
+Dev/prod의 현재 서비스는 이전 전달 버전이다. 옛 Bash의 loaded cleanup과 systemd cgroup 전체 신호 정책을 새 소스로 갱신했다고 주장하지 않는다. 기존 publisher-active drain preflight는 실제 cutover 증거가 아니며 새 publisher-off native drain이 필요하다. 임의 nonzero Nx/Beat failure와 host crash의 warm 완료는 보장한다고 주장하지 않는다. Latest required review·full CI·fresh backup·실제 개발/운영 및 별도 Workbench 반영·대표 public HTTP/WS 인수는 여전히 남아 있다.
+
+## 2026-10-10 필수 구조 통합 검사
+
+재개 후 하나의 후보에서 영역별 영향 검사를 분담했다. 전체 API·Workbench·웹 suite는 필수 CI가 소유하며 로컬에서 같은 전체 검사를 먼저 반복하지 않았다. 아래는 현재 로컬 결과이며 리뷰·CI·배포 완료 증거가 아니다.
+
+| 영향 범위              | 현재 결과                                                                                                                                               | 실제 범위와 한계                                                                                                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workbench backend      | 12파일426 PASS/27.87초, Ruff lint PASS                                                                                                                  | controller/SDK/profile/권한·remote·템플릿. 전체822 suite와 실제 Workbench 로그인 인수는 별도                                                                                           |
+| Workbench UI·개발 런처 | App/views56 PASS/10.82초, status/topology3 PASS/0.76초, UI typecheck·생성 계약 PASS                                                                     | 기존 사용자 편집/Task snapshot 유지, 동일 namespace 재시작·반대 namespace HOLD                                                                                                         |
+| 공식 API·worker        | API30 고유 PASS, 외부 Redis1 제외; worker30 PASS/16.62초                                                                                                | auth/조립·frontend·build guard·소유 큐와 이동 task 영향. 실제 PG startup/readiness 인수와 구분                                                                                         |
+| 포털·공식 UI           | 영향 Vitest29 PASS, 4프로젝트 typecheck·ownership·generated·architecture PASS; 최종 portal17.21초/official30.28초 build PASS; 대표 브라우저2 PASS/8.3초 | portal 업무 chunk 미포함, official namespace/업무 chunk 포함. full-document 이동·저장 세션·iframe bootstrap·admission 거부 확인; synthetic API와 임시 공식 Vite만 사용                 |
+| 개인 앱                | 최초102 PASS/실패3·setup오류2; 수정 영향27 중25 PASS/설정2 FAIL 후 설정17 PASS                                                                          | 성공한 개발 설치의 운영 승격·권한 회수/target 변경·CAS/unknown, 실행·독립 소스·위임을 확인. 아래 원인/수정과 실제 Docker 결과를 분리                                                   |
+| 설정·계약              | 예약 port3개를 포함한 settings/runtime-config56 PASS/1.52초·subtests4 PASS; 생성 API/독립 schema PASS; env-contract PASS                                | 218개 키/219개 선언. 기존 dev/prod 비공개 설정에 누락3/7개를 비활성 기본값으로만 추가, 기존 값 불변·0600 백업 보존                                                                     |
+| 정상 native controller | 현재 frozen source에서8개 고정 경로 PASS, 새 ephemeral thread/turn·모델 요청1회·자동 재시도0                                                            | HTTP/CONNECT/SOCKS/direct IP/UDP/Unix 경계. 원 Task 추가 턴0, 앱 기능 평가·모든 UDP 정책·실제 durable Workbench Task 인수로 확대하지 않음                                              |
+| 공통 gateway           | 설정/contract14 PASS; 수정 후 실제 NGINX1 PASS/5.39초                                                                                                   | immutable local NGINX·UID10001·read-only/tmpfs, generated API/UI·query·Host·trusted/untrusted 헤더·health rewrite·streaming·두 WS101/frame. 실제 reviewed Core Debian packaging은 별도 |
+| 배포·복구 도구         | Node176 고유 PASS·Python9 PASS, Bash/Node syntax PASS                                                                                                   | 초기172 PASS/실패4는 fixture/alias 기대만 수정 후 해당4 재검증. 마지막 prefix/config binding·자원 제한은 syntax 확인했으며 실제 이미지/배포는 아직 미수행                              |
+
+검사 중 발견한 최소 수정은 FastAPI0.141의 lazy router를 공개 iterator로 순회, 앱별 좁은 summary 공개 entry, 공식 worker의 기존 worker lint 계약 상속이었다. Vitest의 inherited production 환경은 실행에서 제거했고 제품 정책을 바꾸지 않았다. Workbench 추가 전체 format 검사에는 이번 diff가 없는 기존 테스트6파일이 맞지 않았으며 무관한 format-only 변경을 추가하지 않았다. 필수 Ruff lint와 변경된 파일의 형식은 통과했다.
+
+개인 앱 설정 fixture에는 기존 production 서명 키·Hermes namespace 계약을 충족하는 합성 값이 빠져 있었다. 제품 검사를 약화하지 않고 fixture를 보완했다. 이전 Docker 정리로 옛 테스트 toolchain 이미지가 없어 실제 실행 전 준비가 실패했으며, 이미 설치된 승인 validation image `eefe09d5…`의 불변 ID를 재사용했다. 수정 실행에서 HTTP1·HTTPS 개발/운영2의 실제 Docker marker/health·교체·종료·복구와 잘못된 CA/hostname 거부를 통과했다. 이미지 다운로드·실제 운영 인증서 변경은 없다.
+
+Native source freeze는62 public files/1,010,837bytes이고 controller 실행은 약43.5초였다. 원본/Git과 SDK4597 members/415,841,387bytes·native pin의 전후 불변을 확인했다. runner의 finally는 RPC/receiver join·정확한3 units 퇴역·빈 cgroups·닫힌 ports를 통과했다. 외부 finally의 같은 stop 재관측은 비어 있는 systemd cgroup 디렉터리가 즉시 사라지지 않아 `no_installed_owned_cgroup`을 기록했다. 모델이나 runner를 재실행하지 않고 추가 읽기 전용 관측으로3개 not-found/inactive/PID0·파일 부재·모든 kernel process list empty·두 port closed를 확인했다. 실패한 재관측을 성공으로 재분류하지 않는다. 이후 template README 변경에 대한 필수 generator를 실행했으며 starter JSON에서 README2곳과 파생 bundle digest만 바뀌고 실행 코드·SDK·프로토콜·native pin은 그대로임을 결정적으로 확인했다. 새 generated bundle10 tests/0.45초를 통과했고 native 실행을 반복하지 않았다. 기존 source SHA를 새 문서 bundle의 SHA라고 표시하지 않는다.
+
+현재 근거는 `.runtime/structural-integration-20261010/`의 담당 검사 기록·logs와 `sdk-normal-controller/normal-controller-public-receipt.json`, `outer-lifecycle.json`, `post-cleanup-observation.json`에 보존한다. API architecture790 files/3,592 dependencies의2계약도 통과했다. 새 필수 리뷰/CI·각 서비스 실제 배포는 별도 결과가 도착한 후 갱신한다.
+
+필수 리뷰 pipeline266/job434는 후보 `515511ef`에서 `MERGE_BLOCKED`로 실패했다. 실제 Worker lock 환경에 없는 협업 라이브러리의 간접 import, 공통 소비자가 있는 파일의 official-only 분류, 실제 worker inventory 상수 참조의 AST 파싱 실패를 지적했다. 운영 구조에 필요한 수정이므로 해당 경계만 보완·재검증하고 새 후보의 필수 리뷰를 다시 받는다. 앞선 로컬 검사 통과로 이 실패를 대체하거나 전체 검사를 로컬에서 반복하지 않는다. GitHub PR97·내부 MR104는 열린 상태이며 새 플랫폼/Workbench 배포는 아직 수행하지 않았다.
+
+리뷰 수정에서는 fixed legacy generation1 identity를 경량 공통 writer로 옮기고 Docs의 기존 이름은 같은 객체 alias로 유지했다. 실제 Worker interpreter에서 platform/official/Beat fresh import와 소유 큐 검사4개를 통과했다. 첫 Beat 기대 큐 fixture 실패는 수정 후 해당 사례만 재검증했으며 DB/AI preflight는 test double, broker는 memory로 한정했다. Slice는 실제 inventory에서 module/owner literal만 읽고 양쪽 reviewed tree의 공통 import 도달성을 확인한다. 실제 HEAD→HEAD·공유 auth/RAG 파일 거부·정상 공식 handler 허용·상대/동적 import와 소유 분기 경계의17개 검사를 통과했다. 전체 CI는 이 수정까지 포함한 새 후보가 소유한다.
+
+CI image는 변경된 Node 계약 입력에 맞춰 한 번 준비·검증했다. immutable ID `sha256:492d5dd78a96bcdb2a7e9aa255943d870c1bc471147e7bab1872bdf7d27fb907`, contract `fe23a9df72b80663a856cfe39b5e14a2ba279f59c0b698d8123f7c4a436af444`, 동일 PostgreSQL18 base digest를 기록했다. 기존 실제 Docker 검사에 사용한 `eefe09d5…`도 별도 baseline tag로 보존했다. 이는 CI 실행 환경 준비이며 새 제품 이미지나 배포 증거가 아니다. 개발 live consumer의 소유 drain preflight는20.815초에 HOLD였으며 API/Beat를 정지하지 않았고 빈 작업·namespace 인수를 증명하지 않는다.
+
+후속 필수 리뷰 pipeline267/job435는 수정 후보 `848f4af1`에서 `MERGE_BLOCKED`로 실패했다. 링크 클릭 외 프로그램 이동이 공식 문서 안에서 공통 앱을 열지 못하는 경계와, 이전 JavaScript가 새 서버 metadata의 build ID를 받아 stale 차단을 통과하는 경계를 지적했다. 양쪽 BrowserRouter에 공통 문서 경계를 두어 push/replace/back의 현재 URL을 reload하고 기존 native history의 `usr`·초안·query/hash를 유지한다. 공식 Vite의 같은 입력에서 compiled constant와 metadata 파일을 함께 생성하며 브라우저는 서버 metadata를 조회해 자기 ID를 갱신하지 않는다. 독립·legacy Docker build 모두 실제 Core pairing 입력을 build 전에 공급한다. 직접 영향10개 검사·두 typecheck와 Core18.67초/Official31.76초 build를 통과했다. 실제 tiny Vite bundle은 nonempty old/new ID가 교차해도 HTTP/WS 요청이 old ID를 유지함을 확인했다. 로컬 실제 두 UI build는 명시 empty/null pairing이며 nonempty 운영 build 인수로 확대하지 않는다.
+
+개발 broker의 초기 HOLD는 설치된 Kombu5.6.2 virtual transport가 빈 Redis queue의 passive declare에서 정수404가 아닌 문자열 `"404"`를 반환한 것이었다. native ChannelError의 정확 int/string404만 Redis에서 허용하도록 보완했고 다른 코드·형식·transport 거부를 유지했다. 실제 Worker interpreter의 native transport·거부 경계2개와 동일 회귀를 표준 Worker CI에 연결한1개 검사를 통과했다. 수정 후 정확한 live 소비자·소유 queue·active/reserved/scheduled·pending 및 native unacked를 두 차례 조회한 개발 preflight는43.409초에 PASS였다. API/Beat는 계속 실행 중이므로 namespace 전환 증거는 아니다. 전환 시에는 발행자를 정지하고 fresh drain을 수행한다. 이 수정과 UI 두 경계를 한 후보로 모아 새 필수 리뷰를 받으며, 앞선 실패와 로컬 통과로 리뷰·전체 CI·새 서비스 배포를 대체하지 않는다.
+
+수정 후보 `61bcf20b`의 필수 pipeline268/job436도360.318초에 `MERGE_BLOCKED`였다. Python만 분석한 official slice가 포털 공유 UI를 놓치는 경계, split 운영에서 default legacy 명령의 변경 전 거부 누락, iframe PMS 상세 surface 누락, debounce 메모의 문서 이동 시 유실을 지적했다. 모두 구조 변경이 유발하거나 독립 배포·데이터 보존을 막는 결함이므로 이번 범위에 포함한다. 실제 운영 변경은 수행하지 않았다. 공개 포트/외부 TLS 유지 결론은 동일하며 이 네 경계를 같은 다음 후보에서 수정했다. 실제 Core Tailwind의 공식 source 전체 스캔도 독립 UI 릴리스의 빌드 결합으로 확인해 소유 입력을 함께 분리했다. 로컬 수정의 통과를 리뷰·배포 완료로 표시하지 않는다.
+
+토폴로지 수정의 직접 영향76개는26 first-party 및50 rollback 검사로 확인했다. 최초58 PASS/18 FAIL은 Bash fixture에 잘못 넣은 JS 주석을 수정하고 실패18개만 재검증해 통과했다. 실제 dispatcher/helper를 유지하고 Docker의 공개 ID/label/command 응답만 합성한다. 다섯 CLI·직접 deploy/restore에서 default legacy가 split runtime을 만날 때 변경0, orphan/모호한 ID/unknown worker/metadata 실패 HOLD, official slice의 legacy 전환 거부, 명시 full drain·paired recovery와 기존 legacy 흐름을 검증했다. `migrate`도 operation lock을 사용한다. Bash syntax는 통과했으며 실제 Docker 전환·DB 작업의 증거는 아니다. source/hash와 두 실행은 `.runtime/structural-integration-20261010/TOPOLOGY_REVIEW436_CHECKS.md`에 보존한다.
+
+UI slice는 설치된 pinned TypeScript AST를 사용해 양쪽 reviewed Git의 alias/import/reexport/literal dynamic·asset·CSS·Vite 입력을 읽고 공통 소비자의 합집합을 확인한다. 제품/config 코드는 실행하지 않는다. 공유 manifest·PMS 요약/client·Vite와 build config는 full release이며 unknown/모호한 입력은 HOLD한다. 처음19개 통과 후 실제 tree가 ignored 개발 route와 표준 `.js`→`.d.ts`를 거부한 근거를 보존했다. 정확한 기존 개발 함수·첫 mode guard·고정 URL의 AST adapter만 허용하며 runtime 파일은 읽지 않는다. 실패 경계6개/6.149초와 신규 adapter·config 경계를 좁게 확인해 고유26개를 인수했다. 아직 HEAD의 CSS 결합이 있으므로 후보 CSS owner blob만 test fixture에 overlay한 독립 UI 검사는 배포 증거가 아니다. 전체 후보를 정상 full release한 뒤 이후 official-only UI가 독립 허용된다. Ruff·Node syntax·공백 검사는 통과했고 자세한 기록은 `APP_CONTRACTS_CHECKS.md`가 소유한다.
+
+436 UI는 기존800ms 메모 저장을 바꾸지 않고 dirty/in-flight 표시와 native unload 보호를 유지한다. 공통 BrowserRouter 경계는 이전 소유 화면을 계속 mount하며 링크·프로그램 문서 이동이 저장 완료를 기다리고 실패/취소 시 입력을 보존한다. 실제 PMS body portal에 공통 surface 계약을 적용했다. 영향22개/6.50초·Core/Official typecheck18.79/16.29초, alias94·architecture1629 modules/3040 dependencies 등은 통과했다. 새 helper CLI의 knip entry 누락은 소유자가 추가하고 실패한 knip만3.74초에 재검증했다. 합성 브라우저2사례는 실제 PMS 전체 modal surface와 embedded memo debounce/in-flight/응답 뒤 Docs 이동을 확인한다. 열린 메모가 launcher 카드를 가린 최초 클릭 fixture 실패는 제품 변경 없이 keyboard Enter로 해당 사례만 재검증했다. 임시4201 child를 정리했고 기존4200/API를 유지했다. Core/공식 CSS source 입력 변경 때문에 두 실제 UI build를 각각 한 번 수행해18.34/28.68초에 통과했다. 실제 Core pairing은 explicit empty이고 nonempty compiled-ID 검사는 이전435의 불변 근거를 재사용한다. actual 로그인·업무 suite·새 제품 Docker·관리 서비스 배포로 확대하지 않는다. 최초 실패와 최종 source freeze는 `OFFICIAL_CHECKS.md` 및 `official-checks/review436-*`에 보존한다.
+
+## 2026-10-10 검증 일괄 수행 원칙
+
+**이번 검증은 [필수 구조 범위](PLAN.md#이번-범위)에만 적용한다.** [후속 고도화](FOLLOW_UP_ENHANCEMENTS.md)의 고급 UX/모니터링·부하 측정·표현별 반복/벤치마크·저장 프로토콜 확장은 실행 대상과 완료 의존성에서 제외한다. 아래 F/A 목록과 날짜별 이력은 전체 목표·과거 근거이며 모든 항목을 이번에 수행할 체크리스트가 아니다. 실제 권한·데이터 결함과 채택한 실행 경로의 필수 검사는 유지한다.
+
+사용자 요청에 따라 **이번 재설계의 남은 구조 구현을 최대한 통합한 뒤, 최종 통합 검증을 한 번 요청해 끝까지 진행**하는 방식으로 변경한다. 작은 기능 묶음마다 검증을 완료하고 다음 구현으로 넘어가는 순서를 기본값으로 두지 않는다. 아래 원칙이 이후 작업의 검증 시점·범위·반복 횟수를 소유한다. 이전 검사 목록과 동결 패킷은 수행 사실과 재개 자료이며, 같은 절차를 다시 모두 실행할 의무가 아니다. 이후 사용자의 재개 지시로 현재 구현과 통합 검증을 진행한다.
+
+기본 순서는 **남은 구현·통합 → 통합 검증 1회 → 필수 리뷰·CI → 승인된 개발/운영 반영·확인**이다. Workbench, 공통 저장·권한 경계, 공식 앱 분리, 개인 앱 대표 흐름과 최소 하네스를 하나의 통합 후보에 모은다. 각 영역을 수정할 때마다 전체 테스트·모델 평가·게시·배포를 반복하지 않는다. 필수 CI에 포함된 검사는 로컬에서 같은 전체 실행을 먼저 하지 않는다. 한 번의 요청 안에서 필요한 환경별 단계가 순서대로 진행되며, 플랫폼과 Workbench의 별도 배포 단위는 유지한다.
+
+### 수행 시점과 범위
+
+| 시점                     | 수행할 검사                                                                                    | 반복 제한                                                                                                              |
+| ------------------------ | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 구현 중                  | 구현을 막는 오류의 최소 확인, 구체적인 권한 우회·데이터 유실·자원 누출의 재현과 수정 확인      | 파일·작은 수정마다 전체 영향 검사·빌드·브라우저·독립 리뷰를 실행하지 않음                                              |
+| 남은 구조 구현·통합 완료 | 전체 통합 후보에서 필요한 실제 DB/native·대표 흐름 검사와 CI가 담당할 타입·생성 계약·빌드 선택 | 기능별 검증을 별도로 종료하지 않고 하나의 실행 계획으로 합침. CI가 충분히 다룰 검사를 로컬에서 미리 전부 반복하지 않음 |
+| 릴리스 후보 확정         | 해당 릴리스의 필수 리뷰와 CI                                                                   | 준비된 변경을 통합한 후보에 집중. 작은 단계마다 게시·전체 CI·배포를 반복하지 않음                                      |
+| 배포 후                  | 배포 계약의 백업·migration·image identity·health·대표 smoke·필요한 복구 확인                   | 애플리케이션 전체 테스트를 다시 실행하지 않음. 플랫폼과 Workbench의 배포 확인은 각각 유지                              |
+| 실패 수정 후             | 실패 검사와 수정의 직접 영향 경계                                                              | 먼저 좁은 범위를 재실행. 변경 범위 확대·새 실패·필수 CI의 최신 후보 요구가 있을 때만 확장                              |
+
+Workbench SDK/UI/cache 연결, 협업 저장·권한·복구 연결, 공식 서비스 분리와 개인 UI·DB 앱 흐름은 구현을 나누는 경로이며 별도 전체 검증·릴리스 시점이 아니다. 중간 확인은 다음 구현을 막는 구체적인 오류나 권한·데이터·소유 자원 문제의 최소 확인으로 제한한다. 정상 진행의 통합 검증은 기본 1회이며 실패 수정이나 최신 후보 CI 요구로 필요한 재실행은 허용한다. 필수 권한·데이터·실행 경계의 완료 기준은 유지하고 앱별 비필수 상세 검증은 `APP_ISSUES.md`에 보류한다.
+
+### 한 번의 요청으로 진행
+
+- 검증 요청 또는 템플릿 실행 하나에서 통합 후보·환경을 확인하고, 필요한 기존 검사만 중복 제거해 실행한 뒤 필수 리뷰·CI와 승인된 반영 확인까지 이어간다. 검사별로 사용자에게 다음 실행을 다시 요청하게 하지 않는다. 이미 승인된 범위에서만 진행하며, 실패나 필요한 권한·정보가 없으면 의존 단계는 멈춘다. 결과와 미검증 항목은 통합 기록으로 보고하고 오래 걸리는 동안에는 짧은 진행 상황을 알린다. 별도 범용 검증 엔진은 만들지 않는다. 이를 위한 템플릿·진입점 연결은 구현 재개 후 진행하며 현재 완료됐다고 표시하지 않는다.
+- 준비·포트 확인·결과 파일 확보·소유 자원 정리는 같은 실행에 포함한다. 검증 도구나 준비 결과마다 별도의 동결·독립 리뷰·재실행 단계를 자동으로 추가하지 않는다. 필수 리뷰는 릴리스 후보에서 수행하고, 추가 독립 검토는 구체적인 미해결 경계가 있을 때 통합 변경에 집중한다.
+- 가벼운 독립 검사는 병렬로 실행할 수 있다. 실제 PostgreSQL·Docker·무거운 build처럼 자원을 경쟁하는 검사는 순차 실행한다. 한 번에 요청한다는 것이 모든 서비스를 동시에 띄운다는 의미는 아니다.
+- 여러 에이전트는 구현 경로와 검사 필요성을 정리하고 공통 검사는 주 에이전트가 합쳐 실행한다. 각 에이전트와 주 에이전트가 같은 전체 검사를 중복 실행하지 않는다. 구현 중 필요한 최소 재현은 결과를 공유한다.
+- 성공한 검사는 관련 코드·계약·의존성·환경이 그대로이면 재사용한다. 문서나 무관한 경로 변경 때문에 실제 앱 검사를 다시 하지 않는다. 관련 입력이 바뀌면 해당 영향 검사만 다시 선택하며, 필수 CI는 현재 source/target/tree 결속 계약을 따른다. 실패·미확정 결과는 보존하고 성공으로 재분류하지 않는다.
+- 결과는 대상 버전·환경·실행한 검사·결과·남은 위험으로 기록한다. 동일 실행의 자료를 검사·준비·리뷰별로 다시 복제하지 않는다. 추가 검증에는 새 변경·실패·미해결 위험·필수 계약 중 어느 근거가 있는지 적는다.
+
+### 현재 후보에 적용
+
+- **Workbench:** 결과 파일 선예약 helper와 SDK/UI/cache 후보의 필요한 검토를 묶는다. 정상 native controller는 준비·실행·정리·결과 저장을 한 흐름으로 확인한다. 기존 Task에 네 번째 턴을 추가하거나 결과를 잃은 claim을 재실행하지 않는다. 새 실제 실행의 모델 제출은 기존 최대 1회 한도를 유지하며 자동 재시도하지 않는다. 검토됐거나 통과한 UI·SQLite·cache 검사는 관련 입력이 바뀌지 않았다면 다시 수행하지 않는다.
+- **협업 저장 경계:** 기존 저장 경로와 최소 구조 변경을 우선 선택하고 채택한 경로의 실제 저장·권한·취소·복구만 확인한다. journal/trusted adapter 전체 인수는 기본 실행 대상에서 제외하며 ENH-005의 조건부 기준으로 필요한 부분만 연결한다. 기존 실제96 PASS는 보존하고 관련 입력 불변이면 단독 재실행하지 않는다. 합성56 PASS를 실제 연결 증거로 대신하지 않으며 미검증 후보를 활성화하지 않는다. 권한·구형 writer 전환·데이터 보존·복구는 서비스 전환 시점에 확인한다.
+- **개인 앱과 자연어:** UI·DB 앱을 각각 구현하고 전체 통합 검증 안에서 UI 흐름을 먼저, DB 흐름을 다음으로 수행한다. 앱마다 별도 검증·게시·플랫폼 릴리스를 반복하지 않는다. 한 흐름에서 앱 등록·선택·native 수정·preview·배포·복구와 해당 자연어 평가를 함께 확인한다. 모든 표현의 변형이나 변경 전후 3회씩 모델 실행을 기본값으로 두지 않는다.
+
+### 필수 릴리스 계약
+
+이 요청은 검증 간소화 의사로 기록한다. 게시·배포가 승인된 다음 릴리스에서는 [영향 기반 릴리스 검증](../docs/domains/release/README.md#impact-based-release-validation)의 결정적 선택기로 fast 가능 여부를 확인한다. 공통/generated 계약·DB migration·worker·의존성·runtime 등 full 대상은 그대로 전체 CI를 수행하며, 줄일 수 있는 것은 단계별 중복 실행이다. 실패 검사·필수 리뷰·인증·최신 tree 결속·운영 배포 검사는 면제하지 않는다. 현재 선택기나 CI·게이트 자체를 변경하지 않으며 이 요청이 게시·배포 재개 권한을 추가하지 않는다.
+
+## 2026-10-10 현재 작업 마무리·중단
+
+- Journal source25f14b24 actual96: setup/call/teardown 각96 PASS/0 FAIL/0 SKIP,509.356302초, before/after source guards와 owned cluster/container/sidecar 정리 PASS. Receipt4c29ad14는 새 SQL journal9의 증거다. 이전 source3908의96 setup 실패와 별도 model-DDL 진단을 보존한다.
+- Inactive adapter source20/02dd1f40: 합성56 PASS1.33초·Ruff/format/diff/source guards, packet83b0276a다. Host interruption exact task 보존과 checkpoint/seal/Source 대기 후 stale 상태의 latest originals/F/S·lease 유지 및 ACK 거부를 확인했다. 실제 DB/native/OS isolation·최종 독립 리뷰·C1/C3는 미검증이다.
+- 정상 SDK 결과 선예약 helper b941d242/inputs8084da8b: 합성12 PASS와 전체 inverse, 기존 execute/route/예산 불변을 확인했다. 독립 리뷰·Root real port 확인·inert 준비·공개 준비 리뷰·actual 정상 실행은 모두 재개 대기다. 최신 lost report를 성공이나 모델0으로 바꾸지 않았다.
+- 현재 검증 종료/소유 자원 정리 후 모든 담당 agent를 중단했다. 사용자 재개 전 추가 검사를 시작하지 않는다. 기존 개발/운영 서비스는 유지한다.
+
+## 2026-10-09 현재 full265와 실제 운영 반영
+
+- 필수264/job432 SUCCESS42.30583초, source1193668f·PR96/MR103 tree64e456b4 동등·owned branch 정리다. 원full263 실패를 보존한다.
+- Full265/job433 SUCCESS4671.914044초: contracts46 PASS, API6521 PASS/3 SKIP/4 WARN3156.28초, 실제PG16/37/15 PASS, Workbench822 PASS/2 WARN342.20초 및 web 단계 완료다. PG 선택은 겹치므로 합산하지 않는다. Full/no skipped suites·pnpm ci 전체·source/target/tree·저장 공간을 결속한 artifact32e31461/evidence30b9f976을 인수했다.
+- Currentc40 private24 리허설14.629324초 PASS·공개 witness401b8282/peer7ffbcdf6: append24, 기존 데이터 동등·이전 이미지 read/write/no-op/rollback·정확 metadata/cleanup을 인수했다. 고객 원문/집계·dump·Auth는 공개하거나 위임하지 않았다.
+- MR81 정상 main9cbf/tree64e·prodFF 뒤 fresh 백업, 표준 guarded prepare330.643초/deploy65.816초 PASS다. 실제 image389d/API·worker·Beat healthy·worker 응답·Beat fresh·head wb_checked_cas_20261009/migration24 bytes·공개 smoke를 확인했다. 공개 전달witness4d1a98ad와 private 결과의 opaque hash0fd9facb를 구분한다. 이전 env/image/backup은 보존한다. 새 C1 factory/roles·C2/C3·Workbench 서비스 반영 증거는 아니다.
+- 두 canonical starter는 각6개 actual native protocol cases를 통과했고 소유6 units/cgroups/ports를 정리했다. 수동 제공 proxy DTO에 한정하며 정상 app-server carrier/global policy를 증명하지 않는다. Basic9.499751초/private-notes8.830883초와 peerd0b5e40d로 결속한다.
+- SDK UI/SQLite history source57dd는 영향52 PASS(11actualSQLite+1helper+40remote), peer d0abe93c다. Falsey malformed binding의 기존 fallback은 비권위 metadata 한계이며 실행 권한을 추가하지 않는다. Cache 최소 수정 source0b57의38 pure·독립6 synthetic과 Root 전체4597entries/415841387bytes 검증은 기존20초 내2.142초 PASS, peer1502c583다. 시간 비교는 machine/cache 조건의 영향을 받아 allocation만의 인과로 주장하지 않는다.
+- 정상 SDK 이전 실제 시도는 cache20초 timeout 이전단계 실패·모델0·owned cleanup 확인이다. 새 준비는 port45541 bind errno98에서 fixture/service/model 전에 실패했다. 기존 실패/claim을 보존하고 fresh 환경을 사용한다. 최신 단일 실행은 최종 receipt의 O_EXCL 충돌로 결과가 저장되지 않았다. Claim은 보존하고 route 성공이나 정확 model 횟수(최대1)는 추정하지 않는다. 별도 post-safety49985ec5는 소유3units/cgroups/ports 정리·Source/Git/current3607·전체 캐시/native 불변을 실제 확인했다. 기존before-claim negativee153/manager start4fdf·stopd36e를 구분하며 동일 claim을 재실행하지 않는다. 아직 정상 carrier actual 성공·별도 Workbench 배포는 아니다.
+- C2 source3908 actual96은327.488568초 setup96 FAIL/call0/teardown96 PASS·cleanup/source guards PASS다. 정확 reason은 constraint_invalid다. Fresh known65534-owner PG18 model-DDL-only catalog은2.119초 PASS/21constraints20exact이며 checkpoint class1개가 varchar/text array 캐스트 표현으로 다르다. 이는 모델 DDL의 정확 공개표현 진단이며 full migration 성공이 아니다. 제약검사·ACL을 유지한 literal1개 source25f14b24를 동결했고 Root 코드 리뷰9a485766 뒤 fresh actual96은509.356302초에 setup/call/teardown 각96 PASS·errors/skips0·소유 정리/전후 source guards PASS다(receipt4c29ad144f47b2e96140448ffe47a03b490e17c18b2604f5e6f5dfc981b58d2a). Inactive adapter의 synthetic 결과는 실제 COMMIT/native RSS/운영 활성화로 간주하지 않는다.
+
 ## 2026-10-09 21:58 UTC — full263 동시성 fixture와 현재 실제 반영
 
 - Full263/job431/source09aaf: API6520 PASS/1 FAIL/3 SKIP/4 WARN2981.70초, 후속PG16/37/15 PASS, job FAILED3312.269779초다. 실패는 same-target folder stage583행의 typed reason 차이다. 원 CI SQLSTATE/직접 원인을 관측하지 않았다.
@@ -142,11 +273,13 @@ fixture/doc 변경을 과거 통과에 소급하지 않으며 실제 전체 CI·
 | F-009 | 자연어·하네스             | 아래 대표 사례의 고정 초기 상태·실제 결과·반복 평가. 맥락에 맞는 대상, 중요한 모호함만 질문, 범위 확대·권한/검증 우회 거부, LLM 자기평가만으로 성공 처리하지 않음                                |
 | F-010 | 관측·복구                 | 상태·버전·자원·관측 시각과 unknown/stale, 관측만으로 변경 없음. 같은 요청 반복·배포 서비스 재시작·성공 응답 유실 시 기존 상태 조회, 중복 배포/마이그레이션 방지. 이미지 복구와 DB 호환·복구 구분 |
 
-미리보기 4개와 무거운 빌드 1개는 한 사용자의 병행 실행 수용 목표다. 여러 사용자의 접근 격리 검증을 완료했다는 의미가 아니다. 측정이 목표에 미달하면 실제 한계와 필요한 자원을 기록한다.
+미리보기4개·무거운 빌드1개의 병행 수용량 목표와 정밀 측정은 ENH-004로 보류한다. 이번에는 지원 환경의 기본 실행·정리·격리·자원 제한만 확인하며, 기존 측정 자료를 실제 전체 수용량이나 다중 사용자 보장으로 확대하지 않는다.
 
-앱·환경 검증에서는 실제 지원할 브라우저·배치 도메인과 로컬/서버 환경을 먼저 명시한다. 기본 격리·자원 제한을 확인한 뒤 병행 수용량을 측정한다. UI 시험 앱의 전체 흐름을 먼저 확인하고 DB·권한 시험 앱에 확장한다. 각 기능 작업이 소유한 검사를 완료하고 `VAL-001`에서 흐름 간 연결과 누락을 확인한다.
+앱·환경 검증에서는 실제 지원할 브라우저·배치 도메인과 로컬/서버 환경을 명시한다. 기본 격리·자원 제한과 UI·DB 대표 앱의 최소 계약을 최종 통합 검증에서 확인한다. 병행 부하·추가 브라우저/모바일 UX·앱별 상세 업무 검사를 자동으로 추가하지 않는다.
 
 ## 지침과 스킬 회귀 검증 계획
+
+아래는 전체 목표다. 이번에는 필수 변경 경로의 실제 지침 충돌과 대표 앱의 시작·재개·대상/권한 확인만 수행한다. 전 경로 선택 평가·표현별 반복·기존 candidate14/18 원인 분석과 품질 벤치마크는 ENH-003으로 보류하며 구조 완료의 선행 조건이 아니다.
 
 | ID    | 평가                         | 통과 기준                                                                                                                                     |
 | ----- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -174,7 +307,7 @@ fixture/doc 변경을 과거 통과에 소급하지 않으며 실제 전체 CI·
 ### 반복·판정·측정 절차
 
 1. 모델·CLI·소비 스키마·하네스·템플릿·대상 코드·환경을 식별하고 각 사례의 입력·판정 기준을 실행 전에 고정한다. 생성 코드가 검사나 권한 경계를 바꿔 통과시키지 못하게 한다.
-2. 변경 전후 같은 조건으로 각 대표 자연어 사례를 **초기 기본 3회씩 독립 실행**한다. 매번 fixture를 초기화하고 실행별 결과를 남긴다. 반복 횟수 조정은 비용·편차 근거와 함께 사전에 기록하며 실패 결과를 없애기 위해 조정하지 않는다. 모델까지 바꾸는 경우 별도 비교로 분리한다.
+2. 변경 영향에 필요한 대표 자연어 사례를 선택해 **사례당 기본 1회**를 해당 구현 묶음의 전체 흐름 검증에 포함한다. 이전 결과가 같은 조건에서 적용되면 비교 근거로 재사용한다. 이전 상태를 새로 실행해야 하는 비교는 상태별 1회로 제한한다. 새 실패나 구체적인 결과 편차를 확인할 추가 반복은 목적·횟수·비용 한도를 정한 뒤 수행하며 실패를 지우거나 성공을 얻기 위한 자동 반복은 하지 않는다. 모델 변경은 별도 비교이며 단일 실행으로 통계적인 품질 향상이나 비열등성을 주장하지 않는다.
 3. 대상·권한·파일/DB/배포 최종 상태는 결정적 검사로 판정한다. 브라우저 흐름은 실제 브라우저와 데이터 결과를 확인한다. 자연어 유용성은 기준에 따른 평가와 사람의 표본 검토로 보완하며 LLM 자기평가는 단독 완료 판정에 사용하지 않는다.
 4. 필수 권한·대상·증거 검사 실패가 한 번이라도 있으면 해당 기능의 연결·출시를 통과시키지 않는다. 기존 성공 사례의 회귀는 수정하거나 원인·영향을 명시해 처리한 뒤 판정한다. 유한한 반복 통과를 모든 자연어 입력의 성공 보장으로 표현하지 않는다.
 5. 작업 유형별 성공률·불필요한 질문 수·사람의 실제 개입 시간·미리보기까지의 시간·복구 성공과 시간을 기록한다. 측정 전 목표 성공률이나 시간 단축률을 임의로 약속하지 않으며 토큰·에이전트 수만으로 생산성을 판정하지 않는다.

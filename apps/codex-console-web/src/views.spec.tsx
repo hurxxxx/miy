@@ -21,6 +21,7 @@ const task: Detail = {
   agents: [],
   pending_count: 0,
   permissions: 'read-only',
+  implementation_permissions: ['ask', 'yolo'],
   thread_id: 'thread',
   turn_id: null,
   root: '/repo/dev',

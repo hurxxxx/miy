@@ -221,11 +221,15 @@ export function App() {
     effort: null,
     permissions: 'ask',
   });
+  const implementationPermissions = task?.implementation_permissions ?? [];
   const selectedExecution = useMemo(
     () =>
       resolveExecution(
         {
           ...execution,
+          permissions: implementationPermissions.includes(execution.permissions)
+            ? execution.permissions
+            : (implementationPermissions[0] ?? 'ask'),
           model: execution.model ?? task?.model ?? null,
           effort:
             execution.effort ??
@@ -233,13 +237,18 @@ export function App() {
         },
         models,
       ),
-    [execution, models, task?.model, task?.effort],
+    [execution, models, task?.model, task?.effort, implementationPermissions],
   );
   const [approvalExecution, setApprovalExecution] =
     useState<Execution>(execution);
   const approvalDisplay = resolveExecution(
     {
       ...approvalExecution,
+      permissions: implementationPermissions.includes(
+        approvalExecution.permissions,
+      )
+        ? approvalExecution.permissions
+        : (implementationPermissions[0] ?? 'ask'),
       model: approvalExecution.model ?? task?.model ?? null,
       effort:
         approvalExecution.effort ??
@@ -882,7 +891,7 @@ export function App() {
     ? composerImplementation &&
       (taskIsActive
         ? task.permissions === 'yolo'
-        : execution.permissions === 'yolo')
+        : selectedExecution.permissions === 'yolo')
     : false;
   const composerPlanningHelp = !!task && stage === 'plan' && !taskIsActive;
 
@@ -1405,6 +1414,10 @@ export function App() {
               }}
               onSubmit={(event) => {
                 event.preventDefault();
+                if (!implementationPermissions.length) {
+                  setError('app_executor_unavailable');
+                  return;
+                }
                 void send(
                   active(task)
                     ? 'steer'
@@ -1418,6 +1431,7 @@ export function App() {
                       ? {}
                       : {
                           ...execution,
+                          permissions: selectedExecution.permissions,
                           ...(stage === 'plan' ? { stage } : {}),
                         }),
                   },
@@ -1500,6 +1514,7 @@ export function App() {
                   </label>
                   <ExecutionSettings
                     models={models}
+                    allowedPermissions={implementationPermissions}
                     value={
                       active(task)
                         ? {
@@ -1561,6 +1576,11 @@ export function App() {
                     </label>
                   )}
                 </div>
+                {!implementationPermissions.length && (
+                  <p role="status">
+                    {t(errorCopy('app_executor_unavailable'))}
+                  </p>
+                )}
                 <div className="actions">
                   <Button
                     variant="ghost"
@@ -1587,6 +1607,7 @@ export function App() {
                     variant="primary"
                     disabled={
                       busy ||
+                      !implementationPermissions.length ||
                       (!message.trim() &&
                         (stage === 'implement' || !attachmentIds.length)) ||
                       task.status === 'starting'
@@ -1756,16 +1777,19 @@ export function App() {
         action="Execute this plan"
         t={t}
         busy={busy}
+        disabled={!implementationPermissions.length}
         onClose={() => {
           setPlanToApprove(null);
         }}
         onConfirm={() => {
-          if (!task || !planToApprove) return;
+          if (!task || !planToApprove || !implementationPermissions.length)
+            return;
           const approvedTaskId = task.id;
           void send(
             'implement',
             {
               ...approvalExecution,
+              permissions: approvalDisplay.permissions,
               text: approvalText,
               revision_id: planToApprove.id,
               attachment_ids: approvalFiles.map((file) => file.id),
@@ -1779,7 +1803,7 @@ export function App() {
                 ...current,
                 model: null,
                 effort: null,
-                permissions: approvalExecution.permissions,
+                permissions: approvalDisplay.permissions,
               }));
               setMessage((current) =>
                 current === approvalText ? '' : current,
@@ -1801,7 +1825,8 @@ export function App() {
         <label className="stack">
           {t('Permissions')}
           <PermissionSelect
-            value={approvalExecution.permissions}
+            value={approvalDisplay.permissions}
+            allowed={implementationPermissions}
             onChange={(permissions) =>
               setApprovalExecution((current) => ({ ...current, permissions }))
             }
@@ -1809,7 +1834,7 @@ export function App() {
             t={t}
           />
         </label>
-        {approvalExecution.permissions === 'yolo' && (
+        {approvalDisplay.permissions === 'yolo' && (
           <p className="danger">
             {t('YOLO runs commands without approval or sandbox restrictions.')}
           </p>

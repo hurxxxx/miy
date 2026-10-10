@@ -25,6 +25,11 @@ cp -a "$ROOT_DIR/apps/codex-console-web/dist" "$RELEASE_DIR/apps/codex-console-w
 tar -C "$ROOT_DIR/apps/codex-console-api" --exclude=__pycache__ -cf - \
   src migrations sqlite_migrations pyproject.toml uv.lock alembic.ini \
   | tar -C "$RELEASE_DIR/apps/codex-console-api" -xf -
+mkdir -p "$RELEASE_DIR/ops/codex-console/executor"
+cp "$ROOT_DIR/ops/codex-console/executor/sdk-toolchain-pin.json" \
+  "$RELEASE_DIR/ops/codex-console/executor/sdk-toolchain-pin.json"
+cp "$ROOT_DIR/ops/codex-console/executor/native-pin.json" \
+  "$RELEASE_DIR/ops/codex-console/executor/native-pin.json"
 "$PYTHON_BIN" - "$ROOT_DIR" "$RELEASE_DIR" <<'PY'
 import hashlib
 import json

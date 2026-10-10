@@ -216,6 +216,7 @@ class RequestOut(BaseModel):
 
 
 class TaskDetail(TaskOut):
+    implementation_permissions: list[Literal["ask", "yolo"]] = ["ask", "yolo"]
     failed_request_text: str | None = None
     revisions: list[RevisionOut]
     items: list[dict[str, Any]]
