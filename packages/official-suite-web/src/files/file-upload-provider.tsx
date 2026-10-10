@@ -21,6 +21,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '@miy/platform-web/auth-context';
+import { usePendingDocumentLeaveProtection } from '@miy/platform-web/document-leave-protection';
 import { cn } from '@miy/ui';
 import { formatByteSize } from '@miy/platform-web/format';
 import { uploadDriveFile } from './api/files-api';
@@ -75,6 +76,7 @@ function FileUploadSession({
   const hasActiveUploads = uploads.some(
     (upload) => upload.status === 'uploading',
   );
+  usePendingDocumentLeaveProtection(hasActiveUploads);
 
   useLayoutEffect(() => {
     mountedRef.current = true;
@@ -233,6 +235,12 @@ function FileUploadSession({
 
   return (
     <FileUploadManagerContext.Provider value={value}>
+      {/* The existing document boundary waits for the whole sequential batch,
+          including queued files, while progress and its XHR stay mounted. */}
+      <span
+        hidden
+        data-miy-pending-save={hasActiveUploads ? 'true' : undefined}
+      />
       {children}
       <FileUploadFloatingPanel
         collapsed={collapsed}

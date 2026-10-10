@@ -1,9 +1,11 @@
-import { useEffect } from 'react';
+export { usePendingDocumentLeaveProtection as usePendingDocumentSaveProtection } from '@miy/platform-web/document-leave-protection';
 
 const WIDGET_PATH = '/official-suite/widgets';
 const PENDING_SELECTOR = '[data-miy-pending-save="true"]';
 
-/** Presentation readiness only; this never starts or acknowledges a save. */
+/** Pending document writes, including an entire queued upload batch.
+ * Presentation readiness only; this never starts or acknowledges a write.
+ */
 export function hasPendingDocumentSaves(runtime: Window = window): boolean {
   if (runtime.document.querySelector(PENDING_SELECTOR)) return true;
   for (const frame of runtime.document.querySelectorAll('iframe')) {
@@ -42,30 +44,4 @@ export function waitForPendingDocumentSaves(
     signal.addEventListener('abort', cancel, { once: true });
     check();
   });
-}
-
-/** Native reload/close also protects an embedded widget's owning document. */
-export function usePendingDocumentSaveProtection(pending: boolean): void {
-  useEffect(() => {
-    if (!pending) return;
-    const owners = new Set<Window>([window]);
-    try {
-      if (
-        window.frameElement?.getAttribute('src') === WIDGET_PATH &&
-        window.parent.location.origin === window.location.origin
-      )
-        owners.add(window.parent);
-    } catch {
-      // Only the trusted same-origin owner can receive this native protection.
-    }
-    const protect = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = '';
-    };
-    owners.forEach((owner) => owner.addEventListener('beforeunload', protect));
-    return () =>
-      owners.forEach((owner) =>
-        owner.removeEventListener('beforeunload', protect),
-      );
-  }, [pending]);
 }

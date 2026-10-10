@@ -1,5 +1,13 @@
 # 재설계 진행 기록
 
+## 2026-10-10 문서 분리 회귀 두 건 보완
+
+Native 종료 후보 `1115b6e7`의 필수270/job438은472.351421초에 MERGE_BLOCKED로 실패했다. 진행 중 Files 업로드의 문서 전환 보호와 iframe widget theme 누락을 발견한 결과를 보존하며 병합·서비스 변경을 보류했다. 이전269/437 성공은 최신 후보의 성공으로 사용하지 않는다.
+
+Files는 기존 uploading batch 상태를 기존 pending-write 표시와 native beforeunload 보호에 연결했다. 순차 대기열/XHR·진행률·기존 실패/abort는 그대로이며 링크와 프로그램 이동이 전체 batch 종료까지 이전 화면을 유지한다. 기존 보호 hook만 공용 모듈로 옮기고 메모의 public export alias는 보존했다. 위젯과 일반 shell은 기존 사용자/system 테마 계산·적용을 공유한다. 같은 출처의 iframe은 부모의 실제 표시 class 변경만 관측하며 인증·권한·새 메시지 프로토콜은 추가하지 않았다.
+
+업로드 직접 영향17개와 테마8개·두 typecheck·웹 boundary를 확인했다. 최초 test 환경 setup 실패와 jsdom link adapter 실패를 기록하고 같은 실패 경계만 재검증했다. 전체 빌드·브라우저·앱 suite·모델·서비스 작업은 반복하지 않았다. 두 수정과 진행 문서를 한 후보로 통합해 새 필수 리뷰에 전달한다. 프록시 설정은 기존 포트를 사용하는 Core local gateway이며 외부 TLS 변경은 필요하지 않다.
+
 ## 2026-10-10 필수 리뷰 통과와 개발 종료 경계 보완
 
 후속 source `37ef44ec`의 pipeline269/job437은 SUCCESS450.249534초이고 안전한 리뷰 결과는 MERGE_READY다. PR97/MR104는 열려 있으며 실제 서비스는 기존 dev `c40e7091`·prod `9cbf9c5c`다. 새 소스에서 추가 확인한 개발 종료 결함을 함께 고친 다음 최신 후보의 필수 리뷰를 받는다. 437의 통과를 이후 수정의 리뷰로 대체하지 않는다.

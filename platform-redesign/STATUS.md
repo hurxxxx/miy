@@ -1,12 +1,16 @@
 # 현재 진행 상태
 
-**2026-10-10 사용자 지시로 필수 구조 구현을 재개했다.** 공통 등록/개인 앱, 공식 묶음 API/worker, Workbench의 경로를 나누어 구현하고 Root가 통합한다. 고도화는 계속 보류하며 검증은 최종 통합 시점에 모은다. 아래 중단 기록은 재개 전 보존 상태다. 새 후보를 아직 게시·배포하지 않았다.
+**2026-10-10 사용자 지시로 필수 구조 구현을 재개했다.** 공통 등록/개인 앱, 공식 묶음 API/worker, Workbench의 경로를 나누어 구현하고 Root가 통합한다. 고도화는 계속 보류한다. 후보는 GitHub PR97·내부 MR104로 게시했으며 새 분리 구조의 실제 배포는 아직 수행하지 않았다. 아래 중단 기록은 재개 전 보존 상태다.
 
 기록 기준: 2026-10-10 UTC. 작업별 상태는 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다.
 
 ## 현재 구현 후보
 
 공식 API/worker, 개인 앱 승격 계약, Workbench의 격리 SDK 실행 후보를 로컬에 통합했다. 영향 검사·실제 격리 실행·공통 gateway/배포 도구와 대표 브라우저 검사를 마쳤다. 필수 리뷰·CI·새 플랫폼/Workbench 배포와 실제 로그인 인수는 남아 있다. 현재 로컬 결과는 [통합 검사 기록](VALIDATION.md#2026-10-10-필수-구조-통합-검사)이 소유한다.
+
+후속 `37ef44ec`의 필수269/job437은 성공했다. 실제 개발 native Main/pool 식별·warm 종료·setsid 경계를 보완한 `1115b6e7`의 필수270/job438은472.351421초에 문서 이동 시 업로드 보호와 widget theme 누락을 발견해 실패했다. 두 실제 분리 회귀를 최소 수정하며 병합·서비스 변경은 보류한다. 최신 source의 새 필수 리뷰와 전체 릴리스 CI를 유지하고 변경 없는 기존 검사·산출물은 재사용한다.
+
+Workbench 실제 clean37ef 산출물과 기존 owner의 정상 로그인 readonly preflight는 준비됐으며 새 서비스·실제 공개 UI 인수는 아직 수행하지 않았다. 개발 first-party와 운영 local gateway도 아직 미반영이다. 외부 TLS 설정 변경 없이 Core gateway가 기존 공개 포트를 인계하도록 구현했다.
 
 - 공식 서비스는 기존 서버 auth/ACL·공통 PostgreSQL·안전한 트랜잭션을 재사용하는 명시적인 first-party process 경로다. 이전 비활성 Source-only artifact를 플래그로 열지 않는다. 별도 공식 wheel/artifact·소유 queue·단일 Beat와 generated ingress owner map을 구현했다. 기존 큐와 예약/실행 작업을 확인하고 구형 writer를 종료하는 cutover 및 공식 UI 독립 산출물 연결은 진행 중이다.
 - 개인 앱은 같은 control-plane 등록 DB에 있는 성공한 개발 설치의 불변 산출물을 Core 관리자가 운영 installation으로 승격한다. 개발 증거를 운영 증거로 바꾸지 않으며 실제 runtime 관측 전에는 첫 운영 설치를 활성화하지 않는다. 서버 개발 preview도 선택적인 별도 HTTPS 출처·loopback 포트 연결을 지원한다. 설치별 build/state·데이터 분리와 기존 dev-only 위임을 유지한다. 다른 플랫폼 DB 사이의 증거 전송은 ENH-010으로 보류한다.
@@ -23,7 +27,7 @@
 
 - **전달·운영:** PR96/MR103 필수264/432 성공·정상 병합·소유 feature 정리, full265/433 성공, MR81 정상 병합·prod FF·guarded 배포를 완료했다. Dev `c40e7091`, main/prod `9cbf9c5c`, 같은 tree `64e456b4`다. 운영 API·worker·Beat는 새 image `389d1e67…`로 healthy, DB는 `wb_checked_cas_20261009`이며 공개 smoke를 확인했다. 이전 이미지·env·fresh DB 백업을 보존한다. 세부 전달은 [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 소유한다.
 - **개발:** C1 head/API/Vite·로그인/공개 앱 smoke와 AppRoot 공식 앱 import HTTP200을 이미 확인했다. c40은 후속 fixture·문서 변경으로 제품 source가09aaf와 같아 반복 재시작하지 않았다. 사용자 PC·앱별 상세 기능은 보류한다.
-- **Workbench:** 원 Task의 계획·구현2턴과 같은 thread의 read-only3번째 인수는 완료했고 재구현/4번째 턴을 하지 않았다. 두 canonical starter는 각각6개 native protocol cases를 통과했지만 수동 제공 network carrier의 제한된 증거다. 신규 UI는 서버의 구현 권한 목록을 두 실행 화면에서 사용하며 SQLite 이력 조회를 보존하는 영향52개·독립 리뷰를 통과했다. 캐시 검증의 실제 크기만큼 읽는 최소 수정은 전체 캐시를 기존20초 한도에서2.142초에 확인했다. 결과 파일 선예약 helper는 합성12 PASS로 동결했으며 독립 리뷰 대기다. 정상 controller의 네트워크 실행·독립 Workbench 릴리스·실제 로그인/화면 검증은 남아 있다. 이전 cache timeout과 준비 포트 충돌은 모델 실행 전 실패로 보존한다. 최신 단일 실행은 결과 파일의 exclusive 생성 충돌로 최종 결과가 저장되지 않아 인수 HOLD다. 최대1개 모델 제출의 실제 횟수·경로 결과는 미확정이다. 소유 서비스3개 종료/파일·cgroups·ports 정리와 Source/Git/캐시/native 불변은 별도 실제 확인했다.
+- **Workbench:** 원 Task의 계획·구현2턴과 같은 thread의 read-only3번째 인수는 완료했고 추가 턴을 만들지 않았다. 이전 cache timeout·준비 포트 충돌·exclusive 결과 파일 충돌은 보존 이력이다. 재개 후 현재 정상 controller는 모델1회·고정8경로·자동 retry0와 소유 RPC/unit/process/port 정리, Source/Git/native/cache 불변을 실제 확인했다. Backend426/UI56 등 직접 영향 검사는 통과했다. clean37ef 실제 릴리스 산출물의 source/digest·schema0008·고정 CLI를 확인했으며 기존 current/template-current는0c1bf0fe다. 새 후보의 필수 리뷰·별도 서비스 교체·fresh SQLite online backup·정상 공개 로그인/Apps/기존 Task/permissions/AgentTree 인수는 남아 있다. 새 Task·모델 실행과 임의 native unknown 회복은 추가하지 않는다.
 - **저장·전환 후보:** C1 checked-save source/schema는 반영했지만 새 factory/role은 비활성이다. C2 provenance·journal·native completeness/cleanup의 이전 근거를 보존한다. 확장 journal35/checkpoint source25f14b24의 실제96 PASS(509.356302초, 오류/skip0·소유 정리/전후 guards)와 별도 비활성 adapter의 합성56 PASS 수정본은 미게시 후보다. 전체 연결·독립 리뷰·native isolation/운영 활성화는 완료하지 않았으며 verifier 부재는 fail-closed다. 이번에는 전체 C2 완성을 기본 필수에서 제외하고 ENH-005로 보류한다. 실제 분리·유실 방지에 필요한 최소 부분만 채택하며 서비스 전환의 권한·구형 writer 정리·데이터 보존·복구는 유지한다.
 - **저장 공간·범위:** Docker 실제 경로 `/var/lib/miy-docker-data`와 canonical `/var/lib/docker` bind로 이전했다. 마지막 확인은 root117GiB/약40GiB 여유다. 이전 시 컨테이너83/볼륨286/이미지18 보존·실행29 복구를 확인했다. OS 재부팅은 미검증이고 미확인 orphan220개는 보존한다. 앱별 비필수 기능·다중 사용자·기존 skills/하네스 절차 재사용은 보류한다.
 

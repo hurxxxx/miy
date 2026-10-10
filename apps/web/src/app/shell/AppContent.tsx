@@ -15,7 +15,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   type ComponentType,
   type ElementType,
   type ReactNode,
@@ -146,11 +145,7 @@ import {
   type ShellStateResolver,
 } from './shell-chrome-model';
 import { resolveShellDisplayAppId } from './shell-display-app-model';
-import {
-  getSystemDarkModeSnapshot,
-  resolveThemePreference,
-  subscribeSystemDarkMode,
-} from './shell-ui-model';
+import { useDocumentTheme } from '@miy/platform-web/theme/document-theme';
 import type { AppSidebarConfig } from './sidebar-types';
 import {
   StaticRouteElements,
@@ -651,11 +646,6 @@ function AuthenticatedShell({
   const { pathname: locationPathname, search: locationSearch } = useLocation();
   const { t, i18n } = useTranslation('shell');
   const prefersReducedMotion = useReducedMotion();
-  const systemDarkMode = useSyncExternalStore(
-    subscribeSystemDarkMode,
-    getSystemDarkModeSnapshot,
-    () => false,
-  );
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileInitialTab, setProfileInitialTab] =
     useState<SettingsSection>('profile');
@@ -713,8 +703,7 @@ function AuthenticatedShell({
   );
   const { navOpen: mobileNavOpen, appMenuOpen: mobileAppMenuOpen } =
     activeMobileShellMenu;
-  const themePreference = currentUser?.theme_preference ?? 'system';
-  const resolvedTheme = resolveThemePreference(themePreference, systemDarkMode);
+  useDocumentTheme(currentUser?.theme_preference);
   const appsBootstrap = useAppsBootstrap(auth.token, currentUserId);
   const independentCatalog = useIndependentApps(
     needsIndependentAppCatalog(appScope?.appIds) ? auth.token : null,
@@ -921,14 +910,6 @@ function AuthenticatedShell({
   useEffect(() => {
     syncDateFormatPreference(currentUser?.date_format);
   }, [currentUser?.date_format]);
-
-  useEffect(() => {
-    if (resolvedTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [resolvedTheme]);
 
   useEffect(() => {
     document.title = documentTitle;

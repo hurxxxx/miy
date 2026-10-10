@@ -1,5 +1,16 @@
 # 검증 계획과 수행 근거
 
+## 2026-10-10 필수438 실패와 문서 경계 최소 수정
+
+Pipeline270/job438은 source `1115b6e77375333b3aa228563f670bf00a2660e7`/tree655e3303에서 FAILED472.351421초, MERGE_BLOCKED다. Files의 진행 중 XHR/순차 대기열이 full-document 이동으로 사라질 수 있고 widget iframe이 사용자 theme를 적용하지 않는 P2 두 건이다. 실제 구조 변경 회귀를 보완하며 이전269/437 PASS로 새 리뷰를 대신하지 않는다. 새 서비스·병합·배포는 아직 없다.
+
+- Files provider는 실제 uploading record를 기존 `data-miy-pending-save` 표시로 연결한다. batch 전체 대기와 native beforeunload 보호를 재사용하며 새 취소 UI·marker·권한·업로드 프로토콜은 추가하지 않는다. Memo 보호 hook을 공용 모듈로 옮겨 기존 export alias를 보존한다. 실제 API adapter/batch와 controlled slow XHR의 신규4개는 link/programmatic × 성공/실패, queued second request·진행률·기존 UI/input·history·abort 없음·완료 후1회 이동·native unload 경계를 확인한다. 기존 boundary9/provider4와 합쳐 고유17개 PASS다.
+- 최초17 setup FAIL은 inherited production NODE_ENV의 React.act 부재로 행동 assertions 이전에 종료했다. Test 환경만 명시해 같은 실패 파일을 재검증했고 기존13/new programmatic2 PASS 뒤 link2가 jsdom Location.assign Proxy fixture로 실패했다. Plain typed target으로 fixture만 수정해 실패link2 PASS0.074초/최종 unhandled error0을 확인했다. 성공 수에 전후 실행을 중복 합산하지 않는다.
+- 기존 shell theme 계산·native media 구독·document class 적용을 public `document-theme` hook으로 공유하고 AppContent/OfficialWidgetRoot가 함께 사용한다. Same-origin parent class는 표시만 상속하고 외부 parent/top-level은 현재 user/system 상태를 적용한다. Native/DOM 구독 cleanup을 유지한다. 공통hook2(1.85초)·실제 WidgetRoot3(4.13초)·기존 shell model3(2.04초), 총3파일8개 PASS다. 사용자/system 변경·부모 live class·foreign fallback·다른 HTML class 보존·cleanup을 확인했고 auth/realtime/bootstrap/Host는 합성 stub이다.
+- Core/Official typecheck20.88/17.66초·web boundary0.77초와 소유 Prettier/whitespace는 PASS다. 두 에이전트가 disjoint 소스에서 작업하고 shared 검사 담당을 조정했다. 서버 로그인·native browser dialog·제품 image·서비스 전환의 증거로 확대하지 않는다. 기존 CI가 새 spec을 수집하며 package/lock 변경0이다.
+
+Safe `codex-review-438.md`, `APP_CONTRACTS_CHECKS.md`, `OFFICIAL_CHECKS.md`와 각 review438 source freeze/명령 receipt는 private runtime 경로에 보존한다. 새 candidate의 필수 리뷰·최신 full release와 실제 개발/운영·별도 Workbench 전환/공개 인수는 남아 있다. 기존 무관한 성공 검사는 반복하지 않는다.
+
 ## 2026-10-10 최신 리뷰와 native 종료 수정 근거
 
 - Source `37ef44ecfba37307576d0c43bd6eeca4ecbf9fd0`, tree `ba72490be019696af60bfeaa1a6410d2a0ff64c5`: pipeline269/job437 SUCCESS450.249534초, required/allow_failure=false, MERGE_READY. 리뷰는 변경 Python82개 AST·shell/주요 JS·first-party Node 검사·기존 task 함수 AST 보존을 확인했으며 전체 의존성/DB/브라우저 suite를 실행한 결과가 아니다. 이전434/435/436 실패는 보존한다. 아래 새 종료 수정은 최신 후보의 새 리뷰가 필요하다.

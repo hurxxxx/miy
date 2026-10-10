@@ -1,5 +1,6 @@
 import { AppBootstrapProvider } from '@miy/platform-web/apps';
 import { useAuth } from '@miy/platform-web/auth-context';
+import { useDocumentTheme } from '@miy/platform-web/theme/document-theme';
 import { FeedbackProvider } from '@miy/ui';
 import {
   AuthProvider,
@@ -14,6 +15,17 @@ import { ShellPersonalWidgetHost } from './OfficialPersonalWidgetHost';
 
 function Widgets() {
   const { token, user } = useAuth();
+  let parentDocument: Document | undefined;
+  try {
+    if (
+      window.parent !== window &&
+      window.parent.location.origin === window.location.origin
+    )
+      parentDocument = window.parent.document;
+  } catch {
+    // Only the trusted same-origin display owner can supply inherited theme.
+  }
+  useDocumentTheme(user?.theme_preference, parentDocument);
   const bootstrap = useAppsBootstrap(token, user?.id ?? null);
   return (
     <AppBootstrapProvider value={bootstrap}>
