@@ -1,10 +1,29 @@
 # 현재 진행 상태
 
+**현재 checkpoint — 2026-10-10: 이번 필수 최소 구조 구현과 개발·운영·별도 Workbench 전달을 완료했다.** 최신 full287과 실제 반영, 대표 UI·DB/API/Docker·native SDK·기존 정상3턴 근거를 함께 인수했다. Workbench native Codex 스키마 불일치도 해결했고 실제 모델 목록·계정 연결을 확인했다. 이 문서 동결 시점에는 이 기록의 정상 리뷰·게시를 준비하며, 이 묶음의 최종 전달 결과는 해당 PR/MR의 최종 상태가 원본이다. 전체 자연어 앱 E2E·다중 사용자·격리 앱의 운영 전면 가동을 완료한 것으로 확대하지 않는다.
+
+기록 기준: 2026-10-10 UTC. 작업별 최소 완료 범위는 [WORK_ITEMS.md](WORK_ITEMS.md), 검증 범위와 한계는 [VALIDATION.md](VALIDATION.md), 정상 게시는 [PUBLICATION_CHECKPOINT.md](PUBLICATION_CHECKPOINT.md)가 소유한다.
+
+## 최신 전달 상태와 남은 단계
+
+- Source `f652`의 required286/job454는 SUCCESS41.835358초/MERGE_READY다. [내부 MR112](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/112) → dev `4a8ab880`, [GitHub PR104](https://github.com/hurxxxx/miy/pull/104) → main `67d4d6a1`, 동일 tree `94a8212e`이며 소유 원격·로컬 브랜치를 정리했다. Protected dev/main은 보존했다.
+- [Release MR105](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/105)의 full287/job455는 exact source `4a8ab88075bd9fc0a3ad7ae4569de469fd85e689`/tree `94a8212e0f4b48d3156df34e8d7d563f4b3e973c`의 SUCCESS4656.144209초다. Requested/selected full·status passed·suite 선택 생략 없음이며 API6572/16/37/15·web928·Workbench backend1160과 frontend/native 전체 chain을 통과했다. 미수신 세부 count는 추정하지 않는다.
+- MR105 정상 병합 뒤 main/prod는 `707895b9f78eb018c211bfb64ddc180bd8855767`다. Clean prod FF·native prod105 gate, fresh env/PostgreSQL18 backup과 native3artifact prepare573.551초·deploy123.499초를 통과했다. 실제 gateway/Platform API/Platform worker/Beat/Official API+web/Official worker6서비스가 healthy이고 Beat1개·runtime707895b9·정확3불변 image IDs를 확인했다. Core는 `849764f4…`, Official API+web은 `86472fa2…`, Official worker는 `beb51af7…`이며 이전389d 이미지를 보존했다.
+- 같은 공개 HTTPS의 Platform/Official health·ready와 실제 container/public JS bytes 일치, `/auth/me`·`/docs/hub` JSON401·빈 WS1008/4401은 PASS다. 공개 helper 결과는 **LIMITED**(finished=true/complete=false/exit2·failure stage 없음)다. Actual build-ID NULL(Core 파일 없음/Official 파일 empty/metadata NULL)·guard inactive는 승인된 기존 계약이며409/4409·정상 운영 로그인·기존 Doc 양성 Yjs/Source ACL은 미검증 한계로 남긴다.
+- Workbench는 old3역할 정상 SIGTERM/Resultsuccess/empty cgroup·native SQLite online backup17,444,864bytes/integrityok/schema0008·current/template-current 원자 교체·새3역할 cwd/source37/digest2ae/dirtyfalse·direct/publichealth200을 확인했다. Artifact는 원 source `37ef44ecfba37307576d0c43bd6eeca4ecbf9fd0`/digest `2ae5a15bd2adb347f46895d2df32f9b36369d2e691104e9eb6f1967fdaab6b0e`/release `20261010-37ef44ec` 재사용이다. 최신 Git source로 relabel/rebuild하지 않았고 기존 Task 상태·unknown8과 정상 service 속성을 보존했다.
+- Workbench corrected ADMIN_CATALOG의 앱선택·기존 Task·permissions·agents·handoff는 모두 실제 관측 TRUE다. 당시 전체 FAIL(network_execution_boundary)은 보존한다. 차단 POST는 `platform_app_usage_event` 통계 요청이고 other/Task 쓰기·WS forward는0이다. 뒤이어 확인한 native 스키마 불일치는0.160.1의 검증된 immutable cache를 session binary에 연결해 해결했다. 보호 설정의 한 항목을0600 백업 후 admission close·관련2역할 정상 stop·새2PID/health 확인·원 stop 속성 복원을 마쳤고 template0.159.2의 기존 PID는 유지했다.
+- 이후 existing-task models GET은200/nonempty/code NULL이다. 별도의 최종 account-only 확인도 **PASS**(HTTP200/connected=true/auth_type=chatgpt/error_code=NULL)이며 다른 쓰기·WS forward는0이다. Model 진단 helper는 계정 응답 관측 전 닫혀 전체 FAIL로 남겼다. 최종 account-only 확인에서 모델 목록·Task 선택을 다시 수행하지 않았으며 실제 새 모델 턴/전체 자연어 앱 E2E 성공을 주장하지 않는다.
+- 이 문서 동결 시점의 후속 전달은 진행 문서 여섯 개와 설치 안내 두 개의 정상 required review·PR/MR이다. Docs-only 입력 때문에 전체 suite·artifact rebuild·서비스 deploy를 반복하지 않는다. 앱별 상세 기능은 [APP_ISSUES.md](APP_ISSUES.md), 고도화·다중 사용자·외부 open-work-hub/다른 control-plane 전송은 [FOLLOW_UP_ENHANCEMENTS.md](FOLLOW_UP_ENHANCEMENTS.md)의 별도 지시 조건을 유지한다.
+
+## 이전 시점 기록
+
+아래 기록의 `현재`·`미반영`·`HOLD`는 각 당시 상태다. 최신 상태는 위 checkpoint가 소유하며 원 실패와 국소 검증의 입력 범위는 그대로 보존한다.
+
 **2026-10-10 필수 구조 구현과 서비스 반영을 진행 중이다.** 개발 first-party 구조는 반영했고 웹 소유 경계 보완을 PR103/MR111로 정상 병합했다. 최신 full285는 API·웹 단계를 통과한 뒤 Workbench backend78 FAIL/1082 PASS로 실패했다. CI의 공개 소스 권한 준비를 GitLab native clone·두 단계 umask022로 보완하며 제품의 엄격한 검사는 유지한다. 운영·Workbench 새 배포는 아직 없고 앱별 상세 기능·고도화는 보류한다.
 
 기록 기준: 2026-10-10 UTC. 작업별 상태는 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다.
 
-## 최신 전달 상태와 필수 잔여
+## 이전 전달 상태 — full285 시점
 
 - 현재 통합 기준은 dev `4c8b5190`, GitHub main `f6363323`, 동일 tree `8dd50b3e`다. Source `13d6711a`의 required284/job452는 SUCCESS63.086425초/MERGE_READY이며 PR103/MR111 정상 병합과 소유 원격·로컬 branch 정리를 완료했다.
 - Full285/job453은 FAILED4750.924746초다. API fast6572 PASS/5 SKIP/0 FAIL·slow16·migration37·external15 PASS, 웹928 PASS 및 두 UI build·browser chain 완료를 확인했다. Workbench backend78 FAIL/1082 PASS이며 이후 Workbench frontend build/E2E는 완료 근거가 없다.

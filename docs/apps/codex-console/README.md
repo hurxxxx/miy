@@ -1409,8 +1409,15 @@ ln -s "$HOME/.local/share/miy-codex-console/releases/initial" "$HOME/.local/shar
 install -m 644 ops/codex-console/codex-console.service ops/codex-console/codex-console-management.service ops/codex-console/codex-console-templates.service "$HOME/.config/systemd/user/"
 ```
 
-`console.env`를 서버 편집기에서 설정한다. `MIY_CODEX_CONSOLE_BINARY`는 현재 구독
-로그인 사용자가 실행하는 Codex의 절대 경로로 지정한다. 서비스 설치 계정도 동일하게 유지한다.
+`console.env`를 서버 편집기에서 설정한다. `MIY_CODEX_CONSOLE_BINARY`는 버전별 전용
+디렉터리에 보존한 Codex 실제 실행 파일의 절대 경로로 지정한다.
+[검증과 복구](#검증과-복구)의 최소 안정 버전과 선택된 RPC 스키마 호환성 검사를 통과한
+파일을 선택하고, 서비스는 그 Codex에 구독으로 로그인한 동일한 OS 계정으로 실행한다.
+전역 CLI 업데이트와 Workbench의 CLI 전환을 분리하며, 새 버전을 검증한 뒤 설정의 경로를
+명시적으로 바꾼다. 선택된 버전 디렉터리를 전역 CLI 업데이트 대상으로 재사용하지 않는다.
+독립 앱의 원격 실행을 연결하는 host binary는
+[표준 executor의 native pin 계약](#단일-checkout의-표준-executor-정의)에 따라 정확한
+고정 버전의 vendor binary를 선택하고, 기존 코어 RPC와 별도 remote 계약을 모두 확인한다.
 템플릿용 CLI는 검증한 정확한 버전을 별도 디렉터리에 설치한다. 예를 들어
 `npm install --prefix /absolute/private/codex-0.159.2 --no-save @openai/codex@0.159.2`로
 설치한 뒤 `MIY_CODEX_CONSOLE_TEMPLATE_BINARY`를 그 디렉터리의
@@ -1654,6 +1661,11 @@ uv run --frozen --directory apps/codex-console-api --group dev python tests/live
 Codex 업그레이드 계약은 설치된 안정 CLI가 최소 버전 이상이고 선택된 RPC 스키마와 호환되는지
 검사한다. 스키마가 같으면 소스 변경 없이 새 CLI를 사용할 수 있다. 스키마가 다르면 이 검사가
 실패하며, 기준 버전과 생성 계약을 함께 검토·갱신해야 한다.
+업그레이드는 새 버전 디렉터리의 실제 실행 파일로 기존 계약을 먼저 검사한 뒤
+`MIY_CODEX_CONSOLE_BINARY`의 절대 경로를 명시적으로 전환하는 방식으로 수행한다.
+전역 CLI 업데이트만으로 서비스가 선택한 파일이 바뀌지 않도록 경로와 버전 디렉터리를 유지한다.
+원격 executor를 연결한 host는 위 [native pin 계약](#단일-checkout의-표준-executor-정의)의
+정확한 버전과 remote 스키마 검사도 충족해야 한다.
 
 공식 [App Server 스키마 생성](https://learn.chatgpt.com/docs/app-server#message-schema)은
 실행한 CLI 버전의 계약을 반환한다. 0.160.0의 `--experimental` 생성 결과는 콘솔이 검사하는

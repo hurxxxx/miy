@@ -1,5 +1,33 @@
 # 검증 계획과 수행 근거
 
+## 2026-10-10 최신 전체 CI와 실제 플랫폼·Workbench 전달 인수
+
+아래는 Root가 수행한 최신 정상 전달과 실제 인수 결과다. 이전 절의 FAILED·HOLD는 당시 기록으로 보존하며 현재 결과로 덮어쓰지 않는다. 이 갱신에서는 공개 소스와 Root가 전달한 결과만 사용했고 새 검사·빌드·API/auth 조회·서비스/DB 변경은 하지 않았다.
+
+Source `f652c77f83cb7ff4301932e2bbbd06fbb85c8220`의 required286/job454는 SUCCESS41.835358초/MERGE_READY, allow_failure=false다. [내부 MR112](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/112)·[GitHub PR104](https://github.com/hurxxxx/miy/pull/104)를 정상 병합했다. Reviewed release source는 `4a8ab88075bd9fc0a3ad7ae4569de469fd85e689`, tree는 `94a8212e0f4b48d3156df34e8d7d563f4b3e973c`이며 양쪽 병합의 같은 tree를 확인했다. Full287/job455는 전체 선택 단계 SUCCESS4656.144209초다. 앞선 full285 실패와 권한 조건별 격리 재현은 이 전체 성공과 별개로 보존한다. CI 이미지·의존성 계약·필수 리뷰/검사 규칙을 완화하지 않았다.
+
+[정상 release MR105](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/105)를 병합하고 clean production fast-forward gate를 통과했다. 실제 main/prod는 `707895b9f78eb018c211bfb64ddc180bd8855767`이다. 변경 전 보호된 env snapshot과 PG18 custom backup을 확보했으며 dump는1,122,961bytes, schema head는 `wb_checked_cas_20261009`다. 새 schema 변경은 없다. Native 세 이미지 prepare는 PASS573.551초, 여섯 서비스 deploy는 PASS123.499초다.
+
+| 운영 artifact | 실제 immutable image ID                                                   | 소비 서비스                |
+| ------------- | ------------------------------------------------------------------------- | -------------------------- |
+| 공통 플랫폼   | `sha256:849764f4faf406c164340f2a2fb9488225617794352b56834f2f3f7847c9a15a` | api, worker, beat, gateway |
+| 공식 API·UI   | `sha256:86472fa2ef5c6d0abe2c6b08de67d773f8717a743637cbc93338d39a5ffab5a5` | official-api               |
+| 공식 worker   | `sha256:beb51af7efdcc7f658bbf0b81203a327315ec86719b5662d7832cac428011661` | official-worker            |
+
+여섯 role의 실제 container/image 연결·healthy 상태·runtime revision `707895b9`와 Beat1개를 확인했다. 기존 public port와 내부18779/18780에서 generated gateway가 공통/공식 경로를 분리한다. 앞선 wheel reader·합성 upstream·NGINX 검사는 준비 근거이며, 이번 native 이미지와 실제 서비스 인수가 Core Debian packaging/기동 근거다. 공개 Core/official entry의 참조 JS가 실제 container bytes와 일치했다. Core SHA256은 `f4411f528ba729707bca045c009c13113641945df4caa348b9c619a205075918`, official은 `302f094c55b2fa1f585075ae7881ae0caf48f3b91325d4a58abd5dd725061662`다.
+
+운영 공개 인수는 **LIMITED**다. 실제 공통/공식 health·dispatch와 공식 HTTP401, 공통 WebSocket 빈 인증1008·공식 WebSocket 빈 인증4401을 확인했다. 현재 Core artifact의 build ID는 NULL이며 공식 compiled ID·필수 readonly metadata가 같은 NULL 계약으로 연결된다. 이는 기존 명시적 허용 경로이지만 stale-client guard는 비활성이다. HTTP409·WebSocket4409 검사는 수행하지 않았고 성공으로 표시하지 않는다. JS digest 일치는 전달 bytes의 동일성을 증명하며 활성 build guard의 증명은 아니다. 준비 중 nonempty `.miy-build-id`를 가정한 exploratory adapter 실패도 보존한다. 일반 운영 사용자 로그인, 정상 인증 후 공통 realtime과 공식 Docs Yjs 입장·긍정 resource ACL은 미검증이다. 개발의 정상 auth/실패 경계 관측을 운영의 긍정 인증 인수로 대체하지 않는다.
+
+Workbench는 별도 native backup과 정상 서비스 cutover를 완료했다. 원 산출물 source `37ef44ecfba37307576d0c43bd6eeca4ecbf9fd0`, digest `sha256:2ae5a15bd2adb347f46895d2df32f9b36369d2e691104e9eb6f1967fdaab6b0e`를 재사용하며 최신 플랫폼 source로 재표기하지 않는다. Native SQLite backup은17,444,864bytes·schema0008·integrity OK다. 두 current link와 세 actual role을 새 산출물로 연결하고 active, 직접 native `{ok:true}` HTTP200·공개 HTTP200을 확인했다. 플랫폼 배포와 Workbench 서비스 반영은 서로 다른 전달이다.
+
+Workbench 공개 UI의 최초 시도는 개발 로그인 selector에서 인증 성공 전에 실패했다. 실제 native 계정 catalog 버튼을 사용하는 후속 시도에서는 모든 기능 관측 flag가 TRUE였지만, 통계 POST가 허용 범위 밖으로 차단되어 **overall FAIL**이다. 차단된 요청의 forward는0이며 이 receipt를 PASS로 바꾸지 않는다. Task 쓰기·추가 허용 밖 쓰기·WebSocket forward도0으로 기록했다.
+
+Root의 제한된 native 진단은 실제 global Codex0.162.0의 `codex_version_mismatch`, experimental schema 생성 exit0·선택 Core RPC14종의 compatibility hash 차이·Core/remote 호환 false를 확인했다. 검증된 immutable0.160.1 cache의49 pin파일과 Core/remote 호환 true를 확인한 뒤 보호된 설정을 백업하고 session binary pin만 보완했다. Template0.159.2의 호환 true와 기존 PID는 유지했다. Management/session은 native 정상 stop·원 서비스 속성 복원 뒤 새 두 PID의 health를 확인했으며 이 보완에서 DB 변경·global CLI 교체·반복 재시작은 없다.
+
+첫 보완 후 observer의 `_build.json` 잘못된 경로로 발생한 최종 FAIL은 보존하고, 정확한 native 경로의 qualified PASS를 별도 기록한다. 기존 Task의 models GET은 HTTP200·nonempty·error code NULL로 확인했지만 해당 시도는 account 응답 전에 navigation/close되어 overall FAIL이다. 마지막 account-only native UI는 한 번 수행해 PASS: HTTP200·connected TRUE·auth_type `chatgpt`·error_code NULL이다. 이 마지막 시도는 models 요청과 Task 선택을 생략했으며 다른 쓰기·WebSocket forward는0, 통계 POST 차단도 확인했다. Private `WORKBENCH_NATIVE_ACCOUNT_AFTER_CLI_FIX_37ef44ec.receipt.json`이 마지막 범위를 소유한다. UI 기능 관측·정확한 native pin/health·각 account/model 관측을 합쳐 필수 구조의 한정된 인수 근거로 사용하며, 하나의 전체 UI 성공 receipt나 새 자연어 Task 실행으로 표시하지 않는다.
+
+기존 대표 UI·DB/API lifecycle·실제 Docker 교체/복구·원 Task native3turn과 SDK normal-controller8개 경계의 근거는 각각 실제 범위를 유지해 재사용한다. SDK8개 단독 결과는 전체 자연어 개발 E2E가 아니다. 최신 full CI와 이번 실제 전달을 합쳐 필수 구조의 critical runtime 문제 해결·서비스 반영을 확인했지만 전체 앱 기능 완료·운영 긍정 인증/Yjs ACL·NULL build guard 활성화를 주장하지 않는다. 앱별 세부 기능, Files C2/새 journal, 완전 DB role 분리, 다중 사용자와 추가 운영 고도화는 후속 범위다. 현재 잔여는 이 한계를 포함한 소유 문서 정합화와 정상 publication이며 새 전체 검사·native 모델 turn을 추가하지 않는다.
+
 ## 2026-10-10 웹 소유 경계 병합과 Workbench CI 권한 준비
 
 Source `13d6711a`의 required284/job452는 SUCCESS63.086425초/MERGE_READY다. [GitHub PR103](https://github.com/hurxxxx/miy/pull/103)·[내부 MR111](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/111)을 정상 병합하고 소유 원격·로컬 feature/snapshot을 정리했다. Dev `4c8b5190`·GitHub `f6363323`의 tree `8dd50b3e`가 같다.

@@ -1,5 +1,27 @@
 # 재설계 진행 기록
 
+## 현재 checkpoint — 2026-10-10 필수 최소 구조 전달 완료
+
+이번 최소 구조 범위는 최신 전체 gate와 실제 운영/Workbench 전달, 대표 UI·DB/API/Docker·native SDK 및 기존 정상3턴 근거를 함께 인수했다. 이 문서 동결 시점에는 진행 문서 여섯 개와 설치 안내 두 개의 정상 리뷰·게시를 준비하며, 이 묶음의 최종 전달 결과는 해당 PR/MR의 최종 상태가 원본이다. 아래 이전 기록의 구현/배포 대기는 그 시점의 상태이며 새 착수 지시가 아니다. 전체 자연어 앱 E2E·다중 사용자·격리 앱의 운영 전면 가동 완료를 주장하지 않는다.
+
+Source `f652`의 required286/job454 SUCCESS41.835358초/MERGE_READY 뒤 [내부 MR112](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/112)/[GitHub PR104](https://github.com/hurxxxx/miy/pull/104)를 정상 병합했다. Dev4a8ab880/GitHub67d4d6a1의 tree94a8212e가 같고 소유 브랜치를 정리했다. Full287/job455는 exact source4a8ab880/tree94a8212e·full/full/passed·SUCCESS4656.144209초이며 suite 선택 생략이 없다. API6572/16/37/15·web928·Workbench backend1160 및 나머지 frontend/native chain을 통과했다. Full285의78 FAIL/1082 PASS와 원 CI metadata 미관측·같은 immutable 이미지의 국소307/CI 계약70 PASS는 별도 실행 근거로 보존한다.
+
+[Release MR105](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/105)를 `2026-10-10T12:04:32.289Z`에 정상 병합해 main/prod707895b9로 전달했다. Clean FF와 native prod105 source/merge/pipeline 일치, fresh env/PG18 online backup1,122,961bytes·native TOC/cluster identity를 확인했다. Native3artifact prepare573.551초·deploy123.499초 PASS 뒤 exact Core849764f4…/Official API+web86472fa2…/Official workerbeb51af7…의6서비스 healthy·Beat1개·runtime707895b9를 확인했다. Publisher-off warm/native smoke와 표준 gate를 유지했고 이전389d 이미지를 보존했다.
+
+공개 HTTPS의 두 health/ready·Core/Official JS bytes 일치·JSON401·빈 WS1008/4401은 PASS다. 공개 helper는 LIMITED(finished=true/complete=false/exit2·failure stage 없음)로 끝났다. Actual build-ID NULL/guard inactive와409/4409·정상 운영 로그인·기존 Doc 양성 Yjs/Source ACL 미검증 한계는 남긴다. 이 앱별 양성 기능 고도화를 새로운 릴리스 선행조건으로 추가하지 않는다.
+
+별도 Workbench는 management→templates→session 정상 SIGTERM/Resultsuccess/CG0 뒤 old CLI의 SQLite online backup17,444,864bytes/integrityok/schema0008과 두 링크의 원자 교체를 완료했다. 원 source37/digest2ae의 `20261010-37ef44ec`를 재사용했고 새3역할 cwd/source/dirtyfalse·direct/publichealth200을 확인했다. 정상 service 속성을 복원하고 소유 no-force drop-in3개만 제거했으며 기존 상태/unknown8을 보존했다. 최초 strict zero-only observer와 health status필드 adapter의 실패 receipt는 actual graceful SIGTERM/ok:true 의미와 구분하여 보존했다.
+
+Corrected ADMIN_CATALOG의 앱선택·기존 Task·permissions·agents·handoff 관측은 모두 TRUE지만 전체 FAIL(network_execution_boundary)은 그대로 남겼다. 차단 POST는 platform_app_usage_event 통계이고 other/Task 쓰기·WS forward0이다. Account connected=false/models503의 codex_version_mismatch를 native 계약과 실제 binary로 좁혔다.0.162.0의 experimental schema 생성은 exit0/minimum version TRUE였지만 Core/Remote 호환 FALSE·Core14schema 차이였다. 검증된0.160.1 immutable cache49pin file의 SHA/owner/immutable 및 Core/Remote 호환 TRUE, 기존 template0.159.2 호환 TRUE를 확인했다.
+
+보호 설정의 session binary 한 항목만0600 원본 백업 후 변경했다. Admission close·관련2역할 정상 stop(no SIGKILL)·원 stop 속성 복원·동일source37/digest2ae의 새2PID/health PASS와 template 원PID 유지를 확인했다. 기록 helper의 잘못된 마지막 build.json 경로 FileNotFound 실패는 보존하고 별도 actual qualification PASS로 바로잡았으며 stop을 다시 실행하지 않았다. 이후 existing-task models200/nonempty/code NULL은 독립적으로 유효하다. 계정 응답 전에 닫힌 진단 helper의 전체 FAIL도 보존했고, 최종 account-only 확인은 HTTP200/connected=true/auth_type=chatgpt/error_code=NULL로 PASS했다. 이 마지막 확인에서 모델 요청·Task 선택은 생략했고 다른 쓰기·WS forward0이다. 새 모델 턴/전체 자연어 앱 E2E를 추가 실행하거나 완료로 표시하지 않는다.
+
+이번 최종 변경은 현재 문서 전달이다. 제품 입력이 변하지 않는 docs-only 게시에는 정상 required review·PR/MR을 적용하고 전체 suite·build·서비스 deploy를 반복하지 않는다. 앱별 상세 기능·고도화와 ENH-001~010은 별도 지시까지 보류한다.
+
+## 이전 시점 기록
+
+아래 날짜별 기록의 당시 `현재`·`HOLD`·다음 계획은 최신 checkpoint를 대신하지 않는다. 실패·취소·재사용 검사 범위는 변경하지 않는다.
+
 ## 2026-10-10 웹 소유 경계 병합과 Workbench CI 권한 준비
 
 Source `13d6711a`의 required284/job452는 SUCCESS63.086425초/MERGE_READY다. [GitHub PR103](https://github.com/hurxxxx/miy/pull/103)·[내부 MR111](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/111)을 정상 병합하고 소유 원격·로컬 feature/snapshot을 정리했다. Dev `4c8b5190`·GitHub `f6363323`의 tree `8dd50b3e`가 같다.
