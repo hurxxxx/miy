@@ -1,5 +1,11 @@
 # 재설계 진행 기록
 
+## 2026-10-10 CI Python 경로 차이 보완
+
+Legacy 복구 fixture `efdafe1c`의 필수274/job442 SUCCESS61.998562초 후 PR98/MR106을 정상 병합하고 소유 브랜치를 정리했다. Dev `d7882e65`·GitHub `08c8a3b8`의 tree25420447가 같다. 최신 full275/job443은49.182128초에 runtime-config69 PASS/2 FAIL/1 SKIP으로 실패했다. 임시 개발 checkout fixture가 `/bin:/usr/bin`만 사용하여 CI의 pinned Python을 찾지 못한 것이었다.
+
+같은 immutable CI image492를 network-none/read-only/nonroot/cap0/NNP로 사용해 두 사례를 재현했다. Fixture의 synthetic command 우선순위를 유지하고 현재 `sys.executable`의 parent만 PATH에 추가한다. 실제 dev.sh·native helper·namespace/drain assertion과 CI/의존성은 유지한다. 개발·운영·Workbench 실제 서비스는 아직 바꾸지 않았다.
+
 ## 2026-10-10 구조 후보 병합과 full CI의 기존 복구 fixture 보완
 
 `b4fdccb2`의 필수272/job440은 SUCCESS350.52543초/MERGE_READY다. PR97/MR104를 정상 병합했고 내부 dev `e3b4082f`·GitHub `a4610380`의 tree `1a1cdf10`가 reviewed source와 같다. 소유 feature만 양쪽 원격·로컬에서 정리하고 protected dev/main과 upstream 직접 push 차단을 유지했다. 실제 개발·운영·Workbench 서비스는 아직 바꾸지 않았다.

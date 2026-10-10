@@ -1,5 +1,15 @@
 # 검증 계획과 수행 근거
 
+## 2026-10-10 후속 리뷰 성공과 full275 Python fixture 실패
+
+후속 fixture source `efdafe1c7a57c742be430b90d7f277fbac61c474`의 required274/job442는 SUCCESS61.998562초/MERGE_READY다. PR98/MR106을 정상 병합했고 dev `d7882e65e73c2d898ed9cea89b037823343505db`·GitHub `08c8a3b890d05cc6b35b295f459d42f949e1fa57`의 tree `2542044790b93cf2b97f878dbfeff95788849ef8`가 같다. 소유 브랜치만 원격/로컬 정리했다.
+
+Release MR105/full275/job443은49.182128초에 FAILED다. Safe context의 storage/git diff는 PASS이며 harness 이후 runtime-config69 PASS/2 FAIL/1 SKIP이다. 두 실패는 stopped selected first-party restart/opposite namespace HOLD fixture에서 native `python3`를 찾지 못한 경우다. 공개 test method와 `python3: command not found` 분류만 확인했고 raw trace/환경 값은 출력·저장하지 않았다.
+
+같은492 image의 network-none/read-only/nonroot/cap0/NNP 실행에서 같은 두 실패를 재현했다. Fixture PATH의 synthetic command 우선순위를 유지하고 현재 pinned `sys.executable` parent만 추가한다. 제품 entry·helper·selector·drain/assertion은 바꾸지 않는다. 실제 서비스·DB·모델 변경은 없으며 이 후보의 새 리뷰·최신 full CI가 필요하다.
+
+수정 후 opposite HOLD는 같은 image에서 통과했다. Selected restart의 남은 실패는 검증 도구의 private tmpfs 기본 noexec가 synthetic pnpm/uv 실행을 막은 setup 차이였다. Missing Python 해소·native metadata HOLD 없음·ST_NOEXEC/permission 분류를 보존하고 CI와 같은 실행 가능한 private scratch로 바꿔 그 실패1개만 재검증했다. 두 고유 사례 모두 PASS이며 이미 성공한 opposite는 반복하지 않았다. Ruff/format/whitespace PASS, 변경은 fixture PATH1줄과 설명2줄뿐이다. Private `release443-topology-fixture-source-freeze.json` 및 `APP_CONTRACTS_CHECKS.md`가 명령·setup 실패와 현재 근거를 소유한다.
+
 ## 2026-10-10 필수272 성공·정상 병합과 full273 실패
 
 - Frozen source `b4fdccb223b90fde565c326c320804716a9d1a83`, tree `1a1cdf102268216080f1b4defa282345a2da1b62`: required272/job440 SUCCESS350.52543초, allow_failure=false, safe report MERGE_READY. PR97/MR104를 정상 병합한 내부 `e3b4082fb1b3365272e87176a4b832c05ed3158b`·GitHub `a4610380e8e957884556952fc59c8fd5241953e5`의 tree가 같다. 소유 feature의 원격/로컬 정리만 수행했고 protected dev/main을 보존했다.

@@ -35,7 +35,9 @@ def stopped_first_party_checkout(tmp_path):
         executable.chmod(0o755)
     log = tmp_path / "nx.log"
     environment = {
-        "PATH": f"{commands}:{os.defpath}",
+        # Keep the same pinned interpreter available to the real shell entry;
+        # os.defpath alone omits non-system CI Python installations.
+        "PATH": f"{commands}:{Path(sys.executable).parent}:{os.defpath}",
         "MIY_SKIP_DOTENV": "1",
         "MIY_ENV_PROFILE": "dev",
         "MIY_DEV_API_MIGRATION_PREFLIGHT": "0",
