@@ -1,10 +1,17 @@
 # 현재 진행 상태
 
-**2026-10-10 사용자 지시로 필수 구조 구현을 재개했다.** 공통 등록/개인 앱, 공식 묶음 API/worker, Workbench의 경로를 나누어 구현하고 Root가 통합한다. 고도화는 계속 보류한다. GitHub PR97·내부 MR104는 필수272/job440 성공 뒤 정상 병합했고 소유 브랜치를 정리했다. 개발 first-party의 native 전환은 수행했으며 공개 API/공통 인증 WS·전사 인증 거부 경계를 확인했다. 수정 source의 새 리뷰와 나머지 서비스 반영은 남아 있다. 운영·Workbench 새 배포는 아직 수행하지 않았다. 아래 중단 기록은 재개 전 보존 상태다.
+**2026-10-10 필수 구조 구현과 서비스 반영을 진행 중이다.** 개발 first-party 전환과 공개 공식 API·인증 WS 연결은 반영했다. 개발 proxy 수정은 required278/job446 성공 뒤 GitHub PR100·내부 MR108로 병합했고 소유 브랜치를 정리했다. 최신 full279/job447은 릴리스 UI 입력 묶음의 공통 helper 누락으로 실패하여 이를 보완 중이다. 운영·Workbench 새 배포는 아직 수행하지 않았다. 고도화·앱별 상세 기능 검증은 계속 보류한다.
 
 기록 기준: 2026-10-10 UTC. 작업별 상태는 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다.
 
-## 현재 구현 후보
+## 최신 전달 상태와 필수 잔여
+
+- 현재 통합 기준은 dev `eb2f4712`, GitHub main `de572ac9`, 동일 tree `44efe8d2`다. Proxy 수정 source `3975cf8d`의 required278/job446은 SUCCESS50.787914초/MERGE_READY다. Full277/job445는 알려진 개발 proxy 오류 때문에 canceled이며 성공 근거로 쓰지 않는다.
+- Full279/job447은 FAILED36.721582초다. 실제 `ActualOfficialSliceTests.setUpClass`가 Git archive의 UI 입력을 해석하는 과정에서 새 `scripts/development-listener.mjs`와 선언이 누락됐다. Fixture에만 파일을 덧붙이면 실제 릴리스 결함이 가려지므로 소유 UI 입력의 전이 의존성을 연결하고 실제 Git 소스 기반 회귀를 확인한다. Missing-input 거부·공유 입력의 full-release 판정과 전체 CI는 유지한다.
+- 개발 서비스는 06:02UTC에 소유 임시 restart 보류 drop-in만 제거해 `Restart=always`를 복원했다. 서비스 재시작 없이 Main PID가 유지됐으며 정상 Main-only 종료·SIGKILL 금지·warm grace 정책은 보존했다.
+- 수정의 정상 리뷰·병합 뒤 최신 full CI를 통과시키고 Workbench의 세 역할/두 release 링크·fresh SQLite backup·공개 UI 인수, 운영의 정상 release merge·fresh DB backup·세 이미지/여섯 서비스 전환·공개 인수를 완료한다. Workbench 재사용 artifact는 실제 source37ef44ec/digest2ae5a15b 그대로다. 현재 Workbench0c1bf0fe와 운영9cbf9c5c/image389d는 유지한다.
+
+## 구현 후보와 이전 전달 기록
 
 공식 API/worker, 개인 앱 승격 계약, Workbench의 격리 SDK 실행 후보를 통합·리뷰·병합했다. 영향 검사·실제 격리 실행·공통 gateway/배포 도구와 대표 브라우저 검사를 마쳤다. 최신 full CI·후속 fixture 리뷰·새 플랫폼/Workbench 배포와 실제 로그인 인수는 남아 있다. 현재 로컬 결과는 [통합 검사 기록](VALIDATION.md#2026-10-10-필수-구조-통합-검사)이 소유한다.
 

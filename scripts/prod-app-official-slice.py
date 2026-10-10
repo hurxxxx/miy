@@ -126,6 +126,7 @@ UI_ROOTS = (
     "apps/web/",
     "apps/official-suite/",
     "packages/",
+    "scripts/",
     "tsconfig.base.json",
     "package.json",
 )
@@ -133,7 +134,7 @@ UI_TEXT = re.compile(r"\.(?:[cm]?[jt]sx?|css|html|json|md|mdx)$")
 
 
 def ui_sources(root: Path, revision: str) -> dict[str, str | None]:
-    """Archive tracked frontend blobs; assets need only their exact tracked name."""
+    """Archive tracked frontend/build helpers; assets need only their exact name."""
     archive = git(root, "archive", "--format=tar", revision, "--", *UI_ROOTS)
     result = {}
     with tarfile.open(fileobj=io.BytesIO(archive)) as tree:

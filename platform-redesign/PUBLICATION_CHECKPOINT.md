@@ -1,5 +1,13 @@
 # GitHub 게시 체크포인트
 
+## 2026-10-10 PR100/MR108 병합과 후속 입력 보완
+
+Proxy source3975cf8d의 required278/job446 SUCCESS50.787914초/MERGE_READY 뒤 [GitHub PR100](https://github.com/hurxxxx/miy/pull/100)·내부 MR108을 정상 병합했다. Dev eb2f4712와 GitHub de572ac9의 tree44efe8d2가 같다. 소유 feature/snapshot 브랜치를 원격·로컬에서 정리하고 protected dev/main·upstream direct-push 차단을 유지했다.
+
+릴리스 MR105의 full279/job447은 FAILED36.721582초다. 실제 Git UI 입력 archive에서 새 공통 listener runtime/type helper가 빠진 제품 입력 결함을 보완 중이다. 이전 full277/job445 canceled는 성공으로 해석하지 않는다. 새 수정의 필수 리뷰·정상 게시/병합·최신 full CI 이후에만 운영 release merge와 배포를 진행한다.
+
+개발 first-party는 실제 반영됐으며 Root가06:02UTC에 임시 restart 보류만 해제했다. Workbench0c1bf0fe·운영9cbf9c5c/image389d는 유지하며 fresh backup·별도 서비스 교체·공개 인수가 남아 있다. 기존 Workbench artifact source37ef44ec/digest2ae5a15b를 현재 Git revision으로 재표시하지 않는다.
+
 ## 2026-10-10 PR99/MR107 병합·개발 first-party 전환
 
 Python fixture source `61f842c8`의 required276/job444는 SUCCESS33.343359초/MERGE_READY이며 PR99/MR107을 정상 병합했다. Dev `cbde1423`·GitHub `764a5e8c`의 tree555596a5가 같다. 소유 원격/로컬 브랜치를 정리하고 protected dev/main을 보존했다.
