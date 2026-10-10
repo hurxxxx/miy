@@ -1,5 +1,19 @@
 # 재설계 진행 기록
 
+## 2026-10-10 정상 fixture 병합과 실제 개발 전환
+
+Python fixture source `61f842c8`의 required276/job444는 SUCCESS33.343359초/MERGE_READY이며 PR99/MR107을 정상 병합했다. Dev `cbde1423`·GitHub `764a5e8c`의 tree555596a5가 같다. 소유 원격/로컬 브랜치를 정리하고 protected dev/main을 보존했다.
+
+개발 서버는 Root가 기존 native worker와 prefork의 warm 완료를 확인한 뒤 API·UI·Beat를 종료했다. 옛 Vite의 상대 경로 실행은 현재 ownership matcher와 달라 Root가 원래 unit·UID·cwd·entry·start ticks를 재확인하고 해당 PID에만 정상 TERM을 보냈다. 강제 종료·큐 purge/revoke/copy/reissue는 없다. 단일 legacy witness를 통한 **publisher-off native exact drain PASS** 후 first-party selection, platform/official worker 각1개·Beat1개를 실제 확인했고 witness는 success/inactive 및 cgroup empty다. 원 unit 백업과 Main-only/no-SIGKILL/unbounded-grace policy를 보존한다.
+
+실제 개발 연결에서 공식 API가 기존 `MIY_DEV_API_HOST`의172.17.0.1로 bind되지만 Vite 공식 API target은127.0.0.1로 고정된 계약 불일치를 발견했다. 이는 앱별 기능과 무관한 필수 구조 경계다. 기존 host 계약을 그대로 쓰도록 보완하고 실제 공통/공식 HTTP·WS 인수를 이어간다. 알려진 불일치가 있는 source의 full277/job445에는 취소를 요청했다. 이 취소를 성공으로 해석하지 않으며 수정 source의 새 필수 리뷰·최신 full release CI는 운영 배포 전에 유지한다.
+
+Workbench의37ef44ec 실제 산출물은 b4fdccb2→cbde1423의 두 fixture/4개 계획 문서가329소비 입력과 비중첩임을 확인해 재사용한다. 전체 hash/build/model/검사 재실행은 없다. Workbench 서비스는0c1bf0fe·운영 main/prod는9cbf9c5c/image389d로 유지되며 별도 서비스 교체·SQLite/운영 DB fresh backup·공개 인수가 남아 있다. 이전 실패와 전달 이력은 아래에 보존한다.
+
+필수 개발 proxy 보완은 기존 strict `developmentListenerUrl`을 순수 공통 모듈과 타입 선언으로 추출하고 `MIY_DEV_API_HOST`+고정18781을 사용하는 최소 변경이다. 기존 UAT public export·공통 proxy 설정·generated patterns·WS/query/timeouts·공식 slice selector는 유지한다. 실제 두 Vite factory의 server/preview host8·invalid5 검사와 기존 listener 검사, runtime helper/type declaration 변경의 full-release 판정은 통과했다. 최초 fixture의 부수 loader metadata assertion 실패는 실제 dependency guard 검사가 대체했으며 해당 실패 사례만 재검증했다.
+
+수정 소스를 고정한 뒤 실제 `https://dev.1punicorn.com`에서 전사 Docs hub는500→JSON401, 정상 native 개발 관리자 로그인은200, 공통 WebSocket 정상 auth/빈 auth1008, 전사 Docs WebSocket 빈 auth4401을 확인했다. 양쪽 health/ready와공식 pairing metadata도 정상이다. 새 문서·Task·모델 turn·편집은 없고 auth secrets/응답/데이터를 저장·출력하지 않았다. 개발은live Vite 모듈·null buildID·runtime_revision unmanaged이므로 운영 immutable build guard 통과로 표시하지 않는다. 기존 disposable 공식 문서를 사용한 Yjs 양성 room/Source ACL 인수는 미검증이며 앱별 상세 기능으로 확장하지 않는다.
+
 ## 2026-10-10 CI Python 경로 차이 보완
 
 Legacy 복구 fixture `efdafe1c`의 필수274/job442 SUCCESS61.998562초 후 PR98/MR106을 정상 병합하고 소유 브랜치를 정리했다. Dev `d7882e65`·GitHub `08c8a3b8`의 tree25420447가 같다. 최신 full275/job443은49.182128초에 runtime-config69 PASS/2 FAIL/1 SKIP으로 실패했다. 임시 개발 checkout fixture가 `/bin:/usr/bin`만 사용하여 CI의 pinned Python을 찾지 못한 것이었다.

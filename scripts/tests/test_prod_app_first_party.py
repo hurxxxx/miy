@@ -325,6 +325,25 @@ class ActualOfficialSliceTests(unittest.TestCase):
                 self.ui_shared,
             )
 
+    def test_actual_development_listener_is_a_shared_vite_input(self):
+        helper = "scripts/development-listener.mjs"
+        declaration = "scripts/development-listener.d.mts"
+        routing = "packages/official-suite-web/vite/ui-routing.mts"
+        candidate = self.ui_sources | {
+            name: (ROOT / name).read_text() for name in (helper, declaration, routing)
+        }
+        shared = slice_contract.shared_ui_consumers(candidate)
+        self.assertIn(helper, shared)
+        self.assertIn(routing, shared)
+        for name in (helper, routing):
+            with (
+                self.subTest(name=name),
+                self.assertRaisesRegex(ValueError, "shared_consumer"),
+            ):
+                slice_contract.assert_owned([name], *self.owners, shared)
+        with self.assertRaisesRegex(ValueError, "shared_source"):
+            slice_contract.assert_owned([declaration], *self.owners, shared)
+
     def test_slice_uses_both_reviewed_ui_trees(self):
         shared = "packages/official-suite-web/src/manifests/pms.ts"
         native_git = slice_contract.git
