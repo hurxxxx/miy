@@ -1,5 +1,15 @@
 # 검증 계획과 수행 근거
 
+## 2026-10-10 필수272 성공·정상 병합과 full273 실패
+
+- Frozen source `b4fdccb223b90fde565c326c320804716a9d1a83`, tree `1a1cdf102268216080f1b4defa282345a2da1b62`: required272/job440 SUCCESS350.52543초, allow_failure=false, safe report MERGE_READY. PR97/MR104를 정상 병합한 내부 `e3b4082fb1b3365272e87176a4b832c05ed3158b`·GitHub `a4610380e8e957884556952fc59c8fd5241953e5`의 tree가 같다. 소유 feature의 원격/로컬 정리만 수행했고 protected dev/main을 보존했다.
+- Release MR105/full273/job441은 source `e3b4082f`, target `9cbf9c5c`, tree `1a1cdf10`에서 FAILED32.070656초다. Safe release context는 full 선택·storage 및 git diff PASS·ci:all FAIL을 기록한다. 기존 `prod-app-config.test.mjs`의 legacy up/복구 adapter가 새 topology의 정확 project/service-label 및 worker Cmd 조회를 제공하지 않아 실패했다. 실제 새 runtime/DB/서비스 전환은 없다. 원본 job trace를 출력하거나 저장하지 않고 공개 tracked failure 위치만 분류했다.
+- 잘못 의심한 skill-harness entry는 직접25/25 PASS0.047초, 기존 checker도 PASS0.346초로 원인에서 제외했다. 무관한 skill/지침/validator 변경은 하지 않는다. Docker adapter의 최소 수정과 실패 경계만 먼저 검증한 뒤 후속 source의 새 리뷰·정상 병합·최신 full CI를 받는다. 앞선 full 실패를 통과로 바꾸거나 필수 검사를 생략하지 않는다.
+
+`up runs...` 실패1개를 수정 전에 exit1/expected0으로 재현했다. Fixture는 실제 `require_runtime_topology`를 계속 실행하며 정확한3개 split service-label 조회의 빈 응답과 기존 owned worker의 Cmd 조회만 추가했다. 그 외 Docker 인수는 계속 거부하고 제품 shell·stop/migration/capture/health/rollback assertion은 바꾸지 않았다. `^(up |P1 |P2 review378)`의 관련44개 PASS455ms·Node syntax/format/whitespace PASS이며 전체 prod-app/harness/CI를 로컬에서 반복하지 않았다. Source freeze1개와 명령 근거는 private `release441-config-fixture-source-freeze.json` 및 `APP_CONTRACTS_CHECKS.md`에 보존한다.
+
+Private `required-review-272-440.receipt.json`, `feature-merge-104-97.receipt.json`, `release-mr-created.json`, `release-273-release-validation-context.md`와 failure receipt가 실제 전달/실패를 소유한다. CI image492d의 현재 계약fe23를 readonly 재계산해 동일함을 확인했다. Workbench37 실제414/72/329 입력 증거는 clean b4fd의 source-freeze와 연결하여 재사용하며 추가 build/graph/model 실행은 없다. Source 병합은 실제 서비스 배포와 구분한다.
+
 ## 2026-10-10 필수439 실패와 설정 없는 ingress 보완
 
 Pipeline271/job439는 source `772e5ffb91daf1b7a2a1f22899f1dae7696c5547`/tree358414d1에서 FAILED449.505612초, MERGE_BLOCKED다. Gateway와 no-env 이미지 reader가 전체 API registry를 import하여 필수 PostgreSQL 설정을 요구하는 P1이다. Fresh isolated workspace·완전히 비운 환경에서 실제 실패를 재현했고 오류 분류만 기록했다. 앞선 configured-process NGINX 검사를 no-env wheel 기동의 성공으로 사용하지 않는다.

@@ -1,5 +1,11 @@
 # 재설계 진행 기록
 
+## 2026-10-10 구조 후보 병합과 full CI의 기존 복구 fixture 보완
+
+`b4fdccb2`의 필수272/job440은 SUCCESS350.52543초/MERGE_READY다. PR97/MR104를 정상 병합했고 내부 dev `e3b4082f`·GitHub `a4610380`의 tree `1a1cdf10`가 reviewed source와 같다. 소유 feature만 양쪽 원격·로컬에서 정리하고 protected dev/main과 upstream 직접 push 차단을 유지했다. 실제 개발·운영·Workbench 서비스는 아직 바꾸지 않았다.
+
+Dev→main MR105의 full273/job441은32.070656초에 실패했다. Storage·git diff 검사는 통과했으며 기존 legacy up/복구 테스트의 Docker adapter가 새로운 native topology 조회를 지원하지 않아 forward gate 전에 HOLD했다. App 기능 suite의 실패가 아니다. 이전 stop/migration/capture/health/rollback assertion과 제품 topology gate는 유지하고 해당 fixture의 엄격한 공개 metadata 응답만 보완한다. 기존 skill-harness25개와 checker는 직접 통과했으므로 무관한 지침/validator를 수정하지 않는다. 새 fixture 후보의 리뷰와 최신 full CI가 필요하다.
+
 ## 2026-10-10 설정 없는 gateway 기동 보완
 
 후보 `772e5ffb`의 필수271/job439는449.505612초에 MERGE_BLOCKED로 실패했다. 네 공개 설정만 받는 gateway와 이미지 호환 CLI가 업무 router를 import하면서 PostgreSQL 설정까지 요구하는 P1을 확인했다. Fresh no-env 과정에서 실제 실패를 재현했고 앱 설정 fallback을 추가하지 않았다.

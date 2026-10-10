@@ -1,14 +1,14 @@
 # 현재 진행 상태
 
-**2026-10-10 사용자 지시로 필수 구조 구현을 재개했다.** 공통 등록/개인 앱, 공식 묶음 API/worker, Workbench의 경로를 나누어 구현하고 Root가 통합한다. 고도화는 계속 보류한다. 후보는 GitHub PR97·내부 MR104로 게시했으며 새 분리 구조의 실제 배포는 아직 수행하지 않았다. 아래 중단 기록은 재개 전 보존 상태다.
+**2026-10-10 사용자 지시로 필수 구조 구현을 재개했다.** 공통 등록/개인 앱, 공식 묶음 API/worker, Workbench의 경로를 나누어 구현하고 Root가 통합한다. 고도화는 계속 보류한다. GitHub PR97·내부 MR104는 필수272/job440 성공 뒤 정상 병합했고 소유 브랜치를 정리했다. 새 분리 구조의 실제 배포는 아직 수행하지 않았다. 아래 중단 기록은 재개 전 보존 상태다.
 
 기록 기준: 2026-10-10 UTC. 작업별 상태는 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다.
 
 ## 현재 구현 후보
 
-공식 API/worker, 개인 앱 승격 계약, Workbench의 격리 SDK 실행 후보를 로컬에 통합했다. 영향 검사·실제 격리 실행·공통 gateway/배포 도구와 대표 브라우저 검사를 마쳤다. 필수 리뷰·CI·새 플랫폼/Workbench 배포와 실제 로그인 인수는 남아 있다. 현재 로컬 결과는 [통합 검사 기록](VALIDATION.md#2026-10-10-필수-구조-통합-검사)이 소유한다.
+공식 API/worker, 개인 앱 승격 계약, Workbench의 격리 SDK 실행 후보를 통합·리뷰·병합했다. 영향 검사·실제 격리 실행·공통 gateway/배포 도구와 대표 브라우저 검사를 마쳤다. 최신 full CI·후속 fixture 리뷰·새 플랫폼/Workbench 배포와 실제 로그인 인수는 남아 있다. 현재 로컬 결과는 [통합 검사 기록](VALIDATION.md#2026-10-10-필수-구조-통합-검사)이 소유한다.
 
-후속 `37ef44ec`의 필수269/job437은 성공했다. Native 종료 후보 `1115b6e7`의 필수270/job438에서 발견한 업로드 보호·widget theme 회귀를 `772e5ffb`로 보완했다. 최신 필수271/job439는449.505612초에 gateway의 앱 설정 의존성을 발견해 실패했다. 실제 router에서 기존 OpenAPI owner가 생성한 경로 메타데이터를 runtime이 설정 없이 읽도록 수정하고 기본 기동의 exclusive 파일 쓰기도 보완했다. 직접 route8·격리 wheel/native NGINX 포함 gateway17·이미지 호환2개를 통과했으며 새 필수 리뷰 전에는 병합·서비스 변경을 하지 않는다. 전체 릴리스 CI를 유지하고 변경 없는 기존 검사·산출물은 재사용한다.
+Source `b4fdccb2`의 필수272/job440은 SUCCESS350.52543초/MERGE_READY다. 내부 merge/dev는 `e3b4082f`, GitHub merge는 `a4610380`이며 reviewed tree `1a1cdf10`와 같다. Release MR105의 full273/job441은32.070656초에 기존 legacy up/복구 fixture가 새 topology 검사의 공개 Docker metadata 조회를 지원하지 않아 실패했다. 제품 보호를 유지하며 해당 adapter만 보완하고 새 리뷰·최신 full CI를 수행한다. 이전271/439의 gateway 설정 의존 실패와270/438의 업로드·테마 회귀는 보존한다. 변경 없는 기존 검사·CI 이미지·Workbench 산출물은 재사용하며 서비스 전환은 아직 없다.
 
 Workbench 실제 clean37ef 산출물과 기존 owner의 정상 로그인 readonly preflight는 준비됐으며 새 서비스·실제 공개 UI 인수는 아직 수행하지 않았다. 개발 first-party와 운영 local gateway도 아직 미반영이다. 외부 TLS 설정 변경 없이 Core gateway가 기존 공개 포트를 인계하도록 구현했다.
 
