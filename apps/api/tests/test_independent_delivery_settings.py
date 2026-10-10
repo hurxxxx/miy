@@ -42,6 +42,8 @@ def settings(targets, environment="production"):
     return Settings(
         _env_file=None,
         environment=environment,
+        seed_dev_login_account=False,
+        object_storage_required=True,
         content_grant_signing_key="synthetic-operator-binding-test-key-20261010",
         hermes_terminal_resource_namespace="synthetic-production",
         independent_app_platform_origins=["https://platform.test"],
