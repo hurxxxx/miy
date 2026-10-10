@@ -1,7 +1,7 @@
 import { OFFICIAL_HELP_GUIDES } from '@miy/official-suite-web';
 import { NOTIFICATION_REALTIME_EVENT_TYPE_VALUES } from '@miy/contracts/notifications';
 import { FeedbackProvider } from '@miy/ui';
-import { lazy, type ReactNode } from 'react';
+import { lazy } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BrowserRouter as Router } from 'react-router-dom';
 
@@ -9,10 +9,6 @@ import { pmsManifest } from '@miy/official-suite-web/manifests/pms';
 import { resolveShellState } from '../app-shell';
 import { NotificationPanel } from '../components/layout/NotificationPanel';
 import { getUnreadNotificationCount } from '../platform/notifications/notifications-api';
-import {
-  RealtimeProvider,
-  useRealtime,
-} from '../platform/realtime/realtime-provider';
 import {
   AI_TOOL_APP_IDS,
   APP_BACKGROUND_WORK_SOURCES,
@@ -34,7 +30,7 @@ import {
   staticAdminSectionRoutes,
 } from './shell/app-route-definitions';
 import { AppContent } from './shell/AppContent';
-import { ShellRealtimeProvider } from './shell/shell-realtime-context';
+import { DefaultShellRealtimeProvider } from './shell/shell-realtime-provider';
 import { createDefaultHelpRoutes } from './shell/static-route-elements';
 
 type RegisteredAppId = Parameters<typeof getAppModuleManifest>[0];
@@ -45,9 +41,11 @@ const helpRoutes = createDefaultHelpRoutes(
 );
 
 const DefaultShellPersonalWidgetHost = lazy(() =>
-  import('./shell/personal-widget-registry').then((module) => ({
-    default: module.ShellPersonalWidgetHost,
-  })),
+  import('../platform/embedded-official/OfficialWidgetFrame').then(
+    (module) => ({
+      default: module.OfficialWidgetFrame,
+    }),
+  ),
 );
 
 const getDefaultAppModuleManifest = (appId: string) =>
@@ -56,27 +54,6 @@ const getDefaultAppModuleManifest = (appId: string) =>
 const NOTIFICATION_REALTIME_EVENT_TYPE_SET = new Set<string>(
   NOTIFICATION_REALTIME_EVENT_TYPE_VALUES,
 );
-
-function ShellRealtimeBridge({ children }: { children: ReactNode }) {
-  const realtime = useRealtime();
-  return (
-    <ShellRealtimeProvider value={realtime}>{children}</ShellRealtimeProvider>
-  );
-}
-
-function DefaultShellRealtimeProvider({
-  children,
-  token,
-}: {
-  children: ReactNode;
-  token: string | null;
-}) {
-  return (
-    <RealtimeProvider token={token}>
-      <ShellRealtimeBridge>{children}</ShellRealtimeBridge>
-    </RealtimeProvider>
-  );
-}
 
 export default function AppRoot() {
   const { t } = useTranslation('common');

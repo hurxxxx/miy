@@ -1,0 +1,67 @@
+# Core-owned persistent single-checkout development configuration; never auto-installed.
+# Render a unique trusted stem and verify both pins before explicit installation.
+[Unit]
+Description=MIY persistent native SDK app development executor
+
+[Service]
+Type=exec
+User=@EXECUTOR_UID@
+Group=@EXECUTOR_GID@
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+PrivateNetwork=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+BindReadOnlyPaths=@VENDOR_ROOT@ @SDK_ROOT@
+BindPaths=@SOURCE_ROOT@
+CPUQuota=100%
+MemoryMax=1073741824
+MemorySwapMax=0
+TasksMax=64
+# Native Task/turn lifetime is independent of the operator-owned backend.
+RuntimeMaxSec=infinity
+TimeoutStopSec=3
+KillMode=control-group
+Restart=no
+LimitCORE=0
+StandardOutput=null
+StandardError=null
+ExecStart=@VENDOR_ROOT@/codex-resources/bwrap \
+    --unshare-user --uid @EXECUTOR_UID@ --gid @EXECUTOR_GID@ \
+    --unshare-pid --unshare-ipc --unshare-uts --cap-drop ALL \
+    --new-session --die-with-parent --clearenv \
+    --proc /proc --dev /dev --size 67108864 --tmpfs /tmp \
+    --dir /tmp/home --dir /tmp/codex-home --dir /tmp/temp \
+    --dir /bin --dir /usr --dir /usr/bin --dir /usr/lib \
+    --dir /usr/lib/x86_64-linux-gnu --dir /lib64 \
+    --ro-bind @VENDOR_ROOT@ @VENDOR_ROOT@ \
+    --ro-bind @SDK_ROOT@ @SDK_ROOT@ \
+    --ro-bind @SDK_ROOT@/runtime/bin/dash /bin/sh \
+    --ro-bind @SDK_ROOT@/runtime/bin/env /usr/bin/env \
+    --ro-bind @SDK_ROOT@/runtime/lib /usr/lib/x86_64-linux-gnu \
+    --ro-bind @SDK_ROOT@/runtime/lib/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2 \
+    --bind @SOURCE_ROOT@ @SOURCE_ROOT@ \
+    --ro-bind @SOURCE_ROOT@/.git @SOURCE_ROOT@/.git \
+    --ro-bind @SDK_ROOT@/node_modules @SOURCE_ROOT@/node_modules \
+    --size 16777216 --tmpfs @SOURCE_ROOT@/node_modules/.vite-temp \
+    --ro-bind @SDK_ROOT@/sdk @SOURCE_ROOT@/vendor/miy-app-sdk \
+    --setenv PATH @SDK_ROOT@/bin:@SDK_ROOT@/node/bin:@SDK_ROOT@/python/bin:/bin \
+    --setenv LD_LIBRARY_PATH /usr/lib/x86_64-linux-gnu:@SDK_ROOT@/python/lib \
+    --setenv PYTHONPATH @SDK_ROOT@/python-packages \
+    --setenv PYTHONDONTWRITEBYTECODE 1 --setenv PYTHONNOUSERSITE 1 \
+    --setenv PIP_CONFIG_FILE /dev/null --setenv PIP_NO_INDEX 1 \
+    --setenv NPM_CONFIG_USERCONFIG @SDK_ROOT@/profile/.npmrc \
+    --setenv NPM_CONFIG_GLOBALCONFIG /dev/null \
+    --setenv npm_config_offline true --setenv npm_config_ignore_scripts true \
+    --setenv npm_config_manage_package_manager_versions false --setenv CI true \
+    --setenv HOME /tmp/home --setenv CODEX_HOME /tmp/codex-home \
+    --setenv TMPDIR /tmp/temp --setenv SHELL /bin/sh \
+    --chdir @SOURCE_ROOT@ --remount-ro / \
+    -- @VENDOR_ROOT@/bin/codex exec-server \
+    --listen ws://127.0.0.1:@PRIVATE_PORT@ \
+    --ws-auth capability-token --ws-token-sha256 @TOKEN_SHA256@
+
+[Install]
+WantedBy=multi-user.target

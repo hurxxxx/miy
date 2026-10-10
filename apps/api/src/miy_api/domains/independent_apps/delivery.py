@@ -31,7 +31,7 @@ from miy_api.domains.independent_apps.models import (
     AppInstallationRecord,
     AppReleaseRecord,
 )
-from miy_api.domains.independent_apps.verification import trusted_release
+from miy_api.domains.independent_apps.verification import promotable_release, trusted_release
 
 
 @dataclass(frozen=True)
@@ -44,6 +44,8 @@ class RuntimeSpec:
     health_path: str
     environment: str = "development"
     runtime_profile: str = "web-api-v1"
+    loopback_port: int | None = None
+    operator_binding_digest: str | None = None
 
 
 @dataclass(frozen=True)
@@ -105,10 +107,14 @@ def _exclusive_runtime_operation(
 def verified_release(
     db: Session, installation: AppInstallationRecord, release_id: str
 ) -> AppReleaseRecord:
-    release = trusted_release(db, installation, release_id)
+    release = (
+        promotable_release(db, installation, release_id)
+        if installation.environment == "production"
+        else trusted_release(db, installation, release_id)
+    )
     if release is None:
         service.fail("verification_required", 409)
-    if installation.environment != "development" or not release.artifact.startswith("sha256:"):
+    if not release.artifact.startswith("sha256:"):
         service.fail("local_delivery_only", 409)
     return release
 
@@ -120,6 +126,7 @@ def request_deployment(
     context: AuthContext,
     *,
     delegation_id: str | None = None,
+    production_promotion: bool = False,
 ) -> DeploymentOut:
     definition = service.owned_definition(db, app_id, context)
     payload = data.model_dump(mode="json") | {
@@ -127,6 +134,14 @@ def request_deployment(
         "actor_user_id": context.user.id,
         "delegation_id": delegation_id,
     }
+    if production_promotion:
+        if (
+            "platform_admin" not in context.system_roles
+            or delegation_id is not None
+            or definition.manifest.get("ownership") != "personal"
+        ):
+            service.fail("forbidden")
+        payload["environment"] = "production"
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
@@ -138,7 +153,13 @@ def request_deployment(
     installation = db.get(AppInstallationRecord, str(data.installation_id))
     if installation is None or installation.app_id != app_id:
         service.fail("not_found", 404)
-    if not service.admitted(db, installation, context.user, verify_current_release=False):
+    if production_promotion:
+        from miy_api.domains.independent_apps.production import require_authority
+
+        require_authority(db, installation, context)
+    elif installation.environment != "development":
+        service.fail("local_delivery_only", 409)
+    elif not service.admitted(db, installation, context.user, verify_current_release=False):
         service.fail("forbidden")
     release = verified_release(db, installation, str(data.release_id))
     expected_release = str(data.expected_release_id) if data.expected_release_id else None
@@ -178,8 +199,16 @@ def request_deployment(
         previous_release_id=installation.release_id,
         previous_runtime_ref=installation.runtime_ref,
     )
+    from miy_api.domains.independent_apps.production import runtime_target
+
+    if production_promotion or runtime_target(installation) is not None:
+        # Freeze a configured external ingress binding when approval is recorded,
+        # before an operator can consume this intent using changed settings.
+        record.runtime_config = asdict(_runtime_spec(record, installation, release))
     db.add(record)
-    service._audit(db, context, "deployment.request", app_id)
+    service._audit(
+        db, context, "promotion.request" if production_promotion else "deployment.request", app_id
+    )
     service._commit(db)
     return deployment_out(record)
 
@@ -264,8 +293,25 @@ def _current_authority(
             installation.app_id,
             installation.id,
         )
-    if not service.admitted(db, installation, user, verify_current_release=False):
+    if installation.environment == "production":
+        from miy_api.domains.independent_apps.production import require_authority
+
+        if record.delegation_id is not None or definition.manifest.get("ownership") != "personal":
+            service.fail("forbidden")
+        require_authority(db, installation, context)
+    elif not service.admitted(db, installation, user, verify_current_release=False):
         service.fail("forbidden")
+    if (
+        record.runtime_config is not None
+        and record.runtime_config.get("operator_binding_digest") is not None
+    ):
+        from miy_api.domains.independent_apps.production import binding_digest, runtime_target
+
+        target = runtime_target(installation)
+        if target is None or record.runtime_config["operator_binding_digest"] != binding_digest(
+            target
+        ):
+            service.fail("conflict", 409)
     if (installation.generation, installation.release_id) != (
         record.expected_generation,
         record.expected_release_id,
@@ -298,6 +344,10 @@ def _commit_observation(
     installation.runtime_ref = record.id
     installation.generation += 1
     installation.state = "ready"
+    if installation.environment == "production":
+        # The admin intent is explicit activation; disabled first installations
+        # remain inaccessible until their exact public runtime is observed.
+        installation.enabled = True
     record.observed_image_id = observation.image_id
     return _finish(db, record, "cleanup")
 
@@ -324,6 +374,34 @@ def _complete_cleanup(
     return _finish(db, record, "succeeded")
 
 
+def _runtime_spec(
+    record: AppDeploymentRequest, installation: AppInstallationRecord, release: AppReleaseRecord
+) -> RuntimeSpec:
+    from miy_api.domains.independent_apps.production import (
+        binding_digest,
+        delivery_target,
+        runtime_target,
+    )
+
+    target = (
+        delivery_target(installation)
+        if installation.environment == "production"
+        else runtime_target(installation)
+    )
+    return RuntimeSpec(
+        record.id,
+        installation.id,
+        installation.app_id,
+        release.artifact,
+        installation.origin,
+        release.definition_snapshot["entrypoints"]["health"],
+        installation.environment,
+        release.definition_snapshot["runtime_profile"],
+        target.loopback_port if target is not None else None,
+        binding_digest(target) if target is not None else None,
+    )
+
+
 @_exclusive_runtime_operation
 def execute_deployment(db: Session, request_id: str, runtime: AppRuntime) -> DeploymentOut:
     record = db.scalar(
@@ -340,16 +418,7 @@ def execute_deployment(db: Session, request_id: str, runtime: AppRuntime) -> Dep
         return _finish(db, record, "failed", "authority_changed")
     if not _reserve_preview(db, installation.id):
         return _finish(db, record, "queued", "preview_capacity")
-    spec = RuntimeSpec(
-        record.id,
-        installation.id,
-        installation.app_id,
-        release.artifact,
-        installation.origin,
-        release.definition_snapshot["entrypoints"]["health"],
-        installation.environment,
-        release.definition_snapshot["runtime_profile"],
-    )
+    spec = _runtime_spec(record, installation, release)
     record.runtime_config = asdict(spec)
     record.state = "running"
     record.active_slot = 1

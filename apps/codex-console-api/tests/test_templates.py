@@ -8,10 +8,55 @@ import pytest
 from conftest import new_task, send_message
 from sqlalchemy import select
 
-from codex_console import store
+from codex_console import store, templates
 from codex_console.config import AppExecutionEnvironment
 from codex_console.errors import ConsoleError
-from codex_console.models import Operation, PendingRequest, Task
+from codex_console.models import Operation, PendingRequest, Task, TaskTemplate
+
+
+@pytest.mark.parametrize("name", ["코드 검토", "테스트"])
+@pytest.mark.parametrize("state", ["untouched", "edited", "archived", "versioned"])
+def test_validation_default_transition_preserves_owner_edits_and_execution_history(
+    client, name, state
+):
+    defaults = client.get("/api/templates").json()
+    current = next(row for row in defaults if row["definition"]["name"] == name)
+    old_prompt = {
+        "코드 검토": (
+            "Review {{request}}. Inspect the actual changes and relevant contracts and tests. "
+            "Report actionable findings with evidence. Do not modify code or publish comments."
+        ),
+        "테스트": (
+            "Validate {{request}} using relevant behavior and contract checks. Report commands, "
+            "results and anything not verified. Do not weaken checks, publish or deploy changes."
+        ),
+    }[name]
+    previous = {
+        **current["definition"],
+        "prompt": (
+            "Read AGENTS.md and the applicable repository instructions. Preserve unrelated work. "
+            + old_prompt
+        ),
+    }
+    if state == "edited":
+        previous = {**previous, "context": "Keep the owner's chosen test scope"}
+    original = {"template_id": current["id"], "version": 1, "definition": previous}
+    task = new_task(client)
+    factory = client.app.state.factory
+    with factory.begin() as db:
+        saved = db.get(TaskTemplate, current["id"])
+        saved.definition = previous
+        saved.version = 2 if state == "versioned" else 1
+        saved.archived = state == "archived"
+        db.get(Task, task["id"]).template_snapshot = original
+    templates.seed(factory)
+    templates.seed(factory)  # A restart does not create another revision.
+    with factory() as db:
+        saved = db.get(TaskTemplate, current["id"])
+        assert saved.definition == (current["definition"] if state == "untouched" else previous)
+        assert saved.version == (2 if state in ("untouched", "versioned") else 1)
+        assert saved.archived is (state == "archived")
+        assert db.get(Task, task["id"]).template_snapshot == original
 
 
 @pytest.mark.parametrize("reference_state", ["changed", "unavailable"])

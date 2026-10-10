@@ -47,6 +47,26 @@ def _include_router_spec(
         )
 
 
+def register_first_party_api_routers(
+    app: FastAPI, settings: Settings, *, composition: ApiComposition
+) -> None:
+    """Owned routers with the existing first-party authority/transaction contract.
+
+    This is a trusted process assembly hook, never delegated app authentication.
+    The separate inactive artifact keeps its delegated dependencies and gate.
+    """
+    selected = require_composition(composition)
+    if selected == "legacy":
+        raise ValueError("First-party split assembly requires one router owner")
+    for spec in router_specs(selected):
+        _include_router_spec(
+            app,
+            spec,
+            api_prefix=settings.api_prefix,
+            protected_dependencies=[Depends(require_current_user)],
+        )
+
+
 def register_api_routers(
     app: FastAPI,
     settings: Settings,

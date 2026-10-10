@@ -38,7 +38,7 @@ async function assetPlugin(configPath) {
   assert.equal(
     plugins?.length,
     1,
-    'Each composition must register one canonical asset bridge',
+    'The official composition must register one canonical asset owner',
   );
   return plugins[0];
 }
@@ -89,8 +89,17 @@ before(async () => {
         path.join(workspace, 'packages/official-suite-web/public', name),
       ),
     );
-  plugin = await assetPlugin(path.join(workspace, 'apps/web/vite.config.mts'));
-  await assetPlugin(
+  const portal = await loadConfigFromFile(
+    { command: 'serve', mode: 'test' },
+    path.join(workspace, 'apps/web/vite.config.mts'),
+  );
+  assert.equal(
+    portal.config.plugins
+      .flat(Infinity)
+      .filter((entry) => entry?.name === pluginName).length,
+    0,
+  );
+  plugin = await assetPlugin(
     path.join(workspace, 'apps/official-suite/vite.config.mts'),
   );
   ({ server: vite, listener: http, origin } = await serve(plugin));

@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import importlib
 import importlib.metadata
+import importlib.util
 import io
 import json
 import os
@@ -290,6 +291,12 @@ def verify() -> None:
     assert importlib.metadata.version("miy-official-api") == importlib.metadata.version(
         "miy-api"
     )
+    # The installed artifact must contain both entries. Resolving their location
+    # proves packaging without importing the active runtime or initializing storage.
+    for entry in ("miy_api.platform_runtime", "miy_official_api.runtime"):
+        specification = importlib.util.find_spec(entry)
+        assert specification is not None and specification.origin
+        assert Path(specification.origin).resolve().is_relative_to(Path(sys.prefix).resolve())
 
     # This synthetic address is never contacted. Keep production's typed settings
     # requirement, without copying any host environment or using a database fixture.

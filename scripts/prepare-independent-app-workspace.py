@@ -17,9 +17,15 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps/api/src"))
 
+
 def prepare(source: Path, revision: str, destination: Path):
-    from miy_api.domains.independent_apps.builds import BuildFailure, _required, _snapshot
+    from miy_api.domains.independent_apps.builds import (
+        BuildFailure,
+        _required,
+        _snapshot,
+    )
     from miy_api.domains.independent_apps.contracts import AppDefinition
+
     if (
         not source.is_absolute()
         or source.resolve() != source
@@ -31,7 +37,12 @@ def prepare(source: Path, revision: str, destination: Path):
         or source.is_relative_to(destination)
     ):
         raise BuildFailure("workspace_target_denied")
-    descriptor = os.open(source / "app.manifest.json", os.O_RDONLY | os.O_NOFOLLOW)
+    # A FIFO can block at open() before its type is inspected. Manifest inputs
+    # are untrusted source files, so inspect without following links or waiting
+    # for a special-file writer, matching the standalone manifest reader.
+    descriptor = os.open(
+        source / "app.manifest.json", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+    )
     with os.fdopen(descriptor, "rb") as stream:
         if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
             raise BuildFailure("workspace_manifest_invalid")
@@ -74,7 +85,9 @@ def prepare(source: Path, revision: str, destination: Path):
             ("commit", "-m", "Initialize isolated application workspace"),
         ):
             _required([*prefix, *arguments], env=environment)
-        new_revision = _required([*prefix, "rev-parse", "HEAD"], env=environment).decode().strip()
+        new_revision = (
+            _required([*prefix, "rev-parse", "HEAD"], env=environment).decode().strip()
+        )
         # The explicit target did not exist; publish only after all checks pass.
         if destination.exists():
             raise BuildFailure("workspace_target_exists")
@@ -101,7 +114,8 @@ def main():
         result = prepare(args.source, args.revision, args.destination)
     except (BuildFailure, ValueError, OSError):
         parser.exit(
-            1, "Isolated app workspace preparation failed; no source commands were executed.\n"
+            1,
+            "Isolated app workspace preparation failed; no source commands were executed.\n",
         )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
 

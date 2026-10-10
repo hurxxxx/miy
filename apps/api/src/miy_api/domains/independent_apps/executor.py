@@ -29,6 +29,7 @@ def poll_once(settings: Settings, session_factory, consume: Callable[[Namespace]
             and_(
                 AppInstallationRecord.id == str(target.installation_id),
                 AppInstallationRecord.app_id == target.app_id,
+                AppInstallationRecord.environment == target.environment,
             )
             for target in targets
         )
@@ -45,7 +46,6 @@ def poll_once(settings: Settings, session_factory, consume: Callable[[Namespace]
             )
             .where(
                 bindings,
-                AppInstallationRecord.environment == "development",
                 AppDeploymentRequest.executor_id == "local",
                 AppDeploymentRequest.state.in_(["running", "unknown", "cleanup"]),
                 func.json_typeof(AppDeploymentRequest.runtime_config) == "object",
@@ -80,7 +80,6 @@ def poll_once(settings: Settings, session_factory, consume: Callable[[Namespace]
                 .join(AppInstallationRecord, AppInstallationRecord.id == model.installation_id)
                 .where(
                     bindings,
-                    AppInstallationRecord.environment == "development",
                     model.executor_id == "local",
                     model.state == "queued",
                 )
@@ -89,6 +88,7 @@ def poll_once(settings: Settings, session_factory, consume: Callable[[Namespace]
             )
             if model is AppBuildJob:
                 query = query.where(
+                    AppInstallationRecord.environment == "development",
                     AppBuildJob.delegation_id.is_not(None),
                     AppBuildJob.app_id == AppInstallationRecord.app_id,
                 )

@@ -1,12 +1,16 @@
 import { OFFICIAL_HELP_GUIDES } from '@miy/official-suite-web';
-import { RealtimeProvider } from '@miy/platform-web/realtime';
+import { NOTIFICATION_REALTIME_EVENT_TYPE_VALUES } from '@miy/contracts/notifications';
+import { pmsManifest } from '@miy/official-suite-web/manifests/pms';
 import { FeedbackProvider } from '@miy/ui';
-import type { ReactNode } from 'react';
+import { ShellPersonalWidgetHost } from './OfficialPersonalWidgetHost';
 import { useTranslation } from 'react-i18next';
 import { BrowserRouter } from 'react-router-dom';
 import {
   AppContent,
   createDefaultHelpRoutes,
+  DefaultShellRealtimeProvider,
+  NotificationPanel,
+  getUnreadNotificationCount,
 } from '@miy/web-official-suite-bridge';
 import {
   OFFICIAL_APP_IDS,
@@ -18,17 +22,11 @@ import {
 const helpGuides = OFFICIAL_HELP_GUIDES;
 const helpRoutes = createDefaultHelpRoutes(new Set<string>(), helpGuides);
 
-// Stage-zero keeps realtime traffic disabled, but app hooks still require the
-// platform's actual context. A no-op shell wrapper does not provide that context.
-function OfflineOfficialRealtimeProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  return <RealtimeProvider token={null}>{children}</RealtimeProvider>;
-}
+const notificationRealtimeEventTypes = new Set<string>(
+  NOTIFICATION_REALTIME_EVENT_TYPE_VALUES,
+);
 
-/** Stage-zero UI composition. Backend traffic and data writers still use the legacy API. */
+/** Trusted same-origin official UI using the existing platform session and ACL. */
 export default function OfficialSuiteRoot() {
   const { t } = useTranslation('common');
   return (
@@ -56,9 +54,13 @@ export default function OfficialSuiteRoot() {
           helpRoutes={helpRoutes}
           launcherGlobalPaths={officialLauncherPaths}
           navItems={officialRegistry.NAV_ITEMS}
-          personalWidgetsEnabled={false}
-          realtimeEnabled={false}
-          realtimeProvider={OfflineOfficialRealtimeProvider}
+          notificationIssueAppId={pmsManifest.appBarItem.id}
+          notificationPanel={NotificationPanel}
+          notificationRealtimeEventTypes={notificationRealtimeEventTypes}
+          notificationUnreadCountLoader={getUnreadNotificationCount}
+          personalWidgetHost={ShellPersonalWidgetHost}
+          realtimeEnabled
+          realtimeProvider={DefaultShellRealtimeProvider}
           resolveShellStateForPath={resolveOfficialShellState}
           shellProviders={officialRegistry.APP_SHELL_PROVIDERS}
         />

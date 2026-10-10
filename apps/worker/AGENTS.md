@@ -6,4 +6,4 @@
 - Make retryable work idempotent; define retry, timeout, checkpoint, fencing, and cleanup behavior explicitly.
 - Persist shared/auditable progress in authoritative storage, not worker memory or `/tmp`.
 - Preserve queue-group isolation and Beat ownership; do not add ad hoc process startup paths.
-- Run focused worker pytest and registration tests first, then `pnpm nx lint worker` when the surface warrants it.
+- Consolidate affected worker, registration and lint checks after the requested changes are integrated. Reuse current evidence for unchanged inputs; let required CI own the full suite. Recheck failed or newly affected boundaries after a fix.

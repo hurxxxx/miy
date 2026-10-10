@@ -480,6 +480,173 @@ bundle의 UID/cap0/NNP·private namespace·mount·tmpfs·effective cgroup CPU/me
 성공한 이전 transient receipt는 새 설치의 증명이 아니다. Endpoint 준비와 보호 설정 생성·설치,
 Workbench의 별도 배포·동일 Task 인수까지 완료해야 운영 연결을 완료로 보고한다.
 
+##### Immutable SDK 도구체인
+
+[SDK backend 예제](../../../ops/codex-console/executor/miy-app-sdk-executor.service.example)는
+기존 native-only 정의와 별도로 선택하는 유한 pilot이다. 기존 proxy/socket과 동일한 stem으로
+렌더하며 native0.160.1 프로토콜·인증·namespace·자원·수명 관리를 그대로 사용한다. 자동 설치,
+서비스 선택, 재시작이나 Workbench 설정 변경은 하지 않는다.
+
+[sdk-toolchain-pin.json](../../../ops/codex-console/executor/sdk-toolchain-pin.json)은
+Linux GNU x86_64 Node22.23.3·Astral CPython3.12.14+20260929·pnpm10.34.5, 현재 Core SDK,
+[frozen Node graph](../../../ops/codex-console/executor/sdk-node-lock.yaml)와
+[hashed Python wheels](../../../ops/codex-console/executor/sdk-python-requirements.txt)를 소유한다.
+현재 두 starter `web-api-v1`/`web-api-postgres-v1`의 build/test 의존성만 공급한다. 데이터 profile도
+이 환경에서는 실제 DB에 연결하지 않는다. 다른 graph·임의 의존성·compiler·browser e2e·다른
+아키텍처의 사용 가능성을 보장하지 않는다. 없는 의존성은 unavailable로 처리하고 새 검증 cache를
+준비한다. 앱 코드나 사용자 manifest를 플랫폼 코드에 합치거나 기존 파일을 대체하지 않는다.
+
+Core는 pin의 정확한 SHA256·크기·전체 file/link inventory를 갖춘 bundle archive를 공급한다.
+Node 공식 release-key 서명·archive integrity와 선택된 npm archive/Python wheel bytes는 pin에
+묶이며, GNU loader·dash/env·library는 고정 OCI Linux-amd64 child에서 선택한 파일만 포함한다.
+전체 host `/usr`·library·전역 venv/node_modules나 package install hooks를 가져오지 않는다.
+다음 offline 검사기는 파일을 실행하거나 다운로드하지 않으며 모든 member·모드·링크·component,
+ELF library/version provider를 검사한다. Root 소유 cache는 `/opt/miy/<새-stem>` 한 단계 경로이며
+부모는 symlink/group-world write가 없고, cache directory는0555·파일은0444/0555다.
+
+[Core producer](../../../scripts/build-native-sdk-toolchain.py)는 Linux x86_64·Python3.12와
+`/usr/bin/gpgv`에서 pinned 공개 입력을 검증하고 표준 pnpm/pip로 새 묶음을 만든다. 다운로드는
+`--acquire-public`와 `--prepare-public-store`를 명시했을 때만 수행한다. 입력·작업 경로는 새 전용
+디렉터리이며 호스트 HOME/cache/config를 사용하지 않는다. 고정 pin과 다른 결과는 거부하고
+기대 hash를 자동 갱신하지 않는다. Core 운영자는 이 entrypoint의 결과 archive를 별도 artifact
+공급 경로로 전달한다. 검사기나 Workbench Task가 artifact를 만들거나 설치하지 않는다.
+Offline 입력은 표준 pnpm의 `v10/files`·`index`를 bounded no-follow로 새 private store에 복사한다.
+`v10/projects`의 고정 형식 tracking symlink는 target을 읽거나 따라가지 않고 복사에서 제외한다.
+다른 symlink·특수 파일·unknown metadata는 거부하며 public pnpm은 이 새 store만 사용한다.
+
+```bash
+python3 scripts/build-native-sdk-toolchain.py \
+  --acquire-public --artifact-root /operator-build/sdk-v2-inputs \
+  --work-root /operator-build/sdk-v2-first --prepare-public-store
+# 같은 검증 입력과 명시한 표준 pnpm store로 offline 재현한다. 다운로드 fallback은 없다.
+python3 scripts/build-native-sdk-toolchain.py \
+  --artifact-root /operator-build/sdk-v2-inputs \
+  --work-root /operator-build/sdk-v2-second \
+  --offline-store /operator-build/sdk-v2-first/pnpm-store
+```
+
+V2 제조 규칙은 삭제할 Python console scripts의 선언·파일·RECORD 일치를 먼저 확인하고,
+표준 CSV로 해당 행만 제거한다. 보존한 module/metadata의 순서와 내용은 유지하며 `python -m`을
+사용한다. 파일·모드·상대 링크를 정규화하고 UID/GID·mtime을 고정해 canonical PAX/xz archive를
+만든다. 서로 다른 새 작업 경로의 결과가 pin의 같은 archive SHA256을 만족해야 공급할 수 있다.
+
+```bash
+python3 scripts/verify-native-sdk-toolchain.py --archive /operator-artifacts/miy-native-sdk-20261009-v2.tar.xz
+# 별도로 설치 권한을 가진 Core 운영자만 새 cache를 stage한다.
+sudo python3 scripts/verify-native-sdk-toolchain.py \
+  --archive /operator-artifacts/miy-native-sdk-20261009-v2.tar.xz \
+  --stage-new /opt/miy/miy-native-sdk-20261009-v2
+python3 scripts/verify-native-sdk-toolchain.py \
+  --cache-root /opt/miy/miy-native-sdk-20261009-v2 --source-root /dedicated/app-checkout
+```
+
+검사기는 attested archive snapshot만 새 경로에 쓰고 기존 cache를 덮어쓰지 않는다. Stage 후에도
+15GiB/15% 여유를 유지해야 한다. 실패한 partial stage는 인수하지 않으며 자동 삭제·재사용하지
+않는다. Archive/cache 검증은 실제 read-only mount, native 정책이나 서비스 설치의 증명이 아니다.
+
+`@SDK_ROOT@`는 위 cache의 canonical 절대 경로다. 앱 checkout의 `node_modules` target은 새 전용
+빈 디렉터리이고 SDK vendor target은 현재 Core SDK의 functional 파일과 일치해야 한다. Target이나
+그 부모에 symlink·다른 파일·다른 SDK가 있으면 mount로 숨기지 말고 연결을 거부한다. SDK 예제는
+cache와 생성된 의존성/SDK만 read-only 제공하며 `package.json`, lock, `pyproject.toml`, 앱 scripts와
+`.npmrc`는 checkout 소유로 남긴다. Public pnpm `prefer-symlinked-executables=true`와
+`extend-node-path=false`로 생성한 상대 실행 링크를 그대로 사용한다. Core config는
+`NPM_CONFIG_USERCONFIG`로 선택하고 workspace `.npmrc`를 덮어쓰지 않는다. Python은 movable venv
+대신 hashed wheels를 분리한 cache와 `python -m`을 사용한다. Runtime에서 package install은 하지 않는다.
+
+Vite7 기본 bundle config loader는 `node_modules/.vite-temp`에 임시 module을 만든다. V2 cache는
+이 위치를0555의 빈 디렉터리로 고정하며 SDK backend만 해당 mountpoint에16MiB tmpfs를 제공한다.
+다른 의존성은 계속 read-only다. Scratch가 populated·symlink이거나 pin의 경로·크기와 다르면
+연결을 거부한다. 앱 명령을 바꾸거나 `--configLoader native`로 대체하지 않는다. Source preflight는
+새 빈 `node_modules`, symlink 없는 `.git`/vendor target, public SDK의 필수 functional 네 파일을
+확인한다. Vendor `README.md`는 선택 사항이며 있으면 pin과 같은 문서만 허용한다. 추가 파일,
+symlink·hardlink와 다른 사용자가 쓸 수 있는 target/SDK 파일은 거부하며 앱
+manifest/scripts 또는 Git contents를 읽거나 변경하지 않는다. 실제 mount와 정책은 설치 인수에서
+다시 확인한다.
+
+실행 설정 `AppExecutionEnvironment.toolchain_profile`의 기본값은 `native_v1`이다. 검증된 SDK
+endpoint만 Core가 `miy-native-sdk-20261009-v2`로 명시 선택한다. 이 profile은 cache 경로와 pin/archive
+digest를 Task binding에 묶고, 공식 `shell_environment_policy.inherit=none` 및 `set`으로 고정
+PATH/PYTHONPATH/config를 명령에 전달한다. 호스트 환경은 상속하지 않는다. 알 수 없는 profile,
+`include_only`/`filters` 또는 호스트 profile 평가 충돌은 거부하며 기존 Task를 다른 cache로 바꾸지
+않는다. Backend에 직접 환경을 준 synthetic 실행만으로 실제 Workbench Task 사용 가능을 판정하지
+않는다. [공식 v0.160.1 환경 정책](https://github.com/openai/codex/blob/rust-v0.160.1/codex-rs/protocol/src/shell_environment.rs)을 사용하고 별도 명령 실행 수명 관리를 만들지 않는다.
+별도 Workbench release builder는 SDK pin과 기존 unchanged `native-pin.json`을 release의
+`ops/codex-console/executor`에 복사하고 release identity에 포함한다. API는 자기 release의
+이 공개 pin만 읽으며 source checkout이나 다른 host 경로로 fallback하지 않는다. Pin이 없거나
+digest가 다르면 SDK profile을 거부한다.
+
+SDK profile의 실제 공식 app-server process는 Core
+[controller adapter](../../../apps/codex-console-api/src/codex_console/controller_launch.py)를 사용한다.
+고정 native pin의 정확한 vendor `bin/codex`와 sibling packaged `codex-resources/bwrap`만 허용하며
+CLI/Node wrapper, host bwrap, 자동 다운로드나 local executor로 대체하지 않는다. 기존 version/schema
+검사와 `native_v1` 실행은 그대로다. SDK Task binding에는 공개 policy/network/admin/native/bwrap/launch
+계약 해시도 포함한다. 계약이 달라진 기존 Task는409 changed로 거부하며 자동 재라벨·새 thread·재시도를
+수행하지 않는다. SQLite schema나 인증 저장 방식을 바꾸지 않는다.
+
+Core의 고정 requirements를 sealed memfd로 전달해 controller의 private `/etc` overlay에0400 read-only
+mount한다. 두 번째 sealed memfd는 같은 opaque CODEX_HOME의 `config.toml`을 빈 설정으로 보이게 하며
+adapter는 기존 global/owner 설정 파일을 쓰거나 인증 내용을 직접 읽거나 복사하지 않는다. 실제 파일의 내용 대신
+regular file·owner·link·mode와 inode 메타데이터만 검사한다. 기존 `config.toml`이 없거나 symlink·hardlink·
+다른 사용자가 쓸 수 있는 파일이면 연결을 거부하며 mountpoint를 host에 만들지 않는다. 이 기존 파일
+조건은 현재 adapter의 제한이며 검사와 mount 사이의 교체 경쟁을 완전히 제거했다고 주장하지 않는다.
+고정 native app-server CLI에는 `ignore_user_config` 옵션이 없어 이 격리 뷰가 필요하다. 공식 controller의
+host network와 opaque CODEX_HOME/state 쓰기는 기존 subscription client용이며 remote tool은 별도의
+`PrivateNetwork`·read-only cache/.git·namespace/cap/PID/메모리/CPU 제한을 유지한다. OS/controller mount가
+지원되지 않거나 seal/pin/schema/effective policy가 다르면 연결을 거부한다. 오래된 header로 빌드된
+CPython에 memfd/seal 상수가 없으면 문서화된 Linux libc/UAPI의 같은 sealed-fd 연산만 사용하고,
+임시 unsealed 파일이나 임의 syscall 번호로 대체하지 않는다.
+
+지원되는 managed 정책은 `enabled=true`, `managed_allowed_domains_only=true`, `domains={}`,
+`unix_sockets={}`와 upstream/non-loopback/all-Unix/local-binding=false다. 전역 `'*':'deny'`는 공식
+구현이 거부하므로 사용하지 않는다. 익명 Unix socketpair의 Python/AnyIO/ASGI IPC는 허용하지만
+독립 Unix 경로와 외부 목적지는 허용하지 않는다. Hostname 분류가 DNS를 조회할 수 있으므로 DNS-free
+정책이라고 주장하지 않는다. [고정 공식 policy 적용](https://github.com/openai/codex/blob/rust-v0.160.1/codex-rs/core/src/config/network_proxy_spec.rs).
+
+격리 뷰를 만들기 전에 같은 공식 CodexRPC의 별도 model0 연결로 원 `configRequirements/read`를 검사한다.
+없는 요구사항과 null은 허용하고, 노출된 기존 Core admin 값은 고정 계약과 타입·값이 정확히 같아야 한다.
+미지원·부분·다른 값이나 기존 network 요구사항은 SDK spawn 전에 거부한다. 이 연결은 thread·turn·command를
+시작하지 않으며 취소되어도 같은 종료 작업에 합류한다. 종료가 불확실하면 원 baseline 객체를 유지하고
+재시작하지 않는다. 인증 홈과 저장 방식은 그대로다.
+
+SDK 시작 기본값은 `sandbox_mode=read-only`, `approval_policy=never`이며 이후 승인된 workspaceWrite
+요청을 고정하지 않는다. 호스트 MCP 이름별 CLI override를 만들지 않고 requirements 최상위에
+`mcp_servers={}`를 둔다. 이 공식 빈 allowlist는 모든 서버와 plugin MCP를 차단한다. 일반 config의 빈
+table은 기존 설정을 지우지 않으며 `config/read`의 MCP 항목은 실행 정책이 적용된 enabled 값이 아니다.
+따라서 SDK는 원시 MCP map이 비어 있어야 연결하며 system/cloud/project에 항목이 하나라도 있으면 거부한다.
+MCP status/discovery를 호출해 거부를 확인하지 않는다.
+
+기존 한 번의 read-only executor initialize에서 `capabilities.networkProxyLaunch`가 정확히true임을
+확인하며 missing/false/비boolean은 SDK spawn 전에 거부한다. Initialize 후와 각 thread
+start/resume·turn start/steer 전에 공식 `configRequirements/read`의 실제
+network와 Core 최소 admin 계약 및 `config/read`의 빈 MCP·고정 shell/feature/default 계약을 확인한다.
+빈 allowlist를 확장하거나 model/login/sandbox/approval/
+feature 계약이 바뀌거나 미지원 admin 요구사항이 있으면 controller를 닫고 거부한다. SDK는 현재
+canonical readOnly/workspaceWrite restricted만 지원하며 dangerFullAccess/yolo나 networkAccess=true로
+확대하지 않는다. 기존 native_v1 선택은 영향을 받지 않는다. SDK 종료는 취소되어도 같은 단일 cleanup 작업을
+유지하며 terminate5초 후 kill5초까지 exit를 기다린다. Exit 확인이 끝내 유실되면 원 process/context와
+임시 경로를 unknown으로 보존하며 정리 성공이나 자동 재실행으로 처리하지 않는다.
+SDK Runtime은 startup 전에 원 RPC를 소유하므로 handshake·effective policy 검사 실패 뒤에도 같은
+generation/process/context를 유지한다. 다음 connect와 명시적 close는 원 종료 불확실성을 그대로
+반환하며 새 process를 만들지 않는다. Transport 종료는 대기 중인 durable disconnect callback을
+취소하지 않으며 기존 Task·thread·요청 ID를 교체하지 않는다.
+
+Private system requirements보다 cloud 정책이 우선하며 이 API 조회와 실제 session/command 구성은
+원자적이지 않다. 시작 전 원 admin 검사는 이후 global 정책 변경을 계속 확인하는 감시자가 아니며,
+MCP allowlist 등 API에 노출되지 않는 기존 관리 계약도 있을 수 있다. 따라서 설치자는 기존의 중요한
+Core admin 계약 연속성, 해당 단일 controller identity의 관리 정책 불변성, 정상 app-server가 파생한
+모든 HTTP/CONNECT/SOCKS/UDP 경로의 실제 거부를 인수해야 한다. 이 조건이 증명되지 않으면 SDK Task를
+운영 활성화하지 않는다. 파일 해시·수동 networkProxy·pure fixture·cache 설치만으로 cloud/reload 경계나
+일반 Task를 승인하지 않는다. [공식 요구사항 합성](https://github.com/openai/codex/blob/rust-v0.160.1/codex-rs/config/src/requirements_layers/stack.rs).
+
+설치 인수에는 앞 절의 실제 manager/mount/cgroup·bearer·version/cwd·readOnly/workspaceWrite/.git
+검사 외에 **새 SDK backend 안에서** 두 canonical starter의 `pnpm test`, `pnpm run build`, Python
+imports·TestClient·`python -m pytest`가 필요하다. Cache 불변·graph 밖 의존성 실패·app manifest/scripts
+보존·외부/플랫폼 network 차단도 확인한다. 선택된 loader로 실행한 공개 synthetic fixture나 POSIX
+write 거부는 native child interpreter/kernel mount의 검증을 대신하지 않는다. ReadOnly에서는 build
+output 쓰기를 거부해야 한다. 지원되지 않는 syscall/namespace 또는 자원 부족을 host library,
+privileged/unconfined, yolo, 자동 limit 확대나 host 실행으로 대체하지 않는다. 보호 endpoint 설정과
+Workbench 별도 배포·동일 실제 등록 앱 Task 인수는 기존 운영 계약으로 이어간다.
+
 Plaintext capability와 verifier 출력은 Workbench 소유자의 0700 디렉터리/0600 regular file에
 저장하고 모든 앱 mount 밖에 둔다. Token 파일 UID는 verifier 실행 소유자와 같아야 한다.
 토큰을 바꿀 때는 socket → proxy → backend를 종료하고 기존 연결·cgroup/PID와 host port가
@@ -487,6 +654,47 @@ Plaintext capability와 verifier 출력은 Workbench 소유자의 0700 디렉터
 동일 Task의 endpoint/source identity는 유지한다. 유한 lifetime 만료나 실패에도 원 Task/thread/
 요청의 unknown 상태를 보존하며 새 요청·thread를 자동 생성하지 않는다. 다시 시작하려면 운영자가
 명시적으로 bundle과 현재 연결을 재검증한다. 이 정의는 설치·Task 재시도·서비스 설정을 실행하지 않는다.
+
+##### 지속 앱 개발용 SDK executor
+
+긴 개발 작업에는 270초 pilot을 설치하지 않는다. Core 운영자가 명시적으로 연결할 지속 구성은
+[backend](../../../ops/codex-console/executor/miy-app-sdk-development.service.example),
+[proxy](../../../ops/codex-console/executor/miy-app-sdk-development-proxy.service.example),
+[socket](../../../ops/codex-console/executor/miy-app-sdk-development-proxy.socket.example) 세 예제다.
+기존 SDK backend와 표준 socket proxy를 재사용하며 새 실행 관리자나 Task 재시도 엔진을 두지 않는다.
+Pilot 원본과 고정 pin은 그대로 보존한다. 예제를 만들거나 저장소를 배포해도 자동 설치·실행하지 않는다.
+
+운영자는 위와 같은 trusted placeholder·단일 checkout·pin/cache 검사를 적용하고 고유한 동일 stem으로
+세 파일과 의존성을 렌더한다. SDK mount·private network·non-root UID/GID·cap0/NNP·읽기 전용
+root 및 `.git`·64MiB 임시 공간·16MiB Vite 임시 공간은 pilot과 같다. CPUQuota100%,
+MemoryMax1GiB, MemorySwapMax0, TasksMax64, TimeoutStopSec3, KillMode=control-group,
+Restart=no도 그대로다. **RuntimeMaxSec만 infinity**여서 오래 실행한 정상 작업을 시간 때문에
+종료하지 않는다. 임시 저장 공간이나 자원이 부족하면 실패하며 한도를 자동으로 늘리지 않는다.
+
+Backend는 Core 운영자의 명시적인 종료까지 한 checkout의 native exec-server를 유지한다.
+Proxy는 활성 연결에 시간 제한을 두지 않고, 연결이 없는 10초 뒤 정상 종료한 다음 새 연결에
+socket activation으로 시작한다. 이는 새 Task·turn 실행이나 불확실한 명령의 재시도가 아니다.
+Backend 장애·OOM·종료 시 socket/proxy의 BindsTo도 해당 연결을 종료한다. 자동 backend 재시작은
+하지 않는다. 부팅 연결은 backend의 multi-user.target과 socket의 sockets.target에 대한 별도
+운영자 enable로만 설정한다. 현재 namespace·mount·cgroup·인증과 정상 종료를 최종 설치에서 확인한다.
+
+Workbench의 Task 중단은 기존 `turn/interrupt`로 root와 실행 중인 하위 turn에 전달한다.
+Native 완료 또는 명시적 상태 복구가 Task lease를 정리하며, 요청 전달만으로 종료를 확정하지 않는다.
+Controller 종료는 기존 단일 cleanup을 끝까지 기다린다. 서비스 종료나 응답 유실에서는 원 Task·
+thread·요청을 미확인으로 보존하고, 재개 시 같은 source/environment binding과 native thread를
+검사한다. Controller가 종료됐다는 사실만으로 원격 자식 실행의 정리를 추정하지 않는다. 확인할 수
+없으면 기존 상태 조회·복구 절차를 사용하며 새 thread·요청 또는 host 실행으로 대체하지 않는다.
+Capability 회수·환경 철거는 socket → proxy → backend를 종료하고 세 cgroup/PID·port의 정리를
+확인한다. 앱이나 Codex 프롬프트가 systemd 수명·unit 이름·credential·경로를 지정할 수 없다.
+
+Workbench 설정은 기존 `MIY_CODEX_CONSOLE_APP_EXECUTION_ENVIRONMENTS`의 key/source_root/
+exec_server_url과 보호된 capability를 사용한다. 검증된 SDK endpoint의
+`toolchain_profile`만 `miy-native-sdk-20261009-v2`로 명시한다. 기본 `native_v1`은 변하지 않는다.
+기존 provisioning verifier가 만드는 native 연결 설정만으로 SDK controller/network 정책의 인수를
+대신하지 않으며, 위 SDK 최종 검사와 별도 Workbench 배포를 함께 완료한 후 연결한다.
+ChatGPT 구독 인증은 Workbench controller에만 남고 executor에는 복사하지 않는다.
+Workbench의 앱 배포 도구는 개발 환경만 대상으로 유지한다. 운영 승격은 플랫폼의 현재 Core-admin
+로그인과 별도 승인 경로가 소유하며 조회 키·native token으로 실행하지 않는다.
 
 운영자가 위 경계를 갖춘 endpoint를 별도로 준비한 후 다음 사전 검사를 수행한다. token 파일은
 서비스 소유자의 regular file/0600이어야 한다. 검사기는 인증 없는 연결 거부, 정확한 버전/cwd,
@@ -577,6 +785,11 @@ host worktree도 지원하지 않는다. native remote capability discovery와 �
 사용자의 편집을 덮어쓰지 않는다. `console_sqlite_0004`는 이전 기본값과 완전히 같은 MR 리뷰
 템플릿에서만 삭제된 스킬 참조를 제거하고 버전을 올린다. 사용자 수정·복제본과 과거 실행
 snapshot은 변경하지 않는다. 코드 검토·테스트 기본 템플릿은 특정 일반 개발 스킬을 요구하지 않는다.
+검토는 변경 없는 소스·입력에 대한 기존 검증 근거를 재사용한다. 테스트는 요청한 변경을 통합한
+뒤 필요한 검사를 중복 없이 한 번에 수행하고, 필수 CI의 전체 검사를 로컬에서 반복하지 않는다.
+실패 수정 후에는 실패 경계와 직접 영향 검사부터 확인한다. 이 기본 문구 전환은 최초 버전의
+수정되지 않은 두 기본 템플릿에만 버전을 올려 적용한다. 사용자 편집·보관·복제본과 기존
+Task 실행 snapshot은 바꾸지 않는다. 필수 권한·데이터·릴리스 검사는 생략하지 않는다.
 편집 화면은 선택된 스킬이 native 발견 목록에 없으면 제거·교체가 필요함을 표시한다.
 실행을 이어갈 때는 시작 당시 참조 파일의 해시와 선택 스킬의 현재 가용성을 비교하여 달라진
 조건을 해당 native turn의 맥락에 전달한다. 현재 파일로 과거 snapshot을 덮어쓰거나 새 실행을

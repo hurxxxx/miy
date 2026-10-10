@@ -14,6 +14,7 @@ from .auth import digest
 from .errors import ConsoleError
 from .models import Agent, DevelopmentUsage, Item, Operation, PendingRequest, Task
 from .rpc import CONTRACT, CodexRPC
+from .toolchain_profiles import SDK_PROFILE, selected_profile
 
 APPROVALS = {
     "item/commandExecution/requestApproval": "CommandExecutionRequestApprovalResponse",
@@ -178,11 +179,16 @@ class Runtime:
                 configuration = await control.call(
                     "config/read", {"cwd": str(root), "includeLayers": False}
                 )
-                overrides = remote_environments.overrides(configuration["config"])
+                overrides = remote_environments.overrides(configuration["config"], environment)
             rpc = self.rpc_factory(self.settings.binary, root, receive, disconnected)
             if environment is not None:
                 rpc.remote_environment = environment
                 rpc.startup_overrides = overrides
+                if selected_profile(environment) == SDK_PROFILE:
+                    # Own the original controller before startup can fail or be
+                    # cancelled with its termination still unknown. Reconnect
+                    # must close this same RPC before creating a replacement.
+                    self.rpc = rpc
             try:
                 await rpc.start()
             except ConsoleError:
@@ -291,7 +297,7 @@ class Runtime:
         if (config.get("model_provider") or "openai") != "openai":
             raise ConsoleError("subscription_provider_required")
         if self.remote_task_id is not None:
-            return remote_environments.overrides(config)
+            return remote_environments.overrides(config, getattr(rpc, "remote_environment", None))
         # Disable configured MCP servers through the official per-thread overrides. Apps and
         # plugins are disabled on the private app-server process, not in the owner's config files.
         names = config.get("mcp_servers") or {}

@@ -1,5 +1,8 @@
 import importlib.util
+import os
 from pathlib import Path
+import subprocess
+import sys
 
 import pytest
 
@@ -74,3 +77,33 @@ def test_workspace_pins_original_source_despite_replace_refs(tmp_path):
     result = helper().prepare(source, revision, destination)
     assert result["source_revision"] == revision
     assert (destination / "api.py").read_text() == "value = 1\n"
+
+
+def test_workspace_rejects_fifo_manifest_without_waiting_for_a_writer(tmp_path):
+    source, revision, _, git = repo(tmp_path)
+    manifest = source / "app.manifest.json"
+    manifest.unlink()
+    os.mkfifo(manifest)
+    destination = tmp_path / "app-development"
+    command = Path(__file__).resolve().parents[3] / "scripts/prepare-independent-app-workspace.py"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(command),
+            "--source",
+            str(source),
+            "--revision",
+            revision,
+            "--destination",
+            str(destination),
+        ],
+        capture_output=True,
+        timeout=3,
+        check=False,
+    )
+    assert result.returncode == 1
+    assert result.stdout == b""
+    assert b"Isolated app workspace preparation failed" in result.stderr
+    assert not destination.exists()
+    assert not list(tmp_path.glob(".miy-app-source-*"))
+    assert git("rev-parse", "HEAD") == revision

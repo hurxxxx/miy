@@ -1,5 +1,86 @@
 # 검증 계획과 수행 근거
 
+## 2026-10-10 필수 구조 통합 검사
+
+재개 후 하나의 후보에서 영역별 영향 검사를 분담했다. 전체 API·Workbench·웹 suite는 필수 CI가 소유하며 로컬에서 같은 전체 검사를 먼저 반복하지 않았다. 아래는 현재 로컬 결과이며 리뷰·CI·배포 완료 증거가 아니다.
+
+| 영향 범위              | 현재 결과                                                                                                                                               | 실제 범위와 한계                                                                                                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workbench backend      | 12파일426 PASS/27.87초, Ruff lint PASS                                                                                                                  | controller/SDK/profile/권한·remote·템플릿. 전체822 suite와 실제 Workbench 로그인 인수는 별도                                                                                           |
+| Workbench UI·개발 런처 | App/views56 PASS/10.82초, status/topology3 PASS/0.76초, UI typecheck·생성 계약 PASS                                                                     | 기존 사용자 편집/Task snapshot 유지, 동일 namespace 재시작·반대 namespace HOLD                                                                                                         |
+| 공식 API·worker        | API30 고유 PASS, 외부 Redis1 제외; worker30 PASS/16.62초                                                                                                | auth/조립·frontend·build guard·소유 큐와 이동 task 영향. 실제 PG startup/readiness 인수와 구분                                                                                         |
+| 포털·공식 UI           | 영향 Vitest29 PASS, 4프로젝트 typecheck·ownership·generated·architecture PASS; 최종 portal17.21초/official30.28초 build PASS; 대표 브라우저2 PASS/8.3초 | portal 업무 chunk 미포함, official namespace/업무 chunk 포함. full-document 이동·저장 세션·iframe bootstrap·admission 거부 확인; synthetic API와 임시 공식 Vite만 사용                 |
+| 개인 앱                | 최초102 PASS/실패3·setup오류2; 수정 영향27 중25 PASS/설정2 FAIL 후 설정17 PASS                                                                          | 성공한 개발 설치의 운영 승격·권한 회수/target 변경·CAS/unknown, 실행·독립 소스·위임을 확인. 아래 원인/수정과 실제 Docker 결과를 분리                                                   |
+| 설정·계약              | 예약 port3개를 포함한 settings/runtime-config56 PASS/1.52초·subtests4 PASS; 생성 API/독립 schema PASS; env-contract PASS                                | 218개 키/219개 선언. 기존 dev/prod 비공개 설정에 누락3/7개를 비활성 기본값으로만 추가, 기존 값 불변·0600 백업 보존                                                                     |
+| 정상 native controller | 현재 frozen source에서8개 고정 경로 PASS, 새 ephemeral thread/turn·모델 요청1회·자동 재시도0                                                            | HTTP/CONNECT/SOCKS/direct IP/UDP/Unix 경계. 원 Task 추가 턴0, 앱 기능 평가·모든 UDP 정책·실제 durable Workbench Task 인수로 확대하지 않음                                              |
+| 공통 gateway           | 설정/contract14 PASS; 수정 후 실제 NGINX1 PASS/5.39초                                                                                                   | immutable local NGINX·UID10001·read-only/tmpfs, generated API/UI·query·Host·trusted/untrusted 헤더·health rewrite·streaming·두 WS101/frame. 실제 reviewed Core Debian packaging은 별도 |
+| 배포·복구 도구         | Node176 고유 PASS·Python9 PASS, Bash/Node syntax PASS                                                                                                   | 초기172 PASS/실패4는 fixture/alias 기대만 수정 후 해당4 재검증. 마지막 prefix/config binding·자원 제한은 syntax 확인했으며 실제 이미지/배포는 아직 미수행                              |
+
+검사 중 발견한 최소 수정은 FastAPI0.141의 lazy router를 공개 iterator로 순회, 앱별 좁은 summary 공개 entry, 공식 worker의 기존 worker lint 계약 상속이었다. Vitest의 inherited production 환경은 실행에서 제거했고 제품 정책을 바꾸지 않았다. Workbench 추가 전체 format 검사에는 이번 diff가 없는 기존 테스트6파일이 맞지 않았으며 무관한 format-only 변경을 추가하지 않았다. 필수 Ruff lint와 변경된 파일의 형식은 통과했다.
+
+개인 앱 설정 fixture에는 기존 production 서명 키·Hermes namespace 계약을 충족하는 합성 값이 빠져 있었다. 제품 검사를 약화하지 않고 fixture를 보완했다. 이전 Docker 정리로 옛 테스트 toolchain 이미지가 없어 실제 실행 전 준비가 실패했으며, 이미 설치된 승인 validation image `eefe09d5…`의 불변 ID를 재사용했다. 수정 실행에서 HTTP1·HTTPS 개발/운영2의 실제 Docker marker/health·교체·종료·복구와 잘못된 CA/hostname 거부를 통과했다. 이미지 다운로드·실제 운영 인증서 변경은 없다.
+
+Native source freeze는62 public files/1,010,837bytes이고 controller 실행은 약43.5초였다. 원본/Git과 SDK4597 members/415,841,387bytes·native pin의 전후 불변을 확인했다. runner의 finally는 RPC/receiver join·정확한3 units 퇴역·빈 cgroups·닫힌 ports를 통과했다. 외부 finally의 같은 stop 재관측은 비어 있는 systemd cgroup 디렉터리가 즉시 사라지지 않아 `no_installed_owned_cgroup`을 기록했다. 모델이나 runner를 재실행하지 않고 추가 읽기 전용 관측으로3개 not-found/inactive/PID0·파일 부재·모든 kernel process list empty·두 port closed를 확인했다. 실패한 재관측을 성공으로 재분류하지 않는다. 이후 template README 변경에 대한 필수 generator를 실행했으며 starter JSON에서 README2곳과 파생 bundle digest만 바뀌고 실행 코드·SDK·프로토콜·native pin은 그대로임을 결정적으로 확인했다. 새 generated bundle10 tests/0.45초를 통과했고 native 실행을 반복하지 않았다. 기존 source SHA를 새 문서 bundle의 SHA라고 표시하지 않는다.
+
+현재 근거는 `.runtime/structural-integration-20261010/`의 담당 검사 기록·logs와 `sdk-normal-controller/normal-controller-public-receipt.json`, `outer-lifecycle.json`, `post-cleanup-observation.json`에 보존한다. API architecture790 files/3,592 dependencies의2계약도 통과했다. 새 필수 리뷰/CI·각 서비스 실제 배포는 별도 결과가 도착한 후 갱신한다.
+
+## 2026-10-10 검증 일괄 수행 원칙
+
+**이번 검증은 [필수 구조 범위](PLAN.md#이번-범위)에만 적용한다.** [후속 고도화](FOLLOW_UP_ENHANCEMENTS.md)의 고급 UX/모니터링·부하 측정·표현별 반복/벤치마크·저장 프로토콜 확장은 실행 대상과 완료 의존성에서 제외한다. 아래 F/A 목록과 날짜별 이력은 전체 목표·과거 근거이며 모든 항목을 이번에 수행할 체크리스트가 아니다. 실제 권한·데이터 결함과 채택한 실행 경로의 필수 검사는 유지한다.
+
+사용자 요청에 따라 **이번 재설계의 남은 구조 구현을 최대한 통합한 뒤, 최종 통합 검증을 한 번 요청해 끝까지 진행**하는 방식으로 변경한다. 작은 기능 묶음마다 검증을 완료하고 다음 구현으로 넘어가는 순서를 기본값으로 두지 않는다. 아래 원칙이 이후 작업의 검증 시점·범위·반복 횟수를 소유한다. 이전 검사 목록과 동결 패킷은 수행 사실과 재개 자료이며, 같은 절차를 다시 모두 실행할 의무가 아니다. 이후 사용자의 재개 지시로 현재 구현과 통합 검증을 진행한다.
+
+기본 순서는 **남은 구현·통합 → 통합 검증 1회 → 필수 리뷰·CI → 승인된 개발/운영 반영·확인**이다. Workbench, 공통 저장·권한 경계, 공식 앱 분리, 개인 앱 대표 흐름과 최소 하네스를 하나의 통합 후보에 모은다. 각 영역을 수정할 때마다 전체 테스트·모델 평가·게시·배포를 반복하지 않는다. 필수 CI에 포함된 검사는 로컬에서 같은 전체 실행을 먼저 하지 않는다. 한 번의 요청 안에서 필요한 환경별 단계가 순서대로 진행되며, 플랫폼과 Workbench의 별도 배포 단위는 유지한다.
+
+### 수행 시점과 범위
+
+| 시점                     | 수행할 검사                                                                                    | 반복 제한                                                                                                              |
+| ------------------------ | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 구현 중                  | 구현을 막는 오류의 최소 확인, 구체적인 권한 우회·데이터 유실·자원 누출의 재현과 수정 확인      | 파일·작은 수정마다 전체 영향 검사·빌드·브라우저·독립 리뷰를 실행하지 않음                                              |
+| 남은 구조 구현·통합 완료 | 전체 통합 후보에서 필요한 실제 DB/native·대표 흐름 검사와 CI가 담당할 타입·생성 계약·빌드 선택 | 기능별 검증을 별도로 종료하지 않고 하나의 실행 계획으로 합침. CI가 충분히 다룰 검사를 로컬에서 미리 전부 반복하지 않음 |
+| 릴리스 후보 확정         | 해당 릴리스의 필수 리뷰와 CI                                                                   | 준비된 변경을 통합한 후보에 집중. 작은 단계마다 게시·전체 CI·배포를 반복하지 않음                                      |
+| 배포 후                  | 배포 계약의 백업·migration·image identity·health·대표 smoke·필요한 복구 확인                   | 애플리케이션 전체 테스트를 다시 실행하지 않음. 플랫폼과 Workbench의 배포 확인은 각각 유지                              |
+| 실패 수정 후             | 실패 검사와 수정의 직접 영향 경계                                                              | 먼저 좁은 범위를 재실행. 변경 범위 확대·새 실패·필수 CI의 최신 후보 요구가 있을 때만 확장                              |
+
+Workbench SDK/UI/cache 연결, 협업 저장·권한·복구 연결, 공식 서비스 분리와 개인 UI·DB 앱 흐름은 구현을 나누는 경로이며 별도 전체 검증·릴리스 시점이 아니다. 중간 확인은 다음 구현을 막는 구체적인 오류나 권한·데이터·소유 자원 문제의 최소 확인으로 제한한다. 정상 진행의 통합 검증은 기본 1회이며 실패 수정이나 최신 후보 CI 요구로 필요한 재실행은 허용한다. 필수 권한·데이터·실행 경계의 완료 기준은 유지하고 앱별 비필수 상세 검증은 `APP_ISSUES.md`에 보류한다.
+
+### 한 번의 요청으로 진행
+
+- 검증 요청 또는 템플릿 실행 하나에서 통합 후보·환경을 확인하고, 필요한 기존 검사만 중복 제거해 실행한 뒤 필수 리뷰·CI와 승인된 반영 확인까지 이어간다. 검사별로 사용자에게 다음 실행을 다시 요청하게 하지 않는다. 이미 승인된 범위에서만 진행하며, 실패나 필요한 권한·정보가 없으면 의존 단계는 멈춘다. 결과와 미검증 항목은 통합 기록으로 보고하고 오래 걸리는 동안에는 짧은 진행 상황을 알린다. 별도 범용 검증 엔진은 만들지 않는다. 이를 위한 템플릿·진입점 연결은 구현 재개 후 진행하며 현재 완료됐다고 표시하지 않는다.
+- 준비·포트 확인·결과 파일 확보·소유 자원 정리는 같은 실행에 포함한다. 검증 도구나 준비 결과마다 별도의 동결·독립 리뷰·재실행 단계를 자동으로 추가하지 않는다. 필수 리뷰는 릴리스 후보에서 수행하고, 추가 독립 검토는 구체적인 미해결 경계가 있을 때 통합 변경에 집중한다.
+- 가벼운 독립 검사는 병렬로 실행할 수 있다. 실제 PostgreSQL·Docker·무거운 build처럼 자원을 경쟁하는 검사는 순차 실행한다. 한 번에 요청한다는 것이 모든 서비스를 동시에 띄운다는 의미는 아니다.
+- 여러 에이전트는 구현 경로와 검사 필요성을 정리하고 공통 검사는 주 에이전트가 합쳐 실행한다. 각 에이전트와 주 에이전트가 같은 전체 검사를 중복 실행하지 않는다. 구현 중 필요한 최소 재현은 결과를 공유한다.
+- 성공한 검사는 관련 코드·계약·의존성·환경이 그대로이면 재사용한다. 문서나 무관한 경로 변경 때문에 실제 앱 검사를 다시 하지 않는다. 관련 입력이 바뀌면 해당 영향 검사만 다시 선택하며, 필수 CI는 현재 source/target/tree 결속 계약을 따른다. 실패·미확정 결과는 보존하고 성공으로 재분류하지 않는다.
+- 결과는 대상 버전·환경·실행한 검사·결과·남은 위험으로 기록한다. 동일 실행의 자료를 검사·준비·리뷰별로 다시 복제하지 않는다. 추가 검증에는 새 변경·실패·미해결 위험·필수 계약 중 어느 근거가 있는지 적는다.
+
+### 현재 후보에 적용
+
+- **Workbench:** 결과 파일 선예약 helper와 SDK/UI/cache 후보의 필요한 검토를 묶는다. 정상 native controller는 준비·실행·정리·결과 저장을 한 흐름으로 확인한다. 기존 Task에 네 번째 턴을 추가하거나 결과를 잃은 claim을 재실행하지 않는다. 새 실제 실행의 모델 제출은 기존 최대 1회 한도를 유지하며 자동 재시도하지 않는다. 검토됐거나 통과한 UI·SQLite·cache 검사는 관련 입력이 바뀌지 않았다면 다시 수행하지 않는다.
+- **협업 저장 경계:** 기존 저장 경로와 최소 구조 변경을 우선 선택하고 채택한 경로의 실제 저장·권한·취소·복구만 확인한다. journal/trusted adapter 전체 인수는 기본 실행 대상에서 제외하며 ENH-005의 조건부 기준으로 필요한 부분만 연결한다. 기존 실제96 PASS는 보존하고 관련 입력 불변이면 단독 재실행하지 않는다. 합성56 PASS를 실제 연결 증거로 대신하지 않으며 미검증 후보를 활성화하지 않는다. 권한·구형 writer 전환·데이터 보존·복구는 서비스 전환 시점에 확인한다.
+- **개인 앱과 자연어:** UI·DB 앱을 각각 구현하고 전체 통합 검증 안에서 UI 흐름을 먼저, DB 흐름을 다음으로 수행한다. 앱마다 별도 검증·게시·플랫폼 릴리스를 반복하지 않는다. 한 흐름에서 앱 등록·선택·native 수정·preview·배포·복구와 해당 자연어 평가를 함께 확인한다. 모든 표현의 변형이나 변경 전후 3회씩 모델 실행을 기본값으로 두지 않는다.
+
+### 필수 릴리스 계약
+
+이 요청은 검증 간소화 의사로 기록한다. 게시·배포가 승인된 다음 릴리스에서는 [영향 기반 릴리스 검증](../docs/domains/release/README.md#impact-based-release-validation)의 결정적 선택기로 fast 가능 여부를 확인한다. 공통/generated 계약·DB migration·worker·의존성·runtime 등 full 대상은 그대로 전체 CI를 수행하며, 줄일 수 있는 것은 단계별 중복 실행이다. 실패 검사·필수 리뷰·인증·최신 tree 결속·운영 배포 검사는 면제하지 않는다. 현재 선택기나 CI·게이트 자체를 변경하지 않으며 이 요청이 게시·배포 재개 권한을 추가하지 않는다.
+
+## 2026-10-10 현재 작업 마무리·중단
+
+- Journal source25f14b24 actual96: setup/call/teardown 각96 PASS/0 FAIL/0 SKIP,509.356302초, before/after source guards와 owned cluster/container/sidecar 정리 PASS. Receipt4c29ad14는 새 SQL journal9의 증거다. 이전 source3908의96 setup 실패와 별도 model-DDL 진단을 보존한다.
+- Inactive adapter source20/02dd1f40: 합성56 PASS1.33초·Ruff/format/diff/source guards, packet83b0276a다. Host interruption exact task 보존과 checkpoint/seal/Source 대기 후 stale 상태의 latest originals/F/S·lease 유지 및 ACK 거부를 확인했다. 실제 DB/native/OS isolation·최종 독립 리뷰·C1/C3는 미검증이다.
+- 정상 SDK 결과 선예약 helper b941d242/inputs8084da8b: 합성12 PASS와 전체 inverse, 기존 execute/route/예산 불변을 확인했다. 독립 리뷰·Root real port 확인·inert 준비·공개 준비 리뷰·actual 정상 실행은 모두 재개 대기다. 최신 lost report를 성공이나 모델0으로 바꾸지 않았다.
+- 현재 검증 종료/소유 자원 정리 후 모든 담당 agent를 중단했다. 사용자 재개 전 추가 검사를 시작하지 않는다. 기존 개발/운영 서비스는 유지한다.
+
+## 2026-10-09 현재 full265와 실제 운영 반영
+
+- 필수264/job432 SUCCESS42.30583초, source1193668f·PR96/MR103 tree64e456b4 동등·owned branch 정리다. 원full263 실패를 보존한다.
+- Full265/job433 SUCCESS4671.914044초: contracts46 PASS, API6521 PASS/3 SKIP/4 WARN3156.28초, 실제PG16/37/15 PASS, Workbench822 PASS/2 WARN342.20초 및 web 단계 완료다. PG 선택은 겹치므로 합산하지 않는다. Full/no skipped suites·pnpm ci 전체·source/target/tree·저장 공간을 결속한 artifact32e31461/evidence30b9f976을 인수했다.
+- Currentc40 private24 리허설14.629324초 PASS·공개 witness401b8282/peer7ffbcdf6: append24, 기존 데이터 동등·이전 이미지 read/write/no-op/rollback·정확 metadata/cleanup을 인수했다. 고객 원문/집계·dump·Auth는 공개하거나 위임하지 않았다.
+- MR81 정상 main9cbf/tree64e·prodFF 뒤 fresh 백업, 표준 guarded prepare330.643초/deploy65.816초 PASS다. 실제 image389d/API·worker·Beat healthy·worker 응답·Beat fresh·head wb_checked_cas_20261009/migration24 bytes·공개 smoke를 확인했다. 공개 전달witness4d1a98ad와 private 결과의 opaque hash0fd9facb를 구분한다. 이전 env/image/backup은 보존한다. 새 C1 factory/roles·C2/C3·Workbench 서비스 반영 증거는 아니다.
+- 두 canonical starter는 각6개 actual native protocol cases를 통과했고 소유6 units/cgroups/ports를 정리했다. 수동 제공 proxy DTO에 한정하며 정상 app-server carrier/global policy를 증명하지 않는다. Basic9.499751초/private-notes8.830883초와 peerd0b5e40d로 결속한다.
+- SDK UI/SQLite history source57dd는 영향52 PASS(11actualSQLite+1helper+40remote), peer d0abe93c다. Falsey malformed binding의 기존 fallback은 비권위 metadata 한계이며 실행 권한을 추가하지 않는다. Cache 최소 수정 source0b57의38 pure·독립6 synthetic과 Root 전체4597entries/415841387bytes 검증은 기존20초 내2.142초 PASS, peer1502c583다. 시간 비교는 machine/cache 조건의 영향을 받아 allocation만의 인과로 주장하지 않는다.
+- 정상 SDK 이전 실제 시도는 cache20초 timeout 이전단계 실패·모델0·owned cleanup 확인이다. 새 준비는 port45541 bind errno98에서 fixture/service/model 전에 실패했다. 기존 실패/claim을 보존하고 fresh 환경을 사용한다. 최신 단일 실행은 최종 receipt의 O_EXCL 충돌로 결과가 저장되지 않았다. Claim은 보존하고 route 성공이나 정확 model 횟수(최대1)는 추정하지 않는다. 별도 post-safety49985ec5는 소유3units/cgroups/ports 정리·Source/Git/current3607·전체 캐시/native 불변을 실제 확인했다. 기존before-claim negativee153/manager start4fdf·stopd36e를 구분하며 동일 claim을 재실행하지 않는다. 아직 정상 carrier actual 성공·별도 Workbench 배포는 아니다.
+- C2 source3908 actual96은327.488568초 setup96 FAIL/call0/teardown96 PASS·cleanup/source guards PASS다. 정확 reason은 constraint_invalid다. Fresh known65534-owner PG18 model-DDL-only catalog은2.119초 PASS/21constraints20exact이며 checkpoint class1개가 varchar/text array 캐스트 표현으로 다르다. 이는 모델 DDL의 정확 공개표현 진단이며 full migration 성공이 아니다. 제약검사·ACL을 유지한 literal1개 source25f14b24를 동결했고 Root 코드 리뷰9a485766 뒤 fresh actual96은509.356302초에 setup/call/teardown 각96 PASS·errors/skips0·소유 정리/전후 source guards PASS다(receipt4c29ad144f47b2e96140448ffe47a03b490e17c18b2604f5e6f5dfc981b58d2a). Inactive adapter의 synthetic 결과는 실제 COMMIT/native RSS/운영 활성화로 간주하지 않는다.
+
 ## 2026-10-09 21:58 UTC — full263 동시성 fixture와 현재 실제 반영
 
 - Full263/job431/source09aaf: API6520 PASS/1 FAIL/3 SKIP/4 WARN2981.70초, 후속PG16/37/15 PASS, job FAILED3312.269779초다. 실패는 same-target folder stage583행의 typed reason 차이다. 원 CI SQLSTATE/직접 원인을 관측하지 않았다.
@@ -142,11 +223,13 @@ fixture/doc 변경을 과거 통과에 소급하지 않으며 실제 전체 CI·
 | F-009 | 자연어·하네스             | 아래 대표 사례의 고정 초기 상태·실제 결과·반복 평가. 맥락에 맞는 대상, 중요한 모호함만 질문, 범위 확대·권한/검증 우회 거부, LLM 자기평가만으로 성공 처리하지 않음                                |
 | F-010 | 관측·복구                 | 상태·버전·자원·관측 시각과 unknown/stale, 관측만으로 변경 없음. 같은 요청 반복·배포 서비스 재시작·성공 응답 유실 시 기존 상태 조회, 중복 배포/마이그레이션 방지. 이미지 복구와 DB 호환·복구 구분 |
 
-미리보기 4개와 무거운 빌드 1개는 한 사용자의 병행 실행 수용 목표다. 여러 사용자의 접근 격리 검증을 완료했다는 의미가 아니다. 측정이 목표에 미달하면 실제 한계와 필요한 자원을 기록한다.
+미리보기4개·무거운 빌드1개의 병행 수용량 목표와 정밀 측정은 ENH-004로 보류한다. 이번에는 지원 환경의 기본 실행·정리·격리·자원 제한만 확인하며, 기존 측정 자료를 실제 전체 수용량이나 다중 사용자 보장으로 확대하지 않는다.
 
-앱·환경 검증에서는 실제 지원할 브라우저·배치 도메인과 로컬/서버 환경을 먼저 명시한다. 기본 격리·자원 제한을 확인한 뒤 병행 수용량을 측정한다. UI 시험 앱의 전체 흐름을 먼저 확인하고 DB·권한 시험 앱에 확장한다. 각 기능 작업이 소유한 검사를 완료하고 `VAL-001`에서 흐름 간 연결과 누락을 확인한다.
+앱·환경 검증에서는 실제 지원할 브라우저·배치 도메인과 로컬/서버 환경을 명시한다. 기본 격리·자원 제한과 UI·DB 대표 앱의 최소 계약을 최종 통합 검증에서 확인한다. 병행 부하·추가 브라우저/모바일 UX·앱별 상세 업무 검사를 자동으로 추가하지 않는다.
 
 ## 지침과 스킬 회귀 검증 계획
+
+아래는 전체 목표다. 이번에는 필수 변경 경로의 실제 지침 충돌과 대표 앱의 시작·재개·대상/권한 확인만 수행한다. 전 경로 선택 평가·표현별 반복·기존 candidate14/18 원인 분석과 품질 벤치마크는 ENH-003으로 보류하며 구조 완료의 선행 조건이 아니다.
 
 | ID    | 평가                         | 통과 기준                                                                                                                                     |
 | ----- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -174,7 +257,7 @@ fixture/doc 변경을 과거 통과에 소급하지 않으며 실제 전체 CI·
 ### 반복·판정·측정 절차
 
 1. 모델·CLI·소비 스키마·하네스·템플릿·대상 코드·환경을 식별하고 각 사례의 입력·판정 기준을 실행 전에 고정한다. 생성 코드가 검사나 권한 경계를 바꿔 통과시키지 못하게 한다.
-2. 변경 전후 같은 조건으로 각 대표 자연어 사례를 **초기 기본 3회씩 독립 실행**한다. 매번 fixture를 초기화하고 실행별 결과를 남긴다. 반복 횟수 조정은 비용·편차 근거와 함께 사전에 기록하며 실패 결과를 없애기 위해 조정하지 않는다. 모델까지 바꾸는 경우 별도 비교로 분리한다.
+2. 변경 영향에 필요한 대표 자연어 사례를 선택해 **사례당 기본 1회**를 해당 구현 묶음의 전체 흐름 검증에 포함한다. 이전 결과가 같은 조건에서 적용되면 비교 근거로 재사용한다. 이전 상태를 새로 실행해야 하는 비교는 상태별 1회로 제한한다. 새 실패나 구체적인 결과 편차를 확인할 추가 반복은 목적·횟수·비용 한도를 정한 뒤 수행하며 실패를 지우거나 성공을 얻기 위한 자동 반복은 하지 않는다. 모델 변경은 별도 비교이며 단일 실행으로 통계적인 품질 향상이나 비열등성을 주장하지 않는다.
 3. 대상·권한·파일/DB/배포 최종 상태는 결정적 검사로 판정한다. 브라우저 흐름은 실제 브라우저와 데이터 결과를 확인한다. 자연어 유용성은 기준에 따른 평가와 사람의 표본 검토로 보완하며 LLM 자기평가는 단독 완료 판정에 사용하지 않는다.
 4. 필수 권한·대상·증거 검사 실패가 한 번이라도 있으면 해당 기능의 연결·출시를 통과시키지 않는다. 기존 성공 사례의 회귀는 수정하거나 원인·영향을 명시해 처리한 뒤 판정한다. 유한한 반복 통과를 모든 자연어 입력의 성공 보장으로 표현하지 않는다.
 5. 작업 유형별 성공률·불필요한 질문 수·사람의 실제 개입 시간·미리보기까지의 시간·복구 성공과 시간을 기록한다. 측정 전 목표 성공률이나 시간 단축률을 임의로 약속하지 않으며 토큰·에이전트 수만으로 생산성을 판정하지 않는다.

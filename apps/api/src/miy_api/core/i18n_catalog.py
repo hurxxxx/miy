@@ -101,8 +101,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en-US": "This release requires matching evidence from a trusted build executor.",
     },
     "independent_apps.local_delivery_only": {
-        "ko-KR": "현재 배포 실행기는 로컬 개발 설치만 지원합니다.",
-        "en-US": "The current delivery executor supports local development installations only.",
+        "ko-KR": "이 설치 환경에 사용할 신뢰된 배포 실행기가 구성되지 않았습니다.",
+        "en-US": "This installation environment has no configured trusted delivery executor.",
     },
     "independent_apps.data_unavailable": {
         "ko-KR": "앱 데이터 저장소를 사용할 수 없습니다.",

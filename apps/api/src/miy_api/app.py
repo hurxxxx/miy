@@ -11,14 +11,19 @@ from fastapi.responses import Response as FastAPIResponse
 from opentelemetry.trace import SpanKind
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from miy_api.api_registry import register_api_routers
+from miy_api.api_registry import register_api_routers, register_first_party_api_routers
 from miy_api.api_composition import (
     ApiComposition,
     InactiveCompositionMiddleware,
     require_composition,
 )
-from miy_api.client_build import ClientBuildGuardMiddleware, read_frontend_build_id
+from miy_api.client_build import (
+    ClientBuildGuardMiddleware,
+    is_valid_client_build_id,
+    read_frontend_build_id,
+)
 from miy_api.core.db import get_session_factory, init_db
+from miy_api.core.model_registry import import_all_models
 from miy_api.core.i18n import (
     ERROR_CODE_HEADER,
     LocalizedApiMessage,
@@ -54,7 +59,11 @@ from miy_api.domains.rag.runtime import (
     get_rag_runtime_health,
     preload_rag_runtime,
 )
-from miy_api.external_runtime import ApiExternalRuntime, ProductionApiExternalRuntime
+from miy_api.external_runtime import (
+    ApiExternalRuntime,
+    FirstPartyApiExternalRuntime,
+    ProductionApiExternalRuntime,
+)
 from miy_api.frontend import mount_frontend
 from miy_api.miy_desktop_updates import (
     mount_miy_desktop_update_feeds,
@@ -130,18 +139,68 @@ def create_app(
     selected_composition = require_composition(composition)
     if selected_composition != "legacy" and initialize_runtime:
         raise RuntimeError("Split API runtime activation requires the writer cutover contract")
+    return _create_app(
+        initialize_runtime=initialize_runtime,
+        external_runtime=external_runtime,
+        composition=selected_composition,
+    )
+
+
+def create_first_party_app(
+    *,
+    composition: ApiComposition,
+    initialize_runtime: bool = True,
+    external_runtime: ApiExternalRuntime | None = None,
+    client_build_id: str | None = None,
+) -> FastAPI:
+    """Explicit split process using the existing trusted first-party DB boundary.
+
+    No Source-only role, delegated credential or new writer owner is selected.
+    The previous process must be drained by the deployment owner before routing
+    is changed. Schema migration and identity seeding remain a single core job.
+    """
+    selected = require_composition(composition)
+    if selected == "legacy":
+        raise ValueError("First-party split runtime requires one router owner")
+    if client_build_id is not None:
+        if selected != "official":
+            raise ValueError("Platform client build identity belongs to its own frontend artifact")
+        if not is_valid_client_build_id(client_build_id):
+            raise ValueError("Official client build identity is invalid")
+    return _create_app(
+        initialize_runtime=initialize_runtime,
+        external_runtime=external_runtime,
+        composition=selected,
+        first_party_shared_authority=True,
+        client_build_id=client_build_id,
+    )
+
+
+def _create_app(
+    *,
+    initialize_runtime: bool,
+    external_runtime: ApiExternalRuntime | None,
+    composition: ApiComposition,
+    first_party_shared_authority: bool = False,
+    client_build_id: str | None = None,
+) -> FastAPI:
+    selected_composition = require_composition(composition)
+    platform_services = selected_composition in {"legacy", "platform"}
+    serve_frontend = selected_composition == "legacy" or (
+        first_party_shared_authority and selected_composition == "platform"
+    )
     install_sensitive_http_logging_guard()
     settings = get_settings()
     frontend_build_id = (
-        read_frontend_build_id(settings.frontend_dist_dir)
-        if selected_composition == "legacy"
-        else None
+        read_frontend_build_id(settings.frontend_dist_dir) if serve_frontend else client_build_id
     )
-    miy_desktop_update_dirs = (
-        prepare_miy_desktop_update_dirs(settings) if selected_composition == "legacy" else {}
-    )
-    telemetry_enabled = selected_composition == "legacy" and bootstrap_telemetry(
-        service_name="miy-api",
+    miy_desktop_update_dirs = prepare_miy_desktop_update_dirs(settings) if serve_frontend else {}
+    telemetry_enabled = (
+        selected_composition == "legacy" or first_party_shared_authority
+    ) and bootstrap_telemetry(
+        service_name=(
+            "miy-api" if selected_composition == "legacy" else f"miy-{selected_composition}-api"
+        ),
         service_version=APP_VERSION,
         enabled=settings.otel_enabled,
         enable_console_exporter=settings.otel_console_exporter,
@@ -152,19 +211,35 @@ def create_app(
     selected_external_runtime = external_runtime
     if initialize_runtime:
         if selected_external_runtime is None:
-            selected_external_runtime = ProductionApiExternalRuntime(
-                settings,
-                storage_prepare=(
-                    ensure_bucket
-                    if settings.object_storage_required
-                    else _skip_object_storage_prepare
-                ),
-            )
+            if first_party_shared_authority:
+                selected_external_runtime = FirstPartyApiExternalRuntime(
+                    composition=selected_composition, settings=settings
+                )
+            else:
+                selected_external_runtime = ProductionApiExternalRuntime(
+                    settings,
+                    storage_prepare=(
+                        ensure_bucket
+                        if settings.object_storage_required
+                        else _skip_object_storage_prepare
+                    ),
+                )
         install_stack_dump_signal()
         initialize_platform_extensions(settings)
-        init_db()
+        if first_party_shared_authority:
+            from miy_api.core.worker_task_publisher import configure_first_party_worker_routing
+            from miy_api.domains.official_apps.first_party_runtime import (
+                require_first_party_database,
+            )
+
+            import_all_models()
+            require_first_party_database(composition=selected_composition)
+            configure_first_party_worker_routing()
+        else:
+            init_db()
         selected_external_runtime.prepare()
-        Path(settings.recording_spool_dir).expanduser().mkdir(parents=True, exist_ok=True)
+        if selected_composition in {"legacy", "official"}:
+            Path(settings.recording_spool_dir).expanduser().mkdir(parents=True, exist_ok=True)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -172,11 +247,12 @@ def create_app(
             yield
             return
         assert selected_external_runtime is not None
-        terminal_mcp_socket = HermesTerminalMcpSocketServer(settings)
+        terminal_mcp_socket = HermesTerminalMcpSocketServer(settings) if platform_services else None
         try:
             async with selected_external_runtime.activate(app):
-                await terminal_mcp_socket.startup()
-                if settings.llm_healthcheck_on_startup:
+                if terminal_mcp_socket is not None:
+                    await terminal_mcp_socket.startup()
+                if platform_services and settings.llm_healthcheck_on_startup:
                     with get_session_factory()() as session:
                         llm_status = inspect_registered_llm_runtime(
                             session,
@@ -190,7 +266,7 @@ def create_app(
                             "LLM effective readiness check failed: %s",
                             llm_status.workloads.public_dict(),
                         )
-                if settings.opf_healthcheck_on_startup:
+                if platform_services and settings.opf_healthcheck_on_startup:
                     privacy_filter = prepare_privacy_filter(
                         settings=settings,
                         download=settings.opf_download_on_startup,
@@ -198,7 +274,7 @@ def create_app(
                     app.state.privacy_filter_health = privacy_filter
                     if settings.opf_required and not privacy_filter.ready:
                         logger.warning("Privacy Filter readiness check failed: %s", privacy_filter)
-                if settings.rag_enabled and settings.rag_preload_on_startup:
+                if platform_services and settings.rag_enabled and settings.rag_preload_on_startup:
                     app.state.rag_preload = preload_rag_runtime(settings)
                 loop_lag_watchdog = start_event_loop_lag_watchdog(settings)
                 app.state.loop_lag_watchdog = loop_lag_watchdog
@@ -209,8 +285,10 @@ def create_app(
                     await asyncio.gather(loop_lag_watchdog, return_exceptions=True)
                     app.state.loop_lag_watchdog = None
         finally:
-            await terminal_mcp_socket.shutdown()
-            close_rag_runtime_resources()
+            if terminal_mcp_socket is not None:
+                await terminal_mcp_socket.shutdown()
+            if platform_services:
+                close_rag_runtime_resources()
 
     app = FastAPI(
         title=(
@@ -230,6 +308,7 @@ def create_app(
     )
     app.state.frontend_build_id = frontend_build_id
     app.state.api_composition = selected_composition
+    app.state.first_party_shared_authority = first_party_shared_authority
     app.state.telemetry_enabled = telemetry_enabled
     app.add_exception_handler(
         RuntimeRegistryValidationError,
@@ -276,7 +355,7 @@ def create_app(
 
     @app.get("/healthz", tags=["system"])
     def healthz() -> dict[str, str]:
-        if selected_composition != "legacy":
+        if selected_composition != "legacy" and not first_party_shared_authority:
             return {
                 "status": "ok",
                 "composition": selected_composition,
@@ -290,16 +369,54 @@ def create_app(
             "environment": settings.environment,
             "instance_id": settings.instance_id,
             "runtime_revision": RUNTIME_REVISION,
+            **(
+                {"composition": selected_composition, "authority": "first_party_shared_database"}
+                if first_party_shared_authority
+                else {}
+            ),
         }
 
     @app.get("/readyz", tags=["system"])
     def readyz(request: Request, response: Response) -> dict[str, object]:
-        if selected_composition != "legacy":
+        if selected_composition != "legacy" and not first_party_shared_authority:
             response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
             return {
                 "status": "not_ready",
                 "composition": selected_composition,
                 "code": "service_not_activated",
+                "version": APP_VERSION,
+                "runtime_revision": RUNTIME_REVISION,
+            }
+        if first_party_shared_authority and selected_composition == "official":
+            from miy_api.domains.official_apps.first_party_runtime import (
+                require_first_party_database,
+            )
+
+            try:
+                require_first_party_database(composition="official")
+            except RuntimeError:
+                response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+                return {"status": "not_ready", "code": "first_party_database_unavailable"}
+            services = (
+                getattr(request.app.state, "app_realtime", None),
+                getattr(request.app.state, "docs_collab", None),
+                getattr(request.app.state, "whiteboard_collab", None),
+            )
+            ready = all(service is not None for service in services) and all(
+                bool(
+                    getattr(service, "redis_available", getattr(service, "relay_available", False))
+                )
+                for service in services
+                if service is not None
+            )
+            if not ready:
+                response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+            return {
+                "status": "ok" if ready else "not_ready",
+                "composition": "official",
+                "authority": "first_party_shared_database",
+                "environment": settings.environment,
+                "instance_id": settings.instance_id,
                 "version": APP_VERSION,
                 "runtime_revision": RUNTIME_REVISION,
             }
@@ -353,10 +470,29 @@ def create_app(
             "realtime": realtime,
         }
 
-    register_api_routers(app, settings, composition=selected_composition)
-    if selected_composition == "legacy":
-        mount_miy_desktop_update_feeds(app, settings, miy_desktop_update_dirs)
-        mount_frontend(app, settings)
+    if first_party_shared_authority:
+        register_first_party_api_routers(app, settings, composition=selected_composition)
     else:
+        register_api_routers(app, settings, composition=selected_composition)
+    if serve_frontend:
+        mount_miy_desktop_update_feeds(app, settings, miy_desktop_update_dirs)
+        if selected_composition == "legacy" and settings.serve_frontend:
+            official_frontend_dir = (
+                Path(settings.frontend_dist_dir).expanduser().resolve().parent / "official-suite"
+            )
+            if (official_frontend_dir / "index.html").is_file():
+                from miy_official_api.frontend import (
+                    mount_official_frontend,
+                    read_platform_build_id,
+                )
+
+                official_build_id = read_platform_build_id(official_frontend_dir)
+                if official_build_id != frontend_build_id:
+                    raise RuntimeError("legacy_official_frontend_compatibility_mismatch")
+                mount_official_frontend(
+                    app, official_frontend_dir, platform_build_id=official_build_id
+                )
+        mount_frontend(app, settings)
+    elif not first_party_shared_authority:
         app.add_middleware(InactiveCompositionMiddleware)
     return app

@@ -87,7 +87,7 @@ def test_settings_reject_duplicate_installations_cross_target_overlap_and_core_s
     for targets in invalid:
         with pytest.raises(ValidationError):
             settings_for(targets)
-    with pytest.raises(ValidationError, match="development only"):
+    with pytest.raises(ValidationError, match="development and production only"):
         Settings(
             _env_file=None,
             environment="preview",

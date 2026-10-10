@@ -21,6 +21,7 @@ import {
   prepareRollbackBundle,
   restoreRollbackEnvironment,
   rollbackRuntime,
+  assertRollbackLegacyRouting,
 } from './prod-app-rollback.mjs';
 
 const IMAGE = `sha256:${'a'.repeat(64)}`;
@@ -33,7 +34,7 @@ const helper = fileURLToPath(
 );
 const shellQuote = (value) => `'${value.replaceAll("'", "'\\''")}'`;
 
-function fixture(t, { symlink = false, brand = 'miy' } = {}) {
+function fixture(t, { symlink = false, brand = 'miy', firstParty = false } = {}) {
   const directory = mkdtempSync(
     path.join(os.tmpdir(), 'miy-prod-rollback-test-'),
   );
@@ -43,10 +44,11 @@ function fixture(t, { symlink = false, brand = 'miy' } = {}) {
   const files = {
     [`ops/compose/${brand}-prod.app.yml`]: `name: ${brand}-prod-app\nservices:\n  api:\n    image: ${brand}-app:prod\n    env_file: [../../.env]\n  hermes-terminal-broker:\n    image: ${brand}-app:prod\n    container_name: ${brand}-prod-hermes-terminal-broker\n`,
     'ops/hermes/bootstrap.py': '# previous helper\n',
-    'scripts/prod-app-config.mjs': `import {readFileSync} from 'node:fs';\nif (!readFileSync(process.argv[2], 'utf8').includes('PREVIOUS_CONTRACT=required')) { console.error('synthetic-sensitive-environment'); process.exit(1); }\n`,
+    'scripts/prod-app-config.mjs': `import {readFileSync} from 'node:fs';\nimport {pathToFileURL} from 'node:url';\nexport function readEnvFile(file) { return readFileSync(file, 'utf8'); }\nexport function assertProductionAppEnv(contents) { if (!contents.includes('PREVIOUS_CONTRACT=required')) throw new Error('synthetic-sensitive-environment'); return {appPort:8000, publicBaseUrl:new URL('https://previous.example.com')}; }\nif (process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) { assertProductionAppEnv(readEnvFile(process.argv[2])); }\n`,
     'scripts/prod-app-smoke.mjs': '// previous smoke\n',
     'package.json': '{"type":"module"}\n',
   };
+  if (firstParty) files['ops/first-party/compose.override.yml.example'] = '# pinned split composition\n';
   for (const [relative, content] of Object.entries(files)) {
     mkdirSync(path.dirname(path.join(rootDir, relative)), { recursive: true });
     writeFileSync(path.join(rootDir, relative), content);
@@ -96,8 +98,35 @@ function fixture(t, { symlink = false, brand = 'miy' } = {}) {
             'hermes-terminal-broker': {
               container_name: `${brand}-prod-hermes-terminal-broker`,
             },
+            ...(firstParty ? {
+              api: { image: `${brand}-app:prod`, command: ['miy_api.platform_runtime:app'] },
+              worker: { image: `${brand}-app:prod`, command: ['miy_worker.first_party_platform:celery_app'] },
+              beat: { image: `${brand}-app:prod`, command: ['miy_worker.first_party_beat:celery_app'] },
+              gateway: { image: `${brand}-app:prod`, command: ['apps/api/.venv/bin/python', 'ops/first-party/gateway.py'] },
+              'official-api': { image: OTHER, command: ['miy_official_api.runtime:app'] },
+              'official-worker': { image: `sha256:${'d'.repeat(64)}`, command: ['miy_official_worker.runtime:celery_app'] },
+            } : {}),
           },
         });
+      if (firstParty) {
+        const ref = args.at(-1);
+        const officialApi = ref === OTHER || ref === 'miy-official-api:prod';
+        const officialWorker = ref === `sha256:${'d'.repeat(64)}` || ref === 'miy-official-worker:prod';
+        if (officialApi || officialWorker) {
+          if (args[3] === '{{.Id}}') return officialApi ? OTHER : `sha256:${'d'.repeat(64)}`;
+          const name = args[3];
+          if (name.includes('org.opencontainers.image.title')) return officialApi ? 'miy-official-api' : 'miy-official-worker';
+          if (name.includes('activation')) return 'first-party-runtime';
+          if (name.includes('source-dirty')) return 'false';
+          if (name.includes('release.contract')) return 'c'.repeat(64);
+          if (name.includes('release.tree')) return git('rev-parse', `${revision}^{tree}`);
+          if (name.includes('release.platform')) return 'linux/amd64';
+          if (name.includes('bento-url-sha256')) return 'e'.repeat(64);
+          if (name.includes('merge-request')) return '80';
+          if (name.includes('pipeline')) return '141';
+          return revision;
+        }
+      }
       return args[3] === '{{.Id}}' ? IMAGE : revision;
     }
     return execFileSync(command, args, {
@@ -114,10 +143,40 @@ function fixture(t, { symlink = false, brand = 'miy' } = {}) {
   return { rootDir, envFile, revision, run, options, calls, directory };
 }
 
+test('split rollback pins both official immutable images and rejects altered bindings', (t) => {
+  const f = fixture(t, { firstParty: true });
+  const bundle = prepareRollbackBundle({ ...f.options, topology: 'first-party', officialApiImage: OTHER,
+    officialWorkerImage: `sha256:${'d'.repeat(64)}` }, { run: f.run });
+  const runtime = rollbackRuntime(bundle);
+  assert.equal(runtime.topology, 'first-party');
+  assert.equal(runtime.officialApiImage, OTHER);
+  assert.equal(runtime.officialWorkerImage, `sha256:${'d'.repeat(64)}`);
+  assert.equal(runtime.officialRevision, f.revision);
+  assert.equal(JSON.parse(readFileSync(path.join(bundle, 'rollback.json'))).version, 2);
+  restoreRollbackEnvironment({ rootDir: f.rootDir, bundle, image: IMAGE });
+  assert.equal(readFileSync(path.join(f.rootDir, '.env'), 'utf8'), PREVIOUS_ENV);
+  writeFileSync(path.join(bundle, '.images.env'), `MIY_OFFICIAL_API_IMAGE=${IMAGE}\n`);
+  assert.throws(() => rollbackRuntime(bundle), /artifact bindings have changed/);
+});
+
 function prepared(t, options) {
   const f = fixture(t, options);
   return { ...f, bundle: prepareRollbackBundle(f.options, { run: f.run }) };
 }
+
+test('legacy recovery checks public split routing with the pinned previous config owner', async (t) => {
+  const f = prepared(t, { brand: 'mty' });
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const paths = [];
+  globalThis.fetch = async (url) => {
+    paths.push(String(url));
+    return new Response('<!doctype html><html><body><div id="root"></div></body></html>', { headers: { 'content-type': 'text/html' } });
+  };
+  await assertRollbackLegacyRouting(f.bundle);
+  assert.ok(paths.includes('https://previous.example.com/official-suite/widgets'));
+  assert.ok(paths.includes('https://previous.example.com/official-suite/healthz'));
+});
 
 test('pins environment and exact Git deployment assets before any runtime change', (t) => {
   const f = prepared(t);
@@ -380,6 +439,9 @@ node() {
     printf 'restore-env\\n' >> "$EVENTS"
     [[ "$FAIL_STAGE" != env ]] || return 4
     ${shellQuote(process.execPath)} ${shellQuote(helper)} "\${@:2}"
+  elif [[ "$*" == *' smoke-routing '* ]]; then
+    printf 'routing-smoke\\n' >> "$EVENTS"
+    [[ "$FAIL_STAGE" != routing-smoke ]] || return 4
   elif [[ "$1" == *prod-app-smoke.mjs ]]; then
     printf 'smoke:%s:%s\\n' "$1" "\${!ROLLBACK_REVISION_ENV}" >> "$EVENTS"
     [[ "$FAIL_STAGE" != smoke ]] || return 4
@@ -439,6 +501,7 @@ test('explicit rollback restores pinned image, root/bundle env, previous definit
       `smoke:${f.bundle}/scripts/prod-app-smoke.mjs:${f.revision}`,
     ),
   );
+  assert.ok(f.events.indexOf('routing-smoke') > f.events.indexOf(`smoke:${f.bundle}/scripts/prod-app-smoke.mjs`));
   assert.doesNotMatch(f.events, /migrate|--volumes| down .* -v|prod-previous/);
   assert.equal(
     readFileSync(path.join(f.rootDir, '.env'), 'utf8'),
@@ -446,7 +509,7 @@ test('explicit rollback restores pinned image, root/bundle env, previous definit
   );
 });
 
-for (const stage of ['stop', 'env', 'tag', 'start', 'smoke']) {
+for (const stage of ['stop', 'env', 'tag', 'start', 'smoke', 'routing-smoke']) {
   test(`rollback stops at ${stage} failure even in an OR/conditional caller`, (t) => {
     const f = shellRestore(t, stage);
     assert.equal(f.result.stdout, 'failed\n');
@@ -589,6 +652,9 @@ ROLLBACK_IMAGE=""
 ROLLBACK_ENV_FILE=""
 RELEASE_MR=""
 DEPLOY_IMAGE=""
+TOPOLOGY=legacy RELEASE_SLICE=full ROLLBACK_TOPOLOGY=legacy
+OFFICIAL_API_IMAGE="" OFFICIAL_WORKER_IMAGE=""
+ROLLBACK_OFFICIAL_API_IMAGE="" ROLLBACK_OFFICIAL_WORKER_IMAGE=""
 require_prod_checkout() { printf 'checkout\\n'; }
 require_release_source() { printf 'release\\n'; }
 acquire_operation_lock() { printf 'lock\\n'; }

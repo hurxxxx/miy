@@ -44,12 +44,35 @@ class DockerRuntime:
         platform_origin: str,
         platform_api_origin: str | None = None,
         data_store: PostgresAppData | None = None,
+        app_origin: str | None = None,
+        loopback_port: int | None = None,
+        operator_binding_digest: str | None = None,
+        environment: str = "development",
         docker_bin: str = "/usr/bin/docker",
     ):
         if not _IMAGE.fullmatch(ingress_image):
             raise ValueError("Select an immutable local core ingress image ID")
         self.platform_origin = exact_origin(platform_origin)
         self.platform_api_origin = exact_origin(platform_api_origin or platform_origin)
+        self.app_origin = exact_origin(app_origin) if app_origin is not None else None
+        self.loopback_port = loopback_port
+        self.operator_binding_digest = operator_binding_digest
+        self.environment = environment
+        if environment not in {"development", "production"} or (
+            environment == "production" and app_origin is None
+        ):
+            raise ValueError("Select an explicitly bound development or production runtime")
+        if any(value is not None for value in (app_origin, loopback_port, operator_binding_digest)):
+            if (
+                self.app_origin is None
+                or urlsplit(self.app_origin).scheme != "https"
+                or self.app_origin in {self.platform_origin, self.platform_api_origin}
+                or type(loopback_port) is not int
+                or not 1024 <= loopback_port <= 65535
+                or not isinstance(operator_binding_digest, str)
+                or not re.fullmatch("[a-f0-9]{64}", operator_binding_digest)
+            ):
+                raise ValueError("Production ingress needs an exact Core origin/listener binding")
         self.ingress_image = ingress_image
         self.data_store = data_store
         # This directory is core-owned configuration, never an app repository.
@@ -180,11 +203,36 @@ class DockerRuntime:
             raise RuntimeFailure("immutable_image_required", uncertain=False)
         return parsed.port
 
+    def _port(self, spec: RuntimeSpec) -> int:
+        if spec.environment != getattr(self, "environment", "development"):
+            raise RuntimeFailure("runtime_identity_mismatch", uncertain=False)
+        if spec.environment == "development" and getattr(self, "app_origin", None) is None:
+            if spec.loopback_port is not None or spec.operator_binding_digest is not None:
+                raise RuntimeFailure("runtime_identity_mismatch", uncertain=False)
+            return self.port(spec)
+        if (
+            spec.environment not in {"development", "production"}
+            or self.app_origin != exact_origin(spec.origin)
+            or self.loopback_port != spec.loopback_port
+            or self.operator_binding_digest != spec.operator_binding_digest
+            or self.loopback_port is None
+        ):
+            raise RuntimeFailure("runtime_identity_mismatch", uncertain=False)
+        if not _IMAGE.fullmatch(spec.image_id):
+            raise RuntimeFailure("immutable_image_required", uncertain=False)
+        return self.loopback_port
+
     def _fingerprint(self, spec: RuntimeSpec) -> str:
         return hashlib.sha256(
             json.dumps(
                 {
-                    "spec": spec.__dict__,
+                    # Preserve existing development container fingerprints.
+                    "spec": {
+                        key: value
+                        for key, value in spec.__dict__.items()
+                        if value is not None
+                        or key not in {"loopback_port", "operator_binding_digest"}
+                    },
                     "platform": self.platform_origin,
                     "platform_api": self.platform_api_origin,
                     "profile": 1,
@@ -221,7 +269,7 @@ class DockerRuntime:
         return item
 
     def prepare(self, spec: RuntimeSpec) -> None:
-        self.port(spec)
+        self._port(spec)
         name, network, _ = self.names(spec)
         if self._run("image", "inspect", spec.image_id, "--format", "{{.Id}}") != spec.image_id:
             raise RuntimeFailure("artifact_unavailable", uncertain=False)
@@ -416,13 +464,13 @@ http {{
                 or item["Config"].get("User") != "1000:1000"
                 or set(item["NetworkSettings"]["Networks"]) != {"bridge", network}
                 or host.get("PortBindings")
-                != {"8080/tcp": [{"HostIp": "127.0.0.1", "HostPort": str(self.port(spec))}]}
+                != {"8080/tcp": [{"HostIp": "127.0.0.1", "HostPort": str(self._port(spec))}]}
             ):
                 raise RuntimeFailure("ingress_identity_mismatch")
         return item
 
     def activate(self, spec: RuntimeSpec) -> None:
-        self.port(spec)
+        self._port(spec)
         self._container(spec)
         _, network, proxy = self.names(spec)
         directory = self.root / spec.installation_id
@@ -461,7 +509,7 @@ http {{
                 "--tmpfs",
                 "/tmp:rw,nosuid,nodev,noexec,size=32m",
                 "--publish",
-                f"127.0.0.1:{self.port(spec)}:8080",
+                f"127.0.0.1:{self._port(spec)}:8080",
                 "--mount",
                 f"type=bind,src={directory},dst=/etc/miy,readonly",
                 "--entrypoint",
@@ -494,7 +542,7 @@ http {{
             pass
         else:
             raise RuntimeFailure("runtime_observation_context_required")
-        self.port(spec)
+        self._port(spec)
         container, proxy = self._container(spec), self._proxy(spec)
         image = container["Image"] if container else None
         active = healthy = False

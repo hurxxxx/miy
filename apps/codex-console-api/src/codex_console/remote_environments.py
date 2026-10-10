@@ -11,6 +11,19 @@ import re
 from pathlib import Path
 
 from .errors import ConsoleError
+from .toolchain_profiles import SDK_PROFILE, binding_identity, command_environment, selected_profile
+
+
+def _require_sdk_policy(policy, environment):
+    # Official v0.160.1 filters include_only after applying explicit set values.
+    # Host profile evaluation must also stay off for this fixed command profile.
+    if selected_profile(environment) == SDK_PROFILE and (
+        policy.get("include_only")
+        or policy.get("filters")
+        or policy.get("experimental_use_profile")
+    ):
+        raise ConsoleError("app_executor_configuration", 503)
+
 
 REMOTE_VERSION = "0.160.1"
 ENVIRONMENT_ID = "miy-app"
@@ -34,6 +47,9 @@ def fingerprint(environment):
         "exec_server_url": environment.exec_server_url,
         "profile": 1,
     }
+    toolchain = binding_identity(environment)
+    if toolchain is not None:
+        public["toolchain"] = toolchain
     return hashlib.sha256(
         json.dumps(public, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
@@ -83,6 +99,15 @@ def for_task(settings, task):
     return environment
 
 
+def implementation_permissions(settings, task):
+    """Advertise current choices without making stale task history unreadable."""
+    try:
+        environment = for_task(settings, task)
+        return ["ask"] if selected_profile(environment) == SDK_PROFILE else ["ask", "yolo"]
+    except (ConsoleError, KeyError, TypeError, AttributeError):
+        return []
+
+
 def require_provider_boundary():
     home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex")))
     # The official TOML provider takes precedence over CODEX_EXEC_SERVER_URL.
@@ -91,10 +116,11 @@ def require_provider_boundary():
         raise ConsoleError("app_executor_configuration", 503)
 
 
-def overrides(config):
+def overrides(config, environment=None):
     if (config.get("model_provider") or "openai") != "openai":
         raise ConsoleError("subscription_provider_required")
-    names = config.get("mcp_servers") or {}
+    sdk = selected_profile(environment) == SDK_PROFILE
+    names = {} if sdk else config.get("mcp_servers") or {}
     if not isinstance(names, dict) or any(
         not re.fullmatch(r"[A-Za-z0-9_-]+", key) for key in names
     ):
@@ -108,6 +134,9 @@ def overrides(config):
         raise ConsoleError("app_executor_configuration", 503)
     result = {f"mcp_servers.{name}.enabled": False for name in names}
     policy = config.get("shell_environment_policy") or {}
+    if not isinstance(policy, dict):
+        raise ConsoleError("app_executor_configuration", 503)
+    _require_sdk_policy(policy, environment)
     extra = policy.get("set") or {}
     if not isinstance(extra, dict) or any(
         not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key) for key in extra
@@ -121,8 +150,17 @@ def overrides(config):
             "notify": [],
             "allow_login_shell": False,
             "shell_environment_policy.inherit": "none",
-            "shell_environment_policy.set.PATH": "/usr/local/bin:/usr/bin:/bin",
-            "shell_environment_policy.set.HOME": "/tmp",
+        }
+    )
+    if selected_profile(environment) == SDK_PROFILE:
+        result["sandbox_mode"] = "read-only"
+        result["approval_policy"] = "never"
+        result["shell_environment_policy.experimental_use_profile"] = False
+        result["shell_environment_policy.ignore_default_excludes"] = False
+    result.update(
+        {
+            f"shell_environment_policy.set.{key}": value
+            for key, value in command_environment(environment).items()
         }
     )
     return result
@@ -134,10 +172,24 @@ def selectors(task):
     ]
 
 
-def verify_overrides(config):
+def verify_overrides(config, environment=None):
     features = config.get("features") or {}
     policy = config.get("shell_environment_policy") or {}
+    if not isinstance(policy, dict):
+        raise ConsoleError("app_executor_configuration", 503)
+    _require_sdk_policy(policy, environment)
     variables = policy.get("set") or {}
+    if not isinstance(variables, dict):
+        raise ConsoleError("app_executor_configuration", 503)
+    expected = command_environment(environment)
+    mcp_servers = config.get("mcp_servers")
+    if selected_profile(environment) == SDK_PROFILE and (
+        mcp_servers is not None
+        and (type(mcp_servers) is not dict or mcp_servers)
+        or config.get("sandbox_mode") != "read-only"
+        or config.get("approval_policy") != "never"
+    ):
+        raise ConsoleError("app_executor_configuration", 503)
     if (
         any(features.get(key) is not value for key, value in SAFE_FEATURES.items())
         or any(
@@ -147,8 +199,7 @@ def verify_overrides(config):
         or config.get("notify")
         or config.get("allow_login_shell") is not False
         or policy.get("inherit") != "none"
-        or variables.get("PATH") != "/usr/local/bin:/usr/bin:/bin"
-        or variables.get("HOME") != "/tmp"
-        or any(value for key, value in variables.items() if key not in {"PATH", "HOME"})
+        or any(variables.get(key) != value for key, value in expected.items())
+        or any(value for key, value in variables.items() if key not in expected)
     ):
         raise ConsoleError("app_executor_configuration", 503)

@@ -679,7 +679,8 @@ test('production dependency layers exclude revision churn, uv cache and local te
   );
   assert.match(prepare, /git -C "\$ROOT_DIR" archive --format=tar HEAD/);
   assert.match(prepare, /--tag "\$build_image"/);
-  assert.match(prepare, /docker tag "\$build_image" "\$CANDIDATE_IMAGE"/);
+  assert.match(prepare, /candidate_image="\$CANDIDATE_IMAGE"/);
+  assert.match(prepare, /docker tag "\$build_image" "\$candidate_image"/);
   const deploy = release.slice(
     release.indexOf('deploy()'),
     release.indexOf('COMMAND='),
@@ -759,6 +760,16 @@ test('accepts a separated production runtime configuration', () => {
   );
   assert.equal(config.hermesTerminalBrokerPort, 8765);
   assert.equal(config.publicBaseUrl.href, 'https://prod.example.com/');
+});
+
+test('first-party preflight reserves both internal API ports without changing legacy configuration', () => {
+  assert.equal(assertProductionAppEnv(validEnv(), { firstParty: true }).appPort, 8000);
+  for (const port of ['18779', '18780']) {
+    const values = validEnv({ MIY_APP_PORT: port,
+      MIY_HERMES_MCP_SERVER_URL: `http://127.0.0.1:${port}/api/v1/internal/hermes/mcp` });
+    assert.equal(assertProductionAppEnv(values).appPort, Number(port));
+    assert.throws(() => assertProductionAppEnv(values, { firstParty: true }), /reserved first-party internal API port/);
+  }
 });
 
 test('requires an exact private or loopback Bento IPv4 bind address', () => {

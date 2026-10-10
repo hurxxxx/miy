@@ -191,7 +191,7 @@ Selector maintenance checks: `node --test scripts/release-validation.test.mjs`, 
 - Initial sibling `dev`/`prod` checkout creation is documented in [installation §2.5](../../../INSTALL.md). Creating the `main` worktree does not configure production credentials, promote a release, or deploy; never copy the development `.env` into it.
 - Keep `.env` aligned with `.env.example`; production preflight rejects dev login/seed flags, an unsafe attachment-signing key, an untrusted proxy wildcard, non-public or shared app/Bento origins, and host-port collisions.
 - Route each public hostname directly from the external HTTPS proxy to its declared service port. `MIY_APP_FORWARDED_ALLOW_IPS` lists only the exact external proxy IPs. Bind Bento to loopback for a local proxy or the exact private proxy-facing IPv4 address; production rejects wildcard, public-IP, IPv6, and hostname bindings.
-- The app image contains the web build, API, worker, migrations, and collaboration codec at one source revision. The Compose runtime starts the privacy filter, API, worker, and scheduler with restart policies and health checks.
+- The default legacy app image contains the web build, API, worker, migrations, and collaboration codec at one source revision. The explicit first-party topology below separates the official API/web and worker artifacts while retaining the existing release gates.
 - API and worker use redis-py 8.1.x. Its reentrant PubSub lock permits Celery result finalizers to unsubscribe during a subscription; the 5.3.1 lock can deadlock the scheduler. Keep both lockfiles aligned and run `apps/worker/tests/test_redis_pubsub_reentrancy.py` in both Python environments when changing Redis dependencies.
 - OpenAI 3 and Anthropic 1 use HTTPX2. Keep OS CA certificates in the app image and suppress the `httpx2` request logger alongside `httpx` and `httpcore`; request URLs can contain credentials or user queries. Numeric SDK timeouts and the registered provider execution interface remain in use. Verify `apps/api/tests/test_logging_security.py` when changing HTTP clients.
 - Ruff's explicit `E4`, `E7`, `E9`, and `F` selection preserves all pre-0.16 checks, including rules removed from the new defaults. Dependency upgrades must not silently replace the existing lint policy with a different upstream default set.
@@ -219,6 +219,90 @@ pnpm app:prod:up
 ```
 
 Run both release commands from the clean `prod` checkout after updating it to `origin/main`. The host needs an authenticated `glab` session for the internal GitLab project. Copy only the `sha256:...` line printed by prepare into deploy; tags are not accepted as deployment input.
+
+### Explicit first-party topology and official bundle release
+
+`scripts/prod-app.sh --topology first-party` selects the reviewed
+[`ops/first-party` definitions](../../../ops/first-party/README.md); the default
+legacy path remains unchanged. Prepare verifies the same merged MR, CI and clean
+source tree, builds/reuses three artifacts, and prints named immutable IDs:
+`platform`, `official-api` (including its own web dist), and `official-worker`.
+Deploy requires all three exact IDs and checks each artifact's source, tree,
+platform and release labels. The official web artifact records the exact
+platform web build ID; a mismatch holds deployment rather than overriding the
+browser guard. The image bindings passed to Compose are private CLI operation
+values after validation, never user `.env` overrides.
+
+The Core image also owns a rootless native NGINX gateway on the existing
+`MIY_APP_BIND_HOST:MIY_APP_PORT` listener. Platform and official APIs bind only
+to `127.0.0.1:18779` and `127.0.0.1:18780`; reserved-port configuration and
+actual listener ownership are checked before preparation or mutation. The
+gateway renders the matching server/client route inventories once from its
+immutable Core image. It receives only the existing listener, API prefix and
+exact trusted proxy IP settings, with no product secret env file or persistent
+app volume. Existing external TLS and its app-port forwarding remain unchanged.
+
+```bash
+pnpm app:prod:prepare --release-mr <iid> --topology first-party
+pnpm app:prod:deploy --release-mr <iid> --topology first-party --image 'sha256:<platform-id>' --official-api-image 'sha256:<official-api-id>' --official-worker-image 'sha256:<official-worker-id>' --rollback-env-file /protected/path/previous.env --rollback-image 'sha256:<previous-platform-id>'
+```
+
+Every first-party deploy/rollback requires the existing secure image/environment
+recovery bundle. A legacy prior runtime uses the arguments above. A split prior
+runtime additionally requires `--rollback-topology first-party`,
+`--rollback-official-api-image` and `--rollback-official-worker-image`, with the
+two exact prior immutable IDs. The existing rollback helper pins the old
+six-service assembly and both official IDs alongside the previous platform
+artifact; version 1 legacy and renamed-project recovery remain supported.
+Forward startup, identity capture, health waiting and recovery account for both
+APIs, both workers, the single Beat and the gateway. First-party `status`, `smoke` and `up`
+also require the explicit topology flag.
+
+Legacy to first-party transition stops API and Beat admission first, observes
+the actual legacy worker's exact Celery consumers/queues and zero pending,
+active, reserved and scheduled work, then stops that worker. The bounded,
+read-only drain uses native Kombu transport queue sizes, including Redis
+priority buckets; Redis's exact passive-declare 404 for an already attested
+empty live queue counts as zero. With Redis acknowledgment emulation enabled,
+the native QoS unacked hash and index must also have matching zero counts;
+orphaned deliveries wait for the existing consumer's visibility-timeout recovery.
+Missing consumers, unavailable/inconsistent native inventory, other transport
+errors and unfinished work hold the transition. Rollback to legacy stops gateway
+admission before applying the same drain
+to the split queues. No queue copying, purging, task revocation or new retry
+semantics are introduced. Failed observation leaves operator recovery explicit.
+
+`--slice official` prepares/deploys the reviewed official API/web + worker pair
+without rebuilding/recreating platform, Beat or gateway. It is accepted only from a
+healthy, fully attested first-party runtime, with an unchanged environment and
+shared source. The slice checker derives official handler/task ownership from
+the existing router/task inventories. Shared contracts, storage models,
+migrations, locks, ownership or deployment definitions require a full release.
+Both official artifacts have the same reviewed release identity and must match
+the retained platform web compatibility value and exact native API owner
+projection. Adding or changing official endpoint paths changes the shared
+gateway routing contract and requires a full release. Slice deploy omits `--image`
+and supplies both new official IDs plus the split prior recovery bundle. Slice
+rollback uses the prior pair while preserving the same platform/Beat/gateway instances;
+queued work keeps its existing namespace and native graceful shutdown behavior.
+
+Local preparation does not attest production activation. First-party smoke
+additionally checks the official local port and public
+`/official-suite/healthz`, `/official-suite/readyz`, frontend compatibility and
+HTML shell through the managed gateway. Deployment acceptance also uses the
+existing authenticated browser/realtime entrypoints for representative common
+and official HTTP/WebSocket flows. Source-only checks and local image preparation
+do not prove public runtime acceptance.
+
+The pinned Core image includes its matching gateway and generated-map source,
+so the paired service rollback restores routing with the same immutable runtime;
+it does not require an external HTTPS map switch. Restoring legacy removes the
+managed gateway and restores the prior API to the original app listener. A
+legacy restoration runs the prior pinned smoke and an additional
+current read-only namespace check using the prior config owner's public runtime
+locations; a remaining separate official health service or unavailable split
+upstream is a failed recovery. Public smoke remains required; healthy root
+health/login alone is insufficient.
 
 ## Incompatible database and configuration cutovers
 

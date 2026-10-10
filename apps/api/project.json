@@ -12,7 +12,18 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/api",
-        "command": "env -u OPENROUTER_API_KEY MIY_API_AUTO_MIGRATE=${MIY_API_AUTO_MIGRATE:-1} uv run --python 3.12 uvicorn miy_api.main:app --app-dir src --host ${MIY_DEV_API_HOST:-127.0.0.1} --port ${MIY_API_DEV_PORT:-8001} --reload --reload-dir src"
+        "commands": [
+          "env -u OPENROUTER_API_KEY MIY_API_AUTO_MIGRATE=${MIY_API_AUTO_MIGRATE:-1} uv run --python 3.12 uvicorn miy_api.main:app --app-dir src --host ${MIY_DEV_API_HOST:-127.0.0.1} --port ${MIY_API_DEV_PORT:-8001} --reload --reload-dir src"
+        ]
+      },
+      "configurations": {
+        "first-party": {
+          "commands": [
+            "env -u OPENROUTER_API_KEY MIY_API_AUTO_MIGRATE=${MIY_API_AUTO_MIGRATE:-1} uv run --python 3.12 uvicorn miy_api.platform_runtime:app --app-dir src --host ${MIY_DEV_API_HOST:-127.0.0.1} --port ${MIY_API_DEV_PORT:-8001} --reload --reload-dir src",
+            "env -u OPENROUTER_API_KEY MIY_API_AUTO_MIGRATE=0 MIY_API_SEED_DEV_LOGIN_ACCOUNT=0 MIY_API_INSTANCE_ID=dev-official-api uv run --python 3.12 uvicorn miy_official_api.development:app --app-dir ../official-suite/api/src --host ${MIY_DEV_API_HOST:-127.0.0.1} --port 18781 --reload --reload-dir src --reload-dir ../official-suite/api/src"
+          ],
+          "parallel": true
+        }
       }
     },
     "serve": {

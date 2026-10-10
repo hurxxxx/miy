@@ -1,12 +1,12 @@
 import { createElement } from 'react';
 
-import { docsManifest } from '@miy/official-suite-web/docs/module';
+import { docsManifest } from '@miy/official-suite-web/manifests/docs';
 import {
   adminRedirectRoutes,
   adminSectionRoutes,
   settingsManifest,
 } from '@/src/app-modules/settings';
-import { whiteboardManifest } from '@/src/app-modules/whiteboard';
+import { whiteboardManifest } from '@miy/official-suite-web/manifests/whiteboard';
 import {
   APP_GLOBAL_ROUTES,
   APP_ROUTES,

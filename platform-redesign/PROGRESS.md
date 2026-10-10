@@ -1,5 +1,45 @@
 # 재설계 진행 기록
 
+## 2026-10-10 필수 구조 구현 재개
+
+사용자의 “계획대로 진행” 지시로 구현을 재개했다. 현재 dev와 보존 후보를 확인하고 공식 묶음 runtime, 공통 등록/개인 앱 계약, Workbench SDK/native 연결을 분담했다. Root는 통합·typed 운영 설정·최종 검증/전달을 소유한다. 작은 단계별 전체 테스트와 릴리스를 반복하지 않는다. 기존 C2/Files 전면 확장은 계속 보류하며 실제 구조 분리/데이터 보존을 막는 최소 경계만 선택한다. 새 후보의 게시·배포는 아직 수행하지 않았다.
+
+기존 안전한 first-party 트랜잭션으로 공식 서비스 분리가 가능하므로 미게시 C2 전면 journal/adapter를 채택하지 않았다. 공식 API/worker entry·소유 큐·하나의 Beat·실제 공식 worker source/wheel 이전과 설치 연결을 준비했다. 코드 검토에서 platform frontend mount 누락을 발견해 보완했다. 공식 UI의 기존 core compile 결합도 실제 독립 릴리스 장애로 확인하여 별도 업무 모듈·UI 산출물과 같은 출처의 ingress/위젯 문서를 연결했다. 공식 API에도 산출물의 고정 플랫폼 build ID를 사용한 기존 HTTP/WS stale-client 차단을 연결한다.
+
+개발 시작은 기존 Nx·Uvicorn·Celery를 유지한다. native drain 후 선택한 토폴로지만 소유자 전용 로컬 runtime enum 파일에 원자적으로 기록하여 같은 namespace는 완전 중단·재부팅 뒤에도 바로 재시작하게 한다. 최초 first-party와 반대 모드로의 전환은 정확 live consumer·active/reserved/scheduled·큐 종료 증명이 필요하다. inspect 무응답을 빈 broker로 추정하거나 작업을 purge하지 않는다. native Redis의 확인된 빈 queue404와 다른 관측 실패를 구분한다.
+
+운영 배포 도구에는 명시적 first-party 선택, 세 불변 이미지·여섯 서비스 인수, 공식 API/worker 쌍만의 변경 및 현재 secure rollback bundle을 연결한다. 사용자가 별도 프록시 설정이 없다고 확인해 외부 앞단을 수동 변경하는 초안을 Core 소유 local gateway로 대체했다. 기존 공개 수신 포트와 TLS 연결을 유지하며 내부 공통18779·공식18780로 generated owner map을 사용한다. 공식-only 변경은 Core/Beat/gateway identity와 route inventory 호환을 보존한다. 실제 배포9cbf의 공개 health 정상은 읽기 전용으로 확인했으며 새 배포로 집계하지 않는다.
+
+개인 앱의 admin 승격은 같은 control-plane registry의 개발/운영 installation을 사용한다. 별도 HTTPS origin/loopback ingress, 설치별 scratch/state, 불변 개발 증거와 실제 운영 관측을 연결하며 dev 위임의 권한은 확대하지 않는다. 플랫폼 dev DB→prod DB의 원격 증거 전송은 새 프로토콜이 필요하므로 ENH-010으로 별도 보류했다. FIFO manifest 읽기 차단도 기존 regular-file 경계에서 최소 보완한다.
+
+Workbench SDK/UI/cache 후보를 현재 코드에 통합하고 무기한 지속 개발용 격리 service 예제를 준비했다. 기존 pilot과 Task/history/claim을 보존한다. 정상 controller 검사 helper는 현재 필요한 소스만 결속하도록 단순화하고 결과 파일 선예약·1회 claim·실행 시간·소유 정리 경계를 유지한다. 현재 controller 모델1회·8개 고정 네트워크 경로와 source/Git/native/cache 불변을 실제 확인했고 RPC/receiver/unit/process/port 정리를 확인했다. 실제 Workbench 릴리스·로그인 인수는 별도 남아 있다. 자세한 영향 검사와 최초 실패·최소 수정은 VALIDATION에 기록한다.
+
+## 2026-10-10 필수 구조와 후속 고도화 분리
+
+사용자 지시로 이번 완료 기준을 공통 앱 등록, 네 영역의 독립 변경·배포, 기존 Codex와 최소 개인 앱 개발/미리보기·배포/복구 연결, 권한·데이터 보존 및 대표 UI/DB 흐름 확인으로 한정했다. `FOLLOW_UP_ENHANCEMENTS.md`를 신설해 고급 UX·모니터링/템플릿·반복 자연어 평가·4+1 부하 측정·추가 서비스 분리·다중 사용자·일괄 호환 경로 제거를 ENH-001~009의 deferred 항목으로 분리했다.
+
+새 journal/checkpoint/native adapter와 Files 전면 확장도 자동 필수에서 제외했다. 실제 구조 분리 장애나 치명적 결함을 해결할 최소 부분만 현재 작업에 연결하며, 이미 확인된 데이터/권한 결함과 채택 경로의 필수 게이트는 유지한다. 기존 코드·검증·미게시 후보는 보존하고 미채택 고도화를 게시/활성화하지 않는다. 작업표의 완료 조건과 불필요한 의존성, 다음 단계·검증·정책·재개 안내를 필수 범위에 맞췄다. 이번에는 문서만 변경했으며 구현·앱 테스트·모델·CI·서비스·게시·배포는 중단 상태다.
+
+## 2026-10-10 기능 묶음에서 전체 구조 통합으로 검증 확대
+
+사용자가 더 한 번에 모으도록 요청해 기능 묶음마다 검증을 마치는 방식도 기본값에서 제외했다. 남은 Workbench·공통 저장/권한·공식 앱·개인 앱·최소 하네스 구현을 최대한 통합한 뒤 최종 통합 검증1회와 필수 리뷰·CI, 승인된 개발/운영 반영 확인을 연속 진행하도록 조정했다. CI가 다루는 전체 검사를 로컬에서 미리 반복하지 않고, 중간에는 진행 차단·권한·데이터 문제의 최소 확인만 수행한다. 환경별 실제 실행과 플랫폼/Workbench 별도 배포 계약, 실패 수정 후 필요한 재검증은 유지한다. 이번에는 계획 문서만 수정했으며 구현·검증·게시·배포는 계속 중단 상태다.
+
+## 2026-10-10 검증 빈도·중복 축소 계획
+
+사용자가 테스트가 과도하고 자주 반복된다고 지적해 구현 묶음 완료 후 필요한 검사를 한 번에 수행하도록 계획을 조정했다. 검증의 소유 기준은 `VALIDATION.md`에 두고 계획·정책·후속 작업·재개 안내를 연결했다. 단계별 전체 검사·준비별 독립 리뷰·에이전트 간 중복 실행을 기본 절차에서 제외하며, 릴리스 후보에서 필수 리뷰·CI를 수행한다. 실패 수정 후 좁은 영향 경계부터 재검증하고 이미 통과한 관련 입력 불변 검사는 재사용한다. 자연어 대표 평가의 변경 전후 기본3회는 사례당 기본1회로 변경하고 필요한 경우만 한도를 정해 추가한다.
+
+이 요청은 검증 간소화 의사로 기록하되 기존 영향 기반 선택기의 full 조건과 최신 source/target/tree 결속·운영 배포 검사는 유지한다. 검증 템플릿의 일괄 실행 연결은 재개 후 구현할 항목이며 현재 구현 완료로 표시하지 않는다. 이번에는 문서만 수정하며 추가 앱 테스트·모델 실행·CI·서비스 변경·게시·배포 없이 중단 상태를 유지한다.
+
+## 2026-10-10 사용자 요청으로 중단
+
+현재 실행 중이던 C2 source25f14b24 실제 PostgreSQL96은509.356302초에 setup/call/teardown 각각96 PASS·errors/skips0·전체 source guards와 owned cluster/container/sidecar 정리 PASS로 마쳤다(receipt4c29ad14). 별도 adapter의 합성56 PASS와 정상 SDK 결과 파일 선예약 합성12 PASS 수정본을 동결했다. 최종 독립 리뷰와 실제 실행은 재개 이후다. 이들을 게시·배포하거나 실제 통합/모델 검증을 추가 시작하지 않는다. 미확정 normal 실행은 성공으로 바꾸지 않고 보존했다. 재개 지시 전까지 작업을 중단하며 중간 점검 자료를 현 owner 문서에 저장한다.
+
+## 2026-10-09 운영 전달 완료와 남은 구조 경계
+
+Folder observer fixture의 원47 assertions·제품 제한을 유지한 최소 수정은 필수264/432 후 PR96/MR103으로 정상 병합했다. Current full265/433 SUCCESS4671.914044초의 정확 source/tree/evidence를 인수했고 MR81을 정상 병합했다. Main/prod9cbf로 FF 후 fresh 백업·pending24 리허설/구형 이미지 호환·guarded prepare330.643초/deploy65.816초를 완료했다. 새 image389d/API·worker·Beat healthy, head wb_checked_cas_20261009·공개 smoke·migration bytes를 확인했다. Workbench와 신규 operational 전환은 별도 미완료다.
+
+SDK의 원 Task3턴 증거와 두 starter의 수동 carrier native protocol을 보존한다. 현재 통합 UI/SQLite metadata는 좁은 오류 처리를 추가해 기존 execution authorization을 유지했고 peer가 인수했다. 전체 SDK 캐시의 매 파일256MiB 선읽기를 실제 파일크기+1로 한정해 기존20초 내2.142초에 검증했다. 정상 controller 실제 실행 전 cache timeout과 새 임시 포트 충돌을 보존하며 새 bounded 환경으로 진행한다. 최신 정상 controller 실행은 최종 결과 파일 충돌로 인수 HOLD이며 소유 정리/불변만 별도 확인했다. 결과 파일 선예약을 최소 보완한다. C2 actual96 setup 거부를 정확 PG18 catalog 표현으로 진단했고 단일 expected literal(source25f14b24)을 동결해 fresh96을96 PASS·소유 정리 완료로 인수했다. 별도 fail-closed adapter의 합성56 PASS 수정본을 동결하며, 실제 통합/native RSS·C1/C3는 미완료다. 앱별 상세 기능으로 범위를 확대하지 않는다.
+
 ## 2026-10-09 20:20 UTC — 정상 병합 후 전체 검증의 필수 후속 수정
 
 PR94/MR101은 필수260/job428 뒤 정상 병합했고 dev1efd2054와 같은 tree4b5d8bab, 소유 브랜치 정리를 확인했다. full261/job429의 API 실패3건을 보존한다. WS 취소가 monitor join/slot/room 정리를 끊는 결함12개를 재현하고, private shielded child를 route가 join하도록 수정했다. 원 인증·정리 순서·예외/cancellation 의미를 유지했고 synthetic32와 실제 PG26 및 독립 리뷰를 통과했다. Stale fixture는 board timestamp를 앞으로 이동해 실제 stale를 증명하며 C1 no-op trigger를 유지한다.
@@ -674,7 +714,6 @@ SDK는 올바른 user1000 호출의 socketpair send EPERM/portal 대기를 재�
 Docs 집중24/기존협업106(208.751168초)은 바뀌지 않은 runtime/test bytes에 한정한 이전 인수 근거다. 과거 C1 권한132/110/145/52는 그 당시 입력으로 구분한다. GitHub94/GitLab101의 새 수정 head 필수 리뷰·정상 병합·새 current full, 새 migration34/pending24 private 리허설과 이전 운영 이미지 호환·fresh backup/guarded 배포가 남아 있다. Dev02418067·main/prod9e9280df는 현재 그대로이며 배포 완료를 뜻하지 않는다.
 
 별도 Workbench 후보는 SDK source22/owned delta11의 신규74 PASS와 영향427 PASS/기존 PostgreSQL legacy fixture5 SKIP 및 독립 소스 리뷰를 마쳤다. 실제 원관리 정책 확인·controller/Task·private-notes와 별도 서비스 배포는 미완료다. C2-1 비활성 provenance3은 실제 native53 PASS와 독립 리뷰를 통과했으며 PostgreSQL pre-apply durable journal/discovery와 C3 원 attempt 복구·서비스 활성화는 필수 구조 잔여다. 앱별 비필수 기능과 다중 사용자는 보류한다.
-
 
 ## 2026-10-09 21:58 UTC — 개발 반영과 current full 실패의 최소 보완
 

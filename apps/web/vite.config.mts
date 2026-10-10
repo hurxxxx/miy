@@ -5,9 +5,14 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
-import { officialFixedAssets } from '../../packages/official-suite-web/vite/fixed-assets.mjs';
+import {
+  officialUiDevelopmentProxies,
+  firstPartyApiDevelopmentProxies,
+} from '../../packages/official-suite-web/vite/ui-routing.mts';
+import { platformUiBoundary } from '../../packages/official-suite-web/vite/platform-ui-boundary.mts';
 
-const apiProxyTarget = process.env.MIY_WEB_API_PROXY_TARGET ?? 'http://127.0.0.1:8001';
+const apiProxyTarget =
+  process.env.MIY_WEB_API_PROXY_TARGET ?? 'http://127.0.0.1:8001';
 const drawioProxyTarget =
   process.env.MIY_WEB_DRAWIO_PROXY_TARGET ??
   `http://127.0.0.1:${process.env.MIY_DRAWIO_PORT ?? 18082}`;
@@ -32,7 +37,7 @@ const drawioProxyHeaders = {
 const rewriteDrawioProxyPath = (requestPath: string) =>
   requestPath.replace(/^\/drawio(?=\/|$)/, '') || '/';
 
-export default defineConfig(() => ({
+export default defineConfig(({ mode }) => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/apps/web',
   define: {
@@ -50,6 +55,8 @@ export default defineConfig(() => ({
     host: process.env.MIY_WEB_DEV_HOST ?? '127.0.0.1',
     allowedHosts: webDevAllowedHosts,
     proxy: {
+      ...officialUiDevelopmentProxies(),
+      ...firstPartyApiDevelopmentProxies(mode),
       '/codex-console': {
         target: codexConsoleProxyTarget,
         timeout: 0,
@@ -87,6 +94,8 @@ export default defineConfig(() => ({
     host: process.env.MIY_WEB_DEV_HOST ?? '127.0.0.1',
     allowedHosts: webDevAllowedHosts,
     proxy: {
+      ...officialUiDevelopmentProxies(),
+      ...firstPartyApiDevelopmentProxies(mode),
       '/codex-console': {
         target: codexConsoleProxyTarget,
         timeout: 0,
@@ -120,15 +129,30 @@ export default defineConfig(() => ({
   },
   resolve: {
     alias: {
-      '@miy/ui/styles.css': path.resolve(import.meta.dirname, '../../packages/ui/styles.css'),
+      '@miy/ui/styles.css': path.resolve(
+        import.meta.dirname,
+        '../../packages/ui/styles.css',
+      ),
       // These source-only libraries have no package exports. Keep dev resolution
       // explicit: Nx snapshots tsconfig paths when a long-running server starts.
-      '@miy/official-suite-web': path.resolve(import.meta.dirname, '../../packages/official-suite-web/src'),
-      '@miy/platform-web': path.resolve(import.meta.dirname, '../../packages/platform-web/src'),
+      '@miy/official-suite-web': path.resolve(
+        import.meta.dirname,
+        '../../packages/official-suite-web/src',
+      ),
+      '@miy/platform-web': path.resolve(
+        import.meta.dirname,
+        '../../packages/platform-web/src',
+      ),
       '@/src': path.resolve(import.meta.dirname, 'src'),
     },
   },
-  plugins: [react(), tailwindcss(), nxViteTsPaths(), nxCopyAssetsPlugin(['*.md']), officialFixedAssets()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    nxViteTsPaths(),
+    nxCopyAssetsPlugin(['*.md']),
+    platformUiBoundary(),
+  ],
   optimizeDeps: {
     include: ['@hyunbinseo/holidays-kr/all'],
   },

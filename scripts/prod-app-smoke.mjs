@@ -33,9 +33,11 @@ async function fetchJson(label, url) {
   return response.json();
 }
 
-export async function assertDeploymentHealth(label, url, expectedRevision) {
+export async function assertDeploymentHealth(label, url, expectedRevision, composition) {
   const body = await fetchJson(label, url);
   assertDeploymentHealthBody(label, body, expectedRevision);
+  if (composition && (body?.composition !== composition || body?.authority !== 'first_party_shared_database'))
+    throw new Error(`${label} is not the expected first-party composition`);
 }
 
 function assertDeploymentHealthBody(label, body, expectedRevision) {
@@ -50,7 +52,7 @@ function assertDeploymentHealthBody(label, body, expectedRevision) {
   }
 }
 
-export async function assertDeploymentReadiness(label, url, expectedRevision) {
+export async function assertDeploymentReadiness(label, url, expectedRevision, composition) {
   const body = await fetchJson(label, url);
   if (body?.status !== 'ok') {
     throw new Error(`${label} reported status ${String(body?.status)}`);
@@ -61,6 +63,8 @@ export async function assertDeploymentReadiness(label, url, expectedRevision) {
   if (body?.runtime_revision !== expectedRevision) {
     throw new Error(`${label} is serving a different runtime revision`);
   }
+  if (composition && (body?.composition !== composition || body?.authority !== 'first_party_shared_database'))
+    throw new Error(`${label} is not the expected first-party composition`);
 }
 
 export async function assertBootstrapJson(label, url) {
@@ -70,11 +74,34 @@ export async function assertBootstrapJson(label, url) {
   }
 }
 
+export async function assertLegacyOfficialRouting({ appPort, publicBaseUrl }) {
+  for (const [label, baseUrl] of [
+    ['local legacy', new URL(`http://127.0.0.1:${appPort}/`)],
+    ['public legacy', publicBaseUrl],
+  ]) {
+    // Earlier monolithic images serve this as their portal SPA. New legacy
+    // images serve the extracted official shell; both must remain reachable.
+    await assertLoginPage(`${label} official frontend`, new URL('/official-suite/widgets', baseUrl));
+    const response = await fetchResponse(`${label} official routing`, new URL('/official-suite/healthz', baseUrl));
+    const contentType = response.headers.get('content-type') ?? '';
+    // A legacy assembly has no separate official health service. Older SPA
+    // fallback HTML and the new reserved-path 404 are both expected; an official
+    // JSON service or a dead split upstream is not a recovered legacy ingress.
+    if (response.status !== 404 && (!response.ok || !contentType.toLowerCase().includes('text/html')))
+      throw new Error(`${label} official routing still selects a separate or unavailable upstream`);
+  }
+}
+
 export async function runProductionSmoke({
   appPort,
   publicBaseUrl,
   expectedRevision,
+  topology = 'legacy',
+  expectedOfficialRevision,
+  apiPrefix = '/api/v1',
 }) {
+  if (!['legacy', 'first-party'].includes(topology) || (topology === 'first-party' && !expectedOfficialRevision))
+    throw new Error('First-party smoke requires both immutable runtime revisions');
   const localBaseUrl = new URL(`http://127.0.0.1:${appPort}/`);
   for (const [label, baseUrl] of [
     ['local', localBaseUrl],
@@ -84,6 +111,7 @@ export async function runProductionSmoke({
       `${label} health`,
       new URL('/healthz', baseUrl),
       expectedRevision,
+      topology === 'first-party' ? 'platform' : undefined,
     );
     await assertDeploymentReadiness(
       `${label} readiness`,
@@ -92,9 +120,27 @@ export async function runProductionSmoke({
     );
     await assertBootstrapJson(
       `${label} bootstrap`,
-      new URL('/api/v1/auth/bootstrap-status', baseUrl),
+      new URL(`${apiPrefix}/auth/bootstrap-status`, baseUrl),
     );
     await assertLoginPage(`${label} login`, new URL('/login', baseUrl));
+  }
+  if (topology === 'legacy') await assertLegacyOfficialRouting({ appPort, publicBaseUrl });
+  if (topology === 'first-party') {
+    let localCompatibility;
+    for (const [label, baseUrl, healthPath, readyPath] of [
+      ['local official', new URL('http://127.0.0.1:18780/'), '/healthz', '/readyz'],
+      ['public official', publicBaseUrl, '/official-suite/healthz', '/official-suite/readyz'],
+    ]) {
+      await assertDeploymentHealth(`${label} health`, new URL(healthPath, baseUrl), expectedOfficialRevision, 'official');
+      await assertDeploymentReadiness(`${label} readiness`, new URL(readyPath, baseUrl), expectedOfficialRevision, 'official');
+      const compatibility = await fetchJson(`${label} frontend compatibility`, new URL('/official-suite/platform-build.json', baseUrl));
+      if (!compatibility || typeof compatibility !== 'object' || Array.isArray(compatibility)
+          || !Object.hasOwn(compatibility, 'platform_build_id') || (compatibility.platform_build_id !== null && typeof compatibility.platform_build_id !== 'string'))
+        throw new Error(`${label} frontend compatibility is unavailable`);
+      if (label === 'local official') localCompatibility = compatibility.platform_build_id;
+      else if (compatibility.platform_build_id !== localCompatibility) throw new Error('Public official frontend differs from the local artifact');
+      await assertLoginPage(`${label} frontend`, new URL('/official-suite/widgets', baseUrl));
+    }
   }
 }
 
@@ -107,7 +153,12 @@ async function runCli() {
   if (!expectedRevision) {
     throw new Error('MIY_EXPECTED_REVISION is required');
   }
-  await runProductionSmoke({ ...config, expectedRevision });
+  const args = process.argv.slice(3);
+  if (args.length && (args.length !== 2 || args[0] !== '--topology' || args[1] !== 'first-party'))
+    throw new Error('Invalid production smoke topology');
+  const topology = args.length ? 'first-party' : 'legacy';
+  const expectedOfficialRevision = (process.env.MIY_EXPECTED_OFFICIAL_REVISION ?? '').trim();
+  await runProductionSmoke({ ...config, expectedRevision, topology, expectedOfficialRevision });
   process.stdout.write(
     'Production app smoke passed: local and public health, readiness, revision, bootstrap, and login shell are available.\n',
   );

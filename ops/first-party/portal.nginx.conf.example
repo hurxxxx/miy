@@ -1,0 +1,63 @@
+# Include in nginx's http context. Generate route-owner.map.conf from the
+# matching platform/official RouterSpec inventory and client-owner.map.conf from
+# the generated app contracts; do not maintain a second app or API list.
+include /absolute/first-party/route-owner.map.conf;
+include /absolute/first-party/client-owner.map.conf;
+
+map "$miy_api_owner:$miy_ui_owner" $miy_first_party_backend {
+    default 127.0.0.1:18779;
+    ~^official: 127.0.0.1:18780;
+    ~:official$ 127.0.0.1:18780;
+}
+
+map $http_upgrade $miy_first_party_connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
+server {
+    listen 443 ssl;
+    server_name portal.example.com;
+    ssl_certificate /absolute/certificates/portal.example.com/fullchain.pem;
+    ssl_certificate_key /absolute/certificates/portal.example.com/privkey.pem;
+
+    # Keep the portal's existing upload limit and TLS policy when integrating.
+    client_max_body_size 16m;
+
+    # Public smoke observes the official process rather than the SPA fallback.
+    location = /official-suite/healthz {
+        rewrite ^ /healthz break;
+        proxy_pass http://127.0.0.1:18780;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 10s;
+        proxy_next_upstream off;
+    }
+
+    location = /official-suite/readyz {
+        rewrite ^ /readyz break;
+        proxy_pass http://127.0.0.1:18780;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 10s;
+        proxy_next_upstream off;
+    }
+
+    location / {
+        proxy_pass http://$miy_first_party_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $miy_first_party_connection_upgrade;
+        proxy_buffering off;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_next_upstream off;
+    }
+}

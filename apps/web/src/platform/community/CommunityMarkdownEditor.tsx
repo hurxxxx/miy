@@ -1,1 +1,1 @@
-export * from '@miy/official-suite-web/community/editor/CommunityMarkdownEditor';
+export * from '@miy/platform-web/markdown/CommunityMarkdownEditor';

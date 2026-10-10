@@ -26,6 +26,7 @@ All definition/release/installation mutations require the existing MIY bearer lo
 | `POST /independent-apps/{app_id}/installations`           | Owner's private development preview or admin configuration                                                                                             |
 | `PUT /independent-apps/{app_id}/installations/{id}`       | Same authority; invalidates previous app sessions                                                                                                      |
 | `POST /independent-apps/{app_id}/deployments`             | Owner login; idempotent development deploy/rollback intent, current generation and previous release fence                                              |
+| `POST /independent-apps/{app_id}/promotions`              | Current Core admin; same-host promotion/rollback of an observed development artifact to an explicitly configured production installation                 |
 | `GET /independent-apps/{app_id}/deployments/{request_id}` | Owner login; durable intent/status, never daemon credentials                                                                                           |
 | `PUT /independent-apps/{app_id}/company-control`          | Platform admin; company-wide kill switch                                                                                                               |
 | `POST /independent-apps/launch`                           | MIY login and live admission; code bound to installation, source login, generation and S256 challenge; at most 60 seconds                              |
@@ -336,6 +337,76 @@ The offline builder currently supports an ordinary app Git checkout, React/react
 
 The source snapshot verifies the requested SHA-1 commit, every referenced tree and each file against the actual bytes returned by Git, then constructs a deterministic archive from those same verified bytes. Git replacement refs are disabled. A changed object filename or a concurrent object replacement cannot substitute different source after verification; loose and packed objects follow the same check. The snapshot contains literal committed files: `.gitattributes` export-ignore/export-subst and `.git/info/attributes` do not omit or rewrite them. Committed credentials therefore remain rejected even if export-ignore would have hidden them. File executable modes and nested UTF-8 names are retained; links and submodules remain unsupported. Bounds are 1 MiB per commit/tree object, 8 MiB per file, 64 MiB per archive, 4,096 entries, 20 nested directories, and one 60-second object-read budget. The existing final archive safety checks still apply. `source_archive_sha256` records this deterministic snapshot, and the builder source hash changes the build profile; existing evidence is not rewritten or upgraded implicitly. The app-workspace preparation CLI reuses this snapshot boundary.
 
+## Core-admin production promotion
+
+The same-host offline profile can promote a personal app's trusted development artifact without
+rebuilding it. A Core administrator first creates a **disabled** production
+installation with its reviewed audience and requested permission subset. The
+development build, successful preview and production installation must belong
+to the **same platform registry database and Docker host**. Installation
+environments describe app runtime/data isolation, not separate platform registry
+databases. This endpoint does not import evidence from a different MIY dev
+platform into the production platform or copy application data between them.
+Developing a personal app for production therefore uses a development
+installation recorded in that production platform's registry, with its own
+isolated data and preview. Platform release promotion remains a separate process.
+The operator binds that exact app/installation to an HTTPS `app_origin` and a private
+`loopback_port` in `MIY_INDEPENDENT_APP_DELIVERY_TARGETS`, with
+`environment: "production"`. The target's existing immutable ingress image,
+private runtime state and platform origins remain Core-owned configuration. A
+Core-owned TLS reverse proxy must forward that app origin to the exact loopback
+listener; app code cannot choose the public origin, port or proxy configuration.
+
+`POST /independent-apps/{app_id}/promotions` uses the existing `DeploymentInput`
+body and durable `AppDeploymentRequest`. It requires the current,
+non-impersonated platform-admin login, live company admission, exact operator
+binding and current installation generation/release CAS. The selected immutable
+release must have a non-revoked trusted development build **and a successful
+development deployment of those same bytes**. Its build proof remains explicitly
+`target_environment: "development"`; no production proof is fabricated or
+copied. Ordinary owner deployments and Workbench grants remain development-only.
+Official ownership is rejected by this endpoint. The official suite keeps its
+separate owned release/service and delegated authority contracts; this personal
+app path does not add journal reads or change official writer role grants.
+
+The existing operator consumer prepares and observes that exact local image.
+Docker still publishes only `127.0.0.1`; the runtime checks the configured port,
+container restrictions and loaded release marker, then observes the release and
+health through the installation's actual HTTPS origin without redirects. It
+records the public origin, loopback port and runtime binding digest in the
+existing durable runtime receipt. Current admin/session/company/source/CAS and
+runtime bindings are rechecked after slow work. Only a confirmed cutover enables
+the first production installation. Failed candidate health leaves it disabled;
+unknown outcomes keep the original intent for observation rather than replay.
+
+Production admission requires both the original development evidence and the
+production installation's matching observed runtime receipt. It does not mistake
+a development proof or metadata-only registration for an installed production
+release. A confirmed active release remains admitted while prior-container
+retirement is pending; an unconfirmed cutover does not. Revoking the original
+build evidence invalidates its production admission too.
+
+Production rollback uses the same endpoint with `action: "rollback"`, only to a
+release previously deployed successfully to that same production installation.
+It retains the installation identity, production data and forward-only schema;
+development data is never copied. The UI and PostgreSQL profiles use the same
+execution path, with the configured Core data service preparing a separate
+database keyed by installation and environment before activation. This profile
+requires the exact artifact to remain available on the same Docker host. Remote
+registries, artifact-signing systems, custom schema profiles and worker delivery
+are separate extensions, not claims made by this path. Source registration,
+approval and HTTP health do not themselves establish real browser login or app
+correctness; those belong in final representative integration verification.
+
+The same reviewed HTTPS-origin/loopback-port pair may also be configured for a
+development target, allowing a server-hosted preview to embed in the HTTPS portal.
+It remains a development installation with a development grant and isolated
+development data; an HTTPS address does not confer production approval. The
+default unconfigured loopback development path remains supported. A configured
+external ingress binding is frozen into the original intent before execution and
+rechecked during cutover; changing its port/origin/runtime configuration requires
+an explicit new operation rather than silently consuming the old intent.
+
 ## Workbench delivery delegation
 
 The MIY owner logs in and calls `POST /independent-apps/{app_id}/installations/{installation_id}/delegations` with an explicit `actions` subset of `read`, `sync`, `build`, `deploy`, `rollback`, and optional `expires_in_seconds` (60–86400). The server permits development installations only and bounds expiry by the original login. The response exposes the new token once; PostgreSQL stores only its hash. Keep this token solely in the Workbench server's typed secret configuration, separate from its metadata service key. It must not enter app repositories, Codex sessions, tool results, observations or browser storage. The owner's `GET` of the same path lists grant metadata, and `DELETE .../{grant_id}` revokes a grant.
@@ -390,7 +461,7 @@ An interrupted deployment in `running`, `unknown` or `cleanup` with a saved runt
 
 When the selected consumer returns `unknown` with the explicit `operator_check_required` code, the poller records only the attempt timestamp so an unavailable target cannot continually take precedence over another eligible build. It updates the selected request only if its original timestamp, state and slot still match and its row is unlocked. Concurrent claims, terminal states, other consumer results and locked rows remain untouched. This bookkeeping does not change status, reservations, authority or runtime evidence. Failures before a request is selected have no request to update.
 
-The [example user service](../../../../../../ops/independent-apps/independent-app-delivery.service.example) is an inert template. Installing or starting a service is a separate operator action; neither MIY nor Workbench performs it. This consumer supports development settings and installations only. It adds no production execution profile and never replays uncertain external effects. Recovery here means observing the original runtime and completing its bounded cleanup, not rerunning its build or deployment.
+The [example user service](../../../../../../ops/independent-apps/independent-app-delivery.service.example) is an inert template. Installing or starting a service is a separate operator action; neither MIY nor Workbench performs it. Development delegates can create only development intents. Explicit Core-owned production targets consume only the admin-approved promotion intents above. The consumer never replays uncertain external effects. Recovery here means observing the original runtime and completing its bounded cleanup, not rerunning its build or deployment.
 
 ## Selected platform files
 
@@ -419,7 +490,7 @@ Stable failures use existing localized errors: `session_invalid` (`401`); `file_
 
 ## Production and remaining boundaries
 
-Production installation activation remains rejected. Registry publication, production artifact signatures/provenance, production ingress/secrets, migration-aware rollout, full browser authentication in the actual deployment domains and operator-managed executor service installation require their own completed acceptance evidence. The planner remains `plan_only`; the explicit core CLI is the executor. Runtime deployment timestamps describe observed deployment work, not continuous live health. Historical images and retired installation reservations require explicit operator lifecycle management; no automatic destructive retention policy is installed.
+Production activation is available only through the explicitly configured Core-admin same-host promotion above; ordinary installation configuration cannot enable it. Actual TLS ingress, platform reachability, isolated production data configuration, full browser authentication in the deployment domains and operator-managed executor installation still need environment-specific acceptance. Registry publication and remote artifact-signature/provenance integrations are unsupported extensions. The planner remains `plan_only`; the explicit core CLI is the executor. Runtime deployment timestamps describe observed deployment work, not continuous live health. Historical images and retired installation reservations require explicit operator lifecycle management; no automatic destructive retention policy is installed.
 
 Validation in the checkout:
 

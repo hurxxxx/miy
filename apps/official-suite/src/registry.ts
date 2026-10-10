@@ -1,8 +1,8 @@
 import { APP_CONTRACTS } from '@miy/contracts/app-contracts';
+import { OFFICIAL_APP_MODULES } from '@miy/official-suite-web/modules';
 import {
   createAppModuleRegistryApi,
   createShellStateResolver,
-  OFFICIAL_APP_MODULES,
 } from '@miy/web-official-suite-bridge';
 
 export const officialRegistry =

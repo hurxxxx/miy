@@ -1,5 +1,35 @@
 # Inactive official API image
 
+## Current image targets
+
+The default `runtime` target retains the inactive inspection entry
+`miy_official_api.main:app` and the offline verifier below. The explicit
+`service-runtime` target packages the same matching installed API wheels and
+selects `miy_official_api.runtime:app` for the trusted first-party service. It
+uses the existing server identity, admission and resource ACL with the common
+authoritative storage path. It does not activate the delegated Source-only roles
+or the unpublished journal/checkpoint protocol. Select this target only through
+the guarded composition/release configuration; building an image never starts it.
+
+The service target carries the existing release contract/source/tree/platform/MR/
+pipeline labels passed by the release builder. Its installed wheel inspection
+also checks that both normal platform and official runtime entries are present,
+without importing them or initializing storage. Actual readiness, ingress routing,
+single writer and worker/Beat transition remain part of the final integrated
+release verification. Existing exact-image evidence below covers its recorded
+inactive target only.
+
+The service target also builds and carries the matching official UI under
+`dist/apps/official-suite`. It requires the full reviewed source-tree context,
+the existing `MIY_BENTO_SERVER_URL` build input and the explicitly paired
+`MIY_PLATFORM_WEB_BUILD_ID` (empty only when the platform artifact has no build ID).
+The fixed compatibility file supplies both the official server build guard and
+public client metadata; it never follows a running platform automatically. The
+guarded first-party release builder supplies these inputs. The API-only frozen
+context command below remains for the default inactive target.
+
+## Inactive target and retained evidence
+
 This local artifact packages the official ASGI entry and matching compatibility API wheel from one stable checkout. It does not activate an official service or join production compose/release. The existing [API composition contract](../../apps/official-suite/api/README.md) still closes business HTTP with 503 and WebSockets with 1013. `/healthz` reports `activation: inactive`; `/readyz` remains 503. Health is not readiness or writer ownership.
 
 The Dockerfile uses the same pinned Python 3.12, Node 22 and uv images as `ops/app/Dockerfile`, with `apps/api/uv.lock` and the root pnpm lock. It installs both checkout wheels with `--no-deps`. The existing API dependency lock still includes OPF/torch and produces a large dependency layer. Splitting that lock is separate dependency/source work. OS packages and the existing isolated wheel build backend follow the existing app build policy; this is not a claim of byte-for-byte reproducibility across future package repository changes.

@@ -44,6 +44,76 @@ async function stubFullShell(page: Page) {
 }
 
 test.describe('AI-friendly app boundary smoke', () => {
+  test('preserves first-party document navigation and the shared widget session', async ({
+    page,
+  }) => {
+    const unhandledApi: string[] = [];
+    const authProbes: Array<{ widget: boolean; sharedToken: boolean }> = [];
+    // Unknown requests must remain inside this synthetic test boundary.
+    await page.route(
+      (url) => url.pathname === '/api' || url.pathname.startsWith('/api/'),
+      (route) => {
+        unhandledApi.push(new URL(route.request().url()).pathname);
+        return route.fulfill({
+          status: 503,
+          json: { detail: 'unstubbed structural request' },
+        });
+      },
+    );
+    await stubFullShell(page);
+    page.on('request', (request) => {
+      if (new URL(request.url()).pathname === '/api/v1/auth/me') {
+        authProbes.push({
+          widget: request.frame().url().includes('/official-suite/widgets'),
+          sharedToken:
+            request.headers().authorization === 'Bearer e2e-test-token',
+        });
+      }
+    });
+    const errors = collectBrowserErrors(page);
+    await page.goto('/');
+    await expect(
+      page.getByRole('heading', { level: 1, name: /앱 런처|App launcher/ }),
+    ).toBeVisible();
+    const widget = page.frameLocator('iframe[src="/official-suite/widgets"]');
+    await expect(
+      widget.locator('[data-miy-embedded-surface]').first(),
+    ).toBeVisible();
+    await expect
+      .poll(() => authProbes.some((probe) => probe.widget && probe.sharedToken))
+      .toBe(true);
+    expect(authProbes.some((probe) => !probe.widget && probe.sharedToken)).toBe(
+      true,
+    );
+    await page.evaluate(() => {
+      (
+        window as Window & { structuralDocumentMarker?: boolean }
+      ).structuralDocumentMarker = true;
+    });
+    await page.locator('a[href="/apps/docs"]').click();
+    await expect(page).toHaveURL(/\/apps\/docs$/);
+    await expect(
+      page.getByRole('heading', { level: 1, name: /All Docs|전체 문서/ }),
+    ).toBeVisible();
+    expect(
+      await page.evaluate(
+        () =>
+          (window as Window & { structuralDocumentMarker?: boolean })
+            .structuralDocumentMarker,
+      ),
+    ).toBeUndefined();
+    await expect(
+      page.locator(
+        'script[type="module"][src*="/official-suite/src/main.tsx"]',
+      ),
+    ).toHaveCount(1);
+    expect(
+      await page.evaluate(() => localStorage.getItem('miy.auth.token')),
+    ).toBe('e2e-test-token');
+    expect(unhandledApi).toEqual([]);
+    errors.expectClean();
+  });
+
   test('opens admitted apps directly from the company launcher', async ({
     page,
   }) => {
@@ -89,6 +159,14 @@ test.describe('AI-friendly app boundary smoke', () => {
 
   test('does not fetch app data when admission is denied', async ({ page }) => {
     const deniedRequests: string[] = [];
+    await page.route(
+      (url) => url.pathname === '/api' || url.pathname.startsWith('/api/'),
+      (route) =>
+        route.fulfill({
+          status: 503,
+          json: { detail: 'unstubbed structural request' },
+        }),
+    );
     page.on('request', (request) => {
       if (new URL(request.url()).pathname.startsWith('/api/v1/meeting/'))
         deniedRequests.push(request.url());

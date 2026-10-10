@@ -681,6 +681,7 @@ export function PersonalWidgetHost({
     <LazyMotion features={domAnimation}>
       {mode !== 'collapsed' ? (
         <m.aside
+          data-miy-embedded-surface
           aria-label={t('personalWidgets.panelLabel')}
           initial={{ opacity: 0, x: mode === 'fullscreen' ? 0 : 32 }}
           animate={{ opacity: 1, x: 0 }}
@@ -1064,6 +1065,7 @@ export function PersonalWidgetHost({
         ))}
 
       <nav
+        data-miy-embedded-surface
         aria-label={t('personalWidgets.dockLabel')}
         className="scrollbar-none relative z-[var(--ui-z-dock)] flex h-full w-10 shrink-0 flex-col overflow-x-hidden overflow-y-auto border-l border-app-border bg-app-bg/95 shadow-[var(--ui-shadow-side-dock)] backdrop-blur"
       >

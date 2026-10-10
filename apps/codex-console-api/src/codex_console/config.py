@@ -11,6 +11,7 @@ from sqlalchemy.engine import make_url
 
 from .app_sources import APP_ID_PATTERN
 from .errors import ConsoleError
+from .toolchain_profiles import NATIVE_PROFILE, ToolchainProfile
 
 
 class MonitoredService(BaseModel):
@@ -58,6 +59,7 @@ class AppExecutionEnvironment(BaseModel):
     source_root: Path
     exec_server_url: str
     auth_bearer_token: SecretStr = Field(min_length=32, max_length=512)
+    toolchain_profile: ToolchainProfile = NATIVE_PROFILE
 
     @field_validator("source_root")
     @classmethod

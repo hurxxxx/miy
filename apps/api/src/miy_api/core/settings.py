@@ -409,8 +409,13 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_independent_delivery_targets(self) -> "Settings":
-        if self.independent_app_delivery_targets and self.environment != "development":
-            raise ValueError("The independent delivery consumer supports development only")
+        if self.independent_app_delivery_targets:
+            if self.environment not in {"development", "production"}:
+                raise ValueError("The independent delivery consumer supports development and production only")
+            if self.environment != "production" and any(
+                target.environment == "production" for target in self.independent_app_delivery_targets
+            ):
+                raise ValueError("Production delivery targets require a production platform runtime")
         validate_targets(
             self.independent_app_delivery_targets,
             platform_root=WORKSPACE_ROOT,

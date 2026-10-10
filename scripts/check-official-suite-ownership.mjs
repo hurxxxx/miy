@@ -73,7 +73,47 @@ for (const id of owner.ui_app_ids) {
     `Missing official-owned UI metadata: ${id}`,
   );
 }
+assert.equal(
+  owner.ui_business_composition_source,
+  'packages/official-suite-web/src/modules.ts',
+);
+assert.equal(
+  owner.portal_official_descriptor_source,
+  'apps/web/src/app/shell/official-app-modules.ts',
+);
+const uiComposition = read(owner.ui_business_composition_source);
+const portalDescriptors = read(owner.portal_official_descriptor_source);
+assert.ok(uiComposition.includes('OFFICIAL_APP_IDS.map'));
+assert.ok(portalDescriptors.includes('OFFICIAL_APP_MANIFESTS.map'));
+assert.ok(
+  !/official-suite-web\/[^'"]+\/module/.test(portalDescriptors),
+  'The portal must not compile official business modules',
+);
 const registry = read('apps/api/src/miy_api/official_api_registry.py');
+assert.deepEqual(
+  Object.keys(owner.worker_implementation_sources),
+  owner.worker_modules,
+  'Official task implementations must have one source owner',
+);
+for (const [module, source] of Object.entries(
+  owner.worker_implementation_sources,
+)) {
+  const leaf = module.split('.').at(-1);
+  assert.equal(
+    source,
+    `apps/official-suite/worker/src/miy_official_worker/tasks/${leaf}.py`,
+  );
+  assert.ok(
+    read(source).includes(`task_app("${module}")`),
+    `Owned task registration has drifted: ${module}`,
+  );
+  assert.ok(
+    read(`apps/worker/src/${module.replaceAll('.', '/')}.py`).includes(
+      `import_module("miy_official_worker.tasks.${leaf}")`,
+    ),
+    `Missing same-module compatibility entry: ${module}`,
+  );
+}
 const tableOwners = new Map();
 for (const [key, sourceRoot] of [
   ['api_modules', 'apps/api/src'],

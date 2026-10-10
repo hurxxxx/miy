@@ -65,14 +65,20 @@ def run(args) -> dict:
                     or (intent.app_id, intent.installation_id)
                     != (args.app_id, str(UUID(args.installation_id)))
                 ):
-                    raise ValueError("The requested build does not match the operator binding")
+                    raise ValueError(
+                        "The requested build does not match the operator binding"
+                    )
                 args.revision = intent.source_revision
-            job, claimed = start_build_job(db, args.app_id, args.revision, str(UUID(args.build_id)))
+            job, claimed = start_build_job(
+                db, args.app_id, args.revision, str(UUID(args.build_id))
+            )
             if claimed:
                 # Hold the job fence until completion; durable running state remains
                 # after process loss. Another invocation returns status, never reruns.
                 job = db.scalar(
-                    select(AppBuildJob).where(AppBuildJob.id == job.id).with_for_update()
+                    select(AppBuildJob)
+                    .where(AppBuildJob.id == job.id)
+                    .with_for_update()
                 )
                 definition = db.get(AppDefinitionRecord, args.app_id)
                 try:
@@ -89,7 +95,9 @@ def run(args) -> dict:
                     db.rollback()
                     job = db.get(AppBuildJob, job.id)
                     job.failure_code = str(exc)
-                    job.state = "unknown" if str(exc) == "build_cleanup_required" else "failed"
+                    job.state = (
+                        "unknown" if str(exc) == "build_cleanup_required" else "failed"
+                    )
                     job.active_slot = 1 if job.state == "unknown" else None
                     job.updated_at = utcnow_naive()
                     db.commit()
@@ -113,18 +121,52 @@ def run(args) -> dict:
                     db.commit()
             return build_out(job).model_dump(mode="json")
         request = db.get(AppDeploymentRequest, str(UUID(args.request_id)))
-        installation = db.get(AppInstallationRecord, request.installation_id) if request else None
+        installation = (
+            db.get(AppInstallationRecord, request.installation_id) if request else None
+        )
         if (
             installation is None
             or installation.app_id != args.app_id
             or installation.id != str(UUID(args.installation_id))
         ):
-            raise ValueError("The requested deployment does not match the operator binding")
+            raise ValueError(
+                "The requested deployment does not match the operator binding"
+            )
         if args.command == "status":
             return deployment_out(request).model_dump(mode="json")
         settings = get_settings()
         if args.platform_origin not in settings.independent_app_platform_origins:
-            raise ValueError("Platform origin must be configured in the platform's typed allowlist")
+            raise ValueError(
+                "Platform origin must be configured in the platform's typed allowlist"
+            )
+        from miy_api.domains.independent_apps.production import (
+            binding_digest,
+            delivery_target,
+            runtime_target,
+        )
+
+        ingress_binding = {}
+        target = (
+            delivery_target(installation)
+            if installation.environment == "production"
+            else runtime_target(installation)
+        )
+        if target is not None:
+            if (
+                args.state_root != target.state_root
+                or args.ingress_image != target.ingress_image
+                or args.platform_origin != target.platform_origin
+                or args.platform_api_origin != target.platform_api_origin
+            ):
+                raise ValueError(
+                    "External ingress execution must use its exact Core operator binding"
+                )
+            ingress_binding = {
+                "app_origin": target.app_origin,
+                "loopback_port": target.loopback_port,
+                "operator_binding_digest": binding_digest(target),
+                "environment": target.environment,
+            }
         runtime = DockerRuntime(
             state_root=args.state_root,
             ingress_image=args.ingress_image,
@@ -138,8 +180,11 @@ def run(args) -> dict:
                 == "web-api-postgres-v1"
                 else None
             ),
+            **ingress_binding,
         )
-        operation = execute_deployment if args.command == "execute" else reconcile_deployment
+        operation = (
+            execute_deployment if args.command == "execute" else reconcile_deployment
+        )
         return operation(db, request.id, runtime).model_dump(mode="json")
 
 
@@ -147,7 +192,8 @@ def parser():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser(
-        "poll-once", help="Consume or reconcile one existing intent in the core allowlist"
+        "poll-once",
+        help="Consume or reconcile one existing intent in the core allowlist",
     )
     worker = commands.add_parser(
         "serve", help="Opt-in foreground consumer; never installs a service"
@@ -155,11 +201,14 @@ def parser():
     worker.add_argument("--poll-seconds", type=float, default=5)
     for name in ("build", "build-request"):
         build = commands.add_parser(
-            name, help="Consume an exact registered commit with the trusted offline profile"
+            name,
+            help="Consume an exact registered commit with the trusted offline profile",
         )
         for option in ("app-id", "build-id", "toolchain-image"):
             build.add_argument("--" + option, required=True)
-        build.add_argument("--revision" if name == "build" else "--installation-id", required=True)
+        build.add_argument(
+            "--revision" if name == "build" else "--installation-id", required=True
+        )
         build.add_argument("--source", required=True, type=Path)
         build.add_argument("--work-root", required=True, type=Path)
     for name in ("status", "execute", "reconcile"):
@@ -195,7 +244,8 @@ def main() -> int:
 
     stop = Event()
     previous = {
-        sig: signal.signal(sig, lambda *_: stop.set()) for sig in (signal.SIGINT, signal.SIGTERM)
+        sig: signal.signal(sig, lambda *_: stop.set())
+        for sig in (signal.SIGINT, signal.SIGTERM)
     }
     try:
         if (
@@ -212,7 +262,11 @@ def main() -> int:
         )
         return 0
     except Exception:  # noqa: BLE001 - bounded operator error, never configuration values
-        print(json.dumps({"state": "rejected", "failure_code": "consumer_configuration_required"}))
+        print(
+            json.dumps(
+                {"state": "rejected", "failure_code": "consumer_configuration_required"}
+            )
+        )
         return 2
     finally:
         for sig, handler in previous.items():

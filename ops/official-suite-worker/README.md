@@ -1,5 +1,32 @@
 # Inactive worker profile wheels
 
+## First-party service image
+
+The [Dockerfile](Dockerfile) builds a separate official consumer image from the
+existing pinned Python/Node/uv bases and frozen `apps/worker/uv.lock`. It installs
+matching `miy-api`, `miy-worker` and `miy-official-worker` wheels from one checkout
+with `--no-deps`; the four business task implementations are owned by the official
+worker wheel, and the legacy module names are thin aliases of those same objects.
+The legacy app image also installs that matching owner wheel so compatibility
+imports keep working during transition and rollback.
+
+The image imports installed wheels, includes the common non-secret runtime
+resources and actual collaboration codec, and runs as UID/GID 10001. Its command
+is `miy_official_worker.runtime:celery_app`; the native Celery app supplies its
+generated official queue inventory. It creates no Beat and has no migrations,
+source checkout, frontend or app credentials. Existing third-party dependencies
+are unchanged. The guarded release supplies immutable source/tree/contract labels
+and the normal typed runtime configuration. Building the image does not deploy
+it or grant it database/broker authority.
+
+The single Beat remains `miy_worker.first_party_beat:celery_app` in the platform
+image and uses the same official task wheel for its compatibility registrations.
+Retire old consumers and verify exactly one Beat before switching publishers.
+The offline inspection below remains inactive and checks wheel origins, matching
+versions, normal runtime entry availability and owner/alias identity without
+starting consumers or importing active runtime entries. Actual queue consumption,
+readiness, task execution and shutdown are verified together at the final cutover.
+
 This local-only artifact consists of matching `miy-api`, `miy-worker` and
 `miy-official-worker` wheels. The existing worker lock owns dependencies. No
 service image, Compose/systemd entry, queue consumer, Beat process, operational

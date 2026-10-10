@@ -47,7 +47,9 @@ def _init_worker_db(
                 """
             )
             connection.execute("CREATE TABLE ai_model_catalog_entries (id TEXT PRIMARY KEY)")
-            connection.execute("CREATE TABLE ai_model_policy_defaults (app_id TEXT, route_mode TEXT)")
+            connection.execute(
+                "CREATE TABLE ai_model_policy_defaults (app_id TEXT, route_mode TEXT)"
+            )
             connection.execute(
                 "CREATE TABLE ai_model_route_overrides (workload_id TEXT PRIMARY KEY, app_id TEXT)"
             )
@@ -63,7 +65,12 @@ def _init_worker_db(
 
 def _reload_worker_module(module_name: str):
     for cached_name in list(sys.modules):
-        if cached_name == "miy_worker" or cached_name.startswith("miy_worker."):
+        if (
+            cached_name == "miy_worker"
+            or cached_name.startswith("miy_worker.")
+            or cached_name == "miy_official_worker"
+            or cached_name.startswith("miy_official_worker.")
+        ):
             sys.modules.pop(cached_name, None)
     return importlib.import_module(module_name)
 

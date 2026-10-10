@@ -1,0 +1,1730 @@
+{
+  "bundle": {
+    "bytes": 85721936,
+    "delivery": "Core-owned release artifact; verifier acquires nothing",
+    "filename": "miy-native-sdk-20261009-v2.tar.xz",
+    "format": "tar.xz",
+    "inventory_sha256": "02d5bc1276e4c8df9ed10f7a15a973501701723abeb70bcd4b90e934f85c018d",
+    "members": 4597,
+    "regular_bytes": 415841387,
+    "sha256": "a897f12e235081c1b877c2aaf9046770923e72b5028ae8a37559a69de0f67df6"
+  },
+  "cache_requirements": {
+    "new_destination_only": true,
+    "owner_uid": 0,
+    "parent": "/opt/miy root-owned without group/world write or symlink",
+    "post_stage_minimum_bytes": 16106127360,
+    "post_stage_minimum_fraction": 0.15,
+    "regular_mode": [
+      "0444",
+      "0555"
+    ],
+    "root_and_directories_mode": "0555",
+    "symlinks": "declared relative, bounded, contained and non-dangling"
+  },
+  "components": {
+    "bin": {
+      "inventory_sha256": "9d317ac1924ae0ae262a0a15bed46e3f8ffcb67211c7f575f3e919c8ce6f4c5b",
+      "members": 2,
+      "regular_bytes": 0
+    },
+    "node": {
+      "inventory_sha256": "6f1d85b8d339e381c4ceef7fb3f7fa47ba8c493acaf7af1a261855022c2dc243",
+      "members": 5,
+      "regular_bytes": 125016054
+    },
+    "node_modules": {
+      "inventory_sha256": "4035241d30c929ecc8b392b0de2b04049de8c782ebcf7303db2a385b1fc57816",
+      "members": 459,
+      "regular_bytes": 28302388
+    },
+    "pnpm": {
+      "inventory_sha256": "06640c7586e682039afca6ca4c7faa17b939cee5f41bed4d419051adc9627e02",
+      "members": 1322,
+      "regular_bytes": 20015834
+    },
+    "profile": {
+      "inventory_sha256": "d298119d2d0dc29d77c2b2fe741e214dfa81cfcb5683a9b9fd77d9445ca762b7",
+      "members": 5,
+      "regular_bytes": 22434
+    },
+    "python": {
+      "inventory_sha256": "2892dc78fecbda5eae979728923e94dab965248cda6811d3a4a5fbb3e33bf055",
+      "members": 1581,
+      "regular_bytes": 218792559
+    },
+    "python-packages": {
+      "inventory_sha256": "d21c543e11b47896af7f40b428364e8c63b90f62a4c55710ab1ea5097db5d939",
+      "members": 1201,
+      "regular_bytes": 17807645
+    },
+    "runtime": {
+      "inventory_sha256": "2070b667583559d610eb4231533bd076c30321423b3a2ab28006d63e94d21de6",
+      "members": 15,
+      "regular_bytes": 5807920
+    },
+    "sdk": {
+      "inventory_sha256": "502f739e32e6965f214218f85afac3ba957c18f3d843d37f990d3c01f8efb149",
+      "members": 7,
+      "regular_bytes": 76553
+    }
+  },
+  "elf": [
+    {
+      "metadata": {
+        "defines": [],
+        "interpreter": "/lib64/ld-linux-x86-64.so.2",
+        "machine": "x86_64",
+        "needed": [
+          "libdl.so.2",
+          "libstdc++.so.6",
+          "libm.so.6",
+          "libgcc_s.so.1",
+          "libpthread.so.0",
+          "libc.so.6",
+          "ld-linux-x86-64.so.2"
+        ],
+        "requires": {
+          "ld-linux-x86-64.so.2": [
+            "GLIBC_2.2.5"
+          ],
+          "libc.so.6": [
+            "GLIBC_2.10",
+            "GLIBC_2.12",
+            "GLIBC_2.14",
+            "GLIBC_2.16",
+            "GLIBC_2.17",
+            "GLIBC_2.2.5",
+            "GLIBC_2.25",
+            "GLIBC_2.27",
+            "GLIBC_2.28",
+            "GLIBC_2.3",
+            "GLIBC_2.3.2",
+            "GLIBC_2.3.4",
+            "GLIBC_2.4",
+            "GLIBC_2.6",
+            "GLIBC_2.7",
+            "GLIBC_2.9"
+          ],
+          "libdl.so.2": [
+            "GLIBC_2.2.5"
+          ],
+          "libgcc_s.so.1": [
+            "GCC_3.0",
+            "GCC_3.4"
+          ],
+          "libm.so.6": [
+            "GLIBC_2.2.5",
+            "GLIBC_2.27"
+          ],
+          "libpthread.so.0": [
+            "GLIBC_2.12",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3.2",
+            "GLIBC_2.3.3",
+            "GLIBC_2.3.4"
+          ],
+          "libstdc++.so.6": [
+            "CXXABI_1.3",
+            "CXXABI_1.3.5",
+            "CXXABI_1.3.7",
+            "CXXABI_1.3.9",
+            "GLIBCXX_3.4",
+            "GLIBCXX_3.4.11",
+            "GLIBCXX_3.4.14",
+            "GLIBCXX_3.4.15",
+            "GLIBCXX_3.4.17",
+            "GLIBCXX_3.4.18",
+            "GLIBCXX_3.4.19",
+            "GLIBCXX_3.4.20",
+            "GLIBCXX_3.4.21",
+            "GLIBCXX_3.4.9"
+          ]
+        },
+        "rpath": [],
+        "soname": null
+      },
+      "path": "node/bin/node",
+      "sha256": "fde6a4bf8d0562f7751d1a2d6cb9b417c4cfe107bbcb0aa3e9a24e125e348f48"
+    },
+    {
+      "metadata": {
+        "defines": [],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [],
+        "requires": {},
+        "rpath": [],
+        "soname": null
+      },
+      "path": "node_modules/.pnpm/@esbuild+linux-x64@0.27.7/node_modules/@esbuild/linux-x64/bin/esbuild",
+      "sha256": "c638273fcf95573ca74af586677800b4dd874c55f8f945adb54316d6902ba14b"
+    },
+    {
+      "metadata": {
+        "defines": [],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libdl.so.2",
+          "libgcc_s.so.1",
+          "librt.so.1",
+          "libpthread.so.0",
+          "libm.so.6",
+          "libc.so.6",
+          "ld-linux-x86-64.so.2"
+        ],
+        "requires": {
+          "ld-linux-x86-64.so.2": [
+            "GLIBC_2.3"
+          ],
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3",
+            "GLIBC_2.3.4",
+            "GLIBC_2.4"
+          ],
+          "libdl.so.2": [
+            "GLIBC_2.2.5"
+          ],
+          "libgcc_s.so.1": [
+            "GCC_3.0",
+            "GCC_3.3",
+            "GCC_4.2.0"
+          ],
+          "libm.so.6": [
+            "GLIBC_2.2.5"
+          ],
+          "libpthread.so.0": [
+            "GLIBC_2.12",
+            "GLIBC_2.2.5"
+          ],
+          "librt.so.1": [
+            "GLIBC_2.2.5"
+          ]
+        },
+        "rpath": [],
+        "soname": null
+      },
+      "path": "node_modules/.pnpm/@napi-rs+lzma-linux-x64-gnu@1.5.1/node_modules/@napi-rs/lzma-linux-x64-gnu/lzma.linux-x64-gnu.node",
+      "sha256": "1f62f0ff272b69f09dff7c867d840d407f2b43c5b6170fd6af0928ed0f542ed4"
+    },
+    {
+      "metadata": {
+        "defines": [],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libdl.so.2",
+          "libgcc_s.so.1",
+          "librt.so.1",
+          "libpthread.so.0",
+          "libm.so.6",
+          "libc.so.6",
+          "ld-linux-x86-64.so.2"
+        ],
+        "requires": {
+          "ld-linux-x86-64.so.2": [
+            "GLIBC_2.3"
+          ],
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3",
+            "GLIBC_2.3.4",
+            "GLIBC_2.4"
+          ],
+          "libdl.so.2": [
+            "GLIBC_2.2.5"
+          ],
+          "libgcc_s.so.1": [
+            "GCC_3.0",
+            "GCC_3.3",
+            "GCC_4.2.0"
+          ],
+          "libm.so.6": [
+            "GLIBC_2.2.5"
+          ],
+          "libpthread.so.0": [
+            "GLIBC_2.2.5"
+          ],
+          "librt.so.1": [
+            "GLIBC_2.2.5"
+          ]
+        },
+        "rpath": [],
+        "soname": null
+      },
+      "path": "node_modules/.pnpm/@rollup+rollup-linux-x64-gnu@4.64.3/node_modules/@rollup/rollup-linux-x64-gnu/rollup.linux-x64-gnu.node",
+      "sha256": "0595cd6d5a22b2cec669b0579b3662355420b2fbd391921e0c213227c77f1202"
+    },
+    {
+      "metadata": {
+        "defines": [],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libgcc_s.so.1",
+          "librt.so.1",
+          "libpthread.so.0",
+          "libdl.so.2",
+          "libc.so.6",
+          "ld-linux-x86-64.so.2"
+        ],
+        "requires": {
+          "ld-linux-x86-64.so.2": [
+            "GLIBC_2.3"
+          ],
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3",
+            "GLIBC_2.3.4"
+          ],
+          "libdl.so.2": [
+            "GLIBC_2.2.5"
+          ],
+          "libgcc_s.so.1": [
+            "GCC_3.0",
+            "GCC_3.3",
+            "GCC_4.2.0"
+          ],
+          "libpthread.so.0": [
+            "GLIBC_2.2.5"
+          ],
+          "librt.so.1": [
+            "GLIBC_2.2.5"
+          ]
+        },
+        "rpath": [],
+        "soname": null
+      },
+      "path": "python-packages/pydantic_core/_pydantic_core.cpython-312-x86_64-linux-gnu.so",
+      "sha256": "95f68ef2535a5102a03442e073d4906c01211b208902f56e24ec23cea402b5a0"
+    },
+    {
+      "metadata": {
+        "defines": [],
+        "interpreter": "/lib64/ld-linux-x86-64.so.2",
+        "machine": "x86_64",
+        "needed": [
+          "libpthread.so.0",
+          "libdl.so.2",
+          "libutil.so.1",
+          "libm.so.6",
+          "librt.so.1",
+          "libc.so.6"
+        ],
+        "requires": {
+          "libc.so.6": [
+            "GLIBC_2.10",
+            "GLIBC_2.11",
+            "GLIBC_2.12",
+            "GLIBC_2.13",
+            "GLIBC_2.14",
+            "GLIBC_2.15",
+            "GLIBC_2.16",
+            "GLIBC_2.17",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3",
+            "GLIBC_2.3.2",
+            "GLIBC_2.3.4",
+            "GLIBC_2.4",
+            "GLIBC_2.5",
+            "GLIBC_2.6",
+            "GLIBC_2.7",
+            "GLIBC_2.9"
+          ],
+          "libdl.so.2": [
+            "GLIBC_2.2.5"
+          ],
+          "libm.so.6": [
+            "GLIBC_2.2.5"
+          ],
+          "libpthread.so.0": [
+            "GLIBC_2.2.5",
+            "GLIBC_2.3.2",
+            "GLIBC_2.3.3"
+          ],
+          "librt.so.1": [
+            "GLIBC_2.2.5"
+          ],
+          "libutil.so.1": [
+            "GLIBC_2.2.5"
+          ]
+        },
+        "rpath": [
+          "$ORIGIN/../lib"
+        ],
+        "soname": null
+      },
+      "path": "python/bin/python3.12",
+      "sha256": "11164a4c542788b4e49d1098c4a1abb00fd2d9a000464f4a90b05197f24f5395"
+    },
+    {
+      "metadata": {
+        "defines": [],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libc.so.6"
+        ],
+        "requires": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3",
+            "GLIBC_2.3.4",
+            "GLIBC_2.4"
+          ]
+        },
+        "rpath": [],
+        "soname": null
+      },
+      "path": "python/lib/itcl4.3.8/libtcl9itcl4.3.8.so",
+      "sha256": "66199cfa23868e31c61fec1c5dab28a720515e74b883ff229078956522615f70"
+    },
+    {
+      "metadata": {
+        "defines": [],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libm.so.6",
+          "libpthread.so.0",
+          "librt.so.1",
+          "libdl.so.2",
+          "libutil.so.1",
+          "libc.so.6",
+          "ld-linux-x86-64.so.2"
+        ],
+        "requires": {
+          "ld-linux-x86-64.so.2": [
+            "GLIBC_2.3"
+          ],
+          "libc.so.6": [
+            "GLIBC_2.10",
+            "GLIBC_2.11",
+            "GLIBC_2.12",
+            "GLIBC_2.13",
+            "GLIBC_2.14",
+            "GLIBC_2.15",
+            "GLIBC_2.16",
+            "GLIBC_2.17",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3",
+            "GLIBC_2.3.2",
+            "GLIBC_2.3.4",
+            "GLIBC_2.4",
+            "GLIBC_2.5",
+            "GLIBC_2.6",
+            "GLIBC_2.7",
+            "GLIBC_2.9"
+          ],
+          "libdl.so.2": [
+            "GLIBC_2.2.5"
+          ],
+          "libm.so.6": [
+            "GLIBC_2.2.5"
+          ],
+          "libpthread.so.0": [
+            "GLIBC_2.2.5",
+            "GLIBC_2.3.2",
+            "GLIBC_2.3.3"
+          ],
+          "librt.so.1": [
+            "GLIBC_2.2.5"
+          ],
+          "libutil.so.1": [
+            "GLIBC_2.2.5"
+          ]
+        },
+        "rpath": [],
+        "soname": "libpython3.12.so.1.0"
+      },
+      "path": "python/lib/libpython3.12.so.1.0",
+      "sha256": "da461f2a3deb3dff97b0e83f416b5e1f7d35a89a4ca5d7e960913fbd454142c8"
+    },
+    {
+      "metadata": {
+        "defines": [],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "$ORIGIN/../lib/libpython3.12.so.1.0",
+          "libpthread.so.0",
+          "libc.so.6"
+        ],
+        "requires": {
+          "libc.so.6": [
+            "GLIBC_2.2.5"
+          ]
+        },
+        "rpath": [],
+        "soname": "libpython3.so"
+      },
+      "path": "python/lib/libpython3.so",
+      "sha256": "c3f3c3fdd7c03f45b4f98ff1d20df59973eb7e442bc7e65e42aec67d72da3faf"
+    },
+    {
+      "metadata": {
+        "defines": [],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libdl.so.2",
+          "libpthread.so.0",
+          "libm.so.6",
+          "libc.so.6"
+        ],
+        "requires": {
+          "libc.so.6": [
+            "GLIBC_2.11",
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3",
+            "GLIBC_2.3.2",
+            "GLIBC_2.3.4",
+            "GLIBC_2.4",
+            "GLIBC_2.7",
+            "GLIBC_2.9"
+          ],
+          "libdl.so.2": [
+            "GLIBC_2.2.5"
+          ],
+          "libm.so.6": [
+            "GLIBC_2.2.5"
+          ],
+          "libpthread.so.0": [
+            "GLIBC_2.2.5",
+            "GLIBC_2.3.2"
+          ]
+        },
+        "rpath": [
+          "/tools/deps/lib"
+        ],
+        "soname": null
+      },
+      "path": "python/lib/libtcl9.0.so",
+      "sha256": "5f517c3a3eed58df53c6cd405fb035315edbad08e32178032f7a3683a064382d"
+    },
+    {
+      "metadata": {
+        "defines": [],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libdl.so.2",
+          "libpthread.so.0",
+          "libm.so.6",
+          "libc.so.6"
+        ],
+        "requires": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.15",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3",
+            "GLIBC_2.3.4",
+            "GLIBC_2.4",
+            "GLIBC_2.7"
+          ],
+          "libm.so.6": [
+            "GLIBC_2.2.5"
+          ],
+          "libpthread.so.0": [
+            "GLIBC_2.2.5",
+            "GLIBC_2.3.2"
+          ]
+        },
+        "rpath": [
+          "/tools/deps/lib:/tools/deps/lib"
+        ],
+        "soname": null
+      },
+      "path": "python/lib/libtcl9tk9.0.so",
+      "sha256": "f177b1c446832c93178784bcdcfcd29bb7d41826fb7f34c4f64186ab7a1cff7e"
+    },
+    {
+      "metadata": {
+        "defines": [],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libcrypt.so.1",
+          "libpthread.so.0",
+          "libc.so.6"
+        ],
+        "requires": {
+          "libc.so.6": [
+            "GLIBC_2.2.5",
+            "GLIBC_2.4"
+          ],
+          "libcrypt.so.1": [
+            "GLIBC_2.2.5"
+          ]
+        },
+        "rpath": [],
+        "soname": null
+      },
+      "path": "python/lib/python3.12/lib-dynload/_crypt.cpython-312-x86_64-linux-gnu.so",
+      "sha256": "af1618c64afa023994f421cb5d6c73ccacf489ceeb7f77643c28c35d20f53eb6"
+    },
+    {
+      "metadata": {
+        "defines": [],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libpthread.so.0",
+          "libc.so.6"
+        ],
+        "requires": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.15",
+            "GLIBC_2.17",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3",
+            "GLIBC_2.3.4",
+            "GLIBC_2.4"
+          ],
+          "libpthread.so.0": [
+            "GLIBC_2.2.5",
+            "GLIBC_2.3.2"
+          ]
+        },
+        "rpath": [],
+        "soname": null
+      },
+      "path": "python/lib/python3.12/lib-dynload/_dbm.cpython-312-x86_64-linux-gnu.so",
+      "sha256": "321f90bb3154d6cf213a9c299318451293c683726062ce9813c4b09c2d993d18"
+    },
+    {
+      "metadata": {
+        "defines": [],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libdl.so.2",
+          "libpthread.so.0",
+          "libm.so.6",
+          "libtcl9tk9.0.so",
+          "libtcl9.0.so",
+          "libc.so.6"
+        ],
+        "requires": {
+          "libc.so.6": [
+            "GLIBC_2.2.5"
+          ],
+          "libpthread.so.0": [
+            "GLIBC_2.2.5"
+          ]
+        },
+        "rpath": [
+          "$ORIGIN/../.."
+        ],
+        "soname": null
+      },
+      "path": "python/lib/python3.12/lib-dynload/_tkinter.cpython-312-x86_64-linux-gnu.so",
+      "sha256": "d722681f0fb4f4e4b2990293ece6c16f59053a07866d8f492b0c7186b3b38f99"
+    },
+    {
+      "metadata": {
+        "defines": [],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libc.so.6"
+        ],
+        "requires": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3.4",
+            "GLIBC_2.4",
+            "GLIBC_2.7"
+          ]
+        },
+        "rpath": [],
+        "soname": null
+      },
+      "path": "python/lib/thread3.0.6/libtcl9thread3.0.6.so",
+      "sha256": "a18ee4e84a55363e603fc4be73ce5eaf68aedb56079567b0b986bb94465f0cfd"
+    },
+    {
+      "metadata": {
+        "defines": [],
+        "interpreter": "/lib64/ld-linux-x86-64.so.2",
+        "machine": "x86_64",
+        "needed": [
+          "libc.so.6"
+        ],
+        "requires": {
+          "libc.so.6": [
+            "GLIBC_2.11",
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3",
+            "GLIBC_2.3.4",
+            "GLIBC_2.33",
+            "GLIBC_2.34",
+            "GLIBC_2.4"
+          ]
+        },
+        "rpath": [],
+        "soname": null
+      },
+      "path": "runtime/bin/dash",
+      "sha256": "f5adb8bf0100ed0f8c7782ca5f92814e9229525a4b4e0d401cf3bea09ac960a6"
+    },
+    {
+      "metadata": {
+        "defines": [],
+        "interpreter": "/lib64/ld-linux-x86-64.so.2",
+        "machine": "x86_64",
+        "needed": [
+          "libc.so.6"
+        ],
+        "requires": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.26",
+            "GLIBC_2.3",
+            "GLIBC_2.3.4",
+            "GLIBC_2.34",
+            "GLIBC_2.4"
+          ]
+        },
+        "rpath": [],
+        "soname": null
+      },
+      "path": "runtime/bin/env",
+      "sha256": "615c46b39130a04a08da04163542ce7ce1164fa4b35408efb43aac0a8a9f7ae5"
+    },
+    {
+      "metadata": {
+        "defines": [
+          "GLIBC_2.2.5",
+          "GLIBC_2.3",
+          "GLIBC_2.34",
+          "GLIBC_2.35",
+          "GLIBC_2.4",
+          "GLIBC_PRIVATE",
+          "ld-linux-x86-64.so.2"
+        ],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [],
+        "requires": {},
+        "rpath": [],
+        "soname": "ld-linux-x86-64.so.2"
+      },
+      "path": "runtime/lib/ld-linux-x86-64.so.2",
+      "sha256": "02bcda52c1a5dfc236f94d9e5255b4a0e26347d8a372a5223b650e31f291ce3c"
+    },
+    {
+      "metadata": {
+        "defines": [
+          "GLIBC_2.10",
+          "GLIBC_2.11",
+          "GLIBC_2.12",
+          "GLIBC_2.13",
+          "GLIBC_2.14",
+          "GLIBC_2.15",
+          "GLIBC_2.16",
+          "GLIBC_2.17",
+          "GLIBC_2.18",
+          "GLIBC_2.2.5",
+          "GLIBC_2.2.6",
+          "GLIBC_2.22",
+          "GLIBC_2.23",
+          "GLIBC_2.24",
+          "GLIBC_2.25",
+          "GLIBC_2.26",
+          "GLIBC_2.27",
+          "GLIBC_2.28",
+          "GLIBC_2.29",
+          "GLIBC_2.3",
+          "GLIBC_2.3.2",
+          "GLIBC_2.3.3",
+          "GLIBC_2.3.4",
+          "GLIBC_2.30",
+          "GLIBC_2.31",
+          "GLIBC_2.32",
+          "GLIBC_2.33",
+          "GLIBC_2.34",
+          "GLIBC_2.35",
+          "GLIBC_2.36",
+          "GLIBC_2.4",
+          "GLIBC_2.5",
+          "GLIBC_2.6",
+          "GLIBC_2.7",
+          "GLIBC_2.8",
+          "GLIBC_2.9",
+          "GLIBC_ABI_DT_RELR",
+          "GLIBC_PRIVATE",
+          "libc.so.6"
+        ],
+        "interpreter": "/lib64/ld-linux-x86-64.so.2",
+        "machine": "x86_64",
+        "needed": [
+          "ld-linux-x86-64.so.2"
+        ],
+        "requires": {
+          "ld-linux-x86-64.so.2": [
+            "GLIBC_2.2.5",
+            "GLIBC_2.3",
+            "GLIBC_2.35",
+            "GLIBC_PRIVATE"
+          ]
+        },
+        "rpath": [],
+        "soname": "libc.so.6"
+      },
+      "path": "runtime/lib/libc.so.6",
+      "sha256": "6b4a45352fd0c540a9c7c718f35ce8c8e46a4e482f9d3885a910c32d1a0e1421"
+    },
+    {
+      "metadata": {
+        "defines": [
+          "GLIBC_2.2.5",
+          "XCRYPT_2.0",
+          "XCRYPT_4.3",
+          "XCRYPT_4.4",
+          "libcrypt.so.1"
+        ],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libc.so.6"
+        ],
+        "requires": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.25",
+            "GLIBC_2.3.4",
+            "GLIBC_2.36",
+            "GLIBC_2.4"
+          ]
+        },
+        "rpath": [],
+        "soname": "libcrypt.so.1"
+      },
+      "path": "runtime/lib/libcrypt.so.1",
+      "sha256": "5db18e8a8894ef4746eb8230855b638a5e52e782b2f10deede5f1dad846178bb"
+    },
+    {
+      "metadata": {
+        "defines": [
+          "GLIBC_2.2.5",
+          "GLIBC_2.3.3",
+          "GLIBC_2.3.4",
+          "libdl.so.2"
+        ],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libc.so.6"
+        ],
+        "requires": {
+          "libc.so.6": [
+            "GLIBC_2.2.5",
+            "GLIBC_ABI_DT_RELR"
+          ]
+        },
+        "rpath": [],
+        "soname": "libdl.so.2"
+      },
+      "path": "runtime/lib/libdl.so.2",
+      "sha256": "95d521b2c39fd0333271b6fdcdddff878ae82001a304313a837b8e728ebe3cb1"
+    },
+    {
+      "metadata": {
+        "defines": [
+          "GCC_12.0.0",
+          "GCC_3.0",
+          "GCC_3.3",
+          "GCC_3.3.1",
+          "GCC_3.4",
+          "GCC_3.4.2",
+          "GCC_3.4.4",
+          "GCC_4.0.0",
+          "GCC_4.2.0",
+          "GCC_4.3.0",
+          "GCC_4.7.0",
+          "GCC_4.8.0",
+          "GCC_7.0.0",
+          "libgcc_s.so.1"
+        ],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libc.so.6"
+        ],
+        "requires": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.34",
+            "GLIBC_2.35"
+          ]
+        },
+        "rpath": [],
+        "soname": "libgcc_s.so.1"
+      },
+      "path": "runtime/lib/libgcc_s.so.1",
+      "sha256": "2bd1552c47799ef67e701e81d4383061fd76059868e446e63560f0dd0d5ec14e"
+    },
+    {
+      "metadata": {
+        "defines": [
+          "GLIBC_2.15",
+          "GLIBC_2.18",
+          "GLIBC_2.2.5",
+          "GLIBC_2.23",
+          "GLIBC_2.24",
+          "GLIBC_2.25",
+          "GLIBC_2.26",
+          "GLIBC_2.27",
+          "GLIBC_2.28",
+          "GLIBC_2.29",
+          "GLIBC_2.31",
+          "GLIBC_2.32",
+          "GLIBC_2.35",
+          "GLIBC_2.4",
+          "libm.so.6"
+        ],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libc.so.6",
+          "ld-linux-x86-64.so.2"
+        ],
+        "requires": {
+          "ld-linux-x86-64.so.2": [
+            "GLIBC_PRIVATE"
+          ],
+          "libc.so.6": [
+            "GLIBC_2.2.5",
+            "GLIBC_2.4",
+            "GLIBC_ABI_DT_RELR",
+            "GLIBC_PRIVATE"
+          ]
+        },
+        "rpath": [],
+        "soname": "libm.so.6"
+      },
+      "path": "runtime/lib/libm.so.6",
+      "sha256": "7f2ca87f652f56b094462474b076749e90e689d0ecb9cb63c7679820b271b4e7"
+    },
+    {
+      "metadata": {
+        "defines": [
+          "GLIBC_2.11",
+          "GLIBC_2.12",
+          "GLIBC_2.18",
+          "GLIBC_2.2.5",
+          "GLIBC_2.2.6",
+          "GLIBC_2.28",
+          "GLIBC_2.3.2",
+          "GLIBC_2.3.3",
+          "GLIBC_2.3.4",
+          "GLIBC_2.30",
+          "GLIBC_2.31",
+          "GLIBC_2.4",
+          "libpthread.so.0"
+        ],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libc.so.6"
+        ],
+        "requires": {
+          "libc.so.6": [
+            "GLIBC_2.2.5",
+            "GLIBC_ABI_DT_RELR"
+          ]
+        },
+        "rpath": [],
+        "soname": "libpthread.so.0"
+      },
+      "path": "runtime/lib/libpthread.so.0",
+      "sha256": "b93a680da8a05b939b235c1533572e7a2f6d3d8808bf70209997edc64ea5fedc"
+    },
+    {
+      "metadata": {
+        "defines": [
+          "GLIBC_2.2.5",
+          "GLIBC_2.3.3",
+          "GLIBC_2.3.4",
+          "GLIBC_2.4",
+          "GLIBC_2.7",
+          "librt.so.1"
+        ],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libc.so.6"
+        ],
+        "requires": {
+          "libc.so.6": [
+            "GLIBC_2.2.5",
+            "GLIBC_ABI_DT_RELR",
+            "GLIBC_PRIVATE"
+          ]
+        },
+        "rpath": [],
+        "soname": "librt.so.1"
+      },
+      "path": "runtime/lib/librt.so.1",
+      "sha256": "41c72def458b8cfb6aab96a7dbada7454dd216d89aac65fb085eb52bead51def"
+    },
+    {
+      "metadata": {
+        "defines": [
+          "CXXABI_1.3",
+          "CXXABI_1.3.1",
+          "CXXABI_1.3.10",
+          "CXXABI_1.3.11",
+          "CXXABI_1.3.12",
+          "CXXABI_1.3.13",
+          "CXXABI_1.3.2",
+          "CXXABI_1.3.3",
+          "CXXABI_1.3.4",
+          "CXXABI_1.3.5",
+          "CXXABI_1.3.6",
+          "CXXABI_1.3.7",
+          "CXXABI_1.3.8",
+          "CXXABI_1.3.9",
+          "CXXABI_FLOAT128",
+          "CXXABI_TM_1",
+          "GLIBCXX_3.4",
+          "GLIBCXX_3.4.1",
+          "GLIBCXX_3.4.10",
+          "GLIBCXX_3.4.11",
+          "GLIBCXX_3.4.12",
+          "GLIBCXX_3.4.13",
+          "GLIBCXX_3.4.14",
+          "GLIBCXX_3.4.15",
+          "GLIBCXX_3.4.16",
+          "GLIBCXX_3.4.17",
+          "GLIBCXX_3.4.18",
+          "GLIBCXX_3.4.19",
+          "GLIBCXX_3.4.2",
+          "GLIBCXX_3.4.20",
+          "GLIBCXX_3.4.21",
+          "GLIBCXX_3.4.22",
+          "GLIBCXX_3.4.23",
+          "GLIBCXX_3.4.24",
+          "GLIBCXX_3.4.25",
+          "GLIBCXX_3.4.26",
+          "GLIBCXX_3.4.27",
+          "GLIBCXX_3.4.28",
+          "GLIBCXX_3.4.29",
+          "GLIBCXX_3.4.3",
+          "GLIBCXX_3.4.30",
+          "GLIBCXX_3.4.4",
+          "GLIBCXX_3.4.5",
+          "GLIBCXX_3.4.6",
+          "GLIBCXX_3.4.7",
+          "GLIBCXX_3.4.8",
+          "GLIBCXX_3.4.9",
+          "libstdc++.so.6"
+        ],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libm.so.6",
+          "libc.so.6",
+          "ld-linux-x86-64.so.2",
+          "libgcc_s.so.1"
+        ],
+        "requires": {
+          "ld-linux-x86-64.so.2": [
+            "GLIBC_2.3"
+          ],
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.16",
+            "GLIBC_2.17",
+            "GLIBC_2.18",
+            "GLIBC_2.2.5",
+            "GLIBC_2.25",
+            "GLIBC_2.3",
+            "GLIBC_2.3.2",
+            "GLIBC_2.32",
+            "GLIBC_2.33",
+            "GLIBC_2.34",
+            "GLIBC_2.36",
+            "GLIBC_2.4",
+            "GLIBC_2.6"
+          ],
+          "libgcc_s.so.1": [
+            "GCC_3.0",
+            "GCC_3.3",
+            "GCC_3.4",
+            "GCC_4.2.0"
+          ],
+          "libm.so.6": [
+            "GLIBC_2.2.5"
+          ]
+        },
+        "rpath": [],
+        "soname": "libstdc++.so.6"
+      },
+      "path": "runtime/lib/libstdc++.so.6",
+      "sha256": "e7848e32af4932840ba775169041759a2a8dd5a008af360e5c55bce506eebcf4"
+    },
+    {
+      "metadata": {
+        "defines": [
+          "GLIBC_2.2.5",
+          "libutil.so.1"
+        ],
+        "interpreter": null,
+        "machine": "x86_64",
+        "needed": [
+          "libc.so.6"
+        ],
+        "requires": {
+          "libc.so.6": [
+            "GLIBC_2.2.5",
+            "GLIBC_ABI_DT_RELR"
+          ]
+        },
+        "rpath": [],
+        "soname": "libutil.so.1"
+      },
+      "path": "runtime/lib/libutil.so.1",
+      "sha256": "bc5d8f67c3b3c6eea14e9d9f389cd4bc6034e4db9314849d7d5a5d756df0a9ca"
+    }
+  ],
+  "minimum_systemd_version": 255,
+  "native_version": "0.160.1",
+  "package_manager": {
+    "configuration_selection": "NPM_CONFIG_USERCONFIG=<SDK_ROOT>/profile/.npmrc; never replace workspace configuration",
+    "node_runtime_dependencies": "prebuilt standard pnpm relative symlinks, archive members verified against ignore-scripts public output",
+    "public_configuration": {
+      "extend-node-path": false,
+      "ignore-scripts": true,
+      "manage-package-manager-versions": false,
+      "prefer-symlinked-executables": true,
+      "update-notifier": false
+    },
+    "python_runtime_dependencies": "hashed wheels installed with public pip --no-index --only-binary=:all: --require-hashes --no-compile --target; use python -m, no movable venv"
+  },
+  "producer_recipe": {
+    "builder": "Linux x86_64 Python3.12 with stdlib canonical PAX/xz preset6",
+    "cache_runtime_package_install": false,
+    "entrypoint": "scripts/build-native-sdk-toolchain.py",
+    "node_machine_metadata_omitted": [
+      ".modules.yaml",
+      ".pnpm-workspace-state-v1.json"
+    ],
+    "python_RECORD": "standard CSV; omit only declared console-script rows after validating omitted bin inventory",
+    "version": 2
+  },
+  "profile_reference_files": "frozen provenance only, never mounted over checkout package.json/lock/pyproject/.npmrc",
+  "provenance": {
+    "OCI_selected_runtime": {
+      "executed": false,
+      "files": [
+        {
+          "bytes": 125640,
+          "interpreter": [
+            "/lib64/ld-linux-x86-64.so.2"
+          ],
+          "needed": [
+            "libc.so.6"
+          ],
+          "path": "runtime/bin/dash",
+          "resolved_source_path": "usr/bin/dash",
+          "sha256": "f5adb8bf0100ed0f8c7782ca5f92814e9229525a4b4e0d401cf3bea09ac960a6",
+          "source_layer": "sha256:a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71",
+          "source_path": "usr/bin/dash"
+        },
+        {
+          "bytes": 48536,
+          "interpreter": [
+            "/lib64/ld-linux-x86-64.so.2"
+          ],
+          "needed": [
+            "libc.so.6"
+          ],
+          "path": "runtime/bin/env",
+          "resolved_source_path": "usr/bin/env",
+          "sha256": "615c46b39130a04a08da04163542ce7ce1164fa4b35408efb43aac0a8a9f7ae5",
+          "source_layer": "sha256:a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71",
+          "source_path": "usr/bin/env"
+        },
+        {
+          "bytes": 215000,
+          "interpreter": [],
+          "needed": [],
+          "path": "runtime/lib/ld-linux-x86-64.so.2",
+          "resolved_source_path": "usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+          "sha256": "02bcda52c1a5dfc236f94d9e5255b4a0e26347d8a372a5223b650e31f291ce3c",
+          "source_layer": "sha256:a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71",
+          "source_path": "usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"
+        },
+        {
+          "bytes": 1926232,
+          "interpreter": [
+            "/lib64/ld-linux-x86-64.so.2"
+          ],
+          "needed": [
+            "ld-linux-x86-64.so.2"
+          ],
+          "path": "runtime/lib/libc.so.6",
+          "resolved_source_path": "usr/lib/x86_64-linux-gnu/libc.so.6",
+          "sha256": "6b4a45352fd0c540a9c7c718f35ce8c8e46a4e482f9d3885a910c32d1a0e1421",
+          "source_layer": "sha256:a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71",
+          "source_path": "usr/lib/x86_64-linux-gnu/libc.so.6"
+        },
+        {
+          "bytes": 206776,
+          "interpreter": [],
+          "needed": [
+            "libc.so.6"
+          ],
+          "path": "runtime/lib/libcrypt.so.1",
+          "resolved_source_path": "usr/lib/x86_64-linux-gnu/libcrypt.so.1.1.0",
+          "sha256": "5db18e8a8894ef4746eb8230855b638a5e52e782b2f10deede5f1dad846178bb",
+          "source_layer": "sha256:a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71",
+          "source_path": "usr/lib/x86_64-linux-gnu/libcrypt.so.1"
+        },
+        {
+          "bytes": 14480,
+          "interpreter": [],
+          "needed": [
+            "libc.so.6"
+          ],
+          "path": "runtime/lib/libdl.so.2",
+          "resolved_source_path": "usr/lib/x86_64-linux-gnu/libdl.so.2",
+          "sha256": "95d521b2c39fd0333271b6fdcdddff878ae82001a304313a837b8e728ebe3cb1",
+          "source_layer": "sha256:a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71",
+          "source_path": "usr/lib/x86_64-linux-gnu/libdl.so.2"
+        },
+        {
+          "bytes": 125312,
+          "interpreter": [],
+          "needed": [
+            "libc.so.6"
+          ],
+          "path": "runtime/lib/libgcc_s.so.1",
+          "resolved_source_path": "usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
+          "sha256": "2bd1552c47799ef67e701e81d4383061fd76059868e446e63560f0dd0d5ec14e",
+          "source_layer": "sha256:a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71",
+          "source_path": "usr/lib/x86_64-linux-gnu/libgcc_s.so.1"
+        },
+        {
+          "bytes": 911904,
+          "interpreter": [],
+          "needed": [
+            "libc.so.6",
+            "ld-linux-x86-64.so.2"
+          ],
+          "path": "runtime/lib/libm.so.6",
+          "resolved_source_path": "usr/lib/x86_64-linux-gnu/libm.so.6",
+          "sha256": "7f2ca87f652f56b094462474b076749e90e689d0ecb9cb63c7679820b271b4e7",
+          "source_layer": "sha256:a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71",
+          "source_path": "usr/lib/x86_64-linux-gnu/libm.so.6"
+        },
+        {
+          "bytes": 14480,
+          "interpreter": [],
+          "needed": [
+            "libc.so.6"
+          ],
+          "path": "runtime/lib/libpthread.so.0",
+          "resolved_source_path": "usr/lib/x86_64-linux-gnu/libpthread.so.0",
+          "sha256": "b93a680da8a05b939b235c1533572e7a2f6d3d8808bf70209997edc64ea5fedc",
+          "source_layer": "sha256:a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71",
+          "source_path": "usr/lib/x86_64-linux-gnu/libpthread.so.0"
+        },
+        {
+          "bytes": 14640,
+          "interpreter": [],
+          "needed": [
+            "libc.so.6"
+          ],
+          "path": "runtime/lib/librt.so.1",
+          "resolved_source_path": "usr/lib/x86_64-linux-gnu/librt.so.1",
+          "sha256": "41c72def458b8cfb6aab96a7dbada7454dd216d89aac65fb085eb52bead51def",
+          "source_layer": "sha256:a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71",
+          "source_path": "usr/lib/x86_64-linux-gnu/librt.so.1"
+        },
+        {
+          "bytes": 2190440,
+          "interpreter": [],
+          "needed": [
+            "libm.so.6",
+            "libc.so.6",
+            "ld-linux-x86-64.so.2",
+            "libgcc_s.so.1"
+          ],
+          "path": "runtime/lib/libstdc++.so.6",
+          "resolved_source_path": "usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.30",
+          "sha256": "e7848e32af4932840ba775169041759a2a8dd5a008af360e5c55bce506eebcf4",
+          "source_layer": "sha256:a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71",
+          "source_path": "usr/lib/x86_64-linux-gnu/libstdc++.so.6"
+        },
+        {
+          "bytes": 14480,
+          "interpreter": [],
+          "needed": [
+            "libc.so.6"
+          ],
+          "path": "runtime/lib/libutil.so.1",
+          "resolved_source_path": "usr/lib/x86_64-linux-gnu/libutil.so.1",
+          "sha256": "bc5d8f67c3b3c6eea14e9d9f389cd4bc6034e4db9314849d7d5a5d756df0a9ca",
+          "source_layer": "sha256:a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71",
+          "source_path": "usr/lib/x86_64-linux-gnu/libutil.so.1"
+        }
+      ],
+      "supplier": {
+        "config_digest": "sha256:6e6261159fd399ebe5a3d556b7d89da9c85c873f3f270918aad6c8107da8b411",
+        "executed": false,
+        "layers": [
+          {
+            "bytes": 28232655,
+            "digest": "sha256:a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71",
+            "path": "oci-a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71.tar.gz"
+          },
+          {
+            "bytes": 3314,
+            "digest": "sha256:cea7eb9bbe80eabf8356efb28b3796ab904f36a32049aeb6b435920ca93f9285",
+            "path": "oci-cea7eb9bbe80eabf8356efb28b3796ab904f36a32049aeb6b435920ca93f9285.tar.gz"
+          },
+          {
+            "bytes": 49938210,
+            "digest": "sha256:51c53f95c2cae3d00dfc0350297c92dea913fe129ec38b8deb8313e5f3e0297d",
+            "path": "oci-51c53f95c2cae3d00dfc0350297c92dea913fe129ec38b8deb8313e5f3e0297d.tar.gz"
+          },
+          {
+            "bytes": 1712979,
+            "digest": "sha256:3cddab114edadc7cf5a7b0b591e59f6312aade3dc4fb68e88aacca5eb1cc1c03",
+            "path": "oci-3cddab114edadc7cf5a7b0b591e59f6312aade3dc4fb68e88aacca5eb1cc1c03.tar.gz"
+          },
+          {
+            "bytes": 447,
+            "digest": "sha256:0282d618b52cd2eb8fcf041e780cd66b15e7ebae519a4054c5d293eae6b6d34f",
+            "path": "oci-0282d618b52cd2eb8fcf041e780cd66b15e7ebae519a4054c5d293eae6b6d34f.tar.gz"
+          }
+        ],
+        "public_index": "sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5",
+        "repository": "library/node",
+        "selected_linux_amd64_manifest": "sha256:4d676821dff059fd00d277ee4261ef34ea712317fed0737c03941481b5760c96"
+      },
+      "whole_host_usr_lib_mounted": false
+    },
+    "node_signature": {
+      "checksum_signature_verified": true,
+      "commit": "481637f813e912c4aa3622d7964ab426c97b8e8d",
+      "keyring_sha256": "610b8d249da3d5733f5a128def2dd0294dbbf5b5713e6ca2529db8db419dee00",
+      "official_repository": "nodejs/release-keys",
+      "signing_fingerprint": "5BE8A3F6C8A5C01D106C0AD820B1A390B168D356",
+      "url": "https://raw.githubusercontent.com/nodejs/release-keys/481637f813e912c4aa3622d7964ab426c97b8e8d/gpg/pubring.kbx"
+    },
+    "public_artifacts": [
+      {
+        "bytes": 31001304,
+        "name": "node.tar.xz",
+        "sha256": "df450af89261115ef9f9e3830c3eeb2cc9213b63c720b1af623cb5dcbe2e02de",
+        "url": "https://nodejs.org/dist/v22.23.3/node-v22.23.3-linux-x64.tar.xz"
+      },
+      {
+        "bytes": 3981,
+        "name": "node-SHASUMS256.txt",
+        "sha256": "4fe99a2ba9d552a6f51c13ed68fb11104cfa5df601aec616be689253a8139e7a",
+        "url": "https://nodejs.org/dist/v22.23.3/SHASUMS256.txt"
+      },
+      {
+        "bytes": 119,
+        "name": "node-SHASUMS256.txt.sig",
+        "sha256": "0aafa311177794108f9f15cf7baebc747ba21983e999b20eee94738c651469e0",
+        "url": "https://nodejs.org/dist/v22.23.3/SHASUMS256.txt.sig"
+      },
+      {
+        "bytes": 66919180,
+        "name": "python.tar.gz",
+        "sha256": "06c90b93f419b63371c18f20fed0558a1a901f6518c3c24f755077e048447e7f",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260929/cpython-3.12.14%2B20260929-x86_64-unknown-linux-gnu-install_only.tar.gz"
+      },
+      {
+        "bytes": 2695,
+        "name": "pnpm-metadata.json",
+        "sha256": "c04538f764c6585c014800c7b3389aea840d9f444da6169f26e079969608e454",
+        "url": "https://registry.npmjs.org/pnpm/10.34.5"
+      },
+      {
+        "bytes": 4862438,
+        "name": "pnpm.tgz",
+        "sha256": "ccb5c479cab1b00621325bfe7d4c9a8a8031e7a525d7249e275ecbec81b08db2",
+        "url": "https://registry.npmjs.org/pnpm/-/pnpm-10.34.5.tgz"
+      }
+    ],
+    "python_distribution": "Astral python-build-standalone CPython3.12.14+20260929 install_only GNU; not python.org Linux binary",
+    "selected_node_archives": [
+      {
+        "all_regular_archive_members_match_installed": 3,
+        "archive": "esbuild+linux-x64-0.27.7.tgz",
+        "bytes": 4658602,
+        "installed_path": ".pnpm/@esbuild+linux-x64@0.27.7/node_modules/@esbuild/linux-x64",
+        "integrity": "sha512-hzznmADPt+OmsYzw1EE33ccA+HPdIqiCRq7cQeL1Jlq2gb1+OyWBkMCrYGBJ+sxVzve2ZJEVeePbLM2iEIZSxA==",
+        "name": "@esbuild/linux-x64",
+        "sha256": "2c3eb61a67f174520d3c586ef026430480fa92cfb5f285c82a9040fff41355de",
+        "url": "https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-0.27.7.tgz",
+        "version": "0.27.7"
+      },
+      {
+        "all_regular_archive_members_match_installed": 27,
+        "archive": "react-19.2.4.tgz",
+        "bytes": 24804,
+        "installed_path": ".pnpm/react@19.2.4/node_modules/react",
+        "integrity": "sha512-9nfp2hYpCwOjAN+8TZFGhtWEwgvWHXqESH8qT89AT/lWklpLON22Lc8pEtnpsZz7VmawabSU0gCjnj8aC0euHQ==",
+        "name": "react",
+        "sha256": "3f84c05e1a4701dd5981145e5c766e2517b74e8babc8e131749b9b9b22409279",
+        "url": "https://registry.npmjs.org/react/-/react-19.2.4.tgz",
+        "version": "19.2.4"
+      },
+      {
+        "all_regular_archive_members_match_installed": 26,
+        "archive": "nanoid-3.3.20.tgz",
+        "bytes": 5721,
+        "installed_path": ".pnpm/nanoid@3.3.20/node_modules/nanoid",
+        "integrity": "sha512-uKdg2G3GNCKQn9byYOpxbGqrT2fGO5KRt5J/8b3pok8rT6qxGWF6hxMyJiEYtAf+FVyYuD9hRaDqX5uPFYJ4ZQ==",
+        "name": "nanoid",
+        "sha256": "5ae134779aa22c2c04b691d361bc1f3c004c354e81c7ee166ea1c6e848eedc4f",
+        "url": "https://registry.npmjs.org/nanoid/-/nanoid-3.3.20.tgz",
+        "version": "3.3.20"
+      },
+      {
+        "all_regular_archive_members_match_installed": 39,
+        "archive": "vite-7.3.1.tgz",
+        "bytes": 542287,
+        "installed_path": ".pnpm/vite@7.3.1/node_modules/vite",
+        "integrity": "sha512-w+N7Hifpc3gRjZ63vYBXA56dvvRlNWRczTdmCBBa+CotUzAPf5b7YMdMR/8CQoeYE5LX3W4wj6RYTgonm1b9DA==",
+        "name": "vite",
+        "sha256": "db84c382a086feb54ccb68b285aa71eff333156cd184299f754003b13682fb85",
+        "url": "https://registry.npmjs.org/vite/-/vite-7.3.1.tgz",
+        "version": "7.3.1"
+      },
+      {
+        "all_regular_archive_members_match_installed": 3,
+        "archive": "napi-rs+lzma-linux-x64-gnu-1.5.1.tgz",
+        "bytes": 637261,
+        "installed_path": ".pnpm/@napi-rs+lzma-linux-x64-gnu@1.5.1/node_modules/@napi-rs/lzma-linux-x64-gnu",
+        "integrity": "sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ==",
+        "name": "@napi-rs/lzma-linux-x64-gnu",
+        "sha256": "e69ca2a96510be330953f5b04b1d74617e7ce5d4487db4876c4b02b8364ef7e7",
+        "url": "https://registry.npmjs.org/@napi-rs/lzma-linux-x64-gnu/-/lzma-linux-x64-gnu-1.5.1.tgz",
+        "version": "1.5.1"
+      },
+      {
+        "all_regular_archive_members_match_installed": 55,
+        "archive": "postcss-8.5.29.tgz",
+        "bytes": 52828,
+        "installed_path": ".pnpm/postcss@8.5.29/node_modules/postcss",
+        "integrity": "sha512-49cGhUbXj8Qenv0iTMxA1cFBzxXoctpC9Ujd77t1WcbJIr6nF/eI7g/8MgxrYldFRuAXvja7xQRwavoW7kgrxQ==",
+        "name": "postcss",
+        "sha256": "c02fcaea0bef927cae3a287dd6c316d8a9da12c8b9ba104f2387978fbe16234d",
+        "url": "https://registry.npmjs.org/postcss/-/postcss-8.5.29.tgz",
+        "version": "8.5.29"
+      },
+      {
+        "all_regular_archive_members_match_installed": 18,
+        "archive": "source-map-js-1.2.2.tgz",
+        "bytes": 36349,
+        "installed_path": ".pnpm/source-map-js@1.2.2/node_modules/source-map-js",
+        "integrity": "sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==",
+        "name": "source-map-js",
+        "sha256": "05c8cf8e7c3a6b56cada7668fe9342b10f4b625efc92aba9ba05b9e8fe4d71a3",
+        "url": "https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.2.tgz",
+        "version": "1.2.2"
+      },
+      {
+        "all_regular_archive_members_match_installed": 7,
+        "archive": "picocolors-1.1.1.tgz",
+        "bytes": 2625,
+        "installed_path": ".pnpm/picocolors@1.1.1/node_modules/picocolors",
+        "integrity": "sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==",
+        "name": "picocolors",
+        "sha256": "d3aedb2807967b7eb37fd11b03b7e3701e725af79c650d0812ff7213f8f882d9",
+        "url": "https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz",
+        "version": "1.1.1"
+      },
+      {
+        "all_regular_archive_members_match_installed": 15,
+        "archive": "scheduler-0.27.0.tgz",
+        "bytes": 10015,
+        "installed_path": ".pnpm/scheduler@0.27.0/node_modules/scheduler",
+        "integrity": "sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==",
+        "name": "scheduler",
+        "sha256": "ab26ce35ce4032f04b78cfc5bbb4cfe13358e9fe7a5433a8aa6315c3debc5095",
+        "url": "https://registry.npmjs.org/scheduler/-/scheduler-0.27.0.tgz",
+        "version": "0.27.0"
+      },
+      {
+        "all_regular_archive_members_match_installed": 43,
+        "archive": "react-dom-19.2.4.tgz",
+        "bytes": 1276387,
+        "installed_path": ".pnpm/react-dom@19.2.4_react@19.2.4/node_modules/react-dom",
+        "integrity": "sha512-AXJdLo8kgMbimY95O2aKQqsz2iWi9jMgKJhRBAxECE4IFxfcazB2LmzloIoibJI3C12IlY20+KFaLv+71bUJeQ==",
+        "name": "react-dom",
+        "sha256": "8e26a635367df9b583622a4b24bf7b068505c4b58a6e94876275b7b52731c842",
+        "url": "https://registry.npmjs.org/react-dom/-/react-dom-19.2.4.tgz",
+        "version": "19.2.4"
+      },
+      {
+        "all_regular_archive_members_match_installed": 5,
+        "archive": "types+estree-1.0.9.tgz",
+        "bytes": 5930,
+        "installed_path": ".pnpm/@types+estree@1.0.9/node_modules/@types/estree",
+        "integrity": "sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==",
+        "name": "@types/estree",
+        "sha256": "ec8f3c0dfb21497db5a3480c45a6cf6f9b18d3b337b2ea4d03e3ef2a9c2bb358",
+        "url": "https://registry.npmjs.org/@types/estree/-/estree-1.0.9.tgz",
+        "version": "1.0.9"
+      },
+      {
+        "all_regular_archive_members_match_installed": 7,
+        "archive": "fdir-6.5.0.tgz",
+        "bytes": 9742,
+        "installed_path": ".pnpm/fdir@6.5.0_picomatch@4.0.7/node_modules/fdir",
+        "integrity": "sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==",
+        "name": "fdir",
+        "sha256": "241ddcd9f31e2a1fca405326017dbb8333ce174198e887f0f96387c29f0d365e",
+        "url": "https://registry.npmjs.org/fdir/-/fdir-6.5.0.tgz",
+        "version": "6.5.0"
+      },
+      {
+        "all_regular_archive_members_match_installed": 7,
+        "archive": "tinyglobby-0.2.17.tgz",
+        "bytes": 7873,
+        "installed_path": ".pnpm/tinyglobby@0.2.17/node_modules/tinyglobby",
+        "integrity": "sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==",
+        "name": "tinyglobby",
+        "sha256": "afb4afae9175f8b873ac13e1d21cea0997a0bcb40c3598613a834490058cb562",
+        "url": "https://registry.npmjs.org/tinyglobby/-/tinyglobby-0.2.17.tgz",
+        "version": "0.2.17"
+      },
+      {
+        "all_regular_archive_members_match_installed": 10,
+        "archive": "picomatch-4.0.7.tgz",
+        "bytes": 24326,
+        "installed_path": ".pnpm/picomatch@4.0.7/node_modules/picomatch",
+        "integrity": "sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==",
+        "name": "picomatch",
+        "sha256": "697b463be3cdbd9ffc8f4194fd5019a69ddf95875fb703d78b2b115cc9e740a8",
+        "url": "https://registry.npmjs.org/picomatch/-/picomatch-4.0.7.tgz",
+        "version": "4.0.7"
+      },
+      {
+        "all_regular_archive_members_match_installed": 7,
+        "archive": "esbuild-0.27.7.tgz",
+        "bytes": 32601,
+        "installed_path": ".pnpm/esbuild@0.27.7/node_modules/esbuild",
+        "integrity": "sha512-IxpibTjyVnmrIQo5aqNpCgoACA/dTKLTlhMHihVHhdkxKyPO1uBBthumT0rdHmcsk9uMonIWS0m4FljWzILh3w==",
+        "name": "esbuild",
+        "sha256": "0f2b9926e8a4047f81519cb07e14aa95cfac36df7bf8c8e9594910f4bd92e289",
+        "url": "https://registry.npmjs.org/esbuild/-/esbuild-0.27.7.tgz",
+        "version": "0.27.7"
+      },
+      {
+        "all_regular_archive_members_match_installed": 28,
+        "archive": "rollup-4.64.3.tgz",
+        "bytes": 590090,
+        "installed_path": ".pnpm/rollup@4.64.3/node_modules/rollup",
+        "integrity": "sha512-iIMWbptLYsZdGTJMH8ngApXdsCatE6bCMv2eqGIfGE1++kwh7TCWBdWKK0FKC0yx++196vGK5VdagzRXSLMa8A==",
+        "name": "rollup",
+        "sha256": "84abad2abd05ef0909b508a8d2a4c2bc23433a783600defae2363e8aa6467e11",
+        "url": "https://registry.npmjs.org/rollup/-/rollup-4.64.3.tgz",
+        "version": "4.64.3"
+      },
+      {
+        "all_regular_archive_members_match_installed": 3,
+        "archive": "rollup+rollup-linux-x64-gnu-4.64.3.tgz",
+        "bytes": 943992,
+        "installed_path": ".pnpm/@rollup+rollup-linux-x64-gnu@4.64.3/node_modules/@rollup/rollup-linux-x64-gnu",
+        "integrity": "sha512-vMh+mt0cw1BHldd8cqaU6A5s1W4EUKl6+8MRsv86mj954L4xyruKD7qPXMUI2icImadAZARK10h0onaGTLmCVg==",
+        "name": "@rollup/rollup-linux-x64-gnu",
+        "sha256": "0e26916bb6ff702a52c0b46caabbb45131d8f428ba56f09234402132e100f0ed",
+        "url": "https://registry.npmjs.org/@rollup/rollup-linux-x64-gnu/-/rollup-linux-x64-gnu-4.64.3.tgz",
+        "version": "4.64.3"
+      }
+    ],
+    "selected_python_wheels": [
+      {
+        "bytes": 5302,
+        "file": "annotated_doc-0.0.5-py3-none-any.whl",
+        "sha256": "117bac03a25ede5df5440e855b32d556049ca169ead221505badf432fed4b101"
+      },
+      {
+        "bytes": 13427,
+        "file": "annotated_types-0.8.0-py3-none-any.whl",
+        "sha256": "f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0"
+      },
+      {
+        "bytes": 132079,
+        "file": "anyio-4.15.1-py3-none-any.whl",
+        "sha256": "6152fdbbf9a77fdec97731721bebf7c4c44f7c29b424b0065826173efc7ed101"
+      },
+      {
+        "bytes": 136983,
+        "file": "certifi-2026.7.22-py3-none-any.whl",
+        "sha256": "62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775"
+      },
+      {
+        "bytes": 125251,
+        "file": "click-8.5.0-py3-none-any.whl",
+        "sha256": "255bc9599cf7748b4b1a446ccc735421bd08a2ae529a8b88597d3de5664ee360"
+      },
+      {
+        "bytes": 25335,
+        "file": "colorama-0.4.6-py2.py3-none-any.whl",
+        "sha256": "4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"
+      },
+      {
+        "bytes": 131954,
+        "file": "fastapi-0.141.1-py3-none-any.whl",
+        "sha256": "bfb91aa2d334c61cb35ba9a116fc123b3d3df31640b801cf57a7a78ec3f603b3"
+      },
+      {
+        "bytes": 37515,
+        "file": "h11-0.16.0-py3-none-any.whl",
+        "sha256": "63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86"
+      },
+      {
+        "bytes": 78784,
+        "file": "httpcore-1.0.9-py3-none-any.whl",
+        "sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55"
+      },
+      {
+        "bytes": 73517,
+        "file": "httpx-0.28.1-py3-none-any.whl",
+        "sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad"
+      },
+      {
+        "bytes": 69583,
+        "file": "idna-3.20-py3-none-any.whl",
+        "sha256": "ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c"
+      },
+      {
+        "bytes": 7484,
+        "file": "iniconfig-2.3.0-py3-none-any.whl",
+        "sha256": "f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12"
+      },
+      {
+        "bytes": 129956,
+        "file": "packaging-26.3-py3-none-any.whl",
+        "sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c"
+      },
+      {
+        "bytes": 20538,
+        "file": "pluggy-1.6.0-py3-none-any.whl",
+        "sha256": "e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746"
+      },
+      {
+        "bytes": 472589,
+        "file": "pydantic-2.13.5-py3-none-any.whl",
+        "sha256": "346a034f080da3755d8e9cb5e00e8b07de1d39e4f6e2c87d8ab7cafa0b269a73"
+      },
+      {
+        "bytes": 2066284,
+        "file": "pydantic_core-2.46.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "sha256": "0fc5be0abd4a407e200d844b404e33639a554e7bd0d448e7b9ae181be4789ac2"
+      },
+      {
+        "bytes": 69413,
+        "file": "pydantic_settings-2.15.0-py3-none-any.whl",
+        "sha256": "0ba092c291c94baceb5eff768aa0d56400a457585bc0175925a5a5510303da42"
+      },
+      {
+        "bytes": 1250147,
+        "file": "pygments-2.21.0-py3-none-any.whl",
+        "sha256": "2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9"
+      },
+      {
+        "bytes": 386536,
+        "file": "pytest-9.1.1-py3-none-any.whl",
+        "sha256": "37a86b45efb9a47a61a36449063e8e18d0cab3161329fc099eb21783169c4f0c"
+      },
+      {
+        "bytes": 22780,
+        "file": "python_dotenv-1.2.3-py3-none-any.whl",
+        "sha256": "904552145e8bfed22162c09dab1c2b9b54fefa7b23ba780f4f26ca0316b0f0d9"
+      },
+      {
+        "bytes": 75969,
+        "file": "starlette-1.6.0-py3-none-any.whl",
+        "sha256": "a86dd39d14bb45f85a3d18525215a9ef0cfd1f192ac793220e72598c90335f0c"
+      },
+      {
+        "bytes": 45571,
+        "file": "typing_extensions-4.16.0-py3-none-any.whl",
+        "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8"
+      },
+      {
+        "bytes": 14750,
+        "file": "typing_inspection-0.4.4-py3-none-any.whl",
+        "sha256": "65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147"
+      },
+      {
+        "bytes": 79871,
+        "file": "uvicorn-0.52.4-py3-none-any.whl",
+        "sha256": "f86e41a149d7d05a9969337e3946a9c171c06a5d42680896daaba624aeac8da1"
+      }
+    ]
+  },
+  "runtime_lookup": {
+    "interpreter": "/lib64/ld-linux-x86-64.so.2",
+    "libraries": [
+      "<SDK_ROOT>/runtime/lib mounted /usr/lib/x86_64-linux-gnu",
+      "<SDK_ROOT>/python/lib"
+    ],
+    "required_versions": "checked separately against the actual selected provider definitions; no global version union",
+    "whole_host_library_mount": false
+  },
+  "runtime_scratch": {
+    "artifact_state": "empty_directory",
+    "bytes": 16777216,
+    "mount": "tmpfs",
+    "path": "node_modules/.vite-temp"
+  },
+  "schema_version": 1,
+  "scope": {
+    "app_source_manifest_and_scripts": "checkout_owned",
+    "arbitrary_dependency_acquisition": false,
+    "new_dependencies": "require_new_verified_cache; no implicit download or general app support claim",
+    "public_package_manager_lifecycle": "upstream_pnpm_unchanged",
+    "real_database_or_platform_access": false,
+    "service_activation": "explicit_core_operator"
+  },
+  "source_inputs": {
+    "ops/codex-console/executor/sdk-node-lock.yaml": "07aee2b65e399f60e110b1b993a82ae4163927799e4d9d98487e8aee166a7741",
+    "ops/codex-console/executor/sdk-python-requirements.txt": "e14af89a3b6287fcd17b756ffc0cdf9426c1ad4c7f2d10acad1da03e90eeabe4",
+    "packages/app-sdk/README.md": "19144163ad3b213c3d5e4c5a7949cbf07f853a71573d1e42ff0cebe2b2411bbd",
+    "packages/app-sdk/package.json": "fa6022bd522fab89bdf8a16a12c1ff5bb1979840765f906c0385686e20aeedec",
+    "packages/app-sdk/src/file-picker.mjs": "6e3c454a9126061a431bd2c94f42f2fee5467560f6c746533f8c52cfee4a7f63",
+    "packages/app-sdk/src/index.mjs": "d006271c2a37b7024e81eb1430f229e2b83c0d5c89527b14984e9752a145a675",
+    "packages/app-sdk/src/index.test.mjs": "9f1ff58b9a65c80eb750026fab4129d41867f3a4aeeb8c1956b2be493989e375",
+    "templates/independent-app/package.json": "63021dcf1443068c84d389af0a774a43d4eaa8f7b3fe4faefa531843d3bd75e3",
+    "templates/independent-app/pyproject.toml": "9d4e263ac130570b73e278eefa7af78796fbb361e6efaec6401120432457848f"
+  },
+  "supported_graphs": [
+    "web-api-v1",
+    "web-api-postgres-v1"
+  ],
+  "target": "x86_64-unknown-linux-gnu",
+  "toolchain_id": "miy-native-sdk-20261009-v2",
+  "versions": {
+    "node": "22.23.3",
+    "pnpm": "10.34.5",
+    "python": "3.12.14"
+  }
+}

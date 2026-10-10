@@ -40,18 +40,26 @@ export function PermissionSelect({
   value,
   onChange,
   disabled = false,
+  allowed,
   t,
 }: {
   value: Execution['permissions'] | 'read-only';
   onChange: (value: Execution['permissions']) => void;
   disabled?: boolean;
+  allowed: Execution['permissions'][];
   t: Translate;
 }) {
   return (
     <select
       aria-label={t('Permissions')}
-      value={value}
-      disabled={disabled || value === 'read-only'}
+      value={
+        value === 'read-only'
+          ? value
+          : allowed.includes(value)
+            ? value
+            : (allowed[0] ?? '')
+      }
+      disabled={disabled || value === 'read-only' || !allowed.length}
       onChange={(event) =>
         onChange(event.target.value as Execution['permissions'])
       }
@@ -59,8 +67,14 @@ export function PermissionSelect({
       {value === 'read-only' && (
         <option value="read-only">{t('Read-only')}</option>
       )}
-      <option value="ask">{t('Ask when needed')}</option>
-      <option value="yolo">{t('YOLO · Full access')}</option>
+      {value !== 'read-only' && !allowed.length && (
+        <option value="">{t(errorCopy('app_executor_unavailable'))}</option>
+      )}
+      {allowed.map((permission) => (
+        <option key={permission} value={permission}>
+          {t(permission === 'ask' ? 'Ask when needed' : 'YOLO · Full access')}
+        </option>
+      ))}
     </select>
   );
 }
@@ -71,6 +85,7 @@ export function ExecutionSettings({
   onChange,
   disabled,
   implementation,
+  allowedPermissions,
   error,
   onUpdateGuide,
   onRetry,
@@ -81,6 +96,7 @@ export function ExecutionSettings({
   onChange: (value: Execution) => void;
   disabled: boolean;
   implementation: boolean;
+  allowedPermissions: Execution['permissions'][];
   error: string | null;
   onUpdateGuide: () => void;
   onRetry: () => void;
@@ -211,6 +227,7 @@ export function ExecutionSettings({
         <PermissionSelect
           value={implementation ? value.permissions : 'read-only'}
           disabled={disabled}
+          allowed={allowedPermissions}
           onChange={(permissions) => onChange({ ...value, permissions })}
           t={t}
         />

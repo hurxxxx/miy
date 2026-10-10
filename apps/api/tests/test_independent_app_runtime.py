@@ -27,7 +27,7 @@ from miy_api.domains.independent_apps.local_runtime import DockerRuntime
 
 
 ROOT = Path(__file__).resolve().parents[3]
-TOOLCHAIN = "sha256:d5771b0ef26f550d52170003e766012dc37ec92a78b85b5581681d321ee8e66f"
+TOOLCHAIN = "sha256:eefe09d5bd59a0b9f30ca40ef251ccc52bd63294969b23f090ef9576df135e52"
 INGRESS = "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea"
 
 
@@ -59,6 +59,39 @@ def test_core_activation_marker_cannot_be_an_app_health_endpoint():
             Entrypoints(health=path)
     with pytest.raises(RuntimeFailure, match="immutable_image_required"):
         DockerRuntime.port(spec(image_id="example/app:latest"))
+
+
+@pytest.mark.parametrize("environment", ["development", "production"])
+def test_https_ingress_is_bound_to_environment_origin_listener_and_operator_receipt(
+    tmp_path, monkeypatch, environment
+):
+    monkeypatch.setattr(DockerRuntime, "_run", lambda self, *_: INGRESS)
+    runtime = DockerRuntime(
+        state_root=tmp_path / "runtime",
+        ingress_image=INGRESS,
+        platform_origin="https://platform.example.test",
+        app_origin="https://app.example.test",
+        loopback_port=19431,
+        operator_binding_digest="a" * 64,
+        environment=environment,
+    )
+    selected = spec(
+        environment=environment,
+        origin="https://app.example.test",
+        loopback_port=19431,
+        operator_binding_digest="a" * 64,
+    )
+    assert runtime._port(selected) == 19431
+    for changed in (
+        replace(
+            selected, environment="production" if environment == "development" else "development"
+        ),
+        replace(selected, origin="https://another.example.test"),
+        replace(selected, loopback_port=19432),
+        replace(selected, operator_binding_digest="b" * 64),
+    ):
+        with pytest.raises(RuntimeFailure, match="runtime_identity_mismatch"):
+            runtime._port(changed)
 
 
 def test_existing_foreign_image_is_not_reused(monkeypatch):

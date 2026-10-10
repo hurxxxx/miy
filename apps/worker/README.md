@@ -9,6 +9,18 @@ queue routing, retry/lease/generation and app admission behavior remain unchange
 and queue plans; `miy_worker.task_catalog` owns schedule intervals and projects
 that inventory into the Celery bootstrap.
 
+The explicit first-party split entries are documented by the
+[official worker owner](../official-suite/worker/README.md#explicit-first-party-consumers):
+`miy_worker.first_party_platform:celery_app` and
+`miy_official_worker.runtime:celery_app` consume disjoint owned queues, while
+`miy_worker.first_party_beat:celery_app` is the only shared schedule owner. They
+reuse current trusted authority/transactions rather than activate the delegated
+Source-only profiles below. No environment flag opens an inactive entry.
+The four official task bodies are in the official wheel; canonical legacy
+modules expose the same objects. A matching official wheel is therefore part
+of the legacy packaging contract as well. Deployment must prove old queues,
+in-flight tasks and scheduled retries are drained before namespace cutover.
+
 ## Split profile artifacts
 
 | Entry | Actual registry | Execution state |
@@ -295,6 +307,13 @@ Run:
 ```bash
 ./dev.sh --with-worker
 ```
+
+This bootstraps the legacy composition. To select the first-party topology, follow the
+[development runtime procedure](../../ops/first-party/README.md) and run
+`./dev.sh --first-party --restart` while the legacy consumers are available for native drain.
+The first-party launcher runs the platform and official workers with their owned queues and
+one shared Beat. Later `./dev.sh --first-party` starts the same selected namespace after a stop
+or reboot; switching back to legacy requires the same drain boundary.
 
 Use root `.env.example` plus ignored `.env`. Do not commit secrets or operations data.
 

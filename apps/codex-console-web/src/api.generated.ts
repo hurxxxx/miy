@@ -2359,6 +2359,14 @@ export interface components {
             template_snapshot?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Implementation Permissions
+             * @default [
+             *       "ask",
+             *       "yolo"
+             *     ]
+             */
+            implementation_permissions: ("ask" | "yolo")[];
             /** Failed Request Text */
             failed_request_text?: string | null;
             /** Revisions */

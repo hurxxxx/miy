@@ -26,6 +26,8 @@ export NX_DAEMON=false
 export NX_LOAD_DOT_ENV_FILES=false
 WEB_DEV_PORT="${MIY_WEB_DEV_PORT:-4200}"
 API_DEV_PORT="${MIY_API_DEV_PORT:-8001}"
+OFFICIAL_WEB_DEV_PORT=4201
+OFFICIAL_API_DEV_PORT=18781
 export MIY_WEB_DEV_PORT="$WEB_DEV_PORT"
 export MIY_WEB_API_PROXY_TARGET="${MIY_WEB_API_PROXY_TARGET:-http://127.0.0.1:${API_DEV_PORT}}"
 
@@ -35,6 +37,7 @@ Usage: ./dev.sh [options]
 
 Options:
   --with-worker  Start the Celery worker in addition to web and api.
+  --first-party  Explicit platform/official API and worker composition.
   --web-only     Start only the frontend dev server.
   --api-only     Start only the FastAPI dev server.
   --no-infra     Skip starting the dev docker infra (redis, etc).
@@ -48,7 +51,11 @@ Options:
   -h, --help     Show this help message.
 
 Defaults:
-  - Starts `web` and `api`
+  - Starts `web`, its independent official UI, and the legacy `api`
+  - `--first-party` uses common API 8001 (or MIY_API_DEV_PORT), official API 18781,
+    two owned consumers and one Beat; --api-only/--web-only retain their scope
+  - Bootstrap legacy workers once before the first namespace transition, then
+    use `--first-party --restart`; unknown drain state holds the transition
   - Boots the dev docker infra (redis/search/vector; postgres/minio when MIY_INFRA_USE_LOCAL_* is on)
     so features like the docs collab relay can reach redis at 127.0.0.1:56380
   - `--minimal-infra` is intended for authentication and core UI smoke tests;
@@ -62,6 +69,7 @@ EOF
 
 declare -a projects=("web" "api")
 with_worker=0
+first_party=0
 status_only=0
 stop_only=0
 restart=0
@@ -74,6 +82,9 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --with-worker)
       with_worker=1
+      ;;
+    --first-party)
+      first_party=1
       ;;
     --web-only)
       projects=("web")
@@ -133,12 +144,27 @@ if (( minimal_infra )); then
   export MIY_API_RECORDING_SPOOL_DIR="$MIY_DEV_RUNTIME_DIR/recording-spool"
 fi
 
+# The independently owned UI is served by its own Vite process in both modes.
+if [[ " ${projects[*]} " == *" web "* ]]; then
+  projects+=("official-suite")
+fi
+if (( first_party )) && [[ " ${projects[*]} " == *" web "* && " ${projects[*]} " == *" api "* ]]; then
+  with_worker=1
+fi
 if (( with_worker )); then
   projects+=("worker")
 fi
 
 project_csv="$(IFS=,; echo "${projects[*]}")"
 parallelism="${#projects[@]}"
+if [[ " ${projects[*]} " == *" web "* && "$WEB_DEV_PORT" == "$OFFICIAL_WEB_DEV_PORT" ]]; then
+  echo "The common web port conflicts with the fixed official UI port 4201." >&2
+  exit 1
+fi
+if (( first_party )) && [[ " ${projects[*]} " == *" api "* && "$API_DEV_PORT" == "$OFFICIAL_API_DEV_PORT" ]]; then
+  echo "The common API port conflicts with the fixed official development port 18781." >&2
+  exit 1
+fi
 
 find_listener() {
   local port="$1"
@@ -168,12 +194,32 @@ show_project_status() {
       else
         echo "api    stopped"
       fi
+      if (( first_party )); then
+        listeners="$(find_listener "$OFFICIAL_API_DEV_PORT")"
+        if [[ -n "$listeners" ]]; then
+          echo "official API running http://127.0.0.1:${OFFICIAL_API_DEV_PORT}/docs"
+          echo "$listeners"
+        else
+          echo "official API stopped"
+        fi
+      fi
+      ;;
+    official-suite)
+      listeners="$(find_listener "$OFFICIAL_WEB_DEV_PORT")"
+      if [[ -n "$listeners" ]]; then
+        echo "official UI running http://localhost:${OFFICIAL_WEB_DEV_PORT}/official-suite/"
+        echo "$listeners"
+      else
+        echo "official UI stopped"
+      fi
       ;;
     worker)
       process_lines="$(find_worker_processes worker)"
       if [[ -n "$process_lines" ]]; then
         echo "worker running"
-        echo "$process_lines"
+        while read -r pid _; do
+          printf '  %s repo-managed Celery worker\n' "$pid"
+        done <<< "$process_lines"
       else
         echo "worker stopped"
       fi
@@ -196,13 +242,106 @@ find_worker_processes() {
   local role="${1:-}"
   local pid args
   while read -r pid args; do
-    # A sibling production container can expose the same Celery command line.
-    # The project-local interpreter path identifies this checkout's workers.
-    if [[ "$args" == *"$ROOT_DIR/apps/worker/"* ]] &&
+    # Native Celery can change its process title. Its cwd and original argv
+    # identify this checkout; never signal a sibling container or pool child.
+    local worker_cwd
+    worker_cwd="$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)"
+    if [[ "$args" == *"ForkPoolWorker"* ]]; then
+      continue
+    fi
+    if { [[ "$args" == *"$ROOT_DIR/apps/worker/"* ]] || [[ "$worker_cwd" == "$ROOT_DIR/apps/worker" ]]; } &&
+       [[ "$args" =~ (miy_worker\.(celery_app|first_party_platform|first_party_beat)|miy_official_worker\.runtime):celery_app ]] &&
        { [[ -z "$role" ]] || [[ "$args" == *"celery_app $role"* ]]; }; then
       printf '%s %s\n' "$pid" "$args"
     fi
-  done < <(pgrep -af "celery -A miy_worker.celery_app:celery_app" || true)
+  done < <(pgrep -af 'celery|celeryd' || true)
+}
+
+process_is_owned() {
+  local pid="$1"
+  local process_cwd
+  [[ "$pid" =~ ^[0-9]+$ && -O "/proc/$pid" ]] || return 1
+  process_cwd="$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)"
+  case "$process_cwd" in
+    "$ROOT_DIR"|"$ROOT_DIR"/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+find_api_processes() {
+  local pid args
+  while read -r pid args; do
+    if process_is_owned "$pid" && [[ "$args" =~ uvicorn\ (miy_api\.(main|platform_runtime)|miy_official_api\.development):app ]]; then
+      printf '%s %s\n' "$pid" "$args"
+    fi
+  done < <(pgrep -af 'uvicorn' || true)
+}
+
+stop_owned_listener() {
+  local port="$1" label="$2" pid ancestor args parent owned matched signaled=0
+  while read -r pid; do
+    [[ -n "$pid" ]] || continue
+    owned=0
+    ancestor="$pid"
+    for _ in 1 2 3 4; do
+      if ! process_is_owned "$ancestor"; then
+        break
+      fi
+      args="$(ps -p "$ancestor" -o args= 2>/dev/null || true)"
+      matched=0
+      case "$label:$args" in
+        api:*uvicorn\ miy_api.main:app*|api:*uvicorn\ miy_api.platform_runtime:app*|official-api:*uvicorn\ miy_official_api.development:app*) matched=1 ;;
+        web:*vite*apps/web/vite.config.*|official-suite:*vite*apps/official-suite/vite.config.*) matched=1 ;;
+      esac
+      if (( matched )); then
+        owned=1
+        if kill_if_running "$ancestor"; then
+          signaled=1
+        fi
+      fi
+      parent="$(ps -p "$ancestor" -o ppid= 2>/dev/null | tr -d ' ' || true)"
+      [[ "$parent" =~ ^[0-9]+$ && "$parent" != "$ancestor" ]] || break
+      ancestor="$parent"
+    done
+    if (( ! owned )); then
+      echo "Leaving ${label} port ${port} listener ${pid}: outside this checkout's launcher." >&2
+    fi
+  done < <(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)
+  (( signaled ))
+}
+
+find_consumer_bindings() {
+  local pid args profile node
+  local -A seen=()
+  while read -r pid args; do
+    process_is_owned "$pid" || continue
+    case "$args" in
+      *miy_worker.celery_app:celery_app*) profile=legacy ;;
+      *miy_worker.first_party_platform:celery_app*) profile=platform ;;
+      *miy_official_worker.runtime:celery_app*) profile=official ;;
+      *) continue ;;
+    esac
+    node="celery@$(hostname)"
+    if [[ "$args" =~ --hostname[=\ ]([[:alnum:]_.@%+-]+) ]]; then
+      node="${BASH_REMATCH[1]}"
+      node="${node//%h/$(hostname)}"
+    elif [[ "$args" =~ \ -n\ ([[:alnum:]_.@%+-]+) ]]; then
+      node="${BASH_REMATCH[1]}"
+      node="${node//%h/$(hostname)}"
+    fi
+    if [[ "$node" == *"%"* || "$node" != *@* ]]; then
+      echo "Native consumer hostname is unavailable; namespace transition HOLD." >&2
+      return 1
+    fi
+    if [[ -n "${seen[$node]:-}" && "${seen[$node]}" != "$profile" ]]; then
+      echo "Native consumer hostname is ambiguous; namespace transition HOLD." >&2
+      return 1
+    fi
+    if [[ -z "${seen[$node]:-}" ]]; then
+      seen[$node]="$profile"
+      printf '%s|%s\n' "$node" "$profile"
+    fi
+  done < <(find_worker_processes worker)
 }
 
 require_free_port() {
@@ -243,9 +382,11 @@ run_api_migration_preflight() {
 
 kill_if_running() {
   local pid="$1"
-  if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+  if process_is_owned "$pid" && kill -0 "$pid" 2>/dev/null; then
     kill -TERM "$pid" 2>/dev/null || true
+    return 0
   fi
+  return 1
 }
 
 start_dev_infra() {
@@ -296,9 +437,15 @@ start_dev_infra() {
   done
   if (( web_in_projects )) && [[ "$dev_nginx_port" == "$WEB_DEV_PORT" ]]; then
     if dev_docker inspect "$dev_nginx_container" >/dev/null 2>&1; then
-      echo "Neutralizing ${dev_nginx_container} (conflicts with web dev server on ${WEB_DEV_PORT})..."
-      dev_docker update --restart=no "$dev_nginx_container" >/dev/null 2>&1 || true
-      dev_docker stop "$dev_nginx_container" >/dev/null 2>&1 || true
+      local nginx_owner
+      nginx_owner="$(dev_docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.config_files" }}' "$dev_nginx_container" 2>/dev/null || true)"
+      if [[ "$nginx_owner" == "$ROOT_DIR/ops/compose/miy-dev.infra.yml" ]]; then
+        echo "Neutralizing ${dev_nginx_container} (conflicts with web dev server on ${WEB_DEV_PORT})..."
+        dev_docker update --restart=no "$dev_nginx_container" >/dev/null 2>&1 || true
+        dev_docker stop "$dev_nginx_container" >/dev/null 2>&1 || true
+      else
+        echo "Leaving ${dev_nginx_container}: its Compose owner is outside this checkout." >&2
+      fi
     fi
   fi
 
@@ -411,30 +558,26 @@ start_dev_infra() {
 
 stop_project_processes() {
   local project="$1"
+  local worker_role="${2:-}"
   local stopped=0
 
   case "$project" in
     web)
-      local web_pid
-      web_pid="$(lsof -tiTCP:"$WEB_DEV_PORT" -sTCP:LISTEN 2>/dev/null | head -n 1 || true)"
-      if [[ -n "$web_pid" ]]; then
-        kill_if_running "$web_pid"
-        stopped=1
-      fi
+      if stop_owned_listener "$WEB_DEV_PORT" web; then stopped=1; fi
+      ;;
+    official-suite)
+      if stop_owned_listener "$OFFICIAL_WEB_DEV_PORT" official-suite; then stopped=1; fi
       ;;
     api)
-      local api_pid
-      api_pid="$(lsof -tiTCP:"$API_DEV_PORT" -sTCP:LISTEN 2>/dev/null | head -n 1 || true)"
-      if [[ -n "$api_pid" ]]; then
-        kill_if_running "$api_pid"
-        stopped=1
+      if stop_owned_listener "$API_DEV_PORT" api; then stopped=1; fi
+      if (( first_party || transition_required )); then
+        if stop_owned_listener "$OFFICIAL_API_DEV_PORT" official-api; then stopped=1; fi
       fi
       ;;
     worker)
       while read -r pid args; do
-        kill_if_running "$pid"
-        stopped=1
-      done < <(find_worker_processes)
+        if kill_if_running "$pid"; then stopped=1; fi
+      done < <(find_worker_processes "$worker_role")
       ;;
   esac
 
@@ -451,17 +594,11 @@ fi
 
 unset PYTHONHOME
 
-if (( stop_only || restart || reset_nx )); then
+transition_required=0
+if (( stop_only )); then
   for project in "${projects[@]}"; do
     stop_project_processes "$project"
   done
-fi
-
-if (( reset_nx )); then
-  pnpm exec nx reset >/dev/null
-fi
-
-if (( stop_only )); then
   echo "Stopped repo-managed dev servers for: ${project_csv}"
   exit 0
 fi
@@ -477,6 +614,115 @@ if (( status_only )); then
   exit 0
 fi
 
+# Namespace changes use the current live consumers as their native drain
+# witness. No response, missing consumer, or partial topology is an empty-state
+# proof. Bootstrap legacy once before the first explicit first-party transition.
+declare -a drain_args=()
+legacy_consumers=0
+first_party_consumers=0
+selected_topology=unselected
+desired_topology=legacy
+if (( first_party )); then
+  desired_topology=first-party
+fi
+if project_selected api || project_selected worker; then
+  selected_topology="$(python3 "$ROOT_DIR/scripts/dev-topology.py" --read)"
+  bindings="$(find_consumer_bindings)"
+  while IFS='|' read -r node profile; do
+    [[ -n "$node" ]] || continue
+    drain_args+=(--consumer "${node}|${profile}")
+    if [[ "$profile" == "legacy" ]]; then
+      legacy_consumers=$((legacy_consumers + 1))
+    else
+      first_party_consumers=$((first_party_consumers + 1))
+    fi
+  done <<< "$bindings"
+  api_process_lines="$(find_api_processes)"
+  observed_topology=none
+  if (( legacy_consumers )) || [[ "$api_process_lines" == *"miy_api.main:app"* ]]; then
+    observed_topology=legacy
+  fi
+  if (( first_party_consumers )) || [[ "$api_process_lines" == *"miy_api.platform_runtime:app"* || "$api_process_lines" == *"miy_official_api.development:app"* ]]; then
+    if [[ "$observed_topology" == "legacy" ]]; then
+      echo "Development namespace inventory is mixed; startup HOLD." >&2
+      exit 1
+    fi
+    observed_topology=first-party
+  fi
+  if [[ "$observed_topology" != "none" && "$selected_topology" != "unselected" && "$observed_topology" != "$selected_topology" ]] ||
+     [[ "$selected_topology" == "unselected" && "$observed_topology" == "first-party" ]]; then
+    echo "Development namespace inventory contradicts the owner selection; startup HOLD." >&2
+    exit 1
+  fi
+  # An unchanged stored namespace can restart its own native queues after a
+  # full stop/reboot. This record never proves another namespace is empty.
+  if [[ "$desired_topology" != "$selected_topology" ]] &&
+     [[ "$desired_topology" != "legacy" || "$selected_topology" != "unselected" ]]; then
+    transition_required=1
+    if (( ${#drain_args[@]} == 0 )); then
+      echo "Namespace transition HOLD: no live native consumer drain witness." >&2
+      echo "For first-party initial setup, bootstrap ./dev.sh --with-worker, then --first-party --restart." >&2
+      exit 1
+    fi
+  fi
+  if (( transition_required && ! restart && ! reset_nx )); then
+    echo "Namespace transition HOLD: use --restart to stop publishers and Beat before native drain." >&2
+    exit 1
+  fi
+  if (( transition_required )) && ! project_selected api; then
+    echo "Namespace transition HOLD: include API selection so old publishers can stop before drain." >&2
+    exit 1
+  fi
+fi
+
+if (( restart || reset_nx )); then
+  if (( transition_required )); then
+    # Pause old publications first; keep consumers alive until the exact native
+    # active/reserved/scheduled and queue inventories have drained twice.
+    for project in "${projects[@]}"; do
+      if [[ "$project" != "worker" ]]; then
+        stop_project_processes "$project"
+      fi
+    done
+    stop_project_processes worker beat
+    for _ in {1..20}; do
+      if [[ -z "$(find_api_processes)" && -z "$(find_worker_processes beat)" ]]; then
+        break
+      fi
+      sleep 0.25
+    done
+    if [[ -n "$(find_api_processes)" || -n "$(find_worker_processes beat)" ]]; then
+      echo "Namespace transition HOLD: owned API/Beat shutdown has not completed." >&2
+      exit 1
+    fi
+    if [[ ! -x "$ROOT_DIR/apps/worker/.venv/bin/python" ]]; then
+      echo "Namespace transition HOLD: the current native worker environment is unavailable." >&2
+      exit 1
+    fi
+    echo "Checking exact live consumer drain before changing the development namespace..."
+    "$ROOT_DIR/apps/worker/.venv/bin/python" "$ROOT_DIR/scripts/prod-app-drain.py" "${drain_args[@]}" --timeout 60
+    # Retire the old namespace even for an API-only transition. API-only starts
+    # no replacement consumers; old workers cannot remain a conflicting owner.
+    stop_project_processes worker
+    for _ in {1..20}; do
+      [[ -z "$(find_worker_processes)" ]] && break
+      sleep 0.25
+    done
+    if [[ -n "$(find_worker_processes)" ]]; then
+      echo "Namespace transition HOLD: native consumer shutdown has not completed." >&2
+      exit 1
+    fi
+  else
+    for project in "${projects[@]}"; do
+      stop_project_processes "$project"
+    done
+  fi
+fi
+
+if (( reset_nx )); then
+  pnpm exec nx reset >/dev/null
+fi
+
 if (( infra_enabled )); then
   start_dev_infra
 fi
@@ -490,8 +736,20 @@ for project in "${projects[@]}"; do
     web)
       require_free_port "$WEB_DEV_PORT" "web dev server"
       ;;
+    official-suite)
+      require_free_port "$OFFICIAL_WEB_DEV_PORT" "official UI dev server"
+      ;;
     api)
       require_free_port "$API_DEV_PORT" "api dev server"
+      if (( first_party )); then
+        require_free_port "$OFFICIAL_API_DEV_PORT" "official API dev server"
+      fi
+      ;;
+    worker)
+      if [[ -n "$(find_worker_processes)" ]]; then
+        echo "Cannot start a second owned worker/Beat; wait for native shutdown or use --restart." >&2
+        exit 1
+      fi
       ;;
   esac
 done
@@ -500,11 +758,32 @@ if project_selected api; then
   run_api_migration_preflight
 fi
 
+declare -a nx_configuration=()
+if (( first_party )); then
+  mkdir -p "$ROOT_DIR/.runtime"
+  inventory_next="$(mktemp "$ROOT_DIR/.runtime/first-party-api-routes.json.XXXXXX")"
+  if ! uv run --directory "$ROOT_DIR/apps/api" --python 3.12 python -m miy_api.first_party_routes --json > "$inventory_next"; then
+    rm -- "$inventory_next"
+    exit 1
+  fi
+  chmod 0644 "$inventory_next"
+  mv -- "$inventory_next" "$ROOT_DIR/.runtime/first-party-api-routes.json"
+  nx_configuration=(--configuration=first-party)
+fi
+
+if { project_selected api || project_selected worker; } && [[ "$desired_topology" != "$selected_topology" ]]; then
+  # Only the implicit legacy bootstrap or the successful native transition
+  # above reaches this write. Never overwrite an invalid or changed record.
+  python3 "$ROOT_DIR/scripts/dev-topology.py" --select "$desired_topology" --expect "$selected_topology"
+fi
+
 cat <<EOF
 Starting miy development servers
   projects : ${project_csv}
   web      : http://localhost:${WEB_DEV_PORT}
   api      : http://127.0.0.1:${API_DEV_PORT}/docs
+  official UI  : http://localhost:${OFFICIAL_WEB_DEV_PORT}/official-suite/
+  composition  : $([[ "$first_party" == "1" ]] && echo first-party || echo legacy)
 
 Press Ctrl+C to stop all running servers.
 EOF
@@ -525,4 +804,4 @@ handle_interrupt() {
 trap handle_interrupt INT TERM
 trap cleanup EXIT
 
-pnpm exec nx run-many -t dev --projects="$project_csv" --parallel="$parallelism" --outputStyle="$output_style"
+pnpm exec nx run-many -t dev --projects="$project_csv" --parallel="$parallelism" --outputStyle="$output_style" "${nx_configuration[@]}"

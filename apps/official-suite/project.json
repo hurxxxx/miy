@@ -20,6 +20,11 @@
       "options": {
         "command": "pnpm exec vite --config apps/official-suite/vite.config.mts",
         "cwd": "."
+      },
+      "configurations": {
+        "first-party": {
+          "command": "pnpm exec vite --config apps/official-suite/vite.config.mts --mode first-party"
+        }
       }
     },
     "test": {
@@ -57,6 +62,19 @@
         "commands": [
           "uv build --wheel --directory apps/api --out-dir ../../dist/apps/official-suite-api",
           "uv build --wheel --directory apps/official-suite/api --out-dir ../../../dist/apps/official-suite-api"
+        ],
+        "parallel": false,
+        "cwd": "."
+      }
+    },
+    "worker-build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/apps/official-suite-worker"],
+      "options": {
+        "commands": [
+          "uv build --wheel --directory apps/api --out-dir ../../dist/apps/official-suite-worker",
+          "uv build --wheel --directory apps/worker --out-dir ../../dist/apps/official-suite-worker",
+          "uv build --wheel --directory apps/official-suite/worker --out-dir ../../../dist/apps/official-suite-worker"
         ],
         "parallel": false,
         "cwd": "."

@@ -1,5 +1,62 @@
 # Official API composition artifact
 
+## Explicit first-party runtime
+
+`miy_official_api.runtime:app` is the separate official business runtime;
+`miy_api.platform_runtime:app` runs only common platform routers. Both reuse the
+existing application factory and first-party `AuthContext`, application admission,
+resource ACL, AI gateway/audit and transactions. The official process executes
+its handlers locally; the platform process does not proxy or execute them.
+The ordinary portal bearer remains the existing trusted first-party credential,
+and the delegated personal-app session boundary is unchanged.
+
+This first migration deliberately shares the existing PostgreSQL authority and
+storage boundary. It does not activate `owner='official-suite'`, select the
+inactive Source-only roles, grant credentials to personal apps, or promise a
+physical separate-DB authorization boundary. The official preflight requires
+the existing fixed Docs legacy writer identity and complete current source
+guard inventory. A different/draining owner, missing schema, or unavailable DB
+refuses; startup never discovers/adopts a newer generation or repairs grants.
+The deployed source triggers and original user ACL still fence each transaction.
+
+Neither split process seeds identity, auto-migrates, provisions a bucket or starts
+workers/Beat. The single core migration/seed/storage owner prepares these first.
+The platform owns terminal/Hermes and shared AI/RAG startup; the official process
+owns Docs/Whiteboard collaboration. Both consume the existing Redis realtime
+service, with distinct `MIY_API_INSTANCE_ID` values. Official `/readyz` checks its
+real DB and relay state rather than treating wheel import as readiness.
+
+Production startup reads the reviewed official UI artifact's fixed
+`.miy-platform-build-id` once. That captured value supplies both the existing
+server HTTP/WebSocket stale-client guard and `/official-suite/platform-build.json`.
+The browser installs the same guard before rendering. Stale requests receive
+HTTP 409 or WebSocket 4409; neither process automatically follows a newer platform
+identity. An empty identity is permitted only for a paired platform artifact
+without a build ID. Release preflight verifies the exact pairing.
+
+The official image includes its matching `miy-api` compatibility wheel, which
+still holds business source and common libraries. Changing an official handler
+rebuilds that wheel in the official image; it does not require replacing the
+platform image while the shared API/schema contracts remain compatible. Shared
+authority/ACL/schema changes retain their normal platform impact. This is an
+explicit first-party compatibility boundary, not completed library extraction.
+
+Ingress ownership is generated from the actual router inventory:
+
+```bash
+python -m miy_api.first_party_routes --nginx-map --api-prefix /api/v1
+```
+
+The generated `map $uri $miy_api_owner` selects `platform` or `official`; the
+deployment owner supplies the fixed upstreams and WebSocket/stream settings.
+`/api/v1/realtime/ws` remains common; Docs/Whiteboard collaboration is official.
+No request chooses its source handler, DB factory, writer identity or backend.
+Deployment must drain the old business API/WS and old workers, reconcile all
+legacy queue/in-flight/retry state, and retain exactly one Beat before changing
+ingress and namespace producers. No runtime factory performs an implicit cutover.
+
+## Inactive delegated artifact
+
 `miy_official_api.main:app` is the ASGI entrypoint for the official API wheel. It reuses the existing MIY application factory, router handlers, authentication dependencies, resource ACL and AI contracts. It does not create another identity protocol or copy business handlers. The selected routes are owned by `miy_api.official_api_registry`; the platform-only entry is `miy_api.platform_main:app`. `miy_api.main:app` remains the active legacy composition and preserves all routers in their existing order.
 
 This artifact is **inactive**. HTTP business traffic returns 503 and WebSocket business traffic closes with 1013 before any handler runs. `/healthz` reports only that the artifact can respond, with `activation: inactive`; `/readyz` always returns 503 `service_not_activated`. OpenAPI/docs remain inspectable. No environment flag or request header bypasses this boundary. Constructing either split composition with runtime initialization enabled is rejected. Inactive composition does not initialize PostgreSQL, object storage, AI registries, Hermes sockets or collaboration services, nor mount the legacy frontend/desktop update feed.

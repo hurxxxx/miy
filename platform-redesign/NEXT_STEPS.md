@@ -1,12 +1,18 @@
 # 후속 구조작업
 
-## 현재 착수 — 2026-10-09 21:58 UTC
+**2026-10-10 범위 확정:** 아래 현재 순서는 [필수 구조 작업](PLAN.md#이번-범위)에만 적용한다. 고급 UX·모니터링·모델 반복 평가·부하 측정·저장 프로토콜 확장은 [후속 고도화](FOLLOW_UP_ENHANCEMENTS.md)로 분리했다. 과거 문단의 넓은 인수 조건을 다시 추가하지 않는다.
 
-Full263/431의 folder-stage concurrency fixture 최소 수정(test1)을 정상 게시한다. Caller-owned observer 사전 연결로 한정했고 원47 assertions·제품5/15초 제한을 유지했다. 실제 정상/5.2초 close 지연 모두 통과했다. 필수 리뷰·양쪽 정상 병합·소유 feature 정리 뒤 최신 source의 새 full과 fresh pending24 private restore/이전 이미지 호환을 인수한 다음 MR81·guarded 운영으로 이어간다. 실패한263을 성공이나 면제 대상으로 사용하지 않는다.
+## 필수 구현 재개 — 운영 전달 완료 이후
 
-개발09aaf의 C1 head/API/Vite·공개 smoke는 이미 반영했다. 운영9e와 신규 checked-save factory/role은 그대로 비활성이다. SDK22/13은 normal model0 및 같은 Task/thread3턴 인수 이후 두 canonical starter의 bounded native protocol/kernel·network/controller 관리 정책·UI admission과 별도 Workbench 전달을 진행한다. 기존 Task에4번째 턴을 붙이거나 구현을 반복하지 않는다. 공식 command/exec의 local-only 경로와 full-access thread shell을 remote 증거로 사용하지 않는다.
+2026-10-10 범위 점검 후 사용자 지시로 필수 구조 구현을 재개했다. 보존 Git/후보·검증·소유 자원 상태는 [RESTART_CHECKPOINT.md](RESTART_CHECKPOINT.md), 실제 현재 상태는 [STATUS.md](STATUS.md)를 확인한다.
 
-C2 inactive journal8 native48·독립 리뷰는 완료했다. 다음은 모든 admitted originals의 보수적 authority cohort, actual append COMMIT, durable batch closure, 정확한 frozen native state와 공개 API completeness criterion을 한 소유 adapter에서 연결하는 C2-3다. No-delta만으로 원 contributor를 제거하지 않는다. C1 결과/unknown 관측과 C3 role/config/drain/recovery가 인수되기 전 ACK·자동 replay·서비스 활성화는 금지한다. SDK/C2 후보는 이 fixture 릴리스에 섞지 않는다. 앱별 비필수 기능·다중 사용자·기존 skills/하네스 절차는 계속 보류한다.
+같은 날짜의 추가 요청으로 [검증 일괄 수행 원칙](VALIDATION.md#2026-10-10-검증-일괄-수행-원칙)을 더 크게 모은다. 재개 후 **남은 구조 구현·통합을 먼저 진행하고 하나의 최종 통합 검증→필수 리뷰·CI→승인된 개발/운영 반영 확인**으로 이어간다. Workbench·공통 저장/권한·공식 앱·개인 앱·최소 하네스의 각 경로는 구현 분담이며 별도 전체 검증·릴리스 시점이 아니다. 기존 통과 자료를 재사용하고 CI가 다루는 전체 검사를 로컬에서 중복 실행하지 않는다. 준비 확인과 결과 기록은 같은 실행에 포함한다. 아래 이력의 과거 검사 횟수·별도 리뷰 순서를 새 기본 절차로 적용하지 않는다. 현재 기본 템플릿을 연결하고 영향 검사·정상 controller의 실제 모델1회 실행을 마쳤다. 마지막 gateway·release/브라우저 검사 후 현재 후보의 리뷰·CI로 이어간다.
+
+현재 플랫폼 전달은 PR96/MR103→full265/433→MR81→fresh 백업/리허설→표준 guarded 운영 반영까지 완료했다. Devc40/main·prod9cbf이며 현재 API·worker·Beat와 C1 schema가 정상이다. 같은 소스의 배포·전체 검사를 반복하지 않는다. 정확 기록은 [게시 체크포인트](PUBLICATION_CHECKPOINT.md)가 소유한다.
+
+다음 두 흐름의 구현을 경로별로 병행하고 검증은 위 최종 통합 시점에 모은다. Workbench는 현재 통합 SDK/UI/cache 후보와 정상 native controller의 네트워크 실행 경계를 연결한다. 서비스 시작 전 cache timeout과 inert 준비 포트 충돌을 보존한다. 최신 실행의 최종 결과 파일 충돌로 인수는 HOLD이며 소유 정리만 별도 확인했다. 결과 파일을 작업 전에 독점 확보하는 최소 보완 뒤 최종 검증에 새 bounded 실제 실행을 포함하고 원 Task의4번째 턴은 추가하지 않는다. 통합 후보의 필수 리뷰·정상 feature 게시/병합 이후 승인된 반영 단계에서 새 Workbench 릴리스를 빌드하고 전용 SQLite 백업·서비스 교체·직접/공개 health·실제 로그인/화면을 확인한다. 플랫폼 배포로 이를 대체하지 않는다.
+
+C2 journal35/closed checkpoint의 실제96 PASS와 별도 비활성 adapter의 합성56 PASS 후보는 보존한다. 다음 구현에서 무조건 이 전체 프로토콜을 완성하지 않는다. 기존 안전한 트랜잭션·저장 서비스로 구조 분리가 가능한지 판단하고 실제 분리 장애나 치명적 결함의 최소 부분만 채택한다. 나머지는 ENH-005로 보류하며 채택하지 않은 후보의 리뷰·통합 검사를 추가하지 않는다. 실제 서비스 전환의 권한·구형 writer 정리·데이터 보존·복구는 필수로 남는다. 미검증 경로는 활성화하지 않는다. 앱별 상세 기능·다중 사용자·기존 skills/하네스 절차는 계속 보류한다.
 
 아래 날짜별 문단은 그 시점의 이력이다.
 
@@ -62,27 +68,24 @@ microservice를 일괄 만드는 것은 선행 조건이 아니다. 공유 Postg
 개인 앱 데이터 profile과 Workbench의 단일 소유자 SQLite도 현재 계약을
 유지하며, 다중 사용자 Workbench는 계속 후속 범위다.
 
-## 우선순위와 완료 조건
+## 이번 필수 작업과 완료 조건
 
-P0는 다른 경로의 실행·활성화를 막는 경계, P1은 연결해야 할 필수 구현,
-P2는 선행 경계 인수 후의 서비스 전환·최종 통합이다. 서로 독립인 작업은
-동시에 진행할 수 있다. 번호는 착수 단위이며 새 상태 ID가 아니다.
+아래는 현재 필수 범위이며 상세 상태는 `WORK_ITEMS.md`가 소유한다. 구현은 경로별로 진행하고 검증은 최종 통합 시점에 모은다. 번호는 구현 경로이며 각각 별도 릴리스·전체 검증을 수행하라는 의미가 아니다.
 
-| 착수 단위와 기존 작업                                                                 | 우선순위              | 의존성                                                | 구체적 완료 조건                                                                                                                                                                                                                                                                                                                                         |
-| ------------------------------------------------------------------------------------- | --------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. 공통 플랫폼 권한과 공식 Source 서비스 경계 — OFF-002B                              | P0                    | 기존 identity bridge·Source guard·제한 역할           | 실제 HTTP/WS 경로에서 현재 사용자·실행·앱·리소스 ACL을 확인하고 suite의 인증/Core 직접 쓰기를 제거한다. launcher 밖 DM·notification·calendar·widget·announcement, content/search·AI approval/audit 소비 경계를 포함한다. 제한 역할의 허용/거부·대기 중 회수와 대표 경로를 인수한다.                                                                      |
-| 2. Workbench native 격리 실행 — WB-001/002, ENV-001                                   | P0                    | 검토된 실행 격리 환경·전용 checkout/endpoint          | 현재 namespace/mount 차단을 지원되는 환경에서 해결하고 pinned native client의 readOnly/workspaceWrite·실제 cwd·현재 인증·자원/정리를 검증한다. 호스트·인증 자료·Docker socket·플랫폼 DB 비노출, endpoint 교체/단절 뒤 host fallback·중복 turn 없이 상태 관측을 확인한다.                                                                                 |
-| 3. Files aggregate·publication — OFF-002B의 F4                                        | P1                    | 인수된 private root leaf·Source29·bounded PUT/read    | private 폴더/유한 tree부터 정렬 잠금·현재 정책을 확정한다. 원래 ID의 publication header·미확정 same-target hold·prepare/attempt/publish와 File/metadata/grants/진짜 event/terminal의 한 COMMIT을 조립한다. 현재 leaf를 포함한 모든 참가자가 hold를 지켜야 한다. 회사 감사·managed 생성/revival/논리 identity 경쟁·기존 native 전환을 각 범위로 인수한다. |
-| 4. Files 버전 입력·효과·복구 연결 — OFF-002B의 F4/F5                                  | P1                    | 3의 published binding·기존 Source request/Core effect | read/preview/archive/parser/cleanup을 정확한 published version에 연결한다. 전체 discovery의 누락 방지, 원 spec/IDs의 효과 전 영속 보관, process loss/unknown의 동일 ID 관측, 최신 Source/Core 일치와 전체 provider deadline/취소를 인수한다. 최신 version 대체·자동 재PUT·가짜 실행 재발급은 사용하지 않는다.                                            |
-| 5. 개인 앱의 전체 native 개발·배포 흐름 — CAT-002, APP-001/002, REL-001, WB-003B/004B | P1                    | 2·현재 manifest/SDK·builder/executor·위임             | 실제 선택한 Workbench Task에서 UI 시험 앱 생성/수정→등록→미리보기→검증 빌드→불변 이미지 배포→포털/독립 주소 사용→관측·복구를 연결한다. 이어 DB 시험 앱의 이미지 복구 후 데이터 유지를 확인한다. 앱별 포털 import/router 수정 없이 작동하고 응답 유실·재시작 뒤 기존 요청 조회와 중복 효과0을 확인한다.                                                   |
-| 6. 공식 묶음 runtime·queue·릴리스 전환 — OFF-002, MIG-001                             | P2, 활성화 전 필수    | 1·3·4와 Source-only 소비 경로                         | 동일 commit/schema/principal/artifact로 최신 wheel/image를 조립한다. 실제 broker·queue·Beat·lease·routing generation, 구형 writer/consumer drain·stranded attempt와 단일 writer 전환을 검증한다. 승인된 별도 환경에서 대표 업무·권한 회수·unknown 관측·rollback 후 호환 종료 범위를 닫는다.                                                              |
-| 7. 최소 자연어 맥락·템플릿 평가 — POL-001~003, WB-003A/B, VAL-001                     | P1부터 각 흐름에 적용 | 사용 가능한 2·5와 1·6의 대표 경로                     | 선택 앱/저장소/환경·핵심 계약을 native Task에 연결하고 생성/수정/테스트/배포/복구/재개·애매한 대상·오래된 지침을 결과로 판정한다. 권한·대상·중복 효과 오류0, success/failed/unknown/stale 구분과 template snapshot 보존을 확인한다. 기존 candidate 검사 관측14/18의 원인을 분리하기 전 품질 향상을 주장하지 않는다.                                      |
-| 8. 네 영역 최종 구조 인수 — CAT-002, ENV-002, VAL-001, CLOSE-001                      | P2                    | 위 대표 흐름별 인수                                   | 하나의 정의 원본에서 포털/Workbench 목록·설치·소스의 차이와 미확인을 설명한다. 실제 개발 서버의 preview4+bounded build1, 초과/실패 시 다른 앱 응답·정리와 각 영역의 독립 변경·릴리스·복구를 확인한다. 개인 앱 수정·배포가 플랫폼/공식 전체 재빌드·재시작을 요구하지 않아야 한다.                                                                         |
+| 착수 단위와 기존 작업                                             | 우선순위 | 의존성                            | 구체적 완료 조건                                                                                                                                                                        |
+| ----------------------------------------------------------------- | -------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. 공통 등록 원본 — CAT-002                                       | P0       | 기존 manifest·등록 서비스         | 포털/Workbench가 같은 등록 정보를 사용하고 목록·소스·설치 차이를 설명한다. 앱 추가에 포털별 코드 수정이 필요하지 않다.                                                                  |
+| 2. 공통 권한·저장 책임과 공식 묶음 분리 — OFF-002B                | P0       | 기존 인증·Source guard·공통 API   | 실제 HTTP/WS·worker 경로의 권한·데이터 소유를 유지한다. 기존 트랜잭션/공통 저장 경로를 우선 재사용하고 분리에 필요한 최소 연결만 변경한다.                                              |
+| 3. Workbench·격리 개발 연결 — WB-001/002, ENV-001/002             | P0       | 기존 native Codex·SQLite·SDK 후보 | 앱·저장소 선택, 격리된 개발·미리보기, 실제 실행/중단/재개·상태 확인. 기본 자원 제한과 다른 앱/호스트 접근 차단. 고급 UX·부하 측정은 제외한다.                                           |
+| 4. 개인 앱 최소 계약·명령 연결 — APP-001/002, REL-001, WB-003/004 | P1       | 1·3·기존 SDK/builder              | 최소 UI·DB 앱과 기존 검토/테스트·미리보기/배포/복구 연결을 구현한다. 대상·권한·실제 상태를 확인하며 추가 템플릿·대시보드는 제외한다.                                                    |
+| 5. 공식 묶음의 실제 서비스·릴리스 전환 — OFF-002, MIG-001         | P2       | 2·일치하는 artifact/schema/권한   | 공식 묶음 하나를 플랫폼과 별도 실행·배포한다. 필요한 queue/worker·구형 writer 전환과 데이터 보존·복구를 확인한다. 안전한 호환 adapter는 유지 가능하다.                                  |
+| 6. 필수 구조 통합 인수 — VAL-001, CLOSE-001                       | P2       | 1~5의 구현 완료                   | 한 통합 검증에서 UI·DB 대표 흐름, 네 영역 독립 변경·배포·복구, 권한·데이터 보존을 확인한다. 필수 리뷰/CI·승인된 반영과 설치/운영 문서를 마무리한다. 고도화 미완료는 인수를 막지 않는다. |
 
-## 다음 착수 묶음
+Files 전체 tree/publication·새 C2 journal/adapter는 이 표의 독립 필수 단계에서 제외했다. 실제 분리나 데이터 보존을 막는 최소 부분만 근거를 남겨2번/5번에 연결하고, 전체 확장은 ENH-005/006에 보류한다.
 
-이번에 인수한 구현 묶음은 다음과 같이 제한한다. 이 묶음의 통과를 위 전체 단위의
-완료로 확대하지 않는다.
+## 이전 착수 묶음과 보존 근거
+
+아래는 이전 구현 묶음과 당시의 후속 설계다. 현재 다음 작업은 위 필수 작업표를 따르며 특히 Files publication·전체 저장 프로토콜의 후속 설계를 자동 착수하지 않는다. 과거 통과 결과를 전체 구조 완료로 확대하지 않는다.
 
 - **공식 인증:** 기존 앱 세션·승인 binding·현재 입장 판단을 재사용하는
   인증 전용 최소 열 reader를 준비했다. 독립된 fresh read-only Session과 실제
