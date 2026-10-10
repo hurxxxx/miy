@@ -1,5 +1,11 @@
 # GitHub 게시 체크포인트
 
+## 2026-10-10 구조 후보 정상 병합, 최신 운영 릴리스 대기
+
+[GitHub PR97](https://github.com/hurxxxx/miy/pull/97)·[내부 MR104](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/104)는 source `b4fdccb2`의 required272/job440 SUCCESS350.52543초/MERGE_READY 뒤 정상 병합했다. Dev `e3b4082f`·GitHub `a4610380`과 reviewed source의 tree `1a1cdf10`가 같다. 소유 작업 브랜치만 원격 두 곳·로컬에서 정리했고 protected dev/main을 유지했다.
+
+[Release MR105](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/105)의 full273/job441은32.070656초에 기존 legacy 복구 fixture의 topology metadata adapter 누락으로 실패했다. Storage/git diff는 통과했으며 해당 fixture만 보완하고 후속 source의 새 리뷰·최신 full CI를 유지한다. Dev checkout 병합은 새 런처 기동이 아니다. 운영 main/prod `9cbf9c5c`·기존 image389d와 Workbench current0c1bf는 아직 유지되며 새 gateway/first-party·별도 Workbench 실제 반영/공개 인수는 남아 있다.
+
 ## 2026-10-10 필수 구조 통합 후보
 
 공통 플랫폼·공식 묶음 UI/API/worker·개인 앱의 Core-admin 승격·단일 소유자 Workbench SDK 연결을 하나의 후보로 통합했다. Core local gateway는 기존 공개 포트·TLS 연결을 유지하며 guarded release는 세 이미지·여섯 서비스와 이전 토폴로지 복구를 소유한다. 기존 Source-only role/DB grant와 미채택 C2/Files 고도화는 활성화하지 않는다.

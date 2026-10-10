@@ -120,6 +120,21 @@ compose() {
 }
 image_id() { [[ "$1" == "$CURRENT_IMAGE" ]]; printf '%s\n' "$CURRENT_ID"; }
 docker() {
+  if [[ "$1" == ps ]]; then
+    [[ "$#" == 8 && "$2 $3 $4" == '--all --quiet --no-trunc'
+      && "$5" == --filter && "$6" == 'label=com.docker.compose.project=miy-prod-app'
+      && "$7" == --filter ]] || return 9
+    case "$8" in
+      label=com.docker.compose.service=official-api|label=com.docker.compose.service=official-worker|label=com.docker.compose.service=gateway)
+        return 0 ;;
+      *) return 9 ;;
+    esac
+  fi
+  if [[ "$1" == inspect && "$#" == 4 && "$2" == --format
+    && "$3" == '{{json .Config.Cmd}}' && "$4" == '${'0'.repeat(63)}2' ]]; then
+    printf '%s\\n' '["celery","-A","miy_worker.celery_app:celery_app"]'
+    return 0
+  fi
   if [[ "$1" == start ]]; then
     [[ "$*" == 'start ${'0'.repeat(63)}1 ${'0'.repeat(63)}2 ${'0'.repeat(63)}3' ]] || return 9
     RECOVERY_STARTED=1
@@ -763,12 +778,20 @@ test('accepts a separated production runtime configuration', () => {
 });
 
 test('first-party preflight reserves both internal API ports without changing legacy configuration', () => {
-  assert.equal(assertProductionAppEnv(validEnv(), { firstParty: true }).appPort, 8000);
+  assert.equal(
+    assertProductionAppEnv(validEnv(), { firstParty: true }).appPort,
+    8000,
+  );
   for (const port of ['18779', '18780']) {
-    const values = validEnv({ MIY_APP_PORT: port,
-      MIY_HERMES_MCP_SERVER_URL: `http://127.0.0.1:${port}/api/v1/internal/hermes/mcp` });
+    const values = validEnv({
+      MIY_APP_PORT: port,
+      MIY_HERMES_MCP_SERVER_URL: `http://127.0.0.1:${port}/api/v1/internal/hermes/mcp`,
+    });
     assert.equal(assertProductionAppEnv(values).appPort, Number(port));
-    assert.throws(() => assertProductionAppEnv(values, { firstParty: true }), /reserved first-party internal API port/);
+    assert.throws(
+      () => assertProductionAppEnv(values, { firstParty: true }),
+      /reserved first-party internal API port/,
+    );
   }
 });
 
