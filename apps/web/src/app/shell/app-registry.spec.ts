@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { isValidElement } from 'react';
 import {
   APP_CONTRACTS,
   APP_ROUTE_BY_ID,
@@ -9,9 +10,12 @@ import {
   getAppRoutePattern,
 } from '@miy/contracts/app-routes';
 
-import { communityGlobalRoutes } from '@/src/app-modules/community';
 import { settingsManifest } from '@/src/app-modules/settings';
-import { DEFAULT_APP_CONTRACT_MANIFESTS } from './app-contract-manifests';
+import {
+  communityManifest,
+  DEFAULT_APP_CONTRACT_MANIFESTS,
+} from './app-contract-manifests';
+import { DocumentNavigation } from './document-navigation';
 import {
   APP_BACKGROUND_WORK_SOURCES,
   APP_BAR_FIXED_APP_IDS,
@@ -123,9 +127,16 @@ describe('app module registry', () => {
 
   it('derives canonical global and shared routes from leaf apps', () => {
     expect(staticAppGlobalRoutes).toEqual(APP_GLOBAL_ROUTES);
-    expect(getAppModuleGlobalRoutes('community')).toEqual(
-      communityGlobalRoutes.map((route) => ({ ...route, appId: 'community' })),
+    const communityRoutes = getAppModuleGlobalRoutes('community');
+    expect(communityRoutes.map((route) => route.path)).toEqual(
+      communityManifest.globalRoutePaths,
     );
+    for (const route of communityRoutes) {
+      expect(route.appId).toBe('community');
+      expect(isValidElement(route.element) && route.element.type).toBe(
+        DocumentNavigation,
+      );
+    }
     expect(getAppModuleGlobalRoutes('docs').map((route) => route.path)).toEqual(
       expect.arrayContaining([
         '/apps/docs/shared/:shareToken',
@@ -167,16 +178,10 @@ describe('app module registry', () => {
     expect([...AI_TOOL_APP_IDS]).toEqual([]);
   });
 
-  it('keeps leaf ownership for background work and launcher policy', () => {
-    expect(APP_BACKGROUND_WORK_SOURCES).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          appId: 'bento',
-          id: 'bento-ai',
-          requiredNavItemId: 'bento-all',
-        }),
-      ]),
-    );
+  it('leaves official background work in its owner and retains leaf launcher policy', () => {
+    expect(
+      APP_BACKGROUND_WORK_SOURCES.filter((source) => source.appId === 'bento'),
+    ).toEqual([]);
     expect([...APP_FEATURE_GUIDE_TOOL_IDS]).toEqual([]);
     expect([...APP_LAUNCHER_GLOBAL_PATHS]).toEqual(
       APP_CONTRACTS.map((app) => [app.app_id, app.route_base]),

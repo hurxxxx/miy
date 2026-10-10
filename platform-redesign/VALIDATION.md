@@ -1,5 +1,17 @@
 # 검증 계획과 수행 근거
 
+## 2026-10-10 full283 API 통과와 웹 lint 차단
+
+API fixture source `dcdf1d5f`는 required282/job450 SUCCESS54.711084초/MERGE_READY 이후 PR102/MR110으로 정상 병합됐다. 통합 dev `c47441d5`·GitHub `9f8bddd0`의 tree `d7e4de6f`가 같다. Full283/job451은 FAILED3553.621591초이며 API fast6572 PASS/0 FAIL/5 SKIP(3005.47초), slow16 PASS(86.11초), migration37 PASS(60.51초), external15 PASS(40.83초)다. Storage/diff도 통과했지만 전체 `pnpm ci:all`은 성공하지 않았다.
+
+정확한 차단은 `web:lint`의3 errors/2 fixture files다. `apps/web/e2e/app-boundary-smoke.spec.ts`의 unqualified `innerHeight`는 `no-restricted-globals`, `apps/web/src/platform/deployment/FileUploadDocumentBoundary.spec.tsx`의 빈 XHR stub·초기 cleanup callback은 `@typescript-eslint/no-empty-function`이다. React hooks warning은 이 실패 원인으로 취급하지 않는다. Web Vitest·두 UI build·E2E는 lint 이후 실행되지 않았고 Workbench 전체 단계도 완료되지 않았다. 원문 trace는 메모리 whitelist로만 분류했다.
+
+Fixture 표현만 고치고 scoped ESLint/format 및 아직 확인되지 않은 웹 downstream을 한 묶음으로 검사한다. API·Core/owner/architecture의 기존 통과 근거와 Workbench의 변경 없는 소비 입력 근거를 재사용한다. 새 필수 리뷰와 최신 전체 release CI는 유지하며 실패한 실행을 성공으로 바꾸거나 검사 규칙을 완화하지 않는다. 운영·Workbench 실제 배포는 아직 없다.
+
+Root가 미실행 웹 단계를 pinned CI492d·network-none·호스트 env/서비스/DB/자격증명 mount 없이 한 묶음으로 수행했다(398.932초). 첫 scratch 접근 준비 실패는 검사 실행0으로 보존했다. Web 단위검사922 PASS/6 FAIL(157.006초), web build PASS(37.120초), official build PASS(35.646초), native synthetic browser45 PASS(168.325초)다. 이 로컬 묶음의 실패를 전체 성공으로 표시하지 않는다. Vitest 결과 cache의 failed metadata를 tracked path whitelist로 확인하고 실패한 세 파일만 재현해6 FAIL/30 PASS(5.64초)를 얻었다. Native diff는 포털 manifest 선택과 공식 상세 PMS 선택의 차이를 확인했고 나머지는 Community business element·Bento background의 실행 소유 차이였다.
+
+포털 테스트는 admission·정식 전체 route/chrome·DocumentNavigation과 Bento 제외를 유지한다. 제거한 상세 PMS ID·실제 Community route.element·Bento 등록 양성 검증은 실제 officialRegistry에 보존했다. 최종 same-image 영향 묶음은 portal3+기존 ownership40 PASS(6.502초), official registry6 PASS(4.007초), 전체10.941초다. Scoped lint/format과 독립 리뷰도 통과했다. 제품·CI·lint disable·skip 변경0이며 통과한 나머지 웹/두 빌드/browser45/API/Workbench를 반복하지 않는다. Raw 로그는 저장하지 않고 source hash·safe count/error/rule receipt만 보존했다. 최신 전체 release CI와 실제 배포는 별도 필수다.
+
 ## 2026-10-10 full281 실패와 최소 영향 검사
 
 UI 입력 수정의 required280/job448 SUCCESS50.083838초/MERGE_READY 뒤 PR101/MR109를 병합했다. 통합 dev `0d1523af`·GitHub `da0e52e4`의 tree `e1f7b6e2`가 같다. Full281/job449는 FAILED3187.327992초이며 API fast6568 PASS/3 FAIL/5 SKIP(2889.66초), slow16 PASS·migration37 PASS·external15 PASS다. Storage/diff는 통과했지만 `pnpm ci:all`은 실패했다. 이후 web/Workbench 단계는 이 실행의 성공 근거로 쓰지 않는다.

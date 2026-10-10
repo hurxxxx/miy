@@ -1,5 +1,15 @@
 # GitHub 게시 체크포인트
 
+## 2026-10-10 PR102/MR110 병합과 full283 웹 fixture 보완
+
+API fixture source `dcdf1d5f`의 required282/job450 SUCCESS54.711084초/MERGE_READY 뒤 [GitHub PR102](https://github.com/hurxxxx/miy/pull/102)·[내부 MR110](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/110)을 정상 병합했다. Dev `c47441d5`와 GitHub `9f8bddd0`의 tree `d7e4de6f`가 같으며 소유 원격/로컬 feature·snapshot 브랜치를 정리했다. Protected dev/main과 upstream direct-push 차단은 유지한다.
+
+[Release MR105](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/105)의 full283/job451은 FAILED3553.621591초다. API6572/16/37/15는 모두 통과했지만 `web:lint`의 구조 fixture3 errors가 후속 web test/build/E2E와 Workbench 실행을 막았다. 두 테스트 파일의 표현만 보완하며 제품 계약·필수 리뷰·전체 CI를 유지한다.
+
+통과한 영향 검사와 변경 없는 Workbench artifact는 재사용하고, 미실행 웹 단계를 묶어 확인한 뒤 새 source를 정상 게시/리뷰/병합한다. 최신 전체 성공 이후 release merge·운영 세 이미지/여섯 서비스 배포·별도 Workbench 전환과 공개 인수를 진행한다. 개발 first-party는 반영돼 있고 운영9cbf9c5c/image389d·Workbench0c1bf0fe는 유지된다.
+
+게시 후보는 lint 표현2파일과 소유 기대3 portal fixture·1 official registry fixture, 진행문서4파일이다. 미실행 웹 묶음에서 두 UI build·browser45 PASS, 단위검사922 PASS/6 FAIL을 확인했다. 실패한 세 fixture만 재현하고 실제 official registry로 원래 PMS·Community·Bento 양성 계약을 보존했다. 최종 영향46 PASS·scoped lint/format·독립 리뷰 PASS다. 통과한 빌드/브라우저/API/Workbench 근거는 재사용하며 새 후보를 정상 게시한다. 기존 실패 기록과 실제 운영·Workbench 미배포 상태는 유지한다.
+
 ## 2026-10-10 PR101/MR109 병합과 full281 후속 보완
 
 UI 입력 source `5c572c66`의 required280/job448 SUCCESS50.083838초/MERGE_READY 뒤 [GitHub PR101](https://github.com/hurxxxx/miy/pull/101)·[내부 MR109](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/109)를 정상 병합했다. Dev `0d1523af`와 GitHub `da0e52e4`의 tree `e1f7b6e2`가 같고 소유 원격/로컬 feature와 snapshot 브랜치는 정리했다. Protected dev/main과 upstream direct-push 차단을 유지했다.

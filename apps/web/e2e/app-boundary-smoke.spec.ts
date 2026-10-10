@@ -218,7 +218,7 @@ test.describe('AI-friendly app boundary smoke', () => {
         frame.evaluate((element) => {
           return (
             document.elementFromPoint(5, 5) === element &&
-            document.elementFromPoint(5, innerHeight - 5) === element
+            document.elementFromPoint(5, window.innerHeight - 5) === element
           );
         }),
       )

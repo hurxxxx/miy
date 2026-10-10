@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { OFFICIAL_APP_MANIFESTS } from '@miy/official-suite-web';
+import { communityModule } from '@miy/official-suite-web/community/module';
 import ownership from '../ownership.json';
 import type { AuthUser } from '@miy/web-official-suite-bridge';
 import {
@@ -43,7 +44,22 @@ describe('official suite composition', () => {
     expect(
       officialRegistry.APP_MODULE_MANIFESTS.map((item) => item.appBarItem.id),
     ).toEqual(OFFICIAL_APP_IDS);
+    expect(officialRegistry.APP_BACKGROUND_WORK_SOURCES).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          appId: 'bento',
+          id: 'bento-ai',
+          requiredNavItemId: 'bento-all',
+        }),
+      ]),
+    );
     expect(officialRegistry.APP_ROUTES.length).toBeGreaterThan(0);
+    expect(officialRegistry.getAppModuleGlobalRoutes('community')).toEqual(
+      communityModule.globalRoutes.map((route) => ({
+        ...route,
+        appId: 'community',
+      })),
+    );
     expect(
       officialRegistry.APP_ROUTES.every((route) =>
         ownership.ui_app_ids.includes(route.appId),
@@ -58,6 +74,19 @@ describe('official suite composition', () => {
       resolveOfficialShellState('/apps/pms/assigned', member, ['pms']),
     ).toEqual({ activeAppId: 'pms', activeNavItemId: 'pms-tasks-assigned' });
   });
+  it.each([
+    ['/apps/pms/lists/demo', 'pms-list-demo'],
+    ['/apps/pms/lists/list-1', 'pms-list-list-1'],
+    ['/apps/pms/spaces/space-1/docs/doc-1', 'pms-space-space-1-docs-doc-1'],
+  ])(
+    'preserves official PMS deep-link navigation for %s',
+    (path, activeNavItemId) => {
+      expect(resolveOfficialShellState(path, member, ['pms'])).toEqual({
+        activeAppId: 'pms',
+        activeNavItemId,
+      });
+    },
+  );
   it('does not turn platform admission into registration in another UI root', () => {
     for (const path of [
       '/apps/agent-terminal',

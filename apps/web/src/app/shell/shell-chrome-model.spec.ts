@@ -1,5 +1,6 @@
 import { createAuthUser } from '../../../tests/fixtures/company';
 import { describe, expect, it } from 'vitest';
+import { pmsManifest } from '@miy/official-suite-web/manifests/pms';
 
 import type { AuthUser } from '@/src/platform/auth/auth-api';
 import { resolveShellState } from '@/src/app-shell';
@@ -166,14 +167,14 @@ describe('shell chrome model', () => {
 
     expect(resolveChrome('/apps/pms/lists/list-1')).toMatchObject({
       activeAppId: 'pms',
-      activeNavItemId: 'pms-list-list-1',
+      activeNavItemId: pmsManifest.defaultActiveNavItemId,
       mainClassName: 'flex-1 overflow-hidden relative',
       showSubSidebar: true,
     });
 
     expect(resolveChrome('/apps/pms/assigned')).toMatchObject({
       activeAppId: 'pms',
-      activeNavItemId: 'pms-tasks-assigned',
+      activeNavItemId: 'pms-tasks',
       mainClassName: 'flex-1 overflow-hidden relative',
       showSubSidebar: true,
     });
