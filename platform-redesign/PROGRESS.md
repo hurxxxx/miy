@@ -1,5 +1,17 @@
 # 재설계 진행 기록
 
+## 2026-10-10 필수 리뷰 통과와 개발 종료 경계 보완
+
+후속 source `37ef44ec`의 pipeline269/job437은 SUCCESS450.249534초이고 안전한 리뷰 결과는 MERGE_READY다. PR97/MR104는 열려 있으며 실제 서비스는 기존 dev `c40e7091`·prod `9cbf9c5c`다. 새 소스에서 추가 확인한 개발 종료 결함을 함께 고친 다음 최신 후보의 필수 리뷰를 받는다. 437의 통과를 이후 수정의 리뷰로 대체하지 않는다.
+
+실제 개발 프로세스에서 Celery Main과 prefork 자식의 argv가 같고 shell/uv wrapper도 기존 선택에 포함됨을 확인했다. 193줄 stdlib `/proc` 도구로 UID·checkout cwd·고정 interpreter·native entry·전체 부모 관계를 확인하여 Main만 선택한다. 일반 종료와 같은 namespace 재시작은 Main에 warm TERM을 보내고 작업이 자연 종료한 뒤 API/UI/Beat를 정리한다. native `setsid --wait`와 Bash builtin wait는 Nx의 terminal signal 분리와 즉시 종료 trap을 유지한다. 새 supervisor·의존성·CI 경로는 추가하지 않는다. 현재 실행 중인 옛 Bash와 systemd 정책은 별도 안전한 전환이 필요하다.
+
+실패 경계 위주의 native/status17개와 기존 topology2개, 소유 Ruff·Bash 문법·공백 검사를 확인했다. 기존 통과 그룹은 반복하지 않았다. 현재 CI image492d에서 native setsid 존재·exit27 전달도 실제 확인했다. 이전 UI·빌드·shared release graph 입력은 그대로이므로 그 검사를 다시 실행하지 않는다. 최종 후보의 필수 리뷰와 전체 릴리스 CI는 각각 수행한다.
+
+Workbench는 정상 build entry로 clean `37ef44ec` 실제 산출물을16.757초에 만들었고 source inventory·digest·schema0008·고정 CLI를 확인했다. 기존 서비스와 current/template-current는 아직 바꾸지 않았다. 기존 개발 owner의 정상 공개 로그인 경로·앱 admission은 읽기 전용 preflight에서 확인했으며 실제 로그인/Apps/기존 Task/permissions/AgentTree 인수는 별도 서비스 반영 후 수행한다. 새 Task·모델 요청은 만들지 않는다.
+
+프록시는 Core 소유 local gateway가 기존 공개 포트를 유지하도록 연결한다. 사용자의 별도 외부 TLS 설정 변경은 필요하지 않다. 새 개발 first-party 실행, fresh backup·세 산출물/여섯 서비스 운영 전환, Workbench 별도 반영과 공개 인수가 남아 있다. 앱별 세부 기능과 고도화의 보류 범위는 유지한다.
+
 ## 2026-10-10 필수 리뷰 후 구조 경계 보완
 
 `61bcf20b`로 후속 후보를 게시했지만 필수 리뷰436이 공유 UI release 분류·split 운영의 default legacy 거부·iframe 상세 surface·미저장 메모 보호를 차단했다. 세 에이전트가 disjoint 경로에서 slice graph, UI/build 입력, topology 경계 검사를 보완하고 Root가 운영 shell·계약과 통합을 담당했다. 양쪽 reviewed Git의 실제 TS/CSS 소비자를 분석하고 Core/공식 CSS 입력을 분리했다. 기존 메모 저장을 유지하며 문서 이동은 저장 완료를 기다리고 이전 UI와 unload 보호를 보존한다. 직접 영향 slice26·topology76·UI22, 두 typecheck·빌드와 합성 브라우저2사례를 확인해 소스를 고정했다. 앱별 기능 고도화로 확대하지 않고 구조 변경의 실제 회귀를 해결했다. 해당 새 후보의 리뷰·CI·서비스 반영은 아직 남아 있다.

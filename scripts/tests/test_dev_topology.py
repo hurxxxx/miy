@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import sys
-
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -18,6 +17,9 @@ def stopped_first_party_checkout(tmp_path):
     scripts.mkdir(parents=True)
     shutil.copyfile(ROOT / "dev.sh", checkout / "dev.sh")
     shutil.copyfile(ROOT / "scripts/dev-topology.py", scripts / "dev-topology.py")
+    shutil.copyfile(
+        ROOT / "scripts/dev-worker-processes.py", scripts / "dev-worker-processes.py"
+    )
     # No dotenv, database, broker, Nx, or service from the real checkout is used.
     (scripts / "dev-env.sh").write_text("# Synthetic development environment.\n")
     commands = tmp_path / "commands"
@@ -64,6 +66,7 @@ def test_stopped_selected_first_party_restarts_same_native_namespace(tmp_path):
         capture_output=True,
         text=True,
         timeout=20,
+        check=False,
     )
     assert result.returncode == 0, result.stderr
     command = log.read_text()
@@ -82,8 +85,12 @@ def test_stopped_opposite_namespace_holds_without_live_consumer_evidence(tmp_pat
         capture_output=True,
         text=True,
         timeout=20,
+        check=False,
     )
     assert result.returncode != 0
-    assert "Namespace transition HOLD: no live native consumer drain witness" in result.stderr
+    assert (
+        "Namespace transition HOLD: no live native consumer drain witness"
+        in result.stderr
+    )
     assert not log.exists()
     assert (checkout / ".runtime/dev-topology").read_text() == "first-party\n"

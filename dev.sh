@@ -240,21 +240,9 @@ project_selected() {
 
 find_worker_processes() {
   local role="${1:-}"
-  local pid args
-  while read -r pid args; do
-    # Native Celery can change its process title. Its cwd and original argv
-    # identify this checkout; never signal a sibling container or pool child.
-    local worker_cwd
-    worker_cwd="$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)"
-    if [[ "$args" == *"ForkPoolWorker"* ]]; then
-      continue
-    fi
-    if { [[ "$args" == *"$ROOT_DIR/apps/worker/"* ]] || [[ "$worker_cwd" == "$ROOT_DIR/apps/worker" ]]; } &&
-       [[ "$args" =~ (miy_worker\.(celery_app|first_party_platform|first_party_beat)|miy_official_worker\.runtime):celery_app ]] &&
-       { [[ -z "$role" ]] || [[ "$args" == *"celery_app $role"* ]]; }; then
-      printf '%s %s\n' "$pid" "$args"
-    fi
-  done < <(pgrep -af 'celery|celeryd' || true)
+  local -a selector=(--root "$ROOT_DIR")
+  if [[ -n "$role" ]]; then selector+=(--role "$role"); fi
+  python3 "$ROOT_DIR/scripts/dev-worker-processes.py" "${selector[@]}"
 }
 
 process_is_owned() {
@@ -311,8 +299,9 @@ stop_owned_listener() {
 }
 
 find_consumer_bindings() {
-  local pid args profile node
+  local pid args profile node processes
   local -A seen=()
+  processes="$(find_worker_processes worker)" || return 1
   while read -r pid args; do
     process_is_owned "$pid" || continue
     case "$args" in
@@ -341,7 +330,7 @@ find_consumer_bindings() {
       seen[$node]="$profile"
       printf '%s|%s\n' "$node" "$profile"
     fi
-  done < <(find_worker_processes worker)
+  done <<< "$processes"
 }
 
 require_free_port() {
@@ -560,6 +549,7 @@ stop_project_processes() {
   local project="$1"
   local worker_role="${2:-}"
   local stopped=0
+  local processes
 
   case "$project" in
     web)
@@ -575,14 +565,37 @@ stop_project_processes() {
       fi
       ;;
     worker)
+      processes="$(find_worker_processes "$worker_role")" || return 1
       while read -r pid args; do
+        [[ -n "$pid" ]] || continue
         if kill_if_running "$pid"; then stopped=1; fi
-      done < <(find_worker_processes "$worker_role")
+      done <<< "$processes"
       ;;
   esac
 
   if (( stopped )); then
     sleep 1
+  fi
+}
+
+stop_selected_projects() {
+  local project processes
+  if project_selected worker; then
+    # Warm TERM belongs to the native Main. Keep Nx, publishers and Beat alive
+    # until its pool finishes; no fixed timeout proves task completion.
+    stop_project_processes worker worker || return 1
+    while :; do
+      processes="$(find_worker_processes worker)" || return 1
+      [[ -z "$processes" ]] && break
+      sleep 0.25
+    done
+  fi
+  for project in "${projects[@]}"; do
+    [[ "$project" == "worker" ]] && continue
+    stop_project_processes "$project" || return 1
+  done
+  if project_selected worker; then
+    stop_project_processes worker beat || return 1
   fi
 }
 
@@ -596,9 +609,7 @@ unset PYTHONHOME
 
 transition_required=0
 if (( stop_only )); then
-  for project in "${projects[@]}"; do
-    stop_project_processes "$project"
-  done
+  stop_selected_projects
   echo "Stopped repo-managed dev servers for: ${project_csv}"
   exit 0
 fi
@@ -612,6 +623,11 @@ if (( status_only )); then
     echo
   done
   exit 0
+fi
+
+if ! command -v setsid >/dev/null 2>&1; then
+  echo "Native setsid is unavailable; development startup HOLD." >&2
+  exit 1
 fi
 
 # Namespace changes use the current live consumers as their native drain
@@ -686,12 +702,14 @@ if (( restart || reset_nx )); then
     done
     stop_project_processes worker beat
     for _ in {1..20}; do
-      if [[ -z "$(find_api_processes)" && -z "$(find_worker_processes beat)" ]]; then
+      beat_processes="$(find_worker_processes beat)" || exit 1
+      if [[ -z "$(find_api_processes)" && -z "$beat_processes" ]]; then
         break
       fi
       sleep 0.25
     done
-    if [[ -n "$(find_api_processes)" || -n "$(find_worker_processes beat)" ]]; then
+    beat_processes="$(find_worker_processes beat)" || exit 1
+    if [[ -n "$(find_api_processes)" || -n "$beat_processes" ]]; then
       echo "Namespace transition HOLD: owned API/Beat shutdown has not completed." >&2
       exit 1
     fi
@@ -705,17 +723,17 @@ if (( restart || reset_nx )); then
     # no replacement consumers; old workers cannot remain a conflicting owner.
     stop_project_processes worker
     for _ in {1..20}; do
-      [[ -z "$(find_worker_processes)" ]] && break
+      worker_processes="$(find_worker_processes)" || exit 1
+      [[ -z "$worker_processes" ]] && break
       sleep 0.25
     done
-    if [[ -n "$(find_worker_processes)" ]]; then
+    worker_processes="$(find_worker_processes)" || exit 1
+    if [[ -n "$worker_processes" ]]; then
       echo "Namespace transition HOLD: native consumer shutdown has not completed." >&2
       exit 1
     fi
   else
-    for project in "${projects[@]}"; do
-      stop_project_processes "$project"
-    done
+    stop_selected_projects
   fi
 fi
 
@@ -746,7 +764,8 @@ for project in "${projects[@]}"; do
       fi
       ;;
     worker)
-      if [[ -n "$(find_worker_processes)" ]]; then
+      worker_processes="$(find_worker_processes)" || exit 1
+      if [[ -n "$worker_processes" ]]; then
         echo "Cannot start a second owned worker/Beat; wait for native shutdown or use --restart." >&2
         exit 1
       fi
@@ -789,19 +808,25 @@ Press Ctrl+C to stop all running servers.
 EOF
 
 cleanup() {
-  trap - INT TERM EXIT
-
-  for project in "${projects[@]}"; do
-    stop_project_processes "$project"
-  done
+  trap - INT TERM HUP EXIT
+  stop_selected_projects || return 1
+  if [[ -n "${nx_pid:-}" ]]; then
+    # All unfinished native workers have completed before waiting for Nx's
+    # remaining API/Beat/UI commands to exit. Never signal its task trees early.
+    wait "$nx_pid" || true
+  fi
 }
 
 handle_interrupt() {
-  cleanup
+  cleanup || exit 1
   exit 130
 }
 
-trap handle_interrupt INT TERM
+trap handle_interrupt INT TERM HUP
 trap cleanup EXIT
 
-pnpm exec nx run-many -t dev --projects="$project_csv" --parallel="$parallelism" --outputStyle="$output_style" "${nx_configuration[@]}"
+# The terminal signals Bash alone, rather than Nx's whole prefork task tree.
+# --wait also preserves the child status if native setsid needs to fork.
+setsid --wait pnpm exec nx run-many -t dev --projects="$project_csv" --parallel="$parallelism" --outputStyle="$output_style" "${nx_configuration[@]}" &
+nx_pid=$!
+wait "$nx_pid"

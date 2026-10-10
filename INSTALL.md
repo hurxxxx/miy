@@ -1136,6 +1136,7 @@ Hermes가 필요 없다. 생성 모델은 추론을 끈 실제 호출을 확인�
 다른 터미널에서 중지할 때는 실행 대상에 맞춰 `./dev.sh --stop` 또는
 `./dev.sh --with-worker --stop`을 사용한다. 호스트 감독 서비스로 실행 중이면
 [지속 실행 계약](docs/domains/release/README.md#persistent-development-runtime)에 따라 그 감독 서비스를 사용한다.
+Worker 종료 대상은 UID·정확한 checkout cwd·인터프리터·명령·부모 관계로 확인한 네이티브 Main이며, 같은 명령을 가진 prefork 자식과 shell/uv 래퍼에는 신호를 보내지 않는다. 식별이 불명확하면 종료를 보류한다. 일반 종료·같은 구조 재시작은 Worker 작업 완료를 기다린 뒤 API·UI·Beat를 정리한다. 네이티브 `setsid --wait`가 Nx를 별도 세션으로 실행해 터미널 신호를 Bash 종료 처리로 모으므로 설치되어 있어야 한다. 감독 서비스는 Main만 신호를 받게 하고 전체 warm 종료 유예를 보존한다(`KillMode=process`, `SendSIGKILL=no`). 이 소스 변경은 이미 실행 중인 launcher 코드를 갱신하지 않는다. 구조 전환은 기존 API·Beat 발행 중지 후 새 native drain 절차를 유지한다.
 네이티브 DB·Redis를 멈춰야 한다면 대상이 이 프로젝트 전용인지 확인한 뒤 해당 systemd unit만 중지한다.
 공유 서비스는 임의로 중지하지 않는다. Docker 최소 인프라만 멈출 때는 `pnpm dev:infra:minimal:down`을 사용한다.
 데이터 디렉터리나 볼륨을 삭제하지 않는다.

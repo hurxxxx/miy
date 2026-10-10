@@ -1,5 +1,16 @@
 # 검증 계획과 수행 근거
 
+## 2026-10-10 최신 리뷰와 native 종료 수정 근거
+
+- Source `37ef44ecfba37307576d0c43bd6eeca4ecbf9fd0`, tree `ba72490be019696af60bfeaa1a6410d2a0ff64c5`: pipeline269/job437 SUCCESS450.249534초, required/allow_failure=false, MERGE_READY. 리뷰는 변경 Python82개 AST·shell/주요 JS·first-party Node 검사·기존 task 함수 AST 보존을 확인했으며 전체 의존성/DB/브라우저 suite를 실행한 결과가 아니다. 이전434/435/436 실패는 보존한다. 아래 새 종료 수정은 최신 후보의 새 리뷰가 필요하다.
+- 실제 읽기 전용 native 선택은 기존 legacy Celery Main/Beat만 반환하고 동일 argv prefork 자식·shell/uv wrapper를 제외했다. 제품 task/broker/DB와 서비스는 변경하지 않았다. 새 stdlib helper는 전체 ancestry/unknown metadata에서 HOLD하며 Bash가 실패를 전파한다. 일반 stop/restart는 worker warm 완료 후 publisher/Beat를 정리한다. namespace 전환의 publisher-off/fresh native drain은 유지한다.
+- 실패 경계별 실행은 native/status 고유17개와 기존 topology2개를 포괄한다. 최초11 PASS/ancestry cycle1 FAIL 뒤 실패6개만 PASS0.02초, script/snapshot2 PASS0.03초, topology2 PASS0.57초, warm/order/native setsid/metadata5 PASS0.04초, synthetic Bash TERM1 PASS0.31초, same-namespace restart1 PASS0.56초다. 서로 겹치는 선택을 합산하지 않는다. synthetic TERM은 생성한 테스트 Bash에만 적용했다. 실행 중인 MIY Main/pool을 signal한 증거가 아니다.
+- 기존 topology test의 Ruff import/implicit check3 findings는 import 정렬과 동작이 같은 `check=False`로 해결했다. import recheck의 여분 blank line 실패도 보존한다. 최종 소유 Ruff check/format·Bash syntax·whitespace PASS, 기존 `ci:all → ci:python-contract-guardrails → test:runtime-config` 연결 유지, package/lock 변경0이다. Source freeze와 상세 근거는 private `native-shutdown-source-freeze.json`, `APP_CONTRACTS_CHECKS.md`가 소유한다.
+- 기존 immutable CI image `sha256:492d5dd78a96bcdb2a7e9aa255943d870c1bc471147e7bab1872bdf7d27fb907`를 network none/read-only/cap0/NNP/user65534로 실행하여 native setsid 존재와 `setsid --wait` exit27 전달을 PASS 확인했다. 이미지·의존성 재빌드는 하지 않았다. 이 결과는 제품 lifecycle·Docker cutover 검사와 구분한다.
+- 별도 Workbench build는 clean source37ef/treeba724에서16.757초 PASS다. 실제 digest `sha256:2ae5a15bd2adb347f46895d2df32f9b36369d2e691104e9eb6f1967fdaab6b0e`, packaged source414 files·schema0008·native pins/고정 CLI를 확인했다. Runtime/SQLite migration/links/서비스 변경0이며 새 종료 후보 SHA로 산출물의 원 source를 재표기하지 않는다. 합법적 기존 dev owner 로그인·admission의 readonly preflight만 통과했다. 실제 공개 UI script는 syntax만 PASS, 로그인·Task·모델 실행0이며 실제 서비스 반영 후 한 번 실행한다.
+
+Dev/prod의 현재 서비스는 이전 전달 버전이다. 옛 Bash의 loaded cleanup과 systemd cgroup 전체 신호 정책을 새 소스로 갱신했다고 주장하지 않는다. 기존 publisher-active drain preflight는 실제 cutover 증거가 아니며 새 publisher-off native drain이 필요하다. 임의 nonzero Nx/Beat failure와 host crash의 warm 완료는 보장한다고 주장하지 않는다. Latest required review·full CI·fresh backup·실제 개발/운영 및 별도 Workbench 반영·대표 public HTTP/WS 인수는 여전히 남아 있다.
+
 ## 2026-10-10 필수 구조 통합 검사
 
 재개 후 하나의 후보에서 영역별 영향 검사를 분담했다. 전체 API·Workbench·웹 suite는 필수 CI가 소유하며 로컬에서 같은 전체 검사를 먼저 반복하지 않았다. 아래는 현재 로컬 결과이며 리뷰·CI·배포 완료 증거가 아니다.

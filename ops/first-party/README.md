@@ -101,6 +101,17 @@ consumer holds rather than treating missing inspect replies as an empty broker. 
 API-only/web-only flags retain their narrower startup scope. Generated API owner
 JSON controls both Vite proxies in first-party mode; the default mode continues
 to use the legacy API.
+Worker shutdown identifies the native Python Main by owner UID, exact worker
+checkout cwd/interpreter/argv and parent relationships. It excludes shell/uv
+wrappers and matching prefork descendants even without process-title support;
+unavailable or ambiguous identity holds rather than signaling guessed PIDs.
+Normal stop and same-namespace restart warm-TERM only consumer Mains and wait
+for completion before API, UI and Beat cleanup. The launcher requires native
+`setsid --wait` to isolate Nx from terminal signals while Bash handles shutdown;
+managed execution must use Main-only signals and preserve the complete native
+warm grace (`KillMode=process`, `SendSIGKILL=no`). These source changes do not
+update an already running launcher's loaded cleanup code. Namespace changes
+retain publisher-off fresh native drain before retiring the old consumers.
 
 WebSocket upgrade forwarding and disabled response buffering use the
 [NGINX WebSocket](https://nginx.org/en/docs/http/websocket.html) and
