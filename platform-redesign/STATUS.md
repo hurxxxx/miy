@@ -8,7 +8,7 @@
 
 공식 API/worker, 개인 앱 승격 계약, Workbench의 격리 SDK 실행 후보를 통합·리뷰·병합했다. 영향 검사·실제 격리 실행·공통 gateway/배포 도구와 대표 브라우저 검사를 마쳤다. 최신 full CI·후속 fixture 리뷰·새 플랫폼/Workbench 배포와 실제 로그인 인수는 남아 있다. 현재 로컬 결과는 [통합 검사 기록](VALIDATION.md#2026-10-10-필수-구조-통합-검사)이 소유한다.
 
-Source `b4fdccb2`의 필수272/job440은 SUCCESS350.52543초/MERGE_READY다. 내부 merge/dev는 `e3b4082f`, GitHub merge는 `a4610380`이며 reviewed tree `1a1cdf10`와 같다. Release MR105의 full273/job441은32.070656초에 기존 legacy up/복구 fixture가 새 topology 검사의 공개 Docker metadata 조회를 지원하지 않아 실패했다. 제품 보호를 유지하며 해당 adapter만 보완하고 새 리뷰·최신 full CI를 수행한다. 이전271/439의 gateway 설정 의존 실패와270/438의 업로드·테마 회귀는 보존한다. 변경 없는 기존 검사·CI 이미지·Workbench 산출물은 재사용하며 서비스 전환은 아직 없다.
+구조 source `b4fdccb2`의 필수272/job440 SUCCESS 뒤 PR97/MR104를 정상 병합했다. 후속 fixture `efdafe1c`도 필수274/job442 SUCCESS61.998562초/MERGE_READY 뒤 PR98/MR106으로 병합했다. 현재 dev `d7882e65`·GitHub `08c8a3b8`의 tree `25420447`가 같다. Release MR105의 full275/job443은49.182128초에 개발 topology 테스트의 Python 검색 경로 차이로 실패했다(관련69 PASS/2 FAIL/1 SKIP). 제품 런처·전환 보호를 유지하고 fixture만 현재 pinned interpreter 경로를 사용하도록 보완한다. 이전 full273의 Docker metadata adapter 누락과 리뷰271/439·270/438 실패는 보존한다. 새 리뷰·최신 full CI·실제 서비스 전환이 남아 있으며 변경 없는 기존 검사·CI 이미지·Workbench 산출물은 재사용한다.
 
 Workbench 실제 clean37ef 산출물과 기존 owner의 정상 로그인 readonly preflight는 준비됐으며 새 서비스·실제 공개 UI 인수는 아직 수행하지 않았다. 개발 first-party와 운영 local gateway도 아직 미반영이다. 외부 TLS 설정 변경 없이 Core gateway가 기존 공개 포트를 인계하도록 구현했다.
 

@@ -1,5 +1,11 @@
 # GitHub 게시 체크포인트
 
+## 2026-10-10 후속 fixture 병합과 최신 full275 보완
+
+[PR98](https://github.com/hurxxxx/miy/pull/98)·[MR106](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/106)은 fixture source `efdafe1c`의 required274/job442 SUCCESS61.998562초 후 정상 병합했다. Dev `d7882e65`·GitHub `08c8a3b8`의 tree25420447가 같으며 소유 원격/로컬 브랜치를 정리했다. Protected dev는 보존한다.
+
+Release MR105의 full275/job443은49.182128초에 CI Python 경로를 빠뜨린 개발 topology fixture2개로 실패했다. Harness·storage/git diff를 통과했으며 해당 fixture만 pinned interpreter를 찾도록 보완한다. 새 리뷰·최신 full과 실제 개발/운영·별도 Workbench 배포/공개 인수는 남아 있다. 이전273/441 실패와 제품 code/게이트 보존은 아래 이력으로 유지한다.
+
 ## 2026-10-10 구조 후보 정상 병합, 최신 운영 릴리스 대기
 
 [GitHub PR97](https://github.com/hurxxxx/miy/pull/97)·[내부 MR104](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/104)는 source `b4fdccb2`의 required272/job440 SUCCESS350.52543초/MERGE_READY 뒤 정상 병합했다. Dev `e3b4082f`·GitHub `a4610380`과 reviewed source의 tree `1a1cdf10`가 같다. 소유 작업 브랜치만 원격 두 곳·로컬에서 정리했고 protected dev/main을 유지했다.
