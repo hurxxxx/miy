@@ -96,6 +96,7 @@ export function expectedGitlabPipelineConfig() {
       environment: { name: 'ci-validation', action: 'access' },
       variables: {
         GIT_DEPTH: '0',
+        GIT_STRATEGY: 'clone',
         NODE_OPTIONS: '--max-old-space-size=3072',
         MIY_API_PYTEST_WORKERS: '2',
         VITEST_MAX_WORKERS: '1',
@@ -116,16 +117,17 @@ export function expectedGitlabPipelineConfig() {
         MIY_TEST_MINIO_SECRET_KEY: 'miy_ci_minio_job_only',
         MIY_TEST_NON_PRODUCTION_ACK: 'non-production',
         MIY_TEST_OPENSEARCH_URL: 'http://opensearch:9200',
-        MIY_TEST_POSTGRES_TEMPLATE_DSN:
-          '$MIY_CI_POSTGRES_DSN',
+        MIY_TEST_POSTGRES_TEMPLATE_DSN: '$MIY_CI_POSTGRES_DSN',
         MIY_TEST_REDIS_URL: 'redis://redis:6379/0',
         MIY_WORKER_BROKER_URL: 'memory://',
         MIY_WORKER_QUEUE_GROUP: 'default',
         MIY_WORKER_RESULT_BACKEND: 'cache+memory://',
       },
       rules: [{ if: RELEASE_MR_RULE }],
+      hooks: { pre_get_sources_script: ['umask 022'] },
       before_script: [],
       script: [
+        'umask 022',
         'bash scripts/ci/prepare-validation-runtime.sh --postgres',
         'source scripts/ci/normalize-validation-postgres-dsn.sh',
         'cp .env.example .env',

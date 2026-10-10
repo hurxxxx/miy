@@ -481,6 +481,8 @@ unset ci_postgres_dsn
 변수가 보이지 않는다고 보호를 해제하거나 관리자 토큰을 대신 넣지 않는다.
 `CI_JOB_TOKEN` 등 GitLab이 공급하는 기본 변수를 수동으로 재정의하지 않는다.
 
+릴리스 검증 job의 새 checkout과 생성 파일 권한은 저장소에 정의된 [CI 준비·권한 계약](docs/domains/release/README.md#build-and-test-storage)을 따른다.
+
 저장소 루트에서 CI 설정을 검사하고 파이프라인 목록을 확인한다.
 
 ```bash
