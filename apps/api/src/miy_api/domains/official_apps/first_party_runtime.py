@@ -12,8 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from miy_api.api_composition import ApiComposition, require_composition
 from miy_api.core.db import get_session_factory
 from miy_api.domains.auth.models import AuthSession, User
-from miy_api.domains.docs.collab import DOCS_WRITER_IDENTITY
-from miy_api.domains.official_apps.writer import require_active_writer
+from miy_api.domains.official_apps.writer import LEGACY_WRITER_IDENTITY, require_active_writer
 from miy_api.domains.official_apps.writer_roles import WriterControlError, _source_guard
 
 
@@ -34,7 +33,7 @@ def require_first_party_database(*, composition: ApiComposition) -> None:
                 # Existing Docs persistence and every source trigger retain this
                 # fixed legacy identity. A different/draining owner cannot be
                 # adopted at startup or recovered through a role fallback.
-                require_active_writer(db, DOCS_WRITER_IDENTITY)
+                require_active_writer(db, LEGACY_WRITER_IDENTITY)
                 _source_guard(db)
     except (HTTPException, SQLAlchemyError, WriterControlError):
         raise RuntimeError("first_party_database_not_compatible") from None

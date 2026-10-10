@@ -24,6 +24,12 @@ Native source freeze는62 public files/1,010,837bytes이고 controller 실행은
 
 현재 근거는 `.runtime/structural-integration-20261010/`의 담당 검사 기록·logs와 `sdk-normal-controller/normal-controller-public-receipt.json`, `outer-lifecycle.json`, `post-cleanup-observation.json`에 보존한다. API architecture790 files/3,592 dependencies의2계약도 통과했다. 새 필수 리뷰/CI·각 서비스 실제 배포는 별도 결과가 도착한 후 갱신한다.
 
+필수 리뷰 pipeline266/job434는 후보 `515511ef`에서 `MERGE_BLOCKED`로 실패했다. 실제 Worker lock 환경에 없는 협업 라이브러리의 간접 import, 공통 소비자가 있는 파일의 official-only 분류, 실제 worker inventory 상수 참조의 AST 파싱 실패를 지적했다. 운영 구조에 필요한 수정이므로 해당 경계만 보완·재검증하고 새 후보의 필수 리뷰를 다시 받는다. 앞선 로컬 검사 통과로 이 실패를 대체하거나 전체 검사를 로컬에서 반복하지 않는다. GitHub PR97·내부 MR104는 열린 상태이며 새 플랫폼/Workbench 배포는 아직 수행하지 않았다.
+
+리뷰 수정에서는 fixed legacy generation1 identity를 경량 공통 writer로 옮기고 Docs의 기존 이름은 같은 객체 alias로 유지했다. 실제 Worker interpreter에서 platform/official/Beat fresh import와 소유 큐 검사4개를 통과했다. 첫 Beat 기대 큐 fixture 실패는 수정 후 해당 사례만 재검증했으며 DB/AI preflight는 test double, broker는 memory로 한정했다. Slice는 실제 inventory에서 module/owner literal만 읽고 양쪽 reviewed tree의 공통 import 도달성을 확인한다. 실제 HEAD→HEAD·공유 auth/RAG 파일 거부·정상 공식 handler 허용·상대/동적 import와 소유 분기 경계의17개 검사를 통과했다. 전체 CI는 이 수정까지 포함한 새 후보가 소유한다.
+
+CI image는 변경된 Node 계약 입력에 맞춰 한 번 준비·검증했다. immutable ID `sha256:492d5dd78a96bcdb2a7e9aa255943d870c1bc471147e7bab1872bdf7d27fb907`, contract `fe23a9df72b80663a856cfe39b5e14a2ba279f59c0b698d8123f7c4a436af444`, 동일 PostgreSQL18 base digest를 기록했다. 기존 실제 Docker 검사에 사용한 `eefe09d5…`도 별도 baseline tag로 보존했다. 이는 CI 실행 환경 준비이며 새 제품 이미지나 배포 증거가 아니다. 개발 live consumer의 소유 drain preflight는20.815초에 HOLD였으며 API/Beat를 정지하지 않았고 빈 작업·namespace 인수를 증명하지 않는다.
+
 ## 2026-10-10 검증 일괄 수행 원칙
 
 **이번 검증은 [필수 구조 범위](PLAN.md#이번-범위)에만 적용한다.** [후속 고도화](FOLLOW_UP_ENHANCEMENTS.md)의 고급 UX/모니터링·부하 측정·표현별 반복/벤치마크·저장 프로토콜 확장은 실행 대상과 완료 의존성에서 제외한다. 아래 F/A 목록과 날짜별 이력은 전체 목표·과거 근거이며 모든 항목을 이번에 수행할 체크리스트가 아니다. 실제 권한·데이터 결함과 채택한 실행 경로의 필수 검사는 유지한다.

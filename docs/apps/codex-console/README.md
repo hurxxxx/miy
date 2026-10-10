@@ -1456,9 +1456,9 @@ systemctl --user stop codex-console
 개발 서버의 `./dev.sh`와 콘솔은 서로 제어하지 않는다. 일반 UI/session 업데이트는 검증한
 새 릴리스로 `current`만 전환한다. `template-current`와 그 CLI 설치 경로는 유지한다.
 템플릿 실행기 업데이트는 그 실행기의 모든 root/하위 작업이 끝난 뒤 별도로 검증·전환한다.
-현재 SQLite 스키마는 `console_sqlite_0007`이다. `0007`은 agent의 nullable 관측 JSON만
-추가하고 기존 작업·실행 결과·소스 준비 기록을 보존한다. 이전 row의 현재 native 상태를
-추정해 채우지 않는다. 스키마 변경이 필요한 배포는 세 역할의
+현재 SQLite 스키마는 `console_sqlite_0008`이다. `0007`의 agent nullable 관측 JSON과
+`0008`의 앱 등록 intent를 포함하며 기존 작업·실행 결과·소스 준비 기록을 보존한다.
+이전 row의 현재 native 상태를 추정해 채우지 않는다. 스키마 변경이 필요한 배포는 세 역할의
 작업을 모두 종료하고 백업·세 서비스 중지·migration을 수행한다. 이때 `current`와
 `template-current` 모두 새 스키마를 지원하는 검증된 릴리스로 전환하며, 템플릿용 고정 CLI는
 별도 변경이 없는 한 유지한다. 실행 중인 자기 업데이트에서

@@ -1,10 +1,11 @@
 import importlib.util
+import subprocess
+import sys
+import unittest
 from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
-import unittest
 from unittest.mock import patch
-
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -209,6 +210,118 @@ class OfficialSliceTests(unittest.TestCase):
         ):
             with self.subTest(name=name), self.assertRaises(ValueError):
                 slice_contract.assert_owned([name], domains, tasks)
+
+
+class ActualOfficialSliceTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.revision = subprocess.check_output(
+            ["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True
+        ).strip()
+        cls.sources = slice_contract.python_sources(ROOT, cls.revision)
+        cls.owners = slice_contract.owned_paths(
+            *(
+                cls.sources[name]
+                for name in (
+                    "apps/api/src/miy_api/official_api_registry.py",
+                    "apps/api/src/miy_api/platform_api_registry.py",
+                    "apps/api/src/miy_api/core/worker_queue_contract.py",
+                )
+            )
+        )
+        cls.shared = slice_contract.shared_consumers(cls.sources, *cls.owners)
+
+    def test_real_task_inventory_and_same_revision_slice(self):
+        self.assertIn(
+            "AI_GRAPH_RUN_TASK_NAME",
+            self.sources["apps/api/src/miy_api/core/worker_queue_contract.py"],
+        )
+        self.assertIn("apps/worker/src/miy_worker/tasks/mail.py", self.owners[1])
+        with patch.object(
+            sys, "argv", ["slice", str(ROOT), self.revision, self.revision]
+        ):
+            slice_contract.main()
+
+    def test_actual_shared_auth_and_rag_dependencies_require_full_release(self):
+        for name in (
+            "apps/api/src/miy_api/domains/pms/roles.py",
+            "apps/api/src/miy_api/domains/files/core_projection.py",
+        ):
+            with self.subTest(name=name):
+                self.assertIn(name, self.shared)
+                with self.assertRaisesRegex(ValueError, "shared_consumer"):
+                    slice_contract.assert_owned([name], *self.owners, self.shared)
+
+    def test_actual_official_handler_can_use_the_slice(self):
+        name = "apps/api/src/miy_api/domains/pms/router.py"
+        self.assertNotIn(name, self.shared)
+        slice_contract.assert_owned([name], *self.owners, self.shared)
+
+
+class SharedConsumerProjectionTests(unittest.TestCase):
+    domains = frozenset({"apps/api/src/miy_api/domains/files/"})
+    helper = "apps/api/src/miy_api/domains/files/helper.py"
+
+    def test_relative_transitive_dependency_is_shared(self):
+        sources = {
+            "apps/api/src/miy_api/core/entry.py": "from ..domains.files import bridge",
+            "apps/api/src/miy_api/domains/files/bridge.py": "from . import helper",
+            self.helper: "VALUE = 1",
+        }
+        self.assertIn(
+            self.helper, slice_contract.shared_consumers(sources, self.domains, set())
+        )
+
+    def test_constant_dynamic_import_is_shared_but_unknown_target_holds(self):
+        for call in (
+            'load("miy_api.domains.files.helper")',
+            'lib.import_module("miy_api.domains.files.helper")',
+        ):
+            sources = {
+                "apps/api/src/miy_api/core/entry.py": "from importlib import import_module as load\nimport importlib as lib\n"
+                + call,
+                self.helper: "VALUE = 1",
+            }
+            self.assertIn(
+                self.helper,
+                slice_contract.shared_consumers(sources, self.domains, set()),
+            )
+        sources["apps/api/src/miy_api/core/entry.py"] = (
+            "from importlib import import_module as load\nload(runtime_module)"
+        )
+        with self.assertRaisesRegex(ValueError, "unresolved_dynamic_module_owner"):
+            slice_contract.shared_consumers(sources, self.domains, set())
+
+    def test_ambiguous_relative_import_holds(self):
+        sources = {
+            "apps/api/src/miy_api/core/entry.py": "from ....unknown import helper",
+            self.helper: "VALUE = 1",
+        }
+        with self.assertRaisesRegex(ValueError, "unresolved_relative_module_owner"):
+            slice_contract.shared_consumers(sources, self.domains, set())
+
+    def test_unconditional_official_registry_import_is_not_an_owner_boundary(self):
+        sources = {
+            "apps/api/src/miy_api/api_registry.py": "from miy_api.official_api_registry import official_router_specs",
+            "apps/api/src/miy_api/official_api_registry.py": "from miy_api.domains.files import helper",
+            self.helper: "VALUE = 1",
+        }
+        with self.assertRaisesRegex(ValueError, "unresolved_router_composition_owner"):
+            slice_contract.shared_consumers(sources, self.domains, set())
+
+    def test_task_name_expressions_are_not_executed(self):
+        source = 'raise RuntimeError("must not execute source")\nWORKER_TASK_MODULES: dict = {"miy_worker.tasks.mail": ("official", dangerous())}'
+        self.assertEqual(
+            slice_contract.worker_owners(source),
+            {"apps/worker/src/miy_worker/tasks/mail.py"},
+        )
+        for source in (
+            'WORKER_TASK_MODULES: dict = {module_name: ("official", ())}',
+            'WORKER_TASK_MODULES: dict = {"miy_worker.tasks.mail": (owner, ())}',
+            'WORKER_TASK_MODULES: dict = {"miy_worker.tasks.mail": ("official", ()), "miy_worker.tasks.mail": ("platform", ())}',
+        ):
+            with self.subTest(source=source), self.assertRaises(ValueError):
+                slice_contract.worker_owners(source)
 
 
 if __name__ == "__main__":

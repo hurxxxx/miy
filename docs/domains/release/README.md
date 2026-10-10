@@ -276,7 +276,17 @@ semantics are introduced. Failed observation leaves operator recovery explicit.
 without rebuilding/recreating platform, Beat or gateway. It is accepted only from a
 healthy, fully attested first-party runtime, with an unchanged environment and
 shared source. The slice checker derives official handler/task ownership from
-the existing router/task inventories. Shared contracts, storage models,
+the existing router/task inventories and reads only literal module keys and
+owner labels, without executing source or evaluating task-name expressions.
+It projects Python imports in both reviewed source trees from platform/common
+code and platform worker roots, including transitive imports and real package
+initializers. An official-domain file also consumed by platform authority, RAG
+or another common module requires a full release. Relative imports must resolve
+exactly; registered AI capability modules use the existing app registration
+inventory, while other unresolved dynamic imports hold the slice. Router
+composition and worker profile loaders retain their existing explicit inventory
+boundaries; this source check does not relax the immutable gateway route check.
+Shared contracts, storage models,
 migrations, locks, ownership or deployment definitions require a full release.
 Both official artifacts have the same reviewed release identity and must match
 the retained platform web compatibility value and exact native API owner
