@@ -59,6 +59,7 @@ release_validation:
     action: access
   variables:
     GIT_DEPTH: '0'
+    GIT_STRATEGY: clone
     NODE_OPTIONS: '--max-old-space-size=3072'
     MIY_API_PYTEST_WORKERS: '2'
     VITEST_MAX_WORKERS: '1'
@@ -86,8 +87,12 @@ release_validation:
     MIY_WORKER_RESULT_BACKEND: cache+memory://
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == "dev" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main" && $CI_MERGE_REQUEST_SOURCE_PROJECT_ID == $CI_PROJECT_ID'
+  hooks:
+    pre_get_sources_script:
+      - umask 022
   before_script: []
   script:
+    - umask 022
     - bash scripts/ci/prepare-validation-runtime.sh --postgres
     - source scripts/ci/normalize-validation-postgres-dsn.sh
     - cp .env.example .env

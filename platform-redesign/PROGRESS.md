@@ -1,5 +1,17 @@
 # 재설계 진행 기록
 
+## 2026-10-10 웹 소유 경계 병합과 Workbench CI 권한 준비
+
+Source `13d6711a`의 required284/job452는 SUCCESS63.086425초/MERGE_READY다. [GitHub PR103](https://github.com/hurxxxx/miy/pull/103)·[내부 MR111](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/111)을 정상 병합하고 소유 원격·로컬 feature/snapshot을 정리했다. Dev `4c8b5190`·GitHub `f6363323`의 tree `8dd50b3e`가 같다.
+
+Full285/job453은 FAILED4750.924746초다. API fast6572 PASS/5 SKIP/0 FAIL(3421.90초), slow16 PASS(83.65초)·migration37 PASS(64.45초)·external15 PASS(41.17초), 웹 단위928 PASS와 웹 build/browser chain 완료를 확인했다. Workbench backend78 FAIL/1082 PASS(359.27초)로 중단했고 이후 Workbench frontend build/E2E는 성공 근거가 없다. 앞선 scoped Workbench426 PASS를 full1160 성공으로 해석하지 않는다.
+
+두 에이전트가 엄격한 native pin·SDK 공개 소스의 권한 경계를 검토했다. GitLab native clone·checkout 전 hook와 main script의 `umask 022`로 최소 보완하며 global Runner 변경·권한 정상화 helper·제품 gate 완화는 추가하지 않는다. 기존 cached0666/0777에는 umask가 소급 적용되지 않아 fresh clone이 필요하다. 검증 이미지492d/contractfe23와 그 의존성 입력은 유지한다. 실제 실패 job의 파일 metadata는 관측하지 못했으며 격리 재현은 새 full 성공과 구분한다.
+
+Root가 pinned CI492d·Python3.12.14/SQLite3.53.1·frozen Console dependency·network-none·cap0/NNP에서 실패한6파일을 묶어 재현했다. 같은 공개 입력 bytes의0666/0777 조건은78 FAIL/229 PASS(1.22초), 정상0644/0755 조건은307 PASS(1.75초)다. 임시 fixture 실행에는 exec tmpfs를 사용했고 실제 DB/서비스·모델·auth 실행은 없다. 처음 두 준비의 잘못된 interpreter/creation mask와 noexec tmpfs 결과를 보존하며 성공으로 합산하지 않는다. 실제 실패 job metadata 미관측 한계는 유지한다.
+
+새 required review·정상 integration·최신 full 성공 전에는 release MR105와 운영/Workbench cutover를 HOLD한다. 실제 운영9cbf/image389d·Workbench0c1은 유지하고 사용자 요청 범위 밖인 앱별 상세 기능과 고도화를 진행하지 않는다.
+
 ## 2026-10-10 API fixture 정상 병합과 웹 lint 최소 보완
 
 API fixture source `dcdf1d5f`의 required282/job450은 SUCCESS54.711084초/MERGE_READY다. [GitHub PR102](https://github.com/hurxxxx/miy/pull/102)·[내부 MR110](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/110)을 정상 병합하고 소유 원격/로컬 브랜치를 정리했다. Dev `c47441d5`·GitHub `9f8bddd0`의 tree `d7e4de6f`가 같다.

@@ -1,10 +1,19 @@
 # 현재 진행 상태
 
-**2026-10-10 필수 구조 구현과 서비스 반영을 진행 중이다.** 개발 first-party 전환과 공개 공식 API·인증 WS 연결은 반영했다. API 테스트 입력 보완은 required282/job450 성공 뒤 GitHub PR102·내부 MR110으로 정상 병합했다. 최신 full283/job451에서 API 네 묶음은 모두 통과했지만 웹 구조 fixture 두 파일의 lint 오류3개로 중단됐다. 해당 표현과 분리 전 소유 구조를 기대한 테스트를 보완했고 영향46개·두 UI 빌드·브라우저45개를 확인했다. 운영·Workbench 새 배포는 아직 수행하지 않았다. 고도화·앱별 상세 기능 검증은 계속 보류한다.
+**2026-10-10 필수 구조 구현과 서비스 반영을 진행 중이다.** 개발 first-party 구조는 반영했고 웹 소유 경계 보완을 PR103/MR111로 정상 병합했다. 최신 full285는 API·웹 단계를 통과한 뒤 Workbench backend78 FAIL/1082 PASS로 실패했다. CI의 공개 소스 권한 준비를 GitLab native clone·두 단계 umask022로 보완하며 제품의 엄격한 검사는 유지한다. 운영·Workbench 새 배포는 아직 없고 앱별 상세 기능·고도화는 보류한다.
 
 기록 기준: 2026-10-10 UTC. 작업별 상태는 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다.
 
 ## 최신 전달 상태와 필수 잔여
+
+- 현재 통합 기준은 dev `4c8b5190`, GitHub main `f6363323`, 동일 tree `8dd50b3e`다. Source `13d6711a`의 required284/job452는 SUCCESS63.086425초/MERGE_READY이며 PR103/MR111 정상 병합과 소유 원격·로컬 branch 정리를 완료했다.
+- Full285/job453은 FAILED4750.924746초다. API fast6572 PASS/5 SKIP/0 FAIL·slow16·migration37·external15 PASS, 웹928 PASS 및 두 UI build·browser chain 완료를 확인했다. Workbench backend78 FAIL/1082 PASS이며 이후 Workbench frontend build/E2E는 완료 근거가 없다.
+- CI 공개 입력의 쓰기 권한을 바로잡기 위해 release job에 새 clone, checkout 전 native hook의 `umask 022`, main script 첫 `umask 022`만 적용한다. 검증 이미지·의존성·제품 pin/SDK 권한·required review/full gates는 유지하고 별도 chmod 하네스나 Runner 전역 변경은 추가하지 않는다. 실패 job의 실제 파일 metadata는 관측하지 못했으며 격리 재현과 새 CI 성공을 구분한다.
+- 동일 CI 이미지의 frozen Console 환경에서 공개 소스 권한 문제를78 FAIL/229 PASS로 재현했고 정상 권한 조건의 같은6파일은307 PASS다. 실제 서비스·모델 실행 없이 실패 경계를 확인했으며 새 전체 CI 성공은 별도로 필요하다.
+- 새 후보의 영향 검사를 묶어 확인하고 정상 리뷰·게시/병합·전체 release CI를 진행한다. 이미 통과한 API/웹과 변경 없는 산출물 근거를 로컬에서 반복하지 않는다. 실패한285/283/281과 canceled277은 성공으로 표시하지 않는다.
+- 실제 운영9cbf9c5c/image389d·Workbench0c1bf0fe는 유지한다. 최신 전체 성공 뒤 release merge·fresh backup·운영 세 이미지/여섯 서비스·별도 Workbench 세 역할/두 링크·공개 인수를 진행한다. 기존 HTTPS 앞단은 유지하고 Core local gateway가 기존 공개 포트를 인계한다.
+
+## 이전 전달 상태 — full283 시점
 
 - 현재 통합 기준은 dev `c47441d5`, GitHub main `9f8bddd0`, 동일 tree `d7e4de6f`다. API fixture source `dcdf1d5f`의 required282/job450은 SUCCESS54.711084초/MERGE_READY이며 PR102/MR110을 정상 병합하고 소유 원격/로컬 feature·snapshot 브랜치를 정리했다. Protected dev/main은 보존한다.
 - Full283/job451은 FAILED3553.621591초다. API fast6572 PASS/0 FAIL/5 SKIP(3005.47초), slow16·migration37·external15 PASS다. 후속 `web:lint`에서 기존 구조 fixture의 browser global1개·빈 함수2개가 실패했다. 해당 두 파일의 표현을 고쳤으며 제품 동작·assertion·lint 규칙·CI/하네스는 유지한다. 이후 web Vitest·두 UI build·E2E와 Workbench는 이 실행의 성공 근거로 쓰지 않는다.

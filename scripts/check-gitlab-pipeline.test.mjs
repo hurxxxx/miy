@@ -51,6 +51,13 @@ test('contract rejects extra or weakened jobs', () => {
     source.replace('  timeout: 2h\n', ''),
     source.replace('  timeout: 2h\n', '  timeout: 1h\n'),
     source.replace('  timeout: 2h\n', '  timeout: 24h\n'),
+    source.replace(
+      '  hooks:\n    pre_get_sources_script:\n      - umask 022\n',
+      '',
+    ),
+    source.replace('      - umask 022\n', '      - umask 000\n'),
+    source.replace('    GIT_STRATEGY: clone\n', '    GIT_STRATEGY: fetch\n'),
+    source.replace('    - umask 022\n', ''),
     `${source}\nunexpected_check:\n  script: [true]\n`,
     source.replace(
       '  allow_failure: false\n  rules:\n',
@@ -58,13 +65,25 @@ test('contract rejects extra or weakened jobs', () => {
     ),
     source.replace('$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == "dev" && ', ''),
     source.replace('node scripts/release-validation.mjs ci', 'pnpm ci:harness'),
-    source.replace('prepare-validation-runtime.sh --postgres', 'prepare-validation-runtime.sh'),
-    source.replace('source scripts/ci/normalize-validation-postgres-dsn.sh', 'true'),
+    source.replace(
+      'prepare-validation-runtime.sh --postgres',
+      'prepare-validation-runtime.sh',
+    ),
+    source.replace(
+      'source scripts/ci/normalize-validation-postgres-dsn.sh',
+      'true',
+    ),
     source.replace('      - test-results/\n', ''),
     source.replace("    MIY_API_PYTEST_WORKERS: '2'\n", ''),
     source.replace("    NODE_OPTIONS: '--max-old-space-size=3072'\n", ''),
-    source.replace("    VITEST_MAX_WORKERS: '1'", "    VITEST_MAX_WORKERS: '8'"),
-    source.replace("    PLAYWRIGHT_WORKERS: '1'", "    PLAYWRIGHT_WORKERS: '8'"),
+    source.replace(
+      "    VITEST_MAX_WORKERS: '1'",
+      "    VITEST_MAX_WORKERS: '8'",
+    ),
+    source.replace(
+      "    PLAYWRIGHT_WORKERS: '1'",
+      "    PLAYWRIGHT_WORKERS: '8'",
+    ),
     source.replace(
       'node scripts/release-validation.mjs ci',
       'node scripts/release-validation.mjs ci --mode fast',
