@@ -1,5 +1,6 @@
 import { createAuthUser } from '../tests/fixtures/company';
 import { describe, expect, it } from 'vitest';
+import { pmsManifest } from '@miy/official-suite-web/manifests/pms';
 import { resolveShellState } from './app-shell';
 const user = createAuthUser({
   id: 'member',
@@ -27,23 +28,26 @@ describe('company shell admission and navigation', () => {
     ['/apps/docs', 'docs', 'docs-all'],
     ['/apps/docs?view=mine', 'docs', 'docs-my'],
     ['/apps/pms', 'pms', 'pms-inbox'],
-    ['/apps/pms/assigned', 'pms', 'pms-tasks-assigned'],
-    ['/apps/pms/lists/demo', 'pms', 'pms-list-demo'],
+    ['/apps/pms/assigned', 'pms', 'pms-tasks'],
+    ['/apps/pms/lists/demo', 'pms', pmsManifest.defaultActiveNavItemId],
     [
       '/apps/pms/spaces/space-1/docs/doc-1',
       'pms',
-      'pms-space-space-1-docs-doc-1',
+      pmsManifest.defaultActiveNavItemId,
     ],
     ['/apps/retrieval-search', 'retrieval-search', 'retrieval-search'],
     ['/apps/meeting', 'meeting', 'meeting-upcoming'],
     ['/apps/meeting?scope=mine', 'meeting', 'meeting-mine'],
     ['/apps/whiteboard?view=mine', 'whiteboard', 'whiteboard-my'],
-  ])('selects the declared route %s', (path, app, nav) => {
-    expect(resolveShellState(path, user, enabled)).toEqual({
-      activeAppId: app,
-      activeNavItemId: nav,
-    });
-  });
+  ])(
+    'selects the admitted route with manifest navigation %s',
+    (path, app, nav) => {
+      expect(resolveShellState(path, user, enabled)).toEqual({
+        activeAppId: app,
+        activeNavItemId: nav,
+      });
+    },
+  );
   it.each(['/apps/docs', '/apps/docs/shared/token', '/apps/pms/lists/demo'])(
     'denies %s without current admission',
     (path) => {

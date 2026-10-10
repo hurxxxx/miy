@@ -1,15 +1,16 @@
 # 현재 진행 상태
 
-**2026-10-10 필수 구조 구현과 서비스 반영을 진행 중이다.** 개발 first-party 전환과 공개 공식 API·인증 WS 연결은 반영했다. 릴리스 UI 입력 누락 수정은 required280/job448 성공 뒤 GitHub PR101·내부 MR109로 병합했고 소유 브랜치를 정리했다. 최신 full281/job449에서 확인된 테스트 입력 오류 세 건을 최소 범위로 보완 중이다. 운영·Workbench 새 배포는 아직 수행하지 않았다. 고도화·앱별 상세 기능 검증은 계속 보류한다.
+**2026-10-10 필수 구조 구현과 서비스 반영을 진행 중이다.** 개발 first-party 전환과 공개 공식 API·인증 WS 연결은 반영했다. API 테스트 입력 보완은 required282/job450 성공 뒤 GitHub PR102·내부 MR110으로 정상 병합했다. 최신 full283/job451에서 API 네 묶음은 모두 통과했지만 웹 구조 fixture 두 파일의 lint 오류3개로 중단됐다. 해당 표현과 분리 전 소유 구조를 기대한 테스트를 보완했고 영향46개·두 UI 빌드·브라우저45개를 확인했다. 운영·Workbench 새 배포는 아직 수행하지 않았다. 고도화·앱별 상세 기능 검증은 계속 보류한다.
 
 기록 기준: 2026-10-10 UTC. 작업별 상태는 [WORK_ITEMS.md](WORK_ITEMS.md)가 소유한다.
 
 ## 최신 전달 상태와 필수 잔여
 
-- 현재 통합 기준은 dev `0d1523af`, GitHub main `da0e52e4`, 동일 tree `e1f7b6e2`다. UI 입력 수정 source `5c572c66`의 required280/job448은 SUCCESS50.083838초/MERGE_READY이며 PR101/MR109를 정상 병합했다. Full277/job445의 canceled·full279/job447의 실패는 성공 근거로 쓰지 않는다.
-- Full281/job449는 FAILED3187.327992초다. API fast6568 PASS/3 FAIL/5 SKIP이며 slow16·migration37·external15는 통과했다. 이후 전체 단계의 성공은 확인되지 않았다. 두 production Settings fixture가 개발 seed-login 환경을 상속했고, 한 큐 발행 fixture는 실제 Files 함수에 없는 인자를 전달했다. 테스트 두 파일의 입력만 보완하며 제품 설정 검증·native task 인자 검사·큐 소유 계약과 전체 CI를 유지한다.
+- 현재 통합 기준은 dev `c47441d5`, GitHub main `9f8bddd0`, 동일 tree `d7e4de6f`다. API fixture source `dcdf1d5f`의 required282/job450은 SUCCESS54.711084초/MERGE_READY이며 PR102/MR110을 정상 병합하고 소유 원격/로컬 feature·snapshot 브랜치를 정리했다. Protected dev/main은 보존한다.
+- Full283/job451은 FAILED3553.621591초다. API fast6572 PASS/0 FAIL/5 SKIP(3005.47초), slow16·migration37·external15 PASS다. 후속 `web:lint`에서 기존 구조 fixture의 browser global1개·빈 함수2개가 실패했다. 해당 두 파일의 표현을 고쳤으며 제품 동작·assertion·lint 규칙·CI/하네스는 유지한다. 이후 web Vitest·두 UI build·E2E와 Workbench는 이 실행의 성공 근거로 쓰지 않는다.
+- 미실행 웹 단계를 한 묶음으로 확인해 두 UI 빌드와 브라우저45 PASS를 얻었다. 웹 단위검사는922 PASS/6 FAIL로, 포털이 공식 UI·상세 탐색·Bento background를 실행한다고 기대한 세 fixture였다. 기존 공식 양성 검증을 실제 공식 registry에 보존하고 영향46 PASS를 확인했다. 통과한 API/공통 검사·빌드·브라우저·Workbench의 변경 없는 artifact 근거를 재사용하며 새 source의 필수 리뷰·정상 병합·전체 release CI를 진행한다. 실패한 full281/283과 canceled277은 성공으로 해석하지 않는다.
 - 개발 서비스는 06:02UTC에 소유 임시 restart 보류 drop-in만 제거해 `Restart=always`를 복원했다. 서비스 재시작 없이 Main PID가 유지됐으며 정상 Main-only 종료·SIGKILL 금지·warm grace 정책은 보존했다.
-- 수정의 정상 리뷰·병합 뒤 최신 full CI를 통과시키고 Workbench의 세 역할/두 release 링크·fresh SQLite backup·공개 UI 인수, 운영의 정상 release merge·fresh DB backup·세 이미지/여섯 서비스 전환·공개 인수를 완료한다. Workbench 재사용 artifact는 실제 source37ef44ec/digest2ae5a15b 그대로다. 현재 Workbench0c1bf0fe와 운영9cbf9c5c/image389d는 유지한다.
+- 최신 full CI 이후 Workbench의 세 역할/두 release 링크·fresh SQLite backup·공개 UI 인수, 운영의 정상 release merge·fresh DB backup·세 이미지/여섯 서비스 전환·공개 인수를 완료한다. Workbench 재사용 artifact는 실제 source37ef44ec/digest2ae5a15b 그대로다. 현재 Workbench0c1bf0fe와 운영9cbf9c5c/image389d는 유지한다.
 
 ## 구현 후보와 이전 전달 기록
 

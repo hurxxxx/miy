@@ -49,7 +49,7 @@ class SlowUpload {
   open(method: string, path: string) {
     expect([method, path]).toEqual(['POST', '/api/v1/files/upload']);
   }
-  setRequestHeader() {}
+  setRequestHeader = vi.fn();
   send() {
     SlowUpload.requests.push(this);
   }
@@ -67,7 +67,7 @@ class SlowUpload {
 const target = '/apps/home?from=files#content';
 const handoff = { selected: 'synthetic-navigation-state' };
 const nativeWindow = window;
-let removeNavigation = () => {};
+let removeNavigation: () => void = vi.fn();
 let assign: ReturnType<typeof vi.fn>;
 
 function UploadScreen() {

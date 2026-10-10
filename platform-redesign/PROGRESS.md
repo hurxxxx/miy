@@ -1,5 +1,17 @@
 # 재설계 진행 기록
 
+## 2026-10-10 API fixture 정상 병합과 웹 lint 최소 보완
+
+API fixture source `dcdf1d5f`의 required282/job450은 SUCCESS54.711084초/MERGE_READY다. [GitHub PR102](https://github.com/hurxxxx/miy/pull/102)·[내부 MR110](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/110)을 정상 병합하고 소유 원격/로컬 브랜치를 정리했다. Dev `c47441d5`·GitHub `9f8bddd0`의 tree `d7e4de6f`가 같다.
+
+Full283/job451은 FAILED3553.621591초다. API fast6572 PASS/0 FAIL/5 SKIP(3005.47초), slow16·migration37·external15 PASS이며 앞선 API 결함은 해소됐다. 웹 `web:lint`에서 구조 fixture 두 파일의 `innerHeight` browser global1개와 빈 함수2개가 실패했다. 두 에이전트가 원문 trace를 저장·출력하지 않고 공개 path/rule/line만 분류했다. Fixture 표현만 보완하며 제품·assertion·lint 규칙·CI/하네스는 바꾸지 않는다.
+
+후속 web Vitest·web/official build·E2E·Workbench는 이 실행에서 완료되지 않았다. 이미 통과한 검사를 반복하는 대신 아직 실행되지 못한 웹 단계를 한 묶음으로 확인하고 정상 리뷰·병합·새 전체 release CI를 진행한다. 개발은 그대로 유지하며 실제 새 운영/Workbench 전환은 최신 전체 성공 이후다.
+
+격리된 immutable CI492d의 미실행 웹 단계를 한 묶음으로 수행했다(398.932초). Web 단위검사922 PASS/6 FAIL, 포털·공식 독립 build PASS, 실제 synthetic browser45 PASS다. 첫 준비는 scratch 접근 권한으로 검사 시작 전에 실패했고 이를 바로잡은 기록을 보존한다. 실패한 세 파일만 재현해6 FAIL/30 PASS(5.64초)를 확인했다. 포털 descriptor의 manifest 선택·DocumentNavigation과 공식 runtime의 상세 PMS 선택·실제 Community 화면·Bento background 소유를 혼동한 기존 기대였다. 제품 코드를 되돌리지 않고 해당 양성 검증을 실제 officialRegistry에 보존했다.
+
+최종 세 portal fixture와 기존 ownership 검사40 PASS·actual official registry6 PASS를 같은 이미지에서 한 묶음으로 확인했다(10.941초). Lint/format과 독립 최종 리뷰도 통과했다. 이전922 통과·두 빌드·browser45·API·Workbench 근거를 재사용하며 전체 로컬 suite·build·browser·모델 실행을 반복하지 않았다. 수정은 테스트6파일과 진행문서4파일뿐이다. 새 필수 리뷰·정상 게시/병합·전체 release CI와 실제 운영/Workbench 반영은 남아 있다.
+
 ## 2026-10-10 UI 입력 병합과 전체 검증의 테스트 입력 보완
 
 UI archive 수정 source `5c572c66`의 required280/job448은 SUCCESS50.083838초/MERGE_READY다. [GitHub PR101](https://github.com/hurxxxx/miy/pull/101)·내부 MR109를 정상 병합하고 소유 브랜치를 양쪽 원격과 로컬에서 정리했다. Dev `0d1523af`·GitHub `da0e52e4`의 tree `e1f7b6e2`가 같다.
