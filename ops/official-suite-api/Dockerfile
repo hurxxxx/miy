@@ -27,9 +27,9 @@ ARG MIY_BENTO_SERVER_URL
 ARG MIY_PLATFORM_WEB_BUILD_ID=
 RUN test -n "${MIY_BENTO_SERVER_URL}" \
   && MIY_BENTO_SERVER_URL="${MIY_BENTO_SERVER_URL}" \
+    MIY_PLATFORM_WEB_BUILD_ID="${MIY_PLATFORM_WEB_BUILD_ID}" \
     NODE_OPTIONS=--max-old-space-size=3072 \
-    pnpm nx build official-suite --skip-nx-cache \
-  && printf '%s\n' "${MIY_PLATFORM_WEB_BUILD_ID}" > dist/apps/official-suite/.miy-platform-build-id
+    pnpm nx build official-suite --skip-nx-cache
 
 FROM ${PYTHON_IMAGE} AS dependencies
 LABEL io.miy.build-cache="true"

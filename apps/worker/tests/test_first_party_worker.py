@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -5,6 +6,19 @@ import subprocess
 import sys
 
 import pytest
+
+
+def test_deployment_drain_accepts_the_installed_native_empty_queue_error():
+    # Execute the shared transport regression in the locked Worker environment;
+    # the shell harness's system Python may not have Kombu installed.
+    root = Path(__file__).resolve().parents[3]
+    spec = importlib.util.spec_from_file_location(
+        "native_drain_regression", root / "scripts/tests/test_prod_app_first_party.py"
+    )
+    assert spec is not None and spec.loader is not None
+    regression = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(regression)
+    regression.DrainContractTests().test_installed_virtual_passive_empty_queue_uses_native_404_form()
 
 
 @pytest.mark.parametrize(

@@ -1,4 +1,4 @@
-import { i18n } from '@/src/platform/i18n';
+import '@/src/platform/i18n';
 import { installMatomoTracking } from '@/src/platform/analytics/matomo';
 import { installClientBuildGuards } from '@/src/platform/deployment/client-build-guard';
 import { installFirstPartyNavigation } from '@/src/platform/deployment/first-party-navigation';
@@ -13,7 +13,7 @@ import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import OfficialSuiteRoot from './OfficialSuiteRoot';
 import OfficialWidgetRoot from './OfficialWidgetRoot';
-import { readPlatformCompatibilityBuild } from './platform-build';
+import { PLATFORM_COMPATIBILITY_BUILD_ID } from './platform-build';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Official suite root element is missing');
@@ -28,21 +28,14 @@ function ReloadMarkerCleanup() {
   return null;
 }
 
-void readPlatformCompatibilityBuild()
-  .then((buildId) => {
-    installClientBuildGuards(window, { buildId });
-    const Root =
-      window.location.pathname === '/official-suite/widgets'
-        ? OfficialWidgetRoot
-        : OfficialSuiteRoot;
-    createRoot(root).render(
-      <StrictMode>
-        <Root />
-        <ReloadMarkerCleanup />
-      </StrictMode>,
-    );
-  })
-  .catch(() => {
-    root.setAttribute('role', 'alert');
-    root.textContent = i18n.t('common:feedback.routeLoadFailed');
-  });
+installClientBuildGuards(window, { buildId: PLATFORM_COMPATIBILITY_BUILD_ID });
+const Root =
+  window.location.pathname === '/official-suite/widgets'
+    ? OfficialWidgetRoot
+    : OfficialSuiteRoot;
+createRoot(root).render(
+  <StrictMode>
+    <Root />
+    <ReloadMarkerCleanup />
+  </StrictMode>,
+);

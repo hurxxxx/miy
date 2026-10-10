@@ -32,6 +32,7 @@ import {
 import { AppContent } from './shell/AppContent';
 import { DefaultShellRealtimeProvider } from './shell/shell-realtime-provider';
 import { createDefaultHelpRoutes } from './shell/static-route-elements';
+import { FirstPartyDocumentBoundary } from '../platform/deployment/FirstPartyDocumentBoundary';
 
 type RegisteredAppId = Parameters<typeof getAppModuleManifest>[0];
 const helpGuides = OFFICIAL_HELP_GUIDES;
@@ -67,33 +68,37 @@ export default function AppRoot() {
       }}
     >
       <Router>
-        <AppContent
-          adminLandingRoute={staticAdminLandingRoute}
-          adminRedirectRoutes={staticAdminRedirectRoutes}
-          adminSectionRoutes={staticAdminSectionRoutes}
-          appBarItems={APP_BAR_ITEMS}
-          appBarFixedAppIds={APP_BAR_FIXED_APP_IDS}
-          appBarPinnedByDefaultAppIds={APP_BAR_PINNED_BY_DEFAULT_APP_IDS}
-          appGlobalRoutes={APP_GLOBAL_ROUTES}
-          backgroundWorkSources={APP_BACKGROUND_WORK_SOURCES}
-          featureGuideToolIds={APP_FEATURE_GUIDE_TOOL_IDS}
-          getAppModuleManifest={getDefaultAppModuleManifest}
-          getAppSidebarConfig={getAppModuleSidebarConfig}
-          helpGuides={helpGuides}
-          helpRoutes={helpRoutes}
-          launcherGlobalPaths={APP_LAUNCHER_GLOBAL_PATHS}
-          navItems={NAV_ITEMS}
-          notificationIssueAppId={pmsManifest.appBarItem.id}
-          notificationPanel={NotificationPanel}
-          notificationRealtimeEventTypes={NOTIFICATION_REALTIME_EVENT_TYPE_SET}
-          notificationUnreadCountLoader={getUnreadNotificationCount}
-          personalWidgetHost={DefaultShellPersonalWidgetHost}
-          realtimeProvider={DefaultShellRealtimeProvider}
-          resolveShellStateForPath={resolveShellState}
-          shellProviders={APP_SHELL_PROVIDERS}
-          appRoutes={APP_ROUTES}
-          aiToolAppIds={AI_TOOL_APP_IDS}
-        />
+        <FirstPartyDocumentBoundary owner="platform">
+          <AppContent
+            adminLandingRoute={staticAdminLandingRoute}
+            adminRedirectRoutes={staticAdminRedirectRoutes}
+            adminSectionRoutes={staticAdminSectionRoutes}
+            appBarItems={APP_BAR_ITEMS}
+            appBarFixedAppIds={APP_BAR_FIXED_APP_IDS}
+            appBarPinnedByDefaultAppIds={APP_BAR_PINNED_BY_DEFAULT_APP_IDS}
+            appGlobalRoutes={APP_GLOBAL_ROUTES}
+            backgroundWorkSources={APP_BACKGROUND_WORK_SOURCES}
+            featureGuideToolIds={APP_FEATURE_GUIDE_TOOL_IDS}
+            getAppModuleManifest={getDefaultAppModuleManifest}
+            getAppSidebarConfig={getAppModuleSidebarConfig}
+            helpGuides={helpGuides}
+            helpRoutes={helpRoutes}
+            launcherGlobalPaths={APP_LAUNCHER_GLOBAL_PATHS}
+            navItems={NAV_ITEMS}
+            notificationIssueAppId={pmsManifest.appBarItem.id}
+            notificationPanel={NotificationPanel}
+            notificationRealtimeEventTypes={
+              NOTIFICATION_REALTIME_EVENT_TYPE_SET
+            }
+            notificationUnreadCountLoader={getUnreadNotificationCount}
+            personalWidgetHost={DefaultShellPersonalWidgetHost}
+            realtimeProvider={DefaultShellRealtimeProvider}
+            resolveShellStateForPath={resolveShellState}
+            shellProviders={APP_SHELL_PROVIDERS}
+            appRoutes={APP_ROUTES}
+            aiToolAppIds={AI_TOOL_APP_IDS}
+          />
+        </FirstPartyDocumentBoundary>
       </Router>
     </FeedbackProvider>
   );

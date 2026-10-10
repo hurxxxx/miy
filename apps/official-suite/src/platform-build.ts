@@ -1,25 +1,5 @@
-/** This value is fixed in the reviewed official artifact, never discovered from core. */
-export async function readPlatformCompatibilityBuild(
-  fetcher: typeof fetch = fetch,
-): Promise<string> {
-  const response = await fetcher('/official-suite/platform-build.json', {
-    cache: 'no-store',
-    credentials: 'same-origin',
-    signal: AbortSignal.timeout(5000),
-  });
-  if (!response.ok)
-    throw new Error('official_platform_compatibility_unavailable');
-  const metadata: unknown = await response.json();
-  if (
-    !metadata ||
-    typeof metadata !== 'object' ||
-    !('platform_build_id' in metadata)
-  )
-    throw new Error('official_platform_compatibility_invalid');
-  const value = metadata.platform_build_id;
-  if (value === null) return '';
-  if (typeof value !== 'string' || !/^[A-Za-z0-9._-]{1,128}$/.test(value)) {
-    throw new Error('official_platform_compatibility_invalid');
-  }
-  return value;
-}
+// Replaced by the official Vite build from its reviewed platform pairing input.
+// A running server's mutable metadata must never give old JavaScript a new ID.
+declare const __MIY_OFFICIAL_PLATFORM_BUILD_ID__: string;
+export const PLATFORM_COMPATIBILITY_BUILD_ID =
+  __MIY_OFFICIAL_PLATFORM_BUILD_ID__;

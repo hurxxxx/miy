@@ -30,6 +30,10 @@ Native source freeze는62 public files/1,010,837bytes이고 controller 실행은
 
 CI image는 변경된 Node 계약 입력에 맞춰 한 번 준비·검증했다. immutable ID `sha256:492d5dd78a96bcdb2a7e9aa255943d870c1bc471147e7bab1872bdf7d27fb907`, contract `fe23a9df72b80663a856cfe39b5e14a2ba279f59c0b698d8123f7c4a436af444`, 동일 PostgreSQL18 base digest를 기록했다. 기존 실제 Docker 검사에 사용한 `eefe09d5…`도 별도 baseline tag로 보존했다. 이는 CI 실행 환경 준비이며 새 제품 이미지나 배포 증거가 아니다. 개발 live consumer의 소유 drain preflight는20.815초에 HOLD였으며 API/Beat를 정지하지 않았고 빈 작업·namespace 인수를 증명하지 않는다.
 
+후속 필수 리뷰 pipeline267/job435는 수정 후보 `848f4af1`에서 `MERGE_BLOCKED`로 실패했다. 링크 클릭 외 프로그램 이동이 공식 문서 안에서 공통 앱을 열지 못하는 경계와, 이전 JavaScript가 새 서버 metadata의 build ID를 받아 stale 차단을 통과하는 경계를 지적했다. 양쪽 BrowserRouter에 공통 문서 경계를 두어 push/replace/back의 현재 URL을 reload하고 기존 native history의 `usr`·초안·query/hash를 유지한다. 공식 Vite의 같은 입력에서 compiled constant와 metadata 파일을 함께 생성하며 브라우저는 서버 metadata를 조회해 자기 ID를 갱신하지 않는다. 독립·legacy Docker build 모두 실제 Core pairing 입력을 build 전에 공급한다. 직접 영향10개 검사·두 typecheck와 Core18.67초/Official31.76초 build를 통과했다. 실제 tiny Vite bundle은 nonempty old/new ID가 교차해도 HTTP/WS 요청이 old ID를 유지함을 확인했다. 로컬 실제 두 UI build는 명시 empty/null pairing이며 nonempty 운영 build 인수로 확대하지 않는다.
+
+개발 broker의 초기 HOLD는 설치된 Kombu5.6.2 virtual transport가 빈 Redis queue의 passive declare에서 정수404가 아닌 문자열 `"404"`를 반환한 것이었다. native ChannelError의 정확 int/string404만 Redis에서 허용하도록 보완했고 다른 코드·형식·transport 거부를 유지했다. 실제 Worker interpreter의 native transport·거부 경계2개와 동일 회귀를 표준 Worker CI에 연결한1개 검사를 통과했다. 수정 후 정확한 live 소비자·소유 queue·active/reserved/scheduled·pending 및 native unacked를 두 차례 조회한 개발 preflight는43.409초에 PASS였다. API/Beat는 계속 실행 중이므로 namespace 전환 증거는 아니다. 전환 시에는 발행자를 정지하고 fresh drain을 수행한다. 이 수정과 UI 두 경계를 한 후보로 모아 새 필수 리뷰를 받으며, 앞선 실패와 로컬 통과로 리뷰·전체 CI·새 서비스 배포를 대체하지 않는다.
+
 ## 2026-10-10 검증 일괄 수행 원칙
 
 **이번 검증은 [필수 구조 범위](PLAN.md#이번-범위)에만 적용한다.** [후속 고도화](FOLLOW_UP_ENHANCEMENTS.md)의 고급 UX/모니터링·부하 측정·표현별 반복/벤치마크·저장 프로토콜 확장은 실행 대상과 완료 의존성에서 제외한다. 아래 F/A 목록과 날짜별 이력은 전체 목표·과거 근거이며 모든 항목을 이번에 수행할 체크리스트가 아니다. 실제 권한·데이터 결함과 채택한 실행 경로의 필수 검사는 유지한다.

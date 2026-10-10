@@ -62,10 +62,11 @@ The official UI owns the existing generated `/apps/<official-id>` route bases,
 `/official-suite/assets`, `/official-suite/widgets` and its fixed service-worker
 and help assets. The public `/official-suite/healthz` and `/official-suite/readyz`
 paths proxy the official process health directly. The read-only
-`/official-suite/platform-build.json` reports the platform UI build ID fixed in
-that artifact. Official releases must match the actual platform ID; the client
-retains the existing stale-write and realtime guards. It never follows a new
-platform ID automatically.
+`/official-suite/platform-build.json` reports artifact metadata for operations.
+The same build input fixes the compatible platform ID in the official JavaScript
+and its metadata file; browser startup uses the compiled value. Official releases
+must match the actual platform ID, and old JavaScript retains its old identity
+when server metadata changes. Existing stale-write and realtime guards remain.
 
 The common realtime route stays with the platform; Docs and Whiteboard
 WebSockets route to the official process. Authentication cookies and request

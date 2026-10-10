@@ -164,10 +164,17 @@ class DrainContractTests(unittest.TestCase):
             "sys.modules",
             {"kombu.exceptions": SimpleNamespace(ChannelError=ChannelError)},
         ):
-            app, expected, _ = self.fixture(queue_error=ChannelError(404))
-            self.assertTrue(drain.assert_empty(app, expected))
+            for code in (404, "404"):
+                app, expected, _ = self.fixture(queue_error=ChannelError(code))
+                self.assertTrue(drain.assert_empty(app, expected))
             for error, transport in (
                 (ChannelError(404), "amqp"),
+                (ChannelError("404"), "amqp"),
+                (ChannelError(404.0), "redis"),
+                (ChannelError(" 404"), "redis"),
+                (ChannelError("404 "), "redis"),
+                (ChannelError("0404"), "redis"),
+                (ChannelError(True), "redis"),
                 (ChannelError(500), "redis"),
                 (OSError(), "redis"),
             ):
@@ -177,6 +184,27 @@ class DrainContractTests(unittest.TestCase):
                     )
                     with self.assertRaises(drain.DrainUnavailable):
                         drain.assert_empty(app, expected)
+
+    def test_installed_virtual_passive_empty_queue_uses_native_404_form(self):
+        try:
+            from kombu.exceptions import ChannelError
+            from kombu.transport.virtual import Channel
+        except ImportError:
+            self.skipTest(
+                "Native transport regression requires the worker dependency environment"
+            )
+        native_channel = SimpleNamespace(
+            _has_queue=lambda *_args, **_kwargs: False,
+            connection=SimpleNamespace(
+                client=SimpleNamespace(virtual_host="/synthetic")
+            ),
+        )
+        with self.assertRaises(ChannelError) as observed:
+            Channel.queue_declare(native_channel, queue="synthetic-owned", passive=True)
+        self.assertIs(type(observed.exception.reply_code), str)
+        self.assertEqual(observed.exception.reply_code, "404")
+        app, expected, _ = self.fixture(queue_error=observed.exception)
+        self.assertTrue(drain.assert_empty(app, expected))
 
 
 class OfficialSliceTests(unittest.TestCase):

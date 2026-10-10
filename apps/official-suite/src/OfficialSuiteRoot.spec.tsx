@@ -5,7 +5,7 @@ import {
   AppContent,
   DefaultShellRealtimeProvider,
 } from '@miy/web-official-suite-bridge';
-import { expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import OfficialSuiteRoot from './OfficialSuiteRoot';
 
@@ -13,6 +13,9 @@ vi.mock('@miy/web-official-suite-bridge', async (original) => ({
   ...(await original<typeof import('@miy/web-official-suite-bridge')>()),
   AppContent: vi.fn(() => null),
 }));
+
+beforeEach(() => window.history.replaceState(null, '', '/apps/pms'));
+afterEach(() => window.history.replaceState(null, '', '/'));
 
 it('selects PMS help explicitly for both suite shell routes and the help modal', () => {
   render(<OfficialSuiteRoot />);

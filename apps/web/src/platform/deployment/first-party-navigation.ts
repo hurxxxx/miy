@@ -14,6 +14,11 @@ export function firstPartyUiOwner(path: string): FirstPartyUiOwner {
     : 'platform';
 }
 
+/** Reload the router's current entry without replacing its usr/state payload. */
+export function reloadFirstPartyDocument(): void {
+  window.location.reload();
+}
+
 /** App boundaries are document navigations, preserving query/hash and browser history. */
 export function installFirstPartyNavigation(
   owner: FirstPartyUiOwner,

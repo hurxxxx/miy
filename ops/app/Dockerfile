@@ -26,14 +26,15 @@ RUN test -n "${MIY_BENTO_SERVER_URL}" \
   && MIY_BENTO_SERVER_URL="${MIY_BENTO_SERVER_URL}" \
     NODE_OPTIONS=--max-old-space-size=3072 \
     pnpm nx build web --skip-nx-cache
-RUN MIY_BENTO_SERVER_URL="${MIY_BENTO_SERVER_URL}" \
+RUN if test -f dist/apps/web/.miy-build-id; then \
+      platform_web_build_id="$(cat dist/apps/web/.miy-build-id)"; \
+    else \
+      platform_web_build_id=; \
+    fi \
+  && MIY_BENTO_SERVER_URL="${MIY_BENTO_SERVER_URL}" \
+    MIY_PLATFORM_WEB_BUILD_ID="${platform_web_build_id}" \
     NODE_OPTIONS=--max-old-space-size=3072 \
-    pnpm nx build official-suite --skip-nx-cache \
-  && if test -f dist/apps/web/.miy-build-id; then \
-       cp dist/apps/web/.miy-build-id dist/apps/official-suite/.miy-platform-build-id; \
-     else \
-       printf '\n' > dist/apps/official-suite/.miy-platform-build-id; \
-     fi
+    pnpm nx build official-suite --skip-nx-cache
 
 FROM ${PYTHON_IMAGE} AS python-build
 LABEL io.miy.build-cache="true"

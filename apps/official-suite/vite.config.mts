@@ -3,7 +3,8 @@ import { defineConfig, type ViteUserConfig } from 'vitest/config';
 import legacyWebConfig from '../web/vite.config.mts';
 import { officialFixedAssets } from '../../packages/official-suite-web/vite/fixed-assets.mts';
 import { officialUiProxyKeys } from '../../packages/official-suite-web/vite/ui-routing.mts';
-import type { Plugin, ProxyOptions } from 'vite';
+import type { ProxyOptions } from 'vite';
+import { officialPlatformCompatibility } from './vite/platform-compatibility.mts';
 
 const withoutSelfProxy = (
   proxy: Record<string, string | ProxyOptions> | undefined,
@@ -13,24 +14,6 @@ const withoutSelfProxy = (
       ([key]) => !officialUiProxyKeys.includes(key),
     ),
   );
-const developmentCompatibility: Plugin = {
-  name: 'miy-official-development-compatibility',
-  configureServer(server) {
-    server.middlewares.use((request, response, next) => {
-      const path = request.url?.split('?', 1)[0];
-      if (
-        path !== '/official-suite/platform-build.json' &&
-        path !== '/platform-build.json'
-      )
-        return next();
-      response.writeHead(200, {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store',
-      });
-      response.end(JSON.stringify({ platform_build_id: null }));
-    });
-  },
-};
 
 // Toolchain/common SDK reuse does not make the platform artifact compile official screens.
 export default defineConfig(async (environment) => {
@@ -62,7 +45,7 @@ export default defineConfig(async (environment) => {
           plugin.name !== 'miy-platform-ui-boundary',
       ),
       officialFixedAssets(),
-      developmentCompatibility,
+      officialPlatformCompatibility(process.env.MIY_PLATFORM_WEB_BUILD_ID),
     ],
     build: { ...shared.build, outDir: '../../dist/apps/official-suite' },
     test: {

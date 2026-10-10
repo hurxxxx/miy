@@ -93,10 +93,13 @@ def assert_empty(app, consumers: dict[str, tuple[str, ...]]) -> bool:
                     # Redis removes its list key after the last delivery. An
                     # empty, already-attested live subscription therefore has
                     # no key and Kombu's passive declare returns exact 404.
+                    # Kombu's virtual transport reports the canonical code as
+                    # a string; py-amqp can also provide the integer form.
                     # Other transports/errors still cannot prove emptiness.
                     if (
                         isinstance(error, ChannelError)
-                        and error.reply_code == 404
+                        and type(error.reply_code) in (int, str)
+                        and error.reply_code in (404, "404")
                         and connection.transport.driver_type == "redis"
                     ):
                         count = 0

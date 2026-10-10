@@ -5,6 +5,7 @@ import { FeedbackProvider } from '@miy/ui';
 import { ShellPersonalWidgetHost } from './OfficialPersonalWidgetHost';
 import { useTranslation } from 'react-i18next';
 import { BrowserRouter } from 'react-router-dom';
+import { FirstPartyDocumentBoundary } from '@/src/platform/deployment/FirstPartyDocumentBoundary';
 import {
   AppContent,
   createDefaultHelpRoutes,
@@ -38,32 +39,34 @@ export default function OfficialSuiteRoot() {
       }}
     >
       <BrowserRouter>
-        <AppContent
-          appScope={{ appIds: OFFICIAL_APP_IDS }}
-          appBarItems={officialRegistry.APP_BAR_ITEMS}
-          appGlobalRoutes={officialRegistry.APP_GLOBAL_ROUTES}
-          appRoutes={officialRegistry.APP_ROUTES}
-          backgroundWorkSources={officialRegistry.APP_BACKGROUND_WORK_SOURCES}
-          getAppModuleManifest={(appId) =>
-            officialRegistry.getAppModuleManifest(
-              appId as (typeof OFFICIAL_APP_IDS)[number],
-            )
-          }
-          getAppSidebarConfig={officialRegistry.getAppModuleSidebarConfig}
-          helpGuides={helpGuides}
-          helpRoutes={helpRoutes}
-          launcherGlobalPaths={officialLauncherPaths}
-          navItems={officialRegistry.NAV_ITEMS}
-          notificationIssueAppId={pmsManifest.appBarItem.id}
-          notificationPanel={NotificationPanel}
-          notificationRealtimeEventTypes={notificationRealtimeEventTypes}
-          notificationUnreadCountLoader={getUnreadNotificationCount}
-          personalWidgetHost={ShellPersonalWidgetHost}
-          realtimeEnabled
-          realtimeProvider={DefaultShellRealtimeProvider}
-          resolveShellStateForPath={resolveOfficialShellState}
-          shellProviders={officialRegistry.APP_SHELL_PROVIDERS}
-        />
+        <FirstPartyDocumentBoundary owner="official">
+          <AppContent
+            appScope={{ appIds: OFFICIAL_APP_IDS }}
+            appBarItems={officialRegistry.APP_BAR_ITEMS}
+            appGlobalRoutes={officialRegistry.APP_GLOBAL_ROUTES}
+            appRoutes={officialRegistry.APP_ROUTES}
+            backgroundWorkSources={officialRegistry.APP_BACKGROUND_WORK_SOURCES}
+            getAppModuleManifest={(appId) =>
+              officialRegistry.getAppModuleManifest(
+                appId as (typeof OFFICIAL_APP_IDS)[number],
+              )
+            }
+            getAppSidebarConfig={officialRegistry.getAppModuleSidebarConfig}
+            helpGuides={helpGuides}
+            helpRoutes={helpRoutes}
+            launcherGlobalPaths={officialLauncherPaths}
+            navItems={officialRegistry.NAV_ITEMS}
+            notificationIssueAppId={pmsManifest.appBarItem.id}
+            notificationPanel={NotificationPanel}
+            notificationRealtimeEventTypes={notificationRealtimeEventTypes}
+            notificationUnreadCountLoader={getUnreadNotificationCount}
+            personalWidgetHost={ShellPersonalWidgetHost}
+            realtimeEnabled
+            realtimeProvider={DefaultShellRealtimeProvider}
+            resolveShellStateForPath={resolveOfficialShellState}
+            shellProviders={officialRegistry.APP_SHELL_PROVIDERS}
+          />
+        </FirstPartyDocumentBoundary>
       </BrowserRouter>
     </FeedbackProvider>
   );

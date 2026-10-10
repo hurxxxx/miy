@@ -23,8 +23,10 @@ The service target also builds and carries the matching official UI under
 `dist/apps/official-suite`. It requires the full reviewed source-tree context,
 the existing `MIY_BENTO_SERVER_URL` build input and the explicitly paired
 `MIY_PLATFORM_WEB_BUILD_ID` (empty only when the platform artifact has no build ID).
-The fixed compatibility file supplies both the official server build guard and
-public client metadata; it never follows a running platform automatically. The
+The official Vite build embeds this value in its JavaScript and emits the matching
+compatibility file for both the official server build guard and read-only public
+metadata. Browser startup uses its compiled value, preserving stale-client refusal
+when old JavaScript reaches a newer server; it never fetches a replacement ID. The
 guarded first-party release builder supplies these inputs. The API-only frozen
 context command below remains for the default inactive target.
 
