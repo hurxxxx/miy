@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from fastapi import HTTPException
 import pytest
 
-from mty_api.domains.dm import conversation_membership
+from miy_api.domains.dm import conversation_membership
 
 
 NOW = datetime(2026, 5, 21, 12, 0, 0)

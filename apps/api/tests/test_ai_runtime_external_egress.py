@@ -3,44 +3,52 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from mty_api.core.settings import Settings
-from mty_api.domains.ai.router import _attach_external_egress_trace_metadata
-from mty_api.domains.ai.runtime.external_adapters import (
+import pytest
+
+from miy_api.core.settings import Settings
+from miy_api.domains.ai.router import _attach_external_egress_trace_metadata
+from miy_api.domains.ai.runtime.external_adapters import (
     register_external_planner_execution_adapter,
     register_external_search_execution_adapter,
     reset_external_execution_adapters,
 )
-from mty_api.domains.ai.runtime.external_egress import (
+from miy_api.domains.ai.runtime.external_egress import (
     allowed_external_providers,
     evaluate_external_egress,
     normalize_external_provider,
 )
-from mty_api.domains.ai.runtime.external_planner import ExternalPlannerExecutionResult
-from mty_api.domains.ai.runtime.external_search import ExternalSearchExecutionResult
-from mty_api.domains.ai.runtime.routing import RuntimeRoutingDecision
+from miy_api.domains.ai.runtime.external_planner import ExternalPlannerExecutionResult
+from miy_api.domains.ai.runtime.external_search import ExternalSearchExecutionResult
+from miy_api.domains.ai.runtime.routing import RuntimeRoutingDecision
 
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "ai_runtime"
 SETTING_ALIASES = {
-    "ai_external_llm_enabled": "MTY_AI_EXTERNAL_LLM_ENABLED",
-    "ai_external_planning_enabled": "MTY_AI_EXTERNAL_PLANNING_ENABLED",
-    "ai_external_reasoning_enabled": "MTY_AI_EXTERNAL_REASONING_ENABLED",
-    "ai_external_quality_review_enabled": "MTY_AI_EXTERNAL_QUALITY_REVIEW_ENABLED",
-    "ai_external_search_enabled": "MTY_AI_EXTERNAL_SEARCH_ENABLED",
-    "ai_external_planner_execution_enabled": "MTY_AI_EXTERNAL_PLANNER_EXECUTION_ENABLED",
-    "ai_external_planner_execution_adapter": "MTY_AI_EXTERNAL_PLANNER_EXECUTION_ADAPTER",
-    "ai_external_search_execution_enabled": "MTY_AI_EXTERNAL_SEARCH_EXECUTION_ENABLED",
-    "ai_external_search_execution_adapter": "MTY_AI_EXTERNAL_SEARCH_EXECUTION_ADAPTER",
-    "ai_allowed_external_providers": "MTY_AI_ALLOWED_EXTERNAL_PROVIDERS",
-    "ai_default_external_llm_provider": "MTY_AI_DEFAULT_EXTERNAL_LLM_PROVIDER",
-    "ai_default_external_search_provider": "MTY_AI_DEFAULT_EXTERNAL_SEARCH_PROVIDER",
+    "ai_external_llm_enabled": "MIY_AI_EXTERNAL_LLM_ENABLED",
+    "ai_external_planning_enabled": "MIY_AI_EXTERNAL_PLANNING_ENABLED",
+    "ai_external_reasoning_enabled": "MIY_AI_EXTERNAL_REASONING_ENABLED",
+    "ai_external_quality_review_enabled": "MIY_AI_EXTERNAL_QUALITY_REVIEW_ENABLED",
+    "ai_external_search_enabled": "MIY_AI_EXTERNAL_SEARCH_ENABLED",
+    "ai_external_planner_execution_enabled": "MIY_AI_EXTERNAL_PLANNER_EXECUTION_ENABLED",
+    "ai_external_planner_execution_adapter": "MIY_AI_EXTERNAL_PLANNER_EXECUTION_ADAPTER",
+    "ai_external_search_execution_enabled": "MIY_AI_EXTERNAL_SEARCH_EXECUTION_ENABLED",
+    "ai_external_search_execution_adapter": "MIY_AI_EXTERNAL_SEARCH_EXECUTION_ADAPTER",
+    "ai_allowed_external_providers": "MIY_AI_ALLOWED_EXTERNAL_PROVIDERS",
+    "ai_default_external_search_provider": "MIY_AI_DEFAULT_EXTERNAL_SEARCH_PROVIDER",
 }
+
+
+@pytest.fixture(autouse=True)
+def _isolated_policy_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    for alias in SETTING_ALIASES.values():
+        monkeypatch.delenv(alias, raising=False)
 
 
 def _settings(**overrides):
     aliased_overrides = {SETTING_ALIASES.get(key, key): value for key, value in overrides.items()}
     return Settings(
-        postgres_dsn="postgresql+psycopg://mty_test:mty_test@127.0.0.1:5432/mty_test",
+        _env_file=None,
+        postgres_dsn="postgresql+psycopg://miy_test:miy_test@127.0.0.1:5432/miy_test",
         **aliased_overrides,
     )
 
@@ -122,7 +130,6 @@ def test_external_trace_execution_waits_for_graph_execution_adapter_selection() 
             ai_external_llm_enabled=True,
             ai_external_planning_enabled=True,
             ai_allowed_external_providers="openai",
-            ai_default_external_llm_provider="openai",
             ai_external_planner_execution_enabled=True,
             ai_external_planner_execution_adapter="counting-planner",
         )
@@ -139,6 +146,7 @@ def test_external_trace_execution_waits_for_graph_execution_adapter_selection() 
             routing,
             messages=[{"role": "user", "content": "공개 정보 기준으로 계획해줘"}],
             settings=settings,
+            planning_provider="openai",
         )
 
         assert calls == []
@@ -163,7 +171,6 @@ def test_external_trace_adapter_exceptions_are_normalized_to_failed_summary() ->
             ai_external_llm_enabled=True,
             ai_external_planning_enabled=True,
             ai_allowed_external_providers="openai",
-            ai_default_external_llm_provider="openai",
             ai_external_planner_execution_enabled=True,
             ai_external_planner_execution_adapter="failing-planner",
         )
@@ -181,6 +188,7 @@ def test_external_trace_adapter_exceptions_are_normalized_to_failed_summary() ->
             routing,
             messages=[{"role": "user", "content": "공개 정보 기준으로 계획해줘"}],
             settings=settings,
+            planning_provider="openai",
         )
 
         assert result.external_planner_execution_summary == {
@@ -200,6 +208,34 @@ def test_external_trace_adapter_exceptions_are_normalized_to_failed_summary() ->
         }
     finally:
         reset_external_execution_adapters()
+
+
+@pytest.mark.parametrize("provider,allowed", [("openai", True), (None, False), ("anthropic", False)])
+def test_external_planning_uses_resolved_provider_and_preserves_search_default(provider, allowed):
+    result = _attach_external_egress_trace_metadata(
+        RuntimeRoutingDecision(
+            runtime_profile="grounded_report",
+            reason_codes=(),
+            graph_gate="eligible",
+            graph_fallback_reason=None,
+            graph_execution_status="adapter_selected",
+        ),
+        messages=[{"role": "user", "content": "Summarize public standards."}],
+        settings=_settings(
+            ai_external_llm_enabled=True,
+            ai_external_planning_enabled=True,
+            ai_external_search_enabled=True,
+            ai_allowed_external_providers="openai",
+            ai_default_external_search_provider="openai",
+        ),
+        planning_provider=provider,
+    )
+    planning, search = result.external_egress_summary["decisions"]
+    assert planning["allow_external"] is allowed
+    assert planning["requested_provider"] == (provider or "")
+    assert planning["reason"] == ("allowed" if allowed else "provider_not_allowed")
+    assert search["provider"] == "openai"
+    assert search["allow_external"] is True
 
 
 def test_external_planning_is_denied_until_global_and_capability_flags_enable() -> None:
@@ -251,7 +287,7 @@ def test_external_egress_denies_provider_outside_allowlist() -> None:
     assert decision.provider == "anthropic"
 
 
-def test_external_planning_default_provider_uses_ai_llm_default() -> None:
+def test_external_planning_requires_explicit_resolved_provider() -> None:
     decision = evaluate_external_egress(
         capability="planning",
         provider=None,
@@ -260,13 +296,12 @@ def test_external_planning_default_provider_uses_ai_llm_default() -> None:
             ai_external_llm_enabled=True,
             ai_external_planning_enabled=True,
             ai_allowed_external_providers="anthropic",
-            ai_default_external_llm_provider="anthropic",
         ),
     )
 
-    assert decision.allow_external is True
-    assert decision.requested_provider == "anthropic"
-    assert decision.provider == "anthropic"
+    assert decision.allow_external is False
+    assert decision.requested_provider == ""
+    assert decision.reason == "provider_not_allowed"
 
 
 def test_external_egress_blocks_pii_for_planning() -> None:

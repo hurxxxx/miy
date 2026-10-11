@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from mty_api.domains.files import storage_adapter
+from miy_api.domains.files import storage_adapter
 
 
 def test_put_file_object_writes_to_configured_bucket(monkeypatch) -> None:

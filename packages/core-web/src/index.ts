@@ -5,3 +5,5 @@ export * from './background-work.js';
 export * from './mobile-shell-menu.js';
 export * from './shell-navigation.js';
 export * from './sub-sidebar-frame.js';
+export * from './navigation-types.js';
+export * from './help-guide.js';

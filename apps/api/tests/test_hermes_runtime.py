@@ -7,25 +7,30 @@ from uuid import uuid4
 
 from fastapi import HTTPException
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from mty_api.domains.auth.models import User
-from mty_api.domains.hermes import files
-from mty_api.domains.hermes.file_router import download_file
-from mty_api.domains.hermes.model_policy import (
+from miy_api.domains.auth.models import User
+from miy_api.domains.hermes import files
+from miy_api.domains.hermes.file_router import (
+    download_file,
+    download_file_revision,
+    session_file_revisions,
+)
+from miy_api.domains.hermes.model_policy import (
     HermesModelPolicy,
     synchronize_model_policy,
 )
-from mty_api.domains.hermes.models import (
+from miy_api.domains.hermes.models import (
     HermesFileObject,
+    HermesFileRevision,
     HermesProfileBinding,
     HermesRunProjection,
     HermesSessionBinding,
 )
-from mty_api.domains.hermes.repository import HermesRunRepository, utcnow_naive
-from mty_api.domains.hermes.workloads import _messages
-from mty_api.core.llm_errors import LlmProviderError
+from miy_api.domains.hermes.repository import HermesRunRepository, utcnow_naive
+from miy_api.domains.hermes.workloads import _messages
+from miy_api.core.llm_errors import LlmProviderError
 
 
 def seed(db):
@@ -42,7 +47,7 @@ def seed(db):
     binding = HermesProfileBinding(
         id=str(uuid4()),
         user_id=user_id,
-        profile_name=f"mty-{uuid4().hex}",
+        profile_name=f"miy-{uuid4().hex}",
         status="active",
         provider="openai",
         model="test",
@@ -174,7 +179,7 @@ async def test_model_snapshot_has_no_secret_and_auxiliary_follows_main(temperatu
         async def update_profile_env(self, profile, key, value):
             pass
 
-    await synchronize_model_policy(Client(), profile_name="mty-test-local", policy=policy)
+    await synchronize_model_policy(Client(), profile_name="miy-test-local", policy=policy)
     config = configs[0]
     assert config["fallback_providers"] == []
     assert all(
@@ -185,10 +190,10 @@ async def test_model_snapshot_has_no_secret_and_auxiliary_follows_main(temperatu
     provider = config["providers"][policy.key]
     if temperature is None:
         assert "extra_body" not in provider
-        assert "temperature" not in policy.run_options()["mty_policy"]
+        assert "temperature" not in policy.run_options()["miy_policy"]
     else:
         assert provider["extra_body"] == {"temperature": temperature}
-        assert policy.run_options()["mty_policy"]["temperature"] == temperature
+        assert policy.run_options()["miy_policy"]["temperature"] == temperature
         assert policy.key != replace(policy, temperature=None).key
         assert policy.key != replace(policy, temperature=temperature + 0.1).key
     assert config["delegation"]["provider"] == "auto"
@@ -210,7 +215,7 @@ async def test_model_snapshot_has_no_secret_and_auxiliary_follows_main(temperatu
         "/etc/passwd",
         "nested/../../secret",
         "nested//file",
-        ".mty-runtime/file",
+        ".miy-runtime/file",
         "nul\x00name",
     ],
 )
@@ -222,14 +227,14 @@ def test_workspace_paths_reject_escape_and_control_characters(path):
 @pytest.mark.anyio
 @pytest.mark.parametrize("temperature", [0, 0.7])
 async def test_anthropic_temperature_fails_before_provisioning(monkeypatch, temperature):
-    from mty_api.core.llm import (
+    from miy_api.core.llm import (
         LlmPoolConfig,
         LlmTaskContext,
         PolicyDecision,
         ResolvedLlmExecution,
     )
-    from mty_api.core.settings import get_settings
-    from mty_api.domains.hermes import workloads
+    from miy_api.core.settings import get_settings
+    from miy_api.domains.hermes import workloads
 
     config = LlmPoolConfig(
         "external",
@@ -276,7 +281,7 @@ async def test_anthropic_temperature_fails_before_provisioning(monkeypatch, temp
     assert error.value.pool == "external" and error.value.provider == "anthropic"
     default_policy = HermesModelPolicy.from_pool(config, model="test-model", max_tokens=4096)
     assert default_policy.api_mode == "anthropic_messages"
-    assert "temperature" not in default_policy.run_options()["mty_policy"]
+    assert "temperature" not in default_policy.run_options()["miy_policy"]
 
 
 @pytest.mark.anyio
@@ -288,17 +293,17 @@ async def test_cancel_during_admission_recovers_without_starting_another_run(
     import asyncio
     from sqlalchemy import select
     from sqlalchemy.orm import sessionmaker
-    from mty_api.core.llm import (
+    from miy_api.core.llm import (
         LlmPoolConfig,
         LlmTaskContext,
         PolicyDecision,
         ResolvedLlmExecution,
     )
-    from mty_api.core.settings import get_settings
-    from mty_api.domains.hermes import execution, workloads
-    from mty_api.domains.hermes.client import HermesClientError
-    from mty_api.domains.hermes.models import HermesDispatchOutbox, HermesRunInput
-    from mty_api.domains.hermes.repository import HermesDispatchRepository
+    from miy_api.core.settings import get_settings
+    from miy_api.domains.hermes import execution, workloads
+    from miy_api.domains.hermes.client import HermesClientError
+    from miy_api.domains.hermes.models import HermesDispatchOutbox, HermesRunInput
+    from miy_api.domains.hermes.repository import HermesDispatchRepository
 
     engine = create_engine(application_postgres_dsn)
     factory = sessionmaker(engine, expire_on_commit=False)
@@ -477,8 +482,8 @@ async def test_cancel_during_admission_recovers_without_starting_another_run(
 async def test_cancel_recovery_preserves_durable_terminal_details(
     application_postgres_dsn, monkeypatch, terminal_at, native_status
 ):
-    from mty_api.domains.hermes import execution
-    from mty_api.domains.hermes.client import HermesClientError
+    from miy_api.domains.hermes import execution
+    from miy_api.domains.hermes.client import HermesClientError
 
     polls, stops = [], []
 
@@ -558,7 +563,7 @@ async def test_cancel_recovery_preserves_durable_terminal_details(
 @pytest.mark.anyio
 @pytest.mark.parametrize("claimed", [False, True])
 async def test_public_stop_keeps_a_lost_acceptance_recoverable(application_postgres_dsn, claimed):
-    from mty_api.domains.hermes.router import stop_run
+    from miy_api.domains.hermes.router import stop_run
 
     engine = create_engine(application_postgres_dsn)
     try:
@@ -588,6 +593,8 @@ async def test_public_stop_keeps_a_lost_acceptance_recoverable(application_postg
 @pytest.mark.parametrize(
     "contract",
     [
+        "text",
+        "text_missing",
         "structured",
         "tool_request",
         "tool_result",
@@ -605,18 +612,18 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
     from sqlalchemy import select
     from sqlalchemy.orm import sessionmaker
     from starlette.requests import Request
-    from mty_api.core.llm import (
+    from miy_api.core.llm import (
         LlmPoolConfig,
         LlmTaskContext,
         PolicyDecision,
         ResolvedLlmExecution,
     )
-    from mty_api.core.settings import get_settings
-    from mty_api.domains.auth.models import CompanyAppControl
-    from mty_api.domains.auth.app_access_models import AppAccessPolicy
-    from mty_api.domains.hermes import workloads, execution, mcp_router
-    from mty_api.domains.hermes.service import mcp_profile_bearer_secret
-    from mty_api.domains.hermes.client import HermesClientError
+    from miy_api.core.settings import get_settings
+    from miy_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.auth.app_access_models import AppAccessPolicy
+    from miy_api.domains.hermes import workloads, execution, mcp_router
+    from miy_api.domains.hermes.service import mcp_profile_bearer_secret
+    from miy_api.domains.hermes.client import HermesClientError
 
     def unavailable():
         raise HermesClientError(
@@ -641,7 +648,7 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
         {"value": 42}
         if contract == "structured"
         else {"content": "Application result received"}
-        if contract in {"tool_result", "forced_final"}
+        if contract in {"text", "text_missing", "tool_result", "forced_final"}
         else {"tool_calls": [{"name": "fixture.lookup", "arguments": {"value": 42}}]}
     )
     try:
@@ -671,9 +678,9 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
 
             async def create_run(self, profile, **kwargs):
                 assert profile == profile_name
-                assert kwargs["runtime_options"]["mty_policy"]["model"] == "test-model"
-                assert kwargs["runtime_options"]["mty_policy"].get("temperature") == temperature
-                assert "mty_submit_result" in kwargs["instructions"]
+                assert kwargs["runtime_options"]["miy_policy"]["model"] == "test-model"
+                assert kwargs["runtime_options"]["miy_policy"].get("temperature") == temperature
+                assert "miy_submit_result" in kwargs["instructions"]
                 if contract in {"tool_result", "forced_final"}:
                     assert '"role": "tool"' in kwargs["input_text"]
                     assert "Application evidence" in kwargs["input_text"]
@@ -683,12 +690,15 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
                 return {"run_id": "run_native_fixture", "status": "running"}
 
             async def iter_run_events(self, profile, run_id):
-                for result in ({"value": "wrong type"}, expected_result):
+                results = () if contract == "text_missing" else (
+                    {"value": "wrong type"}, expected_result
+                )
+                for result in results:
                     body = json.dumps(
                         {
                             "jsonrpc": "2.0",
                             "id": 1,
-                            "method": "mty/submit",
+                            "method": "miy/submit",
                             "params": {"result": result},
                         }
                     ).encode()
@@ -753,6 +763,7 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
         )
         if contract != "structured":
             options.pop("output_schema")
+        if contract not in {"text", "text_missing", "structured"}:
             payload["tools"] = [
                 {
                     "type": "function",
@@ -814,6 +825,19 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
                 assert len(runs) == (1 if contract == "execution_failure" else 0)
                 assert all(run.execution_claim_token is None for run in runs)
             return
+        if contract == "text_missing":
+            with pytest.raises(LlmProviderError, match="invalid_output"):
+                if mode == "sync":
+                    await asyncio.to_thread(
+                        workloads.complete_workload, context, resolved, payload, **options
+                    )
+                else:
+                    async for _ in workloads.stream_workload(context, resolved, payload, **options):
+                        pytest.fail("Unsubmitted text must not become successful output")
+            with factory() as db:
+                run = db.get(HermesRunProjection, attempts[0])
+                assert run.status == "invalid_output" and run.output_payload is None
+            return
         if mode == "sync":
             result = await asyncio.to_thread(
                 workloads.complete_workload, context, resolved, payload, **options
@@ -830,7 +854,7 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
                 assert chunks[1].tool_call_id == chunks[0].tool_call_id
                 assert json.loads(chunks[1].args_delta) == {"value": 42}
                 assert chunks[-1].finish_reason == "tool_calls"
-            elif contract in {"tool_result", "forced_final"}:
+            elif contract in {"text", "tool_result", "forced_final"}:
                 assert chunks[0].text == "Application result received"
                 assert chunks[-1].finish_reason == "stop"
         if mode == "sync" and contract == "tool_request":
@@ -839,7 +863,13 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
                 result["choices"][0]["message"]["tool_calls"][0]["function"]["name"]
                 == "fixture.lookup"
             )
-        assert result["structured_output"] == expected_result
+        if contract == "text":
+            assert result["structured_output"] is None
+            if mode == "sync":
+                assert result["choices"][0]["message"] == expected_result
+                assert result["choices"][0]["finish_reason"] == "stop"
+        else:
+            assert result["structured_output"] == expected_result
         assert result["usage"]["total_tokens"] == 10
         assert len(attempts) == 1
         assert [item["accepted"] for item in submissions] == [False, True]
@@ -863,20 +893,20 @@ async def test_nested_generation_respects_capacity_without_waiting_for_its_paren
     import asyncio
     from sqlalchemy import select
     from sqlalchemy.orm import sessionmaker
-    from mty_api.core.llm import (
+    from miy_api.core.llm import (
         LlmPoolConfig,
         LlmTaskContext,
         PolicyDecision,
         ResolvedLlmExecution,
     )
-    from mty_api.core.settings import get_settings
-    from mty_api.domains.ai.tool_context import (
+    from miy_api.core.settings import get_settings
+    from miy_api.domains.ai.tool_context import (
         ToolExecutionContext,
         bind_tool_execution_context,
     )
-    from mty_api.domains.auth.models import CompanyAppControl
-    from mty_api.domains.auth.app_access_models import AppAccessPolicy
-    from mty_api.domains.hermes import workloads, execution
+    from miy_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.auth.app_access_models import AppAccessPolicy
+    from miy_api.domains.hermes import workloads, execution
 
     engine = create_engine(application_postgres_dsn)
     factory = sessionmaker(engine, expire_on_commit=False)
@@ -923,6 +953,10 @@ async def test_nested_generation_respects_capacity_without_waiting_for_its_paren
                 return {"run_id": "native_nested", "status": "running"}
 
             async def iter_run_events(self, profile, run_id):
+                with factory() as db:
+                    run = db.get(HermesRunProjection, attempts[-1])
+                    run.output_payload = {"content": "nested result"}
+                    db.commit()
                 yield {"event": "run.completed", "output": "nested result"}
 
         monkeypatch.setattr(workloads, "ensure_profile_binding", ensure)
@@ -1026,17 +1060,17 @@ async def test_cancelled_workload_returns_lease_and_recovers_durable_stop(
     import asyncio
     from sqlalchemy import select
     from sqlalchemy.orm import sessionmaker
-    from mty_api.core.llm import (
+    from miy_api.core.llm import (
         LlmPoolConfig,
         LlmTaskContext,
         PolicyDecision,
         ResolvedLlmExecution,
     )
-    from mty_api.core.settings import get_settings
-    from mty_api.domains.auth.models import CompanyAppControl
-    from mty_api.domains.auth.app_access_models import AppAccessPolicy
-    from mty_api.domains.hermes import execution, workloads
-    from mty_api.domains.hermes.client import HermesClientError
+    from miy_api.core.settings import get_settings
+    from miy_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.auth.app_access_models import AppAccessPolicy
+    from miy_api.domains.hermes import execution, workloads
+    from miy_api.domains.hermes.client import HermesClientError
 
     engine = create_engine(application_postgres_dsn)
     factory = sessionmaker(engine, expire_on_commit=False)
@@ -1141,6 +1175,119 @@ async def test_cancelled_workload_returns_lease_and_recovers_durable_stop(
         engine.dispose()
 
 
+def test_file_revisions_preserve_run_identity_and_bound_total_history(
+    application_postgres_dsn, monkeypatch
+):
+    objects = {}
+    monkeypatch.setattr(
+        files,
+        "get_minio_client",
+        lambda: SimpleNamespace(
+            put_object=lambda bucket, key, stream, size, **kwargs: objects.update(
+                {key: stream.read()}
+            )
+        ),
+    )
+    monkeypatch.setattr(files, "ensure_bucket", lambda: None)
+    monkeypatch.setattr(files, "MAX_SESSION_BYTES", 12)
+    engine = create_engine(application_postgres_dsn)
+    try:
+        with Session(engine) as db:
+            user, binding = seed(db)
+            admit_runtime_apps(db, user.id)
+            session = session_for(db, binding)
+            run = stage(db, binding, session)
+            db.commit()
+            first = files.save_file(
+                db, session=session, path="result.txt", data=b"first", execution_run_id=run.id
+            )
+            first_id = first.id
+            first_key = first.object_key
+            replay = files.save_file(
+                db, session=session, path="result.txt", data=b"first", execution_run_id=run.id
+            )
+            assert replay.id == first_id
+            revisions = list(
+                db.scalars(
+                    select(HermesFileRevision).where(HermesFileRevision.session_id == session.id)
+                )
+            )
+            assert len(revisions) == 1
+            assert revisions[0].run_id == run.id
+            assert revisions[0].user_id == user.id
+            assert revisions[0].object_key == first_key
+            listing = session_file_revisions(
+                session.id, file_id=first_id, run_id=run.id, limit=1, offset=0, db=db, user=user
+            )
+            assert listing.data[0].id == revisions[0].id
+            assert listing.has_more is False
+            files.save_file(
+                db, session=session, path="result.txt", data=b"second", execution_run_id=run.id
+            )
+            assert objects[first_key] == b"first"
+            assert (
+                len(
+                    list(
+                        db.scalars(
+                            select(HermesFileRevision).where(
+                                HermesFileRevision.session_id == session.id
+                            )
+                        )
+                    )
+                )
+                == 2
+            )
+            page = session_file_revisions(
+                session.id, file_id=first_id, run_id=run.id, limit=1, offset=0, db=db, user=user
+            )
+            assert page.has_more is True
+            with pytest.raises(HTTPException) as denied:
+                session_file_revisions(
+                    session.id,
+                    file_id=first_id,
+                    run_id=None,
+                    limit=100,
+                    offset=0,
+                    db=db,
+                    user=SimpleNamespace(id="another-user"),
+                )
+            assert denied.value.status_code == 404
+            with pytest.raises(ValueError, match="storage limit"):
+                files.save_file(
+                    db, session=session, path="result.txt", data=b"third", execution_run_id=run.id
+                )
+            db.rollback()
+            assert len(objects) == 2
+            session_id = session.id
+        with Session(engine) as reopened:
+            versions = list(
+                reopened.scalars(
+                    select(HermesFileRevision).where(HermesFileRevision.session_id == session_id)
+                )
+            )
+            assert {objects[row.object_key] for row in versions} == {b"first", b"second"}
+            from miy_api.domains.auth.models import CompanyAppControl
+
+            user = reopened.get(User, versions[0].user_id)
+            reopened.get(CompanyAppControl, "chatbot").enabled = False
+            reopened.commit()
+            denied_page = session_file_revisions(
+                session_id,
+                file_id=first_id,
+                run_id=None,
+                limit=100,
+                offset=0,
+                db=reopened,
+                user=user,
+            )
+            assert denied_page.data == []
+            with pytest.raises(HTTPException) as revoked:
+                download_file_revision(versions[0].id, db=reopened, user=user)
+            assert revoked.value.status_code == 404
+    finally:
+        engine.dispose()
+
+
 def test_files_preserve_cleanup_intent_and_owner_acl(application_postgres_dsn, monkeypatch):
     objects = {}
 
@@ -1174,7 +1321,21 @@ def test_files_preserve_cleanup_intent_and_owner_acl(application_postgres_dsn, m
             old_key = original.object_key
             current = files.save_file(db, session=session, path="report.txt", data=b"second")
             assert files.read_file(current) == b"second"
-            assert db.get(HermesFileObject, old_key).expires_at <= utcnow_naive()
+            old_revision = db.scalar(
+                select(HermesFileRevision).where(HermesFileRevision.object_key == old_key)
+            )
+            old_revision_id = old_revision.id
+            assert files.read_file(old_revision) == b"first"
+            assert db.get(HermesFileObject, old_key).expires_at > utcnow_naive()
+            assert download_file_revision(old_revision.id, db=db, user=user).body == b"first"
+            with pytest.raises(HTTPException) as denied_revision:
+                download_file_revision(
+                    old_revision.id, db=db, user=SimpleNamespace(id="another-user")
+                )
+            assert denied_revision.value.status_code == 404
+            # Retention, rather than a replacement, eventually queues old bytes.
+            db.get(HermesFileObject, old_key).expires_at = utcnow_naive() - timedelta(seconds=1)
+            db.commit()
             with pytest.raises(HTTPException) as error:
                 download_file(current.id, db=db, user=SimpleNamespace(id="another-user"))
             assert error.value.status_code == 404
@@ -1186,6 +1347,7 @@ def test_files_preserve_cleanup_intent_and_owner_acl(application_postgres_dsn, m
             storage.fail_delete = False
             assert files.cleanup_files(db) == 1
             assert old_key not in objects
+            assert db.get(HermesFileRevision, old_revision_id) is None
             reservation = db.get(HermesFileObject, current.object_key)
             reservation.expires_at = utcnow_naive() - timedelta(seconds=1)
             db.commit()
@@ -1305,7 +1467,7 @@ def test_workloads_preserve_messages_and_reject_application_tool_loops():
 
 def test_application_action_schema_enforces_tool_choice_arguments_and_parallel_limit():
     from jsonschema import Draft202012Validator, ValidationError
-    from mty_api.domains.hermes.tool_decisions import (
+    from miy_api.domains.hermes.tool_decisions import (
         decision_message,
         prepare_tool_decision,
     )
@@ -1370,7 +1532,7 @@ def test_application_action_schema_enforces_tool_choice_arguments_and_parallel_l
 async def test_session_activity_moves_across_pagination_without_read_or_replay_bumps(
     application_postgres_dsn, monkeypatch
 ):
-    from mty_api.domains.hermes import router
+    from miy_api.domains.hermes import router
 
     class Runtime:
         async def get_session(self, *args):
@@ -1418,7 +1580,7 @@ async def test_session_activity_moves_across_pagination_without_read_or_replay_b
 
 @pytest.mark.anyio
 async def test_sync_workload_cannot_block_the_callback_event_loop():
-    from mty_api.domains.hermes.workloads import complete_workload
+    from miy_api.domains.hermes.workloads import complete_workload
 
     with pytest.raises(LlmProviderError, match="worker thread"):
         complete_workload(None, None, {}, timeout_seconds=1)
@@ -1426,9 +1588,9 @@ async def test_sync_workload_cannot_block_the_callback_event_loop():
 
 def test_rag_tool_returns_evidence_without_starting_a_nested_generative_run(monkeypatch):
     from pydantic import ValidationError
-    from mty_api.domains.rag.tools import RagQueryToolArgs, _query
-    from mty_api.domains.rag.contracts import RagAnswerMode
-    from mty_api.domains.retrieval import application
+    from miy_api.domains.rag.tools import RagQueryToolArgs, _query
+    from miy_api.domains.rag.contracts import RagAnswerMode
+    from miy_api.domains.retrieval import application
 
     request = RagQueryToolArgs(query="authorized evidence")
     assert request.answer_mode == RagAnswerMode.SEARCH_ONLY
@@ -1449,7 +1611,7 @@ def test_rag_tool_returns_evidence_without_starting_a_nested_generative_run(monk
 def test_completed_result_preserves_long_text_and_usage_without_secret_event_fields(
     application_postgres_dsn,
 ):
-    from mty_api.domains.hermes.repository import MAX_RESULT_BYTES
+    from miy_api.domains.hermes.repository import MAX_RESULT_BYTES
 
     engine = create_engine(application_postgres_dsn)
     try:
@@ -1491,7 +1653,7 @@ async def test_upload_bounds_stream_and_rejects_cross_owner_before_reading(
     monkeypatch,
 ):
     from starlette.requests import Request
-    from mty_api.domains.hermes import file_router
+    from miy_api.domains.hermes import file_router
 
     monkeypatch.setattr(file_router, "MAX_FILE_BYTES", 4)
     monkeypatch.setattr(
@@ -1555,7 +1717,20 @@ def test_native_tool_budget_is_durable_and_atomic_per_run(application_postgres_d
     import asyncio
     import json
     from starlette.requests import Request
-    from mty_api.domains.hermes import mcp_router
+    from miy_api.domains.hermes import mcp_router
+
+    from miy_api.domains.ai.registry import AiCapabilityRegistry
+
+    registry = AiCapabilityRegistry()
+    registry.register_llm_workload(
+        workload_id="test.native_web",
+        task_kind="test_native_web",
+        owner_domain="ai",
+        app_id="chatbot",
+        description="Native tool admission contract",
+        native_tools=("web_search", "web_extract"),
+    )
+    monkeypatch.setattr(mcp_router, "get_ai_capability_registry", lambda: registry)
 
     engine = create_engine(application_postgres_dsn)
     try:
@@ -1568,7 +1743,7 @@ def test_native_tool_budget_is_durable_and_atomic_per_run(application_postgres_d
                 binding,
                 None,
                 kind="workload",
-                workload_id="web_search.answer",
+                workload_id="test.native_web",
                 runtime_options={
                     "native_tools": ["web_search", "terminal"],
                     "native_tool_limit": 1,
@@ -1591,7 +1766,7 @@ def test_native_tool_budget_is_durable_and_atomic_per_run(application_postgres_d
         def admit(tool, concurrent=False):
             async def call():
                 body = json.dumps(
-                    {"id": 1, "method": "mty/native_admit", "params": {"tool": tool}}
+                    {"id": 1, "method": "miy/native_admit", "params": {"tool": tool}}
                 ).encode()
 
                 async def receive():
@@ -1618,8 +1793,8 @@ def test_native_tool_budget_is_durable_and_atomic_per_run(application_postgres_d
 
 
 def admit_runtime_apps(db, user_id):
-    from mty_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
-    from mty_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.auth.app_access_models import AppAccessPolicy, AppUserGrant
+    from miy_api.domains.auth.models import CompanyAppControl
 
     for app_id in ("chatbot", "mail"):
         db.merge(CompanyAppControl(app_id=app_id, enabled=True))
@@ -1631,14 +1806,39 @@ def admit_runtime_apps(db, user_id):
 
 
 @pytest.mark.anyio
+async def test_run_event_stream_releases_request_connection_before_streaming(
+    application_postgres_dsn,
+):
+    from miy_api.domains.hermes import router
+
+    engine = create_engine(application_postgres_dsn, pool_size=1, max_overflow=0)
+    try:
+        with Session(engine) as db:
+            user, binding = seed(db)
+            admit_runtime_apps(db, user.id)
+            run = stage(db, binding, session_for(db, binding))
+            db.commit()
+            stream = router.stream_run_events(run.id, last_event_id=None, db=db, current_user=user)
+            try:
+                # The stream polls with its own short sessions. Its admission
+                # read must not reserve another connection for the SSE lifetime.
+                assert not db.in_transaction()
+                assert engine.pool.checkedout() == 0
+            finally:
+                await stream.body_iterator.aclose()
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize("revocation", ["grant", "company", "user"])
 async def test_run_reads_and_controls_recheck_current_owner_app_admission(
     application_postgres_dsn, revocation, monkeypatch
 ):
-    from mty_api.domains.auth.app_access_models import AppUserGrant
-    from mty_api.domains.auth.models import CompanyAppControl
-    from mty_api.domains.hermes import router
-    from mty_api.domains.hermes.schemas import HermesApprovalDecision, HermesSteerRequest
+    from miy_api.domains.auth.app_access_models import AppUserGrant
+    from miy_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.hermes import router
+    from miy_api.domains.hermes.schemas import HermesApprovalDecision, HermesSteerRequest
 
     engine = create_engine(application_postgres_dsn)
     try:
@@ -1700,8 +1900,8 @@ async def test_open_run_stream_stops_before_next_batch_after_app_revocation(
     application_postgres_dsn, monkeypatch, revoked_app
 ):
     from sqlalchemy.orm import sessionmaker
-    from mty_api.domains.auth.models import CompanyAppControl
-    from mty_api.domains.hermes import router
+    from miy_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.hermes import router
 
     engine = create_engine(application_postgres_dsn)
     try:
@@ -1742,11 +1942,11 @@ async def test_slow_file_transfer_keeps_other_requests_responsive(
     from httpx import ASGITransport, AsyncClient
     from pydantic import SecretStr
     from sqlalchemy.orm import sessionmaker
-    from mty_api.core.db import get_db_session
-    from mty_api.core.settings import get_settings
-    from mty_api.domains.hermes import mcp_router, file_router
-    from mty_api.domains.auth.dependencies import require_current_user
-    from mty_api.domains.hermes.service import mcp_profile_bearer_secret
+    from miy_api.core.db import get_db_session
+    from miy_api.core.settings import get_settings
+    from miy_api.domains.hermes import mcp_router, file_router
+    from miy_api.domains.auth.dependencies import require_current_user
+    from miy_api.domains.hermes.service import mcp_profile_bearer_secret
 
     engine = create_engine(application_postgres_dsn)
     factory = sessionmaker(engine)
@@ -1826,7 +2026,7 @@ async def test_slow_file_transfer_keeps_other_requests_responsive(
                 else client.post(
                     url,
                     headers=headers,
-                    json={"id": 1, "method": f"mty/files/{operation}", "params": params},
+                    json={"id": 1, "method": f"miy/files/{operation}", "params": params},
                 )
             )
             try:
@@ -1859,8 +2059,8 @@ async def test_upload_rechecks_app_admission_after_receiving_body(
     application_postgres_dsn, monkeypatch
 ):
     from starlette.requests import Request
-    from mty_api.domains.auth.models import CompanyAppControl
-    from mty_api.domains.hermes import file_router
+    from miy_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.hermes import file_router
 
     engine = create_engine(application_postgres_dsn)
     monkeypatch.setattr(
@@ -1904,9 +2104,9 @@ async def test_structured_callback_completes_while_callers_exhaust_thread_capaci
     from httpx import ASGITransport, AsyncClient
     from pydantic import SecretStr
     from sqlalchemy.orm import sessionmaker
-    from mty_api.core.settings import get_settings
-    from mty_api.domains.hermes import mcp_router
-    from mty_api.domains.hermes.service import mcp_profile_bearer_secret
+    from miy_api.core.settings import get_settings
+    from miy_api.domains.hermes import mcp_router
+    from miy_api.domains.hermes.service import mcp_profile_bearer_secret
 
     engine = create_engine(application_postgres_dsn)
     factory = sessionmaker(engine)
@@ -1967,7 +2167,7 @@ async def test_structured_callback_completes_while_callers_exhaust_thread_capaci
                         "Authorization": f"Bearer {token}",
                         "X-Hermes-Run-Id": "run_saturated_callback",
                     },
-                    json={"id": 1, "method": "mty/submit", "params": {"result": {"value": 42}}},
+                    json={"id": 1, "method": "miy/submit", "params": {"result": {"value": 42}}},
                 ),
                 timeout=2,
             )

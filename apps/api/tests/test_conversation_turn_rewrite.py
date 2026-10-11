@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from mty_api.domains.conversations.turn_rewrite import (
+from miy_api.domains.conversations.turn_rewrite import (
     ConversationTailRewriteError,
     auto_title_preview,
     plan_conversation_tail_rewrite,

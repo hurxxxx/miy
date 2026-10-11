@@ -72,11 +72,22 @@ class CheckPythonSourceIntegrityTest(unittest.TestCase):
             ),
         )
 
+    def test_detects_duplicate_public_composition_router_spec(self) -> None:
+        self.assertIn(
+            "duplicate-router-spec",
+            self.codes(
+                "SPECS = [\n"
+                '    RouterSpec(report_router, "protected", 1, "official", "reports"),\n'
+                '    RouterSpec(report_router, "public", 2, "official", "reports"),\n'
+                "]\n"
+            ),
+        )
+
     def test_detects_aliased_direct_core_llm_import(self) -> None:
         self.assertIn(
             "direct-core-llm-import",
             self.codes(
-                "from mty_api.core.llm import complete_chat_text as run_chat\n"
+                "from miy_api.core.llm import complete_chat_text as run_chat\n"
                 "run_chat(context, db)\n"
             ),
         )
@@ -94,7 +105,7 @@ class CheckPythonSourceIntegrityTest(unittest.TestCase):
         self.assertIn(
             "direct-core-llm-import",
             self.codes(
-                "from mty_api.core import llm\n"
+                "from miy_api.core import llm\n"
                 "run_chat = llm.complete_chat_text\n"
                 "run_chat(context, db)\n"
             ),

@@ -12,62 +12,62 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from company_admission_fixture import company_authority_tables, seed_company_app_access
-from mty_api.core.db import Base
-from mty_api.domains.auth.models import User
-from mty_api.domains.ai_artifacts.contracts import (
+from miy_api.core.db import Base
+from miy_api.domains.auth.models import User
+from miy_api.domains.ai_artifacts.contracts import (
     AiArtifactCreate,
     AiArtifactIndexGenerationCreate,
     AiArtifactQueryCreate,
     AiArtifactSourceCreate,
     AiIndexGenerationCreate,
 )
-from mty_api.domains.ai_artifacts.models import (
+from miy_api.domains.ai_artifacts.models import (
     AiArtifact,
     AiArtifactIndexGeneration,
     AiArtifactQuery,
     AiArtifactSource,
     AiIndexGeneration,
 )
-from mty_api.domains.ai_artifacts.repository import (
+from miy_api.domains.ai_artifacts.repository import (
     AiArtifactImmutableError,
     AiArtifactNotFoundError,
     AiArtifactRepository,
     AiIndexGenerationRepository,
 )
-from mty_api.domains.ai_artifacts.router import _query_source_response
-from mty_api.domains.ai_graph.contracts import (
+from miy_api.domains.ai_artifacts.router import _query_source_response
+from miy_api.domains.ai_graph.contracts import (
     AiGraphLlmRequest,
     AiGraphNodeResult,
     AiGraphNodeSpec,
     AiGraphRunRequest,
     AiGraphSpec,
 )
-from mty_api.domains.ai_graph.gateway_adapter import AiGatewayGraphAdapter
-from mty_api.domains.ai_graph.dispatch import stage_graph_dispatch
-from mty_api.domains.ai_graph.execution_registry import (
+from miy_api.domains.ai_graph.gateway_adapter import AiGatewayGraphAdapter
+from miy_api.domains.ai_graph.dispatch import stage_graph_dispatch
+from miy_api.domains.ai_graph.execution_registry import (
     execute_registered_ai_graph,
     register_ai_graph_executor,
     reset_ai_graph_executors,
 )
-from mty_api.domains.ai_graph.models import (
+from miy_api.domains.ai_graph.models import (
     AiGraphDispatchOutbox,
     AiGraphRun,
     AiGraphRunInput,
     AiGraphRunNodeProgress,
 )
-from mty_api.domains.ai_graph.repository import (
+from miy_api.domains.ai_graph.repository import (
     AiGraphDispatchRepository,
     AiGraphExecutionLeaseLostError,
     AiGraphRunInputRepository,
     AiGraphRunRepository,
 )
-from mty_api.domains.ai_graph.router import _artifact_ids_by_run
-from mty_api.domains.ai_graph.runtime import (
+from miy_api.domains.ai_graph.router import _artifact_ids_by_run
+from miy_api.domains.ai_graph.runtime import (
     AiGraphRuntimeContext,
     compile_graph,
     run_graph,
 )
-from mty_api.domains.conversations.models import Conversation, ConversationTurn
+from miy_api.domains.conversations.models import Conversation, ConversationTurn
 
 
 @pytest.fixture
@@ -112,7 +112,7 @@ def session_factory() -> sessionmaker[Session]:
 @pytest.fixture(autouse=True)
 def allow_runtime_graph_policy(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "mty_api.domains.ai_graph.runtime.enforce_graph_run_app_policy",
+        "miy_api.domains.ai_graph.runtime.enforce_graph_run_app_policy",
         lambda *_args, **_kwargs: True,
     )
 
@@ -250,7 +250,7 @@ def test_langgraph_conditional_route_executes_only_selected_branch() -> None:
 
 
 def test_graph_llm_adapter_uses_registered_gateway_only(monkeypatch) -> None:
-    import mty_api.domains.ai_graph.gateway_adapter as adapter_module
+    import miy_api.domains.ai_graph.gateway_adapter as adapter_module
 
     observed: dict[str, object] = {}
 
@@ -541,7 +541,7 @@ def test_graph_executor_registry_resolves_exact_graph_version(
     monkeypatch,
     session_factory: sessionmaker[Session],
 ) -> None:
-    import mty_api.domains.ai_graph.execution_registry as registry_module
+    import miy_api.domains.ai_graph.execution_registry as registry_module
 
     calls: list[str] = []
     request_v1 = _run_request()
@@ -563,7 +563,7 @@ def test_graph_executor_registry_resolves_exact_graph_version(
         lambda: session_factory,
     )
     monkeypatch.setattr(
-        "mty_api.domains.ai_graph.execution_policy.can_use_app",
+        "miy_api.domains.ai_graph.execution_policy.can_use_app",
         lambda *_args, **_kwargs: True,
     )
     reset_ai_graph_executors()
@@ -585,7 +585,7 @@ def test_graph_executor_registry_cancels_before_provider_when_app_is_disabled(
     monkeypatch,
     session_factory: sessionmaker[Session],
 ) -> None:
-    import mty_api.domains.ai_graph.execution_registry as registry_module
+    import miy_api.domains.ai_graph.execution_registry as registry_module
 
     request = _run_request()
     with session_factory() as db:
@@ -599,7 +599,7 @@ def test_graph_executor_registry_cancels_before_provider_when_app_is_disabled(
         lambda: session_factory,
     )
     monkeypatch.setattr(
-        "mty_api.domains.ai_graph.execution_policy.can_use_app",
+        "miy_api.domains.ai_graph.execution_policy.can_use_app",
         lambda *_args, **_kwargs: False,
     )
     provider_calls: list[str] = []
@@ -627,7 +627,7 @@ def test_graph_executor_registry_never_reexecutes_terminal_run(
     monkeypatch,
     session_factory: sessionmaker[Session],
 ) -> None:
-    import mty_api.domains.ai_graph.execution_registry as registry_module
+    import miy_api.domains.ai_graph.execution_registry as registry_module
 
     request = _run_request()
     with session_factory() as db:
@@ -685,7 +685,7 @@ def test_run_graph_renews_execution_lease_while_node_is_running(
     monkeypatch,
     session_factory: sessionmaker[Session],
 ) -> None:
-    import mty_api.domains.ai_graph.runtime as runtime_module
+    import miy_api.domains.ai_graph.runtime as runtime_module
 
     renewals: list[str] = []
     original = AiGraphRunRepository.renew_execution_lease
@@ -784,7 +784,7 @@ def test_run_graph_logs_terminal_failure_with_run_context(
         log_records.append((message, extra))
 
     monkeypatch.setattr(
-        "mty_api.domains.ai_graph.runtime.logger.error",
+        "miy_api.domains.ai_graph.runtime.logger.error",
         record_error,
     )
 
@@ -1108,7 +1108,7 @@ def test_artifact_supersession_preserves_chain_with_same_owner_app_type(session_
 def test_artifact_company_publication_requires_acknowledgement_and_is_irreversible(session_factory):
     from fastapi import HTTPException
     from sqlalchemy import select
-    from mty_api.domains.auth.models import AuditLog
+    from miy_api.domains.auth.models import AuditLog
 
     with session_factory() as db:
         repository = AiArtifactRepository(db)

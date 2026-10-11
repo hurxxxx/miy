@@ -5,7 +5,7 @@ Before new UI, search existing app, `apps/web/src/components`, `apps/web/src/pla
 ## Rules
 
 - Reuse existing picker/tree/calendar/date/time/access/sidebar patterns.
-- Promote to shared `components/` or `platform/` only after two apps use the same interface.
+- Follow [shared abstraction criteria](composable-abstractions.md#rule) when extracting UI; use the smallest scope shared by the actual consumers.
 - Keep app-specific workflow components inside `apps/web/src/app-modules/<appId>/`.
 - Cross-app app feature access uses `public-api.ts`; no app-local deep import.
 - Product copy lives in i18n resources or caller props.

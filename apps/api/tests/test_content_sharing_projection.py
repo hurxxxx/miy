@@ -7,20 +7,27 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from company_admission_fixture import company_authority_tables, seed_company_app_access
-from mty_api.core import settings
-from mty_api.core.db import Base
-from mty_api.domains.auth.models import User
-from mty_api.domains.docs.models import (
+from miy_api.core import settings
+from miy_api.core.db import Base
+from miy_api.domains.auth.models import User
+from miy_api.domains.docs.models import (
+    DocMeetingAccess,
+    DocsCollection,
+    DocsUserItemPref,
     NativeDoc,
     NativeDocGroupShare,
     NativeDocLinkShare,
+    NativeDocPage,
+    NativeDocTarget,
     NativeDocUserShare,
 )
-from mty_api.domains.groups.models import Group
-from mty_api.domains.whiteboard.models import (
+from miy_api.domains.groups.models import Group
+from miy_api.domains.whiteboard.models import (
     Whiteboard,
     WhiteboardGroupShare,
     WhiteboardLinkShare,
+    WhiteboardTarget,
+    WhiteboardUserItemPref,
     WhiteboardUserShare,
 )
 
@@ -29,10 +36,10 @@ from mty_api.domains.whiteboard.models import (
 def content_projection_db(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(settings, "ENV_FILE", Path("/dev/null"))
     monkeypatch.setitem(settings.Settings.model_config, "env_file", None)
-    monkeypatch.setenv("MTY_POSTGRES_DSN", "sqlite://")
+    monkeypatch.setenv("MIY_POSTGRES_DSN", "sqlite://")
     settings.get_settings.cache_clear()
-    from mty_api.domains.docs import service as docs_service
-    from mty_api.domains.whiteboard import hub as whiteboard_hub
+    from miy_api.domains.docs import service as docs_service
+    from miy_api.domains.whiteboard import hub as whiteboard_hub
 
     engine = create_engine("sqlite://")
     try:
@@ -40,11 +47,26 @@ def content_projection_db(monkeypatch: pytest.MonkeyPatch):
             engine,
             tables=[
                 *company_authority_tables(),
-                *(
-                    table
-                    for table in Base.metadata.tables.values()
-                    if table.name.startswith(("docs_", "whiteboard"))
-                ),
+                *[
+                    model.__table__
+                    for model in (
+                        NativeDoc,
+                        DocsCollection,
+                        NativeDocPage,
+                        NativeDocTarget,
+                        NativeDocUserShare,
+                        NativeDocGroupShare,
+                        NativeDocLinkShare,
+                        DocMeetingAccess,
+                        DocsUserItemPref,
+                        Whiteboard,
+                        WhiteboardTarget,
+                        WhiteboardUserShare,
+                        WhiteboardGroupShare,
+                        WhiteboardLinkShare,
+                        WhiteboardUserItemPref,
+                    )
+                ],
             ],
         )
         with Session(engine) as db:

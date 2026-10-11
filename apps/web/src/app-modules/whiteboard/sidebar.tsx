@@ -1,17 +1,2 @@
-import { PencilRuler } from 'lucide-react';
-
-import type { AppSidebarConfig } from '@/src/app/shell/sidebar-types';
-
-export const whiteboardSidebarConfig: AppSidebarConfig = {
-  createActions: () => [
-    {
-      id: 'whiteboard-create',
-      label: 'whiteboard-create',
-      labelKey: 'sidebarActions.whiteboard-create',
-      icon: PencilRuler,
-      run: () => {
-        window.dispatchEvent(new CustomEvent('whiteboard:create'));
-      },
-    },
-  ],
-};
+/** Compatibility entry; the official suite owns this implementation. */
+export * from '@miy/official-suite-web/whiteboard/sidebar';

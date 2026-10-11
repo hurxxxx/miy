@@ -1,5 +1,5 @@
 import { cn } from '@/src/lib/utils';
-import { Button } from '@mty/ui/primitives/button';
+import { Button } from '@miy/ui/primitives/button';
 import type { Dispatch, FormEvent } from 'react';
 
 import type { AuthUser } from './auth-api';

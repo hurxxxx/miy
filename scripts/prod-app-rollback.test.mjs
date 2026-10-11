@@ -20,6 +20,8 @@ import { fileURLToPath } from 'node:url';
 import {
   prepareRollbackBundle,
   restoreRollbackEnvironment,
+  rollbackRuntime,
+  assertRollbackLegacyRouting,
 } from './prod-app-rollback.mjs';
 
 const IMAGE = `sha256:${'a'.repeat(64)}`;
@@ -32,21 +34,21 @@ const helper = fileURLToPath(
 );
 const shellQuote = (value) => `'${value.replaceAll("'", "'\\''")}'`;
 
-function fixture(t, { symlink = false } = {}) {
+function fixture(t, { symlink = false, brand = 'miy', firstParty = false } = {}) {
   const directory = mkdtempSync(
-    path.join(os.tmpdir(), 'mty-prod-rollback-test-'),
+    path.join(os.tmpdir(), 'miy-prod-rollback-test-'),
   );
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const rootDir = path.join(directory, 'prod');
   mkdirSync(rootDir);
   const files = {
-    'ops/compose/mty-prod.app.yml':
-      'services:\n  api:\n    image: mty-app:prod\n    env_file: [../../.env]\n',
+    [`ops/compose/${brand}-prod.app.yml`]: `name: ${brand}-prod-app\nservices:\n  api:\n    image: ${brand}-app:prod\n    env_file: [../../.env]\n  hermes-terminal-broker:\n    image: ${brand}-app:prod\n    container_name: ${brand}-prod-hermes-terminal-broker\n`,
     'ops/hermes/bootstrap.py': '# previous helper\n',
-    'scripts/prod-app-config.mjs': `import {readFileSync} from 'node:fs';\nif (!readFileSync(process.argv[2], 'utf8').includes('PREVIOUS_CONTRACT=required')) { console.error('synthetic-sensitive-environment'); process.exit(1); }\n`,
+    'scripts/prod-app-config.mjs': `import {readFileSync} from 'node:fs';\nimport {pathToFileURL} from 'node:url';\nexport function readEnvFile(file) { return readFileSync(file, 'utf8'); }\nexport function assertProductionAppEnv(contents) { if (!contents.includes('PREVIOUS_CONTRACT=required')) throw new Error('synthetic-sensitive-environment'); return {appPort:8000, publicBaseUrl:new URL('https://previous.example.com')}; }\nif (process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) { assertProductionAppEnv(readEnvFile(process.argv[2])); }\n`,
     'scripts/prod-app-smoke.mjs': '// previous smoke\n',
     'package.json': '{"type":"module"}\n',
   };
+  if (firstParty) files['ops/first-party/compose.override.yml.example'] = '# pinned split composition\n';
   for (const [relative, content] of Object.entries(files)) {
     mkdirSync(path.dirname(path.join(rootDir, relative)), { recursive: true });
     writeFileSync(path.join(rootDir, relative), content);
@@ -87,7 +89,46 @@ function fixture(t, { symlink = false } = {}) {
   const calls = [];
   const run = (command, args) => {
     calls.push([command, ...args]);
-    if (command === 'docker') return args[3] === '{{.Id}}' ? IMAGE : revision;
+    if (command === 'docker') {
+      if (args[0] === 'compose')
+        return JSON.stringify({
+          name: `${brand}-prod-app`,
+          services: {
+            api: { image: `${brand}-app:prod` },
+            'hermes-terminal-broker': {
+              container_name: `${brand}-prod-hermes-terminal-broker`,
+            },
+            ...(firstParty ? {
+              api: { image: `${brand}-app:prod`, command: ['miy_api.platform_runtime:app'] },
+              worker: { image: `${brand}-app:prod`, command: ['miy_worker.first_party_platform:celery_app'] },
+              beat: { image: `${brand}-app:prod`, command: ['miy_worker.first_party_beat:celery_app'] },
+              gateway: { image: `${brand}-app:prod`, command: ['apps/api/.venv/bin/python', 'ops/first-party/gateway.py'] },
+              'official-api': { image: OTHER, command: ['miy_official_api.runtime:app'] },
+              'official-worker': { image: `sha256:${'d'.repeat(64)}`, command: ['miy_official_worker.runtime:celery_app'] },
+            } : {}),
+          },
+        });
+      if (firstParty) {
+        const ref = args.at(-1);
+        const officialApi = ref === OTHER || ref === 'miy-official-api:prod';
+        const officialWorker = ref === `sha256:${'d'.repeat(64)}` || ref === 'miy-official-worker:prod';
+        if (officialApi || officialWorker) {
+          if (args[3] === '{{.Id}}') return officialApi ? OTHER : `sha256:${'d'.repeat(64)}`;
+          const name = args[3];
+          if (name.includes('org.opencontainers.image.title')) return officialApi ? 'miy-official-api' : 'miy-official-worker';
+          if (name.includes('activation')) return 'first-party-runtime';
+          if (name.includes('source-dirty')) return 'false';
+          if (name.includes('release.contract')) return 'c'.repeat(64);
+          if (name.includes('release.tree')) return git('rev-parse', `${revision}^{tree}`);
+          if (name.includes('release.platform')) return 'linux/amd64';
+          if (name.includes('bento-url-sha256')) return 'e'.repeat(64);
+          if (name.includes('merge-request')) return '80';
+          if (name.includes('pipeline')) return '141';
+          return revision;
+        }
+      }
+      return args[3] === '{{.Id}}' ? IMAGE : revision;
+    }
     return execFileSync(command, args, {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -97,15 +138,45 @@ function fixture(t, { symlink = false } = {}) {
     rootDir,
     envFile,
     image: IMAGE,
-    expectedImage: 'mty-app:prod',
+    expectedImage: 'miy-app:prod',
   };
   return { rootDir, envFile, revision, run, options, calls, directory };
 }
 
-function prepared(t) {
-  const f = fixture(t);
+test('split rollback pins both official immutable images and rejects altered bindings', (t) => {
+  const f = fixture(t, { firstParty: true });
+  const bundle = prepareRollbackBundle({ ...f.options, topology: 'first-party', officialApiImage: OTHER,
+    officialWorkerImage: `sha256:${'d'.repeat(64)}` }, { run: f.run });
+  const runtime = rollbackRuntime(bundle);
+  assert.equal(runtime.topology, 'first-party');
+  assert.equal(runtime.officialApiImage, OTHER);
+  assert.equal(runtime.officialWorkerImage, `sha256:${'d'.repeat(64)}`);
+  assert.equal(runtime.officialRevision, f.revision);
+  assert.equal(JSON.parse(readFileSync(path.join(bundle, 'rollback.json'))).version, 2);
+  restoreRollbackEnvironment({ rootDir: f.rootDir, bundle, image: IMAGE });
+  assert.equal(readFileSync(path.join(f.rootDir, '.env'), 'utf8'), PREVIOUS_ENV);
+  writeFileSync(path.join(bundle, '.images.env'), `MIY_OFFICIAL_API_IMAGE=${IMAGE}\n`);
+  assert.throws(() => rollbackRuntime(bundle), /artifact bindings have changed/);
+});
+
+function prepared(t, options) {
+  const f = fixture(t, options);
   return { ...f, bundle: prepareRollbackBundle(f.options, { run: f.run }) };
 }
+
+test('legacy recovery checks public split routing with the pinned previous config owner', async (t) => {
+  const f = prepared(t, { brand: 'mty' });
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const paths = [];
+  globalThis.fetch = async (url) => {
+    paths.push(String(url));
+    return new Response('<!doctype html><html><body><div id="root"></div></body></html>', { headers: { 'content-type': 'text/html' } });
+  };
+  await assertRollbackLegacyRouting(f.bundle);
+  assert.ok(paths.includes('https://previous.example.com/official-suite/widgets'));
+  assert.ok(paths.includes('https://previous.example.com/official-suite/healthz'));
+});
 
 test('pins environment and exact Git deployment assets before any runtime change', (t) => {
   const f = prepared(t);
@@ -131,7 +202,11 @@ test('pins environment and exact Git deployment assets before any runtime change
   assert.equal(
     f.calls
       .filter((call) => call[0] === 'docker')
-      .every((call) => call[1] === 'image' && call[2] === 'inspect'),
+      .every(
+        (call) =>
+          (call[1] === 'image' && call[2] === 'inspect') ||
+          (call[1] === 'compose' && call.includes('config')),
+      ),
     true,
   );
   assert.ok(
@@ -173,7 +248,7 @@ for (const invalid of [
       prepareRollbackBundle(
         {
           ...f.options,
-          image: invalid === 'mutable-tag' ? 'mty-app:prod' : IMAGE,
+          image: invalid === 'mutable-tag' ? 'miy-app:prod' : IMAGE,
         },
         { run },
       ),
@@ -312,8 +387,9 @@ function shellRestore(
   failStage = '',
   mode = 'explicit',
   action = 'restore',
+  brand = 'miy',
 ) {
-  const f = prepared(t);
+  const f = prepared(t, { brand });
   const events = path.join(f.directory, 'events');
   const currentEnv = path.join(f.rootDir, '.env');
   const result = spawnSync(
@@ -324,16 +400,22 @@ function shellRestore(
 set -euo pipefail
 ROOT_DIR=${shellQuote(f.rootDir)}
 ENV_FILE=${shellQuote(currentEnv)}
-COMPOSE_FILE="$ROOT_DIR/ops/compose/mty-prod.app.yml"
-COMPOSE_PROJECT_NAME=mty-prod-app
-CURRENT_IMAGE=mty-app:prod
-PREVIOUS_IMAGE=mty-app:prod-previous
+COMPOSE_FILE="$ROOT_DIR/ops/compose/miy-prod.app.yml"
+COMPOSE_PROJECT_NAME=miy-prod-app
+CURRENT_IMAGE=miy-app:prod
+PREVIOUS_IMAGE=miy-app:prod-previous
 ROLLBACK_IMAGE=${shellQuote(mode === 'explicit' ? IMAGE : '')}
 ROLLBACK_BUNDLE=${shellQuote(mode === 'explicit' ? f.bundle : '')}
+ROLLBACK_COMPOSE_FILE=${shellQuote(f.bundle + '/ops/compose/' + brand + '-prod.app.yml')}
+ROLLBACK_PROJECT=${shellQuote(brand + '-prod-app')}
+ROLLBACK_CURRENT_IMAGE=${shellQuote(brand + '-app:prod')}
+ROLLBACK_REVISION_ENV=${shellQuote(brand.toUpperCase().replaceAll('-', '_') + '_EXPECTED_REVISION')}
 EVENTS=${shellQuote(events)}
 FAIL_STAGE=${shellQuote(failStage)}
 CLEANUP_COUNT=0
 ${functions}
+# This recovery fixture owns an existing legacy runtime; retain the real gate.
+current_runtime_topology() { printf 'legacy\\n'; }
 docker() {
   if [[ "$1" == image ]]; then printf '%s\\n' ${shellQuote(f.revision)}; return 0; fi
   if [[ "$1" == tag ]]; then
@@ -354,20 +436,18 @@ node() {
   if [[ "$1" == *docker-storage.mjs ]]; then
     CLEANUP_COUNT=$((CLEANUP_COUNT + 1))
     printf 'cleanup:%s\\n' "$CLEANUP_COUNT" >> "$EVENTS"
-    [[ "$FAIL_STAGE:$CLEANUP_COUNT" != post-cleanup:2 ]] || return 4
+    [[ "$FAIL_STAGE:$CLEANUP_COUNT" != post-cleanup:1 ]] || return 4
   elif [[ "$*" == *' restore-env '* ]]; then
     printf 'restore-env\\n' >> "$EVENTS"
     [[ "$FAIL_STAGE" != env ]] || return 4
     ${shellQuote(process.execPath)} ${shellQuote(helper)} "\${@:2}"
+  elif [[ "$*" == *' smoke-routing '* ]]; then
+    printf 'routing-smoke\\n' >> "$EVENTS"
+    [[ "$FAIL_STAGE" != routing-smoke ]] || return 4
   elif [[ "$1" == *prod-app-smoke.mjs ]]; then
-    printf 'smoke:%s:%s\\n' "$1" "$MTY_EXPECTED_REVISION" >> "$EVENTS"
+    printf 'smoke:%s:%s\\n' "$1" "\${!ROLLBACK_REVISION_ENV}" >> "$EVENTS"
     [[ "$FAIL_STAGE" != smoke ]] || return 4
   else return 9; fi
-}
-build_release_image() {
-  printf 'build\\n' >> "$EVENTS"
-  [[ "$FAIL_STAGE" != build ]] || return 4
-  printf 'candidate-image\\n'
 }
 promote_image() {
   printf 'promote\\n' >> "$EVENTS"
@@ -377,11 +457,19 @@ run_migrations() {
   printf 'candidate-migration\\n' >> "$EVENTS"
   [[ "$FAIL_STAGE" != migration && "$FAIL_STAGE" != env ]] || return 4
 }
+stop_previous_writers() {
+  printf 'candidate-stop\n' >> "$EVENTS"
+  [[ "$FAIL_STAGE" != candidate-stop ]] || return 4
+}
+check_files_content_cutover() {
+  printf 'candidate-gate\n' >> "$EVENTS"
+  [[ "$FAIL_STAGE" != gate ]] || return 4
+}
 run_smoke() {
   printf 'candidate-smoke\\n' >> "$EVENTS"
   [[ "$FAIL_STAGE" != candidate-smoke ]] || return 4
 }
-if ${action === 'deploy' ? 'deploy' : 'restore_previous_runtime'}; then printf 'success\\n'; else printf 'failed\\n'; fi
+if ${action === 'deploy' ? 'deploy candidate-image' : 'restore_previous_runtime'}; then printf 'success\\n'; else printf 'failed\\n'; fi
 `,
     ],
     { encoding: 'utf8', env: { PATH: process.env.PATH } },
@@ -407,7 +495,7 @@ test('explicit rollback restores pinned image, root/bundle env, previous definit
     f.events,
     new RegExp(
       f.bundle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-        '/ops/compose/mty-prod.app.yml',
+        '/ops/compose/miy-prod.app.yml',
     ),
   );
   assert.ok(
@@ -415,6 +503,7 @@ test('explicit rollback restores pinned image, root/bundle env, previous definit
       `smoke:${f.bundle}/scripts/prod-app-smoke.mjs:${f.revision}`,
     ),
   );
+  assert.ok(f.events.indexOf('routing-smoke') > f.events.indexOf(`smoke:${f.bundle}/scripts/prod-app-smoke.mjs`));
   assert.doesNotMatch(f.events, /migrate|--volumes| down .* -v|prod-previous/);
   assert.equal(
     readFileSync(path.join(f.rootDir, '.env'), 'utf8'),
@@ -422,7 +511,7 @@ test('explicit rollback restores pinned image, root/bundle env, previous definit
   );
 });
 
-for (const stage of ['stop', 'env', 'tag', 'start', 'smoke']) {
+for (const stage of ['stop', 'env', 'tag', 'start', 'smoke', 'routing-smoke']) {
   test(`rollback stops at ${stage} failure even in an OR/conditional caller`, (t) => {
     const f = shellRestore(t, stage);
     assert.equal(f.result.stdout, 'failed\n');
@@ -446,9 +535,10 @@ test('default compatible-image rollback also stops after retag failure', (t) => 
 });
 
 for (const stage of [
-  'build',
   'promote',
+  'candidate-stop',
   'migration',
+  'gate',
   'candidate-start',
   'candidate-smoke',
 ]) {
@@ -469,7 +559,7 @@ for (const stage of [
     const restoration = f.events.slice(
       f.events.indexOf('down --remove-orphans'),
     );
-    assert.doesNotMatch(restoration, /migration|candidate-smoke|cleanup:2/);
+    assert.doesNotMatch(restoration, /migration|candidate-smoke|cleanup:/);
   });
 }
 
@@ -510,17 +600,19 @@ test('both Compose paths discard inherited product overrides while preserving Do
       `
 set -euo pipefail
 ENV_FILE=/synthetic/candidate/.env
-COMPOSE_FILE=/synthetic/candidate/ops/compose/mty-prod.app.yml
-COMPOSE_PROJECT_NAME=mty-prod-app
+COMPOSE_FILE=/synthetic/candidate/ops/compose/miy-prod.app.yml
+COMPOSE_PROJECT_NAME=miy-prod-app
 ROLLBACK_BUNDLE=/synthetic/previous
-export MTY_HERMES_API_KEY=synthetic-candidate
-export MTY_HERMES_MCP_SHARED_SECRET=synthetic-candidate
-export MTY_HERMES_TERMINAL_BROKER_PORT=19999
+ROLLBACK_COMPOSE_FILE=/synthetic/previous/ops/compose/miy-prod.app.yml
+ROLLBACK_PROJECT=miy-prod-app
+export MIY_HERMES_API_KEY=synthetic-candidate
+export MIY_HERMES_MCP_SHARED_SECRET=synthetic-candidate
+export MIY_HERMES_TERMINAL_BROKER_PORT=19999
 export OPENROUTER_API_KEY=synthetic-candidate
 ${functions}
 docker() {
   local checked_key
-  for checked_key in MTY_HERMES_API_KEY MTY_HERMES_MCP_SHARED_SECRET MTY_HERMES_TERMINAL_BROKER_PORT OPENROUTER_API_KEY; do
+  for checked_key in MIY_HERMES_API_KEY MIY_HERMES_MCP_SHARED_SECRET MIY_HERMES_TERMINAL_BROKER_PORT OPENROUTER_API_KEY; do
     [[ ! -v "$checked_key" ]] || return 9
   done
   [[ "$DOCKER_HOST" == unix:///synthetic/docker.sock && -n "$PATH" ]] || return 9
@@ -528,7 +620,7 @@ docker() {
 }
 compose config
 rollback_compose config
-[[ "$MTY_HERMES_API_KEY" == synthetic-candidate && "$OPENROUTER_API_KEY" == synthetic-candidate ]]
+[[ "$MIY_HERMES_API_KEY" == synthetic-candidate && "$OPENROUTER_API_KEY" == synthetic-candidate ]]
 `,
     ],
     {
@@ -556,12 +648,20 @@ for (const command of ['deploy', 'rollback']) {
         '-c',
         `
 set -euo pipefail
-CURRENT_IMAGE=mty-app:prod
-PREVIOUS_IMAGE=mty-app:prod-previous
+CURRENT_IMAGE=miy-app:prod
+PREVIOUS_IMAGE=miy-app:prod-previous
 ROLLBACK_IMAGE=""
 ROLLBACK_ENV_FILE=""
+RELEASE_MR=""
+DEPLOY_IMAGE=""
+TOPOLOGY=legacy RELEASE_SLICE=full ROLLBACK_TOPOLOGY=legacy
+OFFICIAL_API_IMAGE="" OFFICIAL_WORKER_IMAGE=""
+ROLLBACK_OFFICIAL_API_IMAGE="" ROLLBACK_OFFICIAL_WORKER_IMAGE=""
+${functions}
+current_runtime_topology() { printf 'legacy\\n'; }
 require_prod_checkout() { printf 'checkout\\n'; }
 require_release_source() { printf 'release\\n'; }
+acquire_operation_lock() { printf 'lock\\n'; }
 prepare_rollback_runtime() { printf 'prepare:%s\\n' "$1"; return 6; }
 validate_environment() { printf 'unexpected-validation\\n'; }
 deploy() { printf 'unexpected-deployment\\n'; }
@@ -570,6 +670,9 @@ ${dispatcher}
 `,
         'test',
         command,
+        ...(command === 'deploy'
+          ? ['--release-mr', '49', '--image', IMAGE]
+          : []),
         '--rollback-env-file',
         '/synthetic/backup.env',
         '--rollback-image',
@@ -580,7 +683,7 @@ ${dispatcher}
     assert.equal(result.status, 6);
     assert.equal(
       result.stdout,
-      `checkout\nrelease\nprepare:mty-app:${command === 'deploy' ? 'prod' : 'prod-previous'}\n`,
+      `checkout\nrelease\nlock\nprepare:miy-app:${command === 'deploy' ? 'prod' : 'prod-previous'}\n`,
     );
   });
 }
@@ -610,3 +713,77 @@ for (const args of [
     assert.match(result.stderr, /Usage:/);
   });
 }
+
+for (const brand of ['mty', 'open-work-hub']) {
+  test(`restores ${brand} runtime after candidate naming changes without migration`, (t) => {
+    const f = shellRestore(t, '', 'explicit', 'restore', brand);
+    assert.equal(f.result.stdout, 'success\n', f.result.stderr);
+    assert.match(
+      f.events,
+      /--project-name miy-prod-app .* down --remove-orphans/,
+    );
+    assert.ok(f.events.includes(`--project-name ${brand}-prod-app`));
+    assert.ok(f.events.includes(`/ops/compose/${brand}-prod.app.yml`));
+    assert.ok(
+      f.events.includes(
+        `smoke:${f.bundle}/scripts/prod-app-smoke.mjs:${f.revision}`,
+      ),
+    );
+    assert.doesNotMatch(f.events, /candidate-migration|--volumes/);
+    const manifest = JSON.parse(
+      readFileSync(path.join(f.bundle, 'rollback.json')),
+    );
+    assert.equal(manifest.runtime.image, `${brand}-app:prod`);
+    assert.equal(
+      manifest.runtime.broker,
+      `${brand}-prod-hermes-terminal-broker`,
+    );
+  });
+}
+
+test('native Compose config failure rejects preparation without restoring candidate env', (t) => {
+  const f = fixture(t);
+  const run = (command, args) => {
+    if (command === 'docker' && args[0] === 'compose')
+      throw Error('synthetic secret');
+    return f.run(command, args);
+  };
+  assert.throws(
+    () => prepareRollbackBundle(f.options, { run }),
+    /previous Compose validation failed/,
+  );
+  assert.equal(
+    readFileSync(path.join(f.rootDir, '.env'), 'utf8'),
+    CANDIDATE_ENV,
+  );
+});
+
+test('previous app project takes precedence over a shared infra project setting', (t) => {
+  const f = fixture(t, { brand: 'mty' });
+  const run = (command, args) => {
+    const result = f.run(command, args);
+    if (command !== 'docker' || args[0] !== 'compose') return result;
+    const config = JSON.parse(result);
+    const projectIndex = args.indexOf('--project-name');
+    config.name = projectIndex >= 0 ? args[projectIndex + 1] : 'mty-prod';
+    return JSON.stringify(config);
+  };
+  const bundle = prepareRollbackBundle(f.options, { run });
+  assert.equal(rollbackRuntime(bundle).project, 'mty-prod-app');
+});
+
+test('rejects mixed project/image identities and changed protected env in runtime metadata', (t) => {
+  const f = prepared(t, { brand: 'mty' });
+  assert.equal(rollbackRuntime(f.bundle).project, 'mty-prod-app');
+  const file = path.join(f.bundle, 'rollback.json');
+  const manifest = JSON.parse(readFileSync(file));
+  manifest.runtime.image = 'miy-app:prod';
+  writeFileSync(file, JSON.stringify(manifest), { mode: 0o600 });
+  assert.throws(() => rollbackRuntime(f.bundle), /identities do not match/);
+  manifest.runtime.image = 'mty-app:prod';
+  writeFileSync(file, JSON.stringify(manifest), { mode: 0o600 });
+  writeFileSync(path.join(f.bundle, '.env'), 'synthetic changed secret', {
+    mode: 0o600,
+  });
+  assert.throws(() => rollbackRuntime(f.bundle), /snapshot has changed/);
+});

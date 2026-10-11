@@ -1,0 +1,24 @@
+# Example only. A core operator must select a checkout and protected settings.
+# This unit is never installed or started by MIY or Workbench.
+# A production control-plane may keep isolated development installations in
+# its registry. Production targets require MIY_ENVIRONMENT=production.
+[Unit]
+Description=MIY operator-bound independent app delivery consumer
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/absolute/platform-checkout
+EnvironmentFile=%h/.config/miy/independent-delivery.env
+ExecStart=/absolute/platform-checkout/apps/api/.venv/bin/python scripts/independent-app-delivery.py serve --poll-seconds 5
+Restart=on-failure
+RestartSec=10
+# Let an in-flight bounded operation finish. Forced termination leaves a durable
+# running/unknown intent requiring operator reconciliation, never automatic replay.
+TimeoutStopSec=1200
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

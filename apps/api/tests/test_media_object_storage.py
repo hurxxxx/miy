@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 from minio.error import S3Error
 
-from mty_api.domains.media.object_storage import (
+from miy_api.domains.media.object_storage import (
     DEFAULT_MEDIA_CONTENT_TYPE,
     MediaObjectNotFoundError,
     MediaObjectReadError,

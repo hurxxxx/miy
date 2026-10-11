@@ -9,8 +9,8 @@ from pathlib import Path
 
 
 DEFAULT_SOURCE_ROOTS = (
-    Path("apps/api/src/mty_api"),
-    Path("apps/worker/src/mty_worker"),
+    Path("apps/api/src/miy_api"),
+    Path("apps/worker/src/miy_worker"),
 )
 
 FORBIDDEN_DIRECT_LLM_IMPORTS = {
@@ -109,7 +109,7 @@ def _duplicate_router_specs(tree: ast.Module, path: Path) -> list[Finding]:
     findings: list[Finding] = []
     seen: dict[str, int] = {}
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Call) or _call_name(node.func) != "_RouterSpec":
+        if not isinstance(node, ast.Call) or _call_name(node.func) not in {"_RouterSpec", "RouterSpec"}:
             continue
         router_node = node.args[0] if node.args else next(
             (keyword.value for keyword in node.keywords if keyword.arg == "router"),
@@ -128,7 +128,7 @@ def _duplicate_router_specs(tree: ast.Module, path: Path) -> list[Finding]:
                     line=node.lineno,
                     code="duplicate-router-spec",
                     message=(
-                        f"_RouterSpec registers {router_name!r} again; first registration "
+                        f"{_call_name(node.func)} registers {router_name!r} again; first registration "
                         f"is on line {previous_line}."
                     ),
                 )
@@ -147,10 +147,10 @@ def _direct_core_llm_imports(tree: ast.Module, path: Path) -> list[Finding]:
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
             module = node.module or ""
-            imports_core_llm_module = module == "mty_api.core.llm" or (
+            imports_core_llm_module = module == "miy_api.core.llm" or (
                 node.level > 0 and module == "core.llm"
             )
-            imports_core_package = module == "mty_api.core" or (
+            imports_core_package = module == "miy_api.core" or (
                 node.level > 0 and module == "core"
             )
             for imported in node.names:
@@ -179,7 +179,7 @@ def _direct_core_llm_imports(tree: ast.Module, path: Path) -> list[Finding]:
                     )
         elif isinstance(node, ast.Import):
             for imported in node.names:
-                if imported.name == "mty_api.core.llm":
+                if imported.name == "miy_api.core.llm":
                     findings.append(
                         Finding(
                             path=path,

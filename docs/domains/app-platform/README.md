@@ -7,16 +7,78 @@ company/users/groups design. One deployment serves one company. There is no prod
 workspace membership, implicit default container, workspace route, or workspace override.
 Filesystem working directories and package-manager workspaces are unrelated.
 
-`packages/contracts/app-contracts.json` owns app identity, routes, execution context, resource scope,
-and launcher placement; its schema validates the source and `pnpm generate:app-contracts` generates
+`packages/contracts/app-contracts.json` owns app identity, localized `title_translations`, `icon_key`, routes, execution context, resource scope,
+launcher placement, and the ordered `official_app_ids` membership; its schema validates the source and `pnpm generate:app-contracts` generates
 both TypeScript and Python projections. Generated files are never edited manually. Display categories
 such as `ai`, `collaboration`, and `business` are not executable app identities.
+
+Optional `management` metadata in that same contract provides a short purpose, capability keywords,
+repository-relative `source_paths`, and `release_unit` for MIY Workbench. Paths must remain inside the
+checkout. Every registration is discoverable without this metadata. Workbench reports unavailable
+source and release configuration explicitly; absent metadata never implies a `miy-app` release.
+The platform shell and Workbench use the same manifest labels and shared UI icon registry.
+This metadata grants no execution or resource access.
+Leaf apps share the `miy-app` Web/API/Worker release. The standalone `codex-console` identity retains
+its technical ID and uses the separate `miy-workbench` release while displaying **MIY Workbench**.
+An app is not an independently deployable service merely because it has a catalog entry.
+
+The [official suite composition](../../../apps/official-suite/README.md) now owns a separate
+local UI entry/build artifact. The shared `OFFICIAL_APP_IDS` contract owns the 12-app membership
+and order; both roots consume one legacy public-module adapter. This stage still bridges to
+existing web public app entries, shell, auth client and
+toolchain; the current `miy-app` API/worker/DB writer and release remain authoritative. Its
+ownership manifest describes the planned source boundary and does not activate another writer.
+The [transition design](../../../platform-redesign/OFFICIAL_APPS.md) owns the remaining runtime
+delegation, app-ID ownership, source ACL and queue/outbox cutover work.
+
+The [official API artifact](../../../apps/official-suite/api/README.md) now uses separately owned
+platform/official router compositions with the same handlers and authorization dependencies.
+The legacy API preserves their combined endpoint set and order. The two split ASGI profiles are
+inactive: business HTTP/WS is rejected, health identifies inactivity and readiness returns 503.
+The worker uses one source/Beat ownership catalog with its existing single bootstrap. Activation
+depends on the [writer cutover contract](../../../platform-redesign/OFFICIAL_API_CUTOVER.md),
+including implicit auth session writes and source projection/outbox dependencies.
+
+[App management projections](../integrations/README.md#앱-관리-조회) own external read scopes and
+installed revision/usage DTOs. [MIY Workbench](../../apps/codex-console/README.md) owns projects,
+maintenance records and development usage in its independent owner-operated store. App business
+configuration and company app admission remain in their existing product administration surfaces.
 
 ## Routes And Bootstrap
 
 Browser routes are `/apps/:appId/...`; the neutral launcher is `/`. APIs are `/api/v1/...`, with one
 account bootstrap at `GET /api/v1/apps/bootstrap`. Old paths and route redirects are unsupported.
 Use `buildAppHref` / `build_app_href` and generated routes. A URL or app pin never authorizes access.
+
+### Independent app hosting
+
+The portal also consumes the authenticated `/api/v1/independent-apps/catalog` projection.
+Its definitions and installations are owned by the [independent app service](../../../apps/api/src/miy_api/domains/independent_apps/README.md), not compiled leaf imports.
+The launcher lists the current user's `launchable` installations with the definition's localized
+name and icon. It reads every page under one catalog revision; an incomplete or failed query is
+shown as an error. Owner visibility of an installation is not launch permission.
+
+`/apps/:appId/installed/:installationId` is the generic portal host. It has no app-specific route
+registration or official-app sidebar. The iframe uses the installation's exact, separate origin,
+`allow-scripts allow-same-origin allow-forms allow-downloads`, and no referrer. Same-origin hosting
+is rejected. App code cannot navigate the portal or inherit its login token. The host and
+[browser SDK](../../../packages/app-sdk/README.md) bind the versioned handshake to the installation,
+origin, window source and request UUID. A PKCE-bound one-time launch code is delivered by
+`postMessage` to the exact origin, never in a URL. The app backend performs exchange and identity
+validation; third-party cookies are unnecessary.
+
+Frame reload, installation generation changes, session changes, access withdrawal and unmount
+cancel pending launch responses. The catalog refreshes on focus and every 30 seconds while visible;
+the server checks current admission again for launch and every app identity request. Connection
+failure is visible and the user can reload or open the standalone app.
+
+Standalone apps open the same authenticated host route with `?connect=popup`; this host binds the
+handshake to the app's opener window. The app's configured platform origin remains authoritative.
+Compatible cross-origin opener policies are required for this popup path; deployments must verify
+their actual proxy headers. The implementation does not relax existing COOP or CSP headers.
+Chromium regressions exercise the real portal/SDK across separate origins in `Asia/Seoul`, including
+iframe and popup login, absent platform credentials at the app, and access withdrawal. API fixtures
+are synthetic; production origins, proxy policy and production app artifacts require deployment verification.
 
 ## Core And App Authorization
 
@@ -115,6 +177,20 @@ Whiteboard Yjs transport checks the current session, app and source edit rights 
 frame before room mutation and every outgoing frame after acquiring the send lock; the periodic
 monitor also closes idle revoked connections.
 
+Docs and Whiteboard snapshot workers share one process-wide admission lease across hubs and event
+loops. Workers stay parallel, including Whiteboard's existing four-worker limit, and hold this lease
+through transaction outcome and Session cleanup. Once a native room disposal waits, new workers
+await admission before opening a Session or starting their SQL budget. Disposal drains active workers
+without blocking the event loop, then releases native state and runs its explicit full collection on
+the room's owner thread. Cancellation joins that owned disposal before propagating. This coordinates
+the platform's explicit room-disposal `gc.collect()` only; automatic or third-party GC is not disabled
+or covered by this exclusion. SQL budgets, identity checks and retry/unknown-outcome policy stay fixed.
+Final Docs and Whiteboard disposal joins snapshot admission and persistence before releasing native
+state, even after caller cancellation. Admission waits do not consume the non-SQL cleanup timeout;
+that timeout still bounds client/relay/room cleanup, and the SQL budget begins after admission.
+Docs and Whiteboard ignore only the exact empty Yjs delta emitted by native read transactions, so
+snapshot encoding cannot cancel its own scheduled save. Delete-only updates still save and relay.
+
 Common and collaborative WebSockets authenticate with the first `auth` message. URL `token`
 authentication is rejected, including a valid or empty query token. Session credentials must not
 appear in socket URLs. Docs and Whiteboard share `createAuthenticatedCollabProvider` in the UI
@@ -145,11 +221,27 @@ the event contains `notification: null` and the current count, without the old t
 - Category assignment, pinning, ordering, and hiding never create an app identity or authorize a
   route, API, worker, search result, notification, or AI capability.
 
+## Standalone Launcher Destinations
+
+A registered leaf may declare `launcher.url_setting`. Bootstrap reads that typed setting only after
+normal company, role and audience admission, and exposes it as `launch_url`. Unconfigured consoles
+remain unavailable through their feature predicate. Browser launcher, desktop personal tools and
+mobile navigation open these destinations with `target="_blank"` and `rel="noopener noreferrer"`.
+The registered `/apps/:appId` entry remains an admitted fallback with an explicit open link.
+No application token is forwarded. Codex Console is the narrow exception: after normal app admission,
+miy issues a 60-second, purpose-bound code in the new window's URL fragment. The console removes the
+fragment, exchanges the code once from its server, and creates its own session. miy rechecks the source
+session and current app admission during exchange. The exchange returns only the stable miy user UUID;
+the console creates a session only when it matches the owner UUID configured for that exact issuer.
+Other destinations own their authentication and resource access.
+Codex Console installation and its independent subscription runtime are owned by
+[Codex Console](../../apps/codex-console/README.md).
+
 ## Backend Registration
 
 - A domain exports one immutable leaf registration from
-  `apps/api/src/mty_api/domains/<domain>/app_catalog.py`.
-- `apps/api/src/mty_api/domains/auth/app_catalog.py` is the explicit composition root.
+  `apps/api/src/miy_api/domains/<domain>/app_catalog.py`.
+- `apps/api/src/miy_api/domains/auth/app_catalog.py` is the explicit composition root.
 - `compile_app_registry()` rejects duplicate identity/routes/nav, invalid ownership, and inconsistent route metadata.
 - Bootstrap, route/API gates, admin controls, AI discovery/execution, search, and background work consume compiled identity plus runtime availability.
 - Executable app-owned user work rechecks the current actor's app admission after claiming the job,
@@ -163,11 +255,14 @@ the event contains `notification: null` and the current count, without the old t
 
 ## Frontend Registration
 
-- App code stays under `apps/web/src/app-modules/<appId>/`.
+- Hosted app runtime adapters stay under `apps/web/src/app-modules/<appId>/`. Official business manifest/help metadata and the Diagrams UI/API implementation are owned by `packages/official-suite-web`; their old web paths are compatibility re-exports of that public library. Other hosted app views remain in the web tree.
 - Each leaf exports an `AppModuleManifest` and owns its routes, submenu, and extension registrations.
 - An app with no submenu entries returns an empty navigation projection; the platform never invents a root item.
 - Settings/admin is a shell-owned navigation surface, not an executable app identity or availability target.
 - The shell composition root imports leaf registrations explicitly and derives route, App Bar, document title, mobile navigation, and background projections.
+- Help guides follow the same composition boundary: roots select public leaf `HelpGuide` metadata for both `helpGuides` (modal) and `helpRoutes` (direct routes). The shared renderer has no implicit business-app guides; each registration owns its route, source, translation keys and optional locale source resolver. Help visibility does not grant app or resource access.
+- `platform-web` owns the actual shared browser AuthContext, HTTP client and user time implementation. The existing platform AuthProvider retains login/logout/bootstrap/access-refresh lifecycle; both roots initialize the same i18next singleton before use. See [browser platform ownership](../../../packages/platform-web/README.md).
+- `core-web/navigation-types` and `core-web/help-guide` own the shared shell metadata contracts. These shared contracts and the official metadata library cannot import application roots; the architecture check covers this direction and cycles across both UI compositions.
 - All app routes consume the same current account bootstrap. App-owned resource identifiers remain in app paths.
 - User-facing copy keeps `ko-KR` and `en-US` catalogs aligned.
 
@@ -178,7 +273,7 @@ source authorization.
 ## Keyword Search
 
 Participating apps provide an app-owned `SearchEntityAdapter`, explicit composition in
-`apps/api/src/mty_api/domains/search/default_entity_adapters.py`, lifecycle projection
+`apps/api/src/miy_api/domains/search/default_entity_adapters.py`, lifecycle projection
 hooks, source ACL, and disabled/empty/missing-index tests. Search results use the canonical generated
 browser route and recheck source access. Retrieval partition is candidate scope, not authorization.
 

@@ -6,7 +6,7 @@ import hashlib
 import pytest
 from cryptography.fernet import Fernet
 
-from mty_api.domains.mail.crypto import MailCredentialError, resolve_mail_credential_key
+from miy_api.domains.mail.crypto import MailCredentialError, resolve_mail_credential_key
 
 
 def test_resolve_mail_credential_key_reuses_valid_fernet_key() -> None:

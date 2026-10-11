@@ -1,13 +1,2 @@
-import { diagramsManifest } from './manifest';
-import { diagramsAppRoutes } from './routes';
-import { diagramsSidebarConfig } from './sidebar';
-
-export { diagramsAppRoutes, diagramsToolElement } from './routes';
-export { diagramsSidebarConfig } from './sidebar';
-export { diagramsManifest };
-
-export const diagramsModule = {
-  manifest: diagramsManifest,
-  sidebarConfig: diagramsSidebarConfig,
-  appRoutes: diagramsAppRoutes,
-} as const;
+/** Compatibility entry; the official suite owns this module composition. */
+export * from '@miy/official-suite-web/diagrams/module';

@@ -1,7 +1,9 @@
-import type { RecentPageItem } from '@/src/app-modules/docs/public-api';
-import type { MeetingListItem } from '@/src/app-modules/meeting/public-api';
-import type { PlannerEvent } from '@/src/app-modules/planner/public-api';
-import type { PmsTask } from '@/src/app-modules/pms/public-api';
+import type {
+  RecentPageItem,
+  MeetingListItem,
+  PlannerEvent,
+  PmsTask,
+} from '@miy/official-suite-web/summaries';
 import {
   diffDateOnlyDays,
   formatDateOnly,
@@ -10,11 +12,8 @@ import {
   isSameDateInTimeZone,
   parseApiDateTime,
   zonedDateKey,
-} from '@/src/platform/time/time-utils';
-import {
-  buildAppEntryHref,
-  buildAppHref,
-} from '@mty/contracts/app-routes';
+} from '@miy/platform-web/time/time-utils';
+import { buildAppEntryHref, buildAppHref } from '@miy/contracts/app-routes';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 

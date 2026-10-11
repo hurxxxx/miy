@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "codex_version": "0.160.1",
+  "target": "x86_64-unknown-linux-musl",
+  "systemd_minimum_version": 255,
+  "layout": {
+    "wrapper_root": "node_modules/@openai/codex",
+    "platform_root": "node_modules/@openai/codex/node_modules/@openai/codex-linux-x64",
+    "vendor_relative": "vendor/x86_64-unknown-linux-musl",
+    "binary_relative": "bin/codex",
+    "bwrap_relative": "codex-resources/bwrap"
+  },
+  "packages": [
+    {
+      "name": "@openai/codex",
+      "version": "0.160.1",
+      "tarball": "https://registry.npmjs.org/@openai/codex/-/codex-0.160.1.tgz",
+      "dist_integrity": "sha512-f1yrJhwgimKQI1kYQlxdPJcFwkNZxZrbz7Hf89EAcnLqkQ7TiESzr2FgSZn13Ga5RuHjlVUfurzwq10wk9zw2g==",
+      "archive_sha256": "d84454cfa82f61add78b3270073c6e254923e89657c7f0dd1a88cc5659b4e0c0",
+      "files_sha256": {
+        "bin/codex.js": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70",
+        "package.json": "05d54db58bd6e525e69e770052b189970dc52f72457e5cc189bab0cbd70d11f8",
+        "README.md": "ba4e1f69ff48386e72a9c5e1edaf76aad64a475c2d51af79ccba6d1128261ba7"
+      }
+    },
+    {
+      "name": "@openai/codex",
+      "version": "0.160.1-linux-x64",
+      "alias": "@openai/codex-linux-x64",
+      "tarball": "https://registry.npmjs.org/@openai/codex/-/codex-0.160.1-linux-x64.tgz",
+      "dist_integrity": "sha512-sIDhqV+bsZKKVaVFVY5iB+pAzyOz2XRm3H1KXCsSJwGj5p98qnrT0Fweo1Hfe7WnyTp8mfBNdbVzUeO+mHYugA==",
+      "archive_sha256": "dc9ebd133d3af19ccac4bd5515a5049005b8b05ef3bd558d257d44f32a94f758",
+      "files_sha256": {
+        "vendor/x86_64-unknown-linux-musl/codex-resources/bwrap": "77360cb751ccedc5971391444ac86a8a33c15b04d6b4a6fe45f5d25496e62c4c",
+        "vendor/x86_64-unknown-linux-musl/bin/codex": "f34a4d2301892ae96c90097786bfe5dc269f187b6f69faf42a7b357b8c081e35",
+        "vendor/x86_64-unknown-linux-musl/bin/codex-code-mode-host": "b33e8a5283f3c65c2a0aca6d43a59cfe850f624d8fa16992e3cad4fcc27c14e1",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/bin/codex-voice-host": "4a55aa2085f8e66aaa9872b1ebaec4149247f5806aef17d57c4bc909e4d16505",
+        "vendor/x86_64-unknown-linux-musl/codex-path/rg": "e62198eb19b136b88c330af83647b5a962cb99b6b1f066758568f12de1974849",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/zsh/bin/zsh": "67faaaa89242c4a332e16e508a1977cffc24bf7fca31d4411cdfd101f3831ef3",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libgio-2.0.so.0": "bbe26ed6cf51923e00c5bb13599a66eff1d08ca56a9fb25221fe2d7110fa3704",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libglib-2.0.so.0": "20994b31ff8856fc0d1417959b856e1d2f932837d98959d6ae427821b3103e14",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libgmodule-2.0.so.0": "16acd2347c68e531912016d9263f99c36721077003a54957ed9dee6fb680c4fd",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libgobject-2.0.so.0": "cd5ac7e7811422ee62ac5e968b26691436c94105c537a40e7f31d45725147a90",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libgstallocators-1.0.so.0": "9b6896e3a4fd95ae4297d000778088b7f1feb0a098a44e90a1f94b042ea7268e",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libgstapp-1.0.so.0": "ed37774d99ed62ea4e6d74af97692b965feae704fa71169b2808cfd3c6c862a7",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libgstaudio-1.0.so.0": "c7ba5593c2fa5785a621f04f95c66037cf000f5a28aa9ea41821bc9d0019a29f",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libgstbase-1.0.so.0": "f7277672aea1fb2b3d3faaf9027267da31b5f3220ffd8ede94200a7bfa420c1d",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libgstnet-1.0.so.0": "55e08152618026db734712f7599347a5c918206ffccfb4f8c77de0693120e966",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libgstpbutils-1.0.so.0": "af8e6bce5d11f414ebf3d29b00204fe1c6c9bd41c6db203ee1c49ad0000d63ff",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libgstreamer-1.0.so.0": "2879fc2ce0af0d73e97a79305f1d3e48ce457ca6ae0fa842d9cb60036f23592f",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libgstrtp-1.0.so.0": "1b5a5724f386bdfe4953d7875659b855801bdd56c888b65b2cccf68fd309d308",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libgsttag-1.0.so.0": "511e2374d4faf0ed0624987c9c9fc076d88207e20b609b46bba9f5e70f2b7925",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libgstvideo-1.0.so.0": "0867ad6f4814f232855443da34e842a6b1e1c6d3e95576f8a891ea78bb739211",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libopus.so.0": "8aa8e09d2b6716a4161d7168f9950f052ecf6369e07fd6164f18c4a196c08fc0",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libpcre2-8.so.0": "e39519b242f40686734ed8d0218f68cac24f0e956ec64c8c1b49b9da5cc9788b",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libz.so.1": "6c5d765f42d9368cc4bdbd11f725c1bcf6b14b78322033d3c94f787fc6261f5e",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libffi.so.8": "6ef5db59b2e4b1eb63032fa6c8afb1669bc09b073789233c379efda85b1353db",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/libintl.so.8": "f50f3ab34be7b3392f2db82bd67d50e133b35fa41d352dc3b3a97b70b0ffd960",
+        "vendor/x86_64-unknown-linux-musl/codex-package.json": "a04a3cfb05f6738fc1e01678975cdae4c3a0859ff36f06ecfbf8392beee7f86c",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/manifest.json": "404a7aec7659e95d588d85797b1987651674c24c9ba61d372566f42553f813fe",
+        "package.json": "131c7afb8a1f1c9d4606cd0abc3a9f8ff182e162840ea7203bf553a79be33eff",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/runtime.json": "9da3d02ddcb8fa5c1441983839653e76b5325640e33674bd0e456af869f339ba",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/sources.json": "e2f6b124f6277e7c3c4f5c7cc8830c66190f671ad65e972bb2cc9507dbfcb937",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/NOTICE.md": "40097a1799441051aa0b6645cdc819cceb19be73cdd265eb602aa2b15e0b1f48",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/licenses/PCRE2.md": "197d8a73ffee0d6b09adba2f9c677b5f5aede24edf89258a68e48248d010d811",
+        "README.md": "ba4e1f69ff48386e72a9c5e1edaf76aad64a475c2d51af79ccba6d1128261ba7",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/gstreamer-1.0/libgstapp.so": "2646b2ab46674e09128f63bfb58f416bb622f3357a63ccb91d8674e68d2a1223",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/gstreamer-1.0/libgstaudioconvert.so": "37d771eadef4166792176c105c5c86a7cc208923295bf595b544557daaa75317",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/gstreamer-1.0/libgstaudioresample.so": "6eda61f5c63bfa466ef5e327a2034ba53914eefb67a46c6990a441efc916d3b2",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/gstreamer-1.0/libgstcoreelements.so": "8ebc31edf0b41bb12aaad82646dfff52c2cab5c7f5fd8787ed12be469e25ad37",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/gstreamer-1.0/libgstopus.so": "56fada956e68ef837b701842d0447e5bda26e875442cf401509bf6d902a0dcfd",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/gstreamer-1.0/libgstrtp.so": "b916d45f805dd683474b4fc1138bf6be02dc7fedd6f8c2aef987da11631ed51c",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/lib/gstreamer-1.0/libgstrtpmanager.so": "06f6bc45bbbff1b7d940d18b3ff083ee70b6caee24ef35ebcd960a6e76fe71fa",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/licenses/LGPL-2.1.txt": "ad2eec519ebd4b5df86ea84dff24ae3bfa2edea846a703b58902dd221ae375db",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/licenses/libffi.txt": "17b64dc60f3b6897a60f971e288b973f655c2edcdf08b25f3c3dd5549857881c",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/licenses/Opus.txt": "01e1167d54a096d123cf6dfbbeb19587278845c6481d2d66d545669846079551",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/licenses/proxy-libintl.txt": "d245807f90032872d1438d741ed21e2490e1175dc8aa3afa5ddb6c8e529b58e5",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/licenses/sljit.txt": "5f216505c0f6ea3273caec89e766eef93cdeb7bbb0c429f9360116d7c938feeb",
+        "vendor/x86_64-unknown-linux-musl/codex-resources/voice/licenses/zlib.txt": "e32ff4e00d9d94930537635291da39e7e612703334bf6fde8c7f1686fe8a45a2"
+      }
+    }
+  ],
+  "policy": {
+    "acquisition_scripts": false,
+    "automatic_download": false,
+    "mutable_global_binary": false,
+    "preserve_official_vendor_layout": true,
+    "verification_before_installation": true
+  }
+}

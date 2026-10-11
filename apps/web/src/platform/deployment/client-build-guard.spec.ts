@@ -65,7 +65,7 @@ describe('client build fetch guard', () => {
 
   it('does not honor reload headers from external fetch responses', async () => {
     const response = new Response('{}', {
-      headers: { 'X-MTY-Reload-Required': '1' },
+      headers: { 'X-MIY-Reload-Required': '1' },
     });
     const { replace, runtime } = makeRuntime(response);
     installClientBuildFetchGuard(runtime, { buildId: 'build-current' });
@@ -80,7 +80,7 @@ describe('client build fetch guard', () => {
       JSON.stringify({ code: 'CLIENT_BUILD_MISMATCH' }),
       {
         status: 409,
-        headers: { 'X-MTY-Reload-Required': '1' },
+        headers: { 'X-MIY-Reload-Required': '1' },
       },
     );
     const { replace, runtime } = makeRuntime(response);
@@ -135,7 +135,7 @@ describe('client build fetch guard', () => {
     request.send();
     expect(request.headers.get(CLIENT_BUILD_HEADER)).toBe('build-current');
 
-    request.responseHeaders.set('X-MTY-Reload-Required', '1');
+    request.responseHeaders.set('X-MIY-Reload-Required', '1');
     request.dispatchEvent(new Event('load'));
     expect(replace).toHaveBeenCalledWith(
       'https://app.test/apps/pms?__reload=4000',

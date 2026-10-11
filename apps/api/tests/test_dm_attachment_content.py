@@ -8,13 +8,13 @@ from urllib.parse import parse_qs, urlparse
 from fastapi import HTTPException
 import pytest
 
-from mty_api.domains.content_access.grants import (
+from miy_api.domains.content_access.grants import (
     ContentGrantIssuer,
     InvalidContentGrant,
     decode_content_grant,
 )
-from mty_api.domains.dm import attachment_content, attachment_links
-from mty_api.domains.dm.models import DmMessageAttachment
+from miy_api.domains.dm import attachment_content, attachment_links
+from miy_api.domains.dm.models import DmMessageAttachment
 
 
 @pytest.fixture

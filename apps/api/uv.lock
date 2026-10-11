@@ -1540,7 +1540,7 @@ wheels = [
 ]
 
 [[package]]
-name = "mty-api"
+name = "miy-api"
 version = "0.1.1"
 source = { editable = "." }
 dependencies = [

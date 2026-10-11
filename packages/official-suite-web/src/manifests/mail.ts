@@ -1,0 +1,83 @@
+import { getAppRoutePattern } from '@miy/contracts/app-routes';
+import {
+  FilePenLine,
+  Inbox,
+  Mail,
+  MailOpen,
+  Settings,
+  Star,
+} from 'lucide-react';
+
+import type { AppModuleManifest } from '@miy/core-web/navigation-types';
+
+export const mailManifest: AppModuleManifest = {
+  appBarItem: { id: 'mail', title: 'mail', icon: Mail },
+  contract: {
+    owner: 'mail-platform',
+    permissions: [],
+    apiDomain: 'mail',
+    aiCapabilities: ['mail.list_messages', 'mail.get_message'],
+    writeAuditActions: [
+      'mail.account.create',
+      'mail.account.update',
+      'mail.account.delete',
+      'mail.draft.send',
+    ],
+    appLocalTests: [
+      'apps/web/src/app/shell/official-module-ownership.spec.tsx',
+      'packages/official-suite-web/src/mail/api/mail-api.spec.ts',
+      'apps/web/src/app-modules/mail/routes.spec.ts',
+      'packages/official-suite-web/src/mail/views/MailBodyRenderer.spec.tsx',
+      'packages/official-suite-web/src/mail/views/mail-view-model.spec.ts',
+      'packages/official-suite-web/src/mail/views/mail-view-workflow.spec.ts',
+      'packages/official-suite-web/src/mail/views/useMailViewController.spec.ts',
+      'apps/api/tests/test_mail_integration.py',
+      'apps/api/tests/test_mail_personal_scope.py',
+      'apps/worker/tests/test_mail_tasks.py',
+    ],
+  },
+  defaultActiveNavItemId: 'mail-inbox',
+  navItems: [
+    {
+      id: 'mail-inbox',
+      title: 'mail-inbox',
+      icon: Inbox,
+      category: 'Mail',
+      appId: 'mail',
+    },
+    {
+      id: 'mail-unread',
+      title: 'mail-unread',
+      icon: MailOpen,
+      category: 'Mail',
+      appId: 'mail',
+      pathSuffix: '?unread=true',
+    },
+    {
+      id: 'mail-starred',
+      title: 'mail-starred',
+      icon: Star,
+      category: 'Mail',
+      appId: 'mail',
+      pathSuffix: '?starred=true',
+    },
+    {
+      id: 'mail-drafts',
+      title: 'mail-drafts',
+      icon: FilePenLine,
+      category: 'Mail',
+      appId: 'mail',
+      pathSuffix: '?view=drafts',
+    },
+    {
+      id: 'mail-settings',
+      title: 'mail-settings',
+      icon: Settings,
+      category: 'Mail',
+      appId: 'mail',
+      pathSuffix: '?view=settings',
+    },
+  ],
+  appRoutePaths: [],
+  globalRoutePaths: [getAppRoutePattern('mail.root')],
+};

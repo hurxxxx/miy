@@ -26,7 +26,7 @@ import {
   TabsList,
   TabsTrigger,
   useFeedback,
-} from '@mty/ui';
+} from '@miy/ui';
 
 import { useAuth } from '@/src/platform/auth/auth-provider';
 import {

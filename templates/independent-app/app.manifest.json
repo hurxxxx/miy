@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "app_id": "sample-app",
+  "display": { "name": "My app", "translations": {}, "icon": "app-window" },
+  "source": {
+    "repository": "https://example.test/team/sample-app.git",
+    "directory": "."
+  },
+  "ownership": "personal",
+  "sdk_version": 1,
+  "runtime_profile": "web-api-v1",
+  "entrypoints": { "ui": "/", "api": "/api", "health": "/healthz" },
+  "requested_permissions": ["identity:read"]
+}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@mty/ui';
+import { Button } from '@miy/ui';
 import { DirectoryPicker } from '@/src/platform/directory/DirectoryPicker';
 import { listHrGroups, type HrGroupItem } from './admin-api';
 import { buildHrGroupRows, descendantIds } from './admin-group-hierarchy';

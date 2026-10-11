@@ -1,0 +1,14 @@
+{
+  "name": "@miy/codex-console-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "env -u NODE_ENV vitest run",
+    "e2e": "playwright test && playwright test --config registration.playwright.config.ts",
+    "e2e:registration": "playwright test --config registration.playwright.config.ts"
+  }
+}

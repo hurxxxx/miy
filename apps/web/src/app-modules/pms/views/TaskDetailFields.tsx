@@ -1,12 +1,2 @@
-import type { ReactNode } from 'react';
-
-export function MetaLabel({ children }: { children: ReactNode }) {
-  return (
-    <span className="app-text-overline whitespace-nowrap text-app-ink/50">
-      {children}
-    </span>
-  );
-}
-
-export { InlineSaveError } from './InlineSaveError';
-export { UserRolePicker } from './UserRolePicker';
+/** Compatibility entry; the owned library supplies this implementation. */
+export * from '@miy/official-suite-web/pms/views/TaskDetailFields';

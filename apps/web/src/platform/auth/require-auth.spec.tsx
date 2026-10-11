@@ -19,8 +19,8 @@ const mock = vi.hoisted(() => ({
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: mock.t, i18n: { language: 'en-US' } }),
 }));
-vi.mock('@mty/ui', async (original) => ({
-  ...(await original<typeof import('@mty/ui')>()),
+vi.mock('@miy/ui', async (original) => ({
+  ...(await original<typeof import('@miy/ui')>()),
   useFeedback: () => ({ error: mock.error }),
 }));
 const account = createAuthUser({

@@ -1,4 +1,4 @@
-import type { BlockContent } from '@mty/ui';
+import type { BlockContent } from '@miy/ui';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { createInstance } from 'i18next';
@@ -63,17 +63,19 @@ const publication = vi.hoisted(() => ({
   attachTaskDoc: vi.fn(),
   detachTaskDoc: vi.fn(),
 }));
-vi.mock('@mty/ui', async (original) => ({
-  ...(await original<typeof import('@mty/ui')>()),
+vi.mock('@miy/ui', async (original) => ({
+  ...(await original<typeof import('@miy/ui')>()),
   useConfirm: () => ({ confirm: publication.confirm, confirmDialog: null }),
 }));
-vi.mock('@/src/app-modules/docs/public-api', () => ({
+vi.mock('@miy/official-suite-web/docs', () => ({
   createNativeDoc: publication.createNativeDoc,
   listDocPages: publication.listDocPages,
   updateDocPage: publication.updateDocPage,
 }));
-vi.mock('../api/pms-api', async (original) => ({
-  ...(await original<typeof import('../api/pms-api')>()),
+vi.mock('@miy/official-suite-web/pms/api/pms-api', async (original) => ({
+  ...(await original<
+    typeof import('@miy/official-suite-web/pms/api/pms-api')
+  >()),
   attachTaskDoc: publication.attachTaskDoc,
   detachTaskDoc: publication.detachTaskDoc,
 }));

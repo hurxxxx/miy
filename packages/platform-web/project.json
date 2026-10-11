@@ -1,0 +1,23 @@
+{
+  "name": "platform-web",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/platform-web/src",
+  "projectType": "library",
+  "tags": ["scope:web", "type:lib", "domain:core"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec tsc --noEmit -p packages/platform-web/tsconfig.json",
+        "cwd": "."
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "env NODE_OPTIONS=--no-experimental-webstorage pnpm exec vitest run --config packages/platform-web/vite.config.mts",
+        "cwd": "."
+      }
+    }
+  }
+}

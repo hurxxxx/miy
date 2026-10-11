@@ -6,27 +6,27 @@ from zoneinfo import ZoneInfo
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from mty_api.core.db import get_session_factory
-from mty_api.domains.auth.access import record_audit_log
-from mty_api.domains.auth.models import AuthSession, utcnow_naive
-from mty_api.domains.auth.security import new_id
-from mty_api.domains.community.models import (
+from miy_api.core.db import get_session_factory
+from miy_api.domains.auth.access import record_audit_log
+from miy_api.domains.auth.models import AuthSession, utcnow_naive
+from miy_api.domains.auth.security import new_id
+from miy_api.domains.community.models import (
     CommunityChannel,
     CommunityComment,
     CommunityPost,
 )
-from mty_api.domains.community.service import DEFAULT_CHANNEL_KEY, ensure_default_channels
-from mty_api.domains.docs.models import NativeDoc
-from mty_api.domains.meeting.models import Meeting
-from mty_api.domains.pms.models import Attachment, Task, TaskList
-from mty_api.domains.usage.models import UsageEvent, UsageExcludedUser
-from mty_api.domains.usage.service import (
+from miy_api.domains.community.service import DEFAULT_CHANNEL_KEY, ensure_default_channels
+from miy_api.domains.docs.models import NativeDoc
+from miy_api.domains.meeting.models import Meeting
+from miy_api.domains.pms.models import Attachment, Task, TaskList
+from miy_api.domains.usage.models import UsageEvent, UsageExcludedUser
+from miy_api.domains.usage.service import (
     USAGE_EVENT_APP_OPEN,
     USAGE_EVENT_CONTENT_VIEW,
     USAGE_EVENT_SEARCH_QUERY,
     record_usage_event,
 )
-from mty_api.domains.whiteboard.models import Whiteboard
+from miy_api.domains.whiteboard.models import Whiteboard
 
 
 def _auth_headers(token: str) -> dict[str, str]:
@@ -37,8 +37,8 @@ def _bootstrap_admin_session(client: TestClient) -> dict:
     response = client.post(
         "/api/v1/auth/setup",
         json={
-            "full_name": "MTY Admin",
-            "email": "admin@mty.local",
+            "full_name": "miy Admin",
+            "email": "admin@miy.local",
             "password": "supersecret123",
         },
     )

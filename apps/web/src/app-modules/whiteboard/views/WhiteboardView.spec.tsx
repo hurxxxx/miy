@@ -20,17 +20,24 @@ const api = vi.hoisted(() => ({
   updateWhiteboardCompanySharing: vi.fn(),
 }));
 
-vi.mock('@/src/platform/auth/auth-provider', () => ({
+vi.mock('@miy/platform-web', async (original) => ({
+  ...(await original<Record<string, unknown>>()),
   useAuth: () => ({ token: 'test-session', user: { time_zone: 'UTC' } }),
 }));
-vi.mock('../api/whiteboard-api', async (original) => ({
-  ...(await original<typeof import('../api/whiteboard-api')>()),
-  ...api,
-}));
-vi.mock('./whiteboard-preview-loader', async (original) => ({
-  ...(await original<typeof import('./whiteboard-preview-loader')>()),
-  whiteboardPreviewLoader: { load: vi.fn().mockResolvedValue(null) },
-}));
+vi.mock(
+  '@miy/official-suite-web/whiteboard/api/whiteboard-api',
+  async (original) => ({
+    ...(await original<typeof import('../api/whiteboard-api')>()),
+    ...api,
+  }),
+);
+vi.mock(
+  '@miy/official-suite-web/whiteboard/views/whiteboard-preview-loader',
+  async (original) => ({
+    ...(await original<typeof import('./whiteboard-preview-loader')>()),
+    whiteboardPreviewLoader: { load: vi.fn().mockResolvedValue(null) },
+  }),
+);
 
 function projectBoard(companyVisible = false): WhiteboardHubItem {
   const target = { app: 'pms', type: 'space', id: 'project', sort_order: 0 };

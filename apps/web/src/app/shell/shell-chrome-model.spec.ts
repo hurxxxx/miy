@@ -1,5 +1,6 @@
 import { createAuthUser } from '../../../tests/fixtures/company';
 import { describe, expect, it } from 'vitest';
+import { pmsManifest } from '@miy/official-suite-web/manifests/pms';
 
 import type { AuthUser } from '@/src/platform/auth/auth-api';
 import { resolveShellState } from '@/src/app-shell';
@@ -9,9 +10,9 @@ import { resolveShellChromeState } from './shell-chrome-model';
 function buildUser(overrides: Partial<AuthUser> = {}): AuthUser {
   return createAuthUser({
     date_format: 'korean',
-    display_name: 'MTY Member',
-    email: 'member@mty.local',
-    full_name: 'MTY Member',
+    display_name: 'miy Member',
+    email: 'member@miy.local',
+    full_name: 'miy Member',
     id: 'user-1',
     locale: 'ko-KR',
     login_id: 'member',
@@ -41,7 +42,6 @@ function resolveChrome(
       'pms',
       'retrieval-search',
       'docs',
-      'web-search',
       'whiteboard',
     ],
     appGlobalRoutes: APP_GLOBAL_ROUTES,
@@ -55,6 +55,17 @@ function resolveChrome(
 }
 
 describe('shell chrome model', () => {
+  it('hosts independent installations without inheriting an official app sidebar or usage identity', () => {
+    expect(
+      resolveChrome('/apps/candidate-review/installed/installation-id'),
+    ).toMatchObject({
+      activeAppId: 'launcher',
+      activeNavItemId: '',
+      canOpenMobileAppMenu: false,
+      showSubSidebar: false,
+      mainClassName: 'flex-1 overflow-hidden relative',
+    });
+  });
   it('keeps app context chrome on app surfaces', () => {
     expect(resolveChrome('/apps/whiteboard/boards/board-1')).toMatchObject({
       activeAppId: 'whiteboard',
@@ -102,21 +113,13 @@ describe('shell chrome model', () => {
       showSubSidebar: true,
     });
 
-    for (const pathname of ['/apps/chatbot', '/apps/web-search']) {
+    for (const pathname of ['/apps/chatbot']) {
       expect(resolveChrome(pathname)).toMatchObject({
         canOpenMobileAppMenu: true,
         mainClassName: 'flex-1 overflow-hidden relative',
         showSubSidebar: true,
       });
     }
-
-    expect(resolveChrome('/apps/web-search')).toMatchObject({
-      activeAppId: 'web-search',
-      activeNavItemId: 'web-search',
-      canOpenMobileAppMenu: true,
-      mainClassName: 'flex-1 overflow-hidden relative',
-      showSubSidebar: true,
-    });
   });
 
   it('keeps context chrome on app renders but not shared renders', () => {
@@ -164,14 +167,14 @@ describe('shell chrome model', () => {
 
     expect(resolveChrome('/apps/pms/lists/list-1')).toMatchObject({
       activeAppId: 'pms',
-      activeNavItemId: 'pms-list-list-1',
+      activeNavItemId: pmsManifest.defaultActiveNavItemId,
       mainClassName: 'flex-1 overflow-hidden relative',
       showSubSidebar: true,
     });
 
     expect(resolveChrome('/apps/pms/assigned')).toMatchObject({
       activeAppId: 'pms',
-      activeNavItemId: 'pms-tasks-assigned',
+      activeNavItemId: 'pms-tasks',
       mainClassName: 'flex-1 overflow-hidden relative',
       showSubSidebar: true,
     });

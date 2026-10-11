@@ -16,8 +16,8 @@ import sys
 
 sys.path.insert(0, "src")
 
-from mty_api.core.db import Base
-from mty_api.core.model_registry import import_all_models
+from miy_api.core.db import Base
+from miy_api.core.model_registry import import_all_models
 
 import_all_models()
 retired = {
@@ -31,8 +31,8 @@ print(json.dumps({
     "knowledge_model_modules": sorted(
         name
         for name in sys.modules
-        if name == "mty_api.domains.knowledge.models"
-        or name.startswith("mty_api.domains.knowledge.models.")
+        if name == "miy_api.domains.knowledge.models"
+        or name.startswith("miy_api.domains.knowledge.models.")
     ),
 }))
 """

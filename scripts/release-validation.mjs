@@ -6,7 +6,7 @@ import { parseArgs } from 'node:util';
 import { pathToFileURL } from 'node:url';
 import { requireDiskHeadroom } from './docker-storage.mjs';
 
-export const MARKER = '<!-- mty:release-validation:v1';
+export const MARKER = '<!-- miy:release-validation:v1';
 export const LIMITS = Object.freeze({ files: 40, lines: 1000 });
 const SHA = /^[0-9a-f]{40}$/;
 const REPORT = 'release-validation-context.md';
@@ -16,7 +16,16 @@ const FULL_SUITES = [
   'ci:contract',
   'ci:api:full',
   'ci:web',
+  'ci:codex-console',
 ];
+const FOCUSED_CHECKS = Object.freeze({
+  docs: ['check:skills', 'test:skill-harness', 'test:claude-skills'],
+  harness: ['ci:harness'],
+  web: ['ci:web'],
+  sharedUi: ['ci:web', 'ci:codex-console'],
+  console: ['ci:codex-console'],
+});
+const FOCUSED_ORDER = ['docs', 'harness', 'web', 'sharedUi', 'console'];
 
 // Changes to the selector or its execution contract cannot select their own shortcut.
 const RELEASE_CONTROLS = new Set([
@@ -24,6 +33,8 @@ const RELEASE_CONTROLS = new Set([
   'ops/ci/ci-first.gitlab-ci.yml',
   'scripts/release-validation.mjs',
   'scripts/release-validation.test.mjs',
+  'scripts/prod-app-release.mjs',
+  'scripts/prod-app-release.test.mjs',
   'scripts/check-gitlab-pipeline.mjs',
   'scripts/check-gitlab-pipeline.test.mjs',
   'scripts/check-mr-target-policy.mjs',
@@ -63,6 +74,26 @@ function surface(file) {
     /^(?:docs|adr|\.gitlab)\/.+\.md$/.test(file)
   )
     return 'docs';
+  if (
+    /^(?:apps\/(?:web|official-suite)\/(?:src|e2e)|packages\/(?:core-web|platform-web|official-suite-web)\/src)\//.test(
+      file,
+    )
+  )
+    return 'web';
+  if (file === 'packages/ui/styles.css' || /^packages\/ui\/src\//.test(file))
+    return 'sharedUi';
+  if (
+    /^apps\/codex-console-api\/src\/codex_console\/(?:config|runtime)\.py$/.test(
+      file,
+    )
+  )
+    return null;
+  if (
+    /^(?:apps\/codex-console-(?:api|web)\/(?:src|tests)|apps\/codex-console-web\/e2e)\//.test(
+      file,
+    )
+  )
+    return 'console';
   return null;
 }
 
@@ -173,9 +204,13 @@ export function selectValidation({ mode = 'full', changes = [] } = {}) {
   const checks =
     effectiveMode === 'full'
       ? ['ci:all']
-      : changes.some((change) => surface(change.path) === 'harness')
-        ? ['ci:harness']
-        : ['check:skills', 'test:skill-harness', 'test:claude-skills'];
+      : [
+          ...new Set(
+            FOCUSED_ORDER.filter((name) =>
+              changes.some((change) => surface(change.path) === name),
+            ).flatMap((name) => FOCUSED_CHECKS[name]),
+          ),
+        ];
   return {
     requestedMode: mode,
     mode: effectiveMode,

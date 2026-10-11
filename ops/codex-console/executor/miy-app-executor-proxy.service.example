@@ -1,0 +1,30 @@
+[Unit]
+Description=MIY standard native executor ingress
+BindsTo=miy-app-executor.service miy-app-executor-proxy.socket
+After=miy-app-executor.service miy-app-executor-proxy.socket
+JoinsNamespaceOf=miy-app-executor.service
+
+[Service]
+Type=notify
+User=@EXECUTOR_UID@
+Group=@EXECUTOR_GID@
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+PrivateNetwork=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+CPUQuota=100%
+MemoryMax=1073741824
+MemorySwapMax=0
+TasksMax=64
+RuntimeMaxSec=270
+TimeoutStopSec=3
+KillMode=control-group
+Restart=no
+LimitCORE=0
+StandardOutput=null
+StandardError=null
+ExecStart=/usr/lib/systemd/systemd-socket-proxyd \
+    --connections-max=2 --exit-idle-time=10s 127.0.0.1:@PRIVATE_PORT@

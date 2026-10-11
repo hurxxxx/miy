@@ -3,11 +3,11 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from mty_api.core.db import get_session_factory
-from mty_api.domains.ai.audit import log_ai_external_call, log_llm_call
-from mty_api.domains.ai.interactions import AiInteraction
-from mty_api.domains.ai.models import AiSecurityDetectedValue
-from mty_api.domains.auth.models import AuditLog
+from miy_api.core.db import get_session_factory
+from miy_api.domains.ai.audit import log_ai_external_call, log_llm_call
+from miy_api.domains.ai.interactions import AiInteraction
+from miy_api.domains.ai.models import AiSecurityDetectedValue
+from miy_api.domains.auth.models import AuditLog
 
 
 def test_llm_audit_writes_raw_free_ai_interaction(client: TestClient) -> None:
@@ -48,6 +48,7 @@ def test_llm_audit_writes_raw_free_ai_interaction(client: TestClient) -> None:
     }
     assert row.conversation_id == "conversation-1"
     assert row.metadata_json == {
+        "execution_kind": "generation",
         "app_id": "test-chatbot",
         "policy": "local_only",
         "decision_reason": "policy_local_only",
@@ -104,7 +105,7 @@ def test_external_audit_records_detected_values_for_observability(
         task_kind="web_search",
         capability="web_search",
         provider="anthropic",
-        app_id="web-search",
+        app_id="chatbot",
         status="blocked",
         latency_ms=0,
         policy_reason="hard_external_transfer_blocker",
@@ -123,10 +124,10 @@ def test_external_audit_records_detected_values_for_observability(
         audit_log = db.scalars(select(AuditLog)).one()
         detected_value = db.scalars(select(AiSecurityDetectedValue)).one()
 
-    assert audit_log.payload["app_id"] == "web-search"
+    assert audit_log.payload["app_id"] == "chatbot"
     assert detected_value.audit_log_id == audit_log.id
     assert not hasattr(detected_value, "workspace_id")
-    assert detected_value.app_id == "web-search"
+    assert detected_value.app_id == "chatbot"
     assert detected_value.detector == "regex"
     assert detected_value.entity_type == "credential"
     assert detected_value.detected_value == "api_key"

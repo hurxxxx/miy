@@ -7,8 +7,8 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 import pytest
-from mty_api.core import llm as llm_core
-from mty_api.core.settings import get_settings
+from miy_api.core import llm as llm_core
+from miy_api.core.settings import get_settings
 from test_meeting import _auth_headers, _bootstrap_admin_session, _dev_login
 
 

@@ -6,19 +6,19 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from starlette.exceptions import HTTPException
 
-from mty_api.domains.content_access import grants
-from mty_api.domains.content_access.grants import (
+from miy_api.domains.content_access import grants
+from miy_api.domains.content_access.grants import (
     ContentGrantIssuer,
     InvalidContentGrant,
     decode_content_grant,
 )
-from mty_api.domains.files import content_access
-from mty_api.domains.files.content_access import (
+from miy_api.domains.files import content_access
+from miy_api.domains.files.content_access import (
     build_file_content_url,
     is_previewable_image,
     open_file_content_grant,
 )
-from mty_api.domains.files.models import FileManagerCorpus, FileManagerFile
+from miy_api.domains.files.models import FileManagerCorpus, FileManagerFile
 
 
 _USER_ID = "user-1"

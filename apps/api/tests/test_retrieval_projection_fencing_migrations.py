@@ -8,12 +8,12 @@ from sqlalchemy import create_engine, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
-from mty_api.domains.retrieval.models import (
+from miy_api.domains.retrieval.models import (
     RetrievalPartition,
     RetrievalProjectionEvent,
     RetrievalProjectionHead,
 )
-from mty_api.domains.retrieval.projection_fencing import record_projection_event
+from miy_api.domains.retrieval.projection_fencing import record_projection_event
 
 
 pytestmark = pytest.mark.migration

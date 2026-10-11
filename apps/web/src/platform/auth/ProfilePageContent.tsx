@@ -1,9 +1,9 @@
-import { InlineNotice } from '@mty/ui/feedback/inline-notice';
+import { InlineNotice } from '@miy/ui/feedback/inline-notice';
 import { LogOut } from 'lucide-react';
 
 import { AppearanceSettingsSection } from './AppearanceSettingsSection';
 import { NotificationsSettingsSection } from './NotificationsSettingsSection';
-import { MTYDesktopSettingsSection } from './MTYDesktopSettingsSection';
+import { MIYDesktopSettingsSection } from './MIYDesktopSettingsSection';
 import { ProfileSettingsSection } from './ProfileSettingsSection';
 import { ReleaseNotesSettingsSection } from './ReleaseNotesSettingsSection';
 import { SecuritySettingsSection } from './SecuritySettingsSection';
@@ -126,8 +126,8 @@ export function ProfilePageContent({
                 token={auth.token}
               />
             ) : null}
-            {state.activeSection === 'mtyDesktop' ? (
-              <MTYDesktopSettingsSection t={t} />
+            {state.activeSection === 'miyDesktop' ? (
+              <MIYDesktopSettingsSection t={t} />
             ) : null}
           </div>
         </div>

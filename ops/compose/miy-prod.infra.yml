@@ -1,0 +1,168 @@
+name: miy-prod
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.6-pg18
+    container_name: miy-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${MIY_INFRA_POSTGRES_DB:-miy_prod}
+      POSTGRES_PASSWORD: ${MIY_INFRA_POSTGRES_PASSWORD:-miy_prod}
+      POSTGRES_USER: ${MIY_INFRA_POSTGRES_USER:-miy_prod}
+    ports:
+      - "${MIY_INFRA_BIND_HOST:-127.0.0.1}:${MIY_INFRA_POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - miy-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - miy-prod-infra
+
+  redis:
+    image: redis:7
+    container_name: miy-prod-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${MIY_INFRA_BIND_HOST:-0.0.0.0}:${MIY_INFRA_REDIS_PORT:-56379}:6379"
+    volumes:
+      - miy-prod-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - miy-prod-infra
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    container_name: miy-prod-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MIY_INFRA_MINIO_ROOT_USER:-miy_prod_minio}
+      MINIO_ROOT_PASSWORD: ${MIY_INFRA_MINIO_ROOT_PASSWORD:-miy_prod_minio}
+    command: server /data --console-address :9001
+    ports:
+      - "${MIY_INFRA_BIND_HOST:-0.0.0.0}:${MIY_INFRA_MINIO_PORT:-59000}:9000"
+      - "${MIY_INFRA_BIND_HOST:-0.0.0.0}:${MIY_INFRA_MINIO_CONSOLE_PORT:-59001}:9001"
+    volumes:
+      - miy-prod-minio-data:/data
+    networks:
+      - miy-prod-infra
+
+  opensearch:
+    build:
+      context: ../..
+      dockerfile: ops/opensearch/Dockerfile
+    image: miy-opensearch:3.3.2-nori
+    container_name: miy-prod-opensearch
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "${MIY_INFRA_BIND_HOST:-0.0.0.0}:${MIY_INFRA_OPENSEARCH_PORT:-59200}:9200"
+      - "${MIY_INFRA_BIND_HOST:-0.0.0.0}:${MIY_INFRA_OPENSEARCH_PERF_PORT:-59600}:9600"
+    volumes:
+      - miy-prod-opensearch-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - miy-prod-infra
+
+  qdrant:
+    image: qdrant/qdrant:v1.17.1
+    container_name: miy-prod-qdrant
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__API_KEY: ${MIY_INFRA_QDRANT_API_KEY:-miy_prod_qdrant}
+    ports:
+      - "${MIY_INFRA_BIND_HOST:-0.0.0.0}:${MIY_INFRA_QDRANT_PORT:-6333}:6333"
+      - "${MIY_INFRA_BIND_HOST:-0.0.0.0}:${MIY_INFRA_QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - miy-prod-qdrant-data:/qdrant/storage
+    networks:
+      - miy-prod-infra
+
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: miy-prod-livekit
+    profiles: ["video-chat"]
+    restart: unless-stopped
+    environment:
+      LIVEKIT_CONFIG: |
+        port: 7880
+        log_level: info
+        rtc:
+          tcp_port: ${MIY_LIVEKIT_RTC_TCP_PORT:-7881}
+          port_range_start: ${MIY_LIVEKIT_RTC_PORT_RANGE_START:-52000}
+          port_range_end: ${MIY_LIVEKIT_RTC_PORT_RANGE_END:-52100}
+          use_external_ip: true
+        keys:
+          ${MIY_LIVEKIT_API_KEY}: ${MIY_LIVEKIT_API_SECRET}
+    ports:
+      - "${MIY_INFRA_BIND_HOST:-0.0.0.0}:${MIY_LIVEKIT_PORT:-7880}:7880"
+      - "${MIY_INFRA_BIND_HOST:-0.0.0.0}:${MIY_LIVEKIT_RTC_TCP_PORT:-7881}:${MIY_LIVEKIT_RTC_TCP_PORT:-7881}/tcp"
+      - "${MIY_INFRA_BIND_HOST:-0.0.0.0}:${MIY_LIVEKIT_RTC_PORT_RANGE_START:-52000}-${MIY_LIVEKIT_RTC_PORT_RANGE_END:-52100}:${MIY_LIVEKIT_RTC_PORT_RANGE_START:-52000}-${MIY_LIVEKIT_RTC_PORT_RANGE_END:-52100}/udp"
+    networks:
+      - miy-prod-infra
+
+  drawio:
+    image: jgraph/drawio:${MIY_DRAWIO_IMAGE_TAG:-30.2.5}
+    container_name: miy-prod-drawio
+    restart: unless-stopped
+    ports:
+      - "${MIY_DRAWIO_BIND_HOST:-127.0.0.1}:${MIY_DRAWIO_PORT:-18083}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/ >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - miy-prod-infra
+
+  bento:
+    build:
+      context: ../..
+      dockerfile: ops/bento/Dockerfile
+    image: miy-bento:${MIY_BENTO_IMAGE_TAG:-1.0.17}
+    container_name: miy-prod-bento
+    restart: unless-stopped
+    ports:
+      - "${MIY_BENTO_BIND_HOST:-127.0.0.1}:${MIY_BENTO_PORT:-18084}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    networks:
+      - miy-prod-infra
+
+networks:
+  miy-prod-infra:
+    name: miy-prod-infra
+
+volumes:
+  miy-postgres-data:
+    name: miy-postgres-data
+  miy-prod-redis-data:
+    name: miy-prod-redis-data
+  miy-prod-minio-data:
+    name: miy-prod-minio-data
+  miy-prod-opensearch-data:
+    name: miy-prod-opensearch-data
+  miy-prod-qdrant-data:
+    name: miy-prod-qdrant-data

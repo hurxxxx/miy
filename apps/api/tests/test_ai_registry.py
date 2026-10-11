@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from mty_api.core.settings import get_settings
-from mty_api.domains.ai.registry import (
+from miy_api.core.settings import get_settings
+from miy_api.domains.ai.registry import (
     AiCapabilityRegistry,
     get_ai_capability_registry,
     reset_ai_capability_registry,
@@ -17,7 +17,8 @@ def _reset_settings_and_registry() -> None:
     reset_ai_capability_registry()
 
 
-def test_openai_tool_specs_export_registered_read_tools() -> None:
+def test_openai_tool_specs_export_registered_read_tools(monkeypatch) -> None:
+    monkeypatch.setenv("MIY_AI_WRITE_TOOLS_ENABLED", "0")
     _reset_settings_and_registry()
     registry = get_ai_capability_registry()
 
@@ -25,7 +26,12 @@ def test_openai_tool_specs_export_registered_read_tools() -> None:
 
     tool_names = [spec["function"]["name"] for spec in specs]
     assert tool_names == sorted(registry.tools.keys())
-    assert {"pms.search_tasks", "pms.get_task", "pms.list_task_lists"} <= set(tool_names)
+    assert {
+        "pms.search_tasks",
+        "pms.get_task",
+        "pms.list_task_lists",
+        "pms.get_task_list_options",
+    } <= set(tool_names)
     for spec in specs:
         function = spec["function"]
         assert spec["type"] == "function"
@@ -99,10 +105,10 @@ def test_llm_workload_registration_fails_closed_and_rejects_duplicate_app_task()
 def test_external_only_llm_workload_contract() -> None:
     registry = AiCapabilityRegistry()
     registry.register_llm_workload(
-        workload_id="web-search.search",
+        workload_id="test.external_research",
         task_kind="web_search",
         owner_domain="web_search",
-        app_id="web-search",
+        app_id="chatbot",
         description="Search the public web",
         default_route="external",
         execution_kind="agent",
@@ -113,7 +119,7 @@ def test_external_only_llm_workload_contract() -> None:
         external_data=True,
     )
 
-    workload = registry.resolve_llm_workload("web-search.search")
+    workload = registry.resolve_llm_workload("test.external_research")
     assert workload.default_policy == "external"
     assert workload.allowed_pools == ("external",)
     assert workload.model_roles == ("default",)
@@ -145,7 +151,8 @@ def test_llm_workload_rejects_invalid_output_token_caps(
         )
 
 
-def test_pms_write_anchors_are_hidden_when_write_tools_disabled() -> None:
+def test_pms_write_anchors_are_hidden_when_write_tools_disabled(monkeypatch) -> None:
+    monkeypatch.setenv("MIY_AI_WRITE_TOOLS_ENABLED", "0")
     _reset_settings_and_registry()
     registry = get_ai_capability_registry()
 
@@ -160,7 +167,7 @@ def test_pms_write_anchors_are_hidden_when_write_tools_disabled() -> None:
 
 
 def test_pms_write_tools_register_when_enabled(monkeypatch) -> None:
-    monkeypatch.setenv("MTY_AI_WRITE_TOOLS_ENABLED", "1")
+    monkeypatch.setenv("MIY_AI_WRITE_TOOLS_ENABLED", "1")
     _reset_settings_and_registry()
     try:
         registry = get_ai_capability_registry()
@@ -218,5 +225,5 @@ def test_pms_write_tools_register_when_enabled(monkeypatch) -> None:
         } <= full_specs
         assert "docs.create_page" not in full_specs
     finally:
-        monkeypatch.delenv("MTY_AI_WRITE_TOOLS_ENABLED", raising=False)
+        monkeypatch.delenv("MIY_AI_WRITE_TOOLS_ENABLED", raising=False)
         _reset_settings_and_registry()

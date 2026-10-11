@@ -9,7 +9,7 @@ import {
   TabsList,
   TabsTrigger,
   Tooltip,
-} from '@mty/ui';
+} from '@miy/ui';
 
 import {
   filterIconPickerKeys,

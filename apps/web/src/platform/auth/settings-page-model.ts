@@ -20,7 +20,7 @@ export type SettingsSection =
   | 'security'
   | 'notifications'
   | 'releaseNotes'
-  | 'mtyDesktop';
+  | 'miyDesktop';
 
 export type SettingsTranslator = (
   key: string,

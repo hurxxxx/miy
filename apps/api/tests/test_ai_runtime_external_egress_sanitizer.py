@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from mty_api.domains.ai.runtime.external_egress_sanitizer import (
+from miy_api.domains.ai.runtime.external_egress_sanitizer import (
     build_external_egress_sanitization,
     detect_sensitive_entity_types,
     explicitly_disallows_external_search,

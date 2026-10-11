@@ -14,7 +14,7 @@ import {
   DM_REALTIME_EVENT_TYPES,
   normalizeDmRealtimeEvent,
   upsertDmConversation,
-} from '@mty/contracts/dm';
+} from '@miy/contracts/dm';
 
 import {
   useRealtime,

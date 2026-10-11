@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
-from mty_api.domains.pms.projections import serialize_task_summary
-from mty_api.domains.pms.workflow import (
+from miy_api.domains.pms.projections import serialize_task_summary
+from miy_api.domains.pms.workflow import (
     calculate_progress,
     closed_status_count,
     incompatible_statuses_for_inherit,

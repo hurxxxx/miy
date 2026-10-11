@@ -45,7 +45,7 @@ describe('desktop installer URL resolution', () => {
   it('uses generic Windows env fallback without affecting macOS or Linux', () => {
     expect(
       resolveDesktopInstallerUrls({
-        VITE_MTY_DESKTOP_INSTALLER_URL:
+        VITE_MIY_DESKTOP_INSTALLER_URL:
           'https://downloads.example.com/windows.exe',
       }),
     ).toEqual({
@@ -57,13 +57,13 @@ describe('desktop installer URL resolution', () => {
   it('uses platform-specific env overrides before defaults', () => {
     expect(
       resolveDesktopInstallerUrls({
-        VITE_MTY_DESKTOP_INSTALLER_URL:
+        VITE_MIY_DESKTOP_INSTALLER_URL:
           'https://downloads.example.com/windows-fallback.exe',
-        VITE_MTY_DESKTOP_INSTALLER_URL_WIN:
+        VITE_MIY_DESKTOP_INSTALLER_URL_WIN:
           'https://downloads.example.com/windows.exe',
-        VITE_MTY_DESKTOP_INSTALLER_URL_MAC:
+        VITE_MIY_DESKTOP_INSTALLER_URL_MAC:
           'https://downloads.example.com/mac.dmg',
-        VITE_MTY_DESKTOP_INSTALLER_URL_LINUX:
+        VITE_MIY_DESKTOP_INSTALLER_URL_LINUX:
           'https://downloads.example.com/linux.deb',
       }),
     ).toEqual({
@@ -100,12 +100,12 @@ describe('desktop installer download', () => {
   it('resolves relative installer URLs against the current page', () => {
     expect(
       resolveDesktopInstallerDownload(
-        '/api/v1/mty-desktop/updates/win/MTY%20Desktop%20Setup.exe',
+        '/api/v1/miy-desktop/updates/win/miy%20Desktop%20Setup.exe',
         'https://app.example.com/settings',
       ),
     ).toEqual({
-      href: 'https://app.example.com/api/v1/mty-desktop/updates/win/MTY%20Desktop%20Setup.exe',
-      fileName: 'MTY Desktop Setup.exe',
+      href: 'https://app.example.com/api/v1/miy-desktop/updates/win/miy%20Desktop%20Setup.exe',
+      fileName: 'miy Desktop Setup.exe',
     });
   });
 
@@ -115,7 +115,7 @@ describe('desktop installer download', () => {
       .mockImplementation(() => undefined);
 
     downloadDesktopInstaller(
-      '/api/v1/mty-desktop/updates/linux/MTY-Desktop-latest.deb',
+      '/api/v1/miy-desktop/updates/linux/MIY-Desktop-latest.deb',
       document,
       'https://app.example.com/settings',
     );

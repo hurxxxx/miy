@@ -13,6 +13,7 @@ import { PersonalWidgetHost } from './PersonalWidgetHost';
 import {
   getPersonalMemo,
   listPersonalTodos,
+  savePersonalMemo,
   updatePersonalTodo,
   type PersonalTodoItem,
 } from './personal-widgets-api';
@@ -44,6 +45,7 @@ vi.mock('./personal-widgets-api', () => ({
 const listPersonalTodosMock = vi.mocked(listPersonalTodos);
 const getPersonalMemoMock = vi.mocked(getPersonalMemo);
 const updatePersonalTodoMock = vi.mocked(updatePersonalTodo);
+const savePersonalMemoMock = vi.mocked(savePersonalMemo);
 
 function todo(title: string): PersonalTodoItem {
   return {
@@ -76,6 +78,73 @@ beforeEach(() => {
     updatedAt: null,
   });
   updatePersonalTodoMock.mockResolvedValue(todo('Updated todo'));
+});
+
+describe('PersonalWidgetHost document leave protection', () => {
+  async function editMemo() {
+    window.localStorage.setItem(
+      personalWidgetStorageKey('user-1'),
+      JSON.stringify({ activeWidget: 'memo', mode: 'panel' }),
+    );
+    renderTodoWidget();
+    const input = await screen.findByRole('textbox', {
+      name: 'personalWidgets.memo.inputLabel',
+    });
+    fireEvent.change(input, { target: { value: 'Unsaved synthetic memo' } });
+  }
+  function leaves() {
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  }
+  it('protects debounce and in-flight input until the existing save acknowledges it', async () => {
+    let complete!: (
+      value: Awaited<ReturnType<typeof savePersonalMemo>>,
+    ) => void;
+    savePersonalMemoMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+    );
+    await editMemo();
+    expect(leaves()).toBe(true);
+    expect(savePersonalMemoMock).not.toHaveBeenCalled();
+    await waitFor(
+      () =>
+        expect(savePersonalMemoMock).toHaveBeenCalledWith(
+          'token',
+          'Unsaved synthetic memo',
+        ),
+      { timeout: 2000 },
+    );
+    expect(leaves()).toBe(true);
+    await act(async () =>
+      complete({
+        id: 'synthetic-memo',
+        body: 'Unsaved synthetic memo',
+        createdAt: null,
+        updatedAt: null,
+      }),
+    );
+    expect(leaves()).toBe(false);
+  });
+  it('retains input and native leave protection after save failure', async () => {
+    savePersonalMemoMock.mockRejectedValueOnce(new Error('synthetic failure'));
+    await editMemo();
+    expect(
+      await screen.findByText(
+        'personalWidgets.errors.memoSaveFailed',
+        {},
+        { timeout: 2000 },
+      ),
+    ).toBeTruthy();
+    expect(screen.getByDisplayValue('Unsaved synthetic memo')).toBeTruthy();
+    expect(leaves()).toBe(true);
+    expect(
+      document.querySelector('[data-miy-pending-save="true"]'),
+    ).toBeTruthy();
+  });
 });
 
 afterEach(() => {

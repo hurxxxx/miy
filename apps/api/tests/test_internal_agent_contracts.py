@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from mty_api.domains.ai.internal_agent_contracts import LocalAgentResult, LocalAgentTask
-from mty_api.domains.ai.local_gateway_request import build_gateway_tool_request
+from miy_api.domains.ai.internal_agent_contracts import LocalAgentResult, LocalAgentTask
+from miy_api.domains.ai.local_gateway_request import build_gateway_tool_request
 
 
 def _task(**overrides) -> LocalAgentTask:

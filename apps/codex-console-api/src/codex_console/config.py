@@ -1,0 +1,402 @@
+import ipaddress
+import re
+from pathlib import Path
+from typing import Annotated
+from urllib.parse import urlsplit
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
+
+from .app_sources import APP_ID_PATTERN
+from .errors import ConsoleError
+from .toolchain_profiles import NATIVE_PROFILE, ToolchainProfile
+
+
+class MonitoredService(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,99}$")
+    name: str = Field(min_length=1, max_length=100)
+    environment: str = Field(min_length=1, max_length=40)
+    health_url: str | None = None
+    unit: str | None = Field(default=None, pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.@-]{0,127}\.service$")
+    user_unit: bool = True
+    container: str | None = Field(default=None, pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$")
+
+    @model_validator(mode="after")
+    def bounded_target(self):
+        if not (self.health_url or self.unit or self.container) or (self.unit and self.container):
+            raise ValueError("Select a health endpoint and/or one supervisor")
+        if self.health_url:
+            url = urlsplit(self.health_url)
+            try:
+                address = ipaddress.ip_address(url.hostname or "")
+                port = url.port
+            except ValueError:
+                raise ValueError("Health endpoints require a fixed IP address") from None
+            if (
+                url.scheme not in ("http", "https")
+                or url.username
+                or url.password
+                or url.query
+                or url.fragment
+                or address.is_link_local
+                or address.is_multicast
+                or address.is_unspecified
+                or not (address.is_private or address.is_loopback)
+                or (port is not None and not 1 <= port <= 65535)
+            ):
+                raise ValueError("Invalid private health endpoint")
+        return self
+
+
+class AppExecutionEnvironment(BaseModel):
+    """An operator-owned executor, never configuration supplied by an app manifest."""
+
+    model_config = ConfigDict(extra="forbid")
+    key: str = Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")
+    source_root: Path
+    exec_server_url: str
+    auth_bearer_token: SecretStr = Field(min_length=32, max_length=512)
+    toolchain_profile: ToolchainProfile = NATIVE_PROFILE
+
+    @field_validator("source_root")
+    @classmethod
+    def canonical_source(cls, value):
+        if not value.is_absolute() or value.resolve() != value:
+            raise ValueError("Executor source must be a canonical absolute path")
+        return value
+
+    @field_validator("exec_server_url")
+    @classmethod
+    def loopback_executor(cls, value):
+        parsed = urlsplit(value)
+        if (
+            parsed.scheme != "ws"
+            or parsed.hostname != "127.0.0.1"
+            or parsed.port is None
+            or not 1024 <= parsed.port <= 65535
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path not in ("", "/")
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError("The development executor requires a loopback WebSocket endpoint")
+        return value.rstrip("/")
+
+
+class DeliveryGrant(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    app_id: str = Field(pattern=APP_ID_PATTERN, max_length=80)
+    installation_id: UUID
+    token: SecretStr = Field(min_length=16, max_length=256)
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
+
+    database_url: str = Field(validation_alias="MIY_CODEX_CONSOLE_DATABASE_URL")
+    origin: str = Field(validation_alias="MIY_CODEX_CONSOLE_ORIGIN")
+    base_path: str = Field(default="", validation_alias="MIY_CODEX_CONSOLE_BASE_PATH")
+    workspace: Path = Field(validation_alias="MIY_CODEX_CONSOLE_WORKSPACE")
+    managed_workspaces_enabled: bool = Field(
+        default=False, validation_alias="MIY_CODEX_CONSOLE_MANAGED_WORKSPACES_ENABLED"
+    )
+    managed_environment_command: list[str] = Field(
+        default_factory=list,
+        max_length=16,
+        validation_alias="MIY_CODEX_CONSOLE_MANAGED_ENVIRONMENT_COMMAND",
+    )
+
+    @field_validator("managed_environment_command")
+    @classmethod
+    def trusted_managed_environment_command(cls, value):
+        if value and (
+            not Path(value[0]).is_absolute()
+            or any(not arg or len(arg) > 4096 or "\0" in arg for arg in value)
+        ):
+            raise ValueError("Use a fixed absolute operator-owned environment helper command")
+        return value
+
+    worktree_base_ref: str = Field(
+        default="HEAD",
+        min_length=1,
+        max_length=1024,
+        validation_alias="MIY_CODEX_CONSOLE_WORKTREE_BASE_REF",
+    )
+    worktree_root: Path = Field(
+        default_factory=lambda: Path.home() / ".local/share/miy-codex-console/worktrees",
+        validation_alias="MIY_CODEX_CONSOLE_WORKTREE_ROOT",
+    )
+    protected_workspaces: list[Path] = Field(
+        default_factory=list,
+        validation_alias="MIY_CODEX_CONSOLE_PROTECTED_WORKSPACES",
+    )
+    app_source_roots: list[Path] = Field(
+        default_factory=list,
+        max_length=32,
+        validation_alias="MIY_CODEX_CONSOLE_APP_SOURCE_ROOTS",
+    )
+    app_creation_roots: list[Path] = Field(
+        default_factory=list,
+        max_length=32,
+        validation_alias="MIY_CODEX_CONSOLE_APP_CREATION_ROOTS",
+    )
+    app_execution_environments: list[AppExecutionEnvironment] = Field(
+        default_factory=list,
+        max_length=32,
+        validation_alias="MIY_CODEX_CONSOLE_APP_EXECUTION_ENVIRONMENTS",
+    )
+    app_delivery_grants: list[DeliveryGrant] = Field(
+        default_factory=list,
+        max_length=32,
+        validation_alias="MIY_CODEX_CONSOLE_APP_DELIVERY_GRANTS",
+    )
+
+    @field_validator("app_delivery_grants")
+    @classmethod
+    def unique_delivery_grants(cls, values):
+        if len({item.installation_id for item in values}) != len(values):
+            raise ValueError("Each development installation has one delivery delegation")
+        return values
+
+    @field_validator("app_execution_environments")
+    @classmethod
+    def unique_app_executors(cls, values):
+        for field in ("key", "source_root", "exec_server_url"):
+            if len({getattr(value, field) for value in values}) != len(values):
+                raise ValueError("App executor keys, source roots and endpoints must be unique")
+        return values
+
+    @field_validator("app_source_roots", "app_creation_roots")
+    @classmethod
+    def canonical_app_source_roots(cls, values):
+        for value in values:
+            if not value.is_absolute() or value.resolve() != value:
+                raise ValueError("App source roots must be canonical absolute paths")
+        return values
+
+    @model_validator(mode="after")
+    def creation_roots_are_source_roots(self):
+        if len(set(self.app_creation_roots)) != len(self.app_creation_roots) or any(
+            not any(root.is_relative_to(allowed) for allowed in self.app_source_roots)
+            for root in self.app_creation_roots
+        ):
+            raise ValueError("App creation roots must be unique and contained in app source roots")
+        return self
+
+    binary: str = Field(default="codex", validation_alias="MIY_CODEX_CONSOLE_BINARY")
+    allowed_reasoning_efforts: list[
+        Annotated[str, Field(min_length=1, max_length=40, pattern=r"^\S+$")]
+    ] = Field(
+        default_factory=lambda: ["none", "minimal", "low", "medium", "high", "xhigh"],
+        min_length=1,
+        validation_alias="MIY_CODEX_CONSOLE_ALLOWED_REASONING_EFFORTS",
+    )
+    bind_host: str = Field(default="127.0.0.1", validation_alias="MIY_CODEX_CONSOLE_BIND_HOST")
+    port: int = Field(default=19365, ge=1024, le=65535, validation_alias="MIY_CODEX_CONSOLE_PORT")
+    management_port: int = Field(
+        default=19367, ge=1024, le=65535, validation_alias="MIY_CODEX_CONSOLE_MANAGEMENT_PORT"
+    )
+    template_port: int = Field(
+        default=19368, ge=1024, le=65535, validation_alias="MIY_CODEX_CONSOLE_TEMPLATE_PORT"
+    )
+    template_binary: Path | None = Field(
+        default=None, validation_alias="MIY_CODEX_CONSOLE_TEMPLATE_BINARY"
+    )
+
+    @field_validator("template_binary")
+    @classmethod
+    def immutable_binary(cls, value):
+        if value is not None and (not value.is_absolute() or value.resolve() != value):
+            raise ValueError("Template Codex requires an absolute, version-pinned binary")
+        return value
+
+    max_active_tasks: int = Field(
+        default=3, ge=1, le=16, validation_alias="MIY_CODEX_CONSOLE_MAX_ACTIVE_TASKS"
+    )
+    monitor_services: list[MonitoredService] = Field(
+        default_factory=list, max_length=64, validation_alias="MIY_CODEX_CONSOLE_MONITOR_SERVICES"
+    )
+
+    @field_validator("monitor_services")
+    @classmethod
+    def unique_services(cls, value):
+        ids = [service.id for service in value]
+        if len(ids) != len(set(ids)) or any(i.startswith("console-") for i in ids):
+            raise ValueError("Service IDs must be unique and cannot use console- prefix")
+        return value
+
+    @model_validator(mode="after")
+    def separate_ports(self):
+        if len({self.port, self.management_port, self.template_port}) != 3:
+            raise ValueError("Session, management and template ports must differ")
+        return self
+
+    web_dist: Path = Field(
+        default=Path("../codex-console-web/dist"),
+        validation_alias="MIY_CODEX_CONSOLE_WEB_DIST",
+    )
+    session_hours: int = Field(
+        default=12, ge=1, le=24, validation_alias="MIY_CODEX_CONSOLE_SESSION_HOURS"
+    )
+    sso_subjects: dict[str, UUID] = Field(
+        default_factory=dict,
+        validation_alias="MIY_CODEX_CONSOLE_SSO_SUBJECTS",
+    )
+    registration_authorization_enabled: bool = Field(
+        default=False, validation_alias="MIY_CODEX_CONSOLE_REGISTRATION_AUTHORIZATION_ENABLED"
+    )
+    miy_api_origin: str | None = Field(
+        default=None, validation_alias="MIY_CODEX_CONSOLE_MIY_API_ORIGIN"
+    )
+    miy_api_key: SecretStr | None = Field(
+        default=None, validation_alias="MIY_CODEX_CONSOLE_MIY_API_KEY"
+    )
+    preview_origin: str | None = Field(
+        default=None, validation_alias="MIY_CODEX_CONSOLE_PREVIEW_ORIGIN"
+    )
+
+    @field_validator("miy_api_origin", "preview_origin", mode="before")
+    @classmethod
+    def optional_origin(cls, value):
+        return cls._validated_origin(value) if value else None
+
+    @field_validator("miy_api_key", mode="before")
+    @classmethod
+    def optional_key(cls, value):
+        return value or None
+
+    @model_validator(mode="after")
+    def integration_pair(self):
+        if bool(self.miy_api_origin) != bool(self.miy_api_key):
+            raise ValueError("Configure both the MIY API origin and its read-only API key")
+        return self
+
+    attachment_cache: Path = Field(
+        default_factory=lambda: Path.home() / ".local/share/miy-codex-console/attachments",
+        validation_alias="MIY_CODEX_CONSOLE_ATTACHMENT_CACHE",
+    )
+    attachment_max_bytes: int = Field(
+        default=50 * 1024 * 1024,
+        ge=1,
+        le=100 * 1024 * 1024,
+        validation_alias="MIY_CODEX_CONSOLE_ATTACHMENT_MAX_BYTES",
+    )
+    attachment_task_max_bytes: int = Field(
+        default=500 * 1024 * 1024,
+        ge=1,
+        le=10 * 1024 * 1024 * 1024,
+        validation_alias="MIY_CODEX_CONSOLE_ATTACHMENT_TASK_MAX_BYTES",
+    )
+
+    @field_validator("attachment_cache")
+    @classmethod
+    def absolute_attachment_cache(cls, value: Path) -> Path:
+        value = value.expanduser()
+        if not value.is_absolute():
+            raise ValueError("Attachment cache must be absolute")
+        return value
+
+    @field_validator("database_url")
+    @classmethod
+    def standalone_database(cls, value: str) -> str:
+        from .storage import database_path
+
+        database_path(value)
+        return value
+
+    @field_validator("origin")
+    @classmethod
+    def validate_origin(cls, value: str) -> str:
+        return cls._validated_origin(value)
+
+    @field_validator("sso_subjects")
+    @classmethod
+    def validate_sso_subjects(cls, values: dict[str, UUID]) -> dict[str, UUID]:
+        normalized = {cls._validated_origin(origin): subject for origin, subject in values.items()}
+        if len(normalized) != len(values):
+            raise ValueError("SSO origins must be unique after normalization")
+        return normalized
+
+    @staticmethod
+    def _validated_origin(value: str) -> str:
+        parsed = urlsplit(value)
+        if (
+            parsed.path not in ("", "/")
+            or parsed.query
+            or parsed.fragment
+            or parsed.username is not None
+            or parsed.password is not None
+            or not parsed.hostname
+        ):
+            raise ValueError("Expected an origin without a path or credentials")
+        if parsed.scheme != "https" and not (
+            parsed.scheme == "http"
+            and parsed.hostname in ("127.0.0.1", "localhost", "[::1]", "::1")
+        ):
+            raise ValueError("HTTPS is required except for local development")
+        return value.rstrip("/")
+
+    @field_validator("workspace")
+    @classmethod
+    def absolute_workspace(cls, value: Path) -> Path:
+        if not value.is_absolute():
+            raise ValueError("Workspace must be absolute")
+        resolved = value.resolve(strict=True)
+        if not (resolved / ".git").exists():
+            raise ValueError("Workspace must be a Git checkout")
+        return resolved
+
+    @model_validator(mode="after")
+    def protected_locations(self):
+        if not self.worktree_root.expanduser().is_absolute():
+            raise ValueError("Worktree storage must be absolute")
+        self.worktree_root = self.worktree_root.expanduser().resolve()
+        if self.worktree_root.is_relative_to(self.workspace):
+            raise ValueError("Worktree storage must be outside the configured checkout")
+        for path in self.protected_workspaces:
+            if not path.expanduser().is_absolute():
+                raise ValueError("Protected workspaces must be absolute")
+            protected = path.expanduser().resolve()
+            if self.workspace.is_relative_to(protected) or self.worktree_root.is_relative_to(
+                protected
+            ):
+                raise ValueError("A protected workspace cannot be used by the console")
+        storage = Path(make_url(self.database_url).database)
+        if storage.is_relative_to(self.workspace) or storage.is_relative_to(self.worktree_root):
+            raise ValueError("Console storage must be outside source and execution workspaces")
+        return self
+
+    def require_allowed_paths(self, *paths):
+        """Apply current protection settings to persisted and resolved execution paths."""
+        protected = [path.expanduser().resolve() for path in self.protected_workspaces]
+        for value in paths:
+            if value is None:
+                continue
+            path = Path(value).expanduser()
+            if not path.is_absolute() or any(
+                path.resolve().is_relative_to(root) for root in protected
+            ):
+                raise ConsoleError("path_denied", 403)
+
+    @field_validator("base_path")
+    @classmethod
+    def validate_base_path(cls, value: str) -> str:
+        if value and not re.fullmatch(r"(?:/[a-zA-Z0-9_-]+)+", value):
+            raise ValueError("Base path must be empty or an absolute path without a trailing slash")
+        return value
+
+    @field_validator("bind_host")
+    @classmethod
+    def loopback_only(cls, value: str) -> str:
+        if value not in ("127.0.0.1", "::1"):
+            raise ValueError("Bind to loopback and expose the console through a TLS reverse proxy")
+        return value
+
+    @property
+    def local_origin(self) -> str:
+        host = f"[{self.bind_host}]" if ":" in self.bind_host else self.bind_host
+        return f"http://{host}:{self.port}"

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { RecentPageItem } from '@/src/app-modules/docs/public-api';
-import type { MeetingListItem } from '@/src/app-modules/meeting/public-api';
+import type { RecentPageItem } from '@miy/official-suite-web/docs';
+import type { MeetingListItem } from '@miy/official-suite-web/meeting';
 import type { PlannerEvent } from '@/src/app-modules/planner/public-api';
 import type { PmsTask } from '@/src/app-modules/pms/public-api';
 import {

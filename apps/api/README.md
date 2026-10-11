@@ -1,5 +1,14 @@
 # API App
 
+The explicit first-party platform entry is `miy_api.platform_runtime:app`.
+It executes only common platform routers and terminal/realtime/AI startup;
+official business HTTP/WS handlers and collaboration run in
+`miy_official_api.runtime:app`. The [official runtime owner](../official-suite/api/README.md#explicit-first-party-runtime)
+records shared PostgreSQL/authority compatibility, single migration/seed owner,
+generated ingress ownership and old-writer drain requirements. Existing
+`miy_api.main:app` remains the legacy composition; `platform_main:app` and the
+delegated official `main:app` remain inactive artifacts.
+
 FastAPI composition layer for health, auth, app bootstrap, domains, AI Gateway, retrieval/search, OpenAPI, and Alembic migrations.
 
 ## Dev
@@ -7,6 +16,13 @@ FastAPI composition layer for health, auth, app bootstrap, domains, AI Gateway, 
 ```bash
 ./dev.sh --api-only
 ```
+
+The default starts the legacy composition. After selecting the first-party topology through
+the [development runtime procedure](../../ops/first-party/README.md),
+`./dev.sh --first-party --api-only` starts the common API on `8001` and
+`miy_official_api.development:app` on `18781`. The root launcher owns the single migration
+preflight; the official process does not migrate or seed. A selected topology survives a stop
+or reboot; changing its queue namespace requires the native consumer drain described by the owner.
 
 - Default API port: `8001`
 - Runtime env contract: root `.env.example` plus ignored `.env`
@@ -42,11 +58,12 @@ Test collection supplies synthetic required settings before importing registries
 need an ignored env file or live application credentials. Database execution still requires the
 explicitly verified test infrastructure below.
 
-Before database tests, configure `MTY_TEST_POSTGRES_TEMPLATE_DSN` for a dedicated
+Before database tests, configure `MIY_TEST_POSTGRES_TEMPLATE_DSN` for a dedicated
 non-production PostgreSQL instance with pgvector available and a role allowed to create/drop test
-databases and enable the extension. Use compatible `pg_dump`/`pg_restore` clients. The fixture also
+databases. For the non-superuser CI role, pre-provision the extension in its isolated test template
+as described in the installation guide below. Use compatible `pg_dump`/`pg_restore` clients. The fixture also
 accepts the verified development DSN from ignored env files, but never resets that database: each
-worker creates its own `mty_test_*` database, migrates it, and restores the seeded data
+worker creates its own `miy_test_*` database, migrates it, and restores the seeded data
 between tests. A setup failure also removes the database created by that attempt. Keep production
 identity/profile checks enabled. API clients also use a unique test instance ID so terminal sockets
 cannot attach to another test run or a running development API. External-service settings and CI preparation are owned by the
@@ -88,11 +105,24 @@ uv run --python 3.12 --group dev python -m pytest \
 - Local runtime contract: [AI Gateway](../../docs/domains/ai/gateway.md).
 - vLLM/mlx endpoints must stay private; they do not provide app auth.
 - External provider API keys are stored encrypted through Admin, not ordinary env variables.
-- Env stores only `MTY_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY` for credential encryption.
+- Env stores only `MIY_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY` for credential encryption.
 - Personal mlx-lm helper:
 
 ```bash
 MLX_MODEL=org/local-model-id bash scripts/mlx-serve.sh
+```
+
+## Document extraction
+
+The shared PDF/DOCX extractors retain bounded evidence and mark `metadata.truncated`
+when page, paragraph, table-row, cell, character, or time limits prevent a complete
+read. Whitespace normalization alone does not set the flag; character limits apply
+to normalized evidence and cell text. Reaching a budget is conservatively reported as incomplete. Consumers must
+check this metadata before treating the extracted evidence as the whole document.
+Malformed DOCX rows retain their separate `malformed_table_rows_skipped` count.
+
+```bash
+uv run --python 3.12 --group dev pytest tests/test_document_processing_extractors.py -q
 ```
 
 ## Alembic
@@ -114,7 +144,7 @@ Rules:
 - Autogenerate only against intended dev DB from typed env.
 - Review generated migration manually.
 - Root `./dev.sh` upgrades the development DB to `head` before starting API processes by default,
-  then disables per-process auto-migration. Set `MTY_DEV_API_MIGRATION_PREFLIGHT=0` only
+  then disables per-process auto-migration. Set `MIY_DEV_API_MIGRATION_PREFLIGHT=0` only
   when the caller explicitly owns migration ordering.
 - Standalone `scripts/dev-api.sh` enables auto-migration only for the primary `8001` instance by
   default; secondary instances never race schema changes.

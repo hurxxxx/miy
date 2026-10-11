@@ -1,23 +1,15 @@
+import { OFFICIAL_APP_MODULES } from './official-app-modules';
+import { codexConsoleModule } from '@/src/app-modules/codex-console';
+import { tetrisModule } from '@/src/app-modules/tetris';
 import { agentTerminalModule } from '@/src/app-modules/agent-terminal';
-import { bentoModule } from '@/src/app-modules/bento';
-import { chatbotModule } from '@/src/app-modules/chatbot';
-import { communityModule } from '@/src/app-modules/community';
-import { diagramsModule } from '@/src/app-modules/diagrams';
-import { docsModule } from '@/src/app-modules/docs';
-import { filesModule } from '@/src/app-modules/files';
+import { chatbotModule } from '@miy/platform-web/chatbot/module';
 import { homeModule } from '@/src/app-modules/home';
-import { mailModule } from '@/src/app-modules/mail';
-import { meetingModule } from '@/src/app-modules/meeting';
-import { plannerModule } from '@/src/app-modules/planner';
-import { pmsModule } from '@/src/app-modules/pms';
-import { recordingModule } from '@/src/app-modules/recording';
 import { retrievalSearchModule } from '@/src/app-modules/retrieval-search';
 import { settingsModule } from '@/src/app-modules/settings';
-import { videoChatModule } from '@/src/app-modules/video-chat';
-import { webSearchModule } from '@/src/app-modules/web-search';
-import { whiteboardModule } from '@/src/app-modules/whiteboard';
 import {
+  tetrisManifest,
   agentTerminalManifest,
+  codexConsoleManifest,
   announcementsManifest,
   bentoManifest,
   chatbotManifest,
@@ -34,13 +26,14 @@ import {
   retrievalSearchManifest,
   settingsManifest,
   videoChatManifest,
-  webSearchManifest,
   whiteboardManifest,
 } from './app-contract-manifests';
 import type { FeatureModuleRegistryInput } from './feature-module-registry';
 
 export {
+  tetrisManifest,
   agentTerminalManifest,
+  codexConsoleManifest,
   announcementsManifest,
   bentoManifest,
   chatbotManifest,
@@ -57,7 +50,6 @@ export {
   retrievalSearchManifest,
   settingsManifest,
   videoChatManifest,
-  webSearchManifest,
   whiteboardManifest,
 };
 
@@ -65,21 +57,11 @@ export {
 export const DEFAULT_APP_MODULES = [
   homeModule,
   agentTerminalModule,
+  codexConsoleModule,
   chatbotModule,
-  webSearchModule,
-  pmsModule,
-  docsModule,
-  filesModule,
-  mailModule,
-  communityModule,
-  whiteboardModule,
-  diagramsModule,
-  bentoModule,
-  plannerModule,
-  meetingModule,
-  videoChatModule,
-  recordingModule,
+  ...OFFICIAL_APP_MODULES,
   retrievalSearchModule,
+  tetrisModule,
 ] as const;
 
 /** Shell-owned navigation surfaces are not executable app identities. */

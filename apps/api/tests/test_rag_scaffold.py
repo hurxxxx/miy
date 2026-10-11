@@ -5,11 +5,11 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
-from mty_api.core.settings import Settings, get_settings
-from mty_api.domains.rag import application as rag_application
-from mty_api.domains.rag import access_filter as rag_access_filter
-from mty_api.domains.rag import provider_factory, runtime as rag_runtime
-from mty_api.domains.rag.contracts import (
+from miy_api.core.settings import Settings, get_settings
+from miy_api.domains.rag import application as rag_application
+from miy_api.domains.rag import access_filter as rag_access_filter
+from miy_api.domains.rag import provider_factory, runtime as rag_runtime
+from miy_api.domains.rag.contracts import (
     RagAnswerMode,
     RagProjection,
     RagQueryRequest,
@@ -18,17 +18,17 @@ from mty_api.domains.rag.contracts import (
     RagSyncLane,
     RagVectorSearchHit,
 )
-from mty_api.domains.rag.providers.fake import (
+from miy_api.domains.rag.providers.fake import (
     FakeEmbeddingClient,
     FakeRerankClient,
     FakeVectorIndexClient,
 )
-from mty_api.domains.rag.filters import RagQueryFilters
-from mty_api.domains.rag.provider_factory import RagProviderFactory
-from mty_api.domains.rag.provider_registry import RagProviderDescriptor
-from mty_api.domains.rag.providers.base import RagProviderConfigurationError
-from mty_api.domains.rag.query_service import RagQueryService
-from mty_api.domains.rag.service import RagService
+from miy_api.domains.rag.filters import RagQueryFilters
+from miy_api.domains.rag.provider_factory import RagProviderFactory
+from miy_api.domains.rag.provider_registry import RagProviderDescriptor
+from miy_api.domains.rag.providers.base import RagProviderConfigurationError
+from miy_api.domains.rag.query_service import RagQueryService
+from miy_api.domains.rag.service import RagService
 
 
 def _reset_settings() -> None:
@@ -114,8 +114,8 @@ def test_rag_query_service_forwards_explicit_partition_candidate_scope() -> None
 def test_ensure_rag_enabled_raises_domain_error(monkeypatch) -> None:
     settings = Settings(
         _env_file=None,
-        MTY_POSTGRES_DSN="postgresql+psycopg://test:test@127.0.0.1:5432/test",
-        MTY_RAG_ENABLED=False,
+        MIY_POSTGRES_DSN="postgresql+psycopg://test:test@127.0.0.1:5432/test",
+        MIY_RAG_ENABLED=False,
     )
 
     with pytest.raises(rag_application.RagUnavailableError) as exc_info:
@@ -738,7 +738,7 @@ def test_provider_factory_rejects_qdrant_without_url() -> None:
         )
     )
 
-    with pytest.raises(RagProviderConfigurationError, match="MTY_RAG_QDRANT_URL"):
+    with pytest.raises(RagProviderConfigurationError, match="MIY_RAG_QDRANT_URL"):
         factory.build_vector_index()
 
 
@@ -1033,6 +1033,95 @@ def test_rag_hydrates_source_metadata_before_final_acl_and_grounding() -> None:
     assert response.hits[0].origin_ref == "/apps/files?file=file-1"
     assert response.grounded_answer is not None
     assert response.grounded_answer.citations[0].resource_id == "file-1"
+
+
+@pytest.mark.parametrize("transition", ["before_rerank", "during_rerank"])
+def test_file_content_hydration_precedes_rerank_and_rechecks_after_it(monkeypatch, transition):
+    from miy_api.domains.files.current_content import (
+        CurrentFileContent,
+        file_candidate_matches_current_content,
+    )
+
+    current = {"checksum": "b" * 64 if transition == "before_rerank" else "a" * 64}
+    hit = RagVectorSearchHit(
+        chunk_id="file-1:1",
+        text="synthetic indexed bytes",
+        score=1.0,
+        projection=RagProjection(
+            resource_type="file_manager_file",
+            resource_id="file-1",
+            source_kind="files",
+            metadata={"content_checksum": "a" * 64},
+        ),
+    )
+    rerank_inputs = []
+    hydration_calls = []
+
+    def hydrate(hits):
+        hydration_calls.append(current["checksum"])
+        return [
+            candidate
+            for candidate in hits
+            if file_candidate_matches_current_content(
+                CurrentFileContent(current["checksum"], None, "2026-10-07T00:00:00.000000+00:00"),
+                candidate_checksum=candidate.projection.metadata.get("content_checksum"),
+                candidate_partition_id=candidate.projection.retrieval_partition_id,
+                candidate_extracted_at="2026-10-07T00:00:00.000000+00:00",
+            )
+        ]
+
+    def rerank(*, query, hits, timeout_seconds=None):
+        rerank_inputs.extend(candidate.text for candidate in hits)
+        current["checksum"] = "b" * 64
+        return list(hits)
+
+    service = RagQueryService(
+        vector_index=object(),
+        embedding_client=SimpleNamespace(embed_query=lambda text, timeout_seconds=None: [1.0]),
+        rerank_client=SimpleNamespace(rerank=rerank),
+    )
+    monkeypatch.setattr(service, "_query_collections", lambda **kwargs: [hit])
+    response = service.query(
+        RagQueryRequest(collection="synthetic-legacy-files", query="synthetic", top_k=1),
+        hit_hydrator=hydrate,
+    )
+    assert response.hits == []
+    assert rerank_inputs == ([] if transition == "before_rerank" else [hit.text])
+    assert len(hydration_calls) == 2
+
+
+def test_hydration_only_refills_within_existing_candidate_budget(monkeypatch):
+    requests = []
+    hit = RagVectorSearchHit(
+        chunk_id="file-valid:1",
+        text="synthetic current content",
+        score=1.0,
+        projection=RagProjection(
+            resource_type="file_manager_file", resource_id="file-valid", source_kind="files"
+        ),
+    )
+
+    def candidates(**kwargs):
+        count = kwargs["top_k"]
+        requests.append(count)
+        rejected = [
+            hit.model_copy(update={"chunk_id": f"rejected-{number}"}) for number in range(count)
+        ]
+        return rejected if len(requests) == 1 else [*rejected[:-1], hit]
+
+    service = RagQueryService(
+        vector_index=object(),
+        embedding_client=SimpleNamespace(embed_query=lambda text, timeout_seconds=None: [1.0]),
+    )
+    monkeypatch.setattr(service, "_query_collections", candidates)
+    response = service.query(
+        RagQueryRequest(collection="synthetic-refill", query="synthetic", top_k=1),
+        hit_hydrator=lambda hits: [
+            candidate for candidate in hits if candidate.chunk_id == hit.chunk_id
+        ],
+    )
+    assert [item.resource_id for item in response.hits] == ["file-valid"]
+    assert len(requests) == 2 and requests[0] < requests[1] <= 400
 
 
 def test_company_rag_filter_requires_source_owned_acl(monkeypatch) -> None:

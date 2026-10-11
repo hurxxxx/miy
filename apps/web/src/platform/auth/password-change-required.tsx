@@ -1,4 +1,4 @@
-import { Button, useFeedback } from '@mty/ui';
+import { Button, useFeedback } from '@miy/ui';
 import { useReducer, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AuthUser } from './auth-api';

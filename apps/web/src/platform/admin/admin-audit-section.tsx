@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 
-import { Button, InlineNotice } from '@mty/ui';
+import { Button, InlineNotice } from '@miy/ui';
 
 import { useAuth } from '@/src/platform/auth/auth-provider';
 import {

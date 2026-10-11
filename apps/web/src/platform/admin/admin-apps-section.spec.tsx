@@ -17,8 +17,8 @@ const state = vi.hoisted(() => ({
   t: (key: string) => key,
 }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: state.t }) }));
-vi.mock('@mty/ui', async (original) => ({
-  ...(await original<typeof import('@mty/ui')>()),
+vi.mock('@miy/ui', async (original) => ({
+  ...(await original<typeof import('@miy/ui')>()),
   useFeedback: () => state,
 }));
 vi.mock('@/src/platform/apps/app-bootstrap-context', () => ({

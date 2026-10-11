@@ -4,15 +4,15 @@ from types import SimpleNamespace
 
 import pytest
 
-from mty_api.domains.rag import application as rag_application
-from mty_api.domains.rag.contracts import RagAnswerMode, RagProjection, RagQueryRequest
-from mty_api.domains.rag import grounded_answer
-from mty_api.domains.rag.grounded_answer import LlmGroundedAnswerSynthesizer
-from mty_api.domains.rag.grounded_answer_assembly import GroundedAnswerAssembler
-from mty_api.domains.rag.providers import RagProviderTransientError
-from mty_api.domains.rag.providers.fake import FakeEmbeddingClient, FakeVectorIndexClient
-from mty_api.domains.rag.query_service import RagQueryService
-from mty_api.domains.rag.service import RagService
+from miy_api.domains.rag import application as rag_application
+from miy_api.domains.rag.contracts import RagAnswerMode, RagProjection, RagQueryRequest
+from miy_api.domains.rag import grounded_answer
+from miy_api.domains.rag.grounded_answer import LlmGroundedAnswerSynthesizer
+from miy_api.domains.rag.grounded_answer_assembly import GroundedAnswerAssembler
+from miy_api.domains.rag.providers import RagProviderTransientError
+from miy_api.domains.rag.providers.fake import FakeEmbeddingClient, FakeVectorIndexClient
+from miy_api.domains.rag.query_service import RagQueryService
+from miy_api.domains.rag.service import RagService
 
 
 def test_company_rag_query_wraps_provider_failures_as_unavailable(monkeypatch) -> None:

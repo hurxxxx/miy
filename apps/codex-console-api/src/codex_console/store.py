@@ -1,0 +1,530 @@
+from sqlalchemy import delete, func, or_, select, update
+
+from . import planning, remote_environments
+from .errors import ConsoleError
+from .models import (
+    Agent,
+    Attachment,
+    Event,
+    Item,
+    MessageAttachment,
+    Operation,
+    PendingRequest,
+    ResourceLease,
+    Revision,
+    Task,
+    WorkspaceLease,
+    now,
+)
+from .rpc import MAX_MESSAGE_BYTES
+
+ACTIVE = ("starting", "running", "waiting")
+
+
+def require_task(db, task_id: str, *, locked: bool = False) -> Task:
+    query = select(Task).where(Task.id == task_id)
+    if locked:
+        query = query.with_for_update()
+    task = db.scalar(query)
+    if task is None:
+        raise ConsoleError("task_not_found", 404)
+    return task
+
+
+def latest_revision(db, task_id, kind):
+    return db.scalar(
+        select(Revision)
+        .where(Revision.task_id == task_id, Revision.kind == kind)
+        .order_by(Revision.version.desc())
+        .limit(1)
+    )
+
+
+def save_revision(db, task: Task, kind: str, body: str, *, source_turn_id=None):
+    if source_turn_id:
+        projected = db.scalar(
+            select(Revision).where(
+                Revision.task_id == task.id,
+                Revision.kind == kind,
+                Revision.source_turn_id == source_turn_id,
+            )
+        )
+        if projected:
+            return projected
+    previous = latest_revision(db, task.id, kind)
+    if previous and previous.body == body and not source_turn_id:
+        return previous
+    row = Revision(
+        task_id=task.id,
+        kind=kind,
+        version=previous.version + 1 if previous else 1,
+        body=body[:100000],
+        source_turn_id=source_turn_id,
+    )
+    task.approved_revision = None
+    db.add(row)
+    db.flush()
+    changed(db, task, "document.updated")
+    return row
+
+
+def project_plan(db, task, turn_id, items):
+    if task.stage != "plan":
+        return
+    if db.scalar(
+        select(Revision.id).where(
+            Revision.task_id == task.id,
+            Revision.kind == "plan",
+            Revision.source_turn_id == turn_id,
+        )
+    ):
+        return
+
+    expected_version = None
+    plans = [
+        item
+        for item in items
+        if item.get("type") == "plan" and isinstance(item.get("text"), str) and item["text"].strip()
+    ]
+    if plans:
+        body = plans[-1]["text"]
+        # A short-lived older console contract encoded the answer and optional
+        # documents inside the native plan item. Keep those completed turns
+        # recoverable while treating new native Markdown plan items verbatim.
+        structured = planning.parse(body)
+        if structured:
+            document = next((row for row in structured.documents if row.kind == "plan"), None)
+            body = document.body if document else structured.answer
+            expected_version = document.base_version if document else None
+    else:
+        finals = [
+            item
+            for item in items
+            if item.get("type") == "agentMessage" and item.get("phase") == "final_answer"
+        ]
+        structured = planning.parse(finals[-1].get("text", "")) if finals else None
+        document = (
+            next((row for row in structured.documents if row.kind == "plan"), None)
+            if structured
+            else None
+        )
+        if document is None:
+            return
+        body, expected_version = document.body, document.base_version
+
+    body = planning.unwrap_proposed_plan(body)
+    latest = latest_revision(db, task.id, "plan")
+    if expected_version is not None and (latest.version if latest else 0) != expected_version:
+        task.error_code = "document_conflict"
+        changed(db, task, "document.rejected")
+        return
+    save_revision(db, task, "plan", body, source_turn_id=turn_id)
+
+
+def recover_document(db, task, turns):
+    if task.stage != "plan":
+        return
+    operation = db.get(Operation, task.current_operation_id) if task.current_operation_id else None
+    if (
+        not operation
+        or operation.task_id != task.id
+        or operation.kind not in ("plan", "requirements", "legacy_plan")
+    ):
+        return
+    submitted_at = (
+        db.scalar(
+            select(Event.created_at)
+            .where(Event.task_id == task.id, Event.kind == "turn.submitting")
+            .order_by(Event.id.desc())
+            .limit(1)
+        )
+        or operation.created_at
+    )
+    # Preserve later user edits, including records created before turn provenance
+    # was introduced. Recovery never reinterprets an older turn as a new plan.
+    if db.scalar(
+        select(Revision.id)
+        .where(Revision.task_id == task.id, Revision.created_at >= submitted_at)
+        .limit(1)
+    ):
+        return
+    for turn in reversed(turns):
+        if turn.get("status") != "completed":
+            continue
+        items = turn.get("items", [])
+        if (task.turn_id and turn.get("id") == task.turn_id) or any(
+            item.get("type") == "userMessage" and item.get("clientId") == operation.id
+            for item in items
+        ):
+            if operation.kind in ("requirements", "legacy_plan"):
+                # Only migration-marked plans and the retired requirements operation
+                # use Markdown. Never reinterpret a malformed structured response.
+                final = [item for item in items if item.get("type") == "plan"]
+                final = final or [
+                    item
+                    for item in items
+                    if item.get("type") == "agentMessage" and item.get("phase") == "final_answer"
+                ]
+                if final and final[-1].get("text", "").strip():
+                    kind = "plan" if operation.kind == "legacy_plan" else "requirements"
+                    save_revision(db, task, kind, final[-1]["text"], source_turn_id=turn["id"])
+            else:
+                project_plan(db, task, turn["id"], items)
+            return
+
+
+def changed(db, task, kind):
+    task.updated_at = now()
+    db.add(Event(task_id=task.id, kind=kind))
+
+
+def lease(db, task_id, *, workspace, stage="implement", limit=3):
+    # This row serializes admission only; it is never held across a Codex call.
+    row = db.scalar(select(WorkspaceLease).where(WorkspaceLease.id == 1).with_for_update())
+    if row is None:
+        raise ConsoleError("workspace_busy")
+    task = require_task(db, task_id)
+    if task.workspace_id:
+        from .workspaces import admission
+
+        admission(db, task)
+        workspace = task.workspace_id
+    leases = list(db.scalars(select(ResourceLease).where(ResourceLease.task_id != task_id)))
+    if len({item.task_id for item in leases}) >= limit:
+        raise ConsoleError("capacity_busy")
+    exclusive = stage == "implement"
+    wanted = {"workspace:" + str(workspace): exclusive}
+    if exclusive and (task.context or {}).get("purpose", "development") != "development":
+        wanted["operations"] = True
+    for item in leases:
+        if item.resource in wanted and (
+            item.exclusive
+            or wanted[item.resource]
+            or require_task(db, item.task_id).status == "uncertain"
+        ):
+            raise ConsoleError(
+                "operations_busy" if item.resource == "operations" else "workspace_busy"
+            )
+    db.execute(delete(ResourceLease).where(ResourceLease.task_id == task_id))
+    for resource, write in wanted.items():
+        db.add(ResourceLease(task_id=task_id, resource=resource, exclusive=write))
+    # Retain the legacy reference for upgrade/recovery compatibility; not an execution lock.
+    if row.task_id is None:
+        row.task_id = task_id
+
+
+def release(db, task_id):
+    from .agents import busy_descendants
+
+    if busy_descendants(db, task_id):
+        return
+    db.execute(delete(ResourceLease).where(ResourceLease.task_id == task_id))
+    db.execute(update(WorkspaceLease).where(WorkspaceLease.task_id == task_id).values(task_id=None))
+
+
+def invalidate_pending(db, task_id, *, thread_id=None):
+    db.execute(
+        update(PendingRequest)
+        .where(
+            PendingRequest.task_id == task_id,
+            PendingRequest.state.in_(("pending", "sending")),
+            *(
+                [or_(PendingRequest.thread_id == thread_id, PendingRequest.thread_id.is_(None))]
+                if thread_id
+                else []
+            ),
+        )
+        .values(state="expired")
+    )
+
+
+def implementation_authorized(db, task):
+    from .agents import busy_descendants
+
+    if task.stage != "implement" and not (task.stage == "review" and busy_descendants(db, task.id)):
+        return False
+    if task.approved_revision:
+        return True
+    operation = db.get(Operation, task.current_operation_id) if task.current_operation_id else None
+    return bool(
+        operation
+        and operation.task_id == task.id
+        and operation.kind == "execute"
+        and operation.state == "accepted"
+    )
+
+
+def task_out(task, db=None):
+    return {
+        "id": task.id,
+        "workspace_id": task.workspace_id,
+        "title": task.title,
+        "executor": task.executor,
+        "template_snapshot": task.template_snapshot,
+        "stage": task.stage,
+        "status": task.status,
+        "thread_id": task.thread_id,
+        "turn_id": task.turn_id,
+        "root": task.root,
+        "isolated": task.worktree_owned,
+        "approved_revision": task.approved_revision,
+        "error_code": task.error_code,
+        "updated_at": task.updated_at.isoformat(),
+        "model": task.model,
+        "effort": task.effort,
+        "permissions": task.permissions,
+        "progress": task.progress,
+        "context": task.context,
+        "pinned": task.pinned,
+        "agents": agent_list(db, task.id) if db else [],
+        "pending_count": db.scalar(
+            select(func.count())
+            .select_from(PendingRequest)
+            .where(PendingRequest.task_id == task.id, PendingRequest.state == "pending")
+        )
+        if db
+        else 0,
+    }
+
+
+def agent_list(db, task_id):
+    from .agents import observation_out
+
+    return [
+        {
+            "thread_id": a.thread_id,
+            "parent_thread_id": a.parent_thread_id,
+            "name": a.name,
+            "role": a.role,
+            "status": a.status,
+            "flags": a.flags,
+            "turn_id": a.turn_id,
+            "activity": a.activity,
+            "progress": a.progress,
+            "updated_at": a.updated_at.isoformat(),
+            "observation": observation_out(a),
+        }
+        for a in db.scalars(
+            select(Agent)
+            .where(Agent.task_id == task_id)
+            .order_by(Agent.updated_at, Agent.thread_id)
+        )
+    ]
+
+
+def attachment_out(row):
+    return {"id": row.id, "name": row.name, "size": row.size, "deleted": row.deleted_at is not None}
+
+
+def detail(factory, task_id, settings):
+    from .attachments import limits
+
+    with factory() as db:
+        # The event cursor must describe the same snapshot as every projected row.
+        db.connection()  # SQLite BEGIN gives every read in this transaction one snapshot.
+        task = require_task(db, task_id)
+        recent = list(
+            db.scalars(
+                select(Item).where(Item.task_id == task_id).order_by(Item.id.desc()).limit(2001)
+            )
+        )
+        items = [{**row.payload, "turn_id": row.turn_id} for row in reversed(recent[:2000])]
+        for item in items:
+            if item.get("type") in ("agentMessage", "plan"):
+                result = planning.parse(item.get("text", ""))
+                item["text"] = planning.unwrap_proposed_plan(
+                    result.answer if result else item.get("text", "")
+                )
+        message_ids = [
+            i["clientId"] for i in items if i.get("type") == "userMessage" and i.get("clientId")
+        ]
+        operations = {
+            o.id: o
+            for o in db.scalars(
+                select(Operation).where(
+                    Operation.task_id == task_id,
+                    Operation.id.in_(message_ids),
+                )
+            )
+        }
+        references = {}
+        for operation_id, row in db.execute(
+            select(MessageAttachment.operation_id, Attachment)
+            .join(Attachment, Attachment.id == MessageAttachment.attachment_id)
+            .where(MessageAttachment.operation_id.in_(operations))
+            .order_by(MessageAttachment.position)
+        ):
+            references.setdefault(operation_id, []).append(attachment_out(row))
+        for item in items:
+            if item.get("type") == "userMessage" and (
+                operation := operations.get(item.get("clientId"))
+            ):
+                if operation.display_text is not None:
+                    item["content"] = [{"type": "text", "text": operation.display_text}]
+                item["attachments"] = references.get(operation.id, [])
+        failed = db.get(Operation, task.current_operation_id) if task.current_operation_id else None
+        return {
+            **task_out(task, db),
+            "implementation_permissions": remote_environments.implementation_permissions(
+                settings, task
+            ),
+            "failed_request_text": failed.display_text
+            if failed and failed.state == "failed" and task.status == "failed"
+            else task.template_snapshot.get("text")
+            if task.template_snapshot and not task.thread_id and task.status in ("idle", "failed")
+            else None,
+            "revisions": [
+                {
+                    "id": r.id,
+                    "kind": r.kind,
+                    "version": r.version,
+                    "body": planning.unwrap_proposed_plan(r.body),
+                    "created_at": r.created_at.isoformat(),
+                }
+                for r in db.scalars(
+                    select(Revision)
+                    .where(Revision.task_id == task_id, Revision.kind == "plan")
+                    .order_by(Revision.id)
+                )
+            ],
+            "items": items,
+            "attachments": [
+                attachment_out(row)
+                for row in db.scalars(
+                    select(Attachment)
+                    .where(
+                        Attachment.task_id == task_id,
+                        Attachment.deleted_at.is_(None),
+                    )
+                    .order_by(Attachment.created_at, Attachment.id)
+                )
+            ],
+            "attachment_limits": limits(settings),
+            "history_truncated": len(recent) > 2000,
+            "requests": [
+                {"id": r.id, "method": r.method, "payload": r.payload}
+                for r in db.scalars(
+                    select(PendingRequest).where(
+                        PendingRequest.task_id == task_id, PendingRequest.state == "pending"
+                    )
+                )
+            ],
+            "event_id": db.scalar(select(func.max(Event.id)).where(Event.task_id == task_id)) or 0,
+        }
+
+
+def bounded_item_text(task, payload, key, value):
+    # Native plan items are authoritative documents and must keep their beginning.
+    if key == "text" and payload.get("type") == "plan":
+        bounded = value.encode("utf-8")[:MAX_MESSAGE_BYTES].decode("utf-8", errors="ignore")
+        return bounded
+    return value[-100000:]
+
+
+def upsert_item(db, task, turn_id, payload):
+    item_id = payload.get("id")
+    if not isinstance(item_id, str) or len(item_id) > 200:
+        return
+    # Reasoning internals and opaque tool arguments are not part of this UI's history projection.
+    kind = payload.get("type")
+    keys = {
+        "userMessage": ("id", "clientId", "type", "content"),
+        "agentMessage": ("id", "type", "text", "phase"),
+        "plan": ("id", "type", "text"),
+        "commandExecution": (
+            "id",
+            "type",
+            "command",
+            "cwd",
+            "status",
+            "aggregatedOutput",
+            "exitCode",
+            "durationMs",
+        ),
+        "fileChange": ("id", "type", "status", "changes"),
+    }.get(kind)
+    if not keys:
+        return
+    safe = {key: payload[key] for key in keys if key in payload}
+    for key in ("text", "aggregatedOutput"):
+        if isinstance(safe.get(key), str):
+            safe[key] = bounded_item_text(task, safe, key, safe[key])
+    row = db.scalar(select(Item).where(Item.task_id == task.id, Item.item_id == item_id))
+    if row:
+        row.payload = safe
+    else:
+        db.add(Item(task_id=task.id, item_id=item_id, turn_id=turn_id, payload=safe))
+
+
+def reconcile_history(db, task, turns):
+    # The official thread is canonical. The projection is replaceable, never fed back as history.
+    db.execute(delete(Item).where(Item.task_id == task.id))
+    for turn in turns[-100:]:
+        for item in turn.get("items", []):
+            upsert_item(db, task, turn["id"], item)
+            if item.get("type") == "userMessage" and item.get("clientId"):
+                db.execute(
+                    update(Operation)
+                    .where(
+                        Operation.id == item["clientId"],
+                        Operation.task_id == task.id,
+                    )
+                    .values(state="accepted")
+                )
+
+
+def recover_startup(factory, executor="session"):
+    from .agents import TERMINAL, busy_descendants, invalidate_observation
+
+    with factory.begin() as db:
+        for row in db.scalars(
+            select(Agent).join(Task, Agent.task_id == Task.id).where(Task.executor == executor)
+        ):
+            invalidate_observation(row)
+        for task in db.scalars(
+            select(Task).where(
+                Task.executor == executor,
+                or_(
+                    Task.status.in_(ACTIVE),
+                    Task.id.in_(
+                        select(Agent.task_id).where(
+                            Agent.parent_thread_id.is_not(None),
+                            Agent.status.not_in(TERMINAL),
+                        )
+                    ),
+                ),
+            )
+        ):
+            preparing = db.scalar(
+                select(Operation.id)
+                .where(
+                    Operation.task_id == task.id,
+                    Operation.state == "preparing",
+                    Operation.kind != "steer",
+                )
+                .limit(1)
+            )
+            if task.status == "starting" and preparing and not busy_descendants(db, task.id):
+                task.status, task.error_code = "failed", "execution_failed"
+                release(db, task.id)
+            else:
+                task.status, task.error_code = "uncertain", "runtime_restarted"
+            for agent in db.scalars(select(Agent).where(Agent.task_id == task.id)):
+                if agent.status not in TERMINAL:
+                    agent.status, agent.flags = "systemError", []
+            invalidate_pending(db, task.id)
+            changed(db, task, "runtime.restarted")
+        owned = select(Task.id).where(Task.executor == executor)
+        db.execute(
+            update(Operation)
+            .where(Operation.task_id.in_(owned), Operation.state == "preparing")
+            .values(state="failed")
+        )
+        db.execute(
+            update(Operation)
+            .where(
+                Operation.task_id.in_(owned),
+                Operation.state.in_(("pending", "submitting")),
+            )
+            .values(state="uncertain")
+        )

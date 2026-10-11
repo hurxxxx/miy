@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 import subprocess
+from tempfile import TemporaryDirectory
 import time
 import uuid
 from typing import Literal
@@ -30,16 +31,17 @@ from integration_infra import (
     stale_resource_cutoff,
 )
 
-TEST_POSTGRES_DSN = (
-    "postgresql+psycopg://mty_test:mty_test@127.0.0.1:5432/mty_test"
-)
+TEST_POSTGRES_DSN = "postgresql+psycopg://miy_test:miy_test@127.0.0.1:5432/miy_test"
 TEST_SETTINGS_ENV = {
-    "MTY_POSTGRES_DSN": TEST_POSTGRES_DSN,
-    "MTY_MAIL_CREDENTIAL_ENCRYPTION_KEY": "test-mail-credential-key",
-    "MTY_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY": "test-ai-model-credential-key",
-    "MTY_PLATFORM_API_KEY_ENCRYPTION_KEY": "test-platform-api-key-encryption-key",
-    "MTY_WORKER_BROKER_URL": "memory://",
-    "MTY_WORKER_RESULT_BACKEND": "cache+memory://",
+    "MIY_POSTGRES_DSN": TEST_POSTGRES_DSN,
+    "MIY_MAIL_CREDENTIAL_ENCRYPTION_KEY": "test-mail-credential-key",
+    "MIY_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY": "test-ai-model-credential-key",
+    "MIY_PLATFORM_API_KEY_ENCRYPTION_KEY": "test-platform-api-key-encryption-key",
+    "MIY_WORKER_BROKER_URL": "memory://",
+    "MIY_WORKER_RESULT_BACKEND": "cache+memory://",
+    "MIY_INDEPENDENT_APP_DELIVERY_TARGETS": "[]",
+    "MIY_INDEPENDENT_APP_WORKSPACE_PROFILES": "[]",
+    "MIY_INDEPENDENT_APP_SEARCH_ENABLED": "false",
 }
 
 
@@ -59,9 +61,9 @@ def pytest_configure(config: pytest.Config) -> None:
 
 @pytest.fixture(autouse=True)
 def _isolated_worker_publishers(_required_settings_env) -> Iterator[None]:
-    from mty_api.domains.mail.sync_jobs import get_celery_client as mail_publisher
-    from mty_api.domains.rag.outbox import get_celery_client as rag_publisher
-    from mty_api.domains.search.outbox import get_celery_client as search_publisher
+    from miy_api.domains.mail.sync_jobs import get_celery_client as mail_publisher
+    from miy_api.domains.rag.outbox import get_celery_client as rag_publisher
+    from miy_api.domains.search.outbox import get_celery_client as search_publisher
 
     factories = (mail_publisher, rag_publisher, search_publisher)
     try:
@@ -119,14 +121,14 @@ def _dispose_cached_engine(engine_factory) -> None:
 
 def _reset_test_database(engine) -> None:
     configured_database = engine.url.database or ""
-    if not configured_database.startswith("mty_test_"):
+    if not configured_database.startswith("miy_test_"):
         raise RuntimeError(f"Refusing to reset non-test database {configured_database!r}.")
 
     with engine.begin() as connection:
         connection.exec_driver_sql("SET LOCAL lock_timeout = '5s'")
         connection.exec_driver_sql("SET LOCAL statement_timeout = '30s'")
         database = connection.exec_driver_sql("SELECT current_database()").scalar_one()
-        if database != configured_database or not database.startswith("mty_test_"):
+        if database != configured_database or not database.startswith("miy_test_"):
             raise RuntimeError(f"Refusing to reset non-test database {database!r}.")
 
         preparer = connection.dialect.identifier_preparer
@@ -140,27 +142,63 @@ def _reset_test_database(engine) -> None:
 def _truncate_test_database(engine) -> None:
     """Clear application data while preserving the migrated schema."""
     configured_database = engine.url.database or ""
-    if not configured_database.startswith("mty_test_"):
+    if not configured_database.startswith("miy_test_"):
         raise RuntimeError(f"Refusing to truncate non-test database {configured_database!r}.")
-
     with engine.begin() as connection:
-        connection.exec_driver_sql("SET LOCAL lock_timeout = '5s'")
-        connection.exec_driver_sql("SET LOCAL statement_timeout = '30s'")
-        database = connection.exec_driver_sql("SELECT current_database()").scalar_one()
-        if database != configured_database or not database.startswith("mty_test_"):
-            raise RuntimeError(f"Refusing to truncate non-test database {database!r}.")
+        for statement in _truncate_test_database_statements(connection):
+            connection.exec_driver_sql(statement)
 
-        preparer = connection.dialect.identifier_preparer
-        schema = preparer.quote_schema("public")
-        table_names = [
-            table_name
-            for table_name in inspect(connection).get_table_names(schema="public")
-            if table_name != "alembic_version"
-        ]
-        if not table_names:
-            return
-        tables = ", ".join(f"{schema}.{preparer.quote(table_name)}" for table_name in table_names)
-        connection.exec_driver_sql(f"TRUNCATE TABLE {tables} RESTART IDENTITY CASCADE")
+
+def _truncate_test_database_statements(connection) -> list[str]:
+    """Generate reset SQL only after verifying this exact disposable database."""
+    configured_database = connection.engine.url.database or ""
+    database = connection.exec_driver_sql("SELECT current_database()").scalar_one()
+    if database != configured_database or not database.startswith("miy_test_"):
+        raise RuntimeError(f"Refusing to truncate non-test database {database!r}.")
+    preparer = connection.dialect.identifier_preparer
+    schema = preparer.quote_schema("public")
+    table_names = [
+        table_name
+        for table_name in inspect(connection).get_table_names(schema="public")
+        if table_name != "alembic_version"
+    ]
+    if not table_names:
+        return []
+    tables = ", ".join(f"{schema}.{preparer.quote(table_name)}" for table_name in table_names)
+    # Only the verified disposable reset may retire these exact history guards;
+    # Original writer/identity/admission guards remain active. The fixed inactive
+    # Files table additionally denies even empty Core TRUNCATE, so its exact
+    # statement guard is retired only here in this owned atomic reset. DDL rolls
+    # back on failure; no production empty-statement exception is introduced.
+    immutable_tables = connection.exec_driver_sql("""
+        SELECT c.relname,t.tgname FROM pg_catalog.pg_trigger t
+        JOIN pg_catalog.pg_class c ON c.oid=t.tgrelid
+        JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+        WHERE n.nspname='public'
+          AND ((c.relname IN ('official_projection_outbox','official_projection_receipts')
+                AND t.tgname='miy_official_projection_immutable')
+            OR (c.relname IN ('docs_legacy_projection_repairs','docs_legacy_projection_repair_targets')
+                AND t.tgname='miy_docs_repair_immutable')
+            OR (c.relname IN ('recording_stage_commands','core_recording_publications')
+                AND t.tgname='miy_recording_history')
+            OR (c.relname='file_extraction_requests'
+                AND t.tgname IN ('miy_file_extraction_history','miy_file_extraction_writer'))
+            OR (c.relname='core_file_materialization_operations'
+                AND t.tgname='miy_file_materialization_effect_writer'))
+    """).all()
+    return [
+        "SET LOCAL lock_timeout = '5s'",
+        "SET LOCAL statement_timeout = '30s'",
+        *(
+            f"ALTER TABLE {schema}.{preparer.quote(table)} DISABLE TRIGGER {preparer.quote(trigger)}"
+            for table, trigger in immutable_tables
+        ),
+        f"TRUNCATE TABLE {tables} RESTART IDENTITY CASCADE",
+        *(
+            f"ALTER TABLE {schema}.{preparer.quote(table)} ENABLE TRIGGER {preparer.quote(trigger)}"
+            for table, trigger in immutable_tables
+        ),
+    ]
 
 
 def _wait_for_postgres(dsn: str, timeout_seconds: int = 45) -> None:
@@ -215,19 +253,18 @@ def _env_file_value_in_order(name: str, env_files: tuple[Path, ...]) -> str | No
 
 def _native_postgres_template_dsn() -> str:
     root = _workspace_root()
-    configured = _env_file_value("MTY_TEST_POSTGRES_TEMPLATE_DSN")
+    configured = _env_file_value("MIY_TEST_POSTGRES_TEMPLATE_DSN")
     if not configured:
         # Nx loads .env.local into the process. That file intentionally points
         # developer apps at published dev infrastructure, while server-side tests
         # must prefer the checkout's native PostgreSQL from .env.
         configured = _env_file_value_in_order(
-            "MTY_POSTGRES_DSN",
+            "MIY_POSTGRES_DSN",
             (root / ".env", root / ".env.local"),
         )
     if not configured:
         raise RuntimeError(
-            "Native PostgreSQL tests require MTY_POSTGRES_DSN or "
-            "MTY_TEST_POSTGRES_TEMPLATE_DSN."
+            "Native PostgreSQL tests require MIY_POSTGRES_DSN or MIY_TEST_POSTGRES_TEMPLATE_DSN."
         )
     assert_non_production_postgres_dsn(configured)
     return configured
@@ -251,7 +288,7 @@ def _create_native_test_database(template_dsn: str, database: str) -> str:
         conn.autocommit = True
         with conn.cursor() as cursor:
             cursor.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(database)))
-            marker = f"mty-test-created-at={datetime.now(timezone.utc).isoformat()}"
+            marker = f"miy-test-created-at={datetime.now(timezone.utc).isoformat()}"
             cursor.execute(
                 sql.SQL("COMMENT ON DATABASE {} IS {}").format(
                     sql.Identifier(database),
@@ -301,7 +338,7 @@ def _drop_native_test_database(template_dsn: str, database: str) -> None:
 
 @contextmanager
 def _native_test_database(template_dsn: str, *, role: str) -> Iterator[str]:
-    database = f"mty_test_{TEST_RUN_TOKEN}_{role}_{uuid.uuid4().hex[:8]}"
+    database = f"miy_test_{TEST_RUN_TOKEN}_{role}_{uuid.uuid4().hex[:8]}"
     dsn = _create_native_test_database(template_dsn, database)
     try:
         yield dsn
@@ -312,13 +349,13 @@ def _native_test_database(template_dsn: str, *, role: str) -> Iterator[str]:
 def _migrate_application_test_database(dsn: str) -> None:
     from alembic import command
 
-    from mty_api.core.db import _alembic_config
-    from mty_api.core.settings import get_settings
+    from miy_api.core.db import _alembic_config
+    from miy_api.core.settings import get_settings
 
     with pytest.MonkeyPatch.context() as monkeypatch:
-        monkeypatch.setenv("MTY_POSTGRES_DSN", dsn)
-        monkeypatch.setenv("MTY_API_AUTO_MIGRATE", "0")
-        monkeypatch.setenv("MTY_LLM_HEALTHCHECK_ON_STARTUP", "0")
+        monkeypatch.setenv("MIY_POSTGRES_DSN", dsn)
+        monkeypatch.setenv("MIY_API_AUTO_MIGRATE", "0")
+        monkeypatch.setenv("MIY_LLM_HEALTHCHECK_ON_STARTUP", "0")
         get_settings.cache_clear()
         try:
             command.upgrade(_alembic_config(), "head")
@@ -328,22 +365,20 @@ def _migrate_application_test_database(dsn: str) -> None:
 
 def _initialize_application_test_database(dsn: str) -> None:
     """Add canonical runtime seed data before the worker baseline is captured."""
-    from mty_api.core.db import get_engine, get_session_factory, init_db
-    from mty_api.core.settings import get_settings
+    from miy_api.core.db import get_engine, get_session_factory, init_db
+    from miy_api.core.settings import get_settings
 
     with pytest.MonkeyPatch.context() as monkeypatch:
-        monkeypatch.setenv("MTY_POSTGRES_DSN", dsn)
-        monkeypatch.setenv("MTY_API_AUTO_MIGRATE", "0")
-        monkeypatch.setenv("MTY_API_SEED_DEV_LOGIN_ACCOUNT", "0")
+        monkeypatch.setenv("MIY_POSTGRES_DSN", dsn)
+        monkeypatch.setenv("MIY_API_AUTO_MIGRATE", "0")
+        monkeypatch.setenv("MIY_API_SEED_DEV_LOGIN_ACCOUNT", "0")
+        monkeypatch.setenv("MIY_MAIL_CREDENTIAL_ENCRYPTION_KEY", "test-mail-credential-key")
         monkeypatch.setenv(
-            "MTY_MAIL_CREDENTIAL_ENCRYPTION_KEY", "test-mail-credential-key"
-        )
-        monkeypatch.setenv(
-            "MTY_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY",
+            "MIY_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY",
             "test-ai-model-credential-key",
         )
         monkeypatch.setenv(
-            "MTY_PLATFORM_API_KEY_ENCRYPTION_KEY",
+            "MIY_PLATFORM_API_KEY_ENCRYPTION_KEY",
             "test-platform-api-key-encryption-key",
         )
         _clear_cache(get_session_factory)
@@ -407,6 +442,15 @@ def _run_postgres_cli(command: list[str], *, dsn: str) -> None:
 
 
 def _capture_application_postgres_state(dsn: str, baseline_path: Path) -> ApplicationPostgresState:
+    # These inactive protocol tables have no canonical application seed.
+    # pg_restore COPY invokes statement-level admission even for zero rows;
+    # skip only their asserted-empty data rather than disable Core authority.
+    empty_protocol_tables = (
+        "recording_stage_commands",
+        "core_recording_publications",
+        "file_extraction_requests",
+        "core_file_materialization_operations",
+    )
     engine = create_engine(dsn)
     try:
         with engine.connect() as connection:
@@ -414,6 +458,16 @@ def _capture_application_postgres_state(dsn: str, baseline_path: Path) -> Applic
             head_revision = connection.exec_driver_sql(
                 "SELECT version_num FROM alembic_version"
             ).scalar_one()
+            for table in empty_protocol_tables:
+                if (
+                    table in table_names
+                    and connection.exec_driver_sql(
+                        f"SELECT EXISTS(SELECT 1 FROM public.{table})"
+                    ).scalar_one()
+                ):
+                    raise RuntimeError(
+                        "Inactive Source/Core protocol fixture baseline must be empty."
+                    )
     finally:
         engine.dispose()
 
@@ -424,6 +478,11 @@ def _capture_application_postgres_state(dsn: str, baseline_path: Path) -> Applic
             "--format=custom",
             "--data-only",
             "--exclude-table-data=public.alembic_version",
+            *(
+                f"--exclude-table-data=public.{table}"
+                for table in empty_protocol_tables
+                if table in table_names
+            ),
             "--file",
             str(baseline_path),
         ],
@@ -441,21 +500,43 @@ def _capture_application_postgres_state(dsn: str, baseline_path: Path) -> Applic
 def _restore_application_postgres_state(state: ApplicationPostgresState) -> None:
     engine = create_engine(state.dsn)
     try:
-        _truncate_test_database(engine)
+        with engine.connect() as connection:
+            statements = _truncate_test_database_statements(connection)
     finally:
         engine.dispose()
 
-    _run_postgres_cli(
-        [
-            "pg_restore",
-            *_postgres_cli_args(state.dsn),
-            "--data-only",
-            "--single-transaction",
-            "--exit-on-error",
-            str(state.baseline_path),
-        ],
-        dsn=state.dsn,
-    )
+    # One transaction owns reset plus COPY restore. Any restore failure rolls
+    # back data and exact history-trigger DDL, including the ownership seed.
+    with TemporaryDirectory(prefix="atomic-restore-", dir=state.baseline_path.parent) as temporary:
+        reset_sql, restore_sql = Path(temporary) / "reset.sql", Path(temporary) / "restore.sql"
+        reset_sql.write_text("\n".join(f"{statement};" for statement in statements) + "\n")
+        reset_sql.chmod(0o600)
+        _run_postgres_cli(
+            [
+                "pg_restore",
+                "--data-only",
+                "--exit-on-error",
+                "--file",
+                str(restore_sql),
+                str(state.baseline_path),
+            ],
+            dsn=state.dsn,
+        )
+        restore_sql.chmod(0o600)
+        _run_postgres_cli(
+            [
+                "psql",
+                *_postgres_cli_args(state.dsn),
+                "--no-psqlrc",
+                "--set=ON_ERROR_STOP=on",
+                "--single-transaction",
+                "--file",
+                str(reset_sql),
+                "--file",
+                str(restore_sql),
+            ],
+            dsn=state.dsn,
+        )
 
     engine = create_engine(state.dsn)
     try:
@@ -526,7 +607,7 @@ def _ensure_pgvector_extension_with_native_superuser(dsn: str) -> None:
 
 @pytest.fixture(autouse=True)
 def _required_settings_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    from mty_api.core.settings import get_settings
+    from miy_api.core.settings import get_settings
 
     for key, value in TEST_SETTINGS_ENV.items():
         monkeypatch.setenv(key, value)
@@ -640,9 +721,9 @@ class _InMemoryObjectStorageClient:
 
 @pytest.fixture
 def in_memory_object_storage(monkeypatch: pytest.MonkeyPatch) -> None:
-    from mty_api.domains.diagrams import storage as diagram_storage
-    from mty_api.domains.dm import attachment_storage
-    from mty_api.domains.files import storage_adapter
+    from miy_api.domains.diagrams import storage as diagram_storage
+    from miy_api.domains.dm import attachment_storage
+    from miy_api.domains.files import storage_adapter
 
     client = _InMemoryObjectStorageClient()
     monkeypatch.setattr(storage_adapter, "get_minio_client", lambda: client)
@@ -658,53 +739,53 @@ def _configure_test_application_environment(
     minio_endpoint: str = "http://127.0.0.1:1",
     minio_access_key: str = "unused",
     minio_secret_key: str = "unused",
-    minio_bucket: str = "mty-test-unused",
+    minio_bucket: str = "miy-test-unused",
 ) -> None:
-    monkeypatch.setenv("MTY_POSTGRES_DSN", postgres_dsn)
-    monkeypatch.setenv("MTY_API_INSTANCE_ID", f"api-test-{uuid.uuid4().hex}")
-    monkeypatch.setenv("MTY_API_SESSION_TTL_HOURS", "1")
-    monkeypatch.setenv("MTY_API_ALLOW_DEV_ADMIN_LOGIN", "1")
-    monkeypatch.setenv("MTY_API_SEED_DEV_LOGIN_ACCOUNT", "0")
-    monkeypatch.setenv("MTY_API_SERVE_FRONTEND", "0")
-    monkeypatch.setenv("MTY_LLM_HEALTHCHECK_ON_STARTUP", "0")
-    monkeypatch.setenv("MTY_LLM_REQUIRED", "1")
-    monkeypatch.setenv("MTY_OPF_HEALTHCHECK_ON_STARTUP", "0")
-    monkeypatch.setenv("MTY_OPF_REQUIRED", "0")
-    monkeypatch.setenv("MTY_OPF_SERVICE_BASE_URL", "")
-    monkeypatch.setenv("MTY_API_AUTO_MIGRATE", "0")
-    monkeypatch.setenv("MTY_API_VIDEO_CHAT_ENABLED", "1")
-    monkeypatch.setenv("MTY_API_AGENT_TERMINAL_ENABLED", "1")
-    monkeypatch.setenv("MTY_API_COLLAB_REDIS_URL", "redis://127.0.0.1:1/0")
-    monkeypatch.setenv("MTY_API_REALTIME_REDIS_URL", "redis://127.0.0.1:1/0")
-    monkeypatch.setenv("MTY_MINIO_ENDPOINT", minio_endpoint)
-    monkeypatch.setenv("MTY_MINIO_ACCESS_KEY", minio_access_key)
-    monkeypatch.setenv("MTY_MINIO_SECRET_KEY", minio_secret_key)
-    monkeypatch.setenv("MTY_MINIO_BUCKET", minio_bucket)
-    monkeypatch.setenv("MTY_CONTENT_GRANT_SIGNING_KEY", "test-content-grant-signing-key")
-    monkeypatch.setenv("MTY_MAIL_CREDENTIAL_ENCRYPTION_KEY", "test-mail-credential-key")
+    monkeypatch.setenv("MIY_POSTGRES_DSN", postgres_dsn)
+    monkeypatch.setenv("MIY_API_INSTANCE_ID", f"api-test-{uuid.uuid4().hex}")
+    monkeypatch.setenv("MIY_API_SESSION_TTL_HOURS", "1")
+    monkeypatch.setenv("MIY_API_ALLOW_DEV_ADMIN_LOGIN", "1")
+    monkeypatch.setenv("MIY_API_SEED_DEV_LOGIN_ACCOUNT", "0")
+    monkeypatch.setenv("MIY_API_SERVE_FRONTEND", "0")
+    monkeypatch.setenv("MIY_LLM_HEALTHCHECK_ON_STARTUP", "0")
+    monkeypatch.setenv("MIY_LLM_REQUIRED", "1")
+    monkeypatch.setenv("MIY_OPF_HEALTHCHECK_ON_STARTUP", "0")
+    monkeypatch.setenv("MIY_OPF_REQUIRED", "0")
+    monkeypatch.setenv("MIY_OPF_SERVICE_BASE_URL", "")
+    monkeypatch.setenv("MIY_API_AUTO_MIGRATE", "0")
+    monkeypatch.setenv("MIY_API_VIDEO_CHAT_ENABLED", "1")
+    monkeypatch.setenv("MIY_API_AGENT_TERMINAL_ENABLED", "1")
+    monkeypatch.setenv("MIY_API_COLLAB_REDIS_URL", "redis://127.0.0.1:1/0")
+    monkeypatch.setenv("MIY_API_REALTIME_REDIS_URL", "redis://127.0.0.1:1/0")
+    monkeypatch.setenv("MIY_MINIO_ENDPOINT", minio_endpoint)
+    monkeypatch.setenv("MIY_MINIO_ACCESS_KEY", minio_access_key)
+    monkeypatch.setenv("MIY_MINIO_SECRET_KEY", minio_secret_key)
+    monkeypatch.setenv("MIY_MINIO_BUCKET", minio_bucket)
+    monkeypatch.setenv("MIY_CONTENT_GRANT_SIGNING_KEY", "test-content-grant-signing-key")
+    monkeypatch.setenv("MIY_MAIL_CREDENTIAL_ENCRYPTION_KEY", "test-mail-credential-key")
     monkeypatch.setenv(
-        "MTY_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY",
+        "MIY_AI_MODEL_CREDENTIAL_ENCRYPTION_KEY",
         "test-ai-model-credential-key",
     )
-    monkeypatch.setenv("MTY_AI_MCP_BRIDGE_ENABLED", "1")
+    monkeypatch.setenv("MIY_AI_MCP_BRIDGE_ENABLED", "1")
     # Keep tests independent of the developer's local `.env`: fake pool clients
     # are still gated by pool configuration before they are invoked.
-    monkeypatch.setenv("MTY_LLM_LOCAL_PROVIDER", "mlx-lm")
-    monkeypatch.setenv("MTY_RAG_ENABLED", "1")
-    monkeypatch.setenv("MTY_RAG_VECTOR_INDEX_PROVIDER", "fake")
-    monkeypatch.setenv("MTY_RAG_EMBEDDING_PROVIDER", "fake")
-    monkeypatch.setenv("MTY_RAG_RERANK_PROVIDER", "fake")
-    monkeypatch.setenv("MTY_RAG_OCR_PROVIDER", "fake")
+    monkeypatch.setenv("MIY_LLM_LOCAL_PROVIDER", "mlx-lm")
+    monkeypatch.setenv("MIY_RAG_ENABLED", "1")
+    monkeypatch.setenv("MIY_RAG_VECTOR_INDEX_PROVIDER", "fake")
+    monkeypatch.setenv("MIY_RAG_EMBEDDING_PROVIDER", "fake")
+    monkeypatch.setenv("MIY_RAG_RERANK_PROVIDER", "fake")
+    monkeypatch.setenv("MIY_RAG_OCR_PROVIDER", "fake")
 
 
 def _prepare_client_process_state() -> None:
-    from mty_api.core.db import get_engine, get_session_factory
-    from mty_api.core.llm import get_async_pool_client, get_pool_client
-    from mty_api.core.model_registry import import_all_models
-    from mty_api.core.settings import get_settings
-    from mty_api.core.storage import get_minio_client
-    from mty_api.domains.ai.registry import reset_ai_capability_registry
-    from mty_api.domains.rag.runtime import reset_rag_runtime_caches
+    from miy_api.core.db import get_engine, get_session_factory
+    from miy_api.core.llm import get_async_pool_client, get_pool_client
+    from miy_api.core.model_registry import import_all_models
+    from miy_api.core.settings import get_settings
+    from miy_api.core.storage import get_minio_client
+    from miy_api.domains.ai.registry import reset_ai_capability_registry
+    from miy_api.domains.rag.runtime import reset_rag_runtime_caches
 
     import_all_models()
 
@@ -726,7 +807,7 @@ def _build_test_application(
     minio_endpoint: str = "http://127.0.0.1:1",
     minio_access_key: str = "unused",
     minio_secret_key: str = "unused",
-    minio_bucket: str = "mty-test-unused",
+    minio_bucket: str = "miy-test-unused",
 ) -> FastAPI:
     _configure_test_application_environment(
         monkeypatch,
@@ -738,9 +819,9 @@ def _build_test_application(
     )
     _prepare_client_process_state()
 
-    from mty_api.app import create_app
-    from mty_api.core.storage import ensure_bucket
-    from mty_api.external_runtime import (
+    from miy_api.app import create_app
+    from miy_api.core.storage import ensure_bucket
+    from miy_api.external_runtime import (
         InProcessApiExternalRuntime,
         UnavailableCollaborationApiExternalRuntime,
     )
@@ -763,7 +844,7 @@ def _build_client(
     minio_endpoint: str = "http://127.0.0.1:1",
     minio_access_key: str = "unused",
     minio_secret_key: str = "unused",
-    minio_bucket: str = "mty-test-unused",
+    minio_bucket: str = "miy-test-unused",
 ) -> TestClient:
     return TestClient(
         _build_test_application(
@@ -779,12 +860,12 @@ def _build_client(
 
 
 def _teardown_client_state() -> None:
-    from mty_api.core.db import get_engine, get_session_factory
-    from mty_api.core.llm import get_async_pool_client, get_pool_client
-    from mty_api.core.settings import get_settings
-    from mty_api.core.storage import get_minio_client
-    from mty_api.domains.ai.registry import reset_ai_capability_registry
-    from mty_api.domains.rag.runtime import reset_rag_runtime_caches
+    from miy_api.core.db import get_engine, get_session_factory
+    from miy_api.core.llm import get_async_pool_client, get_pool_client
+    from miy_api.core.settings import get_settings
+    from miy_api.core.storage import get_minio_client
+    from miy_api.domains.ai.registry import reset_ai_capability_registry
+    from miy_api.domains.rag.runtime import reset_rag_runtime_caches
 
     try:
         _dispose_cached_engine(get_engine)
@@ -857,8 +938,8 @@ def client(
                 postgres_dsn=application_postgres_dsn,
             )
             _prepare_client_process_state()
-            from mty_api.core.settings import get_settings
-            from mty_api.platform_extensions import initialize_platform_extensions
+            from miy_api.core.settings import get_settings
+            from miy_api.platform_extensions import initialize_platform_extensions
 
             initialize_platform_extensions(get_settings())
             application_test_app.dependency_overrides.clear()
@@ -872,7 +953,7 @@ def client(
                 minio_endpoint=minio.endpoint if minio else "http://127.0.0.1:1",
                 minio_access_key=minio.access_key if minio else "unused",
                 minio_secret_key=minio.secret_key if minio else "unused",
-                minio_bucket=minio.bucket if minio else "mty-test-unused",
+                minio_bucket=minio.bucket if minio else "miy-test-unused",
             )
         with test_client:
             yield test_client
@@ -890,9 +971,8 @@ def configured_local_llm_control_plane(client: TestClient) -> None:
     """Select the explicit local test model for suites that exercise LLM execution."""
 
     del client
-    from mty_api.core.db import get_session_factory
-    from mty_api.core.settings import get_settings
-    from mty_api.domains.ai.model_settings_models import (
+    from miy_api.core.db import get_session_factory
+    from miy_api.domains.ai.model_settings_models import (
         AiModelCatalogEntry,
         AiModelProviderConfig,
     )
@@ -924,8 +1004,20 @@ def configured_local_llm_control_plane(client: TestClient) -> None:
             )
             db.add(model)
         provider.enabled = True
-        provider.endpoint_url = get_settings().llm_local_base_url
+        provider.endpoint_url = "http://127.0.0.1:12434/engines/v1"
         provider.default_model_id = model.id
+        from miy_api.domains.ai.model_settings_models import AiModelPolicyDefault
+
+        db.merge(
+            AiModelPolicyDefault(
+                model_family="generation",
+                app_id="",
+                route_mode="local",
+                provider_id="local",
+                max_output_tokens=32768,
+                version=1,
+            )
+        )
         db.commit()
 
 

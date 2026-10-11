@@ -11,7 +11,7 @@ import {
   StatusSlot,
   useConfirm,
   useFeedback,
-} from '@mty/ui';
+} from '@miy/ui';
 
 import {
   createPlatformApiKey,

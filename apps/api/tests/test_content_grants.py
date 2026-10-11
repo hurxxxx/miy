@@ -5,8 +5,8 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from mty_api.domains.content_access import grants
-from mty_api.domains.content_access.grants import (
+from miy_api.domains.content_access import grants
+from miy_api.domains.content_access.grants import (
     CONTENT_GRANT_MAX_TTL_SECONDS,
     ContentGrantIssuer,
     InvalidContentGrant,

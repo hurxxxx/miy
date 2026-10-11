@@ -63,25 +63,25 @@ def test_live_e2e_requires_explicit_execution_and_refuses_production_like(
 def test_live_e2e_requires_positive_loopback_development_data_plane_identity() -> None:
     live = _load_script_module()
     settings = SimpleNamespace(
-        postgres_dsn="postgresql+psycopg://dev:dev@127.0.0.1:5432/mty_dev",
+        postgres_dsn="postgresql+psycopg://dev:dev@127.0.0.1:5432/miy_dev",
         opensearch_url="http://127.0.0.1:59210",
         rag_qdrant_url="http://localhost:16333",
         minio_endpoint="127.0.0.1:59000",
-        minio_bucket="mty-dev",
-        opensearch_index_prefix="mty-dev",
-        rag_qdrant_collection_prefix="mty-dev-rag",
+        minio_bucket="miy-dev",
+        opensearch_index_prefix="miy-dev",
+        rag_qdrant_collection_prefix="miy-dev-rag",
     )
 
     live.assert_development_data_plane(settings)
 
     for attribute, unsafe in (
-        ("postgres_dsn", "postgresql+psycopg://dev:dev@db.example:5432/mty_prod"),
+        ("postgres_dsn", "postgresql+psycopg://dev:dev@db.example:5432/miy_prod"),
         ("opensearch_url", "https://search.example"),
         ("rag_qdrant_url", "https://vectors.example"),
         ("minio_endpoint", "objects.example:9000"),
-        ("minio_bucket", "mty-prod"),
-        ("opensearch_index_prefix", "mty-prod"),
-        ("rag_qdrant_collection_prefix", "mty-prod-rag"),
+        ("minio_bucket", "miy-prod"),
+        ("opensearch_index_prefix", "miy-prod"),
+        ("rag_qdrant_collection_prefix", "miy-prod-rag"),
     ):
         changed = SimpleNamespace(**{**vars(settings), attribute: unsafe})
         try:

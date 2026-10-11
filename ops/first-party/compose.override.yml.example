@@ -1,0 +1,141 @@
+# Explicit migration topology, selected only by prod-app.sh --topology first-party.
+# Image refs are private operation bindings supplied after guarded OCI verification;
+# they are not product .env settings. The default legacy/dev topology is unchanged.
+# The Core-owned gateway retains the existing public app port and TLS front door.
+# Apply on top of ops/compose/miy-prod.app.yml only after the documented drain.
+services:
+  api:
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        exec apps/api/.venv/bin/uvicorn miy_api.platform_runtime:app \
+          --app-dir apps/api/src \
+          --host 127.0.0.1 \
+          --port 18779 \
+          --proxy-headers \
+          --forwarded-allow-ips 127.0.0.1
+    environment:
+      MIY_APP_BIND_HOST: "127.0.0.1"
+      MIY_APP_PORT: "18779"
+      MIY_APP_FORWARDED_ALLOW_IPS: "127.0.0.1"
+
+  worker:
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        queues="$$(apps/worker/.venv/bin/python -m miy_worker.first_party_queues --profile platform)"
+        exec apps/worker/.venv/bin/celery -A miy_worker.first_party_platform:celery_app \
+          worker --loglevel=info --queues "$${queues}" --hostname "prod-platform-worker@%h"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          apps/worker/.venv/bin/celery -A miy_worker.first_party_platform:celery_app
+          inspect ping --destination "prod-platform-worker@$${HOSTNAME}" --timeout 5
+          | grep -q pong
+
+  beat:
+    command:
+      - apps/worker/.venv/bin/celery
+      - -A
+      - miy_worker.first_party_beat:celery_app
+      - beat
+      - --loglevel=info
+
+  official-api:
+    extends:
+      file: ../compose/miy-prod.app.yml
+      service: api
+    image: "${MIY_OFFICIAL_API_IMAGE:?immutable official API image required}"
+    container_name: miy-prod-official-api
+    # The service-runtime image has installed wheels rather than an API checkout.
+    command:
+      - apps/api/.venv/bin/uvicorn
+      - miy_official_api.runtime:app
+      - --host
+      - 127.0.0.1
+      - --port
+      - "18780"
+      - --proxy-headers
+      - --forwarded-allow-ips
+      - 127.0.0.1
+    environment:
+      MIY_API_AUTO_MIGRATE: "0"
+      MIY_API_SERVE_FRONTEND: "false"
+      MIY_APP_PORT: "18780"
+      OPENROUTER_API_KEY: ""
+    healthcheck:
+      test:
+        - CMD
+        - apps/api/.venv/bin/python
+        - -c
+        - >-
+          import json,urllib.request;
+          result=json.load(urllib.request.urlopen('http://127.0.0.1:18780/readyz',timeout=5));
+          assert result.get('status') == 'ok' and result.get('composition') == 'official'
+
+  official-worker:
+    extends:
+      file: ../compose/miy-prod.app.yml
+      service: worker
+    image: "${MIY_OFFICIAL_WORKER_IMAGE:?immutable official worker image required}"
+    container_name: miy-prod-official-worker
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        queues="$$(apps/worker/.venv/bin/python -m miy_worker.first_party_queues --profile official)"
+        exec apps/worker/.venv/bin/celery -A miy_official_worker.runtime:celery_app \
+          worker --loglevel=info --queues "$${queues}" --hostname "prod-official-worker@%h"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          apps/worker/.venv/bin/celery -A miy_official_worker.runtime:celery_app
+          inspect ping --destination "prod-official-worker@$${HOSTNAME}" --timeout 5
+          | grep -q pong
+
+  gateway:
+    image: miy-app:prod
+    container_name: miy-prod-app-gateway
+    network_mode: host
+    user: "10001:10001"
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 64
+    cpus: 1.0
+    mem_limit: 1g
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,mode=1777,size=64m
+    # Do not inherit the app env_file or its persistent runtime volume.
+    environment:
+      MIY_APP_BIND_HOST: "${MIY_APP_BIND_HOST:?app listener host required}"
+      MIY_APP_PORT: "${MIY_APP_PORT:?app listener port required}"
+      MIY_API_PREFIX: "${MIY_API_PREFIX:-/api/v1}"
+      MIY_APP_FORWARDED_ALLOW_IPS: "${MIY_APP_FORWARDED_ALLOW_IPS:?trusted proxy peers required}"
+    command:
+      - apps/api/.venv/bin/python
+      - ops/first-party/gateway.py
+    depends_on:
+      api:
+        condition: service_healthy
+      official-api:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 15s
+    healthcheck:
+      test:
+        - CMD
+        - apps/api/.venv/bin/python
+        - ops/first-party/gateway.py
+        - --check
+      interval: 15s
+      timeout: 25s
+      retries: 12
+      start_period: 90s

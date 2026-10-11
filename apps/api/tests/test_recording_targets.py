@@ -7,11 +7,11 @@ from pathlib import Path
 
 from sqlalchemy import func, select
 
-from mty_api.core.db import get_session_factory
-from mty_api.domains.docs.models import NativeDoc, NativeDocPage
-from mty_api.domains.recording import blob_store
-from mty_api.domains.recording import service as recording_service
-from mty_api.domains.recording.models import (
+from miy_api.core.db import get_session_factory
+from miy_api.domains.docs.models import NativeDoc, NativeDocPage
+from miy_api.domains.recording import blob_store
+from miy_api.domains.recording import service as recording_service
+from miy_api.domains.recording.models import (
     Recording,
     RecordingPublication,
     RecordingResult,

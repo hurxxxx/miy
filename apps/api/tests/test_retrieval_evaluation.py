@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from mty_api.domains.retrieval.evaluation import (
+from miy_api.domains.retrieval.evaluation import (
     RetrievalEvaluationCase,
     RetrievalEvaluationReport,
     RetrievalQualityGateArtifact,

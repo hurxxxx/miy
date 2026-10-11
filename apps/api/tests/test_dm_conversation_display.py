@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from mty_api.domains.dm import conversation_display
+from miy_api.domains.dm import conversation_display
 
 
 def test_direct_conversation_display_name_uses_other_active_user() -> None:

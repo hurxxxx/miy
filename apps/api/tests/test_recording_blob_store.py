@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from mty_api.domains.recording.blob_store import (
+from miy_api.domains.recording.blob_store import (
     RecordingArtifactStore,
     RecordingSpoolStore,
     build_recording_storage_key,

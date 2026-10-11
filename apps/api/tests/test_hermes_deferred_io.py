@@ -4,7 +4,6 @@ import asyncio
 import base64
 from datetime import timedelta
 from io import BytesIO
-import threading
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -16,21 +15,21 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
-from mty_api.core.db import get_db_session
-from mty_api.core.settings import get_settings
-from mty_api.domains.auth.app_access_models import AppAccessPolicy
-from mty_api.domains.auth.dependencies import require_current_user
-from mty_api.domains.auth.models import CompanyAppControl, User
-from mty_api.domains.hermes import file_router, files, mcp_router
-from mty_api.domains.hermes.models import (
+from miy_api.core.db import get_db_session
+from miy_api.core.settings import get_settings
+from miy_api.domains.auth.app_access_models import AppAccessPolicy
+from miy_api.domains.auth.dependencies import require_current_user
+from miy_api.domains.auth.models import CompanyAppControl, User
+from miy_api.domains.hermes import file_router, files, mcp_router
+from miy_api.domains.hermes.models import (
     HermesFileObject,
     HermesProfileBinding,
     HermesRunProjection,
     HermesSessionBinding,
     HermesSessionFile,
 )
-from mty_api.domains.hermes.repository import HermesRunRepository, utcnow_naive
-from mty_api.domains.hermes.service import mcp_profile_bearer_secret
+from miy_api.domains.hermes.repository import HermesRunRepository, utcnow_naive
+from miy_api.domains.hermes.service import mcp_profile_bearer_secret
 
 
 @pytest.fixture
@@ -93,7 +92,7 @@ def deferred_io(application_postgres_dsn, monkeypatch):
         profile = HermesProfileBinding(
             id=str(uuid4()),
             user_id=user.id,
-            profile_name=f"mty-{uuid4().hex}",
+            profile_name=f"miy-{uuid4().hex}",
             status="active",
             provider="openai",
             model="test",
@@ -177,7 +176,7 @@ async def test_context_does_not_infer_physical_resources_from_database_namespace
         response = await client.post(
             state.url,
             headers=state.headers,
-            json={"jsonrpc": "2.0", "id": 1, "method": "mty/context", "params": {}},
+            json={"jsonrpc": "2.0", "id": 1, "method": "miy/context", "params": {}},
         )
     assert response.status_code == 200
     context = response.json()["result"]
@@ -199,7 +198,7 @@ def payload(state, operation):
     )
     return {
         "id": 1,
-        "method": "tools/call" if operation == "tool" else f"mty/files/{operation}",
+        "method": "tools/call" if operation == "tool" else f"miy/files/{operation}",
         "params": params,
     }
 
@@ -219,28 +218,26 @@ async def test_deferred_operations_recheck_current_authority(deferred_io, operat
     state = deferred_io
     limiter = CapacityLimiter(1)
     token = mcp_router._OPERATION_THREADS.set(limiter)
-    entered, release = threading.Event(), threading.Event()
-
-    def hold():
-        entered.set()
-        assert release.wait(5)
-
-    blocker = asyncio.create_task(mcp_router._run_callback(hold, operation=True))
+    borrower = object()
     pending = None
     try:
-        assert await asyncio.to_thread(entered.wait, 1)
+        # Reserve native operation capacity without an expiring worker thread.
+        limiter.acquire_on_behalf_of_nowait(borrower)
         async with AsyncClient(
             transport=ASGITransport(app=state.app), base_url="http://test"
         ) as client:
             pending = asyncio.create_task(
                 client.post(state.url, headers=state.headers, json=payload(state, operation))
             )
-            async with asyncio.timeout(2):
+            async with asyncio.timeout(10):
                 while limiter.statistics().tasks_waiting != 1:
+                    assert not pending.done(), (
+                        "Deferred request finished before operation admission"
+                    )
                     await asyncio.sleep(0.01)
             state.revoke(revocation)
-            release.set()
-            response = await asyncio.wait_for(pending, 2)
+            limiter.release_on_behalf_of(borrower)
+            response = await asyncio.wait_for(pending, 10)
         if revocation == "unchanged":
             assert response.status_code == 200 and "error" not in response.json()
         else:
@@ -249,11 +246,15 @@ async def test_deferred_operations_recheck_current_authority(deferred_io, operat
             with state.factory() as db:
                 assert db.get(HermesSessionFile, state.file_id).object_key == state.old_key
     finally:
-        release.set()
-        await blocker
-        if pending is not None:
-            await asyncio.gather(pending, return_exceptions=True)
-        mcp_router._OPERATION_THREADS.reset(token)
+        try:
+            if pending is not None and not pending.done():
+                pending.cancel()
+            if borrower in limiter.statistics().borrowers:
+                limiter.release_on_behalf_of(borrower)
+            if pending is not None:
+                await asyncio.wait_for(asyncio.gather(pending, return_exceptions=True), 10)
+        finally:
+            mcp_router._OPERATION_THREADS.reset(token)
 
 
 @pytest.mark.anyio

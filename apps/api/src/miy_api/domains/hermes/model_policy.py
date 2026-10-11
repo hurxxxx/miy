@@ -1,0 +1,214 @@
+"""Translate the administrator's immutable model selection to native Hermes config."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from dataclasses import dataclass, field
+from typing import Any
+
+from sqlalchemy.orm import Session
+
+from miy_api.core.llm import LlmPoolConfig
+from miy_api.core.llm_errors import LlmProviderError
+from miy_api.core.llm_provider_registry import llm_provider_descriptor
+from miy_api.domains.hermes.client import (
+    HermesManagementClient,
+    managed_compression_policy,
+)
+
+
+def resolve_model_policy(db: Session, *, workload_id: str = "chatbot") -> "HermesModelPolicy":
+    from miy_api.domains.ai.model_settings_service import resolve_ai_model_workload_route
+    from miy_api.domains.ai.runtime_status import build_resolved_llm_pool_config
+
+    route = resolve_ai_model_workload_route(db, workload_id=workload_id)
+    return HermesModelPolicy.from_pool(
+        build_resolved_llm_pool_config(route),
+        model=route.model_key,
+        max_tokens=route.max_output_tokens,
+    )
+
+
+@dataclass(frozen=True)
+class HermesModelPolicy:
+    route: str
+    provider: str
+    model: str
+    endpoint: str
+    api_key: str = field(repr=False)
+    max_tokens: int
+    api_mode: str = "chat_completions"
+    extra_headers: dict[str, str] = field(default_factory=dict, repr=False)
+    temperature: float | None = None
+    connection_id: str | None = None
+
+    def __post_init__(self) -> None:
+        # v2026.8.31 only consumes provider extra_body on its OpenAI wire.
+        # Do not snapshot a sampling setting the Anthropic transport drops.
+        if self.api_mode == "anthropic_messages" and self.temperature is not None:
+            raise LlmProviderError(
+                "The pinned Hermes Anthropic transport does not support explicit temperature.",
+                pool=self.route,
+                provider=self.provider,
+            )
+
+    @classmethod
+    def from_pool(
+        cls,
+        config: LlmPoolConfig,
+        *,
+        model: str,
+        max_tokens: int,
+        temperature: float | None = None,
+    ):
+        descriptor = llm_provider_descriptor(config.provider)
+        if config.pool != "local" and not (
+            descriptor
+            and (descriptor.openai_compatible or config.provider in {"anthropic", "gemini"})
+        ):
+            raise LlmProviderError(
+                "The selected provider has no supported Hermes transport.",
+                pool=config.pool,
+                provider=config.provider,
+            )
+        endpoint = config.base_url.rstrip("/")
+        if config.provider == "gemini":
+            # Google's documented OpenAI compatibility surface, same authority.
+            if not endpoint.endswith("/v1beta/openai"):
+                endpoint = endpoint.removesuffix("/v1beta") + "/v1beta/openai"
+        return cls(
+            route=config.pool,
+            provider=config.provider,
+            model=model,
+            endpoint=endpoint,
+            api_key=config.api_key,
+            max_tokens=max_tokens,
+            api_mode="anthropic_messages" if config.provider == "anthropic" else "chat_completions",
+            extra_headers=dict(config.default_headers or {}),
+            temperature=temperature,
+            connection_id=config.connection_id,
+        )
+
+    @property
+    def key(self) -> str:
+        # Include credential rotation without persisting the secret in miy run
+        # projections. Each saved native provider entry is immutable.
+        payload = [
+            self.route,
+            self.connection_id,
+            self.provider,
+            self.model,
+            self.endpoint,
+            self.api_key,
+            self.max_tokens,
+            self.api_mode,
+            sorted(self.extra_headers.items()),
+        ]
+        if self.temperature is not None:
+            payload.append(self.temperature)
+        digest = hashlib.sha256(json.dumps(payload).encode()).hexdigest()[:32]
+        return f"miy-{digest}"
+
+    def run_options(self, *, reasoning_effort: str | None = None) -> dict[str, Any]:
+        return {
+            "provider": f"custom:{self.key}",
+            "model": self.model,
+            "model_options": {"reasoning_effort": reasoning_effort} if reasoning_effort else {},
+            "miy_policy": {
+                "route": self.route,
+                "connection_id": self.connection_id,
+                "provider": self.provider,
+                "model": self.model,
+                "max_output_tokens": self.max_tokens,
+                **({"temperature": self.temperature} if self.temperature is not None else {}),
+            },
+        }
+
+
+async def synchronize_model_policy(
+    client: HermesManagementClient,
+    *,
+    profile_name: str,
+    policy: HermesModelPolicy,
+) -> None:
+    env_key = f"MIY_MODEL_{policy.key[4:].upper()}"
+    await client.update_profile_env(profile_name, env_key, policy.api_key or "no-key-required")
+    await client.update_profile_config(
+        profile_name,
+        {
+            "providers": {
+                policy.key: {
+                    "name": policy.key,
+                    "base_url": policy.endpoint,
+                    "key_env": env_key,
+                    "default_model": policy.model,
+                    "transport": policy.api_mode,
+                    "max_output_tokens": policy.max_tokens,
+                    "extra_headers": policy.extra_headers,
+                    # Pinned native run model_options only supports reasoning/tier.
+                    # Named providers officially propagate extra_body as request overrides.
+                    **(
+                        {"extra_body": {"temperature": policy.temperature}}
+                        if policy.temperature is not None
+                        else {}
+                    ),
+                }
+            },
+            "model": {
+                "provider": f"custom:{policy.key}",
+                "default": policy.model,
+                "base_url": policy.endpoint,
+                "key_env": env_key,
+                "api_key": None,
+                "max_tokens": None,
+                "default_headers": {},
+            },
+            "fallback_providers": [],
+            "fallback_model": None,
+            # Fresh profiles do not inherit bootstrap's compression config.
+            # Reapply it before admission, including for existing/job profiles.
+            "compression": managed_compression_policy(),
+            "auxiliary": {
+                task: {
+                    "provider": "main",
+                    "model": "",
+                    "base_url": "",
+                    "api_key": "",
+                    "fallback_chain": [],
+                }
+                for task in (
+                    "compression",
+                    "vision",
+                    "approval",
+                    "title_generation",
+                    "skills_hub",
+                    "mcp",
+                    "curator",
+                    "background_review",
+                    "memory_flush",
+                )
+            },
+            "delegation": {"provider": "auto", "model": "", "base_url": "", "api_key": ""},
+            "plugins": {"enabled": ["miy_runtime"], "disabled": []},
+            "terminal": {
+                "backend": "miy_sandbox",
+                "container_persistent": False,
+                "cwd": "/workspace",
+            },
+            "proxy": {"enabled": False},
+            "platform_toolsets": {
+                "api_server": [
+                    "web",
+                    "terminal",
+                    "file",
+                    "skills",
+                    "todo",
+                    "memory",
+                    "code_execution",
+                    "delegation",
+                    "miy_runtime",
+                ]
+            },
+        },
+    )

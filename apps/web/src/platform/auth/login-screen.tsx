@@ -12,8 +12,8 @@ import { domAnimation, LazyMotion, m } from 'motion/react';
 import { useEffect, useReducer, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useFeedback } from '@mty/ui/feedback/feedback-provider';
-import { InlineNotice } from '@mty/ui/feedback/inline-notice';
+import { useFeedback } from '@miy/ui/feedback/feedback-provider';
+import { InlineNotice } from '@miy/ui/feedback/inline-notice';
 
 import { useAuth } from './auth-context';
 import {

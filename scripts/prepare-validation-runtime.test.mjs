@@ -8,7 +8,7 @@ import test from 'node:test';
 
 function fixture(t) {
   const root = fs.realpathSync(fs.mkdtempSync(
-    path.join(os.tmpdir(), 'mty-validation-runtime-'),
+    path.join(os.tmpdir(), 'miy-validation-runtime-'),
   ));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const write = (name, value) => {
@@ -40,13 +40,13 @@ function fixture(t) {
         })
         .join(''),
     );
-    env[`MTY_${name}_IMAGE_DEPENDENCY_FILE`] = write(
+    env[`MIY_${name}_IMAGE_DEPENDENCY_FILE`] = write(
       `image/${name}.sha256`,
       `${hash}\n`,
     );
     const target = path.join(root, 'image', name);
     fs.mkdirSync(target);
-    env[`MTY_${name}_IMAGE_${name === 'NODE' ? 'MODULES' : 'VENV'}`] =
+    env[`MIY_${name}_IMAGE_${name === 'NODE' ? 'MODULES' : 'VENV'}`] =
       target;
   }
   const script = write(
@@ -75,7 +75,7 @@ test('full and focused CI share identity-checked Python environments without cop
       );
       assert.equal(
         fs.realpathSync(path.join(f.root, link)),
-        f.env[`MTY_${app.toUpperCase()}_IMAGE_VENV`],
+        f.env[`MIY_${app.toUpperCase()}_IMAGE_VENV`],
       );
     }
   }
@@ -108,7 +108,7 @@ test('default environment reuse never replaces a real environment or foreign sym
     const target = path.join(f.root, 'apps/api/.venv');
     if (kind === 'directory')
       f.write('apps/api/.venv/keep', 'existing environment');
-    else fs.symlinkSync(f.env.MTY_WORKER_IMAGE_VENV, target);
+    else fs.symlinkSync(f.env.MIY_WORKER_IMAGE_VENV, target);
     assert.equal(f.run().status, 2);
     if (kind === 'directory')
       assert.equal(
@@ -118,7 +118,7 @@ test('default environment reuse never replaces a real environment or foreign sym
     else
       assert.equal(
         fs.readlinkSync(target),
-        f.env.MTY_WORKER_IMAGE_VENV,
+        f.env.MIY_WORKER_IMAGE_VENV,
       );
   }
 });
