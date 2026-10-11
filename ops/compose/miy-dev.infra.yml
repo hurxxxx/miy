@@ -74,8 +74,8 @@ services:
       DISABLE_SECURITY_PLUGIN: "true"
       OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
     ports:
-      - "${MIY_INFRA_BIND_HOST:-0.0.0.0}:${MIY_INFRA_OPENSEARCH_PORT:-59210}:9200"
-      - "${MIY_INFRA_BIND_HOST:-0.0.0.0}:${MIY_INFRA_OPENSEARCH_PERF_PORT:-59610}:9600"
+      - "127.0.0.1:${MIY_INFRA_OPENSEARCH_PORT:-59210}:9200"
+      - "127.0.0.1:${MIY_INFRA_OPENSEARCH_PERF_PORT:-59610}:9600"
     volumes:
       - miy-dev-opensearch-data:/usr/share/opensearch/data
     healthcheck:
@@ -93,8 +93,8 @@ services:
     environment:
       QDRANT__SERVICE__API_KEY: ${MIY_INFRA_QDRANT_API_KEY:-miy_dev_qdrant}
     ports:
-      - "${MIY_INFRA_BIND_HOST:-0.0.0.0}:${MIY_INFRA_QDRANT_PORT:-16333}:6333"
-      - "${MIY_INFRA_BIND_HOST:-0.0.0.0}:${MIY_INFRA_QDRANT_GRPC_PORT:-16334}:6334"
+      - "127.0.0.1:${MIY_INFRA_QDRANT_PORT:-16333}:6333"
+      - "127.0.0.1:${MIY_INFRA_QDRANT_GRPC_PORT:-16334}:6334"
     volumes:
       - miy-dev-qdrant-data:/qdrant/storage
     networks:

@@ -15,7 +15,7 @@ class RegistrationPolicy(Contract):
     app_id: AppId
     origin: str = Field(max_length=300)
     runtime_profile: Literal["web-api-v1", "web-api-postgres-v1"]
-    requested_permissions: list[Permission] = Field(max_length=4)
+    requested_permissions: list[Permission] = Field(max_length=5)
 
     _origin = field_validator("origin")(exact_origin)
 

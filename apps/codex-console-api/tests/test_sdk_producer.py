@@ -405,8 +405,54 @@ def test_exact_pinned_inputs_include_all_selected_graph_and_source_chain():
     assert sum(name.startswith("wheels/") for name, *_ in rows) == 24
     assert sum(name.startswith("oci/") for name, *_ in rows) == 7
     assert hashlib.sha256(producer.PIN_PATH.read_bytes()).hexdigest() == producer.PIN_SHA256
-    assert producer.verifier().load_pin()["toolchain_id"] == "miy-native-sdk-20261009-v2"
+    assert producer.verifier().load_pin()["toolchain_id"] == "miy-native-sdk-20261011-v3"
     assert producer.verifier().load_pin()["runtime_scratch"]["bytes"] == 16777216
+
+
+def test_sdk_only_reissue_checks_all_current_owned_source_inputs(monkeypatch):
+    pin = json.loads(producer.LEGACY_PIN_PATH.read_text())
+    current = producer.reissue_source_inputs(pin)
+    assert set(current) == set(pin["source_inputs"])
+    assert (
+        current["packages/app-sdk/src/index.mjs"]
+        == hashlib.sha256((ROOT / "packages/app-sdk/src/index.mjs").read_bytes()).hexdigest()
+    )
+    checking = producer.verifier()
+    original = checking.regular_bytes
+
+    def changed(path, maximum):
+        value = original(path, maximum)
+        return (
+            value + b"changed dependency"
+            if path == ROOT / "templates/independent-app/package.json"
+            else value
+        )
+
+    monkeypatch.setattr(checking, "regular_bytes", changed)
+    with pytest.raises(producer.ProducerRefused, match="reissue_non_sdk_source_changed"):
+        producer.reissue_source_inputs(pin)
+
+
+def test_sdk_reissue_rejects_changed_non_sdk_files_links_modes_and_elf_providers():
+    original = [
+        {"path": "node/bin/node", "mode": 0o555, "sha256": "a"},
+        {"path": "sdk/src/index.mjs", "mode": 0o444, "sha256": "old"},
+    ]
+    updated = [original[0], {**original[1], "sha256": "new"}]
+    producer.verify_reissue_inventory(
+        original, updated, {"node/bin/node": b"pinned ELF"}, {"node/bin/node": b"pinned ELF"}
+    )
+    for changed in (
+        {**updated[0], "mode": 0o755},
+        {**updated[0], "sha256": "changed"},
+        {**updated[0], "target": "../external"},
+    ):
+        with pytest.raises(producer.ProducerRefused, match="reissue_non_sdk_inventory_changed"):
+            producer.verify_reissue_inventory(original, [changed, updated[1]], {}, {})
+    with pytest.raises(producer.ProducerRefused, match="reissue_non_sdk_inventory_changed"):
+        producer.verify_reissue_inventory(
+            original, updated, {"node/bin/node": b"pinned ELF"}, {"node/bin/node": b"other ELF"}
+        )
 
 
 def test_pinned_oci_source_repository_matches_every_public_manifest_and_blob_namespace():
@@ -559,7 +605,29 @@ def test_canonical_starter_source_preflight_accepts_four_functional_sdk_files(
         for path in source.rglob("*")
         if path.is_file()
     }
-    assert len(before) == 19
+    assert set(before) == {
+        ".gitignore",
+        "AGENTS.md",
+        "PLATFORM_CAPABILITIES.md",
+        "README.md",
+        "api.py",
+        "app.manifest.json",
+        "business.py",
+        "index.html",
+        "package.json",
+        "pyproject.toml",
+        "src/main.jsx",
+        "src/presentation.mjs",
+        "src/style.css",
+        "tests/contract.test.mjs",
+        "tests/presentation.test.mjs",
+        "vendor/miy-app-sdk/package.json",
+        "vendor/miy-app-sdk/src/file-picker.mjs",
+        "vendor/miy-app-sdk/src/index.mjs",
+        "vendor/miy-app-sdk/src/index.test.mjs",
+        "vite.config.js",
+    }
+    assert before[".gitignore"] == (ROOT / "templates/independent-app/.gitignore").read_bytes()
     producer.verifier().verify_source_mounts(source, pin)
     after = {
         path.relative_to(source).as_posix(): path.read_bytes()

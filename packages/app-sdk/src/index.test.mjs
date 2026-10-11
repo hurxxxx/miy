@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
 import { getEventListeners } from 'node:events';
 import test from 'node:test';
-import { connectApp } from './index.mjs';
+import { connectApp, searchRecords } from './index.mjs';
 
 function fixture(installationId = 'test-install') {
   let ready;
@@ -1026,3 +1026,146 @@ for (const field of ['name', 'content_type']) {
     });
   }
 }
+
+test('record search uses only the fixed same-origin adapter and a memory app token', async (t) => {
+  const original = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = original;
+  });
+  const session = {
+    token: 'a'.repeat(43),
+    expires_at: new Date(Date.now() + 60000).toISOString(),
+    permissions: ['data:read', 'search:read'],
+  };
+  const result = {
+    items: [
+      {
+        record: { id: 'a-record', payload: { text: '장비' }, version: 1 },
+        score: 0.5,
+      },
+    ],
+    indexing_pending: true,
+  };
+  const seen = [];
+  globalThis.fetch = async (path, options) => {
+    seen.push({ path, options });
+    return Response.json(result);
+  };
+  assert.deepEqual(
+    await searchRecords({
+      session,
+      collection: 'notes',
+      query: '장비',
+      mode: 'semantic',
+      limit: 3,
+    }),
+    result,
+  );
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0].path, '/api/search/notes');
+  assert.equal(seen[0].options.credentials, 'omit');
+  assert.equal(seen[0].options.redirect, 'error');
+  assert.equal(
+    seen[0].options.headers.Authorization,
+    `Bearer ${session.token}`,
+  );
+  assert.deepEqual(JSON.parse(seen[0].options.body), {
+    query: '장비',
+    mode: 'semantic',
+    limit: 3,
+  });
+});
+
+test('record search rejects expired permissions, path scope and unbounded query before fetch', async (t) => {
+  const original = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = original;
+  });
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    throw new Error('Never called');
+  };
+  const session = {
+    token: 'a'.repeat(43),
+    expires_at: new Date(Date.now() + 60000).toISOString(),
+    permissions: ['data:read', 'search:read'],
+  };
+  for (const change of [
+    { collection: '../other' },
+    { query: ' ' },
+    { query: '\ud800' },
+    { query: 'x'.repeat(2001) },
+    { mode: 'dsl' },
+    { limit: 21 },
+    { session: { ...session, permissions: ['data:read'] } },
+    { session: { ...session, expires_at: new Date(0).toISOString() } },
+  ])
+    await assert.rejects(
+      searchRecords({ session, collection: 'notes', query: 'text', ...change }),
+      /App search unavailable/,
+    );
+  assert.equal(calls, 0);
+});
+
+test('record search bounds body reading and cancellation without automatic retries', async (t) => {
+  const original = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = original;
+  });
+  const session = {
+    token: 'a'.repeat(43),
+    expires_at: new Date(Date.now() + 60000).toISOString(),
+    permissions: ['data:read', 'search:read'],
+  };
+  let calls = 0;
+  let cancelled = false;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return new Response(
+      new ReadableStream({
+        cancel() {
+          cancelled = true;
+        },
+      }),
+    );
+  };
+  await assert.rejects(
+    searchRecords({
+      session,
+      collection: 'notes',
+      query: 'text',
+      timeoutMs: 10,
+    }),
+    /App search unavailable/,
+  );
+  assert.equal(calls, 1);
+  assert.equal(cancelled, true);
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(
+    searchRecords({
+      session,
+      collection: 'notes',
+      query: 'text',
+      signal: controller.signal,
+    }),
+    /App search unavailable/,
+  );
+  assert.equal(calls, 1);
+  globalThis.fetch = async () => {
+    calls += 1;
+    return new Response('x'.repeat(512 * 1024 + 1));
+  };
+  await assert.rejects(
+    searchRecords({ session, collection: 'notes', query: 'text' }),
+    /App search unavailable/,
+  );
+  assert.equal(calls, 2);
+  globalThis.fetch = async () =>
+    Response.json({ items: [], indexing_pending: 'wrong' });
+  await assert.rejects(
+    searchRecords({ session, collection: 'notes', query: 'text' }),
+    /App search unavailable/,
+  );
+});

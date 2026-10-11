@@ -67,6 +67,7 @@ import {
   type StartWorkbenchTask,
 } from './workbench';
 import { Instructions } from './instructions';
+import { WorkspacePanel } from './workspaces';
 import { AgentActivity } from './agent-activity';
 import { needsAttention, executing, running } from './agent-state';
 import { GitWorkspace, GitSummary, useGitState } from './git';
@@ -1343,6 +1344,17 @@ export function App() {
           </div>
           <section className="conversation" aria-label={t('Conversation')}>
             <ExecutionStatus task={task} connected={connected} t={t} />
+            {typeof task.context?.workspace_id === 'string' && (
+              <WorkspacePanel
+                key={task.context.workspace_id}
+                id={task.context.workspace_id}
+                t={t}
+                tasks={tasks}
+                openTask={choose}
+                startTask={startWorkbenchTask}
+                compact
+              />
+            )}
             <details className="task-agents">
               <summary>
                 {t('Show agent activity')} ({task.agents?.length ?? 0})

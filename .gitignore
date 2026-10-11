@@ -62,6 +62,9 @@ playwright-report/
 apps/web/test-results/
 apps/web/playwright-report/
 
+# API JUnit reports are separate from Playwright's cleaned output root.
+/api-test-results/
+
 secrets/
 .secure
 

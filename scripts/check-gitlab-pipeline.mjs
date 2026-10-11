@@ -150,8 +150,37 @@ export function expectedGitlabPipelineConfig() {
         when: 'always',
         expire_in: '14 days',
         access: 'maintainer',
-        paths: ['release-validation-context.md', 'test-results/'],
+        paths: [
+          'release-validation-context.md',
+          'test-results/',
+          'api-test-results/',
+        ],
+        reports: {
+          junit: [
+            'api-test-results/fast.xml',
+            'api-test-results/slow.xml',
+            'api-test-results/migration.xml',
+            'api-test-results/external.xml',
+          ],
+        },
       },
+    },
+    personal_app_validation: {
+      stage: 'validate',
+      tags: ['miy-personal-app'],
+      inherit: { default: false, variables: false },
+      dependencies: [],
+      allow_failure: false,
+      interruptible: false,
+      resource_group: 'miy-personal-app-validation',
+      rules: [
+        { if: FEATURE_MR_RULE, changes: ['personal-apps/**/*'] },
+        { if: RELEASE_MR_RULE, changes: ['personal-apps/**/*'] },
+      ],
+      variables: { GIT_DEPTH: '0' },
+      before_script: [],
+      script: ['/usr/local/bin/miy-personal-app-ci'],
+      after_script: [],
     },
     codex_review: {
       stage: 'review',

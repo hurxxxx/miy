@@ -127,12 +127,15 @@ def checked_prepared(checked_boundary):
     c.core_engine = create_engine(
         c.engine.url.set(username=c.core_sealer, password=PASSWORD), pool_size=4, max_overflow=0
     )
-    c.execution = capture_whiteboard_write_execution(
-        c.world.factory,
-        token=c.world.token,
-        original_user_id=c.world.state["member_id"],
-        original_source_session_id=c.world.state["source_id"],
-    )
+    if hasattr(c.world, "owner_revision_execution"):
+        c.execution = c.world.owner_revision_execution
+    else:
+        c.execution = capture_whiteboard_write_execution(
+            c.world.factory,
+            token=c.world.token,
+            original_user_id=c.world.state["member_id"],
+            original_source_session_id=c.world.state["source_id"],
+        )
     c.collab_id = str(uuid4())
     c.room_key = make_fresh_whiteboard_room_key(c.board_id)
     with Session(c.engine) as db:

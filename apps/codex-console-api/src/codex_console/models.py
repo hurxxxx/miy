@@ -53,6 +53,9 @@ class Task(Base):
     template_snapshot: Mapped[dict | None] = mapped_column(JSON)
     launch_id: Mapped[str | None] = mapped_column(String(36), unique=True)
     context: Mapped[dict | None] = mapped_column(JSON)
+    workspace_id: Mapped[str | None] = mapped_column(
+        ForeignKey("console_workspaces.id"), index=True
+    )
     pinned: Mapped[bool] = mapped_column(default=False)
     thread_id: Mapped[str | None] = mapped_column(String(160), unique=True)
     stage: Mapped[str] = mapped_column(String(24), default="plan")
@@ -135,6 +138,55 @@ class AppSourceBinding(Base):
     manifest: Mapped[dict] = mapped_column(JSON)
     manifest_digest: Mapped[str] = mapped_column(String(71))
     version: Mapped[int] = mapped_column(default=1)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+
+
+class WorkbenchWorkspace(Base):
+    """A durable development work unit; sessions never own its source or resources."""
+
+    __tablename__ = "console_workspaces"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("console_projects.id"), index=True)
+    app_id: Mapped[str] = mapped_column(String(80))
+    title: Mapped[str] = mapped_column(String(200))
+    profile: Mapped[str] = mapped_column(String(24), default="app")
+    repository_root: Mapped[str] = mapped_column(Text)
+    repository: Mapped[str] = mapped_column(Text)
+    source_directory: Mapped[str] = mapped_column(Text)
+    worktree_root: Mapped[str] = mapped_column(Text, unique=True)
+    git_dir: Mapped[str | None] = mapped_column(Text)
+    common_dir: Mapped[str] = mapped_column(Text)
+    branch: Mapped[str] = mapped_column(String(200), unique=True)
+    base_revision: Mapped[str | None] = mapped_column(String(40))
+    source_revision: Mapped[str | None] = mapped_column(String(40))
+    source_manifest: Mapped[dict | None] = mapped_column(JSON)
+    source_digest: Mapped[str | None] = mapped_column(String(71))
+    state: Mapped[str] = mapped_column(String(24), default="preparing")
+    admission_open: Mapped[bool] = mapped_column(default=False)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    auto_refresh: Mapped[bool] = mapped_column(default=True)
+    environment: Mapped[dict] = mapped_column(JSON, default=dict)
+    preview: Mapped[dict] = mapped_column(JSON, default=dict)
+    integration: Mapped[dict] = mapped_column(JSON, default=dict)
+    cleanup: Mapped[dict] = mapped_column(JSON, default=dict)
+    failure_code: Mapped[str | None] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+
+
+class WorkspaceOperation(Base):
+    """Local admission and remote receipts survive every attached Task's lifetime."""
+
+    __tablename__ = "console_workspace_operations"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("console_workspaces.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(24))
+    digest: Mapped[str] = mapped_column(String(64))
+    state: Mapped[str] = mapped_column(String(24), default="pending")
+    source_revision: Mapped[str | None] = mapped_column(String(40))
+    receipt: Mapped[dict] = mapped_column(JSON, default=dict)
+    failure_code: Mapped[str | None] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
 
 

@@ -72,7 +72,7 @@
     "check:i18n": "pnpm check:api-i18n && pnpm check:web-i18n",
     "check:path-hardcoding": "bash ./scripts/check-path-hardcoding.sh",
     "check:env-contract": "uv run --frozen --directory apps/api --python 3.12 --group dev python ../../scripts/check-env-contract.py",
-    "test:runtime-config": "uv run --frozen --directory apps/api --python 3.12 --group dev python -m pytest ../../scripts/tests/test_env_contract.py ../../scripts/tests/test_runtime_config_migrate.py -q ../../scripts/tests/test_miy_env_migrate.py ../../scripts/tests/test_dev_process_status.py ../../scripts/tests/test_dev_topology.py ../../scripts/tests/test_first_party_gateway.py",
+    "test:runtime-config": "uv run --frozen --directory apps/api --python 3.12 --group dev python -m pytest ../../scripts/tests/test_env_contract.py ../../scripts/tests/test_runtime_config_migrate.py -q ../../scripts/tests/test_miy_env_migrate.py ../../scripts/tests/test_dev_process_status.py ../../scripts/tests/test_dev_topology.py ../../scripts/tests/test_first_party_gateway.py ../../scripts/tests/test_workbench_environment.py ../../scripts/tests/test_workbench_environment_broker.py ../../scripts/tests/test_personal_app_runner.py",
     "depcruise:web": "depcruise --config .dependency-cruiser.cjs --include-only '^(apps/(web|official-suite)/src|packages/(core-web|platform-web|official-suite-web)/src)' apps/web/src apps/official-suite/src packages/core-web/src packages/platform-web/src packages/official-suite-web/src",
     "knip:web": "knip --config knip.json --include files,unresolved --reporter compact",
     "test:vite-source-aliases": "node --test scripts/vite-source-aliases.test.mjs scripts/recording-sync-asset.test.mjs",

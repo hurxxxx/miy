@@ -13,7 +13,7 @@ from alembic import command
 from fastapi import HTTPException
 from pydantic import ValidationError
 import pytest
-from sqlalchemy import create_engine, delete, func, inspect, select, text
+from sqlalchemy import MetaData, Table, create_engine, delete, func, inspect, select, text
 from sqlalchemy.orm import Session
 
 from miy_api.core.db import get_session_factory
@@ -559,6 +559,63 @@ def test_typed_settings_and_wire_reject_ambiguous_policy():
             RegistrationAuthorizationInput.model_validate(changed)
 
 
+def test_search_permissions_roundtrip_registration_bootstrap_and_owner_preview_contracts():
+    from miy_api.domains.independent_apps.contracts import AppDefinition
+    from miy_api.domains.independent_apps.owner_preview_contracts import OwnerPreviewPatch
+
+    permissions = AppDefinition.model_json_schema()["properties"]["requested_permissions"]["items"][
+        "enum"
+    ]
+    assert "search:read" in permissions and len(permissions) == 5
+    definition = {
+        **manifest("search-bootstrap"),
+        "runtime_profile": "web-api-postgres-v1",
+        "requested_permissions": permissions,
+        "search": {"collections": {"equipment": {"text_fields": ["name"], "modes": ["keyword"]}}},
+    }
+    value = payload(definition=definition, granted_permissions=permissions)
+    bootstrap = BootstrapInput.model_validate(value)
+    authorization = RegistrationAuthorizationInput.model_validate(consent(value))
+    preview_value = {
+        "expected_generation": 1,
+        "expected_definition_digest": bootstrap.definition.content_digest(),
+        "expected_source_revision": value["source_revision"],
+        "enabled": True,
+        "granted_permissions": permissions,
+    }
+    preview = OwnerPreviewPatch.model_validate(preview_value)
+    assert BootstrapInput.model_validate_json(bootstrap.model_dump_json()) == bootstrap
+    assert (
+        RegistrationAuthorizationInput.model_validate_json(authorization.model_dump_json())
+        == authorization
+    )
+    assert OwnerPreviewPatch.model_validate_json(preview.model_dump_json()) == preview
+    assert (
+        bootstrap.granted_permissions
+        == authorization.policy.requested_permissions
+        == preview.granted_permissions
+        == sorted(permissions)
+    )
+    for invalid in (
+        ["search:write"],
+        ["search:*"],
+        ["search:read", "search:read"],
+        [*permissions, "identity:read"],
+    ):
+        with pytest.raises(ValidationError):
+            BootstrapInput.model_validate(value | {"granted_permissions": invalid})
+        with pytest.raises(ValidationError):
+            RegistrationAuthorizationInput.model_validate(
+                consent(value)
+                | {
+                    "policy": authorization.policy.model_dump(mode="json")
+                    | {"requested_permissions": invalid}
+                }
+            )
+        with pytest.raises(ValidationError):
+            OwnerPreviewPatch.model_validate(preview_value | {"granted_permissions": invalid})
+
+
 def test_code_and_grant_deadlines_are_capped_by_the_original_session(client, enabled):
     with get_session_factory()() as db:
         actor = context(db, enabled)
@@ -661,6 +718,8 @@ def test_authorization_migration_preserves_existing_receipts_and_has_nullable_to
     command.upgrade(config, "official_planner_writer_20261006")
     engine = create_engine(postgres_dsn)
     try:
+        # Seed the selected historical schema without future ORM metadata.
+        installations = Table("independent_app_installations", MetaData(), autoload_with=engine)
         with Session(engine) as db:
             user = User(
                 id=str(uuid4()),
@@ -680,29 +739,37 @@ def test_authorization_migration_preserves_existing_receipts_and_has_nullable_to
             )
             db.add(definition)
             db.flush()
-            installation = AppInstallationRecord(
-                id=str(uuid4()),
-                app_id=definition.app_id,
-                environment="development",
-                origin="https://migration.test",
-                enabled=False,
-                user_ids=[user.id],
-                state="disabled",
+            installation_id = str(uuid4())
+            db.execute(
+                installations.insert().values(
+                    id=installation_id,
+                    app_id=definition.app_id,
+                    environment="development",
+                    origin="https://migration.test",
+                    enabled=False,
+                    audience="selected",
+                    user_ids=[user.id],
+                    group_ids=[],
+                    granted_permissions=[],
+                    release_id=None,
+                    state="disabled",
+                    generation=1,
+                    runtime_ref=None,
+                )
             )
-            db.add(installation)
             db.flush()
             operation = AppBootstrapOperation(
                 operation_id=str(uuid4()),
                 owner_user_id=user.id,
                 app_id=definition.app_id,
-                installation_id=installation.id,
+                installation_id=installation_id,
                 payload_digest="sha256:" + "b" * 64,
                 definition_digest=definition.definition_digest,
                 source_revision=definition.source_revision,
             )
             db.add(operation)
             db.flush()
-            expected = (operation.operation_id, user.id, installation.id, operation.payload_digest)
+            expected = (operation.operation_id, user.id, installation_id, operation.payload_digest)
             db.commit()
         command.upgrade(config, "registration_auth_20261007")
         columns = {

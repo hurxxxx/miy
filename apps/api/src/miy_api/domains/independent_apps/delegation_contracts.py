@@ -6,11 +6,11 @@ from pydantic import Field, field_validator
 
 from miy_api.domains.independent_apps.contracts import AppDefinition, Contract, Digest, Revision
 
-Action = Literal["read", "sync", "build", "deploy", "rollback"]
+Action = Literal["read", "sync", "build", "deploy", "rollback", "workspace"]
 
 
 class DelegationInput(Contract):
-    actions: list[Action] = Field(min_length=1, max_length=5)
+    actions: list[Action] = Field(min_length=1, max_length=6)
     expires_in_seconds: int = Field(default=86400, ge=60, le=86400)
 
     @field_validator("actions")

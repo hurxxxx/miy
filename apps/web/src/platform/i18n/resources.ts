@@ -51,6 +51,7 @@ export const resources = {
           dataRead: '이 앱에 저장한 내 데이터 읽기',
           dataWrite: '이 앱에 저장한 내 데이터 작성·수정·삭제',
           selectedFileRead: '내가 선택한 파일만 잠시 읽기',
+          searchRead: '이 앱에 저장한 내 데이터 검색',
           limits:
             '허용 설정은 앱 서버를 실행하거나 배포하지 않습니다. 앱 실행 환경이 준비되어야 미리보기를 사용할 수 있습니다.',
           dataLimits:
@@ -129,6 +130,7 @@ export const resources = {
           dataRead: '앱 데이터 읽기',
           dataWrite: '앱 데이터 쓰기',
           selectedFileRead: '내가 선택한 파일만 잠시 읽기',
+          searchRead: '이 앱에 저장한 내 데이터 검색',
           submit: '앱 등록',
           retry: '같은 등록 다시 요청',
           check: '등록 결과 확인',
@@ -3748,6 +3750,7 @@ export const resources = {
           dataRead: 'Read my data stored in this app',
           dataWrite: 'Create, update and delete my data in this app',
           selectedFileRead: 'Temporarily read only files I select',
+          searchRead: 'Search my data stored in this app',
           limits:
             'Allowing the preview does not start or deploy the app server. Its execution environment must also be ready.',
           dataLimits:
@@ -3826,6 +3829,7 @@ export const resources = {
           dataRead: 'Read app data',
           dataWrite: 'Write app data',
           selectedFileRead: 'Temporarily read only files I select',
+          searchRead: 'Search my data stored in this app',
           submit: 'Register app',
           retry: 'Retry the same registration',
           check: 'Check registration result',

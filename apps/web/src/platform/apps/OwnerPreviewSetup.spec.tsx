@@ -130,12 +130,13 @@ it('shows selected-file access distinctly on a basic app and sends only explicit
   ]);
 });
 
-it('accepts all four explicit permissions in the PostgreSQL profile without granting them implicitly', () => {
+it('accepts all five explicit permissions in the PostgreSQL profile without granting them implicitly', () => {
   const value = {
     ...snapshot,
     requested_permissions: [
       ...snapshot.requested_permissions,
       'files:read-selected',
+      'search:read',
     ],
   };
   expect(
@@ -145,6 +146,45 @@ it('accepts all four explicit permissions in the PostgreSQL profile without gran
       userId: 'owner',
     }).granted_permissions,
   ).toEqual([]);
+});
+
+it('shows search consent separately and saves only the access explicitly selected', async () => {
+  const searchSnapshot: OwnerPreview = {
+    ...snapshot,
+    requested_permissions: [
+      ...snapshot.requested_permissions,
+      'files:read-selected',
+      'search:read',
+    ],
+  };
+  vi.mocked(apiFetchJson).mockImplementation(async (_path, _token, init) =>
+    init?.method === 'PATCH'
+      ? {
+          ...searchSnapshot,
+          generation: 2,
+          granted_permissions: ['data:read', 'search:read'],
+        }
+      : searchSnapshot,
+  );
+  render(view());
+  const search = await screen.findByLabelText(label('searchRead'));
+  expect((search as HTMLInputElement).checked).toBe(false);
+  expect(writes()).toHaveLength(0);
+  fireEvent.click(screen.getByLabelText(label('dataRead')));
+  fireEvent.click(search);
+  fireEvent.click(screen.getByRole('button', { name: label('save') }));
+  await waitFor(() => expect(success).toHaveBeenCalledWith(label('saved')));
+  expect(JSON.parse(String(writes()[0][2]?.body)).granted_permissions).toEqual([
+    'data:read',
+    'search:read',
+  ]);
+  expect(
+    (screen.getByLabelText(label('dataWrite')) as HTMLInputElement).checked,
+  ).toBe(false);
+  expect(
+    (screen.getByLabelText(label('selectedFileRead')) as HTMLInputElement)
+      .checked,
+  ).toBe(false);
 });
 
 it('loads in StrictMode without writing, then sends only a bounded CAS policy update', async () => {
@@ -345,6 +385,9 @@ it.each([
   { enabled: 'true' },
   { origin: 'https://notes.example.test/path' },
   { granted_permissions: ['admin:all'] },
+  { requested_permissions: ['data:read', 'search:write'] },
+  { requested_permissions: ['data:read', 'search:read', 'search:read'] },
+  { granted_permissions: ['search:read'] },
   { granted_permissions: ['identity:read', 'identity:read'] },
   { generation: 0 },
   { can_configure: true, unavailable_reason: 'already_deployed' },

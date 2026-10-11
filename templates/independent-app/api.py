@@ -193,6 +193,53 @@ def file_bearer(authorization: str | None) -> str:
     return authorization
 
 
+class SearchQuery(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    query: str = Field(min_length=1, max_length=2000, strict=True)
+    mode: Literal["keyword", "semantic"] = "keyword"
+    limit: int = Field(default=20, ge=1, le=20, strict=True)
+
+    @field_validator("query")
+    @classmethod
+    def bounded_query(cls, value):
+        if not value.strip() or len(value.encode("utf-8")) > 8000:
+            raise ValueError("Invalid search query")
+        return value
+
+
+@app.post("/api/search/{collection}")
+async def search(
+    collection: str, request: Request, authorization: str | None = Header(default=None)
+):
+    bearer = file_bearer(authorization)
+    if not re.fullmatch(r"[a-z][a-z0-9_-]{0,63}", collection) or request.query_params:
+        raise HTTPException(status_code=422, detail="Invalid search request")
+    try:
+        async with asyncio.timeout(5):
+            body = bytearray()
+            async for chunk in request.stream():
+                if len(body) + len(chunk) > 20000:
+                    raise HTTPException(status_code=413, detail="Search request too large")
+                body.extend(chunk)
+            try:
+                payload = SearchQuery.model_validate_json(body)
+            except ValidationError:
+                raise HTTPException(status_code=422, detail="Invalid search request") from None
+            return await platform_request(
+                "POST",
+                "/_search/" + collection,
+                max_bytes=512 * 1024,
+                headers={"Authorization": bearer},
+                params={
+                    "installation_id": settings.installation_id,
+                    "audience": settings.origin,
+                },
+                json=payload.model_dump(),
+            )
+    except TimeoutError:
+        raise HTTPException(status_code=503, detail="App search unavailable") from None
+
+
 @app.post("/api/platform-files/selection-request")
 async def file_selection_request(
     request: Request, authorization: str | None = Header(default=None)
@@ -249,7 +296,9 @@ async def selected_file_content(
     try:
         async with asyncio.timeout(FILE_TOTAL_SECONDS):
             async with httpx.AsyncClient(
-                timeout=httpx.Timeout(12, connect=3), follow_redirects=False, trust_env=False
+                timeout=httpx.Timeout(12, connect=3),
+                follow_redirects=False,
+                trust_env=False,
             ) as client:
                 async with client.stream(
                     "GET",

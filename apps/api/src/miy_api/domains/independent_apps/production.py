@@ -15,7 +15,7 @@ from miy_api.domains.independent_apps import service
 from miy_api.domains.independent_apps.models import AppInstallationRecord
 
 
-def runtime_target(installation: AppInstallationRecord):
+def runtime_target(installation: AppInstallationRecord, db=None):
     settings = get_settings()
     try:
         targets = validate_targets(
@@ -32,7 +32,13 @@ def runtime_target(installation: AppInstallationRecord):
             and str(target.installation_id) == installation.id
             and target.app_origin == installation.origin
         ):
+            if db is not None:
+                from miy_api.domains.independent_apps.workspaces import integrated_source_target
+                return integrated_source_target(db, target, settings)
             return target
+    if db is not None and installation.environment == "development":
+        from miy_api.domains.independent_apps.workspaces import runtime_target as workspace_target
+        return workspace_target(db, installation, settings)
     return None
 
 

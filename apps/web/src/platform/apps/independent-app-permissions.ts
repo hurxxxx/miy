@@ -10,6 +10,7 @@ export const independentPermissionCopy = {
   'data:read': 'dataRead',
   'data:write': 'dataWrite',
   'files:read-selected': 'selectedFileRead',
+  'search:read': 'searchRead',
 } as const satisfies Record<IndependentAppPermission, string>;
 
 export const independentAppPermissions = Object.keys(

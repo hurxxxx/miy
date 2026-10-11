@@ -14,7 +14,7 @@ from .errors import ConsoleError
 MAX_BYTES = 2 * 1024 * 1024
 
 
-def git(root: Path, *args: str, limit: int = MAX_BYTES) -> bytes:
+def git(root: Path, *args: str, limit: int = MAX_BYTES, transport: bool = False) -> bytes:
     env = {k: os.environ[k] for k in ("PATH", "LANG") if k in os.environ}
     env.update(
         GIT_TERMINAL_PROMPT="0",
@@ -26,6 +26,33 @@ def git(root: Path, *args: str, limit: int = MAX_BYTES) -> bytes:
         GIT_NO_LAZY_FETCH="1",
         GIT_NO_REPLACE_OBJECTS="1",
     )
+    if transport:
+        # Only the managed-workspace broker calls this for fixed origin commands.
+        # SSH/HTTPS credentials stay in the operator's native credential owner.
+        env["GIT_ALLOW_PROTOCOL"] = "ssh:https"
+        for key in ("HOME", "SSH_AUTH_SOCK"):
+            if key in os.environ:
+                env[key] = os.environ[key]
+        if env.get("HOME"):
+            home = Path(env["HOME"])
+            if not home.is_absolute():
+                raise ConsoleError("workspace_repository_denied", 403)
+            for config in (home / ".gitconfig", home / ".config/git/config"):
+                try:
+                    info = config.lstat()
+                except FileNotFoundError:
+                    continue
+                if (
+                    not stat.S_ISREG(info.st_mode)
+                    or info.st_uid != os.getuid()
+                    or info.st_nlink != 1
+                    or info.st_mode & 0o022
+                    or info.st_size > 65536
+                ):
+                    raise ConsoleError("workspace_repository_denied", 403)
+            # Native operator credentials are available only for broker transport.
+            # Source reads/checkpoints still ignore global/system Git settings.
+            env.pop("GIT_CONFIG_GLOBAL")
     process = subprocess.Popen(
         [
             "git",

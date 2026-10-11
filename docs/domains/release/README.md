@@ -498,6 +498,8 @@ Release CI and the production web image build set Node's [V8 old-space limit](ht
 
 Release CI preserves Playwright's existing failure traces, videos, and error context under `test-results/` together with the validation context artifact, restricted to maintainers and expiring after 14 days. These shell tests use synthetic API fixtures. Do not archive runtime `.env` files or production browser sessions. A browser process crash is a failed check; retain its evidence and reproduce with the same image and resource settings before changing UI assertions, timeouts, or retry policy.
 
+The full API runner also writes native JUnit reports to `api-test-results/{fast,slow,migration,external}.xml`, registered as GitLab test reports under the same artifact restrictions. This API-owned directory is a sibling of Playwright’s `test-results/`, which later browser runs clear; browser cleanup must not remove API evidence. Short tracebacks and omitted captured output keep repeated failures from exhausting the job log before its summary. All four segments still run and any failed segment fails the gate. A killed pytest process may leave no report; missing evidence is never a pass. JUnit failure text is not a secret scrubber, so tests must keep credentials and runtime data out of assertions.
+
 Do not export Docker tar backups for reproducible builds/test images. Preserve the current and previous runtime tags for image rollback; back up persistent business data only through its separately authorized data-retention policy. Image sizes share layers: compare filesystem free space before/after cleanup rather than summing `docker image ls` sizes. Verify current/previous image IDs and runtime health remain unchanged after maintenance. Run `pnpm test:prod-app`, `node --test scripts/release-validation.test.mjs`, and the release pipeline when changing these controls.
 
 Image cleanup and BuildKit cache cleanup are separate: `docker image prune` does not bound BuildKit storage. Inspect `docker buildx du` and `docker buildx inspect` when filesystem usage keeps growing after image retirement. Prefer Docker's native [BuildKit garbage collection](https://docs.docker.com/build/cache/garbage-collection/) with an explicitly budgeted `builder.gc.defaultKeepStorage` on a project-owned daemon; inspect other owners before changing a shared daemon. A build cache is reproducible and is not a rollback backup. Never create tar copies before removing it. On a shared builder, identify exact unused project cache IDs and recheck ownership/reference state before targeted removal; descriptions alone do not establish ownership. For a small project-owned host, merge `"builder": {"gc": {"enabled": true, "defaultKeepStorage": "8GB"}}` into the existing daemon configuration, preserving runtime/network settings; larger caches need an explicit disk budget. This is a GC target, not a hard cap during a build, and it does not remove tagged runtime images or data volumes. Validate with `dockerd --validate --config-file /etc/docker/daemon.json`. Builder GC changes require a daemon restart on Docker 29; where supported, first enable/reload `live-restore`, verify `docker info` reports it active, then restart during authorized maintenance and verify existing container PIDs, images and health. Confirm the effective budget with `docker buildx inspect`; a saved configuration alone is not evidence that GC changed.
@@ -534,3 +536,93 @@ These are application regression tests: migrations, database-backed APIs and aut
 [`scripts/ci/run-api-full-tests.sh`](../../../scripts/ci/run-api-full-tests.sh) exposes the same checkout's `apps/worker/src` through `PYTHONPATH` only to the API integration test command, so worker task imports use the tested source revision. API and Worker keep their separate product virtual environments and dependency identity checks.
 
 Validation: `node --test scripts/build-ci-validation-image.test.mjs scripts/prepare-validation-runtime.test.mjs`, `pnpm check:gitlab-pipeline`, `pnpm ci:harness`, `pnpm check:env-contract`, `pnpm check:path-hardcoding`, and `git diff --check`. Changes to this image also require an actual image build/verification and release pipeline before release; report unavailable Docker/CI checks explicitly.
+
+### Personal app CI boundary
+
+`personal-apps/**` is excluded from Nx discovery (including every config-loading
+plugin) and from the root pnpm workspace. A personal-app MR into `dev`, or a release
+MR changing these paths, requires the additional `personal_app_validation` job.
+Existing review and release gates are retained. The job uses the dedicated
+`miy-personal-app` runner and installed `/usr/local/bin/miy-personal-app-ci` entrypoint;
+no app-controlled script runs on its host.
+
+Prepare this runner once as a Core operator. Install a trusted Core checkout and its
+API Python environment outside all CI checkouts, a private empty build scratch root,
+and an approved immutable local offline toolchain image. The fixed entrypoint invokes
+that installed Python and `scripts/personal-app-ci.py --config /etc/miy/personal-app-ci.json`.
+The protected JSON has only `project_id`, credential-free HTTPS `repository`,
+`toolchain_image` (`sha256:...`) and absolute `work_root`. Neither entrypoint nor config
+may come from the MR checkout. Set `repository` to the project's canonical HTTPS Git
+clone URL (`http_url_to_repo`), including its `.git` suffix when present. A project web
+URL is not a substitute: its redirect fails closed because Git redirects remain
+disabled. Correct this protected operator setting while the runner is idle, then
+explicitly retry the authorized job; do not enable redirects or accept a CI-supplied
+repository URL. Do not provide platform env, runtime credentials or
+host Docker access to the app: the installed builder owns the Docker boundary and
+runs app tests/build in its restricted containers. App source removal/malformed
+manifests fail the gate rather than silently claiming an application was validated.
+
+The builder verifies the immutable source export before making only that export root
+mode `0755`, so its fixed container UID can read public source owned by a different
+runner UID. The enclosing work root, build context and Docker configuration remain
+private (`0700`). Do not recursively open those paths or change app ownership to
+work around a container-read failure. A same-UID preview build is not evidence that
+this different-UID CI boundary works.
+
+The entrypoint checks exact same-project MR context/commit, reads changed app manifests
+as bounded Git data and uses the existing hash-verified offline app builder. Source,
+Vite configs and tests cannot supply host commands, ports, images or dependency
+installers. Its output contains only bounded app IDs, revisions and artifact evidence.
+Updating CI YAML or installing the entrypoint alone does not activate this runner;
+the registered service, protected config, image and an actual required-job pass remain
+deployment prerequisites.
+
+The runner must use the installed Core-owned `scripts/personal-app-runner.py` **custom
+executor**, rather than a general shell executor. A shell runner would execute the
+CI-provided job script on a Docker-authorized host even when that script mentions a
+trusted wrapper. The custom driver never reads or executes Runner's script file. It
+accepts only fixed prepare/source/validation/cleanup behavior: same-project MR context
+and exact head/base commits, trusted Git fetching from the configured HTTPS repository,
+then `/usr/local/bin/miy-personal-app-ci`. User `before_script` and step commands are
+ignored; `after_script`, cache, artifact and unknown stages are rejected. No general
+shell, dependency installer, app-controlled command or stage override is supported.
+
+Pinned GitLab Runner 19.4.1 (`3c39fceb`) translates `step_script` to `build_script` in
+its [native custom executor](https://gitlab.com/gitlab-org/gitlab-runner/-/raw/3c39fceb/executors/custom/custom.go).
+The driver accepts exactly these two validation-stage names and invokes the same
+fixed wrapper with the same identity gates. It does not interpret the provided script
+file or accept other `step_*` names, `after_script`, cache or artifact stages.
+
+Install the stdlib driver beside the protected CI entrypoint. Configure all four
+custom callbacks to `/usr/bin/python3.12` with fixed arguments `-I -B
+/opt/miy/personal-app-ci-20261011/scripts/personal-app-runner.py --config
+/etc/miy/personal-app-ci.json` followed by `config`, `prepare`, `run` or `cleanup`.
+Runner appends its script pathname and stage only to the `run` callback; the pathname
+is unused. The existing four-field operator JSON is shared with the entrypoint.
+Pre-create `work_root` and its sibling `jobs` directory for the dedicated runner UID,
+both mode `0700`. The driver uses only numeric job IDs beneath `jobs`; CI checkout,
+repository URL, custom clone path and arbitrary environment overrides are ignored.
+
+Before fetching and again before validation, the job token authenticates fixed
+`/api/v4/job` and same-project MR reads at the protected repository's HTTPS origin.
+Native job/pipeline identity and the current MR head/base must match the requested
+input; CI variables alone are not verification evidence. The protected journal binds
+that evidence to the wrapper. These API reads require the system CA file, reject
+redirects and ignore CI endpoint/proxy/CA overrides. Install the driver and wrapper
+together; older unverified journals may be cleaned but cannot resume validation.
+The token reaches only these reads and trusted Git's child-process HTTP authentication
+environment, never a URL, repository config, stored receipt, builder environment or output. Fetching
+disables hooks, credential helpers, filesystem monitors, submodules and redirects.
+Cleanup checks the exact job ownership marker and each successful validation image's
+ID/app/source/build labels before removing only that CI artifact and job checkout;
+ownership or daemon uncertainty preserves the job for operator reconciliation. Existing
+app runtimes, images, sources and shared resources are never pruned. Local driver tests
+and a synthetic offline build do not prove actual GitLab callback/job integration;
+report that required job's result separately.
+
+The fixed driver retains `personal_app_runner_required` as its public failure code.
+Its bounded diagnostics identify only an allowlisted stage, refusal reason and exception
+type, plus an HTTP status when available. They never include exception messages,
+API bodies, command arguments/output, tokens or environment values. Use this evidence
+to identify a failed callback before explicitly retrying that job; diagnostics do not
+relax source identity, current-pipeline checks or cleanup ownership.

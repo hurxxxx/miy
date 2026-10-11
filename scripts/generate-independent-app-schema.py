@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from typing import get_args
 
 from pydantic import BaseModel
 from pydantic_core import to_jsonable_python
@@ -25,15 +26,24 @@ def main() -> int:
     # Pydantic omits default_factory values from its JSON Schema. Publish these
     # owned, static defaults so independent clients can compare the same canonical
     # definition without importing the platform application or guessing defaults.
+    visited = set()
+
     def defaults(model, node):
+        if model in visited:
+            return
+        visited.add(model)
         for name, field in model.model_fields.items():
             if field.default_factory is not None:
                 node["properties"][name]["default"] = to_jsonable_python(
                     field.get_default(call_default_factory=True)
                 )
-            annotation = field.annotation
-            if isinstance(annotation, type) and issubclass(annotation, BaseModel):
-                defaults(annotation, schema["$defs"][annotation.__name__])
+            def visit(annotation):
+                if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+                    defaults(annotation, schema["$defs"][annotation.__name__])
+                else:
+                    for child in get_args(annotation):
+                        visit(child)
+            visit(field.annotation)
 
     defaults(AppDefinition, schema)
     schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"

@@ -40,7 +40,10 @@ from test_prepared_official_http_auth import (
     role_template as role_template,  # noqa: F401
 )
 from test_whiteboard_actor_acl_writer import acl_boundary as acl_boundary  # noqa: F401
-from test_whiteboard_actor_writer import actor_boundary as actor_boundary  # noqa: F401
+from test_whiteboard_actor_writer import (
+    _capture_before_actor_revision,
+    actor_boundary as actor_boundary,  # noqa: F401
+)
 from whiteboard_checked_fixture import (
     checked_boundary as checked_boundary,  # noqa: F401
     checked_prepared as checked_prepared,  # noqa: F401
@@ -62,6 +65,7 @@ REVISION = "wb_checked_cas_20261009"
 def http_world(current_head_http_world, request, tmp_path, monkeypatch):  # noqa: F811
     if getattr(request, "param", None) is None:
         return current_head_http_world
+    _capture_before_actor_revision(current_head_http_world)
     with current_head_http_world.core() as db:
         dsn = make_conninfo(
             **db.get_bind().url.translate_connect_args(username="user", database="dbname")

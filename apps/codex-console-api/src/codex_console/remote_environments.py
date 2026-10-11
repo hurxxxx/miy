@@ -11,13 +11,13 @@ import re
 from pathlib import Path
 
 from .errors import ConsoleError
-from .toolchain_profiles import SDK_PROFILE, binding_identity, command_environment, selected_profile
+from .toolchain_profiles import binding_identity, command_environment, is_sdk_profile
 
 
 def _require_sdk_policy(policy, environment):
     # Official v0.160.1 filters include_only after applying explicit set values.
     # Host profile evaluation must also stay off for this fixed command profile.
-    if selected_profile(environment) == SDK_PROFILE and (
+    if is_sdk_profile(environment) and (
         policy.get("include_only")
         or policy.get("filters")
         or policy.get("experimental_use_profile")
@@ -76,6 +76,19 @@ def for_task(settings, task):
     source = (task.context or {}).get("source_binding")
     if not source:
         return None
+    if source.get("workspace_id"):
+        from . import workspace_environment
+
+        environment = workspace_environment.environment_for(settings, source["managed_workspace"])
+        if (
+            task.workspace_id != source["workspace_id"]
+            or str(environment.source_root) != source.get("executor_root")
+            or Path(task.root) != environment.source_root
+            or source.get("remote_environment_digest") != fingerprint(environment)
+            or task.worktree_owned
+        ):
+            raise ConsoleError("app_executor_changed", 409)
+        return environment
     environment = next(
         (
             item
@@ -99,11 +112,62 @@ def for_task(settings, task):
     return environment
 
 
+def for_restrictive_task(settings, task, environment):
+    """Validate the original live controller's identity without readiness probes.
+
+    Only its owner may decline an existing request or interrupt an existing turn.
+    This does not select an executor, reconnect or admit any new execution.
+    """
+    source = (task.context or {}).get("source_binding") or {}
+    if environment is None or not source:
+        raise ConsoleError("app_executor_unavailable", 503)
+    try:
+        changed = (
+            source.get("remote_environment_key") != environment.key
+            or source.get("remote_environment_digest") != fingerprint(environment)
+            or task.worktree_owned
+        )
+        if source.get("workspace_id"):
+            managed = source["managed_workspace"]
+            expected = Path(managed["worktree_path"]) / managed["app_directory"]
+            changed |= (
+                task.workspace_id != source["workspace_id"]
+                or (task.context or {}).get("workspace_id") != source["workspace_id"]
+                or managed["id"] != source["workspace_id"]
+                or managed["app_id"] != source.get("app_id")
+                or (task.context or {}).get("app_id") != source.get("app_id")
+                or source.get("executor_root") != str(expected)
+                or environment.source_root != expected
+                or Path(task.root) != expected
+                or expected.resolve() != expected
+            )
+        else:
+            selected = next(
+                (
+                    item
+                    for item in settings.app_execution_environments
+                    if item.key == environment.key
+                ),
+                None,
+            )
+            changed |= (
+                selected is None
+                or fingerprint(selected) != fingerprint(environment)
+                or source.get("repository_root") != str(environment.source_root)
+                or not Path(task.root).is_relative_to(environment.source_root)
+            )
+        if changed:
+            raise ConsoleError("app_executor_changed", 409)
+    except (KeyError, TypeError, AttributeError, ValueError):
+        raise ConsoleError("app_executor_changed", 409) from None
+    return environment
+
+
 def implementation_permissions(settings, task):
     """Advertise current choices without making stale task history unreadable."""
     try:
         environment = for_task(settings, task)
-        return ["ask"] if selected_profile(environment) == SDK_PROFILE else ["ask", "yolo"]
+        return ["ask"] if is_sdk_profile(environment) else ["ask", "yolo"]
     except (ConsoleError, KeyError, TypeError, AttributeError):
         return []
 
@@ -119,7 +183,7 @@ def require_provider_boundary():
 def overrides(config, environment=None):
     if (config.get("model_provider") or "openai") != "openai":
         raise ConsoleError("subscription_provider_required")
-    sdk = selected_profile(environment) == SDK_PROFILE
+    sdk = is_sdk_profile(environment)
     names = {} if sdk else config.get("mcp_servers") or {}
     if not isinstance(names, dict) or any(
         not re.fullmatch(r"[A-Za-z0-9_-]+", key) for key in names
@@ -152,7 +216,7 @@ def overrides(config, environment=None):
             "shell_environment_policy.inherit": "none",
         }
     )
-    if selected_profile(environment) == SDK_PROFILE:
+    if is_sdk_profile(environment):
         result["sandbox_mode"] = "read-only"
         result["approval_policy"] = "never"
         result["shell_environment_policy.experimental_use_profile"] = False
@@ -183,7 +247,7 @@ def verify_overrides(config, environment=None):
         raise ConsoleError("app_executor_configuration", 503)
     expected = command_environment(environment)
     mcp_servers = config.get("mcp_servers")
-    if selected_profile(environment) == SDK_PROFILE and (
+    if is_sdk_profile(environment) and (
         mcp_servers is not None
         and (type(mcp_servers) is not dict or mcp_servers)
         or config.get("sandbox_mode") != "read-only"

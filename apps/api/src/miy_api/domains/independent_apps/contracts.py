@@ -14,6 +14,7 @@ from pydantic import (
     Field,
     field_serializer,
     field_validator,
+    model_serializer,
     model_validator,
 )
 
@@ -22,7 +23,35 @@ from miy_api.core.app_origins import exact_origin
 AppId = Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{1,63}$")]
 Digest = Annotated[str, Field(pattern=r"^sha256:[a-f0-9]{64}$")]
 Revision = Annotated[str, Field(pattern=r"^[a-f0-9]{40}$")]
-Permission = Literal["identity:read", "data:read", "data:write", "files:read-selected"]
+Permission = Literal[
+    "identity:read", "data:read", "data:write", "files:read-selected", "search:read"
+]
+SearchCollectionName = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_-]{0,63}$")]
+SearchFieldName = Annotated[str, Field(pattern=r"^[a-zA-Z][a-zA-Z0-9_]{0,63}$")]
+
+
+class SearchCollection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    text_fields: list[SearchFieldName] = Field(min_length=1, max_length=8)
+    modes: list[Literal["keyword", "semantic"]] = Field(min_length=1, max_length=2)
+
+    @model_validator(mode="after")
+    def unique_values(self):
+        if len(set(self.text_fields)) != len(self.text_fields) or len(set(self.modes)) != len(
+            self.modes
+        ):
+            raise ValueError("Search fields and modes must be unique")
+        return self
+
+
+class SearchDeclaration(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    collections: dict[SearchCollectionName, SearchCollection] = Field(min_length=1, max_length=8)
+
+    def content_hash(self):
+        return hashlib.sha256(
+            json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
 
 
 class Contract(BaseModel):
@@ -112,7 +141,10 @@ class AppDefinition(Contract):
     sdk_version: Literal[1] = 1
     runtime_profile: Literal["web-api-v1", "web-api-postgres-v1"] = "web-api-v1"
     entrypoints: Entrypoints = Field(default_factory=Entrypoints)
-    requested_permissions: list[Permission] = Field(default_factory=list, max_length=4)
+    search: SearchDeclaration | None = Field(
+        default=None, json_schema_extra={"x-miy-omit-null": True}
+    )
+    requested_permissions: list[Permission] = Field(default_factory=list, max_length=5)
 
     @field_validator("schema_version", "sdk_version", mode="before")
     @classmethod
@@ -130,7 +162,21 @@ class AppDefinition(Contract):
             raise ValueError("Data permissions require the PostgreSQL runtime profile")
         if len(set(self.requested_permissions)) != len(self.requested_permissions):
             raise ValueError("Permissions must be unique")
+        if self.search is not None and self.runtime_profile != "web-api-postgres-v1":
+            raise ValueError("Search requires the PostgreSQL runtime profile")
+        if "search:read" in self.requested_permissions and (
+            self.search is None or "data:read" not in self.requested_permissions
+        ):
+            raise ValueError("Search permission requires declared search and data read")
         return self
+
+    @model_serializer(mode="wrap")
+    def omit_absent_search(self, serializer):
+        # Existing manifests, release snapshots and their exact digests stay unchanged.
+        data = serializer(self)
+        if self.search is None:
+            data.pop("search", None)
+        return data
 
     def content_digest(self) -> str:
         data = json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
@@ -176,7 +222,7 @@ class InstallationInput(Contract):
     audience: Literal["selected", "all"] = "selected"
     user_ids: list[str] = Field(default_factory=list, max_length=1000)
     group_ids: list[str] = Field(default_factory=list, max_length=1000)
-    granted_permissions: list[Permission] = Field(default_factory=list, max_length=4)
+    granted_permissions: list[Permission] = Field(default_factory=list, max_length=5)
 
     _origin = field_validator("origin")(exact_origin)
 
@@ -191,7 +237,7 @@ class InstallationOut(InstallationInput):
     id: str
     app_id: AppId
     release_id: str | None
-    state: Literal["configured", "ready", "disabled"]
+    state: Literal["configured", "ready", "disabled", "archived"]
     generation: int
 
 

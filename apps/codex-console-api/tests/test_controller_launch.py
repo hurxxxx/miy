@@ -481,6 +481,8 @@ def test_public_release_builder_copies_native_and_sdk_pins_before_identity(tmp_p
     build = scripts / "build-codex-console.sh"
     build.write_bytes((owner / "scripts/build-codex-console.sh").read_bytes())
     (scripts / "generate-app-starters.py").write_text("pass\n")
+    for name in ("manage-workbench-environment.py", "verify-native-sdk-toolchain.py"):
+        (scripts / name).write_bytes((owner / "scripts" / name).read_bytes())
     api = project / "apps/codex-console-api"
     source = api / "src/codex_console"
     source.mkdir(parents=True)
@@ -495,8 +497,22 @@ def test_public_release_builder_copies_native_and_sdk_pins_before_identity(tmp_p
     (web / "index.html").write_text("synthetic\n")
     resources = project / "ops/codex-console/executor"
     resources.mkdir(parents=True)
-    for name in ("sdk-toolchain-pin.json", "native-pin.json"):
+    resource_names = (
+        "sdk-toolchain-pin.json",
+        "sdk-toolchain-v2-pin.json",
+        "native-pin.json",
+        "miy-app-sdk-managed.service.example",
+        "miy-app-sdk-managed-proxy.service.example",
+        "miy-app-sdk-managed-proxy.socket.example",
+        "miy-app-sdk-managed.config.json.example",
+    )
+    for name in resource_names:
         (resources / name).write_bytes((owner / "ops/codex-console/executor" / name).read_bytes())
+    public_inputs = json.loads((resources / "sdk-toolchain-pin.json").read_text())["source_inputs"]
+    for relative in public_inputs:
+        target = project / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((owner / relative).read_bytes())
     tools = tmp_path / "external-tool-stubs"
     tools.mkdir()
     for name in ("pnpm", "uv", "git"):
@@ -520,10 +536,21 @@ def test_public_release_builder_copies_native_and_sdk_pins_before_identity(tmp_p
         (release / "apps/codex-console-api/src/codex_console/_build.json").read_text()
     )
     assert identity["source_dirty"] is False and identity["digest"].startswith("sha256:")
-    for name in ("sdk-toolchain-pin.json", "native-pin.json"):
+    for name in resource_names:
         assert (release / "ops/codex-console/executor" / name).read_bytes() == (
             resources / name
         ).read_bytes()
+    for relative, expected in public_inputs.items():
+        assert hashlib.sha256((release / relative).read_bytes()).hexdigest() == expected
+    for name in ("manage-workbench-environment.py", "verify-native-sdk-toolchain.py"):
+        assert (release / "scripts" / name).read_bytes() == (scripts / name).read_bytes()
+    digest = hashlib.sha256()
+    identity_path = release / "apps/codex-console-api/src/codex_console/_build.json"
+    for path in sorted(release.rglob("*")):
+        if path.is_file() and path != identity_path:
+            digest.update(str(path.relative_to(release)).encode() + b"\0")
+            digest.update(path.read_bytes())
+    assert identity["digest"] == "sha256:" + digest.hexdigest()
     package_root = release / "apps/codex-console-api/src/codex_console"
     spec = importlib.util.spec_from_file_location(
         "synthetic_packaged_console",

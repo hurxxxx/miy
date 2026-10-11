@@ -11,6 +11,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from miy_api.core.runtime_config_source import RuntimeConfigSettingsSource
 from miy_api.core.app_origins import exact_origin
 from miy_api.core.independent_delivery_settings import IndependentDeliveryTarget, validate_targets
+from miy_api.core.independent_workspace_settings import IndependentWorkspaceProfile
 from miy_api.core.registration_audience import registration_audience
 
 from miy_api.miy_desktop_update_manifest import (
@@ -402,6 +403,13 @@ class Settings(BaseSettings):
         default_factory=list, max_length=20,
         validation_alias="MIY_INDEPENDENT_APP_PLATFORM_ORIGINS",
     )
+    independent_app_search_enabled: bool = Field(
+        default=False, validation_alias="MIY_INDEPENDENT_APP_SEARCH_ENABLED",
+    )
+    independent_app_workspace_profiles: list[IndependentWorkspaceProfile] = Field(
+        default_factory=list, max_length=4,
+        validation_alias="MIY_INDEPENDENT_APP_WORKSPACE_PROFILES",
+    )
     independent_app_delivery_targets: list[IndependentDeliveryTarget] = Field(
         default_factory=list, max_length=32,
         validation_alias="MIY_INDEPENDENT_APP_DELIVERY_TARGETS",
@@ -409,6 +417,32 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_independent_delivery_targets(self) -> "Settings":
+        profiles = self.independent_app_workspace_profiles
+        if profiles and self.environment != "development":
+            raise ValueError("Managed app workspaces require the development platform")
+        if len({p.id for p in profiles}) != len(profiles):
+            raise ValueError("Workspace profile IDs must be unique")
+        from miy_api.core.independent_delivery_settings import overlap
+        for profile in profiles:
+            for other in profiles:
+                if profile.id == other.id:
+                    continue
+                for writable in (profile.worktree_root, profile.work_root, profile.state_root):
+                    if any(overlap(writable, path) for path in (other.repository_root, other.worktree_root, other.work_root, other.state_root)):
+                        raise ValueError("Workspace profiles must not overlap writable roots")
+            for target in self.independent_app_delivery_targets:
+                for writable in (profile.worktree_root, profile.work_root, profile.state_root):
+                    if any(overlap(writable, path) for path in (target.source_root, target.work_root, target.state_root)):
+                        raise ValueError("Workspace roots must differ from permanent delivery roots")
+        origin_slots = [slot for p in profiles for slot in p.origins]
+        if len({s.origin for s in origin_slots}) != len(origin_slots) or len({s.port for s in origin_slots}) != len(origin_slots):
+            raise ValueError("Workspace profiles must not share origins or ports")
+        if any(p.platform_origin not in self.independent_app_platform_origins for p in profiles):
+            raise ValueError("Workspace platform origins must be explicitly admitted")
+        if any(s.origin in self.independent_app_platform_origins for s in origin_slots):
+            raise ValueError("Workspace app origins cannot be platform origins")
+        if any(s.origin == t.app_origin or s.port == t.loopback_port for s in origin_slots for t in self.independent_app_delivery_targets):
+            raise ValueError("Workspace slots cannot overlap permanent delivery targets")
         if self.independent_app_delivery_targets:
             if self.environment not in {"development", "production"}:
                 raise ValueError("The independent delivery consumer supports development and production only")

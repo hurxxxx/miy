@@ -1,5 +1,9 @@
 # MIY 플랫폼 재설계
 
+**2026-10-11 Workbench 작업별 환경 실제 전달·대표 인수:** managed 작업의 native 개발·앱 미리보기·MR117 필수 CI/리뷰·dev 병합·안정된 개발 앱 실행을 확인했다. MR121의 정리 전 관측 복구를 r21에 반영한 뒤, 원 요청의 `unknown → waiting → 명시적 계속`으로 정리를 완료했다. 임시 DB/역할·런타임·SDK·앱 컨테이너·worktree·로컬/원격 브랜치 부재와 안정된 개발 앱·데이터 보존도 독립 확인했다. 운영자 지원 단일 소유자의 대표 흐름 범위이며 의미 검색(임베딩 서버 없음)·일반 직원 계정·다중 사용자·운영 rollout은 미검증이다. [실제 배포·인수 근거](WORKBENCH_WORKSPACES_DEPLOYMENT.md), [구현 기록](WORKBENCH_WORKSPACES_IMPLEMENTATION.md), [작업표](WORK_ITEMS.md#2026-10-11-workbench-작업별-개발-환경)가 현재 상태를 구분한다. 아래 이전 기록은 당시의 근거로 보존한다.
+
+**2026-10-10 실제 공개 사이트 브라우저 추가 확인:** 개발 로그인·공식 앱 대표 조회·Workbench 연결과 세션/에이전트·모바일 표시·운영 로그인 화면을 확인했다. 개발 Vite의 수정 전 프록시 설정은 native 재읽기로 반영했다. 신규 개인 앱 전체 흐름은 생성 폴더·격리 환경 설정이 없어 아직 검증하지 못했다. 최신 결과와 한계는 [실제 브라우저 확인](BROWSER_ACCEPTANCE.md), 기존 구조 전달 상태는 [STATUS.md](STATUS.md)가 소유한다. 아래 이전 checkpoint는 당시 기록으로 읽는다.
+
 **2026-10-10 중간 점검·범위 축소 후 사용자 지시로 필수 구조 구현을 재개했다.** 이전 보존 상태는 [중단 체크포인트](RESTART_CHECKPOINT.md), 현재 구현은 [STATUS.md](STATUS.md)를 확인한다.
 
 최신 확인(2026-10-09 운영 전달): Docker 저장소 이전·컨테이너 복구를 완료했다. PR96/MR103의 필수 리뷰와 최신 full265/job433 성공 뒤 MR81을 정상 병합했고, main/prod `9cbf9c5c`의 새 immutable image와 C1 DB head를 운영에 반영했다. API·worker·Beat·공개 smoke는 정상이다. Dev는 `c40e7091`을 유지한다. Workbench의 신규 SDK 실행 환경과 C2/C3는 별도 미게시 후보이며, 별도 Workbench 배포·공식 operational 전환·네 영역 전체 구조 인수는 미완료다.
@@ -24,6 +28,8 @@
 | [REVIEW.md](REVIEW.md)                                         | 웹 재검토 근거·반영 전 발견 사항·소유 문서의 반영 위치                  |
 | [POLICY.md](POLICY.md)                                         | 이번 재설계에 적용할 기존 규칙의 유지·대체·제외 기준과 전환 계획        |
 | [WORK_ITEMS.md](WORK_ITEMS.md)                                 | 작업 ID, 의존성, 변경 범위, 상태와 완료 조건                            |
+| [WORKBENCH_WORKSPACES.md](WORKBENCH_WORKSPACES.md)             | 기능 브랜치·worktree·작업 환경·세션·미리보기·dev 통합·정리 개선 계획      |
+| [WORKBENCH_WORKSPACES_DEPLOYMENT.md](WORKBENCH_WORKSPACES_DEPLOYMENT.md) | 새 작업 환경의 실제 설치·브라우저·CI·dev 반영·정리 근거와 인수 한계 |
 | [NEXT_STEPS.md](NEXT_STEPS.md)                                 | 현재 후속 구조작업의 우선순위·의존성·착수 단위                          |
 | [APP_ISSUES.md](APP_ISSUES.md)                                 | 별도 지시까지 보류할 앱별 개선·상세 검증과 근거·착수 상태               |
 | [FOLLOW_UP_ENHANCEMENTS.md](FOLLOW_UP_ENHANCEMENTS.md)         | 이번 필수 구조에서 제외한 플랫폼·Workbench 고도화와 조건부 저장 확장    |

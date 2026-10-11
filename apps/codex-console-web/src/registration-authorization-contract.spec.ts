@@ -35,10 +35,29 @@ it('accepts the explicit selected-file permission without changing older policie
   expect(checkedRegistrationStatus(priorPolicy, taskId)).toEqual(priorPolicy);
 });
 
+it('accepts the current five permissions including explicit search access', () => {
+  const searchPolicy = {
+    ...status,
+    policy: {
+      ...status.policy,
+      runtime_profile: 'web-api-postgres-v1',
+      requested_permissions: [
+        ...status.policy.requested_permissions,
+        'search:read',
+      ],
+    },
+  };
+  expect(checkedRegistrationStatus(searchPolicy, taskId)).toEqual(searchPolicy);
+});
+
 it.each([
   ['files:read-all'],
+  ['search:write'],
+  ['search:*'],
   ['files:read-selected', 'files:read-selected'],
+  ['search:read', 'search:read'],
   [...status.policy.requested_permissions, 'identity:read'],
+  [...status.policy.requested_permissions, 'search:read', 'identity:read'],
 ])(
   'rejects unknown, duplicate or oversized permissions %j',
   (...requested_permissions) => {

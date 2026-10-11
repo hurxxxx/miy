@@ -1,7 +1,25 @@
-import { afterEach, expect, it } from 'vitest';
-import { consumeMIYSessionHandoff } from './api';
+import { afterEach, expect, it, vi } from 'vitest';
+import { api, consumeMIYSessionHandoff } from './api';
 
-afterEach(() => window.history.replaceState(null, '', '/'));
+afterEach(() => {
+  window.history.replaceState(null, '', '/');
+  vi.unstubAllGlobals();
+});
+
+it('preserves an explicit server refusal separately from a lost mutation response', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ code: 'workspace_changed' }), {
+        status: 409,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    ),
+  );
+  await expect(
+    api('/workbench/workspaces/current/refresh', { operation_id: 'synthetic' }),
+  ).rejects.toMatchObject({ code: 'workspace_changed', status: 409 });
+});
 
 it('consumes a valid miy handoff without retaining it in the URL', () => {
   const code = `cc1_${'a'.repeat(32)}`;
@@ -30,13 +48,24 @@ it('removes an invalid handoff and refuses to exchange it', () => {
 
 it('consumes the existing portal handoff during separate console deployment', () => {
   const code = `cc1_${'a'.repeat(32)}`;
-  window.history.replaceState(null, '', `/#mty_issuer=https://dev.example.test&mty_code=${code}`);
-  expect(consumeMIYSessionHandoff()).toEqual({ issuer: 'https://dev.example.test', code });
+  window.history.replaceState(
+    null,
+    '',
+    `/#mty_issuer=https://dev.example.test&mty_code=${code}`,
+  );
+  expect(consumeMIYSessionHandoff()).toEqual({
+    issuer: 'https://dev.example.test',
+    code,
+  });
   expect(window.location.hash).toBe('');
 });
 
 it('clears and refuses a handoff that mixes brands', () => {
-  window.history.replaceState(null, '', `/#miy_issuer=https://dev.example.test&mty_code=cc1_${'a'.repeat(32)}`);
+  window.history.replaceState(
+    null,
+    '',
+    `/#miy_issuer=https://dev.example.test&mty_code=cc1_${'a'.repeat(32)}`,
+  );
   expect(consumeMIYSessionHandoff()).toBeNull();
   expect(window.location.hash).toBe('');
 });

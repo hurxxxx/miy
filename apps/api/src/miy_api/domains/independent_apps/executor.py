@@ -21,8 +21,33 @@ def poll_once(settings: Settings, session_factory, consume: Callable[[Namespace]
         platform_root=WORKSPACE_ROOT,
         platform_origins=settings.independent_app_platform_origins,
     )
-    if not targets:
+    if not targets and not settings.independent_app_workspace_profiles:
         return {"state": "disabled"}
+    # Each bounded tick gives independent maintenance and search work a turn,
+    # even while a delivery retains its same-request unknown reservation.
+    maintenance = {"state": "idle"}
+    if settings.independent_app_workspace_profiles:
+        from miy_api.domains.independent_apps.workspace_maintenance import poll_once as maintain
+
+        maintenance = maintain(settings, session_factory)
+    search = (
+        poll_search(settings, session_factory)
+        if settings.independent_app_search_enabled
+        else {"state": "idle"}
+    )
+    background = maintenance if maintenance["state"] != "idle" else search
+    from miy_api.domains.independent_apps.workspaces import (
+        configured_targets,
+        integrated_source_target,
+    )
+
+    with session_factory() as db:
+        targets = [
+            *[integrated_source_target(db, t, settings) for t in targets],
+            *configured_targets(db, settings),
+        ]
+    if not targets:
+        return background
     by_installation = {str(target.installation_id): target for target in targets}
     bindings = or_(
         *(
@@ -105,11 +130,13 @@ def poll_once(settings: Settings, session_factory, consume: Callable[[Namespace]
                     )
                 )
     if not candidates:
-        return {"state": "idle"}
+        return background
     attempted_at, request_id, installation_id, command, selected_state, selected_slot = min(
         candidates
     )
     target = by_installation[installation_id]
+    target.work_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    target.state_root.mkdir(parents=True, exist_ok=True, mode=0o700)
     args = {
         "command": command,
         "app_id": target.app_id,
@@ -168,3 +195,42 @@ def serve(
         if result["state"] == "disabled":
             raise ValueError("Configure at least one explicit delivery target before serving")
         stop.wait(poll_seconds)
+
+
+def poll_search(settings, session_factory):
+    """Rotate one active installation per delivery tick; no extra daemon."""
+    from miy_api.domains.independent_apps.search_models import AppSearchBindingRecord
+    from miy_api.domains.independent_apps.search_consumer import run_once
+
+    with session_factory() as db:
+        identity = db.scalar(
+            select(AppSearchBindingRecord.installation_id)
+            .join(
+                AppInstallationRecord,
+                AppInstallationRecord.id == AppSearchBindingRecord.installation_id,
+            )
+            .where(
+                AppSearchBindingRecord.state == "ready",
+                AppInstallationRecord.enabled.is_(True),
+                AppInstallationRecord.release_id.is_not(None),
+            )
+            .order_by(AppSearchBindingRecord.updated_at, AppSearchBindingRecord.installation_id)
+            .limit(1)
+        )
+        if identity is None:
+            return {"state": "idle"}
+        for row in db.scalars(
+            select(AppSearchBindingRecord).where(
+                AppSearchBindingRecord.installation_id == identity,
+                AppSearchBindingRecord.state == "ready",
+            )
+        ):
+            row.updated_at = utcnow_naive()
+        db.commit()
+    try:
+        result = run_once(session_factory, installation_id=identity, settings=settings)
+        return (
+            {"state": "idle"} if result == "idle" else {"state": result, "operation": "app_search"}
+        )
+    except Exception:  # consumer owns bounded durable uncertainty, never surface source text
+        return {"state": "held", "operation": "app_search"}

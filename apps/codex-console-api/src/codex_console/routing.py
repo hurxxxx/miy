@@ -11,6 +11,10 @@ from .errors import ConsoleError
 
 
 def execution_target(factory, path, query):
+    if path.startswith("/api/workbench/workspaces/") or (
+        path.startswith("/api/workbench/projects/") and path.endswith("/workspaces")
+    ):
+        return "session"
     if path.startswith("/api/templates/") and (
         path.endswith("/run") or path == "/api/templates/catalog"
     ):

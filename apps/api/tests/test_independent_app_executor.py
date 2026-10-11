@@ -22,6 +22,7 @@ from miy_api.domains.independent_apps.delivery import (
 )
 from miy_api.domains.independent_apps.executor import poll_once, serve
 from miy_api.domains.independent_apps.models import AppInstallationRecord
+from miy_api.domains.independent_apps.search_models import AppSearchBindingRecord
 from test_independent_app_delegation import delegated as delegated, grant
 from test_independent_app_delivery import (
     FakeRuntime,
@@ -29,6 +30,7 @@ from test_independent_app_delivery import (
     current_installation,
     enqueue,
 )
+from test_independent_app_workspaces import workspace as workspace
 
 
 def target(tmp_path, installation_id=None, **changes):
@@ -144,6 +146,7 @@ def test_serve_refuses_invalid_startup_before_entering_request_loop(tmp_path, mo
     assert "consumer_configuration_required" in capsys.readouterr().out
     monkeypatch.chdir(WORKSPACE_ROOT)
     monkeypatch.setenv("MIY_INDEPENDENT_APP_DELIVERY_TARGETS", "[]")
+    monkeypatch.setenv("MIY_INDEPENDENT_APP_WORKSPACE_PROFILES", "[]")
     from miy_api.core.settings import get_settings
 
     get_settings.cache_clear()
@@ -581,6 +584,118 @@ def test_pg_configuration_failure_yields_to_independent_queued_build(client, del
     assert runtime.activations == [deployment["request_id"]]
 
 
+def test_pg_unknown_deployment_does_not_starve_workspace_or_search_selection(
+    client, workspace, monkeypatch, tmp_path
+):
+    from miy_api.domains.independent_apps import search_consumer, workspace_maintenance
+    from miy_api.domains.independent_apps.delivery import RuntimeFailure
+
+    app, headers, path, _, workspace_state = workspace
+    assert (
+        client.post(
+            path + "/stop", headers=headers, json={"expected_version": workspace_state["version"]}
+        ).status_code
+        == 200
+    )
+    release_id = build_release(app[2])
+    deployment, _ = enqueue(client, app, release_id)
+    request_id = deployment["request_id"]
+    runtime = FakeRuntime()
+    runtime.lose_response = True
+    with get_session_factory()() as db:
+        assert execute_deployment(db, request_id, runtime).state == "unknown"
+        initial_spec = db.get(AppDeploymentRequest, request_id).runtime_config
+    search_ids = []
+    for index in range(2):
+        created = client.post(
+            "/api/v1/independent-apps/sample-independent/installations",
+            headers=app[1],
+            json=app[4] | {"origin": f"https://search-{index}.test"},
+        )
+        assert created.status_code == 201, created.text
+        installation_id = created.json()["id"]
+        search_ids.append(installation_id)
+        with get_session_factory()() as db:
+            db.get(AppInstallationRecord, installation_id).release_id = release_id
+            db.add(
+                AppSearchBindingRecord(
+                    installation_id=installation_id,
+                    generation=1,
+                    workspace_id=str(uuid4()),
+                    candidate_release_id=release_id,
+                    search_spec_sha256="a" * 64,
+                    definition_digest=app[2]["definition_digest"],
+                    opensearch_index=f"fixture-keyword-{index}",
+                    qdrant_collection=f"fixture-vector-{index}",
+                    embedding_profile="fixture",
+                    embedding_config_sha256="b" * 64,
+                    embedding_dimensions=2,
+                    state="ready",
+                    updated_at=utcnow_naive() - timedelta(hours=2 - index),
+                )
+            )
+            db.commit()
+    maintenance_calls, search_calls, delivery_calls = [], [], []
+
+    class MaintenanceRuntime:
+        def stop_workspace(self, specs, *, installation_id):
+            assert specs == []
+            maintenance_calls.append(installation_id)
+
+    maintain = workspace_maintenance.poll_once
+    monkeypatch.setattr(
+        workspace_maintenance,
+        "poll_once",
+        lambda settings, factory: maintain(
+            settings, factory, make_runtime=lambda *_: MaintenanceRuntime()
+        ),
+    )
+
+    def search_consume(factory, *, installation_id, settings):
+        assert factory is get_session_factory() and settings.independent_app_search_enabled
+        search_calls.append(installation_id)
+        return "succeeded"  # Consumer-opportunity proof only; no engine/provider call.
+
+    monkeypatch.setattr(search_consumer, "run_once", search_consume)
+
+    def unconfirmed(_spec):
+        raise RuntimeFailure("fixture_observation_unavailable")
+
+    def replay_denied(_spec):
+        pytest.fail("An unconfirmed deployment must not replay prepare or activate")
+
+    monkeypatch.setattr(runtime, "observe", unconfirmed)
+    monkeypatch.setattr(runtime, "prepare", replay_denied)
+    monkeypatch.setattr(runtime, "activate", replay_denied)
+    settings = Settings(
+        _env_file=None,
+        independent_app_platform_origins=["https://platform.test"],
+        independent_app_delivery_targets=[target(tmp_path / "permanent", app[3]["id"])],
+        independent_app_search_enabled=True,
+    )
+
+    def consume(args):
+        assert args.command == "reconcile" and args.request_id == request_id
+        delivery_calls.append(args.request_id)
+        with get_session_factory()() as db:
+            return reconcile_deployment(db, request_id, runtime).model_dump(mode="json")
+
+    for _ in range(2):
+        result = poll_once(settings, get_session_factory(), consume)
+        assert result["state"] == "unknown" and result["id"] == request_id
+    assert maintenance_calls == [workspace_state["installation"]["id"]]
+    assert search_calls == search_ids and delivery_calls == [request_id, request_id]
+    assert runtime.activations == [request_id] and list(runtime.candidates) == [request_id]
+    with get_session_factory()() as db:
+        record = db.get(AppDeploymentRequest, request_id)
+        assert record.state == "unknown" and record.active_slot == 1
+        assert record.runtime_config == initial_spec
+        assert len(list(db.scalars(select(AppDeploymentRequest)))) == 1
+        from miy_api.domains.independent_apps.workspace_models import AppWorkspaceRecord
+
+        assert db.get(AppWorkspaceRecord, workspace_state["id"]).state == "stopped"
+
+
 @pytest.mark.parametrize("kind", ["build", "deployment"])
 @pytest.mark.parametrize("change", ["updated", "claimed", "terminal", "locked"])
 def test_pg_failed_attempt_preserves_concurrent_consumer_metadata(
@@ -665,3 +780,40 @@ def test_pg_other_consumer_results_do_not_advance_attempt_timestamp(
             "queued",
             None,
         )
+
+
+def test_claimed_build_losing_workspace_before_execution_releases_capacity(
+    client, delegated, monkeypatch, tmp_path
+):
+    from miy_api.domains.independent_apps import workspaces
+
+    request_id = queue_build(client, delegated)
+    spec = importlib.util.spec_from_file_location(
+        "claimed_workspace_cli", WORKSPACE_ROOT / "scripts/independent-app-delivery.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    monkeypatch.chdir(WORKSPACE_ROOT)
+    original = workspaces.definition_for_installation
+    reads = 0
+
+    def definition(db, app_id, installation_id):
+        nonlocal reads
+        reads += 1
+        return original(db, app_id, installation_id) if reads == 1 else None
+
+    monkeypatch.setattr(workspaces, "definition_for_installation", definition)
+    result = module.run(
+        Namespace(
+            command="build-request",
+            app_id="sample-independent",
+            installation_id=delegated[3]["id"],
+            build_id=request_id,
+            source=tmp_path,
+            work_root=tmp_path,
+            toolchain_image="sha256:" + "a" * 64,
+        )
+    )
+    assert result["state"] == "failed" and result["failure_code"] == "source_changed"
+    with get_session_factory()() as db:
+        assert db.get(AppBuildJob, request_id).active_slot is None

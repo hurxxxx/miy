@@ -1,13 +1,13 @@
 {
   "bundle": {
-    "bytes": 85721936,
+    "bytes": 85723504,
     "delivery": "Core-owned release artifact; verifier acquires nothing",
-    "filename": "miy-native-sdk-20261009-v2.tar.xz",
+    "filename": "miy-native-sdk-20261011-v3.tar.xz",
     "format": "tar.xz",
-    "inventory_sha256": "02d5bc1276e4c8df9ed10f7a15a973501701723abeb70bcd4b90e934f85c018d",
+    "inventory_sha256": "98470bb338b8b24eb1c365cbca23e29e6c6b62f95ac08efc7ca22bcd4da944ed",
     "members": 4597,
-    "regular_bytes": 415841387,
-    "sha256": "a897f12e235081c1b877c2aaf9046770923e72b5028ae8a37559a69de0f67df6"
+    "regular_bytes": 415849987,
+    "sha256": "1d4b270dd96629d4b91ba659c26e9dc9a68419683c6dcf0729b45191db23b040"
   },
   "cache_requirements": {
     "new_destination_only": true,
@@ -64,9 +64,9 @@
       "regular_bytes": 5807920
     },
     "sdk": {
-      "inventory_sha256": "502f739e32e6965f214218f85afac3ba957c18f3d843d37f990d3c01f8efb149",
+      "inventory_sha256": "f0cb159bb95c7600acbc788958771f2051cb226adb3fd2189b2fcc9640a874ce",
       "members": 7,
-      "regular_bytes": 76553
+      "regular_bytes": 85153
     }
   },
   "elf": [
@@ -1679,7 +1679,14 @@
         "file": "uvicorn-0.52.4-py3-none-any.whl",
         "sha256": "f86e41a149d7d05a9969337e3946a9c171c06a5d42680896daaba624aeac8da1"
       }
-    ]
+    ],
+    "sdk_reissue": {
+      "source_toolchain_id": "miy-native-sdk-20261009-v2",
+      "source_archive_sha256": "a897f12e235081c1b877c2aaf9046770923e72b5028ae8a37559a69de0f67df6",
+      "source_inventory_sha256": "02d5bc1276e4c8df9ed10f7a15a973501701723abeb70bcd4b90e934f85c018d",
+      "changed_component": "sdk",
+      "non_sdk_components_unchanged": true
+    }
   },
   "runtime_lookup": {
     "interpreter": "/lib64/ld-linux-x86-64.so.2",
@@ -1708,11 +1715,11 @@
   "source_inputs": {
     "ops/codex-console/executor/sdk-node-lock.yaml": "07aee2b65e399f60e110b1b993a82ae4163927799e4d9d98487e8aee166a7741",
     "ops/codex-console/executor/sdk-python-requirements.txt": "e14af89a3b6287fcd17b756ffc0cdf9426c1ad4c7f2d10acad1da03e90eeabe4",
-    "packages/app-sdk/README.md": "19144163ad3b213c3d5e4c5a7949cbf07f853a71573d1e42ff0cebe2b2411bbd",
+    "packages/app-sdk/README.md": "ea290778eb7d8723bcf7716a1e1eb002e210fc3a11fd0e088ef96edfed1dc862",
     "packages/app-sdk/package.json": "fa6022bd522fab89bdf8a16a12c1ff5bb1979840765f906c0385686e20aeedec",
     "packages/app-sdk/src/file-picker.mjs": "6e3c454a9126061a431bd2c94f42f2fee5467560f6c746533f8c52cfee4a7f63",
-    "packages/app-sdk/src/index.mjs": "d006271c2a37b7024e81eb1430f229e2b83c0d5c89527b14984e9752a145a675",
-    "packages/app-sdk/src/index.test.mjs": "9f1ff58b9a65c80eb750026fab4129d41867f3a4aeeb8c1956b2be493989e375",
+    "packages/app-sdk/src/index.mjs": "bb993faf5124231f842cfe7b9106b27f37aa3a6a7097e0b3446d28b59f6aca02",
+    "packages/app-sdk/src/index.test.mjs": "040c34b8f4821dc0785e975062a2bc618994310180dbe3748f67253551d3737e",
     "templates/independent-app/package.json": "63021dcf1443068c84d389af0a774a43d4eaa8f7b3fe4faefa531843d3bd75e3",
     "templates/independent-app/pyproject.toml": "9d4e263ac130570b73e278eefa7af78796fbb361e6efaec6401120432457848f"
   },
@@ -1721,7 +1728,7 @@
     "web-api-postgres-v1"
   ],
   "target": "x86_64-unknown-linux-gnu",
-  "toolchain_id": "miy-native-sdk-20261009-v2",
+  "toolchain_id": "miy-native-sdk-20261011-v3",
   "versions": {
     "node": "22.23.3",
     "pnpm": "10.34.5",

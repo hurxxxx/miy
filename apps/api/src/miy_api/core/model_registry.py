@@ -34,6 +34,8 @@ def import_all_models() -> None:
     from miy_api.domains.integrations import models as integration_models  # noqa: F401
     from miy_api.domains.independent_apps import models as independent_app_models  # noqa: F401
     from miy_api.domains.independent_apps import delivery_models as independent_delivery_models  # noqa: F401
+    from miy_api.domains.independent_apps import search_models as independent_search_models  # noqa: F401
+    from miy_api.domains.independent_apps import workspace_models as independent_workspace_models  # noqa: F401
     from miy_api.domains.independent_apps import bootstrap_models as independent_bootstrap_models  # noqa: F401
     from miy_api.domains.independent_apps import (
         registration_models as independent_registration_models,  # noqa: F401

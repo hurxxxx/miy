@@ -33,6 +33,7 @@ from miy_api.domains.independent_apps import bootstrap_api
 from miy_api.domains.independent_apps import registration_api
 from miy_api.domains.independent_apps import owner_preview_api
 from miy_api.domains.independent_apps import file_api
+from miy_api.domains.independent_apps import workspace_api, search_api
 from miy_api.domains.independent_apps.delivery_contracts import DeploymentInput, DeploymentOut
 
 
@@ -51,6 +52,8 @@ router.include_router(bootstrap_api.router)
 router.include_router(registration_api.router)
 router.include_router(owner_preview_api.router)
 router.include_router(file_api.router)
+router.include_router(workspace_api.router)
+router.include_router(search_api.router)
 
 
 @router.post("/{app_id}/deployments", response_model=DeploymentOut, status_code=202)

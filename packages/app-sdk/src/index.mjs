@@ -6,6 +6,128 @@ export const APP_PROTOCOL_VERSION = 1;
 export const APP_UI_CONTEXT_VERSION = 1;
 export const APP_NAVIGATION_VERSION = 1;
 
+/** Search only this app's declared collection through its fixed same-origin API. */
+export async function searchRecords({
+  session,
+  collection,
+  query,
+  mode = 'keyword',
+  limit = 20,
+  signal,
+  timeoutMs = 5000,
+}) {
+  const unavailable = () => new Error('App search unavailable');
+  const expiry = Date.parse(session?.expires_at);
+  if (
+    typeof session?.token !== 'string' ||
+    !/^[A-Za-z0-9_-]{40,128}$/.test(session.token) ||
+    !Number.isFinite(expiry) ||
+    expiry <= Date.now() ||
+    !Array.isArray(session.permissions) ||
+    !['data:read', 'search:read'].every((permission) =>
+      session.permissions.includes(permission),
+    ) ||
+    typeof collection !== 'string' ||
+    !/^[a-z][a-z0-9_-]{0,63}$/.test(collection) ||
+    typeof query !== 'string' ||
+    query.length > 4000 ||
+    !query.trim() ||
+    Array.from(query).length > 2000 ||
+    Array.from(query).some(
+      (character) =>
+        character.codePointAt(0) >= 0xd800 &&
+        character.codePointAt(0) <= 0xdfff,
+    ) ||
+    new TextEncoder().encode(query).length > 8000 ||
+    !['keyword', 'semantic'].includes(mode) ||
+    !Number.isInteger(limit) ||
+    limit < 1 ||
+    limit > 20 ||
+    !Number.isInteger(timeoutMs) ||
+    timeoutMs < 1 ||
+    timeoutMs > 15000
+  )
+    throw unavailable();
+  const controller = new AbortController();
+  let rejectAborted;
+  const aborted = new Promise((_, reject) => {
+    rejectAborted = reject;
+  });
+  const abort = () => {
+    controller.abort();
+    rejectAborted(unavailable());
+  };
+  signal?.addEventListener('abort', abort, { once: true });
+  const timer = setTimeout(abort, Math.min(timeoutMs, expiry - Date.now()));
+  let reader;
+  try {
+    if (signal?.aborted) throw unavailable();
+    const response = await Promise.race([
+      fetch(`/api/search/${collection}`, {
+        method: 'POST',
+        credentials: 'omit',
+        cache: 'no-store',
+        redirect: 'error',
+        headers: {
+          Authorization: `Bearer ${session.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query, mode, limit }),
+        signal: controller.signal,
+      }),
+      aborted,
+    ]);
+    if (!response.ok || response.redirected || !response.body) {
+      void response.body?.cancel().catch(() => undefined);
+      throw unavailable();
+    }
+    reader = response.body.getReader();
+    const chunks = [];
+    let size = 0;
+    while (true) {
+      const { done, value } = await Promise.race([reader.read(), aborted]);
+      if (done) break;
+      size += value.byteLength;
+      if (size > 512 * 1024) throw unavailable();
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    const result = JSON.parse(
+      new TextDecoder('utf-8', { fatal: true }).decode(bytes),
+    );
+    if (
+      controller.signal.aborted ||
+      Date.now() >= expiry ||
+      !result ||
+      !Array.isArray(result.items) ||
+      result.items.length > limit ||
+      typeof result.indexing_pending !== 'boolean' ||
+      result.items.some(
+        (hit) =>
+          !hit?.record ||
+          typeof hit.record.id !== 'string' ||
+          !Number.isFinite(hit.score) ||
+          !Number.isInteger(hit.record.version) ||
+          hit.record.version < 1,
+      )
+    ) {
+      throw unavailable();
+    }
+    return result;
+  } catch {
+    throw unavailable();
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', abort);
+    if (reader) void reader.cancel().catch(() => undefined);
+  }
+}
+
 function navigationTarget(value) {
   if (
     !value ||

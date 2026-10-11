@@ -53,6 +53,61 @@
       "title": "Entrypoints",
       "type": "object"
     },
+    "SearchCollection": {
+      "additionalProperties": false,
+      "properties": {
+        "text_fields": {
+          "items": {
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_]{0,63}$",
+            "type": "string"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Text Fields",
+          "type": "array"
+        },
+        "modes": {
+          "items": {
+            "enum": [
+              "keyword",
+              "semantic"
+            ],
+            "type": "string"
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "title": "Modes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "text_fields",
+        "modes"
+      ],
+      "title": "SearchCollection",
+      "type": "object"
+    },
+    "SearchDeclaration": {
+      "additionalProperties": false,
+      "properties": {
+        "collections": {
+          "maxProperties": 8,
+          "minProperties": 1,
+          "patternProperties": {
+            "^[a-z][a-z0-9_-]{0,63}$": {
+              "$ref": "#/$defs/SearchCollection"
+            }
+          },
+          "title": "Collections",
+          "type": "object"
+        }
+      },
+      "required": [
+        "collections"
+      ],
+      "title": "SearchDeclaration",
+      "type": "object"
+    },
     "Source": {
       "additionalProperties": false,
       "properties": {
@@ -127,17 +182,30 @@
         "health": "/healthz"
       }
     },
+    "search": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SearchDeclaration"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "x-miy-omit-null": true
+    },
     "requested_permissions": {
       "items": {
         "enum": [
           "identity:read",
           "data:read",
           "data:write",
-          "files:read-selected"
+          "files:read-selected",
+          "search:read"
         ],
         "type": "string"
       },
-      "maxItems": 4,
+      "maxItems": 5,
       "title": "Requested Permissions",
       "type": "array",
       "default": []

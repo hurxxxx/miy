@@ -46,6 +46,8 @@ def definition_policy(manifest: dict) -> dict:
         )
     }
     policy["requested_permissions"] = sorted(policy["requested_permissions"])
+    if manifest.get("search") is not None:
+        policy["search"] = manifest["search"]
     return policy
 
 
@@ -114,13 +116,17 @@ def revoke(db: Session, app_id: str, installation_id: str, grant_id: str, contex
 def validate(
     db: Session, grant: AppDeliveryDelegation | None, action: str, app_id: str, installation_id: str
 ) -> AuthContext:
+    from miy_api.domains.independent_apps import workspaces
+    workspace = workspaces.for_installation(db, installation_id)
+    effective_installation = workspace.parent_installation_id if workspace else installation_id
     if (
         grant is None
         or grant.revoked_at is not None
         or grant.expires_at <= utcnow_naive()
         or grant.environment != "development"
-        or (grant.app_id, grant.installation_id) != (app_id, installation_id)
+        or (grant.app_id, grant.installation_id) != (app_id, effective_installation)
         or action not in grant.actions
+        or (workspace is not None and ("workspace" not in grant.actions or workspace.state != "ready"))
     ):
         service.fail("forbidden")
     user, source = service._source_user(db, grant.source_session_id)
@@ -133,6 +139,11 @@ def validate(
     if definition_policy(definition.manifest) != grant.definition_policy:
         service.fail("forbidden")
     _installation(db, app_id, installation_id, context)
+    if workspace is not None:
+        if workspace.owner_user_id != context.user.id or workspace.app_id != app_id:
+            service.fail("forbidden")
+        workspaces.profile_for(workspace)
+        _installation(db, app_id, effective_installation, context)
     return context
 
 
@@ -215,15 +226,21 @@ def build_out(job: AppBuildJob) -> BuildOut:
 
 
 def request_build(
-    db: Session, grant: AppDeliveryDelegation, context: AuthContext, data: BuildInput
+    db: Session, grant: AppDeliveryDelegation, context: AuthContext, data: BuildInput,
+    *, installation_id: str | None = None,
 ) -> BuildOut:
-    definition = service.owned_definition(db, grant.app_id, context)
+    from miy_api.domains.independent_apps.workspaces import definition_for_installation
+    installation_id = installation_id or grant.installation_id
+    validate(db, grant, "build", grant.app_id, installation_id)
+    definition = definition_for_installation(db, grant.app_id, installation_id)
+    if definition is None:
+        service.fail("conflict", 409)
     expected = (
         grant.app_id,
         data.source_revision,
         data.definition_digest,
         grant.id,
-        grant.installation_id,
+        installation_id,
         context.user.id,
     )
 
@@ -255,7 +272,7 @@ def request_build(
         delegation_id=grant.id,
         actor_user_id=context.user.id,
         source_session_id=context.session.id,
-        installation_id=grant.installation_id,
+        installation_id=installation_id,
     )
     db.add(job)
     service._audit(db, context, "build.request", grant.app_id)

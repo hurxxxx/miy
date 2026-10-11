@@ -1046,6 +1046,7 @@ Workbench의 CLI 전환을 분리하며, 최소 버전·선택 RPC 스키마와 
   자동 시작을 완료한다. [서비스와 작업 현황](docs/apps/codex-console/README.md#서비스와-작업-현황)의
   세 포트·management 단일 프록시 경로·읽기 전용 모니터·병렬 작업 제한을 설정한다. 템플릿 실행기는 별도 고정 CLI와 `template-current` 릴리스를 사용한다.
 - 앱 운영 집계를 제공할 설치는 [운영 조회와 개발 화면 연결](docs/apps/codex-console/README.md#운영-조회와-개발-화면-연결)에 따라 MIY 조회 API를 먼저 배포하고 전용 키·origin을 Workbench 환경 파일에 설치한다. `glab`은 서비스 OS 사용자로 내부 GitLab에 인증한다. Studio·앱 관리·플랫폼 화면, 미설정/권한 거부 표시, 기존 작업, SQLite 백업·복원을 확인한다.
+- 새 프로젝트의 업무명·요구사항 기반 기본값과 로컬 소스 준비는 [프로젝트에서 새 앱 소스 준비](docs/apps/codex-console/README.md#프로젝트에서-새-앱-소스-준비)를 따른다. 원격 Git 저장소 생성과 실행 환경 설치는 별도다.
 - 독립 앱 소스를 연결하려면 Console의 별도 환경 파일에 `MIY_CODEX_CONSOLE_APP_SOURCE_ROOTS`를 절대 경로 JSON 배열로 설치한다. 기본 `[]`는 비활성이다. 운영·자격 증명·Console 저장소를 제외하고, 앱 목록의 **앱 소스 연결**에서 `app.manifest.json`이 있는 실제 체크아웃을 선택한다. `console_sqlite_0005` 마이그레이션과 기존 작업 경로 보존 규칙은 [독립 앱 소스 연결](docs/apps/codex-console/README.md#독립-앱-소스-연결)을 따른다. 환경 파일 설치와 별도 서비스 전환은 각각 해당 설치·배포 절차를 따른다.
 - SDK를 사용하는 격리 앱 개발 환경은 [SDK 프로파일 계약](docs/apps/codex-console/README.md#지속-앱-개발용-sdk-executor)에 따라 검증된 native/SDK 캐시와 코어 운영자 소유의 executor·socket proxy를 준비한다. 기존 `MIY_CODEX_CONSOLE_APP_EXECUTION_ENVIRONMENTS`의 정확한 소스·endpoint·capability에 `toolchain_profile: "miy-native-sdk-20261009-v2"`를 연결한다. 지속 개발용 service 예제는 자원·네트워크·mount·인증 격리를 유지하면서 운영자 중단 전까지 살아 있으며, 기존 270초 pilot을 덮어쓰지 않는다. native Task 중단·동일 thread 재개·unknown 관측·실제 종료를 인수하고 새 Workbench release를 별도로 반영한 후 사용한다. 예제만 추가한 상태를 SDK 활성화로 표시하지 않는다.
 - 새 프로젝트에서 템플릿 앱 소스를 준비하려면 `MIY_CODEX_CONSOLE_APP_CREATION_ROOTS`를 명시한다. 기본 `[]`는 생성 비활성이고, 각 경로는 `APP_SOURCE_ROOTS` 안의 서비스 사용자 소유·그룹/다른 사용자 쓰기 불가 디렉터리여야 한다. 현재 스키마 `console_sqlite_0008`까지 적용한 뒤 Studio 프로젝트의 **앱 소스 준비**에서 템플릿과 저장소 주소를 선택한다. `0006`은 소스 준비 기록, `0007`은 기존 결과와 분리된 nullable native agent 관측을 추가한다. 기존 파일을 덮지 않고 첫 로컬 Git revision과 소스 연결을 만들며, 중단·응답 유실은 저장된 같은 요청으로 조회·재개한다. 이 단계는 플랫폼 등록·설치·원격 Git 게시·executor 설치를 수행하지 않는다. 스키마 변경 전 서비스 중지·백업은 [저장소 계약](docs/apps/codex-console/README.md#독립-저장소와-백업), 준비 절차는 [프로젝트에서 새 앱 소스 준비](docs/apps/codex-console/README.md#프로젝트에서-새-앱-소스-준비)의 계약을 따른다.
@@ -1221,3 +1222,32 @@ git log --oneline origin/dev..upstream/main
 [저장소 정책](AGENTS.md#git-and-delivery)에 따라 진행한다.
 원격 관리 방식은 [Git 공식 설명](https://git-scm.com/book/en/v2/Git-Basics-Working-with-Remotes)과
 [GitHub의 upstream 설정 안내](https://docs.github.com/en/pull-requests/how-tos/work-with-forks/configuring-a-remote-repository-for-a-fork)를 참고한다.
+
+### Workbench 작업별 환경의 추가 준비
+
+작업별 기능 브랜치·SDK 실행은 기본 비활성이다. Core Alembic
+`independent_archive_20261011`을 포함한 현재 head와 Workbench SQLite `console_sqlite_0009`, 별도 Workbench
+release를 함께 준비한다. `MIY_INDEPENDENT_APP_WORKSPACE_PROFILES`는 Core 소유 저장소·이미지·
+scratch/state 경로와 준비된 HTTPS/loopback 슬롯만 포함한다. Workbench에는
+`MIY_CODEX_CONSOLE_MANAGED_WORKSPACES_ENABLED`와 보호된 managed helper 고정 argv를 설정한다.
+[작업별 개발 환경 계약](docs/apps/codex-console/README.md#작업별-개발-환경)의 native bundle,
+user systemd/namespace, 명시 `workspace` 위임과 안정된 개발 installation target을 확인한다.
+플랫폼 `.env`를 앱 worktree에 복사하지 않는다.
+
+고정 system-unit broker를 사용하는 설치는 Workbench release와 별도로
+root 소유 `/usr/local/libexec/miy-workbench-environment`의 소스 hash도 확인한다.
+broker 변경이 포함된 갱신은 작업 종료·백업·Workbench 서비스 중지 후 검토된 bytes로
+교체하고 재시작한다. release 전환만으로 root entrypoint가 바뀌지는 않는다.
+기존 관리형 SDK의 자원 한도를 갱신할 때는 [고정 system-unit broker의 업그레이드 절차](docs/apps/codex-console/README.md#고정-system-unit-broker)를 따른다.
+실행 중인 환경의 제한을 임의로 풀거나 unit·journal의 hash를 직접 수정하지 않는다.
+
+검색 앱은 private OpenSearch/Qdrant, 등록된 Core inference gateway embedding 및 설치별
+앱 데이터 PostgreSQL을 준비한 뒤 `MIY_INDEPENDENT_APP_SEARCH_ENABLED=true`로 켠다.
+개발 Compose의 검색 엔진 공개 포트는 loopback에만 bind한다. 기존 서비스 재기동 없이
+파일 변경만으로 네트워크 격리가 적용됐다고 판단하지 않는다. 이번 검색 연결은 개발
+설치 대상이며 운영 검색 승격은 후속이다.
+
+앱 MR을 실제 병합하려면 [개인 앱 CI](docs/domains/release/README.md#personal-app-ci-boundary)의
+전용 runner와 설치된 Core entrypoint도 필요하다. 서비스 전환 후 새 작업 → native 편집 →
+포털 새 탭 실행 → 필수 MR/CI → 개발 설치 실행 확인 → 임시 자원 정리를 대표 흐름으로
+확인한다. 코드·생성 계약·로컬 테스트 완료와 서버 배포/브라우저 인수 완료를 구분한다.

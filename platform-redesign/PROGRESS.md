@@ -1,5 +1,19 @@
 # 재설계 진행 기록
 
+## 2026-10-11 — Workbench 작업 환경 실제 전달·대표 흐름 확인
+
+MR117의 개인 앱 source `ee3afef`는 실제 필수 job482/483 통과 뒤 dev `de88e30`에 병합됐다. 안정된 개발 슬롯 feat4에서 실제 브라우저 생성201·reload 유지와 임시 데이터 분리를 확인했다. 정리 전 `workspace_busy`로 남은 원 요청은 MR121/dev `76ece`·Workbench r21(source `5e6`) 반영 후 관측으로만 `unknown → waiting`으로 정합화했고, 사용자의 명시적 계속으로 09:48:05 UTC에 workspace `cleaned`/원 operation 성공을 확인했다. Task18/agent11 이력은 보존했다.
+
+후속 독립 읽기 확인은38개 boolean 모두 TRUE였다. 임시 DB/두 역할·런타임/scratch·SDK unit/descriptor·앱/ingress 컨테이너/network·worktree·로컬/원격 앱 브랜치와 tracking 부재, Core 설치 archived/슬롯 회수 및 안정된 개발 DB/역할·앱 실행·정확한 dev 소스 인계 보존을 확인했다. 정리 후 개발 가상 데이터 유지·임시 가상 데이터 부재·비인증401도 확인했다. 의미 검색은 임베딩 서버가 없어 비활성/미검증이며 일반 직원 계정·완전 자가 온보딩·다중 사용자·운영 rollout 인수는 하지 않았다. 상세 실제 근거와 실패 이력은 [배포 인수 기록](WORKBENCH_WORKSPACES_DEPLOYMENT.md)이 소유한다.
+
+## 2026-10-11 — 초기 Workbench 작업 환경 로컬 구현
+
+사용자 구현 지시에 따라 세 에이전트가 backend, UI/native SDK, 검색/data를 분담하고 Root가 Core 후보 설치·빌드·영속 소스 인계·CI와 정리를 통합했다. 전체 Workbench backend 검사 한 번과 영향 묶음 검사 후 실패·변경된 경계만 재검증했다. 초기 로컬 구현 시점에는 과거 dirty work를 보존했고 실제 서비스·Git 원격·기존 앱 데이터를 변경하지 않았다. 당시 결과·실패 이력·활성화 계획은 [구현 기록](WORKBENCH_WORKSPACES_IMPLEMENTATION.md)에 보존한다. 이후 실제 전달·인수는 위 기록과 배포 문서로 구분한다.
+
+## 2026-10-10 사용자 요청: 실제 공개 사이트 브라우저 확인
+
+Chromium으로 실제 개발 로그인·공식 앱 조회·Workbench 연결/계정/목록/기존 세션·에이전트·모바일 배치·운영 로그인 화면을 확인했다. 개발 Vite의 수정 전 bundled proxy로 발생한500을 source bytes 불변인 native config watcher 재읽기로 해소했다. 원 검사 실패와 어댑터 보정은 보존하고 실패한 경계만 다시 확인했다. 허용 생성 폴더0·카탈로그의 실행 환경 configured 항목0 및 Workbench 운영 대상 때문에 신규 개인 앱 E2E는 진행하지 않았다. 상세 결과는 [BROWSER_ACCEPTANCE.md](BROWSER_ACCEPTANCE.md), 이번 문서는 로컬 변경이며 제품 코드·DB·운영 배포·게시 변경은 없다.
+
 ## 현재 checkpoint — 2026-10-10 필수 최소 구조 전달 완료
 
 이번 최소 구조 범위는 최신 전체 gate와 실제 운영/Workbench 전달, 대표 UI·DB/API/Docker·native SDK 및 기존 정상3턴 근거를 함께 인수했다. 이 문서 동결 시점에는 진행 문서 여섯 개와 설치 안내 두 개의 정상 리뷰·게시를 준비하며, 이 묶음의 최종 전달 결과는 해당 PR/MR의 최종 상태가 원본이다. 아래 이전 기록의 구현/배포 대기는 그 시점의 상태이며 새 착수 지시가 아니다. 전체 자연어 앱 E2E·다중 사용자·격리 앱의 운영 전면 가동 완료를 주장하지 않는다.

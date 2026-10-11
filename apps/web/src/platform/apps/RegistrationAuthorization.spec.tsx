@@ -327,3 +327,42 @@ it('describes selected-file permission separately from data writes for the basic
   ).toBeNull();
   expect(apiFetchJson).not.toHaveBeenCalled();
 });
+
+it('allows five-permission search registration while describing access without granting it', () => {
+  const proposal = new URLSearchParams(query);
+  proposal.set(
+    'requested_permissions',
+    'identity:read,data:read,data:write,files:read-selected,search:read',
+  );
+  const parsed = parseRegistrationAuthorizationQuery(proposal.toString());
+  expect(parsed.policy.requested_permissions).toEqual([
+    'data:read',
+    'data:write',
+    'files:read-selected',
+    'identity:read',
+    'search:read',
+  ]);
+  expect(
+    parseRegistrationAuthorizationResponse(
+      { ...response(), policy: parsed.policy },
+      parsed,
+      actor,
+    ).policy,
+  ).toEqual(parsed.policy);
+  render(view(proposal.toString()));
+  expect(
+    screen.getByText(/independentApps\.registration\.searchRead/),
+  ).toBeTruthy();
+  expect(apiFetchJson).not.toHaveBeenCalled();
+  for (const invalid of [
+    'data:read,search:write',
+    'data:read,search:read,search:read',
+    'identity:read,data:read,data:write,files:read-selected,search:read,identity:read',
+  ]) {
+    const changed = new URLSearchParams(proposal);
+    changed.set('requested_permissions', invalid);
+    expect(() =>
+      parseRegistrationAuthorizationQuery(changed.toString()),
+    ).toThrow();
+  }
+});

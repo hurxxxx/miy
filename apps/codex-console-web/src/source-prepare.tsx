@@ -3,6 +3,7 @@ import { Button, Input } from '@miy/ui';
 import { api, ApiError } from './api';
 import type { components } from './api.generated';
 import { errorCopy, type Translate } from './i18n';
+import { localAppRepository } from './project-defaults';
 
 type S = components['schemas'];
 type Setup = S['SourceSetupOut'];
@@ -22,10 +23,12 @@ function savedInput(setup: Setup): InputBody {
 /** A project preparation request never starts or elevates a Codex task. */
 export function SourcePrepare({
   projectId,
+  appId,
   t,
   onPrepared,
 }: {
   projectId: string;
+  appId: string;
   t: Translate;
   onPrepared: () => void;
 }) {
@@ -35,7 +38,7 @@ export function SourcePrepare({
   const [attempt, setAttempt] = useState<InputBody | null>(null);
   const [rootId, setRootId] = useState('');
   const [templateId, setTemplateId] = useState('basic');
-  const [repository, setRepository] = useState('');
+  const [repository, setRepository] = useState(() => localAppRepository(appId));
   const [refresh, setRefresh] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -93,7 +96,9 @@ export function SourcePrepare({
             current &&
             (!canCorrect || available.roots.some((item) => item.id === current))
               ? current
-              : available.roots[0]?.id || '',
+              : available.roots.length === 1
+                ? available.roots[0].id
+                : '',
           );
         }
       })
@@ -232,35 +237,48 @@ export function SourcePrepare({
                 ))}
               </select>
             </label>
-            <label>
-              {t('App creation folder')}
-              <select
-                value={rootId}
-                disabled={locked}
-                required
-                onChange={(event) => setRootId(event.target.value)}
-              >
-                {options?.roots.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              {t('App repository URL')}
-              <Input
-                type="url"
-                required
-                maxLength={500}
-                value={repository}
-                disabled={locked}
-                onChange={(event) => setRepository(event.target.value)}
-              />
-            </label>
+            {options?.roots.length === 1 && !setup && (
+              <p className="muted">
+                {t('The administrator prepared a folder for this app.')}
+              </p>
+            )}
+            <details open={!!options && options.roots.length > 1}>
+              <summary>{t('Advanced source settings')}</summary>
+              <label>
+                {t('App creation folder')}
+                <select
+                  value={rootId}
+                  disabled={locked}
+                  required
+                  onChange={(event) => setRootId(event.target.value)}
+                >
+                  {options && options.roots.length > 1 && (
+                    <option value="">
+                      {t('Choose an app creation folder')}
+                    </option>
+                  )}
+                  {options?.roots.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                {t('App repository URL')}
+                <Input
+                  type="url"
+                  required
+                  maxLength={500}
+                  value={repository}
+                  disabled={locked}
+                  onChange={(event) => setRepository(event.target.value)}
+                />
+              </label>
+            </details>
             <p className="muted">
               {t(
-                'Use the HTTPS address of the repository intended for this app. This step creates the local source only.',
+                'This prepares your app on this server. No remote repository is created. You can connect an existing HTTPS repository in advanced settings.',
               )}
             </p>
             {setup?.state === 'preparing' && (
@@ -294,6 +312,7 @@ export function SourcePrepare({
                 loading ||
                 readFailed ||
                 !available ||
+                !rootId ||
                 setup?.state === 'conflict'
               }
             >

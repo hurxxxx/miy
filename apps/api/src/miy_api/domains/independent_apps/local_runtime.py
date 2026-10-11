@@ -49,6 +49,7 @@ class DockerRuntime:
         operator_binding_digest: str | None = None,
         environment: str = "development",
         docker_bin: str = "/usr/bin/docker",
+        prepare_search=None,
     ):
         if not _IMAGE.fullmatch(ingress_image):
             raise ValueError("Select an immutable local core ingress image ID")
@@ -75,6 +76,7 @@ class DockerRuntime:
                 raise ValueError("Production ingress needs an exact Core origin/listener binding")
         self.ingress_image = ingress_image
         self.data_store = data_store
+        self.prepare_search = prepare_search
         # This directory is core-owned configuration, never an app repository.
         self.root = state_root.resolve()
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -231,7 +233,7 @@ class DockerRuntime:
                         key: value
                         for key, value in spec.__dict__.items()
                         if value is not None
-                        or key not in {"loopback_port", "operator_binding_digest"}
+                        or key not in {"loopback_port", "operator_binding_digest", "ui_path"}
                     },
                     "platform": self.platform_origin,
                     "platform_api": self.platform_api_origin,
@@ -292,6 +294,8 @@ class DockerRuntime:
                 raise RuntimeFailure(
                     exc.code, uncertain=exc.code == "data_provision_unavailable"
                 ) from exc
+        if getattr(self, "prepare_search", None) is not None:
+            self.prepare_search(spec)
         net = self._inspect("network", network)
         if net is None:
             self._run(
@@ -351,11 +355,33 @@ class DockerRuntime:
         if not container["State"].get("Running"):
             self._run("start", name)
         # Probe inside the isolated app network before changing the live ingress.
-        program = (
-            "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8000' + "
-            + repr(spec.health_path)
-            + ",timeout=2); assert r.status==200; assert len(r.read(65537))<=65536"
-        )
+        program = f"""
+import asyncio, httpx
+async def probe():
+    async with asyncio.timeout(2):
+        async with httpx.AsyncClient(timeout=2, follow_redirects=False, trust_env=False,
+                                     headers={{'Accept-Encoding': 'identity'}}) as client:
+            for path, html in [({spec.health_path!r}, False), ({spec.ui_path!r}, True)]:
+                if path is None:
+                    continue
+                async with client.stream('GET', 'http://127.0.0.1:8000' + path) as response:
+                    assert response.status_code == 200
+                    assert response.headers.get('content-encoding', 'identity') == 'identity'
+                    if html:
+                        assert response.headers.get('content-type', '').split(';')[0].strip().lower() == 'text/html'
+                        prefix = b''
+                        async for chunk in response.stream:
+                            if chunk:
+                                prefix = chunk[:8192]
+                                break
+                        assert prefix
+                    else:
+                        size = 0
+                        async for chunk in response.stream:
+                            size += len(chunk)
+                            assert size <= 65536
+asyncio.run(probe())
+"""
         for _ in range(20):
             result = self._run(
                 "exec", name, "/opt/miy/venvs/api/bin/python", "-c", program, missing_ok=True
@@ -387,6 +413,15 @@ class DockerRuntime:
         data_gateway = ""
         if spec.runtime_profile == "web-api-postgres-v1":
             data_gateway = f"""
+  location ~ "^/api/v1/independent-apps/_search/[a-z][a-z0-9_-]{{0,63}}$" {{
+   client_max_body_size 20k;
+   if ($request_method != POST) {{ return 405; }}
+   proxy_pass {target};
+  }}
+  location ~ "^/api/v1/independent-apps/_data/[a-z][a-z0-9_-]{{0,63}}/by-key$" {{
+   if ($request_method != GET) {{ return 405; }}
+   proxy_pass {target};
+  }}
   location ~ "^/api/v1/independent-apps/_data/[a-z][a-z0-9_-]{{0,63}}(/[a-f0-9-]{{36}})?$" {{
    client_max_body_size 20k;
    limit_except GET POST PUT DELETE {{ deny all; }}
@@ -590,7 +625,15 @@ http {{
                     )
                     responses.append(response)
                     await self._bounded(response, 65536)
-                    healthy = response.status_code == 200 and running
+                    if response.status_code == 200 and running:
+                        if spec.ui_path is None:
+                            healthy = True
+                        else:
+                            response = await client.send(
+                                client.build_request("GET", spec.origin + spec.ui_path), stream=True
+                            )
+                            responses.append(response)
+                            healthy = await self._html_prefix(response)
         except (httpx.HTTPError, ValueError, TimeoutError, OSError):
             if not marker_known:
                 raise RuntimeFailure("runtime_observation_unavailable") from None
@@ -604,6 +647,21 @@ http {{
                 except BaseException:
                     pass
         return active, healthy
+
+    @staticmethod
+    async def _html_prefix(response: httpx.Response) -> bool:
+        """Read only a nonempty prefix, not a complete HTML or JS feature proof."""
+        if (
+            response.status_code != 200
+            or response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+            != "text/html"
+            or response.headers.get("content-encoding", "identity") != "identity"
+        ):
+            return False
+        async for chunk in response.stream:
+            if chunk:
+                return bool(chunk[:8192])
+        return False
 
     @staticmethod
     async def _bounded(response: httpx.Response, limit: int) -> bytes:
@@ -656,3 +714,80 @@ http {{
             self._run("rm", "--force", name)
             if self._container(spec) is not None:
                 raise RuntimeFailure("retirement_not_confirmed")
+
+    def stop_workspace(self, specs: list[RuntimeSpec], *, installation_id: str) -> None:
+        """Remove only verified temporary runtimes after Core has closed admission.
+
+        All identities are checked before stopping anything. Positive inventory,
+        never an inspect error, proves absence on retry. Shared images are kept.
+        """
+        identity = str(UUID(installation_id))
+        if any(s.installation_id != identity or s.environment != "development" for s in specs):
+            raise RuntimeFailure("workspace_runtime_identity_mismatch", uncertain=False)
+        names = {self.names(s)[0] for s in specs}
+        proxy = f"miy-app-ingress-{UUID(identity).hex}"
+        network = f"miy-app-net-{UUID(identity).hex}"
+        inventory = self._objects("container")
+        # Inspect every object bearing our label; unknown objects retain the slot.
+        owned = set()
+        for record in inventory:
+            name = record.get("Names")
+            labels = record.get("Labels", "")
+            if f"{_LABEL}={identity}" in str(labels).split(","):
+                owned.add(name)
+        if not owned <= names | {proxy}:
+            raise RuntimeFailure("workspace_runtime_unrecognized", uncertain=False)
+        for spec in specs:
+            self._port(spec)
+            self._container(spec)
+        if specs:
+            ingress = self._proxy(specs[-1])
+        else:
+            ingress = self._inspect("container", proxy)
+            if ingress:
+                raise RuntimeFailure("workspace_runtime_unrecognized", uncertain=False)
+        net = self._inspect("network", network)
+        if net and (not net.get("Internal") or net.get("Labels", {}).get(_LABEL) != identity):
+            raise RuntimeFailure("network_identity_mismatch", uncertain=False)
+        if ingress:
+            if ingress.get("State", {}).get("Running"):
+                self._run("stop", "--time", "5", proxy)
+            self._run("rm", proxy)
+        for spec in specs:
+            item = self._container(spec)
+            if item:
+                name = self.names(spec)[0]
+                if item.get("State", {}).get("Running"):
+                    self._run("stop", "--time", "5", name)
+                self._run("rm", name)
+        if self._inspect("container", proxy) or any(self._container(s) for s in specs):
+            raise RuntimeFailure("workspace_stop_not_confirmed")
+        if net:
+            self._run("network", "rm", network)
+        if self._inspect("network", network):
+            raise RuntimeFailure("workspace_stop_not_confirmed")
+
+    def clean_workspace_files(self, specs: list[RuntimeSpec], *, installation_id: str) -> None:
+        """After runtime removal, erase only this executor's recognized files."""
+        identity = str(UUID(installation_id))
+        allowed = {identity, "docker-config"}
+        if any(p.name not in allowed or p.is_symlink() or not p.is_dir() for p in self.root.iterdir()):
+            raise RuntimeFailure("workspace_state_cleanup_held", uncertain=False)
+        configuration = self.root / identity
+        candidates = {self._configuration(s).encode() for s in specs}
+        if configuration.exists():
+            for path in configuration.iterdir():
+                if (path.name not in {"nginx.conf", "nginx.conf.next"} or path.is_symlink()
+                    or not path.is_file() or path.stat().st_size > 65536
+                    or path.read_bytes() not in candidates):
+                    raise RuntimeFailure("workspace_state_cleanup_held", uncertain=False)
+        docker_config = self.root / "docker-config"
+        if docker_config.exists() and any(docker_config.iterdir()):
+            raise RuntimeFailure("workspace_state_cleanup_held", uncertain=False)
+        if configuration.exists():
+            for path in configuration.iterdir():
+                path.unlink()
+            configuration.rmdir()
+        if docker_config.exists():
+            docker_config.rmdir()
+        self.root.rmdir()

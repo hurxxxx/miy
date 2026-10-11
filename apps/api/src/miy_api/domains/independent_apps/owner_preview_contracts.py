@@ -28,7 +28,7 @@ class OwnerPreviewPatch(Contract):
     expected_definition_digest: Digest
     expected_source_revision: Revision
     enabled: bool = Field(strict=True)
-    granted_permissions: list[Permission] = Field(max_length=4)
+    granted_permissions: list[Permission] = Field(max_length=5)
 
     @field_validator("granted_permissions")
     @classmethod

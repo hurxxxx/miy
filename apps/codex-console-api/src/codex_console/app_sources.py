@@ -171,6 +171,10 @@ def context_root(settings, context):
     source = (context or {}).get("source_binding")
     if not source:
         return settings.workspace
+    if source.get("workspace_id"):
+        from . import workspace_git, workspaces
+
+        return workspace_git.validate(settings, workspaces.source_item(source))[1]
     root = Path(source["repository_root"])
     manifest, _ = read_manifest(settings, root, source["app_id"])
     # Edits may change app logic/display, but changing the source directory cannot
@@ -183,6 +187,15 @@ def context_root(settings, context):
 def require_task_source(settings, task):
     source = (task.context or {}).get("source_binding")
     if not source:
+        return
+    if source.get("workspace_id"):
+        from . import workspace_git, workspaces
+
+        if task.workspace_id != source["workspace_id"] or task.worktree_owned:
+            raise ConsoleError("workspace_source_changed", 409)
+        _, expected, _ = workspace_git.validate(settings, workspaces.source_item(source))
+        if Path(task.root) != expected:
+            raise ConsoleError("workspace_source_changed", 409)
         return
     root = require_source_root(settings, source["repository_root"])
     remote = git.git(root, "remote", "get-url", "origin", limit=4096).decode().strip()

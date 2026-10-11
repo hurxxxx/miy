@@ -3,6 +3,9 @@ set -u
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 STATUS=0
+# Playwright clears its output root before each run; API evidence owns a sibling.
+REPORT_DIR="$ROOT_DIR/api-test-results"
+PYTEST_REPORT_OPTIONS=(--tb=short --show-capture=no -o junit_logging=no)
 
 # API integration tests exercise real worker tasks from this same source tree.
 # Keep the product dependency environments separate; expose only the test source.
@@ -35,21 +38,25 @@ run_segment \
   uv run --python 3.12 --group dev python -m pytest \
   -n "${MIY_API_PYTEST_WORKERS:-8}" \
   --dist=worksteal \
-  -m "not slow and not external_integration and not migration"
+  -m "not slow and not external_integration and not migration" \
+  "${PYTEST_REPORT_OPTIONS[@]}" --junitxml="$REPORT_DIR/fast.xml"
 
 run_segment \
   slow \
   uv run --python 3.12 --group dev python -m pytest \
-  -m "slow and not external_integration and not migration"
+  -m "slow and not external_integration and not migration" \
+  "${PYTEST_REPORT_OPTIONS[@]}" --junitxml="$REPORT_DIR/slow.xml"
 
 run_segment \
   migration \
   uv run --python 3.12 --group dev python -m pytest \
-  -m migration
+  -m migration \
+  "${PYTEST_REPORT_OPTIONS[@]}" --junitxml="$REPORT_DIR/migration.xml"
 
 default_external_integration_env
 run_segment \
   external_integration \
-  bash "$ROOT_DIR/scripts/api-test-vm.sh" -m external_integration
+  bash "$ROOT_DIR/scripts/api-test-vm.sh" -m external_integration \
+  "${PYTEST_REPORT_OPTIONS[@]}" --junitxml="$REPORT_DIR/external.xml"
 
 exit "$STATUS"

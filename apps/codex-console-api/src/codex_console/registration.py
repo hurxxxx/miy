@@ -38,8 +38,15 @@ class Policy(Contract):
     origin: str = Field(max_length=300)
     runtime_profile: Literal["web-api-v1", "web-api-postgres-v1"]
     requested_permissions: list[
-        Literal["identity:read", "data:read", "data:write", "files:read-selected"]
-    ] = Field(max_length=4)
+        Literal["identity:read", "data:read", "data:write", "files:read-selected", "search:read"]
+    ] = Field(max_length=5)
+
+    @field_validator("requested_permissions")
+    @classmethod
+    def unique_permissions(cls, value):
+        if len(set(value)) != len(value):
+            raise ValueError("Permissions must be unique")
+        return value
 
 
 class Begin(Contract):

@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -14,7 +15,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, Session, load_only, mapped_column
 
 from miy_api.core.db import Base
 from miy_api.domains.auth.models import utcnow_naive
@@ -55,6 +56,12 @@ class AppInstallationRecord(Base):
     __table_args__ = (
         UniqueConstraint("app_id", "environment", "origin", name="uq_independent_app_installation"),
         UniqueConstraint("origin", name="uq_independent_app_origin"),
+        CheckConstraint(
+            "(state = 'archived' AND environment = 'development' AND NOT enabled "
+            "AND origin IS NULL AND archived_origin IS NOT NULL) OR "
+            "(state <> 'archived' AND origin IS NOT NULL AND archived_origin IS NULL)",
+            name="ck_independent_app_origin_lifecycle",
+        ),
         Index(
             "uq_independent_app_production",
             "app_id",
@@ -69,7 +76,8 @@ class AppInstallationRecord(Base):
         ForeignKey("independent_app_definitions.app_id"), index=True
     )
     environment: Mapped[str] = mapped_column(String(16))
-    origin: Mapped[str] = mapped_column(String(300))
+    origin: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    archived_origin: Mapped[str | None] = mapped_column(String(300), nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     audience: Mapped[str] = mapped_column(String(16), default="selected")
     user_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
@@ -81,6 +89,38 @@ class AppInstallationRecord(Base):
     state: Mapped[str] = mapped_column(String(16), default="configured")
     generation: Mapped[int] = mapped_column(Integer, default=1)
     runtime_ref: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+
+INSTALLATION_AUTHORITY_COLUMNS = (
+    "id",
+    "app_id",
+    "environment",
+    "origin",
+    "enabled",
+    "audience",
+    "user_ids",
+    "group_ids",
+    "granted_permissions",
+    "release_id",
+    "state",
+    "generation",
+    "runtime_ref",
+)
+
+
+def load_installation_authority(db: Session, installation_id: str) -> AppInstallationRecord | None:
+    """Refresh admission columns without reading historical or future metadata."""
+    return db.get(
+        AppInstallationRecord,
+        installation_id,
+        options=[
+            load_only(
+                *(getattr(AppInstallationRecord, name) for name in INSTALLATION_AUTHORITY_COLUMNS),
+                raiseload=True,
+            )
+        ],
+        populate_existing=True,
+    )
 
 
 class AppLaunchCode(Base):

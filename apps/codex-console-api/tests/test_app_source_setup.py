@@ -129,9 +129,43 @@ def test_explicit_root_opt_in_is_separate_from_read_binding(client, settings, cr
     assert list(creation_root.iterdir()) == []
 
 
+def test_local_repository_identity_preserves_manifest_origin_and_registration_draft(
+    client, creation_root
+):
+    row = project(client)
+    repository = "https://miy-apps.invalid/local/new-app.git"
+    body = {**request(client, row), "repository": repository}
+    response = prepare(client, row, body)
+    assert response.status_code == 200
+    result = response.json()
+    assert result["state"] == "ready" and result["repository"] == repository
+    path = creation_root / row["app_id"]
+    manifest = json.loads((path / "app.manifest.json").read_text())
+    assert manifest["source"]["repository"] == repository
+    assert (
+        subprocess.check_output(["git", "-C", str(path), "remote", "get-url", "origin"], timeout=10)
+        .decode()
+        .strip()
+        == repository
+    )
+    draft = client.get(f"/api/workbench/projects/{row['id']}/registration-draft")
+    assert draft.status_code == 200
+    assert draft.json()["definition"]["source"]["repository"] == repository
+    assert draft.json()["source_revision"] == result["source_revision"]
+    assert not (path / "node_modules").exists()
+    assert not (path / ".venv").exists()
+    assert (
+        subprocess.check_output(["git", "-C", str(path), "status", "--porcelain"], timeout=10)
+        == b""
+    )
+
+
 @pytest.mark.parametrize(
     "value",
     [
+        None,
+        "",
+        "http://miy-apps.invalid/local/new-app.git",
         "https://user:secret@example.test/app.git",
         "https://example.test/app.git?token=private",
         "ssh://example.test/app.git",
@@ -451,8 +485,9 @@ def test_schema_six_preserves_schema_five_projects_tasks_and_source_bindings(tmp
                     reuse_notes="Previously valid ID",
                 )
             )
-            db.add(
-                Task(
+            # An old Task has no workspace column; omit later nullable columns from its seed.
+            db.execute(
+                Task.__table__.insert().values(
                     id="previous-task",
                     title="Keep task",
                     root=str(tmp_path),
@@ -479,6 +514,7 @@ def test_schema_six_preserves_schema_five_projects_tasks_and_source_bindings(tmp
             assert (
                 db.get(Task, "previous-task").context["app_execution_boundary"] == "planning_only"
             )
+            assert db.get(Task, "previous-task").workspace_id is None
             source = db.get(AppSourceBinding, "existing-app")
             assert source.version == 7 and source.manifest == {"keep": "original"}
             assert db.scalars(select(AppSourceSetup)).all() == []

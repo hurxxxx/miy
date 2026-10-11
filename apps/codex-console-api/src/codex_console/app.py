@@ -121,6 +121,10 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
                         update={"binary": str(runtime_settings.template_binary)}
                     )
                 store.recover_startup(factory, executor)
+                if executor == "session":
+                    from . import workspaces
+
+                    workspaces.recover_startup(factory)
                 runtime = Runtime(runtime_settings, factory, rpc_factory, executor=executor)
                 app.state.runtime = runtime
             if role in ("combined", "management"):
@@ -284,23 +288,34 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
         if not auth.authenticate(request.app.state.factory, request.cookies.get(auth.COOKIE), csrf):
             raise ConsoleError("unauthenticated", 401)
 
-    def runtime_for(task_id=None, *, executor=None):
+    def runtime_for(task_id=None, *, executor=None, control_only=False):
         if task_id:
             with app.state.factory() as db:
                 executor = store.require_task(db, str(task_id)).executor
         if executor == "templates" and role == "combined":
             runtime = app.state.template_runtime
-            return runtime.for_task(task_id) if task_id else runtime
+            return (
+                runtime.for_task(task_id, **({"control_only": True} if control_only else {}))
+                if task_id
+                else runtime
+            )
         runtime = app.state.runtime
         if executor and runtime.executor != executor:
             raise ConsoleError("executor_mismatch", 409)
-        return runtime.for_task(task_id) if task_id else runtime
+        return (
+            runtime.for_task(task_id, **({"control_only": True} if control_only else {}))
+            if task_id
+            else runtime
+        )
 
     templates.register(app, owner, runtime_for)
     registration.install(app, owner)
     secured = [Depends(owner)]
     instructions.install(app, secured)
     workbench.install(app, secured)
+    from . import workspaces
+
+    workspaces.mount(app, secured)
 
     if role == "session":
 
@@ -551,7 +566,12 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
             selected_root = workbench.context_root(app.state.settings, context)
             if (context or {}).get("source_binding") and body.isolate:
                 raise ConsoleError("app_executor_worktree_unsupported", 422)
-            task = Task(title=body.title, root=str(selected_root), context=context)
+            task = Task(
+                title=body.title,
+                root=str(selected_root),
+                context=context,
+                workspace_id=(context or {}).get("workspace_id"),
+            )
             db.add(task)
             db.flush()
             workbench.link_task(db, task)
@@ -748,7 +768,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
 
     @app.post("/api/tasks/{task_id}/interrupt", dependencies=secured, response_model=Ok)
     async def interrupt(task_id: str):
-        await runtime_for(task_id).interrupt(task_id)
+        await runtime_for(task_id, control_only=True).interrupt(task_id)
         return {"ok": True}
 
     @app.post("/api/tasks/{task_id}/recover", dependencies=secured, response_model=TaskDetail)
@@ -766,7 +786,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
     )
     async def answer(task_id: str, request_id: str, body: Answer, request: Request):
         registration.session_gate(app.state.factory, task_id, request.cookies.get(auth.COOKIE))
-        await runtime_for(task_id).answer(
+        await runtime_for(task_id, control_only=body.decision in {"decline", "cancel"}).answer(
             task_id,
             request_id,
             body,

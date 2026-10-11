@@ -23,7 +23,7 @@ from .protocol_contract import (
     schemas_are_compatible,
     supports_contract_version,
 )
-from .toolchain_profiles import SDK_PROFILE, selected_profile
+from .toolchain_profiles import is_sdk_profile
 
 MAX_MESSAGE_BYTES = 4 * 1024 * 1024
 
@@ -74,7 +74,7 @@ class CodexRPC:
         return self.process is not None and self.process.returncode is None and not self.closing
 
     async def start(self):
-        sdk = self.remote_environment and selected_profile(self.remote_environment) == SDK_PROFILE
+        sdk = self.remote_environment and is_sdk_profile(self.remote_environment)
         environment = {
             k: os.environ[k]
             for k in ("HOME", "PATH", "USER", "LOGNAME", "LANG", "LC_ALL", "SHELL", "CODEX_HOME")
@@ -318,7 +318,7 @@ class CodexRPC:
             context.__exit__(None, None, None)
 
     async def call(self, method, params):
-        sdk = self.remote_environment and selected_profile(self.remote_environment) == SDK_PROFILE
+        sdk = self.remote_environment and is_sdk_profile(self.remote_environment)
         if sdk and method in ("thread/start", "thread/resume", "turn/start", "turn/steer"):
             try:
                 controller_launch.verify_request(method, params)

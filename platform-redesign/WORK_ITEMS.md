@@ -1,8 +1,27 @@
 # 재설계 작업 목록
 
+## 2026-10-11 Workbench 작업별 개발 환경
+
+재검토 후 사용자 `구현` 지시로 착수했고, 후속 배포·실제 인수 승인에 따라 managed 흐름을 전달했다. 이 표가 WB-ENV 상태를 소유하고, 설계·인수 기준은 [WORKBENCH_WORKSPACES.md](WORKBENCH_WORKSPACES.md), 실제 전달 근거는 [배포 인수 기록](WORKBENCH_WORKSPACES_DEPLOYMENT.md)이 소유한다. 새 탭 앱 링크, 수정 완료 후 앱 갱신, 검색 SDK/API, dev 앱 실행까지의 반영을 포함한다. 기존 ENH 고도화 전체를 재개하지 않는다.
+
+| ID | 작업 | 선행 | 완료 조건 | 상태 |
+| --- | --- | --- | --- | --- |
+| WB-ENV-01 | 작업·저장소·환경·권한 계약과 이행 | 없음 | 같은 MIY repo/dev, 앱 상대 경로, 작업-세션 수명, preview 결속·병합 후 영속 소스 인계와 소유 범위 확정 | accepted_single_owner |
+| WB-ENV-02 | 기능 브랜치/worktree·안전 저장·subtree 빌드 | 01 | 이름 있는 작업 브랜치, linked metadata 검증, 앱 범위 저장/등록/빌드 실제 연결 | accepted_single_owner |
+| WB-ENV-03 | 작업 설정·의존성·인프라·검색 API | 01; 실제 연결 02 | PG/OpenSearch/Qdrant 권한·동기화·자원 분리, 준비/중지/재개, 실제 앱 링크 | deployed_search_pending |
+| WB-ENV-04 | 비개발자 세션·작업 상태 화면 | 01; 인수 02/03 | 새 작업/앱 열기/계속 수정/개발에 반영, 브랜치·동기화·오류·재접속 표시 | accepted_single_owner |
+| WB-ENV-05 | 검토·GitLab MR·dev 통합 | 02/03/04 | source와 리뷰/CI에 연결한 push/MR/병합·영속 소스 인계, 충돌·unknown 보존, 운영과 구분 | accepted_single_owner |
+| WB-ENV-06 | 병합 후 자원·worktree·브랜치 정리 | 03/05 | exact merge/소유 증거, 새 변경 보존, 로컬/원격 정리·부분 실패 재개 | accepted_single_owner |
+| WB-ENV-07 | 장비 앱 이행·묶음 인수 | 02~06 | 새 사용자 흐름과 중요 실패 경계 실제 확인, 이전 시범·dev/prod 보존 | accepted_single_owner |
+| WB-ENV-08 | 소유 문서·정상 전달 | 07 | owner/INSTALL 갱신, 승인 범위의 리뷰·게시·별도 Workbench 반영 근거 | delivered |
+
+`accepted_single_owner`는 운영자 지원 단일 소유자의 실제 대표 흐름 범위다. MR117/job482·483 통과와 dev 병합, 안정된 개발 앱의 브라우저 생성201/reload 유지, MR121/r21 반영 후 원 요청 관측·명시적 계속으로 정리를 완료했다. 임시 DB/역할·런타임·SDK·컨테이너·worktree·브랜치 부재와 안정된 개발 앱·데이터 보존은 독립38항목 확인도 통과했다. 03의 검색 코드·SDK와 엔진 격리 근거를 실제 embedding/사용자 검색 인수로 확대하지 않는다. 의미 검색·일반 직원 계정·완전 자가 온보딩·다중 사용자·운영 rollout은 미검증이다. 08은 owner/INSTALL과 코드의 정상 게시·r21 반영을 확인한 상태이며, 최종 인수 기록의 게시 상태는 이 문서를 포함한 MR의 상태가 원본이다. 초기 로컬 실패는 [구현 기록](WORKBENCH_WORKSPACES_IMPLEMENTATION.md), 실제 상태와 한계는 [배포 인수 기록](WORKBENCH_WORKSPACES_DEPLOYMENT.md)에 보존한다.
+
+2026-10-10의 완료 범위와 실패 기록은 아래에 그대로 보존한다. 새 worktree 흐름의 성공으로 재해석하지 않는다.
+
 **2026-10-10 필수 구조 인수:** 축소한 최소 구조의 구현·최신 full287·개발/운영 first-party와 별도 Workbench 반영을 완료했다. 실제 대표 흐름과 공개 관측을 결속한 범위만 인수하며 앱별 전수·새 자연어 앱 전체 E2E·다중 사용자 완료를 뜻하지 않는다. 이 문서 동결 시점의 후속 전달은 정상 게시·필수 리뷰·병합이며, 최종 결과는 해당 PR/MR의 최종 상태가 원본이다. 아래 current 작업표는 이번 최소 범위 상태이며 날짜별 기록은 당시의 이력이다.
 
-## 현재 완료 근거와 검증 한계
+## 2026-10-10 완료 근거와 검증 한계
 
 최신 근거는 [VALIDATION.md](VALIDATION.md)의 full287·실제 운영 세 이미지/여섯 서비스·fresh PG/SQLite 백업·원 writer drain·공개 HTTP/WS 경계·Workbench 필수 UI 및 native 계정/모델 조회다. 개인 앱의 대표 UI·DB/API·불변 배포/복구와 기존 native3턴·SDK 격리 근거를 재사용했다. Workbench CLI의 실제0.162.0 스키마 불일치는 root 소유 고정0.160.1 선택으로 해결했고 template0.159.2·원 PID와 인증·DB·산출물을 유지했다. 이전 실패 receipt를 PASS로 바꾸지 않았다.
 

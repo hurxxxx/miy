@@ -1,0 +1,13 @@
+# Core-owned companion to @UNIT_STEM@.service; never auto-installed.
+[Unit]
+Description=MIY managed loopback SDK listener
+BindsTo=@UNIT_STEM@.service
+After=@UNIT_STEM@.service
+
+[Socket]
+ListenStream=127.0.0.1:@HOST_PORT@
+Accept=no
+Service=@UNIT_STEM@-proxy.service
+
+[Install]
+WantedBy=sockets.target

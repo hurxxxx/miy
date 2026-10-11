@@ -875,6 +875,10 @@
       "owner": "platform"
     },
     {
+      "path": "/independent-apps/_data/{collection}/by-key",
+      "owner": "platform"
+    },
+    {
       "path": "/independent-apps/_data/{collection}/{record_id}",
       "owner": "platform"
     },
@@ -892,6 +896,10 @@
     },
     {
       "path": "/independent-apps/_files/selection-request",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/_search/{collection}",
       "owner": "platform"
     },
     {
@@ -952,6 +960,54 @@
     },
     {
       "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/sync",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/workspaces/{workspace_id}/builds",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/workspaces/{workspace_id}/builds/{build_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/workspaces/{workspace_id}/cleanup",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/workspaces/{workspace_id}/complete",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/workspaces/{workspace_id}/context",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/workspaces/{workspace_id}/deployments",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/workspaces/{workspace_id}/deployments/{request_id}",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/workspaces/{workspace_id}/integrate",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/workspaces/{workspace_id}/prepare",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/workspaces/{workspace_id}/resume",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/workspaces/{workspace_id}/stop",
+      "owner": "platform"
+    },
+    {
+      "path": "/independent-apps/delegated/{app_id}/installations/{installation_id}/workspaces/{workspace_id}/sync",
       "owner": "platform"
     },
     {

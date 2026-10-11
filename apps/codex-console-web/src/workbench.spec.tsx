@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -8,6 +9,7 @@ import {
 import { beforeEach, expect, it, vi } from 'vitest';
 import { api } from './api';
 import { translate } from './i18n';
+import { suggestAppId } from './project-defaults';
 import {
   AppInstallations,
   WorkbenchApps,
@@ -74,6 +76,238 @@ beforeEach(() => {
       return { state: 'unconfigured', items: [], stale: true } as never;
     throw new Error('Unexpected API request');
   });
+});
+
+it('starts a new MIY app in its managed work environment without preparing another repository', async () => {
+  let projectCreated = false;
+  let environmentCreated = false;
+  let project = {
+    id: '8171b884-af40-4917-bc5d-f9b707f18516',
+    app_id: 'equipment',
+    title: 'Equipment',
+    summary: 'Track equipment',
+    reuse_decision: 'new',
+    reuse_notes: 'Compare existing capabilities',
+    created_at: '2026-10-11T00:00:00Z',
+  };
+  const workspace = {
+    id: 'bf0d1ea2-033f-448f-9f9e-91cacb151cd4',
+    project_id: project.id,
+    app_id: project.app_id,
+    title: project.title,
+    profile: 'app',
+    state: 'ready',
+    version: 1,
+    admission_open: true,
+    auto_refresh: true,
+    branch: 'feature/wb-equipment-bf0d1ea2',
+    base_revision: 'b'.repeat(40),
+    source_revision: 'a'.repeat(40),
+    preview: {
+      state: 'pending',
+      portal_url: null,
+      source_revision: 'a'.repeat(40),
+      runtime_revision: null,
+      installation_id: null,
+      failure_code: null,
+    },
+    integration: {
+      state: 'not_requested',
+      mr_url: null,
+      mr_id: null,
+      source_revision: null,
+      merged_revision: null,
+      dev_runtime_revision: null,
+      failure_code: null,
+    },
+    cleanup: { state: 'not_requested', failure_code: null },
+    failure_code: null,
+    operations: [],
+    created_at: project.created_at,
+    updated_at: project.created_at,
+  };
+  vi.mocked(api).mockImplementation(async (path, body) => {
+    if (path === '/workbench/catalog')
+      return {
+        workspaces_available: true,
+        items: apps,
+        projects: projectCreated ? [project] : [],
+        source_revision: null,
+        source_dirty: false,
+        checked_at: project.created_at,
+      } as never;
+    if (path === '/workbench/runtime')
+      return { state: 'unconfigured', stale: true, items: [] } as never;
+    if (path === '/workbench/projects') {
+      projectCreated = true;
+      project = { ...project, ...(body as object) };
+      workspace.app_id = project.app_id;
+      return project as never;
+    }
+    if (path.endsWith('/workspaces')) {
+      if (body) {
+        environmentCreated = true;
+        return workspace as never;
+      }
+      return {
+        available: true,
+        items: environmentCreated ? [workspace] : [],
+      } as never;
+    }
+    if (path.endsWith(workspace.id)) return workspace as never;
+    throw new Error('Unexpected managed API request');
+  });
+  const startTask = vi.fn<StartWorkbenchTask>().mockResolvedValue(undefined);
+  render(
+    <WorkbenchApps
+      area="studio"
+      t={translate('en-US')}
+      tasks={[]}
+      openTask={vi.fn()}
+      newTask={vi.fn()}
+      startTask={startTask}
+    />,
+  );
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'New app project' }),
+  );
+  fireEvent.change(screen.getByLabelText('Project title'), {
+    target: { value: project.title },
+  });
+  fireEvent.change(
+    screen.getByLabelText('Requirements and acceptance criteria'),
+    { target: { value: project.summary } },
+  );
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Create project and plan' }),
+  );
+  await waitFor(() =>
+    expect(startTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspace_id: workspace.id,
+        project_id: project.id,
+        purpose: 'development',
+      }),
+      project.title,
+      expect.stringContaining('managed app source'),
+    ),
+  );
+  const createdEnvironments = vi
+    .mocked(api)
+    .mock.calls.filter(
+      ([path, body]) => path.endsWith('/workspaces') && !!body,
+    );
+  expect(createdEnvironments).toHaveLength(1);
+  expect(createdEnvironments[0][1]).toMatchObject({
+    profile: 'app',
+    auto_refresh: true,
+  });
+  expect(
+    vi.mocked(api).mock.calls.some(([path]) => path.includes('source-setup')),
+  ).toBe(false);
+});
+
+it('creates a new Korean work project from its name and requirements without technical input', async () => {
+  const title = '장비·비품 관리';
+  const previous = suggestAppId(title, []);
+  vi.mocked(api).mockImplementation(async (path, body) => {
+    if (path === '/workbench/catalog')
+      return {
+        items: [{ ...apps[0], app_id: previous }],
+        projects: [],
+        source_revision: null,
+        source_dirty: false,
+        checked_at: '2026-10-10T00:00:00Z',
+      } as never;
+    if (path === '/workbench/runtime')
+      return { state: 'unconfigured', items: [], stale: true } as never;
+    if (path === '/workbench/projects')
+      return { ...(body as object), id: 'equipment-project' } as never;
+    throw new Error('Unexpected API request');
+  });
+  const startTask = vi.fn<StartWorkbenchTask>().mockResolvedValue(undefined);
+  render(
+    <WorkbenchApps
+      area="studio"
+      t={translate('en-US')}
+      tasks={[]}
+      openTask={vi.fn()}
+      newTask={vi.fn()}
+      startTask={startTask}
+    />,
+  );
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'New app project' }),
+  );
+  fireEvent.change(screen.getByLabelText('Project title'), {
+    target: { value: title },
+  });
+  fireEvent.change(
+    screen.getByLabelText('Requirements and acceptance criteria'),
+    {
+      target: { value: '장비를 등록하고 담당자와 위치를 확인하고 싶어요.' },
+    },
+  );
+  const identifier = screen.getByLabelText(
+    'App identifier',
+  ) as HTMLInputElement;
+  expect(identifier.value).toMatch(/^[a-z][a-z0-9-]{1,63}$/);
+  expect(identifier.value).not.toBe(previous);
+  expect(identifier.closest('details')?.open).toBe(false);
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Create project and plan' }),
+  );
+  await waitFor(() => expect(startTask).toHaveBeenCalledTimes(1));
+  const created = vi
+    .mocked(api)
+    .mock.calls.filter((call) => call[0] === '/workbench/projects');
+  expect(created).toHaveLength(1);
+  expect(created[0][1]).toMatchObject({
+    title,
+    app_id: identifier.value,
+    reuse_decision: 'new',
+    reuse_notes:
+      'New app requested. Compare existing apps before implementation.',
+  });
+  expect(startTask.mock.calls[0][0]).toMatchObject({
+    project_id: 'equipment-project',
+    purpose: 'development',
+  });
+  expect(
+    vi
+      .mocked(api)
+      .mock.calls.some((call) =>
+        /source-setup|messages|implement/.test(call[0]),
+      ),
+  ).toBe(false);
+});
+
+it('preserves an advanced app identifier override when the work name changes', async () => {
+  render(
+    <WorkbenchApps
+      area="studio"
+      t={translate('en-US')}
+      tasks={[]}
+      openTask={vi.fn()}
+      newTask={vi.fn()}
+      startTask={vi.fn()}
+    />,
+  );
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'New app project' }),
+  );
+  fireEvent.change(screen.getByLabelText('Project title'), {
+    target: { value: '장비 관리' },
+  });
+  fireEvent.change(screen.getByLabelText('App identifier'), {
+    target: { value: 'my-equipment' },
+  });
+  fireEvent.change(screen.getByLabelText('Project title'), {
+    target: { value: '장비와 비품 관리' },
+  });
+  expect(
+    (screen.getByLabelText('App identifier') as HTMLInputElement).value,
+  ).toBe('my-equipment');
 });
 
 it('checks the selected independent project connection before creating its development task', async () => {
@@ -241,6 +475,121 @@ it('offers source preparation for new projects and keeps development disabled un
   expect(startTask).not.toHaveBeenCalled();
 });
 
+it('keeps one prepared source form through its parent catalog refresh without reloading readiness', async () => {
+  const project = {
+    id: 'prepared-project',
+    app_id: apps[0].app_id,
+    title: 'Prepared project',
+    summary: 'Develop an independent app',
+    reuse_decision: 'new',
+    reuse_notes: 'Review existing capabilities',
+    created_at: '2026-10-11T00:00:00Z',
+  };
+  const catalog = {
+    items: [
+      {
+        ...apps[0],
+        discovery: 'source',
+        source_status: 'ready',
+        source_version: 1,
+        execution_status: 'unconfigured',
+      },
+    ],
+    projects: [project],
+    source_revision: null,
+    source_dirty: false,
+    checked_at: '2026-10-11T00:00:00Z',
+  };
+  const sourceResponses: Array<(value: unknown) => void> = [];
+  const refreshResponses: Array<(value: unknown) => void> = [];
+  let catalogReads = 0;
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === '/workbench/catalog') {
+      if (++catalogReads === 1) return catalog as never;
+      return new Promise((resolve) => refreshResponses.push(resolve)) as never;
+    }
+    if (path === '/workbench/runtime')
+      return { state: 'unconfigured', items: [], stale: true } as never;
+    if (path === '/workbench/source-setup/options')
+      return {
+        roots: [{ id: 'approved-root', label: 'My apps' }],
+        templates: [
+          {
+            id: 'basic',
+            name: 'Basic',
+            runtime_profile: 'web-api-v1',
+            bundle_digest: `sha256:${'a'.repeat(64)}`,
+            sdk_version: '0.1.0',
+          },
+        ],
+      } as never;
+    if (path === `/workbench/projects/${project.id}/source-setup`)
+      return new Promise((resolve) => sourceResponses.push(resolve)) as never;
+    throw new Error('Unexpected API request');
+  });
+  const startTask = vi.fn();
+  render(
+    <WorkbenchApps
+      area="studio"
+      t={translate('en-US')}
+      tasks={[]}
+      openTask={vi.fn()}
+      startTask={startTask}
+      newTask={vi.fn()}
+    />,
+  );
+  const panel = (await screen.findByText(project.title)).closest(
+    '.stack',
+  ) as HTMLElement;
+  fireEvent.click(
+    within(panel).getByRole('button', { name: 'Prepare app source' }),
+  );
+  await waitFor(() => expect(sourceResponses).toHaveLength(1));
+  // Resolve the original observation only. Any erroneous remount stays pending
+  // so the regression fails its assertions instead of flooding the microtask queue.
+  await act(async () => {
+    sourceResponses[0]({
+      setup: {
+        operation_id: 'bc58aef7-8d6e-4e7c-9599-5a55c094fb80',
+        project_id: project.id,
+        app_id: project.app_id,
+        root_id: 'approved-root',
+        template_id: 'basic',
+        repository: 'https://example.test/team/candidate-review.git',
+        bundle_digest: `sha256:${'a'.repeat(64)}`,
+        state: 'ready',
+        source_root: '/approved/candidate-review',
+        source_revision: 'b'.repeat(40),
+        source_version: 1,
+        failure_code: null,
+        created_at: project.created_at,
+        updated_at: project.created_at,
+      },
+    });
+  });
+  await waitFor(() => expect(refreshResponses).toHaveLength(1));
+  expect(
+    screen.getAllByRole('form', { name: 'Prepare app source' }),
+  ).toHaveLength(1);
+  expect(screen.getAllByText('App source prepared')).toHaveLength(1);
+  expect(sourceResponses).toHaveLength(1);
+  const revision = 'c'.repeat(40);
+  await act(async () => {
+    refreshResponses[0]({ ...catalog, source_revision: revision });
+  });
+  await screen.findByTitle(revision);
+  expect(
+    screen.getAllByRole('form', { name: 'Prepare app source' }),
+  ).toHaveLength(1);
+  expect(screen.getAllByText('App source prepared')).toHaveLength(1);
+  expect(sourceResponses).toHaveLength(1);
+  expect(catalogReads).toBe(2);
+  expect(startTask).not.toHaveBeenCalled();
+  expect(vi.mocked(api).mock.calls.every((call) => call[2] === 'GET')).toBe(
+    true,
+  );
+});
+
 it('allows a bound project to recheck a source collision without exposing export or mutation', async () => {
   vi.mocked(api).mockImplementation(async (path) => {
     if (path === '/workbench/catalog')
@@ -388,6 +737,99 @@ it('retains installation evidence on refresh failure and discards it when changi
   );
 });
 
+it('explains a missing development deployment connection without starting a task', async () => {
+  vi.mocked(api).mockResolvedValue({
+    state: 'ready',
+    stale: false,
+    checked_at: '2026-10-10T01:01:00Z',
+    items: [{ ...installation, delivery_configured: false }],
+  });
+  const startTask = vi.fn();
+  render(
+    <AppInstallations
+      appId="candidate-review"
+      refresh={0}
+      t={translate('ko-KR')}
+      startTask={startTask}
+    />,
+  );
+  const button = await screen.findByRole('button', {
+    name: '미리보기 배포 계획',
+  });
+  expect((button as HTMLButtonElement).disabled).toBe(true);
+  expect(
+    screen.getByText(
+      '배포 연결을 기다리고 있습니다. 등록 작업의 내 개발 미리보기 설정에서 사용을 허용한 뒤 워크벤치 관리자에게 연결을 요청해 주세요.',
+    ),
+  ).toBeTruthy();
+  expect(screen.queryByRole('button', { name: '설치 상태 점검' })).toBeNull();
+  expect(screen.queryByRole('button', { name: '앱 복구 계획' })).toBeNull();
+  fireEvent.click(button);
+  expect(startTask).not.toHaveBeenCalled();
+  expect(vi.mocked(api).mock.calls.every((call) => call[2] === 'GET')).toBe(
+    true,
+  );
+});
+
+it.each([false, true])(
+  'does not offer a production deployment connection or planning action when configured is %s',
+  async (configured) => {
+    vi.mocked(api).mockResolvedValue({
+      state: 'ready',
+      stale: false,
+      checked_at: '2026-10-10T01:01:00Z',
+      items: [
+        {
+          ...installation,
+          environment: 'production',
+          delivery_configured: configured,
+        },
+      ],
+    });
+    const startTask = vi.fn();
+    render(
+      <AppInstallations
+        appId="candidate-review"
+        refresh={0}
+        t={translate('en-US')}
+        startTask={startTask}
+      />,
+    );
+    await screen.findByText('Production · Enabled');
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    expect(screen.queryByText(/Deployment connection is pending/)).toBeNull();
+    expect(startTask).not.toHaveBeenCalled();
+  },
+);
+
+it.each(['ready', 'unavailable'])(
+  'does not describe stale installation evidence as a current deployment connection when %s',
+  async (state) => {
+    vi.mocked(api).mockResolvedValue({
+      state,
+      stale: true,
+      checked_at: '2026-10-10T01:01:00Z',
+      items: [{ ...installation, delivery_configured: false }],
+    });
+    const startTask = vi.fn();
+    render(
+      <AppInstallations
+        appId="candidate-review"
+        refresh={0}
+        t={translate('en-US')}
+        startTask={startTask}
+      />,
+    );
+    const button = await screen.findByRole('button', {
+      name: 'Plan preview deployment',
+    });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(/Current state not verified/)).toBeTruthy();
+    expect(screen.queryByText(/Deployment connection is pending/)).toBeNull();
+    expect(startTask).not.toHaveBeenCalled();
+  },
+);
+
 it('starts a planning task bound to the exact configured development installation', async () => {
   vi.mocked(api).mockResolvedValue({
     state: 'ready',
@@ -404,9 +846,12 @@ it('starts a planning task bound to the exact configured development installatio
       startTask={startTask}
     />,
   );
-  fireEvent.click(
-    await screen.findByRole('button', { name: 'Plan preview deployment' }),
-  );
+  const button = await screen.findByRole('button', {
+    name: 'Plan preview deployment',
+  });
+  expect((button as HTMLButtonElement).disabled).toBe(false);
+  expect(screen.queryByText(/Deployment connection is pending/)).toBeNull();
+  fireEvent.click(button);
   await waitFor(() =>
     expect(startTask).toHaveBeenCalledWith(
       {

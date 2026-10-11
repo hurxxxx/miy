@@ -182,6 +182,8 @@ def import_postgres(source_url, destination_url):
                 "console_development_usage",
                 "console_development_usage_months",
                 "console_workbench_observations",
+                "console_workspaces",
+                "console_workspace_operations",
             }
             if revision == "console_0009":
                 expected -= {"console_templates", "console_host_observations"}
@@ -195,6 +197,8 @@ def import_postgres(source_url, destination_url):
                 expected_columns = set(Base.metadata.tables[name].c.keys())
                 if name == "console_agents":
                     expected_columns -= {"observation"}
+                if name == "console_tasks":
+                    expected_columns -= {"workspace_id"}
                 if name == "console_tasks" and revision == "console_0009":
                     expected_columns -= {"executor", "template_snapshot", "launch_id"}
                 if set(legacy.tables[name].c.keys()) != expected_columns:
