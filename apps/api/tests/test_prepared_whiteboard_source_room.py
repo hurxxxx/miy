@@ -495,7 +495,14 @@ def test_genuine_room_state_and_socket_use_read_only_columns_without_global_init
             f"/api/v1/whiteboard/collab/items/{c.world.ids['board']}/ws"
         ) as socket:
             socket.send_json({"type": "auth", "token": c.world.token})
-            assert socket.receive_bytes() == b"ready"
+            initial_message = socket.receive()
+            close_code = initial_message.get("code")
+            public_code = close_code if type(close_code) is int else None
+            ready_received = (
+                initial_message.get("type") == "websocket.send"
+                and initial_message.get("bytes") == b"ready"
+            )
+            assert ready_received, f"initial_room_close_code={public_code}"
             socket.send_bytes(b"synthetic update")
             assert socket.receive_bytes() == b"echo:synthetic update"
     assert hub.room.effects == [b"synthetic update"]

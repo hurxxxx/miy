@@ -129,8 +129,16 @@ class PostgresAppData:
     def _password(self, role: str) -> str:
         return hmac.new(self._key, ("miy-app-data-v1:" + role).encode(), hashlib.sha256).hexdigest()
 
-    def _connect(self, *, database=None, role=None, autocommit=False):
-        args = {"connect_timeout": 5, "options": "-c statement_timeout=5000 -c lock_timeout=3000"}
+    def _connect(self, *, database=None, role=None, autocommit=False, provisioning=False):
+        if provisioning and (database is not None or role is not None or not autocommit):
+            raise DataStoreError("data_configuration_invalid")
+        # CREATE DATABASE includes storage work, unlike a bounded app DML request.
+        # Only explicit Core administrative preparation receives this fixed budget.
+        statement_ms = 30000 if provisioning else 5000
+        args = {
+            "connect_timeout": 5,
+            "options": f"-c statement_timeout={statement_ms} -c lock_timeout=3000",
+        }
         if database is not None:
             args["dbname"] = database
         if role is not None:
@@ -172,7 +180,7 @@ class PostgresAppData:
         database, migrator, gateway = self.names(installation_id)
         marker = f"miy-independent-data-v1:{installation_id}:{app_id}:{environment}"
         try:
-            with self._connect(autocommit=True) as conn:
+            with self._connect(autocommit=True, provisioning=True) as conn:
                 # Session advisory lock also fences CREATE DATABASE (not transactional).
                 conn.execute("SELECT pg_advisory_lock(hashtextextended(%s,0))", (marker,))
                 self._preflight(conn)
