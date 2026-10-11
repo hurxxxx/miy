@@ -393,4 +393,37 @@ Workbench r21과 장비 앱의 안정 개발 배포는 앞선 실제 인수 근�
 배포·동기화 완료는 실제 성공한 pipeline/MR/PR와 runtime revision을 확인한
 후 이 문서와 게시 체크포인트에 갱신한다. 진행 중 기록은 완료 근거가 아니다.
 
+### 전체 릴리스 재검증의 추가 보완 (2026-10-11 UTC)
+
+[MR124](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/124)의
+필수 리뷰 job488이 통과했고 source `8cac328f484e5007a8a6f77c052b49fd668c91eb`를
+정상 병합한 dev는 `711d50875b0e11fd02070fc304b9b3bcc93b8baa`다.
+[Pipeline313](https://gitlab.1punicorn.com/lumejs/mty/-/pipelines/313)은
+개인 앱 job490 성공, 플랫폼 job489 실패다. API fast는 6,685통과·5실패·7skip,
+slow는16통과, migration은35통과·2실패, external은15통과했다.
+네 구간의 JUnit이 보존되어 실패7건 모두를 확인했다. 뒤의 web/Workbench
+전체 검사는 이 pipeline에서 실행되지 않았으며 완료로 계산하지 않는다.
+
+- 작업공간 중지는 설치를 잠근 뒤 요청을 취소하고, 소비자는 요청을 잠근 뒤
+  설치를 확인해 잠금 순서가 역전될 수 있었다. 네 동시 소비자 사례의
+  PostgreSQL deadlock을 로컬에서도 재현했다. 중지는 잠기지 않은 queued·미예약
+  요청만 native `FOR UPDATE SKIP LOCKED`로 취소하도록 보완한다.
+  잠긴 요청의 소유권·완료 증거를 유지하며, 미해결 요청이 남으면 유지보수의
+  런타임 중지·데이터 정리는 계속 보류한다. 자동 재배포나 DB 재시도를 추가하지 않는다.
+- Hermes 한 사례는 권한을 취소하기 전 operation queue 진입 대기의2초 제한에서
+  실패했다. 테스트가 native limiter 토큰을 직접 보유해 실제 queue를 확인한 뒤
+  권한을 취소·해제하도록 바꾸고, 조기 응답을 즉시 실패시킨다. 제품 권한 검증과
+  거절·무부작용 검증은 유지한다.
+- 역사 migration 두 사례는 당시 없던 `archived_origin`을 최신 ORM으로 삽입해
+  실패했다. 해당 revision의 실제 table을 반영한 fixture INSERT와 명시 열 조회로
+  수정하며 기존 데이터 보존·FK·nullable·index·upgrade/downgrade 검증을 유지한다.
+  제품 모델과 과거 migration 본문은 변경하지 않는다.
+
+Hermes 지연 I/O·workspace 취소·workspace 기본 흐름 세 파일과 역사 migration
+두 사례를 한 번에 검사해52건 모두 통과했다(56.37초, 실패/오류/skip0).
+독립 읽기 리뷰에서 추가 P1/P2는 없었고 변경 Python5파일 Ruff·형식·AST·diff
+검사를 통과했다. 필수 리뷰·새 전체 릴리스 gate는 아직 진행 중이다.
+운영은 기존 source를 유지하며, GitHub PR106/107은 `711d5087`의 동일 tree로
+갱신된 draft다. 최종 검증 소스로 다시 갱신하고 정상 병합해야 한다.
+
 최종 공개 문서는 이 파일과 [개선 기록](workbench-equipment-pilot/IMPROVEMENTS.md)이며, 세부 실행 영수증·스크린샷·서비스/SQLite 백업은 비공개 `.runtime/workbench-workspaces-20261011/deployment/`와 전용 backup 경로에 보존한다. private evidence나 설정 파일을 Git에 추가하지 않는다.

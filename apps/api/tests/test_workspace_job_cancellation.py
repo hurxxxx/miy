@@ -3,11 +3,10 @@
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 from threading import Event, get_ident
-from time import monotonic, sleep
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from miy_api.core.db import get_session_factory
@@ -88,13 +87,9 @@ def test_pg_workspace_stop_preserves_concurrent_delivery_owner(client, workspace
     model, request_id = requests[kind]
     app, headers, _, _, state = workspace
     factory = get_session_factory()
-    started = Event()
-    backend = []
 
     def stop():
         with factory() as db:
-            backend.append(db.scalar(text("SELECT pg_backend_pid()")))
-            started.set()
             grant, actor = delegation.resolve(
                 db, headers["Authorization"], "workspace", state["app_id"], app[3]["id"]
             )
@@ -121,20 +116,8 @@ def test_pg_workspace_stop_preserves_concurrent_delivery_owner(client, workspace
         consumer.flush()
         future = pool.submit(stop)
         try:
-            assert started.wait(5)
-            deadline = monotonic() + 5
-            with factory() as observer:
-                while monotonic() < deadline:
-                    if (
-                        observer.scalar(
-                            text("SELECT cardinality(pg_blocking_pids(:pid))"), {"pid": backend[0]}
-                        )
-                        > 0
-                    ):
-                        break
-                    sleep(0.01)
-                else:
-                    pytest.fail("Workspace stop did not reach the real PostgreSQL row lock")
+            stopped = future.result(timeout=10)
+            assert stopped["state"] == "stopping" and consumer.in_transaction()
             if outcome == "completed":
                 row.state, row.active_slot = "succeeded", None
                 if kind == "deploy":
@@ -147,7 +130,6 @@ def test_pg_workspace_stop_preserves_concurrent_delivery_owner(client, workspace
             consumer.commit()
         finally:
             consumer.rollback()
-        stopped = future.result(timeout=10)
     assert stopped["state"] == "stopping"
     with factory() as db:
         row = db.get(model, request_id)
@@ -165,6 +147,64 @@ def test_pg_workspace_stop_preserves_concurrent_delivery_owner(client, workspace
         installation = db.get(AppInstallationRecord, state["installation"]["id"])
         assert not installation.enabled
         assert db.get(AppWorkspaceRecord, state["id"]).state == "stopping"
+
+
+@pytest.mark.parametrize("kind", ["build", "deploy"])
+def test_pg_workspace_stop_keeps_rolled_back_claim_until_closed_authority_rejects_it(
+    client, workspace, kind
+):
+    requests = _queued_requests(client, workspace)
+    model, request_id = requests[kind]
+    _, headers, path, _, state = workspace
+    factory = get_session_factory()
+
+    def stop():
+        response = client.post(
+            path + "/stop", headers=headers, json={"expected_version": state["version"]}
+        )
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    with ThreadPoolExecutor(max_workers=1) as pool, factory() as consumer:
+        row = consumer.scalar(select(model).where(model.id == request_id).with_for_update())
+        original = (row.state, row.active_slot, row.failure_code, row.updated_at)
+        try:
+            stopped = pool.submit(stop).result(timeout=10)
+            assert stopped["state"] == "stopping" and consumer.in_transaction()
+        finally:
+            consumer.rollback()
+    with factory() as db:
+        row = db.get(model, request_id)
+        assert (row.state, row.active_slot, row.failure_code, row.updated_at) == original
+    assert _maintain(
+        get_settings(),
+        factory,
+        state["id"],
+        lambda *_: pytest.fail("Unresolved skipped claim must prevent runtime cleanup"),
+    ) == {
+        "state": "waiting",
+        "workspace_id": state["id"],
+        "failure_code": "workspace_delivery_reconciliation_required",
+    }
+
+    class UnusedRuntime:
+        def __getattr__(self, _name):
+            pytest.fail("Closed authority must prevent all daemon work")
+
+    with factory() as db:
+        if kind == "build":
+            row, claimed = delivery.start_build_job(
+                db, state["app_id"], state["source_revision"], request_id
+            )
+            assert not claimed and row.failure_code == "source_changed"
+        else:
+            row = delivery.execute_deployment(db, request_id, UnusedRuntime())
+            assert row.failure_code == "authority_changed"
+        assert row.state == "failed"
+    with factory() as db:
+        assert db.get(model, request_id).active_slot is None
+        installation = db.get(AppInstallationRecord, state["installation"]["id"])
+        assert not installation.enabled
 
 
 def test_pg_workspace_stop_cancels_only_queued_unclaimed_requests(client, workspace):

@@ -4,7 +4,6 @@ import asyncio
 import base64
 from datetime import timedelta
 from io import BytesIO
-import threading
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -219,28 +218,26 @@ async def test_deferred_operations_recheck_current_authority(deferred_io, operat
     state = deferred_io
     limiter = CapacityLimiter(1)
     token = mcp_router._OPERATION_THREADS.set(limiter)
-    entered, release = threading.Event(), threading.Event()
-
-    def hold():
-        entered.set()
-        assert release.wait(5)
-
-    blocker = asyncio.create_task(mcp_router._run_callback(hold, operation=True))
+    borrower = object()
     pending = None
     try:
-        assert await asyncio.to_thread(entered.wait, 1)
+        # Reserve native operation capacity without an expiring worker thread.
+        limiter.acquire_on_behalf_of_nowait(borrower)
         async with AsyncClient(
             transport=ASGITransport(app=state.app), base_url="http://test"
         ) as client:
             pending = asyncio.create_task(
                 client.post(state.url, headers=state.headers, json=payload(state, operation))
             )
-            async with asyncio.timeout(2):
+            async with asyncio.timeout(10):
                 while limiter.statistics().tasks_waiting != 1:
+                    assert not pending.done(), (
+                        "Deferred request finished before operation admission"
+                    )
                     await asyncio.sleep(0.01)
             state.revoke(revocation)
-            release.set()
-            response = await asyncio.wait_for(pending, 2)
+            limiter.release_on_behalf_of(borrower)
+            response = await asyncio.wait_for(pending, 10)
         if revocation == "unchanged":
             assert response.status_code == 200 and "error" not in response.json()
         else:
@@ -249,11 +246,15 @@ async def test_deferred_operations_recheck_current_authority(deferred_io, operat
             with state.factory() as db:
                 assert db.get(HermesSessionFile, state.file_id).object_key == state.old_key
     finally:
-        release.set()
-        await blocker
-        if pending is not None:
-            await asyncio.gather(pending, return_exceptions=True)
-        mcp_router._OPERATION_THREADS.reset(token)
+        try:
+            if pending is not None and not pending.done():
+                pending.cancel()
+            if borrower in limiter.statistics().borrowers:
+                limiter.release_on_behalf_of(borrower)
+            if pending is not None:
+                await asyncio.wait_for(asyncio.gather(pending, return_exceptions=True), 10)
+        finally:
+            mcp_router._OPERATION_THREADS.reset(token)
 
 
 @pytest.mark.anyio

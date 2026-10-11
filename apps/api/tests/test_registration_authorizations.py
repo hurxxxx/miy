@@ -13,7 +13,7 @@ from alembic import command
 from fastapi import HTTPException
 from pydantic import ValidationError
 import pytest
-from sqlalchemy import create_engine, delete, func, inspect, select, text
+from sqlalchemy import MetaData, Table, create_engine, delete, func, inspect, select, text
 from sqlalchemy.orm import Session
 
 from miy_api.core.db import get_session_factory
@@ -718,6 +718,8 @@ def test_authorization_migration_preserves_existing_receipts_and_has_nullable_to
     command.upgrade(config, "official_planner_writer_20261006")
     engine = create_engine(postgres_dsn)
     try:
+        # Seed the selected historical schema without future ORM metadata.
+        installations = Table("independent_app_installations", MetaData(), autoload_with=engine)
         with Session(engine) as db:
             user = User(
                 id=str(uuid4()),
@@ -737,29 +739,37 @@ def test_authorization_migration_preserves_existing_receipts_and_has_nullable_to
             )
             db.add(definition)
             db.flush()
-            installation = AppInstallationRecord(
-                id=str(uuid4()),
-                app_id=definition.app_id,
-                environment="development",
-                origin="https://migration.test",
-                enabled=False,
-                user_ids=[user.id],
-                state="disabled",
+            installation_id = str(uuid4())
+            db.execute(
+                installations.insert().values(
+                    id=installation_id,
+                    app_id=definition.app_id,
+                    environment="development",
+                    origin="https://migration.test",
+                    enabled=False,
+                    audience="selected",
+                    user_ids=[user.id],
+                    group_ids=[],
+                    granted_permissions=[],
+                    release_id=None,
+                    state="disabled",
+                    generation=1,
+                    runtime_ref=None,
+                )
             )
-            db.add(installation)
             db.flush()
             operation = AppBootstrapOperation(
                 operation_id=str(uuid4()),
                 owner_user_id=user.id,
                 app_id=definition.app_id,
-                installation_id=installation.id,
+                installation_id=installation_id,
                 payload_digest="sha256:" + "b" * 64,
                 definition_digest=definition.definition_digest,
                 source_revision=definition.source_revision,
             )
             db.add(operation)
             db.flush()
-            expected = (operation.operation_id, user.id, installation.id, operation.payload_digest)
+            expected = (operation.operation_id, user.id, installation_id, operation.payload_digest)
             db.commit()
         command.upgrade(config, "registration_auth_20261007")
         columns = {

@@ -572,6 +572,10 @@ def test_bootstrap_migration_preserves_existing_registration_on_upgrade_and_down
     engine = sa.create_engine(postgres_dsn)
     import_all_models()
     try:
+        # Seed/read the selected historical schema, not future ORM columns.
+        installations = sa.Table(
+            "independent_app_installations", sa.MetaData(), autoload_with=engine
+        )
         with Session(engine) as db:
             user = User(
                 id=str(uuid4()),
@@ -591,18 +595,26 @@ def test_bootstrap_migration_preserves_existing_registration_on_upgrade_and_down
             )
             db.add(definition)
             db.flush()
-            installation = AppInstallationRecord(
-                id=str(uuid4()),
-                app_id=definition.app_id,
-                environment="development",
-                origin="https://preexisting.test",
-                enabled=False,
-                user_ids=[user.id],
-                state="disabled",
+            installation_id = str(uuid4())
+            db.execute(
+                installations.insert().values(
+                    id=installation_id,
+                    app_id=definition.app_id,
+                    environment="development",
+                    origin="https://preexisting.test",
+                    enabled=False,
+                    audience="selected",
+                    user_ids=[user.id],
+                    group_ids=[],
+                    granted_permissions=[],
+                    release_id=None,
+                    state="disabled",
+                    generation=1,
+                    runtime_ref=None,
+                )
             )
-            db.add(installation)
             db.flush()
-            identities = (user.id, definition.app_id, installation.id)
+            identities = (user.id, definition.app_id, installation_id)
             db.commit()
         command.upgrade(config, "independent_bootstrap_20261006")
         operation_id = str(uuid4())
@@ -634,11 +646,17 @@ def test_bootstrap_migration_preserves_existing_registration_on_upgrade_and_down
         with Session(engine) as db:
             assert db.get(User, identities[0]) is not None
             assert db.get(AppDefinitionRecord, identities[1]).source_revision == "a" * 40
-            assert db.get(AppInstallationRecord, identities[2]).origin == "https://preexisting.test"
+            assert (
+                db.scalar(select(installations.c.origin).where(installations.c.id == identities[2]))
+                == "https://preexisting.test"
+            )
         command.upgrade(config, "independent_bootstrap_20261006")
         with Session(engine) as db:
             assert db.scalar(select(func.count()).select_from(AppBootstrapOperation)) == 0
             assert db.get(AppDefinitionRecord, identities[1]) is not None
-            assert db.get(AppInstallationRecord, identities[2]) is not None
+            assert (
+                db.scalar(select(installations.c.id).where(installations.c.id == identities[2]))
+                == identities[2]
+            )
     finally:
         engine.dispose()

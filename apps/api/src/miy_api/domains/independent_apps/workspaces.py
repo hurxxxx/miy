@@ -329,12 +329,28 @@ def transition(db, grant, context, workspace_id, data, *, action):
     installation.enabled = action == "resume"
     installation.generation += 1
     installation.state = "configured" if action == "resume" else "disabled"
-    # Only queued, unclaimed requests are cancelled. Running/unknown work keeps
-    # its durable ownership and must be reconciled before maintenance proceeds.
+    # Consumers lock jobs before installations. Never wait for their job locks
+    # while holding this installation: skipped requests keep their evidence and
+    # maintenance refuses cleanup until their normal claim/reconciliation ends.
     for model in (AppBuildJob, AppDeploymentRequest):
+        queued_ids = list(
+            db.scalars(
+                select(model.id)
+                .where(
+                    model.installation_id == installation.id,
+                    model.state == "queued",
+                    model.active_slot.is_(None),
+                )
+                .order_by(model.id)
+                .with_for_update(skip_locked=True)
+            )
+        )
+        if not queued_ids:
+            continue
         db.execute(
             update(model)
             .where(
+                model.id.in_(queued_ids),
                 model.installation_id == installation.id,
                 model.state == "queued",
                 model.active_slot.is_(None),
