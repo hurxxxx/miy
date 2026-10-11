@@ -3,7 +3,8 @@ set -u
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 STATUS=0
-REPORT_DIR="$ROOT_DIR/test-results/api"
+# Playwright clears its output root before each run; API evidence owns a sibling.
+REPORT_DIR="$ROOT_DIR/api-test-results"
 PYTEST_REPORT_OPTIONS=(--tb=short --show-capture=no -o junit_logging=no)
 
 # API integration tests exercise real worker tasks from this same source tree.

@@ -426,4 +426,32 @@ Hermes 지연 I/O·workspace 취소·workspace 기본 흐름 세 파일과 역�
 운영은 기존 source를 유지하며, GitHub PR106/107은 `711d5087`의 동일 tree로
 갱신된 draft다. 최종 검증 소스로 다시 갱신하고 정상 병합해야 한다.
 
+### Workbench 역사 스키마와 검사 결과 보존 보완 (2026-10-11 UTC)
+
+[MR125](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/125)는 필수 리뷰
+job491을 통과해 dev `7fcc3fbeb00d299838837826d95abe1d6c14d554`로 정상 병합했다.
+[Pipeline315](https://gitlab.1punicorn.com/lumejs/mty/-/pipelines/315)의 개인 앱
+job493은 통과했다. 플랫폼 job492에서 API 네 구간은 6,760통과·7skip·실패0
+(약58.1분), web 검사는 통과했다. Workbench backend는1,404통과·9실패였으며,
+뒤의 Workbench build/e2e는 실행되지 않았다. 전체 릴리스 성공 근거는 아니다.
+
+9건 모두 frozen PostgreSQL `console_0011`에 없는 SQLite 전용 `workspace_id`를
+현재 Task ORM으로 읽은 역사 fixture 문제였다. 해당 조회에만 native
+`defer(..., raiseload=True)`를 적용해 없는 열은 읽지 않으며, 향후 뜻밖의 접근은
+실패시킨다. 실제 migration과 복구·출처·기존 문서 보존 assertions는 유지한다.
+관련 역사 복구·migration14건을 실제 비운영 PostgreSQL에서 한 번에 확인해
+모두 통과했다(13.11초, 실패/오류/skip0). 제품 및 migration 본문 변경은 없다.
+
+또한 후속 Playwright 실행이 `test-results/`를 정리하면서 앞선 API JUnit까지
+삭제한 사실을 job492 artifact에서 확인했다. API 보고서를 별도
+`api-test-results/`로 옮기고 GitLab artifact·report 등록과 엄격한 CI 계약을
+함께 수정한다. maintainer 전용·14일 보존과 네 구간 선택·실패 처리는 유지한다.
+브라우저 출력 정리 후에도 네 보고서가 남는 직접 회귀를 포함해 CI 검사3건과
+Python/JS/YAML/shell 형식·정적 검사를 통과했다. 필수 리뷰와 다음 전체 CI는
+별도로 통과해야 하며 운영 배포·GitHub PR106/107 병합은 아직 완료되지 않았다.
+
+현재 배포·동기화 완료 후에는 사용자가 요청한 API 검사 약1/10 축소를 별도
+작업으로 진행한다. 기본 실행 목록만 줄이는 방식에 그치지 않고 중복 테스트를
+통합·삭제하며, 실제 소요 시간과 필수 권한·데이터 보존·migration 검증을 확인한다.
+
 최종 공개 문서는 이 파일과 [개선 기록](workbench-equipment-pilot/IMPROVEMENTS.md)이며, 세부 실행 영수증·스크린샷·서비스/SQLite 백업은 비공개 `.runtime/workbench-workspaces-20261011/deployment/`와 전용 backup 경로에 보존한다. private evidence나 설정 파일을 Git에 추가하지 않는다.

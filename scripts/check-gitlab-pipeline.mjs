@@ -150,13 +150,17 @@ export function expectedGitlabPipelineConfig() {
         when: 'always',
         expire_in: '14 days',
         access: 'maintainer',
-        paths: ['release-validation-context.md', 'test-results/'],
+        paths: [
+          'release-validation-context.md',
+          'test-results/',
+          'api-test-results/',
+        ],
         reports: {
           junit: [
-            'test-results/api/fast.xml',
-            'test-results/api/slow.xml',
-            'test-results/api/migration.xml',
-            'test-results/api/external.xml',
+            'api-test-results/fast.xml',
+            'api-test-results/slow.xml',
+            'api-test-results/migration.xml',
+            'api-test-results/external.xml',
           ],
         },
       },

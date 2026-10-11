@@ -6,7 +6,7 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from conftest import new_task, send_message
 from sqlalchemy import select, text
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 
 from codex_console import store
 from codex_console.cli import ROOT
@@ -38,7 +38,8 @@ def test_pre_structured_migration_recovers_only_original_completed_document(
             )
             migration.upgrade()
         with Session(bind=connection, join_transaction_mode="create_savepoint") as db:
-            row = db.get(Task, task["id"])
+            # The frozen PostgreSQL schema predates SQLite-managed workspaces.
+            row = db.get(Task, task["id"], options=[defer(Task.workspace_id, raiseload=True)])
             operation = db.get(Operation, row.current_operation_id)
             assert row.stage == "plan"
             assert operation.kind == ("legacy_plan" if kind == "plan" else kind)
