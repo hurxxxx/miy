@@ -269,13 +269,29 @@ def test_migration_journal_retry_artifact_conflict_and_code_rollback_retains_dat
 
 
 def test_dml_role_has_no_ddl_migration_or_other_database_privilege(
-    data_store, isolated_data_cluster
+    data_store, isolated_data_cluster, monkeypatch
 ):
+    connect = data_store._connect
+    observed_budgets = []
+
+    def observe_connect(**kwargs):
+        conn = connect(**kwargs)
+        with conn.transaction():
+            statement, lock = conn.execute(
+                "SELECT current_setting('statement_timeout'),current_setting('lock_timeout')"
+            ).fetchone()
+        observed_budgets.append((kwargs.get("provisioning", False), statement, lock))
+        assert conn.info.get_parameters()["connect_timeout"] == "5"
+        return conn
+
+    monkeypatch.setattr(data_store, "_connect", observe_connect)
     first, second = actor(), actor()
     prepare(data_store, first)
     prepare(data_store, second)
     database, _, gateway = data_store.names(first.installation_id)
     other, _, _ = data_store.names(second.installation_id)
+    with pytest.raises(DataStoreError, match="data_configuration_invalid"):
+        data_store._connect(database=database, role=gateway, autocommit=True, provisioning=True)
     with data_store._connect(database=database, role=gateway) as conn:
         assert conn.execute(
             "SELECT has_database_privilege(current_user,%s,'CONNECT')", (other,)
@@ -298,6 +314,50 @@ def test_dml_role_has_no_ddl_migration_or_other_database_privilege(
     with pytest.raises(DataStoreError, match="provision_unavailable"):
         prepare(wrong_key, first)
     assert data_store.list_records(first, "notes") == []
+    assert observed_budgets.count((True, "30s", "3s")) == 2
+    assert all(
+        budget == (True, "30s", "3s") or budget == (False, "5s", "3s")
+        for budget in observed_budgets
+    )
+    assert (False, "5s", "3s") in observed_budgets
+
+
+def test_provisioning_timeout_is_private_and_never_retries_or_removes_marked_roles(
+    data_store, monkeypatch
+):
+    owner = actor()
+    database, migrator, gateway = data_store.names(owner.installation_id)
+    execute = psycopg.Connection.execute
+    create_attempts = []
+
+    def cancel_create(conn, query, *args, **kwargs):
+        if isinstance(query, sql.Composable):
+            statement = query.as_string(conn)
+            if statement.startswith("CREATE DATABASE "):
+                assert statement.startswith(f'CREATE DATABASE "{database}" ')
+                create_attempts.append(database)
+                raise psycopg.errors.QueryCanceled("synthetic-private-provisioning-failure")
+        return execute(conn, query, *args, **kwargs)
+
+    monkeypatch.setattr(psycopg.Connection, "execute", cancel_create)
+    with pytest.raises(DataStoreError) as failed:
+        prepare(data_store, owner)
+    assert failed.value.code == "data_provision_unavailable"
+    assert str(failed.value) == "data_provision_unavailable"
+    assert isinstance(failed.value.__cause__, psycopg.errors.QueryCanceled)
+    assert create_attempts == [database]
+    with data_store._connect(autocommit=True) as conn:
+        assert (
+            conn.execute("SELECT 1 FROM pg_database WHERE datname=%s", (database,)).fetchone()
+            is None
+        )
+        marker = f"miy-independent-data-v1:{owner.installation_id}:{owner.app_id}:development"
+        roles = conn.execute(
+            "SELECT rolname,shobj_description(oid,'pg_authid') FROM pg_roles "
+            "WHERE rolname IN (%s,%s) ORDER BY rolname",
+            (migrator, gateway),
+        ).fetchall()
+        assert roles == sorted([(migrator, marker), (gateway, marker)])
 
 
 def test_request_bounds_and_rls_without_actor(data_store):

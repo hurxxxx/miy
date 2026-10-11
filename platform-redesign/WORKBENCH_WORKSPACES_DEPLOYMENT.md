@@ -502,4 +502,28 @@ ready 조회와 갱신을 반복했다. 실패 trace에는 같은 폼281개와 r
 필수 리뷰·새 전체 릴리스 검증 후 Core/공식 앱 운영 배포 및 GitHub 동기화를
 진행한다. 아직 운영 배포·GitHub PR106/107 병합 완료를 뜻하지 않는다.
 
+### DB 준비 시간 제한과 소켓 실패 진단 (2026-10-11 UTC)
+
+MR128의 필수320/job500 통과 후 dev `1778549b4b006855cce2e594887f1fe3a4ac92ed`
+에서 실행한 [전체321](https://gitlab.1punicorn.com/lumejs/mty/-/pipelines/321)은
+개인 앱502 성공, 플랫폼501 실패다. API는6,758통과·2실패·7skip이며,
+slow/migration/external 구간은 모두 통과했다. web·Workbench 후속 구간은 실행하지 않았다.
+
+개인 앱 권한 검사의 두 번째 DB 준비가 `CREATE DATABASE`에서 PostgreSQL
+`QueryCanceled`/statement timeout으로 실패했다. Core 준비 연결에 일반 SQL의5초
+제한이 함께 적용돼 있었다. 준비 연결만 고정30초로 분리하고, 일반 DML·migration·검색·정리는5초,
+잠금3초·접속5초와 기존 권한·원 소유 표식·미확정 결과의 무재시도·무삭제를 유지한다.
+실제 I/O 지연의 원인은 확정하지 않았다. 현재 계약은 [앱 데이터 소유 문서](../apps/api/src/miy_api/domains/independent_apps/DATA.md)가 소유한다.
+
+다른 실패는 prepared Whiteboard room의 최초 `ready` 수신에서 발생한
+`WebSocketDisconnect`다. 기존 CI 출력에 종료 코드가 없어 원인은 미확정이다.
+테스트가 실패하면 정수 종료 코드만 표시하도록 보완했으며, 실제 ready bytes·echo·읽기 전용 SQL
+검사와 제품 권한·timeout은 유지했다. 수정 전 두 실패 검사의 별도 PostgreSQL18 재현은2통과
+(13.88초)였고, 수정 후 관련 두 파일을2workers로 묶은 검사는74통과(32.11초), 실패·skip0이다.
+해당 소켓의 실제 callback12회도 모두 통과했다. 이는 과거 연결 종료의 원인 확정을 뜻하지 않는다.
+
+독립 읽기 리뷰에서 P1/P2는 발견하지 못했으며 Ruff·형식·diff 검사를 통과했다.
+필수 리뷰와 새 전체 릴리스 결과 확인 후 운영·별도 Workbench·GitHub 전달을 계속한다.
+API 중복 검사 축소는 전달 이후의 별도 작업으로 유지한다.
+
 최종 공개 문서는 이 파일과 [개선 기록](workbench-equipment-pilot/IMPROVEMENTS.md)이며, 세부 실행 영수증·스크린샷·서비스/SQLite 백업은 비공개 `.runtime/workbench-workspaces-20261011/deployment/`와 전용 backup 경로에 보존한다. private evidence나 설정 파일을 Git에 추가하지 않는다.
