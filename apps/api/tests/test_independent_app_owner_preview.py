@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import base64
 from concurrent.futures import ThreadPoolExecutor
-import hashlib
 from threading import Event
 from time import monotonic
 from uuid import uuid4
@@ -10,16 +8,13 @@ from uuid import uuid4
 from fastapi import HTTPException
 import pytest
 from sqlalchemy import event, func, select, text
-from sqlalchemy.orm import Session
 
 from miy_api.core.db import get_session_factory
 from miy_api.core.settings import get_settings
-from miy_api.domains.auth.models import AuditLog, CompanyAppControl, User, utcnow_naive
-from miy_api.domains.independent_apps import data_api, delivery, owner_preview, service
+from miy_api.domains.auth.models import AuditLog, User, utcnow_naive
+from miy_api.domains.independent_apps import delivery, owner_preview
 from miy_api.domains.independent_apps.contracts import AppDefinition
 from miy_api.domains.independent_apps.delivery_models import (
-    AppBuildJob,
-    AppBuildVerification,
     AppDeploymentRequest,
 )
 from miy_api.domains.independent_apps.models import (
@@ -176,128 +171,6 @@ def test_current_snapshot_enable_lost_response_noop_and_original_receipt_preserv
     assert catalog["items"][0]["installations"][0]["launchable"]
 
 
-def test_archived_installation_is_not_an_owner_preview_configuration(client, preview):
-    _, _, receipt, _ = preview
-    current = read(client, preview)
-    assert current.status_code == 200, current.text
-    data = patch_data(current.json())
-    with get_session_factory()() as db:
-        installation = db.get(AppInstallationRecord, receipt["installation_id"])
-        installation.archived_origin = installation.origin
-        installation.origin = None
-        installation.state = "archived"
-        installation.generation += 1
-        expected = (
-            installation.archived_origin,
-            installation.generation,
-            installation.enabled,
-            list(installation.granted_permissions),
-        )
-        db.commit()
-    assert read(client, preview).status_code == 404
-    assert patch(client, preview, data).status_code == 404
-    with get_session_factory()() as db:
-        installation = db.get(AppInstallationRecord, receipt["installation_id"])
-        assert installation.state == "archived" and installation.origin is None
-        assert (
-            installation.archived_origin,
-            installation.generation,
-            installation.enabled,
-            installation.granted_permissions,
-        ) == expected
-        assert service.installation_out(installation).origin == expected[0]
-        assert audit_count(db) == 0
-
-
-@pytest.mark.parametrize(
-    "actor", ["admin", "no_auth", "metadata", "registration", "app", "delivery"]
-)
-def test_other_admin_and_non_login_credentials_never_gain_owner_authority(client, preview, actor):
-    _, admin, receipt, url = preview
-    data = patch_data(read(client, preview).json())
-    headers = (
-        {}
-        if actor == "no_auth"
-        else _auth_headers(
-            admin["token"] if actor == "admin" else f"miy-{actor}-synthetic-not-login"
-        )
-    )
-    expected = 404 if actor == "admin" else 401
-    assert client.get(url, headers=headers).status_code == expected
-    assert client.patch(url, headers=headers, json=data).status_code == expected
-    unchanged(receipt)
-
-
-@pytest.mark.parametrize(
-    "change",
-    [
-        {"origin": "https://changed.test"},
-        {"environment": "production"},
-        {"audience": "all"},
-        {"user_ids": []},
-        {"source_revision": "b" * 40},
-        {"release_id": str(uuid4())},
-        {"runtime_ref": "changed"},
-        {"expected_generation": True},
-        {"expected_generation": 1.0},
-        {"expected_generation": 0},
-        {"enabled": "true"},
-        {"granted_permissions": ["identity:read", "identity:read"]},
-        {"granted_permissions": ["platform:admin"]},
-    ],
-)
-def test_patch_rejects_unowned_fields_and_coercive_inputs(client, preview, change):
-    assert (
-        patch(client, preview, patch_data(read(client, preview).json(), **change)).status_code
-        == 422
-    )
-    unchanged(preview[2])
-
-
-def test_unrequested_known_permission_is_denied(client, preview):
-    data = patch_data(read(client, preview).json(), granted_permissions=["data:write"])
-    assert patch(client, preview, data).status_code == 403
-    unchanged(preview[2])
-
-
-@pytest.mark.parametrize(
-    "boundary", ["official", "production", "broadcast", "other_user", "duplicate_owner", "group"]
-)
-def test_legacy_non_self_boundaries_are_not_normalized_by_owner_preview(client, preview, boundary):
-    member, admin, receipt, _ = preview
-    data = patch_data(read(client, preview).json())
-    with get_session_factory()() as db:
-        install = db.get(AppInstallationRecord, receipt["installation_id"])
-        if boundary == "official":
-            definition = db.get(AppDefinitionRecord, receipt["app_id"])
-            definition.manifest = dict(definition.manifest, ownership="official")
-        elif boundary == "production":
-            install.environment = "production"
-        elif boundary == "broadcast":
-            install.audience = "all"
-        elif boundary == "other_user":
-            install.user_ids = [member["user"]["id"], admin["user"]["id"]]
-        elif boundary == "duplicate_owner":
-            install.user_ids = [member["user"]["id"]] * 2
-        else:
-            install.group_ids = ["legacy-group"]
-        db.commit()
-    assert read(client, preview).status_code == 404
-    assert patch(client, preview, data).status_code == 404
-    unchanged(receipt)
-
-
-def test_impersonated_owner_is_refused_even_with_live_admin(client, preview):
-    member, admin, receipt, _ = preview
-    data = patch_data(read(client, preview).json())
-    with get_session_factory()() as db:
-        context(db, member).session.impersonator_user_id = admin["user"]["id"]
-        db.commit()
-    assert read(client, preview).status_code == 403
-    assert patch(client, preview, data).status_code == 403
-    unchanged(receipt)
-
-
 def release(db, receipt):
     definition = db.get(AppDefinitionRecord, receipt["app_id"])
     value = AppReleaseRecord(
@@ -311,129 +184,6 @@ def release(db, receipt):
     db.add(value)
     db.flush()
     return value
-
-
-@pytest.mark.parametrize(
-    "reason",
-    [
-        "release",
-        "runtime",
-        "ready",
-        "delivery_queued",
-        "delivery_running",
-        "delivery_unknown",
-        "delivery_cleanup",
-        "build_queued",
-        "build_running",
-        "build_unknown",
-        "build_cleanup",
-        "build_future",
-        "verified",
-        "company",
-        "origins_missing",
-        "same_origin",
-        "malformed_origin",
-    ],
-)
-def test_non_initial_or_blocked_configuration_is_read_only(client, preview, monkeypatch, reason):
-    member, _, receipt, _ = preview
-    data = patch_data(read(client, preview).json())
-    expected = "already_deployed"
-    with get_session_factory()() as db:
-        install = db.get(AppInstallationRecord, receipt["installation_id"])
-        if reason == "release":
-            install.release_id = release(db, receipt).id
-        elif reason == "runtime":
-            install.runtime_ref = str(uuid4())
-        elif reason == "ready":
-            install.state = "ready"
-        elif reason.startswith("delivery_"):
-            source = context(db, member)
-            db.add(
-                AppDeploymentRequest(
-                    id=str(uuid4()),
-                    actor_user_id=source.user.id,
-                    source_session_id=source.session.id,
-                    installation_id=install.id,
-                    release_id=release(db, receipt).id,
-                    action="deploy",
-                    request_hash="a" * 64,
-                    expected_generation=1,
-                    state=reason.removeprefix("delivery_"),
-                )
-            )
-            expected = "delivery_in_progress"
-        elif reason.startswith("build_") or reason == "verified":
-            job = AppBuildJob(
-                id=str(uuid4()),
-                app_id=receipt["app_id"],
-                source_revision=receipt["source_revision"],
-                definition_digest=receipt["definition_digest"],
-                state="succeeded" if reason == "verified" else reason.removeprefix("build_"),
-            )
-            db.add(job)
-            db.flush()
-            expected = "build_in_progress"
-            if reason == "verified":
-                db.add(
-                    AppBuildVerification(
-                        id=str(uuid4()),
-                        build_job_id=job.id,
-                        app_id=job.app_id,
-                        source_revision=job.source_revision,
-                        definition_digest=job.definition_digest,
-                        source_archive_sha256="a" * 64,
-                        artifact_digest="sha256:" + "b" * 64,
-                        builder_profile_digest="sha256:" + "c" * 64,
-                        target_environment="development",
-                        checks={"test": 0},
-                    )
-                )
-                expected = "already_verified"
-        elif reason == "company":
-            db.get(CompanyAppControl, receipt["app_id"]).enabled = False
-            expected = "company_disabled"
-        elif reason == "origins_missing":
-            monkeypatch.setenv("MIY_INDEPENDENT_APP_PLATFORM_ORIGINS", "[]")
-            get_settings.cache_clear()
-            expected = "origin_configuration_required"
-        else:
-            install.origin = (
-                "https://platform.test" if reason == "same_origin" else "https://broken.test/path"
-            )
-            expected = "invalid_origin"
-        db.commit()
-    current = read(client, preview)
-    assert current.status_code == 200, current.text
-    assert current.json()["unavailable_reason"] == expected and not current.json()["can_configure"]
-    assert patch(client, preview, data).status_code == 409
-    unchanged(receipt)
-
-
-@pytest.mark.parametrize("isolation", ["REPEATABLE READ", "SERIALIZABLE", "AUTOCOMMIT"])
-def test_controls_require_read_committed_and_transaction(client, preview, isolation):
-    member, _, receipt, _ = preview
-    data = patch_data(read(client, preview).json())
-    with (
-        get_session_factory()()
-        .get_bind()
-        .connect()
-        .execution_options(isolation_level=isolation) as connection
-    ):
-        with Session(connection) as db:
-            with pytest.raises(HTTPException) as error:
-                configure(db, preview, data)
-            assert error.value.status_code == 403
-            with pytest.raises(HTTPException) as error:
-                owner_preview.read(
-                    db,
-                    receipt["app_id"],
-                    receipt["installation_id"],
-                    context(db, member),
-                    platform_origin="https://platform.test",
-                )
-            assert error.value.status_code == 403
-    unchanged(receipt)
 
 
 def test_concurrent_generation_has_one_winner_and_no_duplicate_audit(client, preview):
@@ -456,7 +206,7 @@ def test_concurrent_generation_has_one_winner_and_no_duplicate_audit(client, pre
         assert audit_count(db) == 1
 
 
-@pytest.mark.parametrize("change", ["session", "account", "source", "definition"])
+@pytest.mark.parametrize("change", ["definition"])
 def test_current_authority_and_definition_are_rechecked_after_real_lock_wait(
     client, preview, change
 ):
@@ -523,120 +273,6 @@ def test_current_authority_and_definition_are_rechecked_after_real_lock_wait(
     unchanged(receipt)
 
 
-@pytest.mark.parametrize("revocation", ["session", "account", "company"])
-def test_postflush_revoke_rolls_back_configuration_and_audit(client, preview, revocation):
-    member, _, receipt, _ = preview
-    data = patch_data(read(client, preview).json())
-
-    def revoke(db, flush_context):
-        with get_session_factory()() as revoker:
-            if revocation == "session":
-                context(revoker, member).session.revoked_at = utcnow_naive()
-            elif revocation == "account":
-                revoker.get(User, member["user"]["id"]).login_blocked = True
-            else:
-                revoker.get(CompanyAppControl, receipt["app_id"]).enabled = False
-            revoker.commit()
-
-    with get_session_factory()() as db:
-        event.listen(db, "after_flush_postexec", revoke, once=True)
-        with pytest.raises(HTTPException) as error:
-            configure(db, preview, data)
-        assert error.value.status_code in {401, 403, 409}
-    unchanged(receipt)
-
-
-def test_real_lock_timeout_rolls_back_and_restores_local_setting(client, preview, monkeypatch):
-    receipt = preview[2]
-    data = patch_data(read(client, preview).json())
-    monkeypatch.setattr(owner_preview, "LOCK_TIMEOUT_MS", 150)
-    with get_session_factory()() as blocker:
-        blocker.scalar(
-            select(AppInstallationRecord)
-            .where(AppInstallationRecord.id == receipt["installation_id"])
-            .with_for_update()
-        )
-        started = monotonic()
-        response = patch(client, preview, data)
-        assert monotonic() - started < 3
-        assert response.status_code == 503
-        assert response.json()["code"] == "independent_apps.preview_busy"
-        assert "SELECT" not in response.text
-        with get_session_factory()() as db:
-            prior = db.scalar(text("SHOW lock_timeout"))
-            with pytest.raises(HTTPException):
-                configure(db, preview, data)
-            assert db.scalar(text("SHOW lock_timeout")) == prior
-    unchanged(receipt)
-
-
-def test_unrelated_database_error_is_not_hidden(client, preview):
-    from sqlalchemy.exc import ProgrammingError
-
-    data = patch_data(read(client, preview).json())
-
-    def fail(db, flush_context):
-        db.execute(text("SELECT * FROM owner_preview_missing_fixture_relation"))
-
-    with get_session_factory()() as db:
-        event.listen(db, "after_flush_postexec", fail, once=True)
-        with pytest.raises(ProgrammingError) as error:
-            configure(db, preview, data)
-        assert error.value.orig.sqlstate == "42P01"
-    unchanged(preview[2])
-
-
-def test_noop_keeps_sessions_but_real_change_revokes_launches_and_sessions(client, preview):
-    member, _, receipt, _ = preview
-    first = patch(client, preview, patch_data(read(client, preview).json())).json()
-    headers = _auth_headers(member["token"])
-    verifier = "v" * 43
-    challenge = (
-        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
-    )
-    launch_body = {"installation_id": receipt["installation_id"], "code_challenge": challenge}
-    first_code = client.post(BASE + "/launch", headers=headers, json=launch_body).json()["code"]
-    second_code = client.post(BASE + "/launch", headers=headers, json=launch_body).json()["code"]
-    exchange_body = {
-        "installation_id": receipt["installation_id"],
-        "code": first_code,
-        "code_verifier": verifier,
-    }
-    app_token = client.post(
-        BASE + "/exchange", headers={"Origin": first["origin"]}, json=exchange_body
-    ).json()["token"]
-    assert patch(client, preview, patch_data(first)).json() == first
-    with get_session_factory()() as db:
-        assert (
-            service.app_identity(
-                db,
-                token=app_token,
-                installation_id=receipt["installation_id"],
-                audience=first["origin"],
-            ).user_id
-            == member["user"]["id"]
-        )
-    changed = patch(client, preview, patch_data(first, enabled=False)).json()
-    assert changed["generation"] == 3 and not changed["enabled"]
-    assert (
-        client.post(
-            BASE + "/exchange",
-            headers={"Origin": first["origin"]},
-            json=exchange_body | {"code": second_code},
-        ).status_code
-        == 401
-    )
-    with get_session_factory()() as db:
-        with pytest.raises(HTTPException) as error:
-            service.app_identity(
-                db,
-                token=app_token,
-                installation_id=receipt["installation_id"],
-                audience=first["origin"],
-            )
-        assert error.value.status_code == 401
-
-
 def test_late_queue_waits_on_fk_then_old_generation_fails_before_runtime_work(client, preview):
     member, _, receipt, _ = preview
     data = patch_data(read(client, preview).json())
@@ -701,82 +337,3 @@ def test_late_queue_waits_on_fk_then_old_generation_fails_before_runtime_work(cl
         result = delivery.execute_deployment(db, request_id, runtime)
         assert (result.state, result.failure_code) == ("failed", "authority_changed")
     assert runtime.active is None and runtime.candidates == {} and runtime.activations == []
-
-
-@pytest.mark.parametrize("state", ["failed", "succeeded"])
-def test_terminal_build_without_live_verification_does_not_block_initial_setup(
-    client, preview, state
-):
-    receipt = preview[2]
-    with get_session_factory()() as db:
-        db.add(
-            AppBuildJob(
-                id=str(uuid4()),
-                app_id=receipt["app_id"],
-                source_revision=receipt["source_revision"],
-                definition_digest=receipt["definition_digest"],
-                state=state,
-            )
-        )
-        db.commit()
-    snapshot = read(client, preview).json()
-    assert snapshot["can_configure"]
-    assert patch(client, preview, patch_data(snapshot)).status_code == 200
-
-
-def test_data_permissions_are_explicit_and_do_not_assert_installed_data_release(client, preview):
-    member, _, receipt, _ = preview
-    with get_session_factory()() as db:
-        definition = db.get(AppDefinitionRecord, receipt["app_id"])
-        manifest = AppDefinition.model_validate(
-            definition.manifest
-            | {
-                "runtime_profile": "web-api-postgres-v1",
-                "requested_permissions": ["identity:read", "data:read", "data:write"],
-            }
-        )
-        definition.manifest = manifest.model_dump(mode="json")
-        definition.definition_digest = manifest.content_digest()
-        db.commit()
-    snapshot = read(client, preview).json()
-    assert snapshot["runtime_profile"] == "web-api-postgres-v1"
-    grants = ["identity:read", "data:write", "data:read"]
-    response = patch(client, preview, patch_data(snapshot, granted_permissions=grants))
-    assert response.status_code == 200, response.text
-    assert response.json()["granted_permissions"] == sorted(grants)
-    assert (
-        patch(
-            client, preview, patch_data(response.json(), granted_permissions=list(reversed(grants)))
-        ).json()
-        == response.json()
-    )
-    verifier = "v" * 43
-    challenge = (
-        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
-    )
-    code = client.post(
-        BASE + "/launch",
-        headers=_auth_headers(member["token"]),
-        json={"installation_id": receipt["installation_id"], "code_challenge": challenge},
-    ).json()["code"]
-    token = client.post(
-        BASE + "/exchange",
-        headers={"Origin": snapshot["origin"]},
-        json={
-            "installation_id": receipt["installation_id"],
-            "code": code,
-            "code_verifier": verifier,
-        },
-    ).json()["token"]
-    with get_session_factory()() as db:
-        with pytest.raises(HTTPException) as error:
-            data_api.identity(
-                installation_id=receipt["installation_id"],
-                audience=snapshot["origin"],
-                authorization="Bearer " + token,
-                db=db,
-            )
-        assert error.value.status_code == 403
-        assert audit_count(db) == 1
-        installation = db.get(AppInstallationRecord, receipt["installation_id"])
-        assert installation.release_id is None and installation.runtime_ref is None

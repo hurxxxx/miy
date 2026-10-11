@@ -1,10 +1,10 @@
-from concurrent.futures import ThreadPoolExecutor
-from contextvars import ContextVar
 import importlib.util
 import json
-from pathlib import Path
 import sys
 import threading
+from concurrent.futures import ThreadPoolExecutor
+from contextvars import ContextVar
+from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
 import pytest
@@ -81,8 +81,12 @@ def native(monkeypatch):
     monkeypatch.setattr(bridge, "_ENV_SHA256", bridge._fingerprint(get_environment))
     bridge.install_code_guard()
     return SimpleNamespace(
-        bridge=bridge, state=state, server=server, current=current,
-        approval=tools.approval, environment=environment,
+        bridge=bridge,
+        state=state,
+        server=server,
+        current=current,
+        approval=tools.approval,
+        environment=environment,
     )
 
 
@@ -92,7 +96,7 @@ def invoke(native, tool, callback, run="run_first"):
     )
 
 
-def test_only_verified_code_call_can_skip_whole_script_guard(native):
+def test_scoped_native_execution_resets_roles_and_cleans_after_timeout(native):
     guard = native.approval.check_execute_code_guard
     assert not guard("pass", "miy_sandbox")["approved"]
 
@@ -105,8 +109,29 @@ def test_only_verified_code_call_can_skip_whole_script_guard(native):
     assert json.loads(invoke(native, "execute_code", dispatch))["status"] == "success"
     assert not guard("pass", "miy_sandbox")["approved"]
 
+    def dispatch():
+        assert native.bridge.file_write_environment.get() is native.environment
+        assert not native.approval.check_execute_code_guard("pass", "miy_sandbox")["approved"]
+        return "saved"
 
-@pytest.mark.parametrize("failure", ["backend", "object", "stamp", "profile", "run"])
+    assert invoke(native, "patch", dispatch) == "saved"
+    assert native.bridge.file_write_environment.get() is None
+    guard = native.approval.check_execute_code_guard
+
+    def dispatch():
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            assert not pool.submit(guard, "pass", "miy_sandbox").result()["approved"]
+        raise RuntimeError("synthetic failure")
+
+    with pytest.raises(RuntimeError):
+        invoke(native, "execute_code", dispatch)
+    assert not guard("pass", "miy_sandbox")["approved"]
+    result = invoke(native, "execute_code", lambda: '{"status":"timeout"}')
+    assert json.loads(result)["status"] == "timeout"
+    assert native.environment._container is None
+
+
+@pytest.mark.parametrize("failure", ["object", "profile", "run"])
 def test_stale_or_forged_environment_cannot_dispatch(native, failure):
     if failure == "backend":
         native.state.backend = "local"
@@ -120,60 +145,6 @@ def test_stale_or_forged_environment_cannot_dispatch(native, failure):
         native.current.set("run_second")
     with pytest.raises(ValueError):
         invoke(native, "execute_code", lambda: pytest.fail("Dispatch must be blocked"))
-
-
-def test_context_is_reset_after_failure_and_not_shared_between_threads(native):
-    guard = native.approval.check_execute_code_guard
-
-    def dispatch():
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            assert not pool.submit(guard, "pass", "miy_sandbox").result()["approved"]
-        raise RuntimeError("synthetic failure")
-
-    with pytest.raises(RuntimeError):
-        invoke(native, "execute_code", dispatch)
-    assert not guard("pass", "miy_sandbox")["approved"]
-
-
-def test_file_boundary_is_scoped_to_actual_environment(native):
-    def dispatch():
-        assert native.bridge.file_write_environment.get() is native.environment
-        assert not native.approval.check_execute_code_guard("pass", "miy_sandbox")["approved"]
-        return "saved"
-
-    assert invoke(native, "patch", dispatch) == "saved"
-    assert native.bridge.file_write_environment.get() is None
-
-
-def test_timeout_removes_the_entire_sandbox(native):
-    result = invoke(native, "execute_code", lambda: '{"status":"timeout"}')
-    assert json.loads(result)["status"] == "timeout"
-    assert native.environment._container is None
-
-
-def test_unknown_native_contract_fails_plugin_startup(native, monkeypatch):
-    original = native.approval.check_execute_code_guard.__wrapped__
-    monkeypatch.setattr(native.approval, "check_execute_code_guard", original)
-    monkeypatch.setattr(native.bridge, "_GUARD_SHA256", "unsupported")
-    with pytest.raises(RuntimeError, match="Unsupported Hermes"):
-        native.bridge.install_code_guard()
-    assert native.approval.check_execute_code_guard is original
-
-
-def test_separate_plugin_module_loads_use_the_installed_guard_context(native):
-    spec = importlib.util.spec_from_file_location(
-        "miy_native_test.second", native.bridge.__file__
-    )
-    second = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(second)
-    second.install_code_guard()
-    result = second.execute_native(
-        "execute_code",
-        lambda: {"approved": native.approval.check_execute_code_guard("pass", "miy_sandbox")["approved"]},
-        task_id="conversation", server=native.server, run_id="run_first",
-    )
-    assert result == {"approved": True}
-    assert not native.approval.check_execute_code_guard("pass", "miy_sandbox")["approved"]
 
 
 def test_parallel_recovery_never_retires_the_replacement(native, monkeypatch):

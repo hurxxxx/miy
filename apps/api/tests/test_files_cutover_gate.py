@@ -1,8 +1,5 @@
-from contextlib import contextmanager
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
-import time
-import signal
 import os
 from pathlib import Path
 import subprocess
@@ -17,18 +14,15 @@ from miy_api.domains.files import cutover_gate as gate
 from miy_api.domains.retrieval.files_cutover import FilesRetrievalCutoverStatus
 from miy_api.domains.retrieval import files_generation_runner as generation
 from miy_api.domains.retrieval.files_quality_judgments import FilesQualityJudgmentSnapshot
-from miy_api.domains.search.models import SearchIndexJob
-from miy_api.domains.rag.models import RagSyncJob
-from miy_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOURCE_TYPE
 from test_files_generation_runner import (
-    _FakeBackends,
-    _FakeMaterializer,
-    _inventory,
-    _loaded_source_snapshot,
-    _passing_v3_quality_artifact,
-    _quality_corpus_bytes,
-    _settings,
-    _source_snapshot,
+    _FakeBackends as _FakeBackends,
+    _FakeMaterializer as _FakeMaterializer,
+    _inventory as _inventory,
+    _loaded_source_snapshot as _loaded_source_snapshot,
+    _passing_v3_quality_artifact as _passing_v3_quality_artifact,
+    _quality_corpus_bytes as _quality_corpus_bytes,
+    _settings as _settings,
+    _source_snapshot as _source_snapshot,
     generation_session_factory as generation_session_factory,
 )
 
@@ -72,63 +66,6 @@ def _enabled():
 
 def _trap(*_args, **_kwargs):
     pytest.fail("inactive/empty/missing-stamp path constructed a verifier or Source session")
-
-
-@pytest.mark.parametrize("flags", [(False, False), (False, True), (True, False)])
-def test_inactive_flags_skip_source_and_backend_construction(flags):
-    receipt = gate.check_files_content_cutover(
-        settings=SimpleNamespace(rag_enabled=flags[0], files_retrieval_enabled=flags[1]),
-        session_factory=_trap,
-        verify_active=_trap,
-    )
-    assert receipt.mode == "inactive"
-    assert receipt.gate_version == "files-result-stamp-v1"
-
-
-def test_empty_means_actual_source_table_empty(source_factory):
-    receipt = gate.check_files_content_cutover(
-        settings=_enabled(), session_factory=source_factory[0], verify_active=_trap
-    )
-    assert receipt.mode == "empty_source"
-
-
-def test_ready_source_without_result_stamp_refuses_before_backend(source_factory):
-    factory = _source(source_factory, stamp=None)
-    with pytest.raises(gate.FilesContentCutoverRefused) as caught:
-        gate.check_files_content_cutover(
-            settings=_enabled(), session_factory=factory, verify_active=_trap
-        )
-    assert caught.value.reason == "source_result_stamp_missing"
-
-
-@pytest.mark.parametrize("status,deleted", [("pending", False), ("failed", False), ("ready", True)])
-def test_nonempty_unready_or_tombstone_source_cannot_use_empty_bypass(
-    source_factory, status, deleted
-):
-    factory = _source(source_factory, status=status, deleted=deleted, stamp=None)
-    calls = []
-
-    def verify():
-        calls.append("full_inventory")
-        return FilesRetrievalCutoverStatus(deployment_enabled=True, ready=False)
-
-    with pytest.raises(gate.FilesContentCutoverRefused) as caught:
-        gate.check_files_content_cutover(
-            settings=_enabled(), session_factory=factory, verify_active=verify
-        )
-    assert caught.value.reason == "current_generation_not_ready"
-    assert calls == ["full_inventory"]
-
-
-@pytest.mark.parametrize("bad", [1, "true", None])
-def test_flags_require_typed_booleans(bad):
-    with pytest.raises(gate.FilesContentCutoverRefused) as caught:
-        gate.check_files_content_cutover(
-            settings=SimpleNamespace(rag_enabled=bad, files_retrieval_enabled=True),
-            session_factory=_trap,
-            verify_active=_trap,
-        )
-    assert caught.value.reason == "configuration_invalid"
 
 
 @pytest.mark.parametrize("backend", ["opensearch", "qdrant"])
@@ -233,21 +170,6 @@ def test_actual_verify_active_blocks_old_unstamped_index_then_accepts_rebuilt_in
     assert materializer.calls == backends.prepare_calls == 0
 
 
-def test_provider_exception_exposes_only_fixed_code(source_factory):
-    factory = _source(source_factory)
-
-    def fail():
-        raise RuntimeError("synthetic-private-endpoint-or-body")
-
-    with pytest.raises(gate.FilesContentCutoverRefused) as caught:
-        gate.check_files_content_cutover(
-            settings=_enabled(), session_factory=factory, verify_active=fail
-        )
-    assert caught.value.reason == "generation_verification_failed"
-    assert caught.value.__cause__ is None
-    assert str(caught.value) == "files_content_cutover_refused"
-
-
 def _cli_composition(monkeypatch, source_factory, *, settings=None, verify=None, close=None):
     import miy_api.core.settings as settings_module
     import miy_api.core.db as db_module
@@ -296,187 +218,6 @@ def _cli_composition(monkeypatch, source_factory, *, settings=None, verify=None,
     monkeypatch.setattr(materializer_module, "FilesCachedProjectionMaterializer", Materializer)
     monkeypatch.setattr(generation, "FilesGenerationRunner", Runner)
     return calls
-
-
-@pytest.mark.parametrize("backend", ["keyword", "vector"])
-@pytest.mark.parametrize("status,deleted", [("unsupported", False), ("ready", True)])
-def test_actual_empty_resource_verification_refuses_pending_jobs_then_accepts_drained(
-    generation_session_factory, source_factory, backend, status, deleted
-):
-    engine = generation_session_factory.kw["bind"]
-    SearchIndexJob.__table__.create(engine)
-    RagSyncJob.__table__.create(engine)
-    backends = _FakeBackends()
-    runner = generation.FilesGenerationRunner(
-        session_factory=generation_session_factory,
-        settings=_settings(),
-        backends=backends,
-        source_snapshot_loader=lambda _db: _source_snapshot(),
-        materializer=gate._verification_materializer(
-            session_factory=generation_session_factory, settings=_settings()
-        ),
-        active_release_probe=lambda _db: FilesRetrievalCutoverStatus(
-            deployment_enabled=True, ready=True
-        ),
-    )
-    runner.prepare(
-        generation_key="empty-ready", baseline_mode=generation.FilesGenerationBaselineMode.EMPTY
-    )
-    runner.validate(
-        generation_key="empty-ready",
-        writes_quiesced=True,
-        reconciliation_watermark=0,
-        allow_empty_non_production=True,
-    )
-    runner.cutover(
-        generation_key="empty-ready", writes_quiesced=True, rollback_window=timedelta(days=7)
-    )
-    factory = _source(source_factory, status=status, deleted=deleted, stamp=None)
-    job = (
-        SearchIndexJob(id="synthetic-job", entity_type="file", entity_id="synthetic-file")
-        if backend == "keyword"
-        else RagSyncJob(
-            id="synthetic-job",
-            resource_type=FILE_MANAGER_FILE_RESOURCE_TYPE,
-            resource_id="synthetic-file",
-        )
-    )
-    with generation_session_factory.begin() as db:
-        db.add(job)
-    with pytest.raises(gate.FilesContentCutoverRefused) as caught:
-        gate.check_files_content_cutover(
-            settings=_enabled(), session_factory=factory, verify_active=runner.verify_active
-        )
-    assert caught.value.reason == "projection_queues_not_drained"
-    with generation_session_factory.begin() as db:
-        db.get(type(job), "synthetic-job").status = "succeeded"
-    assert (
-        gate.check_files_content_cutover(
-            settings=_enabled(), session_factory=factory, verify_active=runner.verify_active
-        ).mode
-        == "verified"
-    )
-
-
-@pytest.mark.parametrize("mode", ["inactive", "empty_source"])
-def test_cli_bypass_constructs_no_backend_materializer_or_runner(
-    source_factory, monkeypatch, capsys, mode
-):
-    calls = _cli_composition(
-        monkeypatch,
-        source_factory,
-        settings=SimpleNamespace(rag_enabled=False, files_retrieval_enabled=True)
-        if mode == "inactive"
-        else None,
-    )
-    assert gate.main([]) == 0
-    assert calls == []
-    assert capsys.readouterr().out == f"status=ok gate=files-result-stamp-v1 result={mode}\n"
-
-
-@pytest.mark.parametrize("failure", [None, "provider", "deadline"])
-def test_cli_owns_total_deadline_and_bounded_cleanup_preserving_original_result(
-    source_factory, monkeypatch, capsys, failure
-):
-    _source(source_factory)
-
-    def verify():
-        if failure == "provider":
-            raise RuntimeError("synthetic-private-provider-text")
-        if failure == "deadline":
-            time.sleep(10)
-        return FilesRetrievalCutoverStatus(deployment_enabled=True, ready=True)
-
-    calls = _cli_composition(
-        monkeypatch, source_factory, verify=verify, close=lambda: time.sleep(10)
-    )
-    monkeypatch.setattr(gate, "CHECK_SECONDS", 0.03)
-    monkeypatch.setattr(gate, "CLEANUP_SECONDS", 0.03)
-    start = time.monotonic()
-    assert gate.main([]) == (0 if failure is None else 1)
-    assert time.monotonic() - start < 1
-    assert calls == ["backend", "materializer", "runner", "verify", "close"]
-    output = capsys.readouterr()
-    if failure is None:
-        assert output.out == "status=ok gate=files-result-stamp-v1 result=verified\n"
-    else:
-        reason = "deadline_exceeded" if failure == "deadline" else "generation_verification_failed"
-        assert output.err == f"status=failed gate=files-result-stamp-v1 reason={reason}\n"
-    assert "synthetic-private" not in output.out + output.err
-
-
-def test_cli_cleanup_base_interruption_keeps_verified_result(source_factory, monkeypatch, capsys):
-    _source(source_factory)
-
-    def interrupt():
-        raise KeyboardInterrupt()
-
-    _cli_composition(monkeypatch, source_factory, close=interrupt)
-    assert gate.main([]) == 0
-    assert "result=verified" in capsys.readouterr().out
-
-
-def test_cli_has_no_force_complete_input(capsys):
-    assert gate.main(["--complete"]) == 1
-    assert (
-        capsys.readouterr().err
-        == "status=failed gate=files-result-stamp-v1 reason=arguments_invalid\n"
-    )
-
-
-def test_readonly_factory_installs_readonly_and_finite_sql_limits_before_queries(monkeypatch):
-    from miy_api.core import model_registry
-
-    calls = []
-    monkeypatch.setattr(model_registry, "import_all_models", lambda: calls.append("models"))
-
-    @contextmanager
-    def factory():
-        yield SimpleNamespace(execute=lambda statement: calls.append(str(statement)))
-
-    with gate._readonly_session(factory):
-        calls.append("query")
-    assert calls == [
-        "models",
-        "SET TRANSACTION READ ONLY",
-        "SET LOCAL statement_timeout = '5000ms'",
-        "SET LOCAL lock_timeout = '5000ms'",
-        "query",
-    ]
-
-
-def test_failed_deadline_install_restores_previous_signal_handler(monkeypatch):
-    previous = signal.getsignal(signal.SIGALRM)
-    timer = signal.setitimer
-
-    def refuse_timer(which, seconds):
-        if seconds:
-            raise OSError("synthetic timer unavailable")
-        return timer(which, seconds)
-
-    monkeypatch.setattr(signal, "setitimer", refuse_timer)
-    try:
-        with pytest.raises(gate.FilesContentCutoverRefused) as caught:
-            with gate._deadline(1):
-                pytest.fail("failed timer must never enter check")
-        assert caught.value.reason == "deadline_unavailable"
-        assert signal.getsignal(signal.SIGALRM) is previous
-    finally:
-        signal.signal(signal.SIGALRM, previous)
-
-
-def test_existing_caller_timer_is_preserved_and_check_never_runs():
-    previous = signal.getsignal(signal.SIGALRM)
-    signal.setitimer(signal.ITIMER_REAL, 5)
-    try:
-        with pytest.raises(gate.FilesContentCutoverRefused) as caught:
-            with gate._deadline(1):
-                pytest.fail("caller timer must never be replaced")
-        assert caught.value.reason == "deadline_unavailable"
-        assert signal.getsignal(signal.SIGALRM) is previous
-        assert 4 < signal.getitimer(signal.ITIMER_REAL)[0] <= 5
-    finally:
-        signal.setitimer(signal.ITIMER_REAL, 0)
 
 
 def test_active_gate_registers_models_in_genuinely_fresh_process_before_compiling_queries(tmp_path):

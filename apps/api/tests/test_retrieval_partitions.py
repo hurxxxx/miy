@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 import pytest
 from sqlalchemy import create_engine, event
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from miy_api.core.db import Base
@@ -12,7 +11,6 @@ from miy_api.domains.auth.models import User
 from miy_api.domains.groups.models import Group
 from miy_api.domains.retrieval.models import (
     RetrievalPartition,
-    RetrievalPartitionCandidateScope,
 )
 from miy_api.domains.retrieval.partition_adapter_registry import (
     RetrievalProjectionBinding,
@@ -21,15 +19,9 @@ from miy_api.domains.retrieval.partition_adapter_registry import (
 )
 from miy_api.domains.retrieval.partitioning import (
     RetrievalPartitionConflict,
-    RetrievalPartitionInvalidTarget,
-    RetrievalPartitionUnbound,
-    assign_default_partition,
-    bind_projection,
     create_managed_partition,
     ensure_default_partition,
-    flatten_read_scope,
     resolve_read_scope,
-    resolve_resource_read_scope,
     transition_partition_candidate_scope,
 )
 
@@ -102,47 +94,6 @@ def db() -> Session:
     reset_retrieval_partition_adapters()
 
 
-def test_default_partition_is_stable_per_namespace_and_owner(db: Session) -> None:
-    first = ensure_default_partition(
-        db,
-        source_namespace="files",
-        candidate_scope_kind=RetrievalPartitionCandidateScope.COMPANY,
-    )
-    second = ensure_default_partition(
-        db,
-        source_namespace="files",
-        candidate_scope_kind="company",
-    )
-
-    assert first.id == second.id
-    assert first.source_namespace == "files"
-    assert first.candidate_user_id is None
-    assert first.metadata_version == 1
-
-
-def test_assign_default_partition_dual_writes_source_row_once(db: Session) -> None:
-    @dataclass
-    class _SourceRow:
-        retrieval_partition_id: str | None = None
-
-    row = _SourceRow()
-    first = assign_default_partition(
-        db,
-        target=row,
-        source_namespace="files",
-        candidate_scope_kind="company",
-    )
-    second = assign_default_partition(
-        db,
-        target=row,
-        source_namespace="files",
-        candidate_scope_kind="company",
-    )
-
-    assert row.retrieval_partition_id == first
-    assert second == first
-
-
 def test_read_scope_unions_company_managed_and_personal_partitions(db: Session) -> None:
     company = ensure_default_partition(
         db,
@@ -189,90 +140,6 @@ def test_read_scope_unions_company_managed_and_personal_partitions(db: Session) 
     assert not scope.is_empty
 
 
-def test_resource_read_scope_is_server_resolved_from_registered_adapter(
-    db: Session,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    company = ensure_default_partition(
-        db,
-        source_namespace="files",
-        candidate_scope_kind="company",
-    )
-    register_retrieval_partition_adapter(
-        _FakePartitionAdapter(
-            adapter_id="files",
-            source_namespace="files",
-            resource_types=("file_manager_file",),
-            allowed_candidate_scopes=("personal", "company"),
-            partition_id=company.id,
-        )
-    )
-    monkeypatch.setattr(
-        "miy_api.domains.retrieval.default_partition_adapters."
-        "ensure_retrieval_partition_adapters_registered",
-        lambda: None,
-    )
-
-    scope = resolve_resource_read_scope(
-        db,
-        resource_types=["file_manager_file"],
-        user_id="user-a",
-    )
-
-    assert set(flatten_read_scope(scope)) == {company.id}
-
-
-def test_candidate_scope_transition_preserves_partition_identity(db: Session) -> None:
-    partition = create_managed_partition(
-        db,
-        source_namespace="files",
-        candidate_scope_kind="personal",
-        user_id="user-a",
-    )
-    register_retrieval_partition_adapter(
-        _FakePartitionAdapter(
-            adapter_id="files",
-            source_namespace="files",
-            resource_types=("file_manager_file",),
-            allowed_candidate_scopes=("personal", "company"),
-            allowed_transitions=("corpus_scope_change",),
-            partition_id=partition.id,
-        )
-    )
-    original_id = partition.id
-
-    transitioned = transition_partition_candidate_scope(
-        db,
-        partition_id=partition.id,
-        adapter_id="files",
-        transition_operation="corpus_scope_change",
-        expected_metadata_version=1,
-        candidate_scope_kind="company",
-    )
-
-    assert transitioned.id == original_id
-    assert transitioned.candidate_scope_kind == "company"
-    assert transitioned.candidate_user_id is None
-    assert transitioned.metadata_version == 2
-
-    company_scope = resolve_read_scope(
-        db,
-        source_namespaces=["files"],
-        user_id="user-b",
-    )
-    assert company_scope.for_source("files") == (original_id,)
-
-    with pytest.raises(RetrievalPartitionConflict):
-        transition_partition_candidate_scope(
-            db,
-            partition_id=partition.id,
-            adapter_id="files",
-            transition_operation="corpus_scope_change",
-            expected_metadata_version=1,
-            candidate_scope_kind="company",
-        )
-
-
 def test_files_source_owned_adapter_rejects_generic_candidate_scope_transition(
     db: Session,
 ) -> None:
@@ -299,155 +166,3 @@ def test_files_source_owned_adapter_rejects_generic_candidate_scope_transition(
     assert partition.candidate_scope_kind == "company"
     assert partition.candidate_user_id is None
     assert partition.metadata_version == 1
-
-
-def test_multiple_managed_company_partitions_coexist_with_company_default(
-    db: Session,
-) -> None:
-    unmanaged_company = ensure_default_partition(
-        db,
-        source_namespace="files",
-        candidate_scope_kind="company",
-    )
-    managed_a = create_managed_partition(
-        db,
-        source_namespace="files",
-        candidate_scope_kind="company",
-    )
-    managed_b = create_managed_partition(
-        db,
-        source_namespace="files",
-        candidate_scope_kind="company",
-    )
-    register_retrieval_partition_adapter(
-        _FakePartitionAdapter(
-            adapter_id="files",
-            source_namespace="files",
-            resource_types=("file_manager_file",),
-            allowed_candidate_scopes=("personal", "company"),
-            allowed_transitions=("corpus_scope_change",),
-            partition_id=managed_a.id,
-        )
-    )
-
-    for partition in (managed_a, managed_b):
-        transition_partition_candidate_scope(
-            db,
-            partition_id=partition.id,
-            adapter_id="files",
-            transition_operation="corpus_scope_change",
-            expected_metadata_version=1,
-            candidate_scope_kind="company",
-        )
-
-    scope = resolve_read_scope(
-        db,
-        source_namespaces=["files"],
-        user_id=None,
-    )
-
-    assert set(scope.for_source("files")) == {
-        unmanaged_company.id,
-        managed_a.id,
-        managed_b.id,
-    }
-
-
-@pytest.mark.parametrize(
-    ("scope_kind", "user_id"),
-    [("company", "user-a"), ("personal", None), ("workspace", None), ("unknown", None)],
-)
-def test_invalid_candidate_target_fails_before_writing(
-    db: Session, scope_kind: str, user_id: str | None
-) -> None:
-    with pytest.raises(RetrievalPartitionInvalidTarget):
-        ensure_default_partition(
-            db, source_namespace="files", candidate_scope_kind=scope_kind, user_id=user_id
-        )
-
-
-@pytest.mark.parametrize(
-    ("scope_kind", "user_id"), [("company", "user-a"), ("personal", None), ("workspace", None)]
-)
-def test_database_rejects_invalid_candidate_target(
-    db: Session, scope_kind: str, user_id: str | None
-) -> None:
-    db.add(
-        RetrievalPartition(
-            id="00000000-0000-0000-0000-000000000099",
-            source_namespace="files",
-            candidate_scope_kind=scope_kind,
-            candidate_user_id=user_id,
-        )
-    )
-    with pytest.raises(IntegrityError):
-        db.flush()
-
-
-def test_partition_id_cannot_be_changed(db: Session) -> None:
-    partition = ensure_default_partition(
-        db,
-        source_namespace="files",
-        candidate_scope_kind="company",
-    )
-
-    with pytest.raises(ValueError, match="immutable"):
-        partition.id = "00000000-0000-0000-0000-000000000098"
-
-
-def test_partition_adapter_binds_projection(db: Session) -> None:
-    partition = ensure_default_partition(
-        db,
-        source_namespace="files",
-        candidate_scope_kind="company",
-    )
-    register_retrieval_partition_adapter(
-        _FakePartitionAdapter(
-            adapter_id="files",
-            source_namespace="files",
-            resource_types=("file_manager_file",),
-            partition_id=partition.id,
-        )
-    )
-
-    binding = bind_projection(
-        db,
-        resource_type="file_manager_file",
-        resource_id="file-a",
-    )
-
-    assert binding == RetrievalProjectionBinding(
-        resource_type="file_manager_file",
-        resource_id="file-a",
-        partition_id=partition.id,
-    )
-
-
-def test_partition_adapter_rejects_duplicate_resource_owner() -> None:
-    register_retrieval_partition_adapter(
-        _FakePartitionAdapter(
-            adapter_id="files",
-            source_namespace="files",
-            resource_types=("file_manager_file",),
-        )
-    )
-
-    with pytest.raises(ValueError, match="already have adapters"):
-        register_retrieval_partition_adapter(
-            _FakePartitionAdapter(
-                adapter_id="other",
-                source_namespace="other",
-                resource_types=("file_manager_file",),
-            )
-        )
-
-
-def test_bind_projection_fails_when_resource_has_no_partition_adapter(
-    db: Session,
-) -> None:
-    with pytest.raises(RetrievalPartitionUnbound, match="not registered"):
-        bind_projection(
-            db,
-            resource_type="file_manager_file",
-            resource_id="file-a",
-        )

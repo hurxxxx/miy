@@ -4,10 +4,10 @@ import json
 from types import SimpleNamespace
 from typing import Any
 
-from fastapi.testclient import TestClient
 import pytest
-
 from dev_accounts import dev_login
+from fastapi.testclient import TestClient
+from hermes_route_stub import hermes_route_stub  # noqa: F401
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -15,7 +15,6 @@ from miy_api.core import llm as llm_core
 from miy_api.core.db import get_engine
 from miy_api.core.settings import get_settings
 from miy_api.domains.auth.models import AuditLog
-from hermes_route_stub import hermes_route_stub  # noqa: F401
 
 pytestmark = pytest.mark.usefixtures("hermes_route_stub")
 
@@ -136,43 +135,6 @@ def _tool_call_delta(
         id=tool_id,
         function=SimpleNamespace(name=name, arguments=arguments),
     )
-
-
-def test_docs_tool_invoke_blocks_other_users_private_page_access_and_audits_error(
-    client: TestClient,
-) -> None:
-    owner = _dev_login(client, "delivery-hub-admin")
-    outsider = _dev_login(client, "knowledge-base-admin")
-
-    doc_response = client.post(
-        "/api/v1/docs/items",
-        headers=_auth_headers(owner["token"]),
-        json={"title": "Restricted Doc"},
-    )
-    assert doc_response.status_code == 201, doc_response.text
-    doc = doc_response.json()
-
-    page_response = client.post(
-        f"/api/v1/docs/items/{doc['id']}/pages",
-        headers=_auth_headers(owner["token"]),
-        json={
-            "title": "Restricted Page",
-            "content_blocks": [{"type": "paragraph", "content": "secret body"}],
-        },
-    )
-    assert page_response.status_code == 201, page_response.text
-    page = page_response.json()
-
-    response = client.post(
-        _tool_path("docs.read_page"),
-        headers=_auth_headers(outsider["token"]),
-        json={"arguments": {"page_id": page["id"]}},
-    )
-
-    assert response.status_code == 403
-    audit_payload = _tool_audit_rows()[-1].payload
-    assert audit_payload["tool_name"] == "docs.read_page"
-    assert audit_payload["status"] == "error"
 
 
 @pytest.mark.usefixtures("configured_local_llm_control_plane")

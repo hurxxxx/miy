@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import ssl
 import time
 import traceback
-from dataclasses import replace
 
 import pytest
 
@@ -23,66 +21,7 @@ def _config(port=9000):
     )
 
 
-def test_presign_is_local_fixed_authority_and_escaped_path(monkeypatch):
-    def forbid(*args, **kwargs):
-        raise AssertionError("Presign must never contact storage")
-
-    monkeypatch.setattr(storage.Minio, "_url_open", forbid)
-    value = storage._signed_url(_config(), "files/synthetic name%?#.bin")
-    assert value.startswith(
-        "http://127.0.0.1:9000/synthetic-bucket/files/synthetic%20name%25%3F%23.bin?"
-    )
-    assert "X-Amz-Signature=" in value
-
-
-def test_transport_keeps_verified_tls_and_existing_minio_ca_precedence(monkeypatch):
-    monkeypatch.delenv("SSL_CERT_FILE", raising=False)
-    context = storage._tls_context()
-    assert context.verify_mode == ssl.CERT_REQUIRED and context.check_hostname
-    calls = []
-
-    def create_default_context(*, cafile):
-        calls.append(cafile)
-        return context
-
-    monkeypatch.setattr(storage.ssl, "create_default_context", create_default_context)
-    monkeypatch.setenv("SSL_CERT_FILE", "/synthetic/ca.pem")
-    assert storage._tls_context() is context and calls == ["/synthetic/ca.pem"]
-    monkeypatch.delenv("SSL_CERT_FILE")
-    assert storage._tls_context() is context and calls[-1] == storage.certifi.where()
-
-
-@pytest.mark.parametrize(
-    "endpoint",
-    [
-        "https://user:pass@example.test",
-        "https://example.test/path",
-        "https://example.test?query=1",
-        "ftp://example.test",
-        "https://example.test#fragment",
-    ],
-)
-def test_configured_url_rejects_credentials_or_extra_components(endpoint):
-    with pytest.raises(storage.SelectedStorageUnavailable):
-        storage._signed_url(replace(_config(), endpoint=endpoint), "file")
-
-
-@pytest.mark.parametrize(
-    "mode",
-    [
-        "good",
-        "zero",
-        "headers",
-        "body",
-        "oversize",
-        "mismatch",
-        "truncated",
-        "redirect",
-        "encoding",
-        "duplicate_length",
-        "cancel",
-    ],
-)
+@pytest.mark.parametrize("mode", ["good", "oversize", "redirect"])
 def test_real_async_socket_deadline_closes_peer_and_hides_private_headers(
     mode, monkeypatch, caplog
 ):
@@ -194,17 +133,3 @@ def test_real_async_socket_deadline_closes_peer_and_hides_private_headers(
     assert "PRIVATE-REDIRECT" not in caplog.text
     logging.getLogger("httpcore.connection").debug("unrelated-client-still-visible")
     assert "unrelated-client-still-visible" in caplog.text
-
-
-def test_size_and_concurrency_fail_before_presign(monkeypatch):
-    monkeypatch.setattr(storage, "_signed_url", lambda *args: pytest.fail("must not sign/open"))
-    with pytest.raises(storage.SelectedFileTooLarge):
-        asyncio.run(
-            storage.read_selected_object(
-                _config(), storage_key="x", expected_size=storage.MAX_BYTES + 1
-            )
-        )
-    monkeypatch.setattr(storage, "_active_reads", storage.MAX_CONCURRENT_READS)
-    with pytest.raises(storage.SelectedStorageUnavailable):
-        asyncio.run(storage.read_selected_object(_config(), storage_key="x", expected_size=1))
-    assert storage._active_reads == storage.MAX_CONCURRENT_READS

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import importlib
 
-from celery import Celery, current_app
 import pytest
+from celery import Celery, current_app
 
 from miy_api.core.first_party_worker_routing import configure_first_party_celery_routes
 from miy_api.core.worker_queue_contract import TASK_QUEUE_ROUTES, worker_profile_task_routes

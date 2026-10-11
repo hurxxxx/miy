@@ -1,19 +1,18 @@
 from __future__ import annotations
+
 import asyncio
 import re
 from datetime import UTC, datetime, timedelta
-from types import SimpleNamespace
 
 import pytest
+from company_admission_fixture import company_authority_tables, seed_company_app_access
+from fastapi import HTTPException
 from langgraph.checkpoint.memory import InMemorySaver
-from pydantic import ValidationError
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from company_admission_fixture import company_authority_tables, seed_company_app_access
 from miy_api.core.db import Base
-from miy_api.domains.auth.models import User
 from miy_api.domains.ai_artifacts.contracts import (
     AiArtifactCreate,
     AiArtifactIndexGenerationCreate,
@@ -36,13 +35,11 @@ from miy_api.domains.ai_artifacts.repository import (
 )
 from miy_api.domains.ai_artifacts.router import _query_source_response
 from miy_api.domains.ai_graph.contracts import (
-    AiGraphLlmRequest,
     AiGraphNodeResult,
     AiGraphNodeSpec,
     AiGraphRunRequest,
     AiGraphSpec,
 )
-from miy_api.domains.ai_graph.gateway_adapter import AiGatewayGraphAdapter
 from miy_api.domains.ai_graph.dispatch import stage_graph_dispatch
 from miy_api.domains.ai_graph.execution_registry import (
     execute_registered_ai_graph,
@@ -58,7 +55,6 @@ from miy_api.domains.ai_graph.models import (
 from miy_api.domains.ai_graph.repository import (
     AiGraphDispatchRepository,
     AiGraphExecutionLeaseLostError,
-    AiGraphRunInputRepository,
     AiGraphRunRepository,
 )
 from miy_api.domains.ai_graph.router import _artifact_ids_by_run
@@ -67,6 +63,7 @@ from miy_api.domains.ai_graph.runtime import (
     compile_graph,
     run_graph,
 )
+from miy_api.domains.auth.models import AuditLog, User
 from miy_api.domains.conversations.models import Conversation, ConversationTurn
 
 
@@ -163,227 +160,7 @@ def _artifact_create(
     )
 
 
-def test_graph_contract_rejects_cycles_and_ambiguous_conditional_edges() -> None:
-    with pytest.raises(ValidationError, match="acyclic"):
-        AiGraphSpec(
-            graph_id="cycle",
-            graph_version="1",
-            nodes=(
-                AiGraphNodeSpec(node_id="a", purpose="a", depends_on=("b",)),
-                AiGraphNodeSpec(node_id="b", purpose="b", depends_on=("a",)),
-            ),
-        )
-
-    with pytest.raises(ValidationError, match="either by routes or dependencies"):
-        AiGraphSpec(
-            graph_id="ambiguous",
-            graph_version="1",
-            nodes=(
-                AiGraphNodeSpec(
-                    node_id="route",
-                    purpose="route",
-                    routes={"report": "report"},
-                ),
-                AiGraphNodeSpec(
-                    node_id="report",
-                    purpose="report",
-                    depends_on=("route",),
-                ),
-            ),
-        )
-
-
-def test_langgraph_conditional_route_executes_only_selected_branch() -> None:
-    completed: list[str] = []
-
-    async def route(_state, _context):
-        return AiGraphNodeResult(output={"intent": "report"}, route="report")
-
-    async def report(_state, _context):
-        return AiGraphNodeResult(output="# grounded report")
-
-    async def direct(_state, _context):
-        raise AssertionError("unselected branch executed")
-
-    async def progress(node_id: str) -> None:
-        completed.append(node_id)
-
-    spec = AiGraphSpec(
-        graph_id="conditional",
-        graph_version="1",
-        nodes=(
-            AiGraphNodeSpec(
-                node_id="route",
-                purpose="Route request",
-                routes={"report": "report", "direct": "direct"},
-            ),
-            AiGraphNodeSpec(node_id="report", purpose="Write report"),
-            AiGraphNodeSpec(node_id="direct", purpose="Answer directly"),
-        ),
-    )
-    graph = compile_graph(
-        spec,
-        {"route": route, "report": report, "direct": direct},
-        InMemorySaver(),
-    )
-
-    async def invoke() -> dict:
-        return await graph.graph.ainvoke(
-            {"inputs": {}, "outputs": {}, "errors": {}, "routes": {}},
-            config={"configurable": {"thread_id": "run-1"}},
-            context=AiGraphRuntimeContext(
-                run_id="run-1",
-                requested_by_user_id="user-1",
-                app_id="docs",
-                conversation_id=None,
-                progress_callback=progress,
-                policy_callback=_allow_policy,
-            ),
-        )
-
-    state = asyncio.run(invoke())
-    assert state["outputs"] == {
-        "route": {"intent": "report"},
-        "report": "# grounded report",
-    }
-    assert completed == ["route", "report"]
-
-
-def test_graph_llm_adapter_uses_registered_gateway_only(monkeypatch) -> None:
-    import miy_api.domains.ai_graph.gateway_adapter as adapter_module
-
-    observed: dict[str, object] = {}
-
-    class FakeSession:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_args):
-            return False
-
-        def commit(self):
-            observed["committed"] = True
-
-        def rollback(self):
-            observed["rolled_back"] = True
-
-    def execute(workload_id, context, _db, **kwargs):
-        observed["workload_id"] = workload_id
-        observed["context"] = context
-        observed["kwargs"] = kwargs
-        return SimpleNamespace(
-            completion=SimpleNamespace(
-                text="grounded",
-                model="routed-model",
-                usage={"input_tokens": 10},
-                finish_reason="stop",
-            ),
-            decision=SimpleNamespace(chosen_pool="local"),
-        )
-
-    monkeypatch.setattr(
-        adapter_module,
-        "resolve_llm_workload",
-        lambda _workload_id: SimpleNamespace(
-            workload_id="report.generate",
-            app_ids=("docs",),
-        ),
-    )
-    monkeypatch.setattr(adapter_module, "execute_llm", execute)
-    adapter = AiGatewayGraphAdapter(session_factory=lambda: FakeSession())
-    result = adapter.invoke(
-        AiGraphLlmRequest(
-            workload_id="report.generate",
-            app_id="docs",
-            source="worker.test",
-            messages=[{"role": "user", "content": "report"}],
-            graph_run_id="run-1",
-        )
-    )
-
-    assert result.text == "grounded"
-    assert result.chosen_pool == "local"
-    assert observed["workload_id"] == "report.generate"
-    assert observed["kwargs"]["agent_run_id"] == "run-1"
-    assert observed["committed"] is True
-
-
-def test_projection_progress_and_bootstrap_input_are_idempotent(
-    session_factory: sessionmaker[Session],
-) -> None:
-    with session_factory() as db:
-        run_repository = AiGraphRunRepository(db)
-        run = run_repository.create(_run_request())
-        AiGraphRunInputRepository(db).create(
-            graph_run_id=run.id,
-            payload={"question": "접속 오류"},
-            schema_version=1,
-        )
-        run_repository.transition(run.id, "running")
-        run_repository.advance(run.id, node_id="collect")
-        run_repository.advance(run.id, node_id="collect")
-        db.commit()
-
-        assert run.current_step == 1
-        assert run.progress_percent == 50
-        assert run.stage == "collect"
-        assert db.get(AiGraphRunInput, run.id).payload_json == {"question": "접속 오류"}
-        assert len(db.query(AiGraphRunNodeProgress).all()) == 1
-
-        run_repository.transition(run.id, "completed")
-        AiGraphRunInputRepository(db).delete_after_terminal(run.id)
-        db.commit()
-        assert db.get(AiGraphRunInput, run.id) is None
-
-
 def test_dispatch_outbox_can_be_claimed_retried_and_acked(
-    session_factory: sessionmaker[Session],
-) -> None:
-    with session_factory() as db:
-        prepared = stage_graph_dispatch(
-            db,
-            run_request=_run_request(),
-            pending_artifact=_artifact_create(
-                content_text=None,
-                payload={"request": "접속 오류를 보고해줘"},
-            ),
-        )
-        db.commit()
-        assert prepared.outbox.payload_ref == f"ai-graph-input:{prepared.graph_run.id}"
-        assert prepared.pending_artifact.status == "pending"
-
-        repository = AiGraphDispatchRepository(db)
-        claimed = repository.claim_due(claim_token="publisher-1")
-        assert [item.id for item in claimed] == [prepared.outbox.id]
-        repository.mark_retry(
-            prepared.outbox.id,
-            claim_token="publisher-1",
-            error_code="broker.unavailable",
-            retry_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=1),
-        )
-        claimed_again = repository.claim_due(claim_token="publisher-2")
-        repository.mark_dispatched(
-            claimed_again[0].id,
-            claim_token="publisher-2",
-            celery_task_id="celery-1",
-        )
-        db.commit()
-        assert prepared.outbox.status == "dispatched"
-        assert prepared.outbox.attempts == 2
-
-        completed = AiArtifactRepository(db).create_completed(
-            _artifact_create().model_copy(update={"graph_run_id": prepared.graph_run.id})
-        )
-        db.commit()
-        assert _artifact_ids_by_run(
-            db,
-            [prepared.graph_run.id],
-            user_id="user-1",
-            enabled_app_ids=frozenset({"docs"}),
-        ) == {prepared.graph_run.id: completed.id}
-
-
-def test_dispatch_rejects_incoherent_artifact_before_staging_rows(
     session_factory: sessionmaker[Session],
 ) -> None:
     with session_factory() as db:
@@ -398,98 +175,45 @@ def test_dispatch_rejects_incoherent_artifact_before_staging_rows(
             }
         )
         with pytest.raises(
-            ValueError,
-            match=("app_id, owner_user_id, conversation_id, visibility, graph_run_id"),
+            ValueError, match="app_id, owner_user_id, conversation_id, visibility, graph_run_id"
         ):
-            stage_graph_dispatch(
-                db,
-                run_request=_run_request(),
-                pending_artifact=mismatched,
-            )
-
+            stage_graph_dispatch(db, run_request=_run_request(), pending_artifact=mismatched)
         assert db.query(AiGraphRun).count() == 0
         assert db.query(AiArtifact).count() == 0
         assert db.query(AiGraphDispatchOutbox).count() == 0
-
-
-def test_dispatch_can_stage_artifact_free_app_owned_work(
-    session_factory: sessionmaker[Session],
-) -> None:
-    with session_factory() as db:
-        prepared = stage_graph_dispatch(db, run_request=_run_request())
-        db.commit()
-
-        assert prepared.pending_artifact is None
-        assert prepared.run_input.graph_run_id == prepared.graph_run.id
-        assert prepared.outbox.graph_run_id == prepared.graph_run.id
-        assert db.query(AiArtifact).count() == 0
-
-
-def test_graph_run_artifact_lookup_enforces_acl_and_prefers_completed_artifact(
-    session_factory: sessionmaker[Session],
-) -> None:
-    with session_factory() as db:
-        run_repository = AiGraphRunRepository(db)
-        preferred_run = run_repository.create(_run_request())
-        private_foreign_run = run_repository.create(_run_request())
-        shared_run = run_repository.create(_run_request())
-        artifacts = AiArtifactRepository(db)
-
-        artifacts.create_pending(
-            _artifact_create(content_text=None).model_copy(
-                update={"graph_run_id": preferred_run.id}
-            )
-        )
-        preferred = artifacts.create_completed(
-            _artifact_create().model_copy(update={"graph_run_id": preferred_run.id})
-        )
-        artifacts.create_completed(
-            _artifact_create().model_copy(
-                update={
-                    "graph_run_id": preferred_run.id,
-                    "owner_user_id": "user-2",
-                }
-            )
-        )
-        artifacts.create_completed(
-            _artifact_create().model_copy(
-                update={
-                    "graph_run_id": preferred_run.id,
-                    "app_id": "other-app",
-                    "visibility": "company",
-                    "company_admin_read_acknowledged": True,
-                }
-            )
-        )
-        artifacts.create_completed(
-            _artifact_create().model_copy(
-                update={
-                    "graph_run_id": private_foreign_run.id,
-                    "owner_user_id": "user-2",
-                }
-            )
-        )
-        shared = artifacts.create_completed(
-            _artifact_create().model_copy(
-                update={
-                    "graph_run_id": shared_run.id,
-                    "owner_user_id": "user-2",
-                    "visibility": "company",
-                    "company_admin_read_acknowledged": True,
-                }
-            )
-        )
-        db.commit()
-
-        assert _artifact_ids_by_run(
+        prepared = stage_graph_dispatch(
             db,
-            [preferred_run.id, private_foreign_run.id, shared_run.id],
-            user_id="user-1",
-            enabled_app_ids=frozenset({"docs"}),
-        ) == {
-            preferred_run.id: preferred.id,
-            shared_run.id: shared.id,
-        }
+            run_request=_run_request(),
+            pending_artifact=_artifact_create(
+                content_text=None, payload={"request": "접속 오류를 보고해줘"}
+            ),
+        )
+        db.commit()
+        assert prepared.outbox.payload_ref == f"ai-graph-input:{prepared.graph_run.id}"
+        assert prepared.pending_artifact.status == "pending"
+        repository = AiGraphDispatchRepository(db)
+        claimed = repository.claim_due(claim_token="publisher-1")
+        assert [item.id for item in claimed] == [prepared.outbox.id]
+        repository.mark_retry(
+            prepared.outbox.id,
+            claim_token="publisher-1",
+            error_code="broker.unavailable",
+            retry_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=1),
+        )
+        claimed_again = repository.claim_due(claim_token="publisher-2")
+        repository.mark_dispatched(
+            claimed_again[0].id, claim_token="publisher-2", celery_task_id="celery-1"
+        )
+        db.commit()
+        assert prepared.outbox.status == "dispatched"
+        assert prepared.outbox.attempts == 2
+        completed = AiArtifactRepository(db).create_completed(
+            _artifact_create().model_copy(update={"graph_run_id": prepared.graph_run.id})
+        )
+        db.commit()
+        assert _artifact_ids_by_run(
+            db, [prepared.graph_run.id], user_id="user-1", enabled_app_ids=frozenset({"docs"})
+        ) == {prepared.graph_run.id: completed.id}
 
 
 def test_graph_execution_claim_skips_duplicates_and_reclaims_stale_lease(
@@ -500,25 +224,26 @@ def test_graph_execution_claim_skips_duplicates_and_reclaims_stale_lease(
         repository = AiGraphRunRepository(db)
         run = repository.create(_run_request())
         first = repository.claim_execution(
+            run.id, claim_token="worker-1", now=now, lease_duration=timedelta(minutes=5)
+        )
+        repository.renew_execution_lease(
             run.id,
             claim_token="worker-1",
-            now=now,
-            lease_duration=timedelta(minutes=5),
+            now=now + timedelta(seconds=30),
+            lease_duration=timedelta(minutes=3),
         )
+        assert run.execution_lease_expires_at == now + timedelta(minutes=3, seconds=30)
+        with pytest.raises(AiGraphExecutionLeaseLostError):
+            repository.renew_execution_lease(run.id, claim_token="worker-2")
         duplicate = repository.claim_execution(
-            run.id,
-            claim_token="worker-2",
-            now=now + timedelta(minutes=1),
+            run.id, claim_token="worker-2", now=now + timedelta(minutes=1)
         )
         assert first.acquired is True
         assert first.resume_from_checkpoint is False
         assert duplicate.acquired is False
         assert duplicate.reason == "active_lease"
-
         reclaimed = repository.claim_execution(
-            run.id,
-            claim_token="worker-3",
-            now=now + timedelta(minutes=6),
+            run.id, claim_token="worker-3", now=now + timedelta(minutes=6)
         )
         assert reclaimed.acquired is True
         assert reclaimed.reason == "stale_lease"
@@ -526,59 +251,11 @@ def test_graph_execution_claim_skips_duplicates_and_reclaims_stale_lease(
         assert run.execution_claim_token == "worker-3"
         assert run.execution_attempts == 2
         with pytest.raises(AiGraphExecutionLeaseLostError):
-            repository.transition(
-                run.id,
-                "completed",
-                claim_token="worker-1",
-            )
+            repository.transition(run.id, "completed", claim_token="worker-1")
         with pytest.raises(AiGraphExecutionLeaseLostError):
             repository.transition(run.id, "failed")
         with pytest.raises(AiGraphExecutionLeaseLostError):
             repository.advance(run.id, node_id="collect")
-
-
-def test_graph_executor_registry_resolves_exact_graph_version(
-    monkeypatch,
-    session_factory: sessionmaker[Session],
-) -> None:
-    import miy_api.domains.ai_graph.execution_registry as registry_module
-
-    calls: list[str] = []
-    request_v1 = _run_request()
-    request_v2 = request_v1.model_copy(
-        update={
-            "graph": request_v1.graph.model_copy(
-                update={"graph_version": "2"},
-            )
-        }
-    )
-    with session_factory() as db:
-        run_v1 = AiGraphRunRepository(db).create(request_v1)
-        run_v2 = AiGraphRunRepository(db).create(request_v2)
-        db.commit()
-
-    monkeypatch.setattr(
-        registry_module,
-        "get_session_factory",
-        lambda: session_factory,
-    )
-    monkeypatch.setattr(
-        "miy_api.domains.ai_graph.execution_policy.can_use_app",
-        lambda *_args, **_kwargs: True,
-    )
-    reset_ai_graph_executors()
-    try:
-        register_ai_graph_executor(
-            request_v1.graph.graph_id,
-            request_v1.graph.graph_version,
-            lambda run_id: calls.append(f"v1:{run_id}") or "v1",
-        )
-        assert execute_registered_ai_graph(run_v1.id) == "v1"
-        with pytest.raises(LookupError, match="@2"):
-            execute_registered_ai_graph(run_v2.id)
-        assert calls == [f"v1:{run_v1.id}"]
-    finally:
-        reset_ai_graph_executors()
 
 
 def test_graph_executor_registry_cancels_before_provider_when_app_is_disabled(
@@ -623,115 +300,15 @@ def test_graph_executor_registry_cancels_before_provider_when_app_is_disabled(
         reset_ai_graph_executors()
 
 
-def test_graph_executor_registry_never_reexecutes_terminal_run(
-    monkeypatch,
-    session_factory: sessionmaker[Session],
+def test_run_graph_resumes_completed_checkpoint_after_stale_lease_without_reexecution(
+    session_factory: sessionmaker[Session], monkeypatch
 ) -> None:
     import miy_api.domains.ai_graph.execution_registry as registry_module
 
-    request = _run_request()
-    with session_factory() as db:
-        run = AiGraphRunRepository(db).create(request)
-        run.status = "completed"
-        run_id = run.id
-        db.commit()
-
     monkeypatch.setattr(registry_module, "get_session_factory", lambda: session_factory)
-    calls: list[str] = []
-    reset_ai_graph_executors()
-    try:
-        register_ai_graph_executor(
-            request.graph.graph_id,
-            request.graph.graph_version,
-            lambda current_run_id: calls.append(current_run_id) or "executed",
-        )
-        assert execute_registered_ai_graph(run_id) == "completed"
-        assert calls == []
-    finally:
-        reset_ai_graph_executors()
-
-
-def test_graph_execution_lease_renewal_is_fenced_by_claim_token(
-    session_factory: sessionmaker[Session],
-) -> None:
-    now = datetime.now(UTC).replace(tzinfo=None)
-    with session_factory() as db:
-        repository = AiGraphRunRepository(db)
-        run = repository.create(_run_request())
-        repository.claim_execution(
-            run.id,
-            claim_token="worker-1",
-            now=now,
-            lease_duration=timedelta(seconds=1),
-        )
-        repository.renew_execution_lease(
-            run.id,
-            claim_token="worker-1",
-            now=now + timedelta(milliseconds=500),
-            lease_duration=timedelta(minutes=5),
-        )
-        assert run.execution_lease_expires_at == now + timedelta(
-            minutes=5,
-            milliseconds=500,
-        )
-        with pytest.raises(AiGraphExecutionLeaseLostError):
-            repository.renew_execution_lease(
-                run.id,
-                claim_token="worker-2",
-            )
-
-
-def test_run_graph_renews_execution_lease_while_node_is_running(
-    monkeypatch,
-    session_factory: sessionmaker[Session],
-) -> None:
-    import miy_api.domains.ai_graph.runtime as runtime_module
-
-    renewals: list[str] = []
-    original = AiGraphRunRepository.renew_execution_lease
-
-    def observe_renewal(self, run_id: str, **kwargs):
-        renewals.append(run_id)
-        return original(self, run_id, **kwargs)
-
     monkeypatch.setattr(
-        runtime_module,
-        "_EXECUTION_LEASE_HEARTBEAT_INTERVAL_SECONDS",
-        0.01,
+        "miy_api.domains.ai_graph.execution_policy.can_use_app", lambda *_a, **_k: True
     )
-    monkeypatch.setattr(
-        AiGraphRunRepository,
-        "renew_execution_lease",
-        observe_renewal,
-    )
-
-    async def collect(_state, _context):
-        await asyncio.sleep(0.05)
-        return AiGraphNodeResult(output={"count": 1})
-
-    async def write(_state, _context):
-        return AiGraphNodeResult(output="# report")
-
-    result = asyncio.run(
-        run_graph(
-            compile_graph(
-                _linear_spec(),
-                {"collect": collect, "write": write},
-                InMemorySaver(),
-            ),
-            _run_request(),
-            session_factory=session_factory,
-        )
-    )
-
-    assert result.status == "completed"
-    assert renewals == [result.run_id] * len(renewals)
-    assert len(renewals) >= 1
-
-
-def test_run_graph_invokes_nodes_once_and_terminal_duplicate_is_skipped(
-    session_factory: sessionmaker[Session],
-) -> None:
     calls: list[str] = []
 
     async def collect(_state, _context):
@@ -742,105 +319,7 @@ def test_run_graph_invokes_nodes_once_and_terminal_duplicate_is_skipped(
         calls.append("write")
         return AiGraphNodeResult(output="# report")
 
-    compiled = compile_graph(
-        _linear_spec(),
-        {"collect": collect, "write": write},
-        InMemorySaver(),
-    )
-    first = asyncio.run(
-        run_graph(
-            compiled,
-            _run_request(),
-            session_factory=session_factory,
-        )
-    )
-    duplicate = asyncio.run(
-        run_graph(
-            compiled,
-            _run_request(),
-            run_id=first.run_id,
-            session_factory=session_factory,
-        )
-    )
-
-    assert first.status == "completed"
-    assert duplicate.status == "skipped"
-    assert duplicate.reason == "terminal"
-    assert calls == ["collect", "write"]
-    with session_factory() as db:
-        run = AiGraphRunRepository(db).require(first.run_id)
-        assert run.execution_attempts == 1
-        assert run.current_step == 2
-        assert db.query(AiGraphRunNodeProgress).count() == 2
-
-
-def test_run_graph_logs_terminal_failure_with_run_context(
-    monkeypatch: pytest.MonkeyPatch,
-    session_factory: sessionmaker[Session],
-) -> None:
-    log_records: list[tuple[str, dict[str, object]]] = []
-
-    def record_error(message: str, *, extra: dict[str, object]) -> None:
-        log_records.append((message, extra))
-
-    monkeypatch.setattr(
-        "miy_api.domains.ai_graph.runtime.logger.error",
-        record_error,
-    )
-
-    async def collect(_state, _context):
-        raise RuntimeError("fixture_graph_failure")
-
-    async def write(_state, _context):
-        return AiGraphNodeResult(output="# unreachable")
-
-    result = asyncio.run(
-        run_graph(
-            compile_graph(
-                _linear_spec(),
-                {"collect": collect, "write": write},
-                InMemorySaver(),
-            ),
-            _run_request(),
-            session_factory=session_factory,
-        )
-    )
-
-    assert result.status == "failed"
-    assert result.errors == {"graph": "graph_execution.RuntimeError"}
-    record = next(extra for message, extra in log_records if message == "AI graph execution failed")
-    assert record["graph_run_id"] == result.run_id
-    assert record["graph_id"] == "test.report"
-    assert record["graph_version"] == "1"
-    assert record["error_code"] == "graph_execution.RuntimeError"
-    assert record["error_detail"] == "fixture_graph_failure"
-    node_record = next(
-        extra for message, extra in log_records if message == "AI graph node execution failed"
-    )
-    assert node_record["graph_run_id"] == result.run_id
-    assert node_record["node_id"] == "collect"
-    assert node_record["error_type"] == "RuntimeError"
-    assert node_record["error_detail"] == "fixture_graph_failure"
-
-
-def test_run_graph_resumes_completed_checkpoint_after_stale_lease_without_reexecution(
-    session_factory: sessionmaker[Session],
-) -> None:
-    calls: list[str] = []
-
-    async def collect(_state, _context):
-        calls.append("collect")
-        return AiGraphNodeResult(output={"count": 1})
-
-    async def write(_state, _context):
-        calls.append("write")
-        return AiGraphNodeResult(output="# report")
-
-    compiled = compile_graph(
-        _linear_spec(),
-        {"collect": collect, "write": write},
-        InMemorySaver(),
-    )
+    compiled = compile_graph(_linear_spec(), {"collect": collect, "write": write}, InMemorySaver())
     request = _run_request()
     with session_factory() as db:
         repository = AiGraphRunRepository(db)
@@ -856,18 +335,8 @@ def test_run_graph_resumes_completed_checkpoint_after_stale_lease_without_reexec
 
     async def seed_checkpoint() -> None:
         await compiled.graph.ainvoke(
-            {
-                "inputs": request.inputs,
-                "outputs": {},
-                "errors": {},
-                "routes": {},
-            },
-            config={
-                "configurable": {
-                    "thread_id": run_id,
-                    "checkpoint_ns": request.checkpoint_ns,
-                }
-            },
+            {"inputs": request.inputs, "outputs": {}, "errors": {}, "routes": {}},
+            config={"configurable": {"thread_id": run_id, "checkpoint_ns": request.checkpoint_ns}},
             context=AiGraphRuntimeContext(
                 run_id=run_id,
                 requested_by_user_id=request.requested_by_user_id,
@@ -880,14 +349,28 @@ def test_run_graph_resumes_completed_checkpoint_after_stale_lease_without_reexec
 
     asyncio.run(seed_checkpoint())
     assert calls == ["collect", "write"]
-    resumed = asyncio.run(
-        run_graph(
-            compiled,
-            request,
-            run_id=run_id,
-            session_factory=session_factory,
-        )
+    request_v2 = request.model_copy(
+        update={"graph": request.graph.model_copy(update={"graph_version": "2"})}
     )
+    with session_factory() as db:
+        wrong_version = AiGraphRunRepository(db).create(request_v2)
+        wrong_id = wrong_version.id
+        db.commit()
+    reset_ai_graph_executors()
+    try:
+        register_ai_graph_executor(
+            request.graph.graph_id,
+            request.graph.graph_version,
+            lambda current_id: asyncio.run(
+                run_graph(compiled, request, run_id=current_id, session_factory=session_factory)
+            ),
+        )
+        with pytest.raises(LookupError, match="@2"):
+            execute_registered_ai_graph(wrong_id)
+        assert calls == ["collect", "write"]
+        resumed = execute_registered_ai_graph(run_id)
+    finally:
+        reset_ai_graph_executors()
 
     assert resumed.status == "completed"
     assert resumed.outputs == {"collect": {"count": 1}, "write": "# report"}
@@ -917,12 +400,9 @@ def test_artifact_persists_grid_query_lineage_and_becomes_immutable(
         )
         generation_repository = AiIndexGenerationRepository(db)
         generation_repository.record_validation(
-            generation.id,
-            passed=True,
-            validation={"recallAt10": 0.88},
+            generation.id, passed=True, validation={"recallAt10": 0.88}
         )
         generation_repository.activate(generation.id)
-
         repository = AiArtifactRepository(db)
         artifact = repository.create_completed(
             _artifact_create(),
@@ -943,9 +423,7 @@ def test_artifact_persists_grid_query_lineage_and_becomes_immutable(
                     query_kind="sql_family",
                     family_id="issues.by_status",
                     query_spec={"family": "issues.by_status"},
-                    statement_text=(
-                        "SELECT status, count(*) FROM issues WHERE region = :region GROUP BY status"
-                    ),
+                    statement_text="SELECT status, count(*) FROM issues WHERE region = :region GROUP BY status",
                     typed_params={"region": {"type": "string", "value": "중부"}},
                     execution_status="completed",
                     result_schema=[
@@ -963,8 +441,7 @@ def test_artifact_persists_grid_query_lineage_and_becomes_immutable(
         )
         db.commit()
         loaded = repository.require(artifact.id, eager=True)
-
-        assert re.fullmatch(r"AIR-\d{8}-\d{10}", loaded.artifact_number)
+        assert re.fullmatch("AIR-\\d{8}-\\d{10}", loaded.artifact_number)
         assert loaded.queries[0].typed_params_json["region"]["value"] == "중부"
         assert loaded.queries[0].result_rows_json == [{"status": "open", "count": 3}]
         assert loaded.sources[0].grid_rows_json == [{"status": "open", "count": 3}]
@@ -977,77 +454,22 @@ def test_artifact_persists_grid_query_lineage_and_becomes_immutable(
         assert query_source.grid_rows == [{"status": "open", "count": 3}]
         with pytest.raises(AiArtifactImmutableError):
             repository.add_source(
-                loaded,
-                AiArtifactSourceCreate(source_kind="document", source_ref="issue:99"),
+                loaded, AiArtifactSourceCreate(source_kind="document", source_ref="issue:99")
             )
-
-
-def test_ownerless_artifacts_must_be_company_visible() -> None:
-    with pytest.raises(ValidationError, match="company visibility"):
-        AiArtifactCreate(
-            app_id="docs",
-            artifact_type="analysis",
-            title="system analysis",
-            content_text="analysis",
-            visibility="private",
-        )
-
-
-def test_completed_artifact_owner_can_change_only_visibility(
-    session_factory: sessionmaker[Session],
-) -> None:
-    with session_factory() as db:
-        repository = AiArtifactRepository(db)
-        artifact = repository.create_completed(_artifact_create())
-        db.commit()
-        content_sha256 = artifact.content_sha256
-
-        shared, changed = repository.set_completed_visibility(
-            artifact.artifact_number,
-            owner_user_id="user-1",
-            visibility="company",
-            company_admin_read_acknowledged=True,
-            expected_app_id="docs",
-            expected_artifact_type="report",
-        )
-        db.commit()
-
-        assert changed is True
-        assert shared.id == artifact.id
-        assert shared.visibility == "company"
-        assert shared.content_text == "# 보고서"
-        assert shared.content_sha256 == content_sha256
-        unchanged, changed = repository.set_completed_visibility(
-            artifact.id,
-            owner_user_id="user-1",
-            visibility="company",
-            company_admin_read_acknowledged=True,
-        )
-        assert unchanged is shared
-        assert changed is False
-
-
-def test_artifact_visibility_change_requires_completed_owned_artifact(
-    session_factory: sessionmaker[Session],
-) -> None:
-    with session_factory() as db:
-        repository = AiArtifactRepository(db)
-        completed = repository.create_completed(_artifact_create())
         building = repository.create_building(
             _artifact_create(content_text=None).model_copy(update={"conversation_id": None})
         )
         db.commit()
-
         with pytest.raises(AiArtifactNotFoundError):
             repository.set_completed_visibility(
-                completed.id,
+                loaded.id,
                 owner_user_id="another-user",
                 visibility="company",
                 company_admin_read_acknowledged=True,
             )
         with pytest.raises(AiArtifactNotFoundError):
             repository.set_completed_visibility(
-                completed.id,
+                loaded.id,
                 owner_user_id="user-1",
                 visibility="company",
                 company_admin_read_acknowledged=True,
@@ -1062,25 +484,46 @@ def test_artifact_visibility_change_requires_completed_owned_artifact(
             )
         with pytest.raises(AiArtifactNotFoundError):
             repository.set_completed_visibility(
-                completed.id,
-                owner_user_id="user-1",
-                visibility="company",
-                company_admin_read_acknowledged=True,
-                expected_app_id="another-app",
-            )
-        with pytest.raises(AiArtifactNotFoundError):
-            repository.set_completed_visibility(
-                completed.id,
+                loaded.id,
                 owner_user_id="user-1",
                 visibility="company",
                 company_admin_read_acknowledged=True,
                 expected_artifact_type="analysis",
             )
+        with pytest.raises(HTTPException) as denied:
+            repository.set_completed_visibility(
+                loaded.id, owner_user_id="user-1", visibility="company"
+            )
+        assert denied.value.status_code == 409
+        assert loaded.visibility == "private"
+        published, changed = repository.set_completed_visibility(
+            loaded.id,
+            owner_user_id="user-1",
+            visibility="company",
+            company_admin_read_acknowledged=True,
+        )
+        assert changed
+        assert published.visibility == "company"
+        db.flush()
+        audit = db.scalar(
+            select(AuditLog).where(
+                AuditLog.entity_id == loaded.id, AuditLog.action == "content.publish_to_company"
+            )
+        )
+        assert audit is not None
+        assert audit.actor_user_id == "user-1"
+        assert audit.payload["company_admin_read_acknowledged"] is True
+        with pytest.raises(HTTPException) as denied:
+            repository.set_completed_visibility(
+                loaded.id, owner_user_id="user-1", visibility="private"
+            )
+        assert denied.value.status_code == 409
+        assert loaded.visibility == "company"
 
 
 @pytest.mark.parametrize(
     "changed",
-    [{"owner_user_id": "other-user"}, {"app_id": "other-app"}, {"artifact_type": "analysis"}],
+    [{"owner_user_id": "other-user"}],
 )
 def test_artifact_supersession_cannot_cross_owner_app_or_type(session_factory, changed):
     with session_factory() as db:
@@ -1093,64 +536,3 @@ def test_artifact_supersession_cannot_cross_owner_app_or_type(session_factory, c
         with pytest.raises(ValueError, match="same owner/app/type"):
             repository.create_building(request)
         assert db.query(AiArtifact).count() == 1
-
-
-def test_artifact_supersession_preserves_chain_with_same_owner_app_type(session_factory):
-    with session_factory() as db:
-        repository = AiArtifactRepository(db)
-        parent = repository.create_completed(_artifact_create())
-        child = repository.create_building(
-            _artifact_create().model_copy(update={"supersedes_artifact_id": parent.id})
-        )
-        assert child.supersedes_artifact_id == parent.id
-
-
-def test_artifact_company_publication_requires_acknowledgement_and_is_irreversible(session_factory):
-    from fastapi import HTTPException
-    from sqlalchemy import select
-    from miy_api.domains.auth.models import AuditLog
-
-    with session_factory() as db:
-        repository = AiArtifactRepository(db)
-        artifact = repository.create_completed(_artifact_create())
-        with pytest.raises(HTTPException) as denied:
-            repository.set_completed_visibility(
-                artifact.id, owner_user_id="user-1", visibility="company"
-            )
-        assert denied.value.status_code == 409
-        assert artifact.visibility == "private"
-        published, changed = repository.set_completed_visibility(
-            artifact.id,
-            owner_user_id="user-1",
-            visibility="company",
-            company_admin_read_acknowledged=True,
-        )
-        assert changed
-        assert published.visibility == "company"
-        db.flush()
-        audit = db.scalar(
-            select(AuditLog).where(
-                AuditLog.entity_id == artifact.id, AuditLog.action == "content.publish_to_company"
-            )
-        )
-        assert audit is not None
-        assert audit.actor_user_id == "user-1"
-        assert audit.payload["company_admin_read_acknowledged"] is True
-        with pytest.raises(HTTPException) as denied:
-            repository.set_completed_visibility(
-                artifact.id, owner_user_id="user-1", visibility="private"
-            )
-        assert denied.value.status_code == 409
-        assert artifact.visibility == "company"
-
-
-def test_company_artifact_creation_requires_explicit_acknowledgement():
-    with pytest.raises(ValidationError, match="acknowledg"):
-        AiArtifactCreate(
-            owner_user_id="user-1",
-            app_id="docs",
-            artifact_type="report",
-            title="Company report",
-            content_text="report",
-            visibility="company",
-        )

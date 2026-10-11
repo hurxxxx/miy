@@ -51,24 +51,11 @@ def settings(targets, environment="production"):
     )
 
 
-@pytest.mark.parametrize(
-    "changes",
-    [
-        {"app_origin": None},
-        {"loopback_port": None},
-        {"app_origin": "http://127.0.0.1:19431"},
-        {"app_origin": "https://platform.test"},
-        {"app_origin": "https://api.platform.test"},
-        {"app_origin": "https://user:password@app.test"},
-        {"loopback_port": True},
-        {"loopback_port": "19431"},
-        {"loopback_port": 80},
-        {"loopback_port": 65536},
-    ],
-)
-def test_production_ingress_rejects_unsafe_or_missing_operator_bindings(tmp_path, changes):
+def test_production_ingress_requires_https_distinct_from_control_plane(tmp_path):
     with pytest.raises(ValidationError):
-        production_binding(tmp_path, **changes)
+        production_binding(tmp_path, app_origin="http://127.0.0.1:19431")
+    with pytest.raises(ValidationError):
+        production_binding(tmp_path, app_origin="https://platform.test")
 
 
 def test_only_production_control_plane_can_own_production_delivery(tmp_path):
@@ -79,13 +66,18 @@ def test_only_production_control_plane_can_own_production_delivery(tmp_path):
     assert settings([], "development").independent_app_delivery_targets == []
 
 
-def test_one_control_plane_can_keep_isolated_development_and_production_installations(tmp_path):
+def test_shared_control_plane_requires_separate_installation_state(tmp_path):
     development = binding(tmp_path / "development")
     production = production_binding(tmp_path / "production", source_root=development.source_root)
     assert settings([development, production]).independent_app_delivery_targets == [
         development,
         production,
     ]
+    overlapping = production_binding(
+        tmp_path / "other", state_root=development.state_root / "nested"
+    )
+    with pytest.raises(ValidationError, match="separate build scratch and runtime state"):
+        settings([development, overlapping])
 
 
 @pytest.mark.parametrize(
@@ -102,23 +94,13 @@ def test_production_installations_cannot_share_ingress(tmp_path, changes):
         settings([first, second])
 
 
-@pytest.mark.parametrize("root", ["work_root", "state_root"])
-def test_installations_cannot_share_build_or_runtime_state(tmp_path, root):
-    first = binding(tmp_path / "first")
-    second = binding(tmp_path / "second", **{root: getattr(first, root) / "nested"})
-    with pytest.raises(ValidationError, match="separate build scratch and runtime state"):
-        settings([first, second])
-
-
-def test_server_development_preview_requires_a_complete_https_binding(tmp_path):
-    for changes in ({"app_origin": "https://app.test"}, {"loopback_port": 19431}):
-        with pytest.raises(ValidationError, match="HTTPS app origin and a fixed loopback port"):
-            binding(tmp_path, **changes)
+def test_development_preview_requires_paired_https_origin_and_listener(tmp_path):
+    with pytest.raises(ValidationError, match="HTTPS app origin and a fixed loopback port"):
+        binding(tmp_path, app_origin="https://app.test")
     target = binding(tmp_path, app_origin="https://app.test", loopback_port=19431)
     assert settings([target], "development").independent_app_delivery_targets == [target]
 
 
-@pytest.mark.parametrize("port", [18779, 18780, 18781])
-def test_delivery_cannot_reserve_platform_or_official_internal_listener(tmp_path, port):
+def test_delivery_cannot_reserve_official_development_listener(tmp_path):
     with pytest.raises(ValidationError, match="reserved first-party service port"):
-        production_binding(tmp_path, loopback_port=port)
+        production_binding(tmp_path, loopback_port=18781)

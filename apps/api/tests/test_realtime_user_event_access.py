@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from copy import deepcopy
 
 import pytest
 from starlette.websockets import WebSocketDisconnect
@@ -8,7 +9,6 @@ from starlette.websockets import WebSocketDisconnect
 from dev_accounts import auth_headers, dev_login
 from miy_api.core.db import get_session_factory
 from miy_api.core.realtime import InProcessAppRealtimeHub, realtime_user_topic
-from miy_api.domains.auth.models import CompanyAppControl
 from miy_api.domains.community.models import CommunityPost
 from miy_api.domains.dm.models import DmMessage
 from miy_api.domains.pms.models import Notification
@@ -58,12 +58,7 @@ def _deliver_queued(event, recipient):
     return asyncio.run(exercise())
 
 
-@pytest.mark.parametrize(
-    "membership", ["active", "removed", "never_joined", "rejoined_old", "rejoined_reply"]
-)
-def test_queued_dm_content_rechecks_current_membership_and_join_history(
-    client, monkeypatch, membership
-):
+def test_queued_dm_content_follows_current_membership_and_rejoin_history(client, monkeypatch):
     owner = dev_login(client, "administrator")
     reader = dev_login(client, "delivery-hub-member")
     outside = dev_login(client, "delivery-hub-admin")
@@ -82,78 +77,72 @@ def test_queued_dm_content_rechecks_current_membership_and_join_history(
             "participant_user_ids": [reader["user"]["id"], teammate["user"]["id"]],
         },
     )
-    assert created.status_code == 201, created.text
+    assert created.status_code == 201
     conversation_id = created.json()["id"]
+    url = f"/api/v1/dm/conversations/{conversation_id}"
     response = client.post(
-        f"/api/v1/dm/conversations/{conversation_id}/messages",
+        url + "/messages",
         headers=auth_headers(owner["token"]),
         json={"body": "old private history"},
     )
-    assert response.status_code == 200, response.text
+    assert response.status_code == 200
     old_message_id = response.json()["id"]
     event = next(
         event
         for user_id, event in reversed(captured)
         if user_id == reader["user"]["id"] and event["type"] == "dm.message.created"
     )
-    if membership.startswith("rejoined") or membership == "removed":
-        removed = client.delete(
-            f"/api/v1/dm/conversations/{conversation_id}/participants/{reader['user']['id']}",
-            headers=auth_headers(owner["token"]),
-        )
-        assert removed.status_code == 200, removed.text
-    if membership.startswith("rejoined"):
-        joined = client.post(
-            f"/api/v1/dm/conversations/{conversation_id}/participants",
-            headers=auth_headers(owner["token"]),
-            json={"user_ids": [reader["user"]["id"]]},
-        )
-        assert joined.status_code == 200, joined.text
-    if membership == "rejoined_reply":
-        reply = client.post(
-            f"/api/v1/dm/conversations/{conversation_id}/messages",
-            headers=auth_headers(owner["token"]),
-            json={"body": "new visible reply", "reply_to_message_id": old_message_id},
-        )
-        assert reply.status_code == 200, reply.text
-        event = next(
+    with get_session_factory()() as db:
+        db.get(DmMessage, old_message_id).body = "current canonical content"
+        db.commit()
+    current = _deliver_queued(deepcopy(event), reader)
+    assert len(current) == 1
+    assert current[0]["data"]["message"]["body"] == "current canonical content"
+    assert "old private history" not in str(current)
+    removed_event = {
+        "type": "dm.conversation.removed",
+        "data": {"conversation_id": conversation_id},
+    }
+    assert _deliver_queued(deepcopy(event), outside) == [removed_event]
+
+    removed = client.delete(
+        url + f"/participants/{reader['user']['id']}", headers=auth_headers(owner["token"])
+    )
+    assert removed.status_code == 200
+    assert _deliver_queued(deepcopy(event), reader) == [removed_event]
+    joined = client.post(
+        url + "/participants",
+        headers=auth_headers(owner["token"]),
+        json={"user_ids": [reader["user"]["id"]]},
+    )
+    assert joined.status_code == 200
+    previous = _deliver_queued(deepcopy(event), reader)
+    assert len(previous) == 1 and previous[0]["type"] == "dm.conversation.updated"
+    assert "message" not in previous[0]["data"]
+    assert previous[0]["data"]["conversation"]["last_message"] is None
+    assert "current canonical content" not in str(previous)
+    reply = client.post(
+        url + "/messages",
+        headers=auth_headers(owner["token"]),
+        json={"body": "new visible reply", "reply_to_message_id": old_message_id},
+    )
+    assert reply.status_code == 200
+    new_event = deepcopy(
+        next(
             event
             for user_id, event in reversed(captured)
             if user_id == reader["user"]["id"] and event["type"] == "dm.message.created"
         )
-        # Even a stale/overbroad producer projection cannot disclose hidden reply context.
-        event["data"]["message"]["reply_to"] = {"body_preview": "old private history"}
-    if membership == "active":
-        with get_session_factory()() as db:
-            db.get(DmMessage, old_message_id).body = "current canonical content"
-            db.commit()
-    sent = _deliver_queued(event, outside if membership == "never_joined" else reader)
-    assert len(sent) == 1
-    projected = sent[0]
-    if membership in {"removed", "never_joined"}:
-        assert projected == {
-            "type": "dm.conversation.removed",
-            "data": {"conversation_id": conversation_id},
-        }
-    elif membership == "rejoined_old":
-        assert projected["type"] == "dm.conversation.updated"
-        assert "message" not in projected["data"]
-        assert projected["data"]["conversation"]["last_message"] is None
-        assert "old private history" not in str(projected)
-    elif membership == "rejoined_reply":
-        assert projected["data"]["message"]["body"] == "new visible reply"
-        assert projected["data"]["message"]["reply_to"] is None
-        assert "old private history" not in str(projected)
-    else:
-        assert projected["data"]["message"]["body"] == "current canonical content"
-        assert "old private history" not in str(projected)
+    )
+    new_event["data"]["message"]["reply_to"] = {"body_preview": "current canonical content"}
+    visible = _deliver_queued(new_event, reader)
+    assert len(visible) == 1
+    assert visible[0]["data"]["message"]["body"] == "new visible reply"
+    assert visible[0]["data"]["message"]["reply_to"] is None
+    assert "current canonical content" not in str(visible)
 
 
-@pytest.mark.parametrize(
-    "change",
-    ["current", "source_revoked", "app_disabled", "other_recipient", "source_deleted", "read"],
-)
-def test_queued_notification_rechecks_recipient_source_and_current_unread_count(client, change):
+def test_queued_notification_rechecks_recipient_then_read_state_and_source_revocation(client):
     recipient = dev_login(client, "delivery-hub-member")
     commenter = dev_login(client, "administrator")
     notification_id = _create_notification(
@@ -162,39 +151,35 @@ def test_queued_notification_rechecks_recipient_source_and_current_unread_count(
         commenter_token=commenter["token"],
         title="Source private notification",
     )
+    event = {
+        "type": "notification.created",
+        "data": {
+            "notification": {
+                "id": notification_id,
+                "title": "stale private notification",
+                "body": "stale body",
+            },
+            "unread_count": 999,
+        },
+    }
+    current = _deliver_queued(deepcopy(event), recipient)
+    assert len(current) == 1
+    assert current[0]["data"]["notification"]["id"] == notification_id
+    assert current[0]["data"]["notification"]["is_read"] is False
+    assert current[0]["data"]["unread_count"] == 1
+    assert "stale private notification" not in str(current) and "stale body" not in str(current)
+    other = _deliver_queued(deepcopy(event), commenter)
+    assert len(other) == 1 and other[0]["data"] == {"notification": None, "unread_count": 0}
+    with get_session_factory()() as db:
+        db.get(Notification, notification_id).is_read = True
+        db.commit()
+    read = _deliver_queued(deepcopy(event), recipient)
+    assert len(read) == 1 and read[0]["data"]["notification"]["is_read"] is True
+    assert read[0]["data"]["unread_count"] == 0
     with get_session_factory()() as db:
         notification = db.get(Notification, notification_id)
-        event = {
-            "type": "notification.created",
-            "data": {
-                "notification": {
-                    "id": notification_id,
-                    "title": "stale private notification",
-                    "body": "stale body",
-                },
-                "unread_count": 999,
-            },
-        }
-        if change == "source_revoked":
-            post = db.get(CommunityPost, notification.source_id)
-            post.channel.admin_only_content = True
-        elif change == "app_disabled":
-            db.get(CompanyAppControl, "community").enabled = False
-        elif change == "other_recipient":
-            notification.user_id = commenter["user"]["id"]
-        elif change == "source_deleted":
-            db.delete(db.get(CommunityPost, notification.source_id))
-        elif change == "read":
-            notification.is_read = True
+        notification.is_read = False
+        db.get(CommunityPost, notification.source_id).channel.admin_only_content = True
         db.commit()
-    sent = _deliver_queued(event, recipient)
-    assert len(sent) == 1
-    data = sent[0]["data"]
-    if change in {"current", "read"}:
-        assert data["notification"]["id"] == notification_id
-        assert data["notification"]["is_read"] is (change == "read")
-        assert data["unread_count"] == (0 if change == "read" else 1)
-    else:
-        assert data == {"notification": None, "unread_count": 0}
-    assert "stale private notification" not in str(sent)
-    assert "stale body" not in str(sent)
+    revoked = _deliver_queued(deepcopy(event), recipient)
+    assert len(revoked) == 1 and revoked[0]["data"] == {"notification": None, "unread_count": 0}

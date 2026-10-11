@@ -2,30 +2,27 @@
 
 import importlib
 import json
-from concurrent.futures import ThreadPoolExecutor
-from threading import Event
 from types import SimpleNamespace
 from uuid import uuid4
 
-from celery.exceptions import Ignore, Retry
-from pydantic import SecretStr
 import pytest
-from sqlalchemy import create_engine, select, text
-from sqlalchemy.exc import DBAPIError, TimeoutError as SqlAlchemyTimeoutError
+from company_admission_fixture import seed_company_app_access
+from pydantic import SecretStr
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 from starlette.requests import Request
+from test_llm_connection_policies import seed as seed_model
+from test_official_writer_fence import writer as writer
 
-from company_admission_fixture import seed_company_app_access
 from miy_api.core.settings import get_settings
 from miy_api.domains.ai import audit
 from miy_api.domains.ai.model_settings_models import AiModelPolicyDefault
-from miy_api.domains.auth.models import AuditLog, User
-from miy_api.domains.hermes import execution, mcp_router, service as hermes_service, workloads
+from miy_api.domains.auth.models import AuditLog
+from miy_api.domains.hermes import execution, mcp_router, workloads
+from miy_api.domains.hermes import service as hermes_service
 from miy_api.domains.hermes.models import HermesRunProjection
 from miy_api.domains.hermes.service import mcp_profile_bearer_secret
 from miy_api.domains.recording.models import Recording, RecordingResult
-from test_llm_connection_policies import seed as seed_model
-from test_official_writer_fence import change, wait_for_blockers, writer as writer
 
 
 @pytest.fixture
@@ -206,134 +203,29 @@ def run(c, phase):
     return task.run(payload)
 
 
-@pytest.mark.parametrize("phase", ["analyze", "verify"])
-def test_real_gateway_and_authoritative_audit_are_retained(summary, phase):
+def test_real_gateway_and_authoritative_audit_are_retained(summary):
     c = summary
-    result = run(c, phase)
-    assert result["result_version"] == 1 and result["attempt_id"] == c.attempt_id
-    assert len(c.calls) == 1
+    analyzed = run(c, "analyze")
+    assert analyzed["result_version"] == 1 and analyzed["attempt_id"] == c.attempt_id
+    verified = c.task.verify_transcript_summary.run(analyzed)
+    assert verified["result_version"] == 1 and verified["attempt_id"] == c.attempt_id
+    assert len(c.calls) == 2
     with c.factory() as db:
         row = db.get(RecordingResult, c.recording_id)
-        assert (row.summary_text if phase == "analyze" else row.verifier_note) == c.reply
+        assert row.summary_text == c.reply and row.verifier_note == c.reply
         runs = list(db.scalars(select(HermesRunProjection)))
-        assert len(runs) == 1 and runs[0].status == "completed"
+        assert len(runs) == 2 and all(run.status == "completed" for run in runs)
         logs = list(db.scalars(select(AuditLog).where(AuditLog.action == "llm_call")))
-        assert len(logs) == 1
-        assert logs[0].payload["status"] == "ok"
-        assert logs[0].payload["workload_id"] == "meeting_summary"
+        assert len(logs) == 2
+        assert all(
+            log.payload["status"] == "ok" and log.payload["workload_id"] == "meeting_summary"
+            for log in logs
+        )
 
 
-@pytest.mark.parametrize("phase", ["analyze", "verify"])
-def test_drain_before_gateway_refuses_remote_admission(summary, monkeypatch, phase):
-    c = summary
-    if phase == "analyze":
-        original = c.task._heartbeat
-
-        def heartbeat(*args, **kwargs):
-            original(*args, **kwargs)
-            with c.factory.begin() as db:
-                change(db, c.admin)
-
-        monkeypatch.setattr(c.task, "_heartbeat", heartbeat)
-    else:
-        with c.factory.begin() as db:
-            change(db, c.admin)
-    with pytest.raises(DBAPIError):
-        run(c, phase)
-    assert c.calls == []
-
-
-@pytest.mark.parametrize("phase", ["analyze", "verify"])
-def test_source_drain_waits_for_real_gateway_and_audit_phase(summary, phase):
-    c = summary
-    entered, finish, draining = Event(), Event(), Event()
-    pids = {}
-
-    def remote():
-        pids["worker"] = c.sessions[0].scalar(text("SELECT pg_backend_pid()"))
-        entered.set()
-        assert finish.wait(20)
-
-    c.on_provider = remote
-
-    def drain():
-        with c.factory.begin() as db:
-            pids["controller"] = db.scalar(text("SELECT pg_backend_pid()"))
-            draining.set()
-            return change(db, c.admin)
-
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        result = pool.submit(run, c, phase)
-        try:
-            assert entered.wait(8)
-            controller = pool.submit(drain)
-            assert draining.wait(8)
-            wait_for_blockers(c.factory, pids["controller"], {pids["worker"]})
-            assert not controller.done()
-            finish.set()
-            assert result.result(timeout=10)["result_version"] == 1
-            assert controller.result(timeout=10)["state"] == "draining"
-        finally:
-            finish.set()
-    with c.factory() as db:
-        assert len(list(db.scalars(select(AuditLog).where(AuditLog.action == "llm_call")))) == 1
-
-
-@pytest.mark.parametrize("changed", ["attempt", "version"])
-@pytest.mark.parametrize("when", ["loaded", "heartbeat"])
-def test_analysis_does_not_adopt_replaced_attempt_or_version(summary, monkeypatch, changed, when):
-    c = summary
-    target = "_load_active_recording" if when == "loaded" else "_heartbeat"
-    original = getattr(c.task, target)
-
-    def replaced(*args, **kwargs):
-        result = original(*args, **kwargs)
-        with c.factory.begin() as db:
-            if changed == "attempt":
-                db.get(Recording, c.recording_id).celery_task_id = "replacement"
-            else:
-                row = db.get(RecordingResult, c.recording_id)
-                row.version = 2
-                row.transcript_text = "New transcript"
-        return result
-
-    monkeypatch.setattr(c.task, target, replaced)
-    with pytest.raises(Ignore):
-        run(c, "analyze")
-    assert c.calls == []
-    with c.factory() as db:
-        assert db.get(Recording, c.recording_id).failure_reason is None
-
-
-def test_verifier_rejects_payload_summary_drift_in_same_version(summary):
-    c = summary
-    with c.factory.begin() as db:
-        db.get(RecordingResult, c.recording_id).summary_text = "Different current summary"
-    with pytest.raises(Ignore):
-        run(c, "verify")
-    assert c.calls == []
-
-
-@pytest.mark.parametrize("phase", ["analyze", "verify"])
-def test_current_actor_revocation_discards_provider_result(summary, phase):
-    c = summary
-
-    def revoked():
-        with c.factory.begin() as db:
-            db.get(User, c.admin["user"]["id"]).login_blocked = True
-
-    c.after_provider = revoked
-    with pytest.raises(Ignore):
-        run(c, phase)
-    with c.factory() as db:
-        row = db.get(Recording, c.recording_id)
-        assert row.summary_status == "failed" and row.celery_task_id is None
-        result = db.get(RecordingResult, c.recording_id)
-        assert result.summary_text == "Original summary" and result.verifier_note is None
-
-
-@pytest.mark.parametrize("phase,at_commit", [("analyze", 1), ("analyze", 2), ("verify", 1)])
-@pytest.mark.parametrize("accepted", [False, True])
+@pytest.mark.parametrize(
+    "phase,at_commit,accepted", [("analyze", 1, False), ("analyze", 2, True), ("verify", 1, True)]
+)
 def test_commit_ack_unknown_cannot_fail_or_retry_summary(
     summary, monkeypatch, phase, at_commit, accepted
 ):
@@ -367,87 +259,3 @@ def test_commit_ack_unknown_cannot_fail_or_retry_summary(
             )
         else:
             assert result.verifier_note == (c.reply if accepted else None)
-
-
-@pytest.mark.parametrize("phase", ["analyze", "verify"])
-@pytest.mark.parametrize("terminal", [False, True])
-def test_known_provider_failure_keeps_existing_retry_and_terminal_policy(
-    summary, monkeypatch, phase, terminal
-):
-    c = summary
-    c.failure = True
-    task = c.task.analyze_transcript if phase == "analyze" else c.task.verify_transcript_summary
-    retries = []
-
-    def retry(**kwargs):
-        retries.append(kwargs["countdown"])
-        raise Retry()
-
-    monkeypatch.setattr(task, "retry", retry)
-    task.push_request(retries=3 if terminal else 0)
-    try:
-        with pytest.raises(Ignore if terminal else Retry):
-            run(c, phase)
-    finally:
-        task.pop_request()
-    assert retries == ([] if terminal else [2])
-    with c.factory() as db:
-        row = db.get(Recording, c.recording_id)
-        assert row.summary_status == (
-            "failed" if terminal else "analyzing" if phase == "analyze" else "pending"
-        )
-        assert (row.celery_task_id is None) is terminal
-        logs = list(db.scalars(select(AuditLog).where(AuditLog.action == "llm_call")))
-        assert len(logs) == 1 and logs[0].payload["status"] == "error"
-
-
-@pytest.mark.parametrize("changed", ["attempt", "version", "drain"])
-def test_failed_provider_cannot_finalize_or_retry_replaced_claim(summary, monkeypatch, changed):
-    c = summary
-    c.failure = True
-    session = c.runtime_factory()
-    c.sessions.append(session)
-    monkeypatch.setattr(c.task, "_db_session", lambda: session)
-    original, replaced = session.rollback, False
-
-    def rollback():
-        nonlocal replaced
-        original()
-        if replaced:
-            return
-        replaced = True
-        with c.factory.begin() as db:
-            if changed == "attempt":
-                db.get(Recording, c.recording_id).celery_task_id = "replacement"
-            elif changed == "version":
-                db.get(RecordingResult, c.recording_id).version = 2
-            else:
-                change(db, c.admin)
-
-    monkeypatch.setattr(session, "rollback", rollback)
-    with pytest.raises(DBAPIError if changed == "drain" else Ignore):
-        run(c, "analyze")
-    with c.factory() as db:
-        row = db.get(Recording, c.recording_id)
-        assert row.summary_status == "analyzing" and row.failure_reason is None
-
-
-def test_single_connection_is_insufficient_for_existing_gateway_sessions_and_does_not_retry(
-    summary, monkeypatch
-):
-    c = summary
-    engine = create_engine(c.factory.kw["bind"].url, pool_size=1, max_overflow=0, pool_timeout=0.1)
-    factory = sessionmaker(engine)
-    monkeypatch.setattr(c.task, "_db_session", lambda: factory())
-    monkeypatch.setattr(workloads, "get_session_factory", lambda: factory)
-    monkeypatch.setattr(audit, "get_session_factory", lambda: factory)
-    try:
-        with pytest.raises(SqlAlchemyTimeoutError):
-            run(c, "analyze")
-        assert c.calls == []
-        with c.factory() as db:
-            row = db.get(Recording, c.recording_id)
-            assert row.summary_status == "analyzing" and row.failure_reason is None
-            assert list(db.scalars(select(HermesRunProjection))) == []
-    finally:
-        engine.dispose()

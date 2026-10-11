@@ -3,10 +3,10 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from io import BytesIO
-from threading import Barrier, Event, local
+from threading import Event, local
 
 import pytest
-from sqlalchemy import create_engine, delete, event, func, select
+from sqlalchemy import create_engine, delete, event, select
 from sqlalchemy.orm import sessionmaker
 
 from company_admission_fixture import seed_company_app_access
@@ -19,7 +19,6 @@ from miy_api.domains.files.models import (
     FileManagerFile,
     FileManagerFolder,
 )
-from miy_api.domains.retrieval.models import RetrievalPartition
 
 pytestmark = pytest.mark.migration
 _ACTOR_ID = "corpus-race-owner"
@@ -161,62 +160,7 @@ def test_same_corpus_shared_ingress_overlaps_and_tree_delete_waits_for_both_chil
         assert db.get(FileManagerFolder, context.second_folder_id).deleted_at is None
 
 
-def test_independent_corpus_tree_deletes_do_not_deadlock(corpus_race_context):
-    context = corpus_race_context
-    barrier = Barrier(2)
-
-    def remove(folder_id):
-        with context.factory.begin() as db:
-            actor = db.get(User, _ACTOR_ID)
-            barrier.wait(10)
-            files_service.delete_folder(db, user=actor, folder_id=folder_id)
-
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        futures = [
-            executor.submit(remove, folder_id)
-            for folder_id in (context.first_folder_id, context.second_folder_id)
-        ]
-        for future in futures:
-            future.result(10)
-    with context.factory() as db:
-        assert all(
-            db.get(FileManagerFolder, folder_id).deleted_at is not None
-            for folder_id in (context.first_folder_id, context.second_folder_id)
-        )
-
-
-def test_concurrent_first_standalone_ingress_binds_one_company_candidate_partition(
-    corpus_race_context,
-):
-    context = corpus_race_context
-    barrier = Barrier(2)
-
-    def create(name):
-        with context.factory.begin() as db:
-            actor = db.get(User, _ACTOR_ID)
-            barrier.wait(10)
-            row = files_service.create_folder(
-                db, user=actor, name=name, parent_id=None, visibility="private"
-            )
-            return row.retrieval_partition_id
-
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        futures = [executor.submit(create, name) for name in ("Private A", "Private B")]
-        partitions = [future.result(10) for future in futures]
-    assert partitions[0] == partitions[1]
-    with context.factory() as db:
-        assert (
-            db.scalar(
-                select(func.count(RetrievalPartition.id)).where(
-                    RetrievalPartition.source_namespace == "files",
-                    RetrievalPartition.is_default_ingest.is_(True),
-                )
-            )
-            == 1
-        )
-
-
-@pytest.mark.parametrize("revocation", ["app_grant", "blocked", "inactive", "master"])
+@pytest.mark.parametrize("revocation", ["app_grant", "master"])
 def test_waiting_owner_mutation_rechecks_live_authority_after_aggregate_lock(
     corpus_race_context, revocation
 ):

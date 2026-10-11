@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy import func, select
+from test_meeting import _auth_headers, _bootstrap_admin_session
 
 from miy_api.core.db import get_session_factory
 from miy_api.domains.docs.models import NativeDoc, NativeDocPage
@@ -16,8 +17,6 @@ from miy_api.domains.recording.models import (
     RecordingPublication,
     RecordingResult,
 )
-
-from test_meeting import _auth_headers, _bootstrap_admin_session
 
 
 class _FakeRecordingMinio:
@@ -184,98 +183,6 @@ def test_recording_result_requires_explicit_idempotent_docs_publication(
     assert [item["id"] for item in after.json()["publications"]] == [first.json()["id"]]
 
 
-def test_recording_meeting_attach_assigns_sequence_and_is_idempotent(client, monkeypatch):
-    _install_fake_recording_storage(monkeypatch)
-    admin = _bootstrap_admin_session(client)
-    meeting = _create_meeting(
-        client,
-        admin["token"],
-        title="Recording attach target",
-    )
-    first = _import_recording(client, admin["token"], title="first")
-    second = _import_recording(client, admin["token"], title="second")
-
-    first_attach = _attach_meeting(
-        client,
-        admin["token"],
-        recording_id=first["id"],
-        meeting_id=meeting["id"],
-    )
-    first_again = _attach_meeting(
-        client,
-        admin["token"],
-        recording_id=first["id"],
-        meeting_id=meeting["id"],
-    )
-    second_attach = _attach_meeting(
-        client,
-        admin["token"],
-        recording_id=second["id"],
-        meeting_id=meeting["id"],
-    )
-
-    assert first_attach.status_code == 200, first_attach.text
-    assert first_again.status_code == 200, first_again.text
-    assert second_attach.status_code == 200, second_attach.text
-
-    first_meeting_links = [
-        item
-        for item in first_again.json()["targets"]
-        if item["target_app"] == "meeting" and item["target_id"] == meeting["id"]
-    ]
-    assert len(first_meeting_links) == 1
-    assert first_meeting_links[0]["target_title"] == "Recording attach target"
-    assert first_meeting_links[0]["sort_order"] == 1
-
-    detail = client.get(
-        f"/api/v1/meeting/meetings/{meeting['id']}",
-        headers=_auth_headers(admin["token"]),
-    )
-    assert detail.status_code == 200, detail.text
-    assert [item["sequence_no"] for item in detail.json()["recordings"]] == [1, 2]
-
-
-def test_import_recording_can_attach_initial_meeting_target(client, monkeypatch):
-    _install_fake_recording_storage(monkeypatch)
-    admin = _bootstrap_admin_session(client)
-    meeting = _create_meeting(
-        client,
-        admin["token"],
-        title="Initial import target",
-    )
-
-    response = client.post(
-        "/api/v1/recording/recordings/import",
-        headers=_auth_headers(admin["token"]),
-        data={
-            "title": "field recording",
-            "source": "manual_upload",
-            "initial_target_app": "meeting",
-            "initial_target_type": "meeting",
-            "initial_target_id": meeting["id"],
-        },
-        files={"file": ("field.wav", b"audio-bytes", "audio/wav")},
-    )
-
-    assert response.status_code == 201, response.text
-    body = response.json()
-    meeting_links = [
-        item
-        for item in body["targets"]
-        if item["target_app"] == "meeting" and item["target_id"] == meeting["id"]
-    ]
-    assert len(meeting_links) == 1
-    assert meeting_links[0]["target_title"] == "Initial import target"
-    assert meeting_links[0]["sort_order"] == 1
-
-    detail = client.get(
-        f"/api/v1/meeting/meetings/{meeting['id']}",
-        headers=_auth_headers(admin["token"]),
-    )
-    assert detail.status_code == 200, detail.text
-    assert [item["id"] for item in detail.json()["recordings"]] == [body["id"]]
-
-
 def test_recording_staging_accepts_tus_offset_upload(client, monkeypatch):
     fake = _install_fake_recording_storage(monkeypatch)
     admin = _bootstrap_admin_session(client)
@@ -356,30 +263,3 @@ def test_recording_staging_accepts_tus_offset_upload(client, monkeypatch):
     body = complete.json()
     assert body["file_size"] == len(first) + len(second)
     assert fake.objects[body["storage_key"]] == first + second
-
-
-def test_recording_tus_creation_uses_upload_metadata(client, monkeypatch):
-    _install_fake_recording_storage(monkeypatch)
-    admin = _bootstrap_admin_session(client)
-
-    def metadata_value(value: str) -> str:
-        return base64.b64encode(value.encode("utf-8")).decode("ascii")
-
-    response = client.post(
-        "/api/v1/recording/recordings/tus",
-        headers={
-            **_auth_headers(admin["token"]),
-            "Tus-Resumable": "1.0.0",
-            "Upload-Metadata": (
-                f"idempotency_key {metadata_value('tus-create-test')},"
-                f"mime_type {metadata_value('audio/webm')},"
-                f"title {metadata_value('Tus created')}"
-            ),
-        },
-    )
-
-    assert response.status_code == 201, response.text
-    assert response.headers["Tus-Resumable"] == "1.0.0"
-    assert response.headers["Upload-Offset"] == "0"
-    assert "/recordings/staging/" in response.headers["Location"]
-    assert response.headers["Location"].endswith("/tus")

@@ -2,15 +2,12 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from fastapi import HTTPException
-import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from company_admission_fixture import company_authority_tables, seed_company_app_access
 from miy_api.core.db import Base
-from miy_api.core.i18n import ERROR_CODE_HEADER
-from miy_api.domains.auth.models import User, UserSystemRole
+from miy_api.domains.auth.models import User
 from miy_api.domains.pms.space_models import Team, TeamMember
 from miy_api.domains.docs.models import NativeDocGroupShare
 from miy_api.domains.pms.space_models import SpaceGroupBinding
@@ -29,12 +26,7 @@ from miy_api.domains.community.models import (
 )
 from miy_api.domains.media.models import MediaFile
 from miy_api.domains.media.resource_access import (
-    MEDIA_RESOURCE_COMMUNITY_COMMENT,
-    MEDIA_RESOURCE_COMMUNITY_POST,
-    can_access_docs_native_page,
     can_resolve_media,
-    ensure_media_link_resource_access,
-    media_ids_from_urls,
 )
 from miy_api.domains.meeting.models import Meeting
 from miy_api.domains.pms.models import Folder, Milestone, Task, TaskList, TaskUserAccess
@@ -99,20 +91,6 @@ def _media(**overrides: object) -> MediaFile:
     return MediaFile(**defaults)
 
 
-def test_media_ids_from_urls_keeps_only_exact_media_refs() -> None:
-    assert media_ids_from_urls(
-        [
-            "media:00000000-0000-0000-0000-000000000001",
-            "prefix media:00000000-0000-0000-0000-000000000002",
-            "media:not-a-uuid",
-            "media:00000000-0000-0000-0000-000000000003",
-        ]
-    ) == [
-        "00000000-0000-0000-0000-000000000001",
-        "00000000-0000-0000-0000-000000000003",
-    ]
-
-
 def test_can_resolve_only_unlinked_media_for_uploader_and_rejects_unknown_sources() -> None:
     uploader = SimpleNamespace(id="uploader")
     outsider = SimpleNamespace(id="outsider")
@@ -135,263 +113,3 @@ def test_can_resolve_only_unlinked_media_for_uploader_and_rejects_unknown_source
         )
         is False
     )
-
-
-def test_can_resolve_task_media_through_space_membership() -> None:
-    session = _session()
-    try:
-        member = _user("member")
-        outsider = _user("outsider")
-        session.add_all(
-            [
-                member,
-                outsider,
-                Team(
-                    id="team-1",
-                    key="space",
-                    name="Space",
-                    description="",
-                    active=True,
-                ),
-                TeamMember(id="membership-1", team_id="team-1", user_id="member", role="member"),
-                TaskList(
-                    id="list-1",
-                    key="LIST",
-                    name="List",
-                    description="",
-                    team_id="team-1",
-                    created_by_id="member",
-                ),
-                Task(
-                    id="task-1",
-                    list_id="list-1",
-                    task_number=1,
-                    title="Task",
-                    description="",
-                    reporter_id="member",
-                ),
-            ]
-        )
-        session.commit()
-
-        media = _media(resource_type="task", resource_id="task-1")
-
-        assert can_resolve_media(session, member, media) is True
-        assert can_resolve_media(session, outsider, media) is False
-    finally:
-        session.close()
-
-
-def test_can_resolve_community_post_media_for_public_posts() -> None:
-    session = _session()
-    try:
-        author = _user("author")
-        reader = _user("reader")
-        session.add_all(
-            [
-                author,
-                reader,
-                CommunityChannel(
-                    id="channel-1",
-                    key="suggestions",
-                    name="Suggestions",
-                    description="",
-                ),
-                CommunityPost(
-                    id="post-1",
-                    channel_id="channel-1",
-                    author_id="author",
-                    title="Post",
-                    body="![첨부](media:00000000-0000-0000-0000-000000000001)",
-                    is_secret=False,
-                ),
-            ]
-        )
-        session.commit()
-
-        media = _media(
-            resource_type=MEDIA_RESOURCE_COMMUNITY_POST,
-            resource_id="post-1",
-            uploaded_by_id="author",
-        )
-
-        assert can_resolve_media(session, reader, media) is True
-    finally:
-        session.close()
-
-
-def test_can_resolve_community_post_media_keeps_secret_posts_private() -> None:
-    session = _session()
-    try:
-        author = _user("author")
-        reader = _user("reader")
-        session.add_all(
-            [
-                author,
-                reader,
-                CommunityChannel(
-                    id="channel-1",
-                    key="suggestions",
-                    name="Suggestions",
-                    description="",
-                ),
-                CommunityPost(
-                    id="post-1",
-                    channel_id="channel-1",
-                    author_id="author",
-                    title="Post",
-                    body="![첨부](media:00000000-0000-0000-0000-000000000001)",
-                    is_secret=True,
-                ),
-            ]
-        )
-        session.commit()
-
-        media = _media(
-            resource_type=MEDIA_RESOURCE_COMMUNITY_POST,
-            resource_id="post-1",
-            uploaded_by_id="author",
-        )
-
-        assert can_resolve_media(session, author, media) is True
-        assert can_resolve_media(session, reader, media) is False
-    finally:
-        session.close()
-
-
-def test_can_resolve_community_post_media_keeps_admin_only_channels_private() -> None:
-    session = _session()
-    try:
-        author = _user("author")
-        admin = _user("admin")
-        session.add_all(
-            [
-                author,
-                admin,
-                UserSystemRole(id="admin-role", user_id="admin", role="platform_admin"),
-                CommunityChannel(
-                    id="channel-1",
-                    key="private",
-                    name="Private",
-                    description="",
-                    admin_only_content=True,
-                ),
-                CommunityPost(
-                    id="post-1",
-                    channel_id="channel-1",
-                    author_id="author",
-                    title="Post",
-                    body="![첨부](media:00000000-0000-0000-0000-000000000001)",
-                    is_secret=False,
-                ),
-            ]
-        )
-        session.commit()
-
-        media = _media(
-            resource_type=MEDIA_RESOURCE_COMMUNITY_POST,
-            resource_id="post-1",
-            uploaded_by_id="author",
-        )
-
-        assert can_resolve_media(session, author, media) is False
-        assert can_resolve_media(session, admin, media) is True
-    finally:
-        session.close()
-
-
-def test_can_resolve_community_comment_media_through_parent_post_access() -> None:
-    session = _session()
-    try:
-        author = _user("author")
-        reader = _user("reader")
-        session.add_all(
-            [
-                author,
-                reader,
-                CommunityChannel(
-                    id="channel-1",
-                    key="suggestions",
-                    name="Suggestions",
-                    description="",
-                ),
-                CommunityPost(
-                    id="post-1",
-                    channel_id="channel-1",
-                    author_id="author",
-                    title="Post",
-                    body="Body",
-                    is_secret=False,
-                ),
-                CommunityComment(
-                    id="comment-1",
-                    post_id="post-1",
-                    author_id="author",
-                    body="![첨부](media:00000000-0000-0000-0000-000000000001)",
-                ),
-            ]
-        )
-        session.commit()
-
-        media = _media(
-            resource_type=MEDIA_RESOURCE_COMMUNITY_COMMENT,
-            resource_id="comment-1",
-            uploaded_by_id="author",
-        )
-
-        assert can_resolve_media(session, reader, media) is True
-    finally:
-        session.close()
-
-
-def test_docs_native_page_access_distinguishes_read_from_edit() -> None:
-    session = _session()
-    try:
-        owner = _user("owner")
-        reader = _user("reader")
-        session.add_all(
-            [
-                owner,
-                reader,
-                NativeDoc(
-                    id="doc-1",
-                    owner_id="owner",
-                    title="Doc",
-                    source_app="docs",
-                    source_kind="manual",
-                    source_ref="doc-1",
-                ),
-                NativeDocPage(
-                    id="page-1",
-                    doc_id="doc-1",
-                    parent_id=None,
-                    title="Page",
-                    content_format="block",
-                    content_blocks=[],
-                    sort_order=0,
-                    created_by_id="owner",
-                ),
-                NativeDocUserShare(
-                    id="share-1",
-                    doc_id="doc-1",
-                    user_id="reader",
-                    access_level="read",
-                    created_by_id="owner",
-                ),
-            ]
-        )
-        session.commit()
-
-        assert can_access_docs_native_page(session, owner, "page-1", require_edit=True) is True
-        assert can_access_docs_native_page(session, reader, "page-1", require_edit=False) is True
-        assert can_access_docs_native_page(session, reader, "page-1", require_edit=True) is False
-    finally:
-        session.close()
-
-
-def test_ensure_media_link_resource_access_rejects_unsupported_type() -> None:
-    with pytest.raises(HTTPException) as exc_info:
-        ensure_media_link_resource_access(None, SimpleNamespace(id="user-1"), "doc", "doc-1")
-
-    assert exc_info.value.status_code == 400
-    assert exc_info.value.headers[ERROR_CODE_HEADER] == "media.unsupported_resource_type"

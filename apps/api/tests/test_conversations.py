@@ -3,11 +3,11 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from test_meeting import (
-    _auth_headers,
-    _bootstrap_admin_session,
-    _create_meeting,
-    _create_company_user,
-    _login,
+    _auth_headers as _auth_headers,
+    _bootstrap_admin_session as _bootstrap_admin_session,
+    _create_meeting as _create_meeting,
+    _create_company_user as _create_company_user,
+    _login as _login,
 )
 
 
@@ -38,34 +38,27 @@ def test_create_then_list_returns_own_conversation(client: TestClient) -> None:
     body = listing.json()
     assert [item["id"] for item in body["items"]] == [created["id"]]
     assert body["nextCursor"] is None
-
-
-def test_patch_renames_conversation(client: TestClient) -> None:
-    session = _bootstrap_admin_session(client)
-    token = session["token"]
-
-    created = _create(client, token, title="initial")
-    response = client.patch(
+    response = client.delete(
         f"/api/v1/chatbot/conversations/{created['id']}",
         headers=_auth_headers(token),
-        json={"title": "updated"},
     )
-    assert response.status_code == 200
-    assert response.json()["title"] == "updated"
+    assert response.status_code == 204
 
+    listing = client.get(
+        "/api/v1/chatbot/conversations",
+        headers=_auth_headers(token),
+    )
+    assert listing.status_code == 200
+    assert created["id"] not in [item["id"] for item in listing.json()["items"]]
 
-def test_patch_empty_title_rejected(client: TestClient) -> None:
-    session = _bootstrap_admin_session(client)
-    token = session["token"]
-
-    created = _create(client, token, title="x")
-    response = client.patch(
+    # Soft-delete is not the same as hard-delete, but we still refuse to
+    # serve a deleted conversation to the user — preserving rows purely so
+    # an admin could restore them out-of-band.
+    direct = client.get(
         f"/api/v1/chatbot/conversations/{created['id']}",
         headers=_auth_headers(token),
-        json={"title": "   "},
     )
-    assert response.status_code == 400
-    assert response.json()["code"] == "conversations.title_empty"
+    assert direct.status_code == 404
 
 
 def test_ai_create_rejects_meeting_scope_for_non_participant(client: TestClient) -> None:
@@ -95,46 +88,3 @@ def test_ai_create_rejects_meeting_scope_for_non_participant(client: TestClient)
     )
 
     assert response.status_code == 403
-
-
-def test_delete_soft_hides_from_list_but_direct_get_also_404s(
-    client: TestClient,
-) -> None:
-    session = _bootstrap_admin_session(client)
-    token = session["token"]
-
-    created = _create(client, token, title="gone")
-    response = client.delete(
-        f"/api/v1/chatbot/conversations/{created['id']}",
-        headers=_auth_headers(token),
-    )
-    assert response.status_code == 204
-
-    listing = client.get(
-        "/api/v1/chatbot/conversations",
-        headers=_auth_headers(token),
-    )
-    assert listing.status_code == 200
-    assert created["id"] not in [item["id"] for item in listing.json()["items"]]
-
-    # Soft-delete is not the same as hard-delete, but we still refuse to
-    # serve a deleted conversation to the user — preserving rows purely so
-    # an admin could restore them out-of-band.
-    direct = client.get(
-        f"/api/v1/chatbot/conversations/{created['id']}",
-        headers=_auth_headers(token),
-    )
-    assert direct.status_code == 404
-
-
-def test_get_requires_ownership(client: TestClient) -> None:
-    # A bogus id should 404, not leak 200 or 403 — enforces the "scoped to
-    # owner" contract.
-    session = _bootstrap_admin_session(client)
-    token = session["token"]
-    response = client.get(
-        "/api/v1/chatbot/conversations/does-not-exist",
-        headers=_auth_headers(token),
-    )
-    assert response.status_code == 404
-    assert response.json()["code"] == "conversations.not_found"

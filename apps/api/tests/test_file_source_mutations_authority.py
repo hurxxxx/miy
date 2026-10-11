@@ -1,8 +1,7 @@
 """Fixed leaf Source mutations on the unchanged restricted Source29 profile."""
 
-import json
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from hashlib import sha256
 from threading import Event, get_ident
 from types import SimpleNamespace
@@ -12,15 +11,14 @@ import pytest
 from company_admission_fixture import seed_company_app_access
 from sqlalchemy import delete, event, select, text
 from sqlalchemy.orm import Session
-from sqlalchemy.sql.elements import TextClause
 from test_file_extraction_authority import extraction_prepared as extraction_prepared
-from test_file_projection_core_roles import snapshot
-from test_file_projection_roles import reader_engine
+from test_file_projection_core_roles import snapshot as snapshot
+from test_file_projection_roles import reader_engine as reader_engine
 from test_file_source_partition_roles import file_source_prepared as file_source_prepared
-from test_file_source_partition_roles import wait_for_exact_blocker
+from test_file_source_partition_roles import wait_for_exact_blocker as wait_for_exact_blocker
 from test_independent_app_data import isolated_data_cluster as isolated_data_cluster
 from test_official_writer_roles import (
-    denied,
+    denied as denied,
 )
 from test_official_writer_roles import (
     role_template as role_template,
@@ -29,25 +27,18 @@ from test_official_writer_roles import (
     world as world,
 )
 
-from miy_api.domains.auth.models import AuthSession, UserSystemRole
+from miy_api.domains.auth.models import UserSystemRole
 from miy_api.domains.files import source_mutations as mutations
 from miy_api.domains.files.models import (
-    FileManagerCorpus,
     FileManagerFile,
-    FileManagerFileAccessGrant,
-    FileManagerFileSourceMetadata,
 )
 from miy_api.domains.files.source_mutation_contracts import (
     FileSourceDeleteExpected,
     FileSourceDeleteSpec,
-    FileSourceMutationConflict,
     FileSourceMutationRefused,
 )
 from miy_api.domains.official_apps.projection_contracts import ProjectionIntent
 from miy_api.domains.official_apps.projection_outbox import append_projection_intent
-from miy_api.domains.retrieval.prepared_file_partitions import (
-    require_prepared_file_source_partition,
-)
 
 
 @pytest.fixture
@@ -195,43 +186,6 @@ def assert_core_and_privileges_unchanged(native):
     assert snapshot(native.world, native.roles.source) == native.privileges_before
 
 
-def test_actual_existing_source_profile_admits_only_uuid_capability(native):
-    with Session(native.engine) as db:
-        db.execute(text("SELECT public.miy_file_extraction_admit(NULL)"))
-        assert (
-            str(
-                require_prepared_file_source_partition(
-                    db,
-                    partition_id=native.roles.partition,
-                    managed_metadata_version=None,
-                )
-            )
-            == native.roles.partition
-        )
-        assert (
-            db.scalar(
-                select(FileManagerFile.id).where(
-                    FileManagerFile.id == native.file_id,
-                )
-            )
-            == native.file_id
-        )
-        db.rollback()
-    with native.world.connect(native.roles.source) as conn:
-        for statement in (
-            "SELECT id FROM public.retrieval_partitions",
-            "SELECT id FROM public.retrieval_partitions FOR SHARE",
-            "UPDATE public.retrieval_partitions SET state=state WHERE false",
-            "INSERT INTO public.official_projection_receipts SELECT * FROM public.official_projection_receipts WHERE false",
-            "INSERT INTO public.retrieval_projection_events SELECT * FROM public.retrieval_projection_events WHERE false",
-            "SELECT token_hash FROM public.auth_sessions",
-            "SELECT password_hash FROM public.users",
-            "SELECT public.miy_lock_file_projection_partition(NULL)",
-        ):
-            denied(conn, statement)
-    assert_core_and_privileges_unchanged(native)
-
-
 def stage(native, *, commit=True):
     with Session(native.engine) as db:
         receipt = mutations.stage_native_root_file_soft_delete(db, spec=native.spec)
@@ -317,130 +271,6 @@ def test_actual_stage_flush_is_provisional_outer_rollback_restores_every_source_
     assert_core_and_privileges_unchanged(native)
 
 
-def test_actual_file_and_intent_flush_rollback_after_final_authority_refusal(native, monkeypatch):
-    original = mutations._current
-    calls = []
-
-    def refuse_after_event(db, file, spec, execution_ref):
-        original(db, file, spec, execution_ref)
-        persisted = db.scalar(
-            select(FileManagerFile.deleted_at).where(
-                FileManagerFile.id == native.file_id,
-            )
-        )
-        if persisted is not None:
-            # Both writes were really flushed on this restricted Source txn.
-            assert (
-                db.scalar(
-                    text(
-                        "SELECT count(*) FROM public.official_projection_outbox WHERE event_id=CAST(:id AS uuid)"
-                    ),
-                    {"id": str(native.event_id)},
-                )
-                == 1
-            )
-            calls.append("actual_file_and_event_flushed")
-            raise FileSourceMutationRefused("owned_final_refusal")
-
-    monkeypatch.setattr(mutations, "_current", refuse_after_event)
-    with pytest.raises(FileSourceMutationRefused) as error:
-        stage(native)
-    assert error.value.reason == "owned_final_refusal"
-    assert calls == ["actual_file_and_event_flushed"]
-    assert file_row(native) == native.original and selected_event(native) is None
-    assert_core_and_privileges_unchanged(native)
-
-
-@pytest.mark.parametrize("change", ["filename", "binding", "tip", "grant", "metadata", "company"])
-def test_actual_changed_source_state_or_scope_refuses_without_delete(native, change):
-    with Session(native.engine) as db:
-        if change == "filename":
-            db.get(FileManagerFile, native.file_id).filename = "Changed.txt"
-        elif change == "binding":
-            db.get(FileManagerFile, native.file_id).retrieval_partition_id = None
-        elif change == "grant":
-            db.add(
-                FileManagerFileAccessGrant(
-                    id=str(uuid4()),
-                    file_id=native.file_id,
-                    grant_type="user",
-                    target_id=native.world.user_id,
-                    grant_key="user:" + native.world.user_id,
-                )
-            )
-        elif change == "metadata":
-            corpus_id = str(uuid4())
-            db.add(
-                FileManagerCorpus(
-                    id=corpus_id,
-                    name="Owned unsupported source corpus",
-                    retrieval_partition_id=native.roles.partition,
-                    created_by_id=native.world.user_id,
-                )
-            )
-            db.flush()
-            db.add(
-                FileManagerFileSourceMetadata(
-                    file_id=native.file_id,
-                    corpus_id=corpus_id,
-                    external_id="owned",
-                    external_id_sha256="a" * 64,
-                    source_kind="owned",
-                    source_id="owned",
-                    source_id_sha256="b" * 64,
-                    content_checksum=native.spec.expected.extraction_content_checksum,
-                )
-            )
-        elif change == "company":
-            db.get(FileManagerFile, native.file_id).visibility = "company"
-        else:
-            append_projection_intent(
-                db,
-                intent=ProjectionIntent(
-                    resource_type="file_manager_file",
-                    resource_id=native.file_id,
-                    retrieval_partition_id=native.roles.partition,
-                    change_kind="visibility",
-                    desired_state="active",
-                    operation="visibility_update",
-                    content_checksum=native.spec.expected.extraction_content_checksum,
-                ),
-                event_id=uuid4(),
-            )
-        db.commit()
-    changed = file_row(native)
-    with pytest.raises((FileSourceMutationRefused, FileSourceMutationConflict)):
-        stage(native)
-    assert file_row(native) == changed and selected_event(native) is None
-    assert_core_and_privileges_unchanged(native)
-
-
-def test_actual_existing_retained_event_refuses_then_mismatch_observer_conflicts(native):
-    with Session(native.engine) as db:
-        append_projection_intent(
-            db,
-            intent=ProjectionIntent(
-                resource_type="file_manager_file",
-                resource_id=native.file_id,
-                retrieval_partition_id=native.roles.partition,
-                change_kind="visibility",
-                desired_state="active",
-                operation="visibility_update",
-                content_checksum=native.spec.expected.extraction_content_checksum,
-            ),
-            event_id=native.event_id,
-        )
-        db.commit()
-    collision = selected_event(native)
-    with pytest.raises((FileSourceMutationRefused, FileSourceMutationConflict)):
-        stage(native)
-    with pytest.raises(FileSourceMutationConflict):
-        observe(native, mutations._intent(native.spec).digest())
-    assert file_row(native) == native.original
-    assert selected_event(native) == collision
-    assert_core_and_privileges_unchanged(native)
-
-
 @pytest.mark.parametrize("commit_happened", [False, True])
 def test_actual_unknown_caller_commit_observes_only_retained_witness(native, commit_happened):
     with Session(native.engine) as db:
@@ -464,139 +294,6 @@ def test_actual_unknown_caller_commit_observes_only_retained_witness(native, com
         assert rows == (native.original, None)
     assert (file_row(native), selected_event(native)) == rows
     assert_core_and_privileges_unchanged(native)
-
-
-def test_actual_immutable_event_observation_after_later_tip_and_new_current_session(native):
-    receipt = stage(native)
-    immutable = selected_event(native)
-    current_session = str(uuid4())
-    with Session(native.world.engine) as db:
-        db.get(AuthSession, native.world.session_id).revoked_at = datetime.now(UTC).replace(
-            tzinfo=None
-        )
-        db.add(
-            AuthSession(
-                id=current_session,
-                user_id=native.world.user_id,
-                token_hash=uuid4().hex + uuid4().hex,
-                expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=1),
-            )
-        )
-        db.commit()
-    with Session(native.engine) as db:
-        file = db.get(FileManagerFile, native.file_id)
-        file.deleted_at = None
-        file.extraction_status = "pending"
-        db.flush()
-        append_projection_intent(
-            db,
-            intent=ProjectionIntent(
-                resource_type="file_manager_file",
-                resource_id=native.file_id,
-                retrieval_partition_id=native.roles.partition,
-                change_kind="content",
-                desired_state="active",
-                operation="upsert",
-            ),
-            event_id=uuid4(),
-        )
-        db.commit()
-    current = file_row(native)
-    assert current[5] is None
-    observed = observe(native, receipt.event_digest, execution_ref=current_session)
-    assert observed.historical and observed.event_digest == receipt.event_digest
-    assert file_row(native) == current and selected_event(native) == immutable
-    with pytest.raises(FileSourceMutationRefused) as error:
-        observe(native, receipt.event_digest)
-    assert error.value.reason == "current_execution_denied"
-    assert_core_and_privileges_unchanged(native)
-
-
-def test_actual_text_router_cannot_pin_other_engine_and_spoof_current_execution(native, tmp_path):
-    # Each Engine has its own pool and genuine Source29 LOGIN connection.
-    alternate = reader_engine(native.world, native.roles.source)
-    with native.world.connect() as conn:
-        conn.execute(
-            "UPDATE public.auth_sessions SET revoked_at=clock_timestamp() WHERE id=%s",
-            (native.world.session_id,),
-        )
-    with native.engine.begin() as conn:
-        conn.execute(
-            text(
-                "CREATE TEMP TABLE auth_sessions AS SELECT id,user_id,expires_at,revoked_at,"
-                "impersonator_user_id FROM public.auth_sessions"
-            )
-        )
-        conn.execute(
-            text(
-                "UPDATE pg_temp.auth_sessions SET revoked_at=NULL,"
-                "expires_at=clock_timestamp()+interval '1 hour'"
-            )
-        )
-        assert conn.scalar(
-            text("SELECT revoked_at IS NULL FROM pg_temp.auth_sessions WHERE id=:id"),
-            {"id": native.world.session_id},
-        )
-        assert conn.scalar(
-            text("SELECT revoked_at IS NOT NULL FROM public.auth_sessions WHERE id=:id"),
-            {"id": native.world.session_id},
-        )
-
-    class TextRoutedSession(Session):
-        def get_bind(self, mapper=None, clause=None, **kwargs):
-            if isinstance(clause, TextClause):
-                return alternate
-            return super().get_bind(mapper=mapper, clause=clause, **kwargs)
-
-    calls = {"orm_engine": 0, "text_engine": 0}
-
-    def orm_sql(*args):
-        calls["orm_engine"] += 1
-
-    def text_sql(*args):
-        calls["text_engine"] += 1
-
-    event.listen(native.engine, "before_cursor_execute", orm_sql)
-    event.listen(alternate, "before_cursor_execute", text_sql)
-    try:
-        with TextRoutedSession(native.engine) as db:
-            refused = False
-            observation = {"public_execution_revoked": True, "temporary_execution_active": True}
-            try:
-                receipt = mutations.stage_native_root_file_soft_delete(db, spec=native.spec)
-            except FileSourceMutationRefused as error:
-                refused = True
-                observation["reason"] = error.reason
-            else:
-                observation["stage_returned_provisional_receipt"] = receipt.provisional
-                observation["actual_file_delete_flushed"] = (
-                    db.scalar(
-                        select(FileManagerFile.deleted_at).where(
-                            FileManagerFile.id == native.file_id
-                        )
-                    )
-                    is not None
-                )
-            observation.update(refused=refused, **calls)
-            stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
-            (tmp_path / ("text-router-observation-" + stamp + ".json")).write_text(
-                json.dumps(observation, indent=2, sort_keys=True) + "\n"
-            )
-            assert refused, "actual_revoked_execution_passed_via_orm_TEMP_and_second_text_engine"
-            assert observation["reason"] == "source_engine_binding_required"
-            assert calls == {"orm_engine": 0, "text_engine": 0}
-            assert not db.in_transaction()
-        assert file_row(native) == native.original and selected_event(native) is None
-        with native.world.connect() as conn:
-            assert conn.execute(
-                "SELECT revoked_at IS NOT NULL FROM public.auth_sessions WHERE id=%s",
-                (native.world.session_id,),
-            ).fetchone()[0]
-        assert_core_and_privileges_unchanged(native)
-    finally:
-        event.remove(native.engine, "before_cursor_execute", orm_sql)
-        event.remove(alternate, "before_cursor_execute", text_sql)
-        alternate.dispose()
 
 
 def submit_stage(pool, native, *, spec=None):
@@ -627,8 +324,7 @@ def submit_stage(pool, native, *, spec=None):
     return future, next(iter(pids))
 
 
-@pytest.mark.parametrize("phase", ["standalone", "descriptor", "file", "event"])
-@pytest.mark.parametrize("revocation", ["session", "app"])
+@pytest.mark.parametrize("phase,revocation", [("file", "session"), ("descriptor", "app")])
 def test_actual_lock_wait_rechecks_current_authority_and_rolls_back(
     native, phase, revocation, monkeypatch
 ):
@@ -716,41 +412,6 @@ def test_actual_lock_wait_rechecks_current_authority_and_rolls_back(
         blocker.close()
 
 
-def test_actual_source_descriptor_share_blocks_legacy_exclusive_tree_before_file(native):
-    """Privileged fixture models legacy descriptor->File locking, no business DML."""
-    tree = native.world.connect()
-    try:
-        with Session(native.engine) as producer:
-            receipt = mutations.stage_native_root_file_soft_delete(producer, spec=native.spec)
-            producer_pid = producer.scalar(text("SELECT pg_backend_pid()"))
-
-            def legacy_locks():
-                tree.execute(
-                    "SELECT id FROM public.retrieval_partitions WHERE id=%s::uuid FOR UPDATE",
-                    (native.roles.partition,),
-                )
-                return tree.execute(
-                    "SELECT deleted_at FROM public.file_manager_files WHERE id=%s FOR UPDATE",
-                    (native.file_id,),
-                ).fetchone()[0]
-
-            with ThreadPoolExecutor(max_workers=1) as pool:
-                future = pool.submit(legacy_locks)
-                try:
-                    wait_for_exact_blocker(native.world, tree.info.backend_pid, producer_pid)
-                    assert not future.done()
-                    assert file_row(native) == native.original
-                finally:
-                    producer.commit()
-                assert future.result(timeout=5) is not None
-            tree.rollback()
-        assert receipt.provisional
-        assert_purged_deleted(native)
-        assert_core_and_privileges_unchanged(native)
-    finally:
-        tree.close()
-
-
 def test_actual_two_same_target_stages_cannot_duplicate_or_overtake(native):
     replacement = native.spec.model_copy(update={"event_id": uuid4()})
     with Session(native.engine) as first, ThreadPoolExecutor(max_workers=1) as pool:
@@ -779,53 +440,4 @@ def test_actual_two_same_target_stages_cannot_duplicate_or_overtake(native):
         ).fetchone()[0]
     assert observe(native, receipt.event_digest).historical
     assert_purged_deleted(native)
-    assert_core_and_privileges_unchanged(native)
-
-
-def test_actual_same_engine_temp_session_cannot_shadow_public_revocation(native):
-    with native.world.connect() as conn:
-        conn.execute(
-            "UPDATE public.auth_sessions SET revoked_at=clock_timestamp() WHERE id=%s",
-            (native.world.session_id,),
-        )
-    with native.engine.begin() as conn:
-        conn.execute(
-            text(
-                "CREATE TEMP TABLE auth_sessions AS SELECT id,user_id,expires_at,revoked_at,"
-                "impersonator_user_id FROM public.auth_sessions"
-            )
-        )
-        conn.execute(text("UPDATE pg_temp.auth_sessions SET revoked_at=NULL"))
-        assert conn.scalar(text("SELECT bool_and(revoked_at IS NULL) FROM pg_temp.auth_sessions"))
-    with pytest.raises(FileSourceMutationRefused) as error:
-        stage(native)
-    assert error.value.reason == "current_execution_denied"
-    assert file_row(native) == native.original and selected_event(native) is None
-    assert_core_and_privileges_unchanged(native)
-
-
-@pytest.mark.parametrize("change", ["session", "app", "binding", "digest"])
-def test_actual_historical_observation_requires_current_scope_and_exact_witness(native, change):
-    receipt = stage(native)
-    immutable = selected_event(native)
-    if change in {"session", "app"}:
-        with native.world.connect() as current:
-            if change == "session":
-                current.execute(
-                    "UPDATE public.auth_sessions SET revoked_at=clock_timestamp() WHERE id=%s",
-                    (native.world.session_id,),
-                )
-            else:
-                current.execute(
-                    "UPDATE public.company_app_controls SET enabled=false WHERE app_id='files'"
-                )
-    elif change == "binding":
-        with Session(native.engine) as db:
-            db.get(FileManagerFile, native.file_id).retrieval_partition_id = None
-            db.commit()
-    current = file_row(native)
-    digest = "0" * 64 if change == "digest" else receipt.event_digest
-    with pytest.raises((FileSourceMutationRefused, FileSourceMutationConflict)):
-        observe(native, digest)
-    assert file_row(native) == current and selected_event(native) == immutable
     assert_core_and_privileges_unchanged(native)

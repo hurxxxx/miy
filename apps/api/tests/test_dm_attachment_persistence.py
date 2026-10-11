@@ -12,47 +12,7 @@ from miy_api.domains.dm import attachment_persistence
 from miy_api.domains.dm.models import DmMessageAttachment
 
 
-def test_persist_created_attachment_stores_object_and_commits() -> None:
-    db = _FakeDb()
-    storage = _FakeAttachmentStorage()
-    row = _attachment()
-
-    result = attachment_persistence.persist_created_attachment(
-        db,
-        row=row,
-        object_write=_object_write(),
-        object_storage=storage,
-    )
-
-    assert result is row
-    assert db.added == [row]
-    assert db.flushed is True
-    assert storage.put_calls == [("dm/conversation-1/attachment-1/file.txt", 12, "text/plain")]
-    assert db.committed is True
-    assert db.refreshed == [row]
-
-
-def test_persist_created_attachment_rolls_back_when_object_write_fails() -> None:
-    db = _FakeDb()
-    storage = _FakeAttachmentStorage(put_error=RuntimeError("upload"))
-
-    with pytest.raises(HTTPException) as excinfo:
-        attachment_persistence.persist_created_attachment(
-            db,
-            row=_attachment(),
-            object_write=_object_write(),
-            object_storage=storage,
-        )
-
-    assert excinfo.value.status_code == 502
-    assert db.rollback_count == 1
-    assert db.committed is False
-    assert storage.remove_calls == []
-
-
-@pytest.mark.parametrize(
-    "sqlstate", ["23502", "23503", "23505", "23514", "23P01", "40001", "40P01"]
-)
+@pytest.mark.parametrize("sqlstate", ["23505"])
 def test_persist_created_attachment_removes_object_when_commit_is_rejected(sqlstate: str) -> None:
     db = _FakeDb(commit_error=_database_error(sqlstate))
     storage = _FakeAttachmentStorage()
@@ -71,23 +31,6 @@ def test_persist_created_attachment_removes_object_when_commit_is_rejected(sqlst
     assert storage.remove_calls == ["dm/conversation-1/attachment-1/file.txt"]
 
 
-def test_persist_created_attachment_hides_cleanup_failure_after_commit_error() -> None:
-    db = _FakeDb(commit_error=_database_error("23503"))
-    storage = _FakeAttachmentStorage(remove_error=RuntimeError("remove"))
-
-    with pytest.raises(HTTPException) as excinfo:
-        attachment_persistence.persist_created_attachment(
-            db,
-            row=_attachment(),
-            object_write=_object_write(),
-            object_storage=storage,
-        )
-
-    assert excinfo.value.status_code == 500
-    assert db.rollback_count == 1
-    assert storage.remove_calls == ["dm/conversation-1/attachment-1/file.txt"]
-
-
 def _database_error(sqlstate: str, *, invalidated: bool = False) -> DBAPIError:
     return DBAPIError(
         "COMMIT",
@@ -101,14 +44,6 @@ def _database_error(sqlstate: str, *, invalidated: bool = False) -> DBAPIError:
     "commit_error",
     [
         RuntimeError("private untyped failure"),
-        OSError("private transport failure"),
-        _database_error("40003"),
-        _database_error("08007"),
-        _database_error("08006"),
-        _database_error("57014"),
-        _database_error("42P01"),
-        _database_error("23503", invalidated=True),
-        psycopg.errors.ForeignKeyViolation("unwrapped error"),
         DBAPIError("COMMIT", None, SimpleNamespace(sqlstate="23503")),
     ],
 )

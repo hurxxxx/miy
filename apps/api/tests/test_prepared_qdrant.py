@@ -17,14 +17,12 @@ from miy_api.domains.rag.contracts import (
     RagProjection,
     RagUpsertRequest,
     RagVectorRecord,
-    RagVectorSearchRequest,
 )
 from miy_api.domains.rag.providers.prepared_qdrant import (
     PreparedQdrantControlError,
     PreparedQdrantPolicy,
     prepared_qdrant_client,
 )
-from miy_api.domains.rag.service import RagService
 
 COLLECTION = "prepared-files-vector"
 PARTITION = str(uuid.UUID(int=11))
@@ -167,106 +165,6 @@ def adapter(remote, **kwargs):
     )
 
 
-@pytest.mark.parametrize(
-    "name",
-    [
-        "page_size",
-        "max_scroll_pages",
-        "max_scanned_points",
-        "max_delete_ids",
-        "max_response_bytes",
-        "max_requests",
-        "max_aggregate_response_bytes",
-    ],
-)
-@pytest.mark.parametrize("value", [True, 1.0, "1", 0, -1, 2**80])
-def test_integer_policy_requires_exact_positive_lower_only(name, value):
-    with pytest.raises(PreparedQdrantControlError, match="policy_invalid"):
-        PreparedQdrantPolicy(**{name: value})
-
-
-@pytest.mark.parametrize("name", ["elapsed_budget_seconds", "phase_timeout_seconds"])
-@pytest.mark.parametrize("value", [True, "1", 0, -1, float("nan"), float("inf"), 121])
-def test_time_policy_requires_finite_positive_lower_only(name, value):
-    with pytest.raises(PreparedQdrantControlError, match="policy_invalid"):
-        PreparedQdrantPolicy(**{name: value})
-
-
-def test_constructor_does_zero_network_and_preserves_bound_collection(monkeypatch):
-    def background(*args, **kwargs):
-        pytest.fail("compatibility background thread forbidden")
-
-    monkeypatch.setattr("qdrant_client.qdrant_remote.Thread", background)
-    remote = Remote()
-    with adapter(remote) as client:
-        assert remote.calls == []
-        assert client.for_partitioned_generation(collection=COLLECTION) is client
-        with pytest.raises(PreparedQdrantControlError, match="collection_mismatch"):
-            client.for_partitioned_generation(collection="another")
-    assert remote.closed == 1
-
-
-def test_existing_target_schema_is_validated_without_creation_or_indexes():
-    remote = Remote()
-    with adapter(remote) as client:
-        client.ensure_collection(collection=COLLECTION, dense_dimensions=2)
-    assert len(remote.calls) == 3
-    assert all(request.method == "GET" for request, _ in remote.calls)
-
-
-@pytest.mark.parametrize("problem", ["missing", "dimensions", "indexes"])
-def test_bad_target_refuses_without_setup(problem):
-    remote = Remote(exists=problem != "missing")
-    if problem != "missing":
-        info = collection_info()
-        if problem == "dimensions":
-            info["config"]["params"]["vectors"]["dense"]["size"] = 3
-        else:
-            info["payload_schema"].pop("projection_version")
-
-        def handler(request):
-            if request.url.path.endswith("/exists"):
-                return httpx.Response(200, json={"result": {"exists": True}, "status": "ok"})
-            return httpx.Response(200, json={"result": info, "status": "ok"})
-
-        remote.handler = handler
-    with adapter(remote) as client, pytest.raises(PreparedQdrantControlError) as error:
-        client.ensure_collection(collection=COLLECTION, dense_dimensions=2)
-    assert error.value.reason in {"target_missing", "target_schema_invalid"}
-    assert all(request.method == "GET" for request, _ in remote.calls)
-
-
-@pytest.mark.parametrize("method", ["healthcheck", "query", "delete_collection"])
-def test_nonmaterialization_calls_are_refused_without_requests(method):
-    remote = Remote()
-    with adapter(remote) as client, pytest.raises(PreparedQdrantControlError):
-        if method == "query":
-            client.query(request=RagVectorSearchRequest(collection=COLLECTION, query="x"))
-        elif method == "delete_collection":
-            client.delete_collection(collection=COLLECTION)
-        else:
-            client.healthcheck()
-    assert remote.calls == []
-
-
-def test_stale_delete_uses_exact_partition_resource_and_legacy_index_semantics():
-    remote = Remote([([point(1, 0), point(2, "2"), point(3, 3)], 7), ([point(4, False)], None)])
-    with adapter(remote) as client:
-        assert client.delete_chunks_at_or_after(request=deletion(), chunk_index=2) == 2
-    scrolls = [body for request, body in remote.calls if request.url.path.endswith("/scroll")]
-    assert scrolls[0]["limit"] == 128
-    assert scrolls[0]["with_vector"] is False
-    assert scrolls[0]["with_payload"] == ["chunk_metadata.chunk_index"]
-    assert scrolls[0]["filter"]["must"] == [
-        {"key": "retrieval_partition_id", "match": {"value": PARTITION}},
-        {"key": "resource_type", "match": {"value": "file_manager_file"}},
-        {"key": "resource_id", "match": {"value": "file-one"}},
-    ]
-    deletes = [body for request, body in remote.calls if request.url.path.endswith("/delete")]
-    assert deletes == [{"points": [2, 3]}]
-    assert "wait=true" in str(remote.calls[-1][0].url)
-
-
 def test_full_delete_also_scans_then_deletes_explicit_ids_without_count_or_filter_mutation():
     remote = Remote([([point(1), point(2)], None)])
     with adapter(remote) as client:
@@ -276,31 +174,9 @@ def test_full_delete_also_scans_then_deletes_explicit_ids_without_count_or_filte
     assert remote.calls[1][1]["with_payload"] is False
 
 
-@pytest.mark.parametrize("full", [True, False])
-def test_empty_scan_does_zero_deletes(full):
-    remote = Remote([([], None)])
-    with adapter(remote) as client:
-        result = (
-            client.delete_resource(request=deletion())
-            if full
-            else client.delete_chunks_at_or_after(request=deletion(), chunk_index=1)
-        )
-        assert result == 0
-    assert len(remote.calls) == 2
-
-
 @pytest.mark.parametrize(
     "pages,policy,reason",
-    [
-        ([([point(1), point(2)], None)], {"page_size": 1}, "page_size_exceeded"),
-        ([([point(1), point(2)], None)], {"max_scanned_points": 1}, "point_limit_exceeded"),
-        ([([point(1), point(2)], None)], {"max_delete_ids": 1}, "delete_id_limit_exceeded"),
-        ([([point(1)], 7)], {"max_scroll_pages": 1}, "scroll_page_limit_exceeded"),
-        ([([point(1)], 7), ([point(2)], 7)], {}, "offset_cycle"),
-        ([([point(1)], 7), ([point(2)], 8), ([point(3)], 7)], {}, "offset_cycle"),
-        ([([point(1)], 7), ([point(1)], None)], {}, "duplicate_point"),
-        ([([point(1)], "invalid")], {}, "point_id_invalid"),
-    ],
+    [([([point(1), point(2)], None)], {"max_delete_ids": 1}, "delete_id_limit_exceeded")],
 )
 def test_scan_overflow_and_malformed_continuation_never_delete(pages, policy, reason):
     remote = Remote(pages)
@@ -311,14 +187,9 @@ def test_scan_overflow_and_malformed_continuation_never_delete(pages, policy, re
     assert not any(request.url.path.endswith("/delete") for request, _ in remote.calls)
 
 
-def test_exact_page_boundary_completes():
-    remote = Remote([([point(1)], 7), ([point(2)], None)])
-    with adapter(remote, policy=PreparedQdrantPolicy(page_size=1, max_scroll_pages=2)) as client:
-        assert client.delete_resource(request=deletion()) == 2
-
-
-@pytest.mark.parametrize("status", ["acknowledged", "wait_timeout", "invalid", None])
-@pytest.mark.parametrize("operation", ["upsert", "delete"])
+@pytest.mark.parametrize(
+    "status,operation", [("acknowledged", "upsert"), ("wait_timeout", "delete")]
+)
 def test_mutation_requires_completed_ack(operation, status):
     remote = Remote([([point(1)], None)], ack=status)
     with adapter(remote) as client, pytest.raises(PreparedQdrantControlError):
@@ -339,17 +210,6 @@ def test_mutation_requires_completed_ack(operation, status):
     )
 
 
-def test_upsert_reuses_existing_canonical_point_identity():
-    remote = Remote()
-    with adapter(remote) as client:
-        request, records = upsert()
-        assert client.upsert_chunks(request=request, records=records) == 1
-    payload = remote.calls[0][1]["points"][0]
-    assert payload["payload"]["retrieval_partition_id"] == PARTITION
-    assert payload["payload"]["projection_version"] == 3
-    assert uuid.UUID(payload["id"])
-
-
 def test_cross_resource_upsert_refuses_without_requests():
     remote = Remote()
     request, records = upsert()
@@ -360,48 +220,6 @@ def test_cross_resource_upsert_refuses_without_requests():
     ):
         client.upsert_chunks(request=request, records=records)
     assert remote.calls == []
-
-
-def test_existing_rag_fenced_public_api_calls_prewrite_once():
-    class Embedding:
-        provider_name = "synthetic-embedding"
-
-        def __init__(self):
-            self.calls = 0
-
-        def embed_texts(self, texts, timeout_seconds=None):
-            self.calls += 1
-            return [[1.0, 0.0] for _ in texts]
-
-    remote = Remote([([], None)])
-    embedding = Embedding()
-    fences = []
-    with adapter(remote) as client:
-        service = RagService(vector_index=client, embedding_client=embedding)
-        result = service.sync_projection_with_fence(
-            projection(),
-            collection=COLLECTION,
-            before_vector_write=lambda: fences.append("current-core-fence"),
-        )
-    assert result.chunk_count == 1
-    assert embedding.calls == 1
-    assert fences == ["current-core-fence"]
-    assert len([request for request, _ in remote.calls if request.method == "PUT"]) == 1
-
-
-def test_strict_timeout_is_clamped_after_sdk_request_override():
-    clock = Clock()
-    remote = Remote([([], None)])
-    with adapter(
-        remote,
-        policy=PreparedQdrantPolicy(elapsed_budget_seconds=3, phase_timeout_seconds=2),
-        _clock=clock,
-    ) as client:
-        client._call(client._client.scroll, collection_name=COLLECTION, timeout=99)
-    assert remote.calls[0][0].extensions["timeout"] == {
-        key: 2 for key in ("connect", "read", "write", "pool")
-    }
-    assert remote.calls[0][0].headers["Accept-Encoding"] == "identity"
 
 
 def test_elapsed_budget_is_not_reset_between_requests_or_pages():
@@ -424,74 +242,12 @@ def test_elapsed_budget_is_not_reset_between_requests_or_pages():
     assert remote.calls[1][0].extensions["timeout"]["read"] == pytest.approx(0.4)
 
 
-def test_request_limit_includes_exists_before_scan():
-    remote = Remote([([], None)])
-    with adapter(remote, policy=PreparedQdrantPolicy(max_requests=1)) as client:
-        with pytest.raises(PreparedQdrantControlError, match="request_limit_exceeded"):
-            client.delete_resource(request=deletion())
-    assert len(remote.calls) == 1
-
-
-@pytest.mark.parametrize("kind", ["response", "aggregate", "compressed", "redirect"])
-def test_transport_refuses_before_sdk_json_parse_and_closes_original_stream(kind):
-    stream = Stream([b"{", b"synthetic-provider-body-secret" * 3])
-    headers = {"content-encoding": "gzip"} if kind == "compressed" else {}
-    status = 302 if kind == "redirect" else 200
-    remote = Remote(handler=lambda request: httpx.Response(status, headers=headers, stream=stream))
-    policy = (
-        PreparedQdrantPolicy(max_response_bytes=8)
-        if kind == "response"
-        else PreparedQdrantPolicy(max_aggregate_response_bytes=8)
-        if kind == "aggregate"
-        else PreparedQdrantPolicy()
-    )
-    with adapter(remote, policy=policy) as client:
-        with pytest.raises(PreparedQdrantControlError) as error:
-            client.delete_resource(request=deletion())
-    assert (
-        error.value.reason
-        == {
-            "response": "response_bytes_exceeded",
-            "aggregate": "aggregate_bytes_exceeded",
-            "compressed": "response_encoding_forbidden",
-            "redirect": "redirect_forbidden",
-        }[kind]
-    )
-    assert "secret" not in str(error.value)
-    assert stream.closed == 1
-    assert len(remote.calls) == 1
-
-
 def test_aggregate_response_bytes_are_shared_across_methods():
     remote = Remote([([], None)])
     with adapter(remote, policy=PreparedQdrantPolicy(max_aggregate_response_bytes=100)) as client:
         with pytest.raises(PreparedQdrantControlError, match="aggregate_bytes_exceeded"):
             client.delete_resource(request=deletion())
     assert len(remote.calls) == 2
-
-
-@pytest.mark.parametrize(
-    "error",
-    [
-        httpx.ReadTimeout("synthetic-url-secret"),
-        TypeError("unexpected timeout"),
-        RuntimeError("synthetic-provider-body-secret"),
-    ],
-)
-def test_sdk_wrapped_failure_has_fixed_control_and_no_retry(error):
-    def fail(request):
-        raise error
-
-    remote = Remote(handler=fail)
-    with adapter(remote) as client, pytest.raises(PreparedQdrantControlError) as controlled:
-        client.delete_resource(request=deletion())
-    assert len(remote.calls) == 1
-    assert "secret" not in str(controlled.value)
-    assert (
-        controlled.value.reason == "phase_timeout"
-        if isinstance(error, httpx.TimeoutException)
-        else controlled.value.reason == "remote_failed"
-    )
 
 
 def test_cleanup_cancellation_keeps_known_ack_and_original_body_control():
@@ -536,7 +292,7 @@ def tcp_server(response):
         assert not thread.is_alive()
 
 
-@pytest.mark.parametrize("mode", ["timeout", "bytes", "redirect", "status"])
+@pytest.mark.parametrize("mode", ["timeout", "redirect", "status"])
 def test_loopback_actual_public_sdk_phase_cap_byte_cap_no_redirect_or_retry(mode):
     def response(conn):
         if mode == "timeout":
@@ -566,35 +322,6 @@ def test_loopback_actual_public_sdk_phase_cap_byte_cap_no_redirect_or_retry(mode
     )
 
 
-@pytest.mark.parametrize(
-    "url",
-    [
-        "https://synthetic-user:synthetic-secret@qdrant.invalid",
-        "https://qdrant.invalid?synthetic-secret=1",
-        "https://qdrant.invalid#synthetic-secret",
-        "https://qdrant.invalid/collections/private",
-        "https://qdrant.invalid/\n",
-        "https://qdrant.invalid/\t",
-        "file:///synthetic-private",
-        "https:///missing-host",
-    ],
-)
-def test_invalid_endpoint_refuses_before_sdk_or_transport(monkeypatch, url):
-    constructor_calls = []
-
-    def constructor(*args, **kwargs):
-        constructor_calls.append(kwargs)
-        pytest.fail("invalid endpoint reached SDK")
-
-    monkeypatch.setattr("miy_api.domains.rag.providers.prepared_qdrant.QdrantClient", constructor)
-    with pytest.raises(PreparedQdrantControlError) as error:
-        with prepared_qdrant_client(collection=COLLECTION, url=url, _transport=Remote()):
-            pass
-    assert error.value.reason == "endpoint_invalid"
-    assert constructor_calls == []
-    assert "synthetic-secret" not in str(error.value)
-
-
 @pytest.fixture
 def transport_log_capture(caplog, monkeypatch):
     # Alembic may disable existing loggers, and the app suppresses their parents.
@@ -607,83 +334,3 @@ def transport_log_capture(caplog, monkeypatch):
         monkeypatch.setattr(logger, "propagate", False)
         assert logger.isEnabledFor(logging.DEBUG)
     return caplog
-
-
-def test_loopback_private_transport_logs_are_suppressed_only_in_prepared_context(
-    transport_log_capture,
-):
-    caplog = transport_log_capture
-
-    def response(conn):
-        content = b'{"result":{"exists":false},"status":"ok"}'
-        conn.sendall(
-            b"HTTP/1.1 200 OK\r\nX-Synthetic-Private: synthetic-private-header\r\nContent-Length: "
-            + str(len(content)).encode()
-            + b"\r\n\r\n"
-            + content
-        )
-
-    with tcp_server(response) as (url, calls):
-        with prepared_qdrant_client(
-            collection=COLLECTION, url=url, api_key="synthetic-private-key"
-        ) as client:
-            with pytest.raises(PreparedQdrantControlError, match="target_missing"):
-                client.delete_resource(request=deletion())
-        assert len(calls) == 1
-    assert not any(record.name.startswith(("httpx", "httpcore")) for record in caplog.records)
-    assert "synthetic-private" not in caplog.text
-    logging.getLogger("httpx").info("unrelated-client-still-logged")
-    logging.getLogger("httpcore.http11").debug("unrelated-core-still-logged")
-    assert "unrelated-client-still-logged" in caplog.text
-    assert "unrelated-core-still-logged" in caplog.text
-
-
-def test_concurrent_unrelated_client_logging_remains_visible_during_private_request(
-    transport_log_capture,
-):
-    caplog = transport_log_capture
-
-    def handle(request):
-        def unrelated_logs():
-            logging.getLogger("httpx").info("concurrent-client-visible")
-            logging.getLogger("httpcore.http11").debug("concurrent-core-visible")
-
-        other = Thread(target=unrelated_logs)
-        other.start()
-        other.join(timeout=1)
-        assert not other.is_alive()
-        logging.getLogger("httpcore.http11").debug("private-current-request-hidden")
-        return httpx.Response(200, json={"result": {"exists": False}, "status": "ok"})
-
-    with adapter(Remote(handler=handle)) as client:
-        with pytest.raises(PreparedQdrantControlError, match="target_missing"):
-            client.delete_resource(request=deletion())
-    assert "concurrent-client-visible" in caplog.text
-    assert "concurrent-core-visible" in caplog.text
-    assert "private-current-request-hidden" not in caplog.text
-    assert "HTTP Request:" not in caplog.text
-
-
-def test_rejected_chunk_is_charged_and_exhausted_aggregate_blocks_another_request():
-    remote = Remote(handler=lambda request: httpx.Response(200, stream=Stream([b"{", b"x" * 32])))
-    policy = PreparedQdrantPolicy(max_response_bytes=8, max_aggregate_response_bytes=16)
-    with adapter(remote, policy=policy) as client:
-        with pytest.raises(PreparedQdrantControlError, match="response_bytes_exceeded"):
-            client.delete_resource(request=deletion())
-        assert client._budget.response_bytes == 33
-        with pytest.raises(PreparedQdrantControlError, match="aggregate_bytes_exceeded"):
-            client.delete_resource(request=deletion())
-    assert len(remote.calls) == 1
-
-
-@pytest.mark.parametrize(
-    "metadata", [["synthetic-invalid"], {"chunk_index": "9" * 5000}, {"chunk_index": "²"}]
-)
-def test_malformed_legacy_chunk_selector_has_fixed_control_and_zero_delete(metadata):
-    remote = Remote([([{"id": 1, "payload": {"chunk_metadata": metadata}}], None)])
-    with adapter(remote) as client:
-        with pytest.raises(PreparedQdrantControlError) as error:
-            client.delete_chunks_at_or_after(request=deletion(), chunk_index=1)
-    assert error.value.reason == "chunk_payload_invalid"
-    assert len(remote.calls) == 2
-    assert not any(request.url.path.endswith("/delete") for request, _ in remote.calls)

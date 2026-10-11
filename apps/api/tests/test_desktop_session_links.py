@@ -27,23 +27,18 @@ def test_desktop_session_link_exchanges_once(client: TestClient) -> None:
         json={"code": link["code"]},
     )
     assert second_exchange_response.status_code == 401
-
-
-def test_desktop_session_link_rejects_after_source_logout(client: TestClient) -> None:
-    web_session = dev_login(client)
-    link = _create_desktop_session_link(client, token=web_session["token"])
-
-    logout_response = client.post(
-        "/api/v1/auth/logout",
-        headers=auth_headers(web_session["token"]),
+    outstanding = _create_desktop_session_link(client, token=web_session["token"])
+    assert (
+        client.post("/api/v1/auth/logout", headers=auth_headers(web_session["token"])).status_code
+        == 204
     )
-    assert logout_response.status_code == 204, logout_response.text
-
-    exchange_response = client.post(
-        "/api/v1/auth/desktop-session-links/exchange",
-        json={"code": link["code"]},
+    assert (
+        client.post(
+            "/api/v1/auth/desktop-session-links/exchange",
+            json={"code": outstanding["code"]},
+        ).status_code
+        == 401
     )
-    assert exchange_response.status_code == 401
 
 
 def _create_desktop_session_link(client: TestClient, *, token: str) -> dict:

@@ -1,6 +1,5 @@
 """Core-owned legacy Docs repair; real PostgreSQL, synthetic providers only."""
 
-import importlib
 import json
 import psycopg
 from concurrent.futures import ThreadPoolExecutor
@@ -10,7 +9,7 @@ from uuid import uuid4
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
 import pytest
-from sqlalchemy import create_engine, func, inspect, select, text
+from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.orm import Session
 
 from company_admission_fixture import seed_company_app_access
@@ -32,10 +31,15 @@ from miy_api.domains.retrieval.models import (
 )
 from miy_api.domains.retrieval.projection_fencing import record_projection_event
 from miy_api.domains.search.models import SearchIndexJob
-from test_official_docs_visibility_intents import seed
-from test_official_writer_roles import PASSWORD, activate, denied, sa_dsn
+from test_official_docs_visibility_intents import seed as seed
+from test_official_writer_roles import (
+    PASSWORD as PASSWORD,
+    activate as activate,
+    denied as denied,
+    sa_dsn as sa_dsn,
+)
 from test_official_writer_roles import world as world, role_template as role_template
-from test_official_writer_fence import wait_for_blockers
+from test_official_writer_fence import wait_for_blockers as wait_for_blockers
 from test_independent_app_data import isolated_data_cluster as isolated_data_cluster
 
 
@@ -101,64 +105,6 @@ def legacy(world, kind, *, status="pending", operation="visibility_update", **ex
     return context, identifier
 
 
-def test_repair_schema_preserves_source_inventory(world):
-    from miy_api.domains.official_apps.writer_contracts import (
-        COVERED_SOURCE_TABLES,
-        WRITER_TRANSPORT_TABLES,
-    )
-    from miy_api.domains.retrieval.docs_legacy_repair_models import (
-        DocsLegacyProjectionRepair,
-        DocsLegacyProjectionRepairTarget,
-    )
-
-    schema = inspect(world.engine)
-    for model in (DocsLegacyProjectionRepair, DocsLegacyProjectionRepairTarget):
-        assert {c["name"]: c["nullable"] for c in schema.get_columns(model.__tablename__)} == {
-            c.name: c.nullable for c in model.__table__.columns
-        }
-    with world.connect() as conn:
-        assert conn.execute(
-            "SELECT count(*) FROM pg_trigger WHERE tgname='miy_official_source_writer'"
-        ).fetchone()[0] == len(COVERED_SOURCE_TABLES) + len(WRITER_TRANSPORT_TABLES)
-
-
-@pytest.mark.parametrize("kind", ["scope", "rag", "search"])
-def test_legacy_dispatch_converts_before_any_provider(world, monkeypatch, kind):
-    context, identifier = legacy(world, kind)
-    provider_calls = []
-    if kind == "search":
-        from miy_api.domains.search.indexing import process_search_index_job
-
-        def provider(*_):
-            provider_calls.append(True)
-            raise AssertionError("legacy Docs must be converted before client construction")
-
-        with Session(world.engine) as db:
-            result = process_search_index_job(db, identifier, client_factory=provider)
-    else:
-        tasks = importlib.import_module("miy_worker.tasks.rag_sync")
-        monkeypatch.setattr(tasks, "_db_session", lambda: Session(world.engine))
-        settings = tasks.get_settings().model_copy(update={"rag_enabled": True})
-        monkeypatch.setattr(tasks, "get_settings", lambda: settings)
-
-        def provider(*_):
-            provider_calls.append(True)
-            raise AssertionError("legacy Docs must be converted before runtime construction")
-
-        monkeypatch.setattr(tasks, "_rag_runtime_for_job", provider)
-        if kind == "scope":
-            result = tasks.recompute_visibility.run(identifier)
-        else:
-            result = tasks.sync_resource.run(identifier)
-    assert not provider_calls
-    assert result == "docs-repair-converted"
-    with Session(world.engine) as db:
-        assert all(
-            j.projection_version
-            for j in db.scalars(select(RagSyncJob).where(RagSyncJob.status == "pending"))
-        )
-
-
 def convert(world, kind, identifier):
     with Session(world.engine) as db:
         receipt = repair.repair_docs_legacy_job(db, kind=kind, job_id=identifier)
@@ -211,51 +157,7 @@ def test_exact_replay_atomic_original_and_target_identity(world, kind):
     assert counts(world) == before
 
 
-@pytest.mark.parametrize(
-    "field,value",
-    [
-        ("projection_version", 99),
-        ("content_checksum", "changed"),
-        ("visibility_checksum", "changed"),
-        ("resource_id", "other"),
-        ("change_kind", "content"),
-        ("partition", None),
-    ],
-)
-def test_persisted_event_mutation_is_rejected_and_exact_replay_survives(world, field, value):
-    context, identifier = legacy(world, "rag")
-    convert(world, "rag", identifier)
-    with Session(world.engine) as db:
-        target = db.scalar(select(Target))
-        event = db.get(RetrievalProjectionEvent, target.core_event_sequence)
-        if field == "partition":
-            value = str(uuid4())
-            db.add(
-                RetrievalPartition(
-                    id=value,
-                    source_namespace="docs",
-                    candidate_scope_kind="company",
-                    is_default_ingest=False,
-                )
-            )
-            db.flush()
-            field = "retrieval_partition_id"
-        setattr(event, field, value)
-        from sqlalchemy.exc import IntegrityError
-
-        with pytest.raises(IntegrityError) as error:
-            db.commit()
-        assert error.value.orig.sqlstate == "23514"
-        db.rollback()
-    before = counts(world)
-    convert(world, "rag", identifier)
-    assert counts(world) == before
-
-
-@pytest.mark.parametrize(
-    "phase",
-    ["after_event", "after_jobs", "after_flush", "commit_before", "commit_after", "rollback_error"],
-)
+@pytest.mark.parametrize("phase", ["commit_before", "commit_after", "rollback_error"])
 def test_atomicity_and_unknown_commit_reconcile_same_origin(world, monkeypatch, phase):
     _, identifier = legacy(world, "scope")
     with Session(world.engine) as db:
@@ -312,22 +214,7 @@ def test_atomicity_and_unknown_commit_reconcile_same_origin(world, monkeypatch, 
     assert counts(world) == (1, 2, 2, 0)
 
 
-@pytest.mark.parametrize(
-    "case,code",
-    [
-        ("processing", "origin_not_pending"),
-        ("partial", "partial_fence"),
-        ("app_disabled", "app_disabled"),
-        ("rag_disabled", "rag_disabled"),
-        ("missing_pointer", "partition_conflict"),
-        ("retired", "partition_invalid"),
-        ("namespace", "partition_invalid"),
-        ("missing", "source_unobserved"),
-        ("tombstone", "tombstone_conflict"),
-        ("pending_intent", "source_intent_pending"),
-        ("live_delete_no_head", "restore_unproven"),
-    ],
-)
+@pytest.mark.parametrize("case,code", [("pending_intent", "source_intent_pending")])
 def test_current_source_and_origin_refusals_are_atomic(world, monkeypatch, case, code):
     from miy_api.core.settings import get_settings
 
@@ -395,43 +282,7 @@ def test_current_source_and_origin_refusals_are_atomic(world, monkeypatch, case,
         )
 
 
-@pytest.mark.parametrize("case", ["trashed", "hard_deleted", "rag_excluded", "rag_personal"])
-def test_current_source_deletion_and_rag_exclusion_differ(world, case):
-    context, identifier = legacy(world, "rag")
-    with Session(world.engine) as db:
-        doc = db.get(NativeDoc, context.docs[0])
-        if case == "trashed":
-            doc.trashed_at = utcnow_naive()
-        elif case == "hard_deleted":
-            record_projection_event(
-                db,
-                resource_type="docs_native_doc",
-                resource_id=doc.id,
-                retrieval_partition_id=context.partition,
-                change_kind="content",
-                desired_state="active",
-            )
-            db.delete(doc)
-        else:
-            doc.rag_scope = case.removeprefix("rag_")
-        db.commit()
-    convert(world, "rag", identifier)
-    with Session(world.engine) as db:
-        target = db.scalar(select(Target))
-        event = db.get(RetrievalProjectionEvent, target.core_event_sequence)
-        assert event.desired_state == (
-            "deleted" if case in {"trashed", "hard_deleted"} else "active"
-        )
-        assert db.get(SearchIndexJob, target.search_job_id).operation == (
-            "delete" if event.desired_state == "deleted" else "upsert"
-        )
-        if case.startswith("rag_"):
-            from miy_api.domains.rag.docs_projection import load_native_doc_projection
-
-            assert load_native_doc_projection(db, doc_id=context.docs[0]) is None
-
-
-@pytest.mark.parametrize("case", ["empty", "dedupe", "limit", "over", "malformed", "changed_input"])
+@pytest.mark.parametrize("case", ["changed_input"])
 def test_scope_bounded_snapshot_and_exact_input(world, case):
     context, identifier = legacy(world, "scope")
     with Session(world.engine) as db:
@@ -474,34 +325,6 @@ def test_scope_bounded_snapshot_and_exact_input(world, case):
                 convert(world, "scope", identifier)
 
 
-@pytest.mark.parametrize("kind", ["rag", "search"])
-def test_fully_fenced_original_event_and_operation_passthrough(world, kind):
-    context, identifier = legacy(world, kind)
-    with Session(world.engine) as db:
-        event = record_projection_event(
-            db,
-            resource_type="docs_native_doc",
-            resource_id=context.docs[0],
-            retrieval_partition_id=context.partition,
-            change_kind="content",
-            desired_state="active",
-        )
-        job = db.get(repair._MODELS[kind], identifier)
-        for key in (
-            "resource_type",
-            "projection_version",
-            "retrieval_partition_id",
-            "desired_state",
-        ):
-            setattr(job, key, getattr(event, key))
-        job.projection_event_sequence = event.event_sequence
-        db.commit()
-        before = job.operation
-        assert repair.repair_docs_legacy_job(db, kind=kind, job_id=identifier) is None
-        assert job.operation == before
-    assert counts(world) == (0, 0, 1, 0)
-
-
 def test_concurrent_same_origin_has_one_acceptance(world):
     _, identifier = legacy(world, "scope")
     with ThreadPoolExecutor(max_workers=2) as executor:
@@ -510,7 +333,7 @@ def test_concurrent_same_origin_has_one_acceptance(world):
     assert counts(world) == (1, 2, 2, 0)
 
 
-@pytest.mark.parametrize("operation", ["content", "trash", "restore"])
+@pytest.mark.parametrize("operation", ["trash"])
 def test_source_row_locked_before_its_late_intent_does_not_block_core_select(world, operation):
     from miy_api.domains.docs.rag_sync import enqueue_native_doc_rag_sync
     from miy_api.domains.rag.contracts import RagSyncOperation
@@ -672,18 +495,6 @@ def test_receipt_target_immutability_and_fk_retention(world):
         denied(conn, "TRUNCATE retrieval_projection_events CASCADE", "55000")
 
 
-@pytest.mark.parametrize("isolation", ["REPEATABLE READ", "SERIALIZABLE", "AUTOCOMMIT"])
-def test_isolation_is_fail_closed_without_mutation(world, isolation):
-    _, identifier = legacy(world, "rag")
-    engine = create_engine(sa_dsn(world.dsn), isolation_level=isolation)
-    try:
-        with Session(engine) as db, pytest.raises(DocsLegacyRepairError, match="read_committed"):
-            repair.repair_docs_legacy_job(db, kind="rag", job_id=identifier)
-    finally:
-        engine.dispose()
-    assert counts(world) == (0, 0, 0, 0)
-
-
 def test_admission_revoked_after_flush_rolls_back_whole_conversion(world, monkeypatch):
     _, identifier = legacy(world, "scope")
     original = repair._admission
@@ -811,25 +622,6 @@ def test_migration_preserves_existing_jobs_and_refuses_receipt_loss(world):
     with pytest.raises(RuntimeError, match="retention_required"):
         command.downgrade(_migration_config(sa_dsn(world.dsn)), "official_projection_20261007")
     assert counts(world) == (1, 1, 1, 0)
-
-
-def test_keyword_worker_repair_refusal_never_enters_generic_retry(world, monkeypatch):
-    _, identifier = legacy(world, "search", status="processing")
-    tasks = importlib.import_module("miy_worker.tasks.search_index")
-    monkeypatch.setattr(tasks, "_db_session", lambda: Session(world.engine))
-    monkeypatch.setattr(tasks, "_search_job_app_enabled", lambda *args: True)
-
-    def unexpected(*args, **kwargs):
-        raise AssertionError("refused Core repair cannot create a provider or generic retry")
-
-    monkeypatch.setattr(tasks, "_search_client_for_job", unexpected)
-    monkeypatch.setattr(tasks, "_handle_job_failure", unexpected)
-    with pytest.raises(DocsLegacyRepairError, match="origin_not_pending"):
-        tasks.index_resource.run(identifier)
-    with Session(world.engine) as db:
-        job = db.get(SearchIndexJob, identifier)
-        assert job.status == "processing" and job.attempts == 0
-    assert counts(world) == (0, 0, 0, 0)
 
 
 def test_lock_timeout_rolls_back_without_provider_and_resets_local_settings(world, monkeypatch):

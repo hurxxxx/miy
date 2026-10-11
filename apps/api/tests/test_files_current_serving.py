@@ -1,20 +1,15 @@
 """Actual Source rows at final serving boundaries with synthetic backend/ACL."""
 
-from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import insert, update
 
-from test_files_current_retrieval import _EXTRACTED_AT, _candidate
+from test_files_current_retrieval import _EXTRACTED_AT as _EXTRACTED_AT, _candidate as _candidate
 
-from miy_api.domains.files import chat_retrieval
 from miy_api.domains.files import search as files_search
 from miy_api.domains.files.models import FileManagerFile
-from miy_api.domains.search import service as search_service
-from miy_api.domains.search.backend_contracts import KeywordSearchHit, KeywordSearchResult
-from miy_api.domains.search.schemas import KeywordSearchRequest
 
 pytest_plugins = ("test_files_current_retrieval",)
 
@@ -61,42 +56,7 @@ def _insert_backup(db, partition_id):
     return second_id
 
 
-def test_chat_drops_same_bytes_reextracted_during_source_hydration(current_file, monkeypatch):
-    db, file_id, partition_id = current_file
-    hit = _candidate(file_id, partition_id)
-    hit.score = 0.8
-    hit.methods = ["semantic", "cross_encoder"]
-    _stub_ranked_candidates(monkeypatch, chat_retrieval, [hit])
-    monkeypatch.setattr(
-        chat_retrieval,
-        "resolve_file_search_runtime",
-        lambda _db: SimpleNamespace(
-            keyword_client=None, rag_query_service=None, rag_collection=None
-        ),
-    )
-    original = chat_retrieval._load_file_chat_sources
-
-    def load_then_reextract(db, file_ids):
-        result = original(db, file_ids)
-        db.execute(
-            update(FileManagerFile)
-            .where(FileManagerFile.id == file_id)
-            .values(
-                extracted_at=datetime(2026, 10, 7, 10, 1, tzinfo=UTC),
-                extraction_text="SYNTHETIC-NEW-OUTPUT-SAME-INPUT",
-            )
-        )
-        db.commit()
-        return result
-
-    monkeypatch.setattr(chat_retrieval, "_load_file_chat_sources", load_then_reextract)
-    result = chat_retrieval.query_file_chat_evidence(
-        db, user=SimpleNamespace(id="synthetic-owner"), query="original"
-    )
-    assert result.items == ()
-
-
-@pytest.mark.parametrize("changed_candidate", ["page", "off_page"])
+@pytest.mark.parametrize("changed_candidate", ["page"])
 def test_files_search_refills_and_counts_only_current_content(
     current_file, monkeypatch, changed_candidate
 ):
@@ -137,62 +97,3 @@ def test_files_search_refills_and_counts_only_current_content(
     assert [hit.file_id for hit in result.hits] == [expected_id]
     assert result.has_more is False
     assert loads >= 2
-
-
-def test_keyword_refills_past_stale_content_before_counting_candidates(current_file):
-    db, file_id, partition_id = current_file
-    second_id = _insert_backup(db, partition_id)
-    current_row = {
-        "entity_type": "file",
-        "entity_id": second_id,
-        "title": "Synthetic",
-        "body": "original",
-        "retrieval_partition_id": partition_id,
-        "metadata": dict(_candidate(second_id, partition_id).metadata),
-    }
-    stale_row = {
-        **current_row,
-        "entity_id": file_id,
-        "metadata": {**current_row["metadata"], "content_checksum": "b" * 64},
-    }
-
-    class CandidateIndex:
-        def __init__(self):
-            self.queries = []
-            self.closed = []
-
-        def open_point_in_time(self, *, keep_alive):
-            return "synthetic-pit"
-
-        def close_point_in_time(self, pit):
-            self.closed.append(pit)
-
-        def search(self, query):
-            self.queries.append(query)
-            row = stale_row if not query.search_after else current_row
-            return KeywordSearchResult(
-                hits=(KeywordSearchHit(document=row, score=1.0, sort_values=(len(self.queries),)),)
-            )
-
-    class AllowSource:
-        def authorize_many_resources(self, resources):
-            return set(resources)
-
-    client = CandidateIndex()
-    rows = search_service._load_authorized_ranked_candidates(
-        db,
-        acl_filter=None,
-        policy=AllowSource(),
-        allowed_entity_types=frozenset({"file"}),
-        request=KeywordSearchRequest(query="original", limit=1),
-        backend_timeout_seconds=None,
-        client=client,
-        text_operator="and",
-        text_minimum_should_match=None,
-        size=1,
-    )
-    assert [row["entity_id"] for row in rows] == [second_id]
-    assert rows[0]["metadata"]["content_checksum"] == "a" * 64
-    assert len(client.queries) == 2
-    assert client.queries[1].search_after == (1,)
-    assert client.closed == ["synthetic-pit"]

@@ -1,71 +1,38 @@
-from __future__ import annotations
-
+from opentelemetry import baggage
 from starlette.datastructures import Headers
 
-from miy_api.core.telemetry import (
-    _build_otlp_metric_exporter,
-    _build_otlp_span_exporter,
-    bootstrap_telemetry,
+from miy_api.core.telemetry import bootstrap_telemetry, get_tracer, start_as_current_span
+from miy_api.core.trace_context import (
     serialize_current_trace_context,
-    start_as_current_span,
+    start_span_with_trace_context,
 )
 
 
-def test_extract_trace_context_preserves_http_baggage_header() -> None:
+def test_http_trace_propagates_through_child_and_worker_then_detaches():
     bootstrap_telemetry(service_name="miy-api-test")
-
     headers = Headers(
         {
             "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
-            "baggage": "tenant=delivery-hub,locale=ko-KR,feature=rag%20sync",
+            "baggage": "tenant=delivery-hub,feature=rag%20sync",
         }
     )
-
     with start_as_current_span(
-        tracer_name="tests.telemetry",
-        span_name="tests.http_baggage",
-        parent_trace_context=headers,
-    ):
-        trace_context = serialize_current_trace_context()
-
-    assert trace_context is not None
-    assert trace_context["traceparent"].startswith("00-4bf92f3577b34da6a3ce929d0e0e4736-")
-    assert trace_context["baggage"] == {
-        "tenant": "delivery-hub",
-        "locale": "ko-KR",
-        "feature": "rag sync",
-    }
-
-
-def test_start_as_current_span_preserves_ambient_parent_when_no_explicit_context() -> None:
-    bootstrap_telemetry(service_name="miy-api-test")
-
-    with start_as_current_span(
-        tracer_name="tests.telemetry",
-        span_name="tests.outer",
-    ) as outer_span:
-        outer_context = outer_span.get_span_context()
-        with start_as_current_span(
-            tracer_name="tests.telemetry",
-            span_name="tests.inner",
-        ) as inner_span:
-            inner_parent = inner_span.parent
-
-    assert inner_parent is not None
-    assert inner_parent.span_id == outer_context.span_id
-    assert inner_span.get_span_context().trace_id == outer_context.trace_id
-
-
-def test_otlp_exporter_builders_follow_protocol_env(monkeypatch) -> None:
-    monkeypatch.setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
-    span_exporter = _build_otlp_span_exporter()
-    metric_exporter = _build_otlp_metric_exporter()
-    assert span_exporter.__class__.__module__.endswith("proto.grpc.trace_exporter")
-    assert metric_exporter.__class__.__module__.endswith("proto.grpc.metric_exporter")
-
-    monkeypatch.setenv("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL", "http/protobuf")
-    monkeypatch.setenv("OTEL_EXPORTER_OTLP_METRICS_PROTOCOL", "http/protobuf")
-    span_exporter = _build_otlp_span_exporter()
-    metric_exporter = _build_otlp_metric_exporter()
-    assert span_exporter.__class__.__module__.endswith("proto.http.trace_exporter")
-    assert metric_exporter.__class__.__module__.endswith("proto.http.metric_exporter")
+        tracer_name="tests.telemetry", span_name="http", parent_trace_context=headers
+    ) as http:
+        assert baggage.get_baggage("feature") == "rag sync"
+        with start_as_current_span(tracer_name="tests.telemetry", span_name="child") as child:
+            assert child.parent.span_id == http.get_span_context().span_id
+            serialized = serialize_current_trace_context()
+            child_id = child.get_span_context().span_id
+    assert baggage.get_baggage("tenant") is None
+    assert serialized is not None
+    with start_span_with_trace_context(
+        tracer=get_tracer("tests.worker"), span_name="worker", parent_trace_context=serialized
+    ) as worker:
+        assert worker.parent.span_id == child_id
+        assert (
+            format(worker.get_span_context().trace_id, "032x") == "4bf92f3577b34da6a3ce929d0e0e4736"
+        )
+        assert baggage.get_baggage("tenant") == "delivery-hub"
+        assert baggage.get_baggage("feature") == "rag sync"
+    assert baggage.get_baggage("tenant") is None

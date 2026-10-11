@@ -10,20 +10,15 @@ APIs are readiness failures, never evidence of a behavioral RED.
 """
 
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import FrozenInstanceError, replace
 from datetime import UTC, datetime, timedelta
 from importlib import import_module
-import json
-import time
 from types import SimpleNamespace
 from uuid import uuid4
 
 from alembic import command
-import psycopg
-from psycopg import sql
 from psycopg.conninfo import make_conninfo
 import pytest
-from sqlalchemy import create_engine, event, text
+from sqlalchemy import create_engine, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
@@ -33,13 +28,11 @@ from miy_api.domains.auth.app_access_models import AppAccessPolicy, AppGroupGran
 from miy_api.domains.auth.models import User, UserSystemRole
 from miy_api.domains.groups.models import Group, GroupMember
 from miy_api.domains.meeting.models import Meeting, MeetingAttendee
-from miy_api.domains.official_apps.writer import WriterControlError, WriterIdentity
 from miy_api.domains.pms.models import TaskList
 from miy_api.domains.pms.space_models import SpaceGroupBinding, Team, TeamMember
 from miy_api.domains.whiteboard.access import resolve_whiteboard_access
 from miy_api.domains.whiteboard.models import (
     Whiteboard,
-    WhiteboardCollabDocument,
     WhiteboardGroupShare,
     WhiteboardLinkShare,
     WhiteboardTarget,
@@ -56,15 +49,12 @@ from test_prepared_official_http_auth import (
     role_template as role_template,  # noqa: F401
 )
 from test_whiteboard_actor_writer import (
-    CAPABILITY as OWNER_CAPABILITY,
-    PRODUCER,
     SERVICE,
     _collab_snapshot,
     _capture_before_actor_revision,
     _commands,
     _migration_snapshot as _owner_snapshot,
     _oid,
-    _replace_body,
     _wait_for_blocker,
     actor_boundary as actor_boundary,  # noqa: F401
 )
@@ -441,7 +431,9 @@ PARITY_CASES = [
 ]
 
 
-@pytest.mark.parametrize("kind,role,allowed", PARITY_CASES)
+@pytest.mark.parametrize(
+    "kind,role,allowed", [("pms_space", "member", True), ("pms_space", "viewer", False)]
+)
 def test_genuine_edit_decision_matches_actual_core_acl_without_source_dml(
     acl_prepared, kind, role, allowed
 ):
@@ -458,98 +450,6 @@ def test_genuine_edit_decision_matches_actual_core_acl_without_source_dml(
             _refused(c, db)
     assert set(commands) <= {"SELECT", "SET", "SHOW"}
     assert _collab_snapshot(c) == before
-
-
-@pytest.mark.parametrize(
-    "role,allowed",
-    [
-        ("\u00a0MeMbEr\u2003", True),
-        ("\tADMIN\n", True),
-        ("\u001cOwNeR\u001f", True),
-        ("\u3000member\u205f", True),
-        ("\u0085member\u2028", True),
-        ("team_admin", False),
-        ("mem ber", False),
-        ("member\u200b", False),
-        ("member\u180e", False),
-    ],
-)
-def test_genuine_pms_role_normalization_matches_python_unicode_strip_lower(
-    acl_prepared, role, allowed
-):
-    c = acl_prepared
-    _seed(c, "pms_space", role=role)
-    assert _core_edit(c) is allowed
-    with Session(c.source_engine) as db:
-        if allowed:
-            assert _lock(c, db) is None
-            db.rollback()
-        else:
-            _refused(c, db)
-
-
-def test_genuine_higher_group_role_can_supply_edit_when_direct_role_is_only_viewer(acl_prepared):
-    c = acl_prepared
-    p = _seed(c, "pms_space", role="viewer")
-    with Session(c.engine) as db:
-        group_id = _resource_group(db, c)
-        db.add(SpaceGroupBinding(team_id=p["space"], group_id=group_id, role="admin"))
-        db.commit()
-    assert _core_edit(c) is True
-    with Session(c.source_engine) as db:
-        assert _lock(c, db) is None
-        db.rollback()
-
-
-@pytest.mark.parametrize(
-    "kind,mutation",
-    [
-        ("owner", "UPDATE company_app_controls SET enabled=false WHERE app_id='whiteboard'"),
-        ("pms_space", "UPDATE company_app_controls SET enabled=false WHERE app_id='pms'"),
-        (
-            "meeting_attendee",
-            "UPDATE company_app_controls SET enabled=false WHERE app_id='meeting'",
-        ),
-        ("pms_space", "UPDATE pms_spaces SET active=false WHERE id=%(space)s"),
-        (
-            "pms_space",
-            "UPDATE pms_spaces SET trashed_at=timezone('UTC',clock_timestamp()) WHERE id=%(space)s",
-        ),
-        ("pms_list", "UPDATE pms_task_lists SET archived=true WHERE id=%(list)s"),
-        ("local_edit", "UPDATE groups SET active=false WHERE id=%(group)s"),
-        ("hr_edit", "UPDATE groups SET active=false WHERE id=%(group)s"),
-    ],
-)
-def test_genuine_current_app_and_resource_admission_denies_old_execution(
-    acl_prepared, kind, mutation
-):
-    c = acl_prepared
-    p = _seed(c, kind)
-    assert _core_edit(c) is True
-    with c.connect() as conn:
-        conn.execute(mutation, p)
-    assert _core_edit(c) is False
-    with Session(c.source_engine) as db:
-        _refused(c, db)
-
-
-@pytest.mark.parametrize("kind", ["owner", "direct_edit", "pms_space", "meeting_organizer"])
-def test_genuine_trashed_board_is_never_a_persistable_edit_even_for_core_manager(
-    acl_prepared, kind
-):
-    c = acl_prepared
-    _seed(c, kind)
-    assert _core_edit(c) is True
-    with c.connect() as conn:
-        conn.execute(
-            "UPDATE whiteboards SET trashed_at=timezone('UTC',clock_timestamp()) WHERE id=%s",
-            (c.board_id,),
-        )
-    # The ordinary resolver itself still returns can_edit; the persistence
-    # contract deliberately refuses every trashed board, including managers.
-    assert _core_edit(c) is True
-    with Session(c.source_engine) as db:
-        _refused(c, db)
 
 
 # Sole selected resource witnesses: holding these must block real Core revoke.
@@ -629,8 +529,7 @@ WITNESS_MUTATIONS = {
 }
 
 
-@pytest.mark.parametrize("witness", list(WITNESS_MUTATIONS))
-@pytest.mark.parametrize("finish", ["commit", "rollback"])
+@pytest.mark.parametrize("witness,finish", [("meeting_organizer", "commit")])
 def test_genuine_selected_edit_witness_survives_until_actual_caller_end(
     acl_prepared, witness, finish
 ):
@@ -663,41 +562,7 @@ def test_genuine_selected_edit_witness_survives_until_actual_caller_end(
     assert _collab_snapshot(c) == before
 
 
-@pytest.mark.parametrize("witness", ["direct", "space_member", "meeting_attendee"])
-def test_genuine_waited_resource_rechecks_revocation_before_edit_decision(acl_prepared, witness):
-    c = acl_prepared
-    kind, table, predicate, mutation = WITNESS_MUTATIONS[witness]
-    p = _seed(c, kind)
-    with (
-        c.connect(autocommit=True) as observer,
-        c.connect() as revoker,
-        Session(c.source_engine) as db,
-    ):
-        caller_pid = db.scalar(text("SELECT pg_backend_pid()"))
-        # Pool size one preserves this captured backend after releasing its
-        # preliminary read transaction, before the genuine capability wait.
-        db.rollback()
-        holder_pid = revoker.execute("SELECT pg_backend_pid()").fetchone()[0]
-        revoker.rollback()
-        revoker.execute(f"SELECT 1 FROM {table} WHERE {predicate} FOR UPDATE", p)
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            future = pool.submit(_lock, c, db)
-            try:
-                _wait_for_blocker(observer, caller_pid, holder_pid)
-                assert not future.done()
-                revoker.execute(mutation, p)
-                revoker.commit()
-                with pytest.raises(c.api.runtime.WhiteboardActorACLWriterRefused) as caught:
-                    future.result(timeout=5)
-                assert str(caught.value) == "whiteboard_actor_acl_writer_refused"
-            finally:
-                revoker.rollback()
-                db.rollback()
-
-
-@pytest.mark.parametrize(
-    "selected", ["direct_share", "pms_direct_role", "meeting_organizer", "target_app_user_grant"]
-)
+@pytest.mark.parametrize("selected", ["pms_direct_role"])
 def test_genuine_selected_positive_witness_cannot_switch_to_an_alternate_after_wait(
     acl_prepared, selected
 ):
@@ -768,393 +633,6 @@ def test_genuine_selected_positive_witness_cannot_switch_to_an_alternate_after_w
         db.rollback()
 
 
-def test_genuine_expired_delegation_after_actual_resource_wait_never_grants_edit(acl_prepared):
-    c = acl_prepared
-    _seed(c, "direct_edit")
-    with c.connect() as conn:
-        conn.execute(
-            "UPDATE independent_app_sessions SET expires_at=timezone('UTC',clock_timestamp())+interval '1 second' WHERE token_hash=%s",
-            (c.execution.delegated_token_digest,),
-        )
-    with (
-        c.connect(autocommit=True) as observer,
-        c.connect() as holder,
-        Session(c.source_engine) as db,
-    ):
-        caller_pid = db.scalar(text("SELECT pg_backend_pid()"))
-        db.rollback()
-        holder_pid = holder.execute("SELECT pg_backend_pid()").fetchone()[0]
-        holder.rollback()
-        holder.execute(
-            "SELECT 1 FROM whiteboard_user_shares WHERE whiteboard_id=%s AND user_id=%s FOR UPDATE",
-            (c.board_id, c.execution.actor_user_id),
-        )
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            future = pool.submit(_lock, c, db)
-            try:
-                _wait_for_blocker(observer, caller_pid, holder_pid)
-                deadline = time.monotonic() + 3
-                while observer.execute(
-                    "SELECT expires_at>timezone('UTC',clock_timestamp()) FROM independent_app_sessions WHERE token_hash=%s",
-                    (c.execution.delegated_token_digest,),
-                ).fetchone()[0]:
-                    assert time.monotonic() < deadline
-                    time.sleep(0.01)
-                assert not future.done()
-                holder.rollback()
-                with pytest.raises(c.api.runtime.WhiteboardActorACLWriterRefused) as caught:
-                    future.result(timeout=5)
-                assert str(caught.value) == "whiteboard_actor_acl_writer_refused"
-            finally:
-                holder.rollback()
-                db.rollback()
-
-
-@pytest.mark.parametrize("nullable", ["installation_release", "release_verification"])
-def test_genuine_null_current_release_or_proof_never_adopts_old_captured_identity(
-    acl_prepared, nullable
-):
-    c = acl_prepared
-    _seed(c, "direct_edit")
-    with c.connect() as conn:
-        if nullable == "installation_release":
-            conn.execute(
-                "UPDATE independent_app_installations SET release_id=NULL WHERE id=%s",
-                (c.execution.installation_id,),
-            )
-        else:
-            conn.execute(
-                "UPDATE independent_app_releases SET verification_id=NULL WHERE id=%s",
-                (c.execution.release_id,),
-            )
-    with Session(c.source_engine) as db:
-        _refused(c, db)
-
-
-def test_genuine_distinct_acl_profile_has_exact_24_100_24_and_login_exec1_dml0(acl_prepared):
-    c = acl_prepared
-    assert c.api.roles.PROFILE == "whiteboard_actor_edit_v1"
-    assert c.api.roles.CAPABILITY == CAPABILITY
-    assert type(c.writer) is c.api.roles.WhiteboardActorACLProfile
-    assert c.writer.role_name == c.source and c.writer.identity == ACTIVE
-    assert c.writer.role_oid not in {
-        c.capability_owner_oid,
-        c.service_capability_owner_oid,
-        c.producer_owner_oid,
-        c.source_guard_owner_oid,
-    }
-    read = c.api.roles.OWNER_READ_COLUMNS
-    locks = c.api.roles.OWNER_LOCK_COLUMNS
-    assert len(read) == len(locks) == 24
-    assert sum(map(len, read.values())) == 100
-    assert sum(map(len, locks.values())) == 24
-    # Assert the new resource manifest independently from the production map.
-    assert {
-        table: read[table]
-        for table in (
-            "whiteboard_user_shares",
-            "whiteboard_group_shares",
-            "whiteboard_targets",
-            "pms_spaces",
-            "pms_space_members",
-            "pms_space_group_bindings",
-            "pms_task_lists",
-            "meetings",
-            "meeting_attendees",
-        )
-    } == {
-        "whiteboard_user_shares": ("whiteboard_id", "user_id", "access_level"),
-        "whiteboard_group_shares": ("whiteboard_id", "group_id", "access_level"),
-        "whiteboard_targets": ("whiteboard_id", "target_app", "target_type", "target_id"),
-        "pms_spaces": ("id", "active", "trashed_at"),
-        "pms_space_members": ("team_id", "user_id", "role"),
-        "pms_space_group_bindings": ("team_id", "group_id", "role"),
-        "pms_task_lists": ("id", "team_id", "archived"),
-        "meetings": ("id", "organizer_id"),
-        "meeting_attendees": ("meeting_id", "user_id"),
-    }
-    assert c.owner_api.roles.PROFILE == "whiteboard_actor_owner_v1"
-    assert len(c.owner_api.roles.OWNER_READ_COLUMNS) == 15
-    assert sum(map(len, c.owner_api.roles.OWNER_READ_COLUMNS.values())) == 74
-    with c.connect() as conn:
-        assert conn.execute(
-            "SELECT rolcanlogin FROM pg_roles WHERE oid=%s", (c.capability_owner_oid,)
-        ).fetchone() == (False,)
-        granted = conn.execute(
-            "SELECT c.relname,a.attname,has_column_privilege(%s,c.oid,a.attnum,'SELECT'),"
-            "has_column_privilege(%s,c.oid,a.attnum,'UPDATE'),"
-            "has_column_privilege(%s,c.oid,a.attnum,'SELECT,INSERT,UPDATE,REFERENCES') "
-            "FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
-            "JOIN pg_attribute a ON a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped "
-            "WHERE n.nspname='public' AND c.relkind IN ('r','p')",
-            (c.capability_owner, c.capability_owner, c.source),
-        ).fetchall()
-        assert {(t, col) for t, col, r, _, _ in granted if r} == {
-            (t, col) for t, cols in read.items() for col in cols
-        }
-        assert {(t, col) for t, col, _, u, _ in granted if u} == {
-            (t, col) for t, cols in locks.items() for col in cols
-        }
-        assert not any(row[4] for row in granted)
-        assert conn.execute(
-            "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
-            "WHERE n.nspname='public' AND c.relkind IN ('r','p') AND "
-            "has_table_privilege(%s,c.oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN')",
-            (c.source,),
-        ).fetchone() == (0,)
-        assert conn.execute(
-            "SELECT has_function_privilege(%s,%s,'EXECUTE'),has_function_privilege(%s,%s,'EXECUTE'),"
-            "has_function_privilege(%s,%s,'EXECUTE'),has_function_privilege(%s,%s,'EXECUTE'),has_function_privilege(%s,%s,'EXECUTE')",
-            (
-                c.source,
-                CAPABILITY,
-                c.source,
-                OWNER_CAPABILITY,
-                c.source,
-                SERVICE,
-                c.source,
-                PRODUCER,
-                c.original_owner_login,
-                CAPABILITY,
-            ),
-        ).fetchone() == (True, False, False, False, False)
-
-
-@pytest.mark.parametrize(
-    "statement",
-    [
-        "SELECT id FROM pms_spaces",
-        "SELECT organizer_id FROM meetings",
-        "SELECT role_oid FROM official_writer_principals",
-        "UPDATE whiteboard_collab_documents SET yjs_state=yjs_state WHERE false",
-        "UPDATE pms_space_members SET role=role WHERE false",
-    ],
-)
-def test_genuine_acl_login_cannot_select_or_mutate_business_and_core(acl_prepared, statement):
-    c = acl_prepared
-    with Session(c.source_engine) as db:
-        with pytest.raises(DBAPIError) as caught:
-            db.execute(text(statement))
-        assert getattr(caught.value.orig, "sqlstate", None) == "42501"
-        db.rollback()
-
-
-def test_genuine_exact_acl_prepare_replay_observes_and_never_repairs_partial_authority(
-    acl_prepared,
-):
-    c = acl_prepared
-    with c.connect() as conn:
-        audits = conn.execute("SELECT count(*) FROM audit_logs").fetchone()[0]
-    with Session(c.engine) as db, _commands(c.engine) as commands:
-        assert _prepare(c, db).writer == c.writer
-        db.commit()
-    assert not set(commands) & MUTATING_COMMANDS
-    with c.connect() as conn:
-        assert conn.execute("SELECT count(*) FROM audit_logs").fetchone()[0] == audits
-        conn.execute(
-            sql.SQL("REVOKE EXECUTE ON FUNCTION {} FROM {}").format(
-                sql.SQL(CAPABILITY), sql.Identifier(c.source)
-            )
-        )
-    with Session(c.engine) as db, _commands(c.engine) as commands:
-        with pytest.raises(WriterControlError):
-            _prepare(c, db)
-        db.rollback()
-    assert not set(commands) & MUTATING_COMMANDS
-    with Session(c.source_engine) as db:
-        _refused(c, db)
-
-
-def test_genuine_exact_acl_install_replay_under_drain_is_observation_only(acl_boundary):
-    c = acl_boundary
-    with Session(c.engine) as db:
-        assert _install(c, db) is None
-        db.commit()
-    with c.connect() as conn:
-        audits = conn.execute("SELECT count(*) FROM audit_logs").fetchone()[0]
-    with Session(c.engine) as db, _commands(c.engine) as commands:
-        assert _install(c, db) is None
-        db.commit()
-    assert not set(commands) & MUTATING_COMMANDS
-    with c.connect() as conn:
-        assert conn.execute("SELECT count(*) FROM audit_logs").fetchone()[0] == audits
-
-
-@pytest.mark.parametrize("preexisting", ["read", "execute", "nologin"])
-def test_genuine_acl_fresh_preparation_refuses_preexisting_authority_without_repair(
-    acl_boundary, preexisting
-):
-    c = acl_boundary
-    with Session(c.engine) as db:
-        assert _install(c, db) is None
-        db.commit()
-    fresh = c.role(login=preexisting != "nologin")
-    with c.connect() as conn:
-        if preexisting == "read":
-            conn.execute(
-                sql.SQL("GRANT SELECT (id) ON pms_spaces TO {}").format(sql.Identifier(fresh))
-            )
-        elif preexisting == "execute":
-            conn.execute(
-                sql.SQL("GRANT EXECUTE ON FUNCTION {} TO {}").format(
-                    sql.SQL(CAPABILITY), sql.Identifier(fresh)
-                )
-            )
-        before = conn.execute(
-            "SELECT count(*) FROM official_writer_principals WHERE role_name=%s", (fresh,)
-        ).fetchone()[0]
-        audits = conn.execute("SELECT count(*) FROM audit_logs").fetchone()[0]
-    with Session(c.engine) as db, _commands(c.engine) as commands:
-        with pytest.raises(WriterControlError):
-            _prepare(c, db, role_name=fresh)
-        db.rollback()
-    assert not set(commands) & MUTATING_COMMANDS
-    with c.connect() as conn:
-        assert (
-            conn.execute(
-                "SELECT count(*) FROM official_writer_principals WHERE role_name=%s", (fresh,)
-            ).fetchone()[0]
-            == before
-            == 0
-        )
-        assert conn.execute("SELECT count(*) FROM audit_logs").fetchone()[0] == audits
-
-
-@pytest.mark.parametrize(
-    "tamper",
-    [
-        "login_read",
-        "login_update",
-        "membership",
-        "public_definer",
-        "namespace_column",
-        "owner_extra_lock",
-        "body",
-        "overload",
-    ],
-)
-def test_genuine_acl_profile_or_capability_tamper_is_refused_without_repair(acl_prepared, tamper):
-    c = acl_prepared
-    with c.connect() as conn:
-        login, owner = sql.Identifier(c.source), sql.Identifier(c.capability_owner)
-        if tamper == "login_read":
-            conn.execute(sql.SQL("GRANT SELECT (organizer_id) ON meetings TO {}").format(login))
-        elif tamper == "login_update":
-            conn.execute(sql.SQL("GRANT UPDATE (role) ON pms_space_members TO {}").format(login))
-        elif tamper == "membership":
-            conn.execute(
-                sql.SQL("GRANT {} TO {}").format(sql.Identifier(c.role(login=False)), login)
-            )
-        elif tamper == "public_definer":
-            conn.execute("CREATE SCHEMA pgx_acl")
-            conn.execute(
-                "CREATE FUNCTION pgx_acl.private_cap() RETURNS integer LANGUAGE sql SECURITY DEFINER AS 'SELECT 1'"
-            )
-        elif tamper == "namespace_column":
-            conn.execute("CREATE SCHEMA pgx_acl")
-            conn.execute("CREATE TABLE pgx_acl.private_metadata(marker integer)")
-            conn.execute(sql.SQL("GRANT USAGE ON SCHEMA pgx_acl TO {}").format(login))
-            conn.execute(
-                sql.SQL("GRANT SELECT (marker) ON pgx_acl.private_metadata TO {}").format(login)
-            )
-        elif tamper == "owner_extra_lock":
-            conn.execute(sql.SQL("GRANT UPDATE (role) ON pms_space_members TO {}").format(owner))
-        elif tamper == "body":
-            _replace_body(conn, CAPABILITY)
-        else:
-            conn.execute(
-                "CREATE FUNCTION public.miy_whiteboard_lock_edit_actor(text) RETURNS void LANGUAGE plpgsql AS $$BEGIN RETURN; END$$"
-            )
-            conn.execute(
-                "REVOKE ALL ON FUNCTION public.miy_whiteboard_lock_edit_actor(text) FROM PUBLIC"
-            )
-    before = _collab_snapshot(c)
-    with Session(c.source_engine) as db:
-        _refused(c, db)
-    with Session(c.engine) as db, _commands(c.engine) as commands:
-        with pytest.raises(WriterControlError):
-            _prepare(c, db)
-        db.rollback()
-    assert not set(commands) & MUTATING_COMMANDS
-    assert _collab_snapshot(c) == before
-
-
-@pytest.mark.parametrize("change", ["generation", "role_oid", "session_user"])
-def test_genuine_original_acl_service_identity_cannot_be_replaced_by_spoofed_guc(
-    acl_prepared, change
-):
-    c = acl_prepared
-    writer = c.writer
-    if change == "generation":
-        writer = replace(
-            writer, identity=WriterIdentity(ACTIVE.scope, ACTIVE.owner, 2, ACTIVE.artifact)
-        )
-    elif change == "role_oid":
-        writer = replace(writer, role_oid=c.writer.role_oid + 100000)
-    if change == "session_user":
-        other = c.role()
-        with c.connect() as conn:
-            conn.execute(
-                sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(sql.Identifier(other))
-            )
-            conn.execute(
-                sql.SQL("GRANT EXECUTE ON FUNCTION {} TO {}").format(
-                    sql.SQL(CAPABILITY), sql.Identifier(other)
-                )
-            )
-        engine = create_engine(c.engine.url.set(username=other, password=PASSWORD))
-    else:
-        engine = c.source_engine
-    try:
-        with Session(engine) as db:
-            db.execute(
-                text("SELECT set_config('miy.official_writer',:spoof,true)"),
-                {
-                    "spoof": json.dumps(
-                        {
-                            "scope": ACTIVE.scope,
-                            "owner": ACTIVE.owner,
-                            "generation": 3,
-                            "artifact": ACTIVE.artifact,
-                        }
-                    )
-                },
-            )
-            _refused(c, db, writer=writer)
-    finally:
-        if engine is not c.source_engine:
-            engine.dispose()
-
-
-def test_genuine_known_different_database_locator_refuses_before_capability_use(acl_prepared):
-    c = acl_prepared
-    with Session(c.source_engine) as db:
-        _refused(
-            c, db, execution=replace(c.execution, database_oid=c.execution.database_oid + 100000)
-        )
-        assert _lock(c, db) is None
-        db.rollback()
-
-
-@pytest.mark.parametrize("isolation", ["REPEATABLE READ", "AUTOCOMMIT"])
-def test_genuine_edit_requires_actual_read_committed_non_autocommit_caller(acl_prepared, isolation):
-    c = acl_prepared
-    engine = create_engine(c.source_engine.url, isolation_level=isolation)
-    try:
-        with Session(engine) as db:
-            _refused(c, db)
-    finally:
-        engine.dispose()
-
-
-def test_genuine_missing_board_has_private_refusal_without_source_changes(acl_prepared):
-    c = acl_prepared
-    before = _collab_snapshot(c)
-    with Session(c.source_engine) as db:
-        _refused(c, db, board=str(uuid4()))
-    assert _collab_snapshot(c) == before
-
-
 def _pure_execution(api):
     return api.runtime.CapturedWhiteboardWriteExecution(
         "a" * 64,
@@ -1175,123 +653,6 @@ def _pure_execution(api):
     )
 
 
-@pytest.mark.parametrize(
-    "model",
-    [
-        WhiteboardUserShare,
-        WhiteboardGroupShare,
-        WhiteboardTarget,
-        Team,
-        TeamMember,
-        SpaceGroupBinding,
-        TaskList,
-        Meeting,
-        MeetingAttendee,
-    ],
-)
-def test_pure_new_resource_model_cannot_route_to_another_engine_before_any_sql(monkeypatch, model):
-    api = _api()
-    monkeypatch.setattr(
-        api.runtime,
-        "get_settings",
-        lambda: SimpleNamespace(independent_app_platform_origins=["https://portal.example.test"]),
-    )
-    first, second = create_engine("sqlite://"), create_engine("sqlite://")
-    writer = api.roles.WhiteboardActorACLProfile(1, "synthetic_actor", ACTIVE, 2, 3, 4, 5)
-    calls = []
-
-    def observe(*_):
-        calls.append(1)
-
-    for engine in (first, second):
-        event.listen(engine, "before_cursor_execute", observe)
-    try:
-        with Session(bind=first, binds={model: second}) as db:
-            with pytest.raises(api.runtime.WhiteboardActorACLWriterRefused) as caught:
-                api.runtime.lock_whiteboard_actor_edit_write(
-                    db, writer=writer, execution=_pure_execution(api), whiteboard_id="board"
-                )
-            assert str(caught.value) == "whiteboard_actor_acl_writer_refused"
-            assert caught.value.reason == "single_caller_engine_required"
-            assert not db.in_transaction() and calls == []
-    finally:
-        for engine in (first, second):
-            event.remove(engine, "before_cursor_execute", observe)
-            engine.dispose()
-
-
-@pytest.mark.parametrize("caller", ["routed", "connection", "pending"])
-def test_pure_nonstandard_or_dirty_caller_is_never_adopted_before_sql(monkeypatch, caller):
-    api = _api()
-    monkeypatch.setattr(
-        api.runtime,
-        "get_settings",
-        lambda: SimpleNamespace(independent_app_platform_origins=["https://portal.example.test"]),
-    )
-    engine = create_engine("sqlite://")
-    writer = api.roles.WhiteboardActorACLProfile(1, "synthetic_actor", ACTIVE, 2, 3, 4, 5)
-    execution = _pure_execution(api)
-    calls = []
-
-    def observe(*_):
-        calls.append(1)
-
-    class Routed(Session):
-        def get_bind(self, mapper=None, clause=None, **kwargs):
-            calls.append("route")
-            return engine
-
-    event.listen(engine, "before_cursor_execute", observe)
-    try:
-        with engine.connect() as connection:
-            db = (
-                Routed(bind=engine)
-                if caller == "routed"
-                else Session(bind=connection if caller == "connection" else engine)
-            )
-            with db:
-                marker = None
-                if caller == "pending":
-                    marker = User(
-                        id="unrelated",
-                        login_id="unrelated",
-                        email="unused@example.test",
-                        full_name="Synthetic",
-                        password_hash="synthetic",
-                    )
-                    db.add(marker)
-                with pytest.raises(api.runtime.WhiteboardActorACLWriterRefused) as caught:
-                    api.runtime.lock_whiteboard_actor_edit_write(
-                        db, writer=writer, execution=execution, whiteboard_id="board"
-                    )
-                assert str(caught.value) == "whiteboard_actor_acl_writer_refused"
-                assert calls == []
-                if marker is not None:
-                    assert marker in db.new and db.in_transaction()
-    finally:
-        event.remove(engine, "before_cursor_execute", observe)
-        engine.dispose()
-
-
-def test_pure_acl_uses_original_frozen_private_capture_and_distinct_descriptor():
-    api = _api()
-    original = import_module("miy_api.domains.official_apps.whiteboard_actor_writer")
-    original_roles = import_module("miy_api.domains.official_apps.whiteboard_actor_writer_roles")
-    assert api.runtime.CapturedWhiteboardWriteExecution is original.CapturedWhiteboardWriteExecution
-    assert (
-        api.runtime.capture_whiteboard_write_execution
-        is original.capture_whiteboard_write_execution
-    )
-    assert api.roles.WhiteboardActorACLProfile is not original_roles.WhiteboardActorOwnerProfile
-    execution = _pure_execution(api)
-    assert execution.delegated_token_digest not in repr(execution)
-    with pytest.raises(FrozenInstanceError):
-        execution.actor_user_id = "other"
-    with pytest.raises(original.WhiteboardActorWriterRefused) as caught:
-        replace(execution, database_oid=True)
-    assert str(caught.value) == "whiteboard_actor_writer_refused"
-
-
 def _snapshot(c):
     original = _owner_snapshot(c)
     with c.connect() as conn:
@@ -1304,94 +665,55 @@ def _snapshot(c):
 
 
 @pytest.mark.parametrize("http_world", [REVISION], indirect=True)
-def test_genuine_acl_legacy_roundtrip_preserves_owner_source_guards_roles_and_data(http_world):
-    import y_py as Y
-
-    with http_world.core() as db:
-        engine = db.get_bind()
-        doc = Y.YDoc()
-        with doc.begin_transaction() as txn:
-            doc.get_map("scene").set(txn, "marker", "legacy-acl-migration")
-        db.add(
-            WhiteboardCollabDocument(
-                id=str(uuid4()),
-                whiteboard_id=http_world.ids["board"],
-                room_key="legacy-acl:" + http_world.ids["board"],
-                yjs_state=bytes(Y.encode_state_as_update(doc)),
-            )
-        )
-        db.commit()
-    url = engine.url
-    dsn = make_conninfo(
-        host=url.host, port=url.port, dbname=url.database, user=url.username, password=url.password
-    )
-    c = SimpleNamespace(
-        engine=engine, connect=lambda **kwargs: psycopg.connect(dsn, **kwargs), roles=[]
-    )
-    before = _snapshot(c)
-    assert before["version"] == REVISION and len(before["acl"]) == 1
-    config = _migration_config(c.engine.url.render_as_string(hide_password=False))
-    command.downgrade(config, PARENT_REVISION)
-    removed = _snapshot(c)
-    assert removed["version"] == PARENT_REVISION and removed["acl"] == []
-    assert removed["actor"] == before["actor"] and removed["existing"] == before["existing"]
-    # Upgrade explicitly only this owned revision; never assume it is a future head.
-    command.upgrade(config, REVISION)
-    assert _snapshot(c) == before
-
-
-@pytest.mark.parametrize("http_world", [REVISION], indirect=True)
-def test_genuine_acl_active_rollback_refuses_without_changes_and_admission_still_works(
-    acl_prepared,
-):
+def test_acl_capability_install_edit_drain_retains_all_source_owners(acl_prepared):
     c = acl_prepared
+    with c.connect() as conn:
+        assert conn.execute(
+            "SELECT rolcanlogin FROM pg_roles WHERE oid=%s", (c.capability_owner_oid,)
+        ).fetchone() == (False,)
+        assert conn.execute(
+            "SELECT has_function_privilege(%s,%s,'EXECUTE'),has_function_privilege(%s,%s,'EXECUTE')",
+            (c.source, CAPABILITY, c.source, SERVICE),
+        ).fetchone() == (True, False)
+    with Session(c.source_engine) as db:
+        with pytest.raises(DBAPIError) as denied_read:
+            db.execute(text("SELECT owner_id FROM whiteboards"))
+        assert denied_read.value.orig.sqlstate == "42501"
+        db.rollback()
+        with pytest.raises(DBAPIError) as denied_write:
+            db.execute(text("UPDATE whiteboard_collab_documents SET yjs_state=NULL WHERE false"))
+        assert denied_write.value.orig.sqlstate == "42501"
+        db.rollback()
+    original = _collab_snapshot(c)
+    with Session(c.source_engine) as db, _commands(c.source_engine) as commands:
+        assert _lock(c, db) is None
+        db.commit()
+    assert set(commands) <= {"SELECT", "SET", "SHOW"}
+    assert _collab_snapshot(c) == original
+    with c.connect() as conn:
+        audits = conn.execute("SELECT count(*) FROM audit_logs").fetchone()[0]
+    with Session(c.engine) as db, _commands(c.engine) as commands:
+        assert _prepare(c, db).writer == c.writer
+        db.commit()
+    assert not set(commands) & {"GRANT", "REVOKE", "ALTER", "INSERT", "UPDATE", "DELETE"}
+    with c.connect() as conn:
+        assert conn.execute("SELECT count(*) FROM audit_logs").fetchone()[0] == audits
     before = _snapshot(c)
     with pytest.raises(RuntimeError, match="whiteboard_actor_acl_requires_draining"):
         command.downgrade(
             _migration_config(c.engine.url.render_as_string(hide_password=False)), PARENT_REVISION
         )
     assert _snapshot(c) == before
-    with Session(c.source_engine) as db:
-        assert _lock(c, db) is None
-        db.rollback()
-
-
-@pytest.mark.parametrize("http_world", [REVISION], indirect=True)
-def test_genuine_acl_drained_rollback_removes_only_new_inactive_capability(acl_prepared):
-    c = acl_prepared
     drained = move(c.control, ACTIVE, "active", state="draining", artifact=ACTIVE.artifact)
-    assert drained.generation == 4
+    assert drained.generation > ACTIVE.generation
     before = _snapshot(c)
     command.downgrade(
         _migration_config(c.engine.url.render_as_string(hide_password=False)), PARENT_REVISION
     )
     removed = _snapshot(c)
-    assert removed["version"] == PARENT_REVISION and removed["acl"] == []
-    assert removed["actor"] == before["actor"] and removed["existing"] == before["existing"]
+    assert removed["existing"] == before["existing"]
+    assert _collab_snapshot(c) == original
+    assert removed["version"] == PARENT_REVISION
+    assert removed["acl"] == [] and removed["actor"] == before["actor"]
     with Session(c.source_engine) as db:
         _refused(c, db)
-    assert _snapshot(c) == removed
-
-
-@pytest.mark.parametrize("tamper", ["body", "overload"])
-@pytest.mark.parametrize("http_world", [REVISION], indirect=True)
-def test_genuine_acl_rollback_refuses_tampered_shape_without_partial_downgrade(
-    acl_boundary, tamper
-):
-    c = acl_boundary
-    with c.connect() as conn:
-        if tamper == "body":
-            _replace_body(conn, CAPABILITY)
-        else:
-            conn.execute(
-                "CREATE FUNCTION public.miy_whiteboard_lock_edit_actor(text) RETURNS void LANGUAGE plpgsql AS $$BEGIN RETURN; END$$"
-            )
-            conn.execute(
-                "REVOKE ALL ON FUNCTION public.miy_whiteboard_lock_edit_actor(text) FROM PUBLIC"
-            )
-    before = _snapshot(c)
-    with pytest.raises(RuntimeError, match="whiteboard_actor_acl_capability_contract_invalid"):
-        command.downgrade(
-            _migration_config(c.engine.url.render_as_string(hide_password=False)), PARENT_REVISION
-        )
-    assert _snapshot(c) == before

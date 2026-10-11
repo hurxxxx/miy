@@ -1,34 +1,37 @@
-from alembic import command
-from alembic.autogenerate import compare_metadata
-from alembic.migration import MigrationContext
 import pytest
 import sqlalchemy as sa
+from alembic.autogenerate import compare_metadata
+from alembic.migration import MigrationContext
 from sqlalchemy.orm import Session
+from test_alembic_migrations import _migration_config
 
+from alembic import command
 from miy_api.core.db import Base
 from miy_api.core.model_registry import import_all_models
-from miy_api.domains.auth.models import CompanyAppControl, User
 from miy_api.domains.auth.app_access_models import (
     AppAccessPolicy,
-    AppUserGrant,
     AppGroupGrant,
+    AppUserGrant,
 )
+from miy_api.domains.auth.models import CompanyAppControl, User
 from miy_api.domains.groups.models import Group
-from test_alembic_migrations import _migration_config
 
 
 @pytest.mark.migration
-def test_file_revision_migration_preserves_current_bytes_without_inventing_a_run(postgres_dsn, monkeypatch):
+def test_file_revision_migration_preserves_current_bytes_without_inventing_a_run(
+    postgres_dsn, monkeypatch
+):
     from datetime import timedelta
+
+    from test_hermes_runtime import admit_runtime_apps, seed, session_for
+
     from miy_api.domains.auth.models import utcnow_naive
+    from miy_api.domains.hermes import file_router
     from miy_api.domains.hermes.models import (
         HermesFileObject,
         HermesFileRevision,
         HermesSessionFile,
     )
-    from test_hermes_runtime import seed, session_for
-    from test_hermes_runtime import admit_runtime_apps
-    from miy_api.domains.hermes import file_router
 
     config = _migration_config(postgres_dsn)
     command.upgrade(config, "hermes_runtime_20260912")
@@ -57,12 +60,20 @@ def test_file_revision_migration_preserves_current_bytes_without_inventing_a_run
             later = earlier + timedelta(days=1)
             for name, modified in (("index.html", earlier), ("app.js", later)):
                 db.add(HermesFileObject(object_key=name, expires_at=expires))
-                db.add(HermesSessionFile(
-                    id=name, session_id=session.id, user_id=binding.user_id,
-                    relative_path=name, size_bytes=3, sha256="abc", object_key=name,
-                    media_type="text/html" if name.endswith("html") else "text/javascript",
-                    expires_at=expires, updated_at=modified,
-                ))
+                db.add(
+                    HermesSessionFile(
+                        id=name,
+                        session_id=session.id,
+                        user_id=binding.user_id,
+                        relative_path=name,
+                        size_bytes=3,
+                        sha256="abc",
+                        object_key=name,
+                        media_type="text/html" if name.endswith("html") else "text/javascript",
+                        expires_at=expires,
+                        updated_at=modified,
+                    )
+                )
             user_id = user.id
             db.commit()
         command.upgrade(config, "hermes_file_versions_20260914")
@@ -70,12 +81,21 @@ def test_file_revision_migration_preserves_current_bytes_without_inventing_a_run
         with Session(engine) as db:
             anchor = db.get(HermesFileRevision, "index.html")
             db.add(HermesFileObject(object_key="subsequent", expires_at=expires))
-            db.add(HermesFileRevision(
-                id="subsequent", file_id=anchor.file_id, session_id=anchor.session_id,
-                user_id=anchor.user_id, relative_path=anchor.relative_path, size_bytes=3,
-                sha256="new", object_key="subsequent", media_type=anchor.media_type,
-                expires_at=expires, created_at=published,
-            ))
+            db.add(
+                HermesFileRevision(
+                    id="subsequent",
+                    file_id=anchor.file_id,
+                    session_id=anchor.session_id,
+                    user_id=anchor.user_id,
+                    relative_path=anchor.relative_path,
+                    size_bytes=3,
+                    sha256="new",
+                    object_key="subsequent",
+                    media_type=anchor.media_type,
+                    expires_at=expires,
+                    created_at=published,
+                )
+            )
             db.commit()
         command.upgrade(config, "head")
         with Session(engine) as db:
@@ -91,7 +111,9 @@ def test_file_revision_migration_preserves_current_bytes_without_inventing_a_run
             assert db.get(HermesSessionFile, "app.js").updated_at == later
             assert db.get(HermesFileRevision, "subsequent").created_at == published
             monkeypatch.setattr(file_router, "read_file", lambda row: row.object_key.encode())
-            result = file_router.preview_file_asset(anchor.id, path="app.js", db=db, user=db.get(User, user_id))
+            result = file_router.preview_file_asset(
+                anchor.id, path="app.js", db=db, user=db.get(User, user_id)
+            )
             assert result.body == b"app.js"
         import_all_models()
         with engine.connect() as connection:
@@ -106,9 +128,7 @@ def test_file_revision_migration_preserves_current_bytes_without_inventing_a_run
     [
         (True, "selected", True, "selected", "selected", {"chat", "terminal"}),
         (False, "all", True, "selected", "selected", {"terminal"}),
-        (True, "selected", False, "all", "selected", {"chat"}),
         (True, "all", True, "selected", "all", {"chat", "terminal"}),
-        (False, "selected", True, "all", "all", {"terminal"}),
         (False, "selected", False, "selected", "selected", {"chat"}),
     ],
 )

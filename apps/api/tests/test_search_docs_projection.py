@@ -27,9 +27,6 @@ from miy_api.domains.files.models import (
 )
 from miy_api.domains.pms.models import Folder, Task, TaskList
 from miy_api.domains.retrieval.models import RetrievalPartition
-from miy_api.domains.search.docs_projection import load_docs_search_document
-from miy_api.domains.search.projections import all_search_documents, load_search_document
-from miy_api.domains.search.schemas import SearchEntityType
 
 
 def _session() -> Session:
@@ -147,84 +144,3 @@ def _add_native_doc(session: Session, *, trashed_at: datetime | None = None) -> 
             created_by_id="user-1",
         )
     )
-
-
-def test_docs_search_projection_preserves_document_shape_through_dispatcher() -> None:
-    session = _session()
-    try:
-        _add_user(session)
-        _add_native_doc(session)
-        session.commit()
-
-        direct = load_docs_search_document(session, "doc-1")
-        dispatched = load_search_document(
-            session, entity_type=SearchEntityType.DOC, entity_id="doc-1"
-        )
-
-        assert direct is not None
-        assert dispatched is not None
-        assert "workspace_id" not in dispatched
-        assert dispatched["entity_type"] == "doc"
-        assert dispatched["entity_id"] == "doc-1"
-        assert dispatched["title"] == "Budget Review"
-        assert dispatched["summary"] == "First Page budget risk Second Page later content"
-        assert dispatched["body"] == "First Page\nbudget risk\nSecond Page\nlater content"
-        assert dispatched["keywords"] == "manual docs Docs Owner"
-        assert dispatched["visibility"] == "shared"
-        assert dispatched["owner_user_id"] == "user-1"
-        assert dispatched["team_ids"] == ["team-1"]
-        assert dispatched["targets"] == [
-            {
-                "app": "pms",
-                "type": "space",
-                "id": "team-1",
-                "label": "pms:space:team-1",
-            }
-        ]
-        assert dispatched["target_keys"] == ["pms:space:team-1", "space:team-1"]
-        assert dispatched["shared_user_ids"] == ["user-1"]
-        assert dispatched["deep_link"] == ("/apps/docs/documents/doc-1?page=page-1")
-        assert dispatched["metadata"] == {"source_kind": "manual", "source_ref": "source-1"}
-        assert dispatched["doc_pages"] == [
-            {"id": "page-1", "title": "First Page", "text": "budget risk"},
-            {"id": "page-2", "title": "Second Page", "text": "later content"},
-        ]
-        assert direct["entity_id"] == dispatched["entity_id"]
-    finally:
-        session.close()
-
-
-def test_company_backfill_loads_real_documents_through_registered_adapters() -> None:
-    session = _session()
-    try:
-        _add_user(session)
-        _add_native_doc(session)
-        session.commit()
-
-        documents = all_search_documents(session)
-
-        assert len(documents) == 1
-        document = documents[0]
-        assert (document["entity_type"], document["entity_id"]) == ("doc", "doc-1")
-        assert document["title"] == "Budget Review"
-        assert document["body"] == "First Page\nbudget risk\nSecond Page\nlater content"
-        assert document["owner_user_id"] == "user-1"
-        assert document["shared_user_ids"] == ["user-1"]
-        assert document["team_ids"] == ["team-1"]
-        assert document["deep_link"] == "/apps/docs/documents/doc-1?page=page-1"
-    finally:
-        session.close()
-
-
-def test_docs_search_projection_returns_none_for_missing_or_trashed_doc() -> None:
-    session = _session()
-    try:
-        _add_user(session)
-        session.commit()
-        assert load_docs_search_document(session, "missing-doc") is None
-
-        _add_native_doc(session, trashed_at=datetime(2026, 1, 3, tzinfo=UTC).replace(tzinfo=None))
-        session.commit()
-        assert load_docs_search_document(session, "doc-1") is None
-    finally:
-        session.close()

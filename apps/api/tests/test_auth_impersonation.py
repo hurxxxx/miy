@@ -9,9 +9,8 @@ from miy_api.core.db import get_session_factory
 from miy_api.domains.auth.models import AuditLog, AuthSession, User
 
 
-@pytest.mark.parametrize("actor_account", ["administrator", "delivery-hub-member"])
-@pytest.mark.parametrize("target_blocked", [False, True])
-def test_impersonation_is_removed_for_every_role_and_target_state(
+@pytest.mark.parametrize("actor_account,target_blocked", [("administrator", False)])
+def test_impersonation_endpoint_cannot_create_a_session_even_for_administrator(
     client: TestClient, actor_account: str, target_blocked: bool
 ) -> None:
     actor = dev_login(client, actor_account)

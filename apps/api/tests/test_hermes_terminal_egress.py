@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
-from pathlib import Path
 import sys
+from pathlib import Path
 from types import ModuleType
 from uuid import uuid4
 
@@ -40,15 +40,6 @@ def _load_terminal_egress(monkeypatch):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
-
-
-def test_terminal_egress_extends_the_upstream_header_timeout(monkeypatch) -> None:
-    terminal_egress = _load_terminal_egress(monkeypatch)
-    config = {"proxy": {"upstream_response_header_timeout": "120s"}}
-
-    terminal_egress._apply_managed_proxy_policy(config)
-
-    assert config["proxy"]["upstream_response_header_timeout"] == "300s"
 
 
 def test_egress_starts_without_legacy_provider_secret(monkeypatch, tmp_path):

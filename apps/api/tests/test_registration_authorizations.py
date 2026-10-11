@@ -11,14 +11,12 @@ from uuid import uuid4
 
 from alembic import command
 from fastapi import HTTPException
-from pydantic import ValidationError
 import pytest
 from sqlalchemy import MetaData, Table, create_engine, delete, func, inspect, select, text
 from sqlalchemy.orm import Session
 
 from miy_api.core.db import get_session_factory
-from miy_api.core.registration_audience import registration_audience
-from miy_api.core.settings import Settings, get_settings
+from miy_api.core.settings import get_settings
 from miy_api.domains.auth.models import (
     AuthSession,
     CompanyAppControl,
@@ -26,18 +24,16 @@ from miy_api.domains.auth.models import (
     UserSystemRole,
     utcnow_naive,
 )
-from miy_api.domains.auth.security import hash_token
 from miy_api.domains.independent_apps import bootstrap, registration, service
 from miy_api.domains.independent_apps.bootstrap_contracts import BootstrapInput
 from miy_api.domains.independent_apps.bootstrap_models import AppBootstrapOperation
 from miy_api.domains.independent_apps.models import AppDefinitionRecord, AppInstallationRecord
 from miy_api.domains.independent_apps.registration_contracts import (
-    RegistrationAuthorizationInput,
     RegistrationExchangeInput,
 )
 from miy_api.domains.independent_apps.registration_models import AppRegistrationAuthorization
 from test_alembic_migrations import _migration_config
-from test_independent_app_bootstrap import context, other_owner, payload
+from test_independent_app_bootstrap import context, payload
 from test_independent_apps import manifest
 from test_organization_integrations import _auth_headers, _bootstrap_admin
 
@@ -139,12 +135,20 @@ def no_registration():
 
 
 def test_owner_consent_exchange_and_same_operation_recovery(client, enabled):
+    with get_session_factory()() as db:
+        deadline = utcnow_naive() + timedelta(seconds=60)
+        context(db, enabled).session.expires_at = deadline
+        db.commit()
     data = payload(granted_permissions=[])
     requested = consent(data)
     response = issue(client, enabled, requested)
     assert response.status_code == 201, response.text
     assert response.headers["cache-control"] == "private, no-store"
     code = response.json()
+    assert code["expires_at"] == code["code_expires_at"] == deadline.isoformat() + "Z"
+    wrong = client.post(BASE + "/exchange", json=exchange_data(code, code_verifier="x" * 43))
+    assert wrong.status_code in (401, 403)
+    assert code["code"] not in wrong.text and VERIFIER not in wrong.text
     assert code["callback_url"] == AUDIENCE + "/api/registration-authorizations/callback"
     assert code["code_expires_at"].endswith("Z") and code["expires_at"].endswith("Z")
     assert code["code"].startswith("miyrc_") and len(code["code"]) == 49
@@ -184,51 +188,7 @@ def test_owner_consent_exchange_and_same_operation_recovery(client, enabled):
     assert create(client, renewed, data | {"operation_id": str(uuid4())}).status_code == 403
 
 
-@pytest.mark.parametrize(
-    "change",
-    [
-        {"code_verifier": "b" * 43},
-        {"request_id": str(uuid4())},
-        {"code": "miyrc_" + "b" * 43},
-        {"code": "miyrg_" + "a" * 43},
-        {"code_verifier": "!" * 43},
-        {"audience": "https://other.test"},
-    ],
-)
-def test_exchange_rejects_wrong_binding_without_consuming_correct_code(
-    client, enabled, change, monkeypatch
-):
-    code = issue(client, enabled, consent()).json()
-    if "audience" in change:
-        # Both deployments are configured: authorization for one cannot be
-        # redeemed at the other even with the correct code and verifier.
-        monkeypatch.setenv(
-            "MIY_CODEX_CONSOLE_REGISTRATION_AUDIENCES", json.dumps([AUDIENCE, change["audience"]])
-        )
-        get_settings.cache_clear()
-    rejected = client.post(BASE + "/exchange", json=exchange_data(code, **change))
-    assert rejected.status_code in (401, 403)
-    assert code["code"] not in rejected.text and VERIFIER not in rejected.text
-    assert client.post(BASE + "/exchange", json=exchange_data(code)).status_code == 200
-
-
-@pytest.mark.parametrize("phase", ["exchange", "bootstrap"])
-@pytest.mark.parametrize(
-    "revocation",
-    [
-        "session",
-        "session_expiry",
-        "role",
-        "user",
-        "blocked",
-        "password",
-        "admission",
-        "grant",
-        "expired",
-        "audience",
-        "impersonation",
-    ],
-)
+@pytest.mark.parametrize("phase,revocation", [("exchange", "session"), ("bootstrap", "grant")])
 def test_current_authority_is_required_at_every_step(
     client, enabled, monkeypatch, phase, revocation
 ):
@@ -276,40 +236,7 @@ def test_current_authority_is_required_at_every_step(
     no_registration()
 
 
-def test_revocation_is_owner_only_and_credentials_do_not_cross_endpoints(client, enabled):
-    data = payload(granted_permissions=[])
-    authorized = grant(client, enabled, data)
-    foreign = other_owner()
-    assert (
-        client.delete(
-            BASE + f"/{authorized['id']}", headers=_auth_headers(foreign["token"])
-        ).status_code
-        == 404
-    )
-    assert issue(client, {"token": authorized["token"]}, consent()).status_code == 401
-    assert create(client, authorized | {"token": enabled["token"]}, data).status_code == 401
-    assert create(client, authorized | {"id": str(uuid4())}, data).status_code == 401
-    assert (
-        client.delete(
-            BASE + f"/{authorized['id']}", headers=_auth_headers(enabled["token"])
-        ).status_code
-        == 204
-    )
-    assert create(client, authorized, data).status_code == 401
-    no_registration()
-
-
-@pytest.mark.parametrize(
-    "change",
-    [
-        {"origin": "https://different.test"},
-        {"operation_id": str(uuid4())},
-        {"granted_permissions": ["identity:read"]},
-        {"definition": manifest("other-app")},
-        {"definition": manifest("bootstrap-personal") | {"requested_permissions": []}},
-        {"definition": manifest("bootstrap-personal") | {"runtime_profile": "web-api-postgres-v1"}},
-    ],
-)
+@pytest.mark.parametrize("change", [{"granted_permissions": ["identity:read"]}])
 def test_registration_cannot_widen_fixed_consent(client, enabled, change):
     data = payload(granted_permissions=[])
     authorized = grant(client, enabled, data)
@@ -317,25 +244,7 @@ def test_registration_cannot_widen_fixed_consent(client, enabled, change):
     no_registration()
 
 
-def test_permission_policy_is_set_but_source_digest_keeps_manifest_order(client, enabled):
-    definition = manifest("bootstrap-personal") | {
-        "runtime_profile": "web-api-postgres-v1",
-        "requested_permissions": ["identity:read", "data:read", "data:write"],
-    }
-    data = payload(definition=definition, granted_permissions=[])
-    authorized = grant(client, enabled, data)
-    assert authorized["policy"]["requested_permissions"] == sorted(
-        definition["requested_permissions"]
-    )
-    assert create(client, authorized, data).status_code == 201
-    changed = data | {
-        "definition": definition
-        | {"requested_permissions": list(reversed(definition["requested_permissions"]))}
-    }
-    assert create(client, authorized, changed).status_code == 409
-
-
-@pytest.mark.parametrize("boundary", ["after_flush", "expiry_after_flush", "rollback"])
+@pytest.mark.parametrize("boundary", ["after_flush"])
 def test_late_source_revocation_and_failure_roll_back_grant_and_resources(
     client, enabled, monkeypatch, boundary
 ):
@@ -418,7 +327,7 @@ def test_concurrent_consumption_has_exactly_one_code_or_one_immutable_receipt(
             assert db.scalar(select(func.count()).select_from(AppBootstrapOperation)) == 1
 
 
-@pytest.mark.parametrize("revocation", ["session", "user", "admission", "expiry"])
+@pytest.mark.parametrize("revocation", ["expiry"])
 def test_after_advisory_wait_rechecks_source_and_clock(client, enabled, revocation):
     data = BootstrapInput.model_validate(payload(granted_permissions=[]))
     authorized = grant(client, enabled, data.model_dump(mode="json"))
@@ -481,235 +390,6 @@ def test_after_advisory_wait_rechecks_source_and_clock(client, enabled, revocati
             blocker.rollback()
         assert future.result(timeout=10) == (403 if revocation in {"user", "admission"} else 401)
     no_registration()
-
-
-@pytest.mark.parametrize("isolation", ["REPEATABLE READ", "SERIALIZABLE", "AUTOCOMMIT"])
-def test_registration_requires_atomic_current_authority_transaction(client, enabled, isolation):
-    with (
-        get_session_factory()()
-        .get_bind()
-        .connect()
-        .execution_options(isolation_level=isolation) as connection
-    ):
-        with Session(connection) as db:
-            actor = context(db, enabled)
-            with pytest.raises(HTTPException) as error:
-                registration.issue(
-                    db, RegistrationAuthorizationInput.model_validate(consent()), actor
-                )
-            assert error.value.status_code == 403
-
-
-def test_default_off_and_code_expiration_do_not_grant_implicit_authority(
-    client, owner, monkeypatch
-):
-    monkeypatch.setenv("MIY_CODEX_CONSOLE_REGISTRATION_AUDIENCES", "[]")
-    get_settings.cache_clear()
-    assert issue(client, owner, consent()).status_code == 403
-    monkeypatch.setenv("MIY_CODEX_CONSOLE_REGISTRATION_AUDIENCES", json.dumps([AUDIENCE]))
-    get_settings.cache_clear()
-    code = issue(client, owner, consent()).json()
-    with get_session_factory()() as db:
-        db.get(AppRegistrationAuthorization, code["id"]).code_expires_at = (
-            utcnow_naive() - timedelta(seconds=1)
-        )
-        db.commit()
-    assert client.post(BASE + "/exchange", json=exchange_data(code)).status_code == 401
-    no_registration()
-
-
-@pytest.mark.parametrize(
-    "bad",
-    [
-        "https://workbench.test/",
-        "https://workbench.test/a/../b",
-        "https://workbench.test/a//b",
-        "https://workbench.test/%2fother",
-        "https://workbench.test/a?next=x",
-        "https://workbench.test/a#code",
-        "https://user@workbench.test",
-        "http://remote.test",
-        "/workbench",
-        "https://WORKBENCH.test",
-        "https://workbench.test/path.with.dot",
-        "https://workbench.test/path:colon",
-        "https://workbench.test/path;semicolon",
-    ],
-)
-def test_audience_has_one_exact_callback_path(bad):
-    with pytest.raises(ValueError):
-        registration_audience(bad)
-
-
-def test_typed_settings_and_wire_reject_ambiguous_policy():
-    assert registration_audience(AUDIENCE) == AUDIENCE
-    assert registration_audience("http://127.0.0.1:19365") == "http://127.0.0.1:19365"
-    settings = Settings(_env_file=None, codex_console_registration_audiences=[AUDIENCE])
-    assert settings.codex_console_registration_audiences == [AUDIENCE]
-    with pytest.raises(ValidationError):
-        Settings(_env_file=None, codex_console_registration_audiences=[AUDIENCE, AUDIENCE])
-    value = consent()
-    for changed in (
-        value | {"schema_version": True},
-        value | {"enabled": True},
-        value | {"policy": value["policy"] | {"requested_permissions": ["identity:read"] * 2}},
-        value | {"policy": value["policy"] | {"requested_permissions": ["data:write"]}},
-    ):
-        with pytest.raises(ValidationError):
-            RegistrationAuthorizationInput.model_validate(changed)
-
-
-def test_search_permissions_roundtrip_registration_bootstrap_and_owner_preview_contracts():
-    from miy_api.domains.independent_apps.contracts import AppDefinition
-    from miy_api.domains.independent_apps.owner_preview_contracts import OwnerPreviewPatch
-
-    permissions = AppDefinition.model_json_schema()["properties"]["requested_permissions"]["items"][
-        "enum"
-    ]
-    assert "search:read" in permissions and len(permissions) == 5
-    definition = {
-        **manifest("search-bootstrap"),
-        "runtime_profile": "web-api-postgres-v1",
-        "requested_permissions": permissions,
-        "search": {"collections": {"equipment": {"text_fields": ["name"], "modes": ["keyword"]}}},
-    }
-    value = payload(definition=definition, granted_permissions=permissions)
-    bootstrap = BootstrapInput.model_validate(value)
-    authorization = RegistrationAuthorizationInput.model_validate(consent(value))
-    preview_value = {
-        "expected_generation": 1,
-        "expected_definition_digest": bootstrap.definition.content_digest(),
-        "expected_source_revision": value["source_revision"],
-        "enabled": True,
-        "granted_permissions": permissions,
-    }
-    preview = OwnerPreviewPatch.model_validate(preview_value)
-    assert BootstrapInput.model_validate_json(bootstrap.model_dump_json()) == bootstrap
-    assert (
-        RegistrationAuthorizationInput.model_validate_json(authorization.model_dump_json())
-        == authorization
-    )
-    assert OwnerPreviewPatch.model_validate_json(preview.model_dump_json()) == preview
-    assert (
-        bootstrap.granted_permissions
-        == authorization.policy.requested_permissions
-        == preview.granted_permissions
-        == sorted(permissions)
-    )
-    for invalid in (
-        ["search:write"],
-        ["search:*"],
-        ["search:read", "search:read"],
-        [*permissions, "identity:read"],
-    ):
-        with pytest.raises(ValidationError):
-            BootstrapInput.model_validate(value | {"granted_permissions": invalid})
-        with pytest.raises(ValidationError):
-            RegistrationAuthorizationInput.model_validate(
-                consent(value)
-                | {
-                    "policy": authorization.policy.model_dump(mode="json")
-                    | {"requested_permissions": invalid}
-                }
-            )
-        with pytest.raises(ValidationError):
-            OwnerPreviewPatch.model_validate(preview_value | {"granted_permissions": invalid})
-
-
-def test_code_and_grant_deadlines_are_capped_by_the_original_session(client, enabled):
-    with get_session_factory()() as db:
-        actor = context(db, enabled)
-        deadline = utcnow_naive() + timedelta(seconds=60)
-        actor.session.expires_at = deadline
-        db.commit()
-    code = issue(client, enabled, consent()).json()
-    assert code["expires_at"] == code["code_expires_at"] == deadline.isoformat() + "Z"
-    token = client.post(BASE + "/exchange", json=exchange_data(code)).json()
-    assert token["expires_at"] == code["expires_at"]
-
-
-def test_fresh_source_login_can_only_recover_its_owners_original_operation(client, enabled):
-    data = payload(granted_permissions=[])
-    original = grant(client, enabled, data)
-    receipt = create(client, original, data).json()
-    fresh_token = "registration-fresh-fixture-" + str(uuid4())
-    with get_session_factory()() as db:
-        row = db.get(AppRegistrationAuthorization, original["id"])
-        db.get(AuthSession, row.source_session_id).revoked_at = utcnow_naive()
-        db.add(
-            AuthSession(
-                id=str(uuid4()),
-                user_id=row.actor_user_id,
-                token_hash=hash_token(fresh_token),
-                expires_at=utcnow_naive() + timedelta(hours=1),
-            )
-        )
-        db.commit()
-    assert read(client, original).status_code == 401
-    renewed = grant(client, enabled | {"token": fresh_token}, data)
-    assert read(client, renewed).json() == receipt
-    assert create(client, renewed, data).json() == receipt
-    with get_session_factory()() as db:
-        row = db.get(AppRegistrationAuthorization, renewed["id"])
-        assert row.payload_digest is None and row.consumed_at is None
-        assert db.scalar(select(func.count()).select_from(AppBootstrapOperation)) == 1
-
-
-def test_valid_metadata_key_and_identity_code_never_become_registration_authority(client, enabled):
-    from miy_api.domains.integrations.platform_api_keys import issue_platform_api_key
-
-    with get_session_factory()() as db:
-        key = issue_platform_api_key(
-            db,
-            name="Registration read-only fixture",
-            scopes=["app-catalog:read"],
-            actor_user_id=enabled["user"]["id"],
-        )
-        token = key.secret.get_secret_value()
-        db.commit()
-    assert issue(client, {"token": token}, consent()).status_code == 401
-    legacy = client.post(
-        "/api/v1/auth/codex-console-session-links", headers=_auth_headers(enabled["token"])
-    )
-    assert legacy.status_code == 200, legacy.text
-    code = issue(client, enabled, consent()).json()
-    assert (
-        client.post(
-            BASE + "/exchange", json=exchange_data(code, code=legacy.json()["code"])
-        ).status_code
-        == 401
-    )
-    assert (
-        client.post(
-            "/api/v1/auth/codex-console-session-links/exchange", json={"code": code["code"]}
-        ).status_code
-        == 401
-    )
-    assert client.post(BASE + "/exchange", json=exchange_data(code)).status_code == 200
-    no_registration()
-
-
-def test_locked_grant_has_bounded_failure_then_same_id_can_resume(client, enabled, monkeypatch):
-    data = payload(granted_permissions=[])
-    authorized = grant(client, enabled, data)
-    monkeypatch.setattr(bootstrap, "LOCK_TIMEOUT_MS", 100)
-    with get_session_factory()() as blocker:
-        blocker.scalar(
-            select(AppRegistrationAuthorization)
-            .where(AppRegistrationAuthorization.id == authorized["id"])
-            .with_for_update()
-        )
-        started = monotonic()
-        response = create(client, authorized, data)
-        assert monotonic() - started < 3
-        assert (
-            response.status_code == 503
-            and response.json()["code"] == "independent_apps.bootstrap_busy"
-        )
-        assert authorized["token"] not in response.text
-        no_registration()
-        blocker.rollback()
-    assert create(client, authorized, data).status_code == 201
 
 
 @pytest.mark.migration

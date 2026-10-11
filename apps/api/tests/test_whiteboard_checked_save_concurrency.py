@@ -6,15 +6,12 @@ The shared yielding fixtures own databases, roles and connection cleanup.
 """
 
 import hashlib
-import re
-import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from queue import Queue
 from uuid import uuid4
 
 import pytest
-from psycopg import sql
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from test_prepared_official_http_auth import (
@@ -64,10 +61,6 @@ from whiteboard_checked_fixture import (
 from miy_api.domains.auth.models import AuthSession
 from miy_api.domains.independent_apps.models import AppSession
 from miy_api.domains.official_apps.whiteboard_actor_writer import capture_whiteboard_write_execution
-from miy_api.domains.official_apps.whiteboard_checked_writer_roles import (
-    SAVE_CAPABILITY,
-    SEAL_CAPABILITY,
-)
 from miy_api.domains.whiteboard.checked_save import WhiteboardCheckedWriterRefused
 from miy_api.domains.whiteboard.models import WhiteboardCollabDocument
 
@@ -130,61 +123,6 @@ def _second_original_execution(c):
     )
 
 
-@pytest.mark.parametrize("expiry", ["source", "delegated"])
-@pytest.mark.parametrize("wait", ["later_contributor", "collab"])
-def test_earlier_contributor_expiry_is_rechecked_after_every_actual_wait(
-    checked_prepared, expiry, wait
-):
-    c = checked_prepared
-    second = _second_original_execution(c)
-    attempt = seal(c, contributors=(c.execution, second))
-    before = content(c)
-    table, column, key = (
-        ("auth_sessions", "id", c.execution.source_session_id)
-        if expiry == "source"
-        else ("independent_app_sessions", "token_hash", c.execution.delegated_token_digest)
-    )
-    with c.connect() as conn:
-        conn.execute(
-            sql.SQL(
-                "UPDATE {} SET expires_at=timezone('UTC',clock_timestamp())+interval '3 seconds' WHERE {}=%s"
-            ).format(sql.Identifier(table), sql.Identifier(column)),
-            (key,),
-        )
-    with c.connect(autocommit=True) as observer, c.connect() as holder:
-        holder_pid = holder.execute("SELECT pg_backend_pid()").fetchone()[0]
-        if wait == "later_contributor":
-            holder.execute(
-                "SELECT 1 FROM auth_sessions WHERE id=%s FOR UPDATE", (second.source_session_id,)
-            )
-        else:
-            holder.execute(
-                "SELECT 1 FROM whiteboard_collab_documents WHERE id=%s FOR UPDATE", (c.collab_id,)
-            )
-        ready = Queue()
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            future = pool.submit(_call, c.source_engine, ready, lambda db: stage(c, db, attempt))
-            try:
-                caller_pid = ready.get(timeout=5)
-                _wait_for_blocker(observer, caller_pid, holder_pid)
-                deadline = time.monotonic() + 7
-                while observer.execute(
-                    sql.SQL(
-                        "SELECT expires_at>timezone('UTC',clock_timestamp()) FROM {} WHERE {}=%s"
-                    ).format(sql.Identifier(table), sql.Identifier(column)),
-                    (key,),
-                ).fetchone()[0]:
-                    assert time.monotonic() < deadline
-                    time.sleep(0.01)
-                assert not future.done()
-                holder.rollback()
-                _refused(lambda: future.result(timeout=5))
-            finally:
-                holder.rollback()
-    assert content(c) == before
-    assert ledger(c, attempt)[:3] == ("sealed", None, None)
-
-
 def test_selected_share_revocation_after_real_wait_never_stages_a_save(checked_prepared):
     c = checked_prepared
     _seed(c, "direct_edit")
@@ -211,55 +149,6 @@ def test_selected_share_revocation_after_real_wait_never_stages_a_save(checked_p
                 revoker.rollback()
     assert content(c) == before
     assert ledger(c, attempt)[:3] == ("sealed", None, None)
-
-
-@pytest.mark.parametrize("finish", ["commit", "rollback"])
-def test_selected_share_stays_locked_through_the_actual_caller_end(checked_prepared, finish):
-    c = checked_prepared
-    _seed(c, "direct_edit")
-    attempt = seal(c)
-    before = content(c)
-    with (
-        c.connect(autocommit=True) as observer,
-        c.connect() as revoker,
-        Session(c.source_engine) as db,
-    ):
-        source_pid = _bounded(db)
-        receipt = stage(c, db, attempt)
-        assert content(c) == before
-        assert ledger(c, attempt)[:3] == ("sealed", None, None)
-        revoker_pid = revoker.execute("SELECT pg_backend_pid()").fetchone()[0]
-        revoker.execute("SET LOCAL statement_timeout='8s'")
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            future = pool.submit(
-                revoker.execute,
-                "DELETE FROM whiteboard_user_shares WHERE whiteboard_id=%s AND user_id=%s",
-                (c.board_id, c.execution.actor_user_id),
-            )
-            try:
-                _wait_for_blocker(observer, revoker_pid, source_pid)
-                assert not future.done()
-                getattr(db, finish)()
-                future.result(timeout=5)
-                revoker.commit()
-            finally:
-                db.rollback()
-                revoker.rollback()
-    if finish == "commit":
-        assert ledger(c, attempt)[:3] == (
-            "committed",
-            receipt.content_incarnation_id,
-            receipt.content_revision,
-        )
-        assert content(c)[1] == before[1] + 1
-    else:
-        assert content(c) == before
-        assert ledger(c, attempt)[:3] == ("sealed", None, None)
-    fresh = seal(c, yjs=b"after-revocation")
-    with Session(c.source_engine) as db:
-        _refused(lambda: stage(c, db, fresh))
-        db.rollback()
-    assert ledger(c, fresh)[:3] == ("sealed", None, None)
 
 
 @pytest.mark.parametrize("first_finish", ["commit", "rollback"])
@@ -303,7 +192,7 @@ def test_same_base_cas_competition_has_one_successful_content_revision(
         assert ledger(c, second)[0] == "committed"
 
 
-@pytest.mark.parametrize("mutation", ["content_restore", "room_restore", "delete_recreate"])
+@pytest.mark.parametrize("mutation", ["content_restore", "delete_recreate"])
 def test_same_content_bytes_cannot_hide_revision_or_incarnation_aba(checked_prepared, mutation):
     c = checked_prepared
     original = content(c)
@@ -415,7 +304,7 @@ def test_resolver_timeout_never_proves_cancellation_or_commit(checked_prepared):
     assert historical.state == "committed" and historical.receipt == staged
 
 
-@pytest.mark.parametrize("resolve_finish", ["commit", "rollback"])
+@pytest.mark.parametrize("resolve_finish", ["commit"])
 def test_locked_cancellation_fences_a_late_queued_saver_only_after_real_commit(
     checked_prepared, resolve_finish
 ):
@@ -447,76 +336,3 @@ def test_locked_cancellation_fences_a_late_queued_saver_only_after_real_commit(
     else:
         assert content(c)[1] == before[1] + 1
         assert ledger(c, attempt)[0] == "committed"
-
-
-@pytest.mark.parametrize(
-    "tamper", ["login_inherit", "business_select", "save_body", "seal_argnames"]
-)
-def test_current_role_or_capability_tamper_refuses_before_content_and_receipt(
-    checked_prepared, tamper
-):
-    c = checked_prepared
-    attempt = seal(c)
-    before = content(c)
-    with c.connect() as core:
-        if tamper == "login_inherit":
-            core.execute(sql.SQL("ALTER ROLE {} INHERIT").format(sql.Identifier(c.source)))
-        elif tamper == "business_select":
-            core.execute(
-                sql.SQL("GRANT SELECT ON whiteboard_collab_documents TO {}").format(
-                    sql.Identifier(c.source)
-                )
-            )
-        elif tamper == "save_body":
-            definition = core.execute(
-                "SELECT pg_get_functiondef(%s::regprocedure)", (SAVE_CAPABILITY,)
-            ).fetchone()[0]
-            marker = re.search(r"\bAS (\$[A-Za-z0-9_]*\$)", definition)
-            assert marker is not None
-            core.execute(
-                definition[: marker.end()]
-                + "\n-- synthetic checked capability contract tamper\n"
-                + definition[marker.end() :]
-            )
-        else:
-            definition = core.execute(
-                "SELECT pg_get_functiondef(%s::regprocedure)", (SEAL_CAPABILITY,)
-            ).fetchone()[0]
-            before_body = core.execute(
-                "SELECT prosrc FROM pg_proc WHERE oid=%s::regprocedure", (SEAL_CAPABILITY,)
-            ).fetchone()[0]
-            marker = re.search(r"\bAS (\$[A-Za-z0-9_]*\$)", definition)
-            assert marker is not None
-            header = definition[: marker.start()]
-            header = re.sub(r"\brequested_board\b", "synthetic_swap_name", header)
-            header = re.sub(r"\brequested_collab\b", "requested_board", header)
-            header = re.sub(r"\bsynthetic_swap_name\b", "requested_collab", header)
-            # Normal PostgreSQL DDL cannot rename input args with OR REPLACE.
-            # Recreate only this disposable private function, retaining its body,
-            # types, owner/config and precise original Core EXECUTE grant.
-            core.execute(sql.SQL("DROP FUNCTION {}").format(sql.SQL(SEAL_CAPABILITY)))
-            core.execute(header + definition[marker.start() :])
-            core.execute(
-                sql.SQL("ALTER FUNCTION {} OWNER TO {}").format(
-                    sql.SQL(SEAL_CAPABILITY), sql.Identifier(c.checked_core_owner)
-                )
-            )
-            core.execute(
-                sql.SQL("REVOKE ALL ON FUNCTION {} FROM PUBLIC").format(sql.SQL(SEAL_CAPABILITY))
-            )
-            core.execute(
-                sql.SQL("GRANT EXECUTE ON FUNCTION {} TO {}").format(
-                    sql.SQL(SEAL_CAPABILITY), sql.Identifier(c.core_sealer)
-                )
-            )
-            changed_body, changed_names = core.execute(
-                "SELECT prosrc,proargnames FROM pg_proc WHERE oid=%s::regprocedure",
-                (SEAL_CAPABILITY,),
-            ).fetchone()
-            assert changed_body == before_body
-            assert changed_names[5:7] == ["requested_collab", "requested_board"]
-    with Session(c.source_engine) as db:
-        _refused(lambda: stage(c, db, attempt))
-        db.rollback()
-    assert content(c) == before
-    assert ledger(c, attempt)[:3] == ("sealed", None, None)

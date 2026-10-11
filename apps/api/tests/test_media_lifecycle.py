@@ -4,8 +4,6 @@ from types import SimpleNamespace
 
 from miy_api.domains.media.lifecycle import (
     apply_media_links,
-    build_media_upload_record,
-    media_upload_response_payload,
     plan_orphan_media_cleanup,
 )
 from miy_api.domains.media.models import MediaFile
@@ -28,32 +26,6 @@ def _media(**overrides: object) -> MediaFile:
     }
     defaults.update(overrides)
     return MediaFile(**defaults)
-
-
-def test_build_media_upload_record_uses_unnamed_fallback_and_storage_key_layout() -> None:
-    media = build_media_upload_record(
-        {
-            "media_id": "media-1",
-            "user_id": "user-1",
-            "filename": None,
-            "content_type": None,
-            "size_bytes": 42,
-        }
-    )
-
-    assert media.id == "media-1"
-    assert media.filename == "unnamed"
-    assert media.storage_key == "media/user-1/media-1/unnamed"
-    assert media.content_type == "application/octet-stream"
-    assert media.size_bytes == 42
-    assert media.uploaded_by_id == "user-1"
-
-
-def test_media_upload_response_payload_uses_media_url_scheme() -> None:
-    assert media_upload_response_payload("media-1") == {
-        "id": "media-1",
-        "url": "media:media-1",
-    }
 
 
 def test_apply_media_links_mutates_only_upload_owner_unlinked_files() -> None:

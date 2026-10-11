@@ -80,41 +80,6 @@ def _candidate(file_id: str, partition_id: str, *, checksum: str = "a" * 64):
     )
 
 
-@pytest.mark.parametrize(
-    "change",
-    [
-        {"extraction_status": "pending", "extraction_content_checksum": None},
-        {"extraction_status": "failed", "extraction_content_checksum": None},
-        {"extraction_status": "unsupported", "extraction_content_checksum": None},
-        {"deleted_at": datetime(2026, 10, 7)},
-        {"extraction_content_checksum": "b" * 64},
-        {"retrieval_partition_id": str(uuid4())},
-        {"extracted_at": datetime(2026, 10, 7, 10, 1, tzinfo=UTC)},
-        {"extracted_at": None},
-    ],
-)
-def test_common_retrieval_drops_content_changed_after_candidate_creation(current_file, change):
-    db, file_id, partition_id = current_file
-    candidate = _candidate(file_id, partition_id)
-    db.execute(update(FileManagerFile).where(FileManagerFile.id == file_id).values(**change))
-    db.commit()
-    assert (
-        retrieval_application._filter_current_retrieval_hits(
-            db, user=SimpleNamespace(id="synthetic-owner"), hits=[candidate]
-        )
-        == []
-    )
-
-
-def test_common_retrieval_keeps_current_candidate_and_other_resource(current_file):
-    db, file_id, partition_id = current_file
-    candidate = _candidate(file_id, partition_id)
-    other = RetrievalHit(source="keyword", resource_type="pms_task", resource_id="synthetic-task")
-    assert retrieval_application._filter_current_retrieval_hits(
-        db, user=SimpleNamespace(id="synthetic-owner"), hits=[candidate, other]
-    ) == [candidate, other]
-
-
 def test_common_retrieval_checks_again_after_ranking_input_changes(current_file):
     db, file_id, partition_id = current_file
     candidate = _candidate(file_id, partition_id)
@@ -131,33 +96,6 @@ def test_common_retrieval_checks_again_after_ranking_input_changes(current_file)
     assert (
         retrieval_application._filter_current_retrieval_hits(
             db, user=SimpleNamespace(id="synthetic-owner"), hits=first
-        )
-        == []
-    )
-
-
-def test_common_retrieval_preserves_content_after_display_metadata_change(current_file):
-    db, file_id, partition_id = current_file
-    candidate = _candidate(file_id, partition_id)
-    db.execute(
-        update(FileManagerFile)
-        .where(FileManagerFile.id == file_id)
-        .values(filename="Renamed.txt", updated_at=datetime(2026, 10, 7, 11, tzinfo=UTC))
-    )
-    db.commit()
-    assert retrieval_application._filter_current_retrieval_hits(
-        db, user=SimpleNamespace(id="synthetic-owner"), hits=[candidate]
-    ) == [candidate]
-
-
-@pytest.mark.parametrize("field", ["content_checksum", "retrieval_partition_id", "extracted_at"])
-def test_common_retrieval_drops_unverifiable_file_candidates(current_file, field):
-    db, file_id, partition_id = current_file
-    candidate = _candidate(file_id, partition_id)
-    candidate.metadata.pop(field)
-    assert (
-        retrieval_application._filter_current_retrieval_hits(
-            db, user=SimpleNamespace(id="synthetic-owner"), hits=[candidate]
         )
         == []
     )

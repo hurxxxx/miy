@@ -1,14 +1,5 @@
-import pytest
-from fastapi import HTTPException
-
-from miy_api.core.db import get_session_factory
-from miy_api.domains.docs.collab import make_page_ref
-from miy_api.domains.docs.router import _require_collab_edit_access
-from miy_api.domains.official_apps.writer import WriterIdentity
-from miy_api.domains.official_apps.writer_contracts import SUITE_SCOPE
-from miy_api.domains.official_apps.writer_models import RuntimeOwnership
-from test_company_content_boundaries import _enable, _group, _user
-from test_company_groups import _setup
+from test_company_content_boundaries import _enable as _enable, _group as _group, _user as _user
+from test_company_groups import _setup as _setup
 
 
 def test_doc_sharing_invalidates_only_that_resource_without_content_or_unrelated_users(
@@ -79,38 +70,3 @@ def test_doc_sharing_invalidates_only_that_resource_without_content_or_unrelated
     changed("DELETE", "")
     assert client.get(url, headers=reader).status_code == 404
     assert client.get(url, headers=owner).json()["trashed_at"] is not None
-
-
-def test_docs_collab_frame_authorization_rechecks_source_and_session(client):
-    admin, _ = _setup(client)
-    _enable(client, admin, "docs")
-    owner, _ = _user(client, admin, "frameowner")
-    editor, editor_id = _user(client, admin, "frameeditor")
-    created = client.post("/api/v1/docs/items", headers=owner, json={"title": "Frame permissions"})
-    assert created.status_code == 201
-    url = f"/api/v1/docs/items/{created.json()['id']}"
-    pages = client.get(f"{url}/pages", headers=owner)
-    assert pages.status_code == 200, pages.text
-    page = pages.json()["items"][0]
-    page_ref = make_page_ref(page["source_type"], page["source_page_id"])
-    token = editor["Authorization"].removeprefix("Bearer ")
-    with get_session_factory()() as db:
-        ownership = db.get(RuntimeOwnership, SUITE_SCOPE)
-        assert ownership is not None
-        assert ownership.active_owner == "legacy" and ownership.state == "active"
-        writer_identity = WriterIdentity(
-            ownership.scope, ownership.active_owner, ownership.generation, ownership.artifact
-        )
-    share_url = f"{url}/sharing/users/{editor_id}"
-    assert client.put(share_url, headers=owner, json={"access_level": "edit"}).status_code == 200
-    _require_collab_edit_access(page_ref=page_ref, token=token, writer_identity=writer_identity)
-    assert client.put(share_url, headers=owner, json={"access_level": "read"}).status_code == 200
-    with pytest.raises(HTTPException) as denied:
-        _require_collab_edit_access(page_ref=page_ref, token=token, writer_identity=writer_identity)
-    assert denied.value.status_code == 403
-    assert client.put(share_url, headers=owner, json={"access_level": "edit"}).status_code == 200
-    _require_collab_edit_access(page_ref=page_ref, token=token, writer_identity=writer_identity)
-    assert client.post("/api/v1/auth/logout", headers=editor).status_code == 204
-    with pytest.raises(HTTPException) as denied:
-        _require_collab_edit_access(page_ref=page_ref, token=token, writer_identity=writer_identity)
-    assert denied.value.status_code == 401

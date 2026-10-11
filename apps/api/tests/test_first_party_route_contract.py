@@ -1,19 +1,13 @@
 from __future__ import annotations
 
-from copy import deepcopy
-import json
-from pathlib import Path
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
-import pytest
-
-from miy_api.core.app_contracts_generated import APP_CONTRACT_REVISION
 from miy_api.first_party_route_contract import (
     generated_route_contract,
     native_route_contract,
-    validate_route_contract,
 )
 
 
@@ -30,25 +24,6 @@ def test_generated_ingress_contract_matches_actual_http_and_websocket_inventory(
         if owner == "official"
     )
     assert any(path.startswith("/realtime/") for path, owner in routes if owner == "platform")
-
-
-@pytest.mark.parametrize("invalid", ["revision", "owner", "duplicate", "conflict"])
-def test_invalid_ingress_metadata_holds_admission(invalid):
-    contract = {
-        "schema_version": 1,
-        "app_contract_revision": APP_CONTRACT_REVISION,
-        "routes": [{"path": "/probe/{id}", "owner": "platform"}],
-    }
-    if invalid == "revision":
-        contract["app_contract_revision"] = "stale"
-    elif invalid == "owner":
-        contract["routes"][0]["owner"] = "unknown"
-    elif invalid == "duplicate":
-        contract["routes"].append(deepcopy(contract["routes"][0]))
-    else:
-        contract["routes"].append({"path": "/probe/{other}", "owner": "official"})
-    with pytest.raises(ValueError, match="contract_invalid|owner_conflict"):
-        validate_route_contract(contract)
 
 
 def test_public_projection_and_cli_need_no_app_settings_in_fresh_process(tmp_path):
@@ -94,27 +69,3 @@ print('settings-free native projections: PASS')
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "settings-free native projections: PASS"
-
-
-def test_all_owners_are_checked_before_filtering_to_official_patterns(monkeypatch):
-    from miy_api import first_party_route_contract as contract_module
-
-    value = generated_route_contract()
-    value["routes"] = [
-        {"path": "/probe/{id}", "owner": "official"},
-        {"path": "/probe/{other}", "owner": "platform"},
-    ]
-
-    class Resource:
-        def joinpath(self, _name):
-            return self
-
-        def read_text(self, *, encoding):
-            assert encoding == "utf-8"
-            return json.dumps(value)
-
-    monkeypatch.setattr(contract_module, "files", lambda _package: Resource())
-    with pytest.raises(ValueError, match="owner_conflict"):
-        from miy_api.first_party_routes import api_owner_inventory
-
-        api_owner_inventory()

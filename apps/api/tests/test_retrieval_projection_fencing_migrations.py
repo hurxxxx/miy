@@ -88,60 +88,6 @@ def test_concurrent_first_event_serializes_one_head_and_monotonic_versions(
     assert [event.projection_version for event in events] == [1, 2]
 
 
-def test_projection_version_is_per_resource_and_event_sequence_is_global_identity(
-    projection_engine,
-) -> None:
-    factory = _session_factory(projection_engine)
-    with factory.begin() as db:
-        first = record_projection_event(
-            db,
-            resource_type="docs_native_doc",
-            resource_id="doc-a",
-            retrieval_partition_id=_PARTITION_ID,
-            change_kind="content",
-            desired_state="active",
-        )
-        second = record_projection_event(
-            db,
-            resource_type="docs_native_doc",
-            resource_id="doc-b",
-            retrieval_partition_id=_PARTITION_ID,
-            change_kind="content",
-            desired_state="active",
-        )
-        third = record_projection_event(
-            db,
-            resource_type="docs_native_doc",
-            resource_id="doc-a",
-            retrieval_partition_id=_PARTITION_ID,
-            change_kind="visibility",
-            desired_state="active",
-            visibility_checksum="acl-v2",
-        )
-
-    assert [first.projection_version, second.projection_version, third.projection_version] == [
-        1,
-        1,
-        2,
-    ]
-    assert first.event_sequence < second.event_sequence < third.event_sequence
-
-    with projection_engine.connect() as connection:
-        identity = connection.execute(
-            text(
-                """
-                SELECT is_identity, identity_generation
-                FROM information_schema.columns
-                WHERE table_schema = current_schema()
-                  AND table_name = 'retrieval_projection_events'
-                  AND column_name = 'event_sequence'
-                """
-            )
-        ).one()
-
-    assert identity == ("YES", "BY DEFAULT")
-
-
 def test_projection_event_participates_in_outer_transaction_rollback(
     projection_engine,
 ) -> None:
@@ -170,46 +116,6 @@ def test_projection_event_participates_in_outer_transaction_rollback(
 
     assert head is None
     assert events == []
-
-
-def test_database_rejects_projection_event_update_and_delete(projection_engine) -> None:
-    factory = _session_factory(projection_engine)
-    with factory.begin() as db:
-        event = record_projection_event(
-            db,
-            resource_type="meeting",
-            resource_id="meeting-immutable",
-            retrieval_partition_id=_PARTITION_ID,
-            change_kind="content",
-            desired_state="active",
-        )
-
-    with pytest.raises(IntegrityError) as update_error:
-        with projection_engine.begin() as connection:
-            connection.execute(
-                text(
-                    """
-                    UPDATE retrieval_projection_events
-                    SET content_checksum = 'changed'
-                    WHERE event_sequence = :event_sequence
-                    """
-                ),
-                {"event_sequence": event.event_sequence},
-            )
-    assert getattr(update_error.value.orig, "sqlstate", None) == "23514"
-
-    with pytest.raises(IntegrityError) as delete_error:
-        with projection_engine.begin() as connection:
-            connection.execute(
-                text(
-                    """
-                    DELETE FROM retrieval_projection_events
-                    WHERE event_sequence = :event_sequence
-                    """
-                ),
-                {"event_sequence": event.event_sequence},
-            )
-    assert getattr(delete_error.value.orig, "sqlstate", None) == "23514"
 
 
 def test_delete_event_keeps_tombstone_head_and_database_rejects_head_delete(

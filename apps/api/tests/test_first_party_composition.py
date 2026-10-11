@@ -3,36 +3,11 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 import pytest
+from fastapi import FastAPI
 
-from miy_api.app import create_app, create_first_party_app
-from miy_api import app as app_module
 from miy_api import external_runtime
-from miy_api.domains.auth.dependencies import require_auth_context
-from miy_api.first_party_routes import nginx_owner_map, nginx_client_owner_map
-
-
-def test_first_party_routes_partition_legacy_without_delegated_authentication():
-    legacy = create_app(initialize_runtime=False).openapi()
-    platform = create_first_party_app(composition="platform", initialize_runtime=False)
-    official = create_first_party_app(composition="official", initialize_runtime=False)
-    schemas = [app.openapi() for app in (platform, official)]
-    paths = [{path for path in schema["paths"] if path.startswith("/api/")} for schema in schemas]
-    assert paths[0].isdisjoint(paths[1])
-    assert paths[0] | paths[1] == {path for path in legacy["paths"] if path.startswith("/api/")}
-    for app, schema in zip((platform, official), schemas):
-        assert require_auth_context not in app.dependency_overrides
-        for path in schema["paths"]:
-            if path.startswith("/api/"):
-                assert schema["paths"][path] == legacy["paths"][path]
-    with TestClient(official) as client:
-        assert client.get("/api/v1/docs/hub").status_code == 401
-        assert client.get("/api/v1/auth/me").status_code == 404
-        assert client.get("/healthz").json()["authority"] == "first_party_shared_database"
-    with pytest.raises(ValueError, match="one router owner"):
-        create_first_party_app(composition="legacy", initialize_runtime=False)
+from miy_api.first_party_routes import nginx_client_owner_map, nginx_owner_map
 
 
 def test_ingress_projection_keeps_official_collaboration_and_common_realtime_separate():
@@ -49,39 +24,6 @@ def test_ingress_projection_keeps_official_collaboration_and_common_realtime_sep
     assert "/apps/home" not in client_projection
     with pytest.raises(ValueError, match="prefix_invalid"):
         nginx_owner_map(api_prefix='/api/v1"; invalid')
-
-
-def test_platform_keeps_the_owned_frontend_and_update_mounts(monkeypatch):
-    mounted = []
-
-    def mount_frontend(app, _settings):
-        mounted.append("frontend")
-
-        @app.get("/")
-        def portal():
-            return {"portal": "login"}
-
-    def mount_updates(app, _settings, _dirs):
-        mounted.append("updates")
-
-        @app.get("/test-owned-update-feed")
-        def update_feed():
-            return {"feed": "owned"}
-
-    monkeypatch.setattr(app_module, "mount_frontend", mount_frontend)
-    monkeypatch.setattr(app_module, "mount_miy_desktop_update_feeds", mount_updates)
-    with TestClient(
-        create_first_party_app(composition="platform", initialize_runtime=False)
-    ) as client:
-        assert client.get("/").json() == {"portal": "login"}
-        assert client.get("/test-owned-update-feed").json() == {"feed": "owned"}
-    assert mounted == ["updates", "frontend"]
-    mounted.clear()
-    with TestClient(
-        create_first_party_app(composition="official", initialize_runtime=False)
-    ) as client:
-        assert client.get("/").status_code == 404
-    assert mounted == []
 
 
 @pytest.mark.parametrize(

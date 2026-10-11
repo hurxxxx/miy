@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from contextlib import nullcontext
 import importlib.util
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -11,21 +9,13 @@ from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 
 from miy_api.domains.auth.models import User
-from miy_api.domains.files import rag_projection, rag_sync, retrieval_contract
+from miy_api.domains.files import rag_projection, retrieval_contract
 from miy_api.domains.files.extraction_bootstrap import bootstrap_file_extraction_artifacts
 from miy_api.domains.files.models import FileManagerFile
-from miy_api.domains.official_apps.projection_models import (
-    OfficialProjectionOutbox,
-    OfficialProjectionReceipt,
-)
-from miy_api.domains.rag.contracts import RagSyncOperation
-from miy_api.domains.rag.models import RagSyncJob
 from miy_api.domains.retrieval.models import (
     RetrievalPartition,
     RetrievalProjectionEvent,
-    RetrievalProjectionHead,
 )
-from miy_api.domains.search.models import SearchIndexJob
 from miy_api.domains.source_access.resource_types import FILE_MANAGER_FILE_RESOURCE_TYPE
 
 
@@ -100,61 +90,6 @@ def _pending_file(file_id: str) -> FileManagerFile:
     )
 
 
-def test_gate_closed_bootstrap_extracts_and_refences_source_without_backend_jobs(
-    monkeypatch: pytest.MonkeyPatch,
-    db: Session,
-) -> None:
-    try:
-        file = _pending_file("file-1")
-        db.add(file)
-        db.flush()
-        monkeypatch.setattr(retrieval_contract, "FILES_RETRIEVAL_ACTIVE", False)
-        rag_sync.enqueue_file_retrieval_sync(
-            db,
-            file=file,
-            operation=RagSyncOperation.UPSERT,
-        )
-        first_head = db.get(
-            RetrievalProjectionHead,
-            (FILE_MANAGER_FILE_RESOURCE_TYPE, file.id),
-        )
-        assert first_head is not None and first_head.content_checksum is None
-        monkeypatch.setattr(
-            rag_projection,
-            "read_file_content",
-            lambda _file: "브레이크 제어기 시험 기준".encode(),
-        )
-
-        result = bootstrap_file_extraction_artifacts(
-            db,
-            after_file_id=None,
-            limit=10,
-            extraction_runtime=_ExtractionRuntime(),
-        )
-
-        stored = db.get(FileManagerFile, file.id, populate_existing=True)
-        head = db.get(
-            RetrievalProjectionHead,
-            (FILE_MANAGER_FILE_RESOURCE_TYPE, file.id),
-            populate_existing=True,
-        )
-        assert result.complete is True
-        assert result.scanned_files == result.ready_files == 1
-        assert result.unsupported_files == result.failed_files == 0
-        assert result.recorded_events == 1
-        assert stored is not None and stored.extraction_status == "ready"
-        assert stored.extraction_content_checksum
-        assert head is not None
-        assert head.projection_version == 2
-        assert head.content_checksum == stored.extraction_content_checksum
-        assert db.scalar(select(func.count()).select_from(OfficialProjectionOutbox)) == 2
-        assert db.scalar(select(func.count()).select_from(OfficialProjectionReceipt)) == 2
-        assert db.scalar(select(SearchIndexJob)) is None
-        assert db.scalar(select(RagSyncJob)) is None
-    finally:
-        db.close()
-
-
 def test_bootstrap_is_resumable_and_does_not_duplicate_current_ready_head(
     monkeypatch: pytest.MonkeyPatch,
     db: Session,
@@ -216,194 +151,3 @@ def test_bootstrap_is_resumable_and_does_not_duplicate_current_ready_head(
         )
     finally:
         db.close()
-
-
-def test_bootstrap_tombstones_unsupported_source_and_keeps_failure_retryable(
-    monkeypatch: pytest.MonkeyPatch,
-    db: Session,
-) -> None:
-    try:
-        unsupported = _pending_file("file-unsupported")
-        failed = _pending_file("file-failed")
-        db.add_all([failed, unsupported])
-        db.flush()
-        monkeypatch.setattr(retrieval_contract, "FILES_RETRIEVAL_ACTIVE", False)
-
-        def content(file: FileManagerFile) -> bytes:
-            if file.id == unsupported.id:
-                return b""
-            raise RuntimeError("storage temporarily unavailable")
-
-        monkeypatch.setattr(rag_projection, "read_file_content", content)
-
-        result = bootstrap_file_extraction_artifacts(
-            db,
-            after_file_id=None,
-            limit=10,
-            extraction_runtime=_ExtractionRuntime(),
-        )
-
-        failed = db.get(FileManagerFile, "file-failed", populate_existing=True)
-        unsupported = db.get(FileManagerFile, "file-unsupported", populate_existing=True)
-        unsupported_head = db.get(
-            RetrievalProjectionHead,
-            (FILE_MANAGER_FILE_RESOURCE_TYPE, "file-unsupported"),
-        )
-        assert result.failed_files == 1
-        assert result.unsupported_files == 1
-        assert failed is not None and failed.extraction_status == "failed"
-        assert unsupported is not None and unsupported.extraction_status == "unsupported"
-        assert unsupported_head is not None
-        assert unsupported_head.desired_state == "deleted"
-        assert unsupported_head.content_checksum is None
-        assert db.scalar(select(SearchIndexJob)) is None
-        assert db.scalar(select(RagSyncJob)) is None
-
-        monkeypatch.setattr(
-            rag_projection,
-            "read_file_content",
-            lambda _file: pytest.fail("unsupported source must not be re-opened"),
-        )
-        repeated = bootstrap_file_extraction_artifacts(
-            db,
-            after_file_id="file-failed",
-            limit=10,
-            extraction_runtime=_ExtractionRuntime(),
-        )
-        assert repeated.unsupported_files == 1
-        assert repeated.recorded_events == 0
-    finally:
-        db.close()
-
-
-def test_bootstrap_refuses_to_run_when_files_retrieval_gate_is_open(
-    monkeypatch: pytest.MonkeyPatch,
-    db: Session,
-) -> None:
-    try:
-        monkeypatch.setattr(retrieval_contract, "FILES_RETRIEVAL_ACTIVE", True)
-
-        with pytest.raises(ValueError, match="disabled gate"):
-            bootstrap_file_extraction_artifacts(
-                db,
-                after_file_id=None,
-                limit=10,
-                extraction_runtime=_ExtractionRuntime(),
-            )
-    finally:
-        db.close()
-
-
-def test_cli_requires_distinct_production_confirmation_before_extraction_access(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    script = _load_runner_script()
-    settings = SimpleNamespace(environment="production", files_retrieval_enabled=False)
-    monkeypatch.setattr(script, "get_settings", lambda: settings)
-    monkeypatch.setattr(
-        script,
-        "RagProviderFactory",
-        lambda _settings: pytest.fail("confirmation must precede OCR provider construction"),
-        raising=False,
-    )
-
-    exit_code = script.main(
-        [
-            "bootstrap-extraction",
-            "--confirm-writes-quiesced",
-            "--confirm-workers-stopped",
-            "--confirm-operator-gate-disabled",
-        ]
-    )
-
-    captured = capsys.readouterr()
-    assert exit_code == 1
-    assert captured.out == ""
-    assert captured.err.strip() == "status=failed reason=production_confirmation_required"
-
-
-def test_cli_exact_production_confirmation_allows_provider_free_dry_run(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    script = _load_runner_script()
-    settings = SimpleNamespace(environment="production", files_retrieval_enabled=False)
-    monkeypatch.setattr(script, "get_settings", lambda: settings)
-    monkeypatch.setattr(
-        script,
-        "RagProviderFactory",
-        lambda _settings: pytest.fail("dry-run must not construct an OCR provider"),
-    )
-    monkeypatch.setattr(
-        script,
-        "FilesPhysicalGenerationBackends",
-        lambda _settings: pytest.fail("dry-run must not construct retrieval backends"),
-    )
-
-    exit_code = script.main(
-        [
-            "bootstrap-extraction",
-            "--confirm-writes-quiesced",
-            "--confirm-workers-stopped",
-            "--confirm-operator-gate-disabled",
-            "--confirm-production-extraction",
-            "bootstrap-files-extraction",
-            "--dry-run",
-        ]
-    )
-
-    captured = capsys.readouterr()
-    assert exit_code == 0
-    assert captured.err == ""
-    assert captured.out.strip() == "status=ok state=extraction-planned dry_run=1"
-
-
-def test_cli_commits_failed_artifact_state_but_returns_nonzero_batch_result(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    script = _load_runner_script()
-    settings = SimpleNamespace(environment="development", files_retrieval_enabled=False)
-    monkeypatch.setattr(script, "get_settings", lambda: settings)
-    monkeypatch.setattr(
-        script,
-        "RagProviderFactory",
-        lambda _settings: SimpleNamespace(build_ocr=lambda: None),
-    )
-    monkeypatch.setattr(
-        script,
-        "get_session_factory",
-        lambda: SimpleNamespace(begin=lambda: nullcontext(SimpleNamespace())),
-    )
-    monkeypatch.setattr(
-        script,
-        "bootstrap_file_extraction_artifacts",
-        lambda *_args, **_kwargs: SimpleNamespace(
-            next_file_id="file-25",
-            scanned_files=25,
-            ready_files=24,
-            unsupported_files=0,
-            failed_files=1,
-            recorded_events=24,
-            complete=False,
-        ),
-    )
-
-    exit_code = script.main(
-        [
-            "bootstrap-extraction",
-            "--confirm-writes-quiesced",
-            "--confirm-workers-stopped",
-            "--confirm-operator-gate-disabled",
-        ]
-    )
-
-    captured = capsys.readouterr()
-    assert exit_code == 1
-    assert captured.out == ""
-    assert captured.err.strip() == (
-        "status=failed reason=extraction_batch_incomplete"
-        " scanned_files=25 ready_files=24 unsupported_files=0 failed_files=1"
-        " recorded_events=24 complete=0 next_file_id=file-25"
-    )

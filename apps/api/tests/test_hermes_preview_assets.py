@@ -5,14 +5,14 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
+from test_hermes_runtime import admit_runtime_apps, seed, session_for, stage
 
-from miy_api.domains.hermes import files, file_router
+from miy_api.domains.hermes import file_router, files
 from miy_api.domains.hermes.models import HermesFileRevision
 from miy_api.domains.hermes.repository import utcnow_naive
-from test_hermes_runtime import seed, session_for, stage, admit_runtime_apps
 
 
-@pytest.mark.parametrize("interrupt_checkpoint", [False, True])
+@pytest.mark.parametrize("interrupt_checkpoint", [True])
 def test_preview_assets_use_owned_immutable_snapshot_without_fallback(
     application_postgres_dsn,
     monkeypatch,

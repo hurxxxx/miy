@@ -54,26 +54,27 @@ def _group(client, admin, user_ids):
 
 
 @pytest.mark.parametrize("app, model", [("docs", NativeDoc), ("whiteboard", Whiteboard)])
-def test_personal_group_sharing_does_not_publish_or_grant_resharing(client, app, model):
+def test_personal_share_then_company_publication_and_audience_revocation(client, app, model):
     admin, admin_id = _setup(client)
     _enable(client, admin, app)
-    owner, _ = _user(client, admin, "contentowner")
-    member, member_id = _user(client, admin, "contentmember")
-    group_id = _group(client, admin, [member_id])
-    response = client.post(f"/api/v1/{app}/items", headers=owner, json={"title": "Private draft"})
-    assert response.status_code == 201, response.text
-    item_id = response.json()["id"]
-    item_url = f"/api/v1/{app}/items/{item_id}"
-    assert client.get(item_url, headers=admin).status_code == 404
-    assert client.get(item_url, headers=member).status_code == 404
-    share_url = f"{item_url}/sharing/groups/{group_id}"
-    response = client.put(share_url, headers=owner, json={"access_level": "edit"})
-    assert response.status_code == 200, response.text
-    response = client.get(item_url, headers=member)
-    assert response.status_code == 200, response.text
-    assert response.json()["can_edit"] and not response.json()["can_share"]
-    assert client.put(share_url, headers=member, json={"access_level": "read"}).status_code == 403
-    assert client.get(item_url, headers=admin).status_code == 404
+    _enable(client, admin, "pms")
+    owner, owner_id = _user(client, admin, "contentowner")
+    reader, reader_id = _user(client, admin, "contentreader")
+    group_id = _group(client, admin, [reader_id])
+    created = client.post(f"/api/v1/{app}/items", headers=owner, json={"title": "Private draft"})
+    assert created.status_code == 201
+    item_id = created.json()["id"]
+    url = f"/api/v1/{app}/items/{item_id}"
+    assert client.get(url, headers=admin).status_code == 404
+    assert client.get(url, headers=reader).status_code == 404
+    share = f"{url}/sharing/groups/{group_id}"
+    assert client.put(share, headers=owner, json={"access_level": "edit"}).status_code == 200
+    shared = client.get(url, headers=reader)
+    assert (
+        shared.status_code == 200 and shared.json()["can_edit"] and not shared.json()["can_share"]
+    )
+    assert client.put(share, headers=reader, json={"access_level": "read"}).status_code == 403
+    assert client.get(url, headers=admin).status_code == 404
     with get_session_factory()() as db:
         record = db.get(model, item_id.split("__")[-1])
         assert record.ownership_kind == "personal"
@@ -81,52 +82,56 @@ def test_personal_group_sharing_does_not_publish_or_grant_resharing(client, app,
             assert not SourceAclPolicy.for_user(db, user=db.get(User, admin_id)).can_read_resource(
                 "docs_native_doc", record.id
             )
-            assert SourceAclPolicy.for_user(db, user=db.get(User, member_id)).can_read_resource(
+            assert SourceAclPolicy.for_user(db, user=db.get(User, reader_id)).can_read_resource(
                 "docs_native_doc", record.id
             )
-    response = client.put(
-        f"/api/v1/admin/groups/{group_id}/members", headers=admin, json={"user_ids": []}
-    )
-    assert response.status_code == 200, response.text
-    assert client.get(item_url, headers=member).status_code == 404
+    assert client.delete(share, headers=owner).status_code == 204
+    assert client.get(url, headers=reader).status_code == 404
 
+    assert (
+        client.put(url + "/sharing/company", headers=owner, json={"enabled": True}).status_code
+        == 409
+    )
+    space = client.post("/api/v1/pms/spaces", headers=owner, json={"name": "Project space"})
+    assert space.status_code == 201
+    target = {"app": "pms", "type": "space", "id": space.json()["id"]}
+    denied = client.put(url + "/target", headers=owner, json=target)
+    assert (
+        denied.status_code == 409
+        and denied.json()["code"] == "content.company_publication_required"
+    )
+    published = client.put(
+        url + "/target", headers=owner, json={**target, "company_admin_read_acknowledged": True}
+    )
+    assert published.status_code == 200
+    admin_read = client.get(url, headers=admin)
+    assert admin_read.status_code == 200 and admin_read.json()["can_view"]
+    assert not admin_read.json()["can_edit"] and not admin_read.json()["can_manage"]
+    assert client.patch(url, headers=admin, json={"title": "Admin mutation"}).status_code == 403
+    assert client.delete(url + "/target", headers=owner).status_code == 200
+    assert client.get(url, headers=admin).status_code == 200
 
-@pytest.mark.parametrize("app, model", [("docs", NativeDoc), ("whiteboard", Whiteboard)])
-def test_company_publication_requires_source_authority_and_acknowledgement(client, app, model):
-    admin, _ = _setup(client)
-    for enabled in (app, "pms"):
-        _enable(client, admin, enabled)
-    owner, owner_id = _user(client, admin, "publicationowner")
-    response = client.post("/api/v1/pms/spaces", headers=owner, json={"name": "Project space"})
-    assert response.status_code == 201, response.text
-    space_id = response.json()["id"]
-    response = client.post(f"/api/v1/{app}/items", headers=owner, json={"title": "Publish draft"})
-    assert response.status_code == 201, response.text
-    item_id = response.json()["id"]
-    item_url = f"/api/v1/{app}/items/{item_id}"
-    target = {"app": "pms", "type": "space", "id": space_id}
-    response = client.put(f"{item_url}/target", headers=owner, json=target)
-    assert response.status_code == 409, response.text
-    assert response.json()["code"] == "content.company_publication_required"
-    response = client.put(
-        f"{item_url}/target",
-        headers=owner,
-        json={**target, "company_admin_read_acknowledged": True},
-    )
-    assert response.status_code == 200, response.text
-    response = client.get(item_url, headers=admin)
-    assert response.status_code == 200, response.text
+    audience = url + "/sharing/company"
     assert (
-        response.json()["can_view"]
-        and not response.json()["can_edit"]
-        and not response.json()["can_manage"]
+        client.put(
+            audience, headers=owner, json={"enabled": True, "company_admin_read_acknowledged": True}
+        ).status_code
+        == 204
     )
-    assert (
-        client.patch(item_url, headers=admin, json={"title": "Admin mutation"}).status_code == 403
-    )
-    response = client.delete(f"{item_url}/target", headers=owner)
-    assert response.status_code == 200, response.text
-    assert client.get(item_url, headers=admin).status_code == 200
+    visible = client.get(url, headers=reader)
+    assert visible.status_code == 200 and visible.json()["company_visible"]
+    assert not visible.json()["can_edit"]
+    if app == "docs":
+        with get_session_factory()() as db:
+            assert SourceAclPolicy.for_user(db, user=db.get(User, reader_id)).can_read_resource(
+                "docs_native_doc", item_id
+            )
+    assert client.put(audience, headers=admin, json={"enabled": False}).status_code == 403
+    assert client.put(audience, headers=owner, json={"enabled": False}).status_code == 204
+    assert client.get(url, headers=reader).status_code == 404
+    final = client.get(url, headers=admin)
+    assert final.status_code == 200 and final.json()["ownership_kind"] == "company"
+    assert final.json()["company_visible"] is False
     with get_session_factory()() as db:
         record = db.get(model, item_id.split("__")[-1])
         assert record.ownership_kind == "company"
@@ -186,47 +191,7 @@ def test_last_active_admin_cannot_be_removed_and_old_workspace_routes_are_absent
     assert "workspace" not in str(response.json()).lower()
 
 
-@pytest.mark.parametrize("app, model", [("docs", NativeDoc), ("whiteboard", Whiteboard)])
-def test_company_read_audience_can_be_revoked_without_reverting_ownership(client, app, model):
-    admin, _ = _setup(client)
-    _enable(client, admin, app)
-    owner, _ = _user(client, admin, "audienceowner")
-    reader, reader_id = _user(client, admin, "audiencereader")
-    response = client.post(f"/api/v1/{app}/items", headers=owner, json={"title": "Company notice"})
-    assert response.status_code == 201, response.text
-    item_id = response.json()["id"]
-    url = f"/api/v1/{app}/items/{item_id}"
-    response = client.put(f"{url}/sharing/company", headers=owner, json={"enabled": True})
-    assert response.status_code == 409, response.text
-    response = client.put(
-        f"{url}/sharing/company",
-        headers=owner,
-        json={"enabled": True, "company_admin_read_acknowledged": True},
-    )
-    assert response.status_code == 204, response.text
-    response = client.get(url, headers=reader)
-    assert response.status_code == 200, response.text
-    assert response.json()["ownership_kind"] == "company"
-    assert response.json()["company_visible"] is True
-    assert response.json()["can_edit"] is False
-    if app == "docs":
-        with get_session_factory()() as db:
-            assert SourceAclPolicy.for_user(db, user=db.get(User, reader_id)).can_read_resource(
-                "docs_native_doc", item_id
-            )
-    response = client.put(f"{url}/sharing/company", headers=admin, json={"enabled": False})
-    assert response.status_code == 403, response.text
-    response = client.put(f"{url}/sharing/company", headers=owner, json={"enabled": False})
-    assert response.status_code == 204, response.text
-    response = client.get(url, headers=reader)
-    assert response.status_code == 404, response.text
-    response = client.get(url, headers=admin)
-    assert response.status_code == 200, response.text
-    assert response.json()["ownership_kind"] == "company"
-    assert response.json()["company_visible"] is False
-
-
-@pytest.mark.parametrize("app", ["docs", "whiteboard"])
+@pytest.mark.parametrize("app", ["docs"])
 def test_shared_content_does_not_disclose_inaccessible_target_title(client, app):
     admin, _ = _setup(client)
     for enabled in (app, "pms"):

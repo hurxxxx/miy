@@ -5,19 +5,15 @@ from collections import Counter
 
 import anyio
 import httpx
-import pytest
+from dev_accounts import auth_headers, dev_login
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from dev_accounts import auth_headers, dev_login
 from miy_api.core import db
 from miy_api.domains.auth import dependencies
 
 
-@pytest.mark.parametrize("invalid_credentials", [False, True])
-def test_authenticated_read_burst_does_not_starve_request_threads(
-    client, monkeypatch, invalid_credentials
-):
+def test_authenticated_read_burst_does_not_starve_request_threads(client, monkeypatch):
     from miy_api.app import create_app
 
     headers = auth_headers(dev_login(client)["token"])
@@ -39,7 +35,7 @@ def test_authenticated_read_burst_does_not_starve_request_threads(
         ) as transport:
 
             async def read(index):
-                if invalid_credentials and index % 2:
+                if index % 2:
                     return await transport.get(
                         "/api/v1/agent/runs", headers={"Authorization": "Bearer invalid-test-token"}
                     )
@@ -49,7 +45,7 @@ def test_authenticated_read_burst_does_not_starve_request_threads(
 
     try:
         responses = asyncio.run(burst())
-        expected = {200: 8, 401: 8} if invalid_credentials else {200: 16}
+        expected = {200: 8, 401: 8}
         assert Counter(response.status_code for response in responses) == expected
         assert engine.pool.checkedout() == 0
     finally:

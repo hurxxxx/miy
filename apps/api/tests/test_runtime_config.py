@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import shutil
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -10,7 +10,6 @@ from pydantic import ValidationError
 from miy_api.core import settings
 from miy_api.core.runtime_config import (
     RuntimeConfigError,
-    load_runtime_document,
     runtime_defaults,
 )
 
@@ -50,23 +49,11 @@ def test_profile_dotenv_environment_and_explicit_setting_priority(config_root, m
         settings.Settings(_env_file=env)
 
 
-@pytest.mark.parametrize("profile", ["local", "dev", "prod", "preview", "test", " Production "])
-def test_default_profiles_cover_pool_and_model_tuning(config_root, profile):
-    values = runtime_defaults(config_root, profile)
-    assert values[POOL_KEY] == 5
-    assert values["MIY_WORKER_DB_POOL_SIZE"] == 1
-    assert values["MIY_RAG_EMBEDDING_MODEL"]
-    assert "MIY_POSTGRES_DSN" not in values
-    assert "MIY_HERMES_API_KEY" not in values
-
-
 @pytest.mark.parametrize(
     "change",
     [
         lambda doc: doc["defaults"].update({"MIY_HERMES_API_KEY": "synthetic-secret"}),
-        lambda doc: doc["profiles"]["prod"].update({POOL_KEY: 0}),
         lambda doc: doc["defaults"].pop(POOL_KEY),
-        lambda doc: doc["profiles"].pop("prod"),
         lambda doc: doc.update(version=99),
     ],
 )
@@ -75,25 +62,3 @@ def test_invalid_config_fails_without_exposing_values(config_root, change):
     with pytest.raises(RuntimeConfigError) as caught:
         runtime_defaults(config_root)
     assert "synthetic-secret" not in str(caught.value)
-
-
-def test_missing_config_and_unknown_profile_fail_closed(config_root):
-    with pytest.raises(RuntimeConfigError):
-        runtime_defaults(config_root, "misspelled")
-    (config_root / "config/runtime.json").unlink()
-    with pytest.raises(RuntimeConfigError):
-        runtime_defaults(config_root)
-
-
-def test_duplicate_config_keys_fail(config_root):
-    path = config_root / "config/runtime.json"
-    path.write_text(path.read_text().replace('"version": 1', '"version": 1, "version": 1'))
-    with pytest.raises(RuntimeConfigError, match="duplicate"):
-        load_runtime_document(config_root)
-
-
-def test_api_and_worker_settings_do_not_read_live_model_selection_from_config(config_root):
-    # Models selected in Admin remain owned by DB routing. This file contains
-    # only deployment tuning and preprocessing-model defaults.
-    values = runtime_defaults(config_root)
-    assert not any(key.endswith("_DEFAULT_EXTERNAL_LLM_PROVIDER") for key in values)

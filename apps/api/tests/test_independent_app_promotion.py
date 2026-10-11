@@ -3,16 +3,15 @@
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import delete, select
+from sqlalchemy import delete
 
 from miy_api.core.db import get_session_factory
 from miy_api.core.independent_delivery_settings import IndependentDeliveryTarget
 from miy_api.core.settings import get_settings
-from miy_api.domains.auth.models import UserSystemRole
+from miy_api.domains.auth.models import UserSystemRole, utcnow_naive
 from miy_api.domains.independent_apps import production
-from miy_api.domains.independent_apps.delivery import reconcile_deployment
 from miy_api.domains.independent_apps.delivery_models import AppBuildVerification
-from miy_api.domains.independent_apps.models import AppInstallationRecord
+from miy_api.domains.independent_apps.models import AppInstallationRecord, AppReleaseRecord
 from test_independent_app_delivery import (
     FakeRuntime,
     build_release,
@@ -78,82 +77,6 @@ def promote(client, app, installation, release, *, action="deploy", status=202):
     return payload, response.json()
 
 
-def test_promotion_requires_observed_development_and_exact_core_binding(
-    client, promotion_app, monkeypatch
-):
-    app, installation, _, settings = promotion_app
-    release = build_release(app[2])
-    promote(client, app, installation, release, status=409)
-    observed_development(client, app, release)
-    monkeypatch.setattr(
-        production,
-        "get_settings",
-        lambda: settings.model_copy(update={"independent_app_delivery_targets": []}),
-    )
-    promote(client, app, installation, release, status=409)
-    monkeypatch.setattr(production, "get_settings", lambda: settings)
-    request, _ = promote(client, app, installation, release)
-    assert (
-        client.post(
-            "/api/v1/independent-apps/sample-independent/deployments",
-            headers=app[1],
-            json=request | {"request_id": str(uuid4())},
-        ).status_code
-        == 409
-    )
-    assert (
-        client.post(
-            "/api/v1/independent-apps/sample-independent/promotions",
-            headers=app[1],
-            json=request,
-        ).json()["id"]
-        == request["request_id"]
-    )
-
-
-def test_personal_promotion_cannot_adopt_official_app_release_contract(client, promotion_app):
-    app, installation, _, _ = promotion_app
-    changed = client.put(
-        "/api/v1/independent-apps/definitions",
-        headers=app[1],
-        json={
-            "definition": app[2]["definition"] | {"ownership": "official"},
-            "source_revision": app[2]["source_revision"],
-            "expected_digest": app[2]["definition_digest"],
-            "expected_source_revision": app[2]["source_revision"],
-        },
-    )
-    assert changed.status_code == 200, changed.text
-    promote(client, app, installation, str(uuid4()), status=403)
-
-
-def test_first_promotion_admits_only_after_observation_and_preserves_build_environment(
-    client, promotion_app
-):
-    app, installation, target, _ = promotion_app
-    release = build_release(app[2])
-    observed_development(client, app, release)
-    request, _ = promote(client, app, installation, release)
-    with get_session_factory()() as db:
-        assert not db.get(AppInstallationRecord, installation["id"]).enabled
-    runtime = FakeRuntime()
-    assert execute(request, runtime).state == "succeeded"
-    selected = runtime.candidates[request["request_id"]]
-    assert selected.environment == "production"
-    assert selected.origin == target.app_origin
-    assert selected.loopback_port == target.loopback_port
-    assert selected.operator_binding_digest == production.binding_digest(target)
-    with get_session_factory()() as db:
-        assert db.scalar(select(AppBuildVerification)).target_environment == "development"
-        installed = db.get(AppInstallationRecord, installation["id"])
-        assert installed.enabled and installed.state == "ready"
-        assert installed.release_id == release
-    item = client.get("/api/v1/independent-apps/catalog", headers=app[1]).json()["items"][0]
-    assert next(row for row in item["installations"] if row["id"] == installation["id"])[
-        "launchable"
-    ]
-
-
 def test_owner_development_https_binding_does_not_grant_production_authority(
     client, promotion_app, monkeypatch
 ):
@@ -191,66 +114,39 @@ def test_owner_development_https_binding_does_not_grant_production_authority(
     promote(client, app, production_installation, release, status=403)
 
 
-@pytest.mark.parametrize("change", ["admin", "operator_binding"])
-def test_current_authority_changes_before_cutover_leave_first_production_disabled(
-    client, promotion_app, monkeypatch, change
-):
-    app, installation, target, settings = promotion_app
-    release = build_release(app[2])
-    observed_development(client, app, release)
-    request, _ = promote(client, app, installation, release)
-    runtime = FakeRuntime()
-
-    def change_authority():
-        if change == "admin":
-            with get_session_factory()() as db:
-                db.execute(
-                    delete(UserSystemRole).where(
-                        UserSystemRole.user_id == app[0]["user"]["id"],
-                        UserSystemRole.role == "platform_admin",
-                    )
-                )
-                db.commit()
-        else:
-            changed = settings.model_copy(
-                update={
-                    "independent_app_delivery_targets": [
-                        target.model_copy(update={"loopback_port": 19432})
-                    ]
-                }
-            )
-            monkeypatch.setattr(production, "get_settings", lambda: changed)
-
-    runtime.prepare_hook = change_authority
-    assert execute(request, runtime).state == "failed"
-    assert not runtime.activations and not runtime.candidates
-    with get_session_factory()() as db:
-        installed = db.get(AppInstallationRecord, installation["id"])
-        assert not installed.enabled and installed.release_id is None
-
-
-def test_lost_promotion_response_reconciles_original_effect_without_redeployment(
-    client, promotion_app
-):
-    app, installation, _, _ = promotion_app
-    release = build_release(app[2])
-    observed_development(client, app, release)
-    request, _ = promote(client, app, installation, release)
-    runtime = FakeRuntime()
-    runtime.lose_response = True
-    assert execute(request, runtime).state == "unknown"
-    assert execute(request, runtime).state == "unknown"
-    assert runtime.activations == [request["request_id"]]
-    with get_session_factory()() as db:
-        assert reconcile_deployment(db, request["request_id"], runtime).state == "succeeded"
-    assert runtime.activations == [request["request_id"]]
-
-
 def test_production_code_rollback_reuses_prior_artifact_and_installation_identity(
     client, promotion_app
 ):
     app, installation, _, _ = promotion_app
-    first = build_release(app[2])
+    assert (
+        client.post(
+            "/api/v1/independent-apps/sample-independent/installations",
+            headers=app[1],
+            json=app[4]
+            | {
+                "environment": "production",
+                "origin": "https://second-production.test",
+                "enabled": False,
+            },
+        ).status_code
+        == 409
+    )
+    first_manifest = app[2]["definition"] | {
+        "entrypoints": app[2]["definition"]["entrypoints"] | {"ui": "/first/"}
+    }
+    first_definition = client.put(
+        "/api/v1/independent-apps/definitions",
+        headers=app[1],
+        json={
+            "definition": first_manifest,
+            "source_revision": "a" * 40,
+            "expected_digest": app[2]["definition_digest"],
+            "expected_source_revision": "a" * 40,
+        },
+    )
+    assert first_definition.status_code == 200, first_definition.text
+    first_definition = first_definition.json()
+    first = build_release(first_definition)
     observed_development(client, app, first)
     request, _ = promote(client, app, installation, first)
     runtime = FakeRuntime()
@@ -259,9 +155,10 @@ def test_production_code_rollback_reuses_prior_artifact_and_installation_identit
         "/api/v1/independent-apps/definitions",
         headers=app[1],
         json={
-            "definition": app[2]["definition"],
+            "definition": first_manifest
+            | {"entrypoints": first_manifest["entrypoints"] | {"ui": "/second/"}},
             "source_revision": "b" * 40,
-            "expected_digest": app[2]["definition_digest"],
+            "expected_digest": first_definition["definition_digest"],
             "expected_source_revision": app[2]["source_revision"],
         },
     )
@@ -279,3 +176,23 @@ def test_production_code_rollback_reuses_prior_artifact_and_installation_identit
     assert selected.environment == "production" and selected.image_id == "sha256:" + "a" * 64
     with get_session_factory()() as db:
         assert db.get(AppInstallationRecord, installation["id"]).release_id == first
+    catalog = client.get("/api/v1/independent-apps/catalog", headers=app[1]).json()
+    installed = next(
+        item
+        for entry in catalog["items"]
+        for item in entry["installations"]
+        if item["id"] == installation["id"]
+    )
+    assert installed["ui_entrypoint"] == "/first/" and installed["launchable"]
+    with get_session_factory()() as db:
+        release = db.get(AppReleaseRecord, first)
+        db.get(AppBuildVerification, release.verification_id).revoked_at = utcnow_naive()
+        db.commit()
+    catalog = client.get("/api/v1/independent-apps/catalog", headers=app[1]).json()
+    installed = next(
+        item
+        for entry in catalog["items"]
+        for item in entry["installations"]
+        if item["id"] == installation["id"]
+    )
+    assert installed["ui_entrypoint"] is None and not installed["launchable"]

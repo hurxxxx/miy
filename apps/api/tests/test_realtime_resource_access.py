@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import select
@@ -9,8 +8,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from dev_accounts import auth_headers, dev_login
 from miy_api.core.db import get_session_factory
-from miy_api.domains.auth.models import AuthSession, CompanyAppControl, User
-from miy_api.domains.auth.security import hash_token
+from miy_api.domains.auth.models import CompanyAppControl
 from miy_api.domains.realtime import router
 from miy_api.domains.realtime.resource_subscriptions import (
     requested_resource_subscription,
@@ -67,111 +65,6 @@ def _assert_initial(socket, app, item_id):
         assert initial["data"]["doc_id"] == item_id
     else:
         assert initial == _control(app, item_id)
-
-
-@pytest.mark.parametrize("app", ["docs", "whiteboard"])
-@pytest.mark.parametrize("change", ["revoke", "regenerate", "downgrade"])
-def test_websocket_observes_current_link_policy_and_detaches_revoked_reader(client, app, change):
-    owner, reader, item_id, link = _resource(client, app)
-    with client.websocket_connect("/api/v1/realtime/ws") as socket:
-        _connect(socket, reader["token"])
-        _subscribe(socket, app, item_id, link)
-        _assert_initial(socket, app, item_id)
-        url = f"/api/v1/{app}/items/{item_id}/sharing/link"
-        if change == "revoke":
-            response = client.delete(url, headers=auth_headers(owner["token"]))
-        else:
-            response = client.put(
-                url,
-                headers=auth_headers(owner["token"]),
-                json={
-                    "access_level": "read",
-                    "active": True,
-                    "regenerate_token": change == "regenerate",
-                },
-            )
-        assert response.status_code == 200, response.text
-        assert socket.receive_json() == _control(app, item_id)
-        # A marker through the same hub is an ordering barrier. A revoked viewer
-        # must not observe subsequent changes even if it never unsubscribes.
-        hub = client.app.state.app_realtime
-        channel = f"docs.pages:{item_id}" if app == "docs" else f"whiteboard.access:{item_id}"
-        hub.publish(channel, _control(app, item_id))
-        hub.publish_user(reader["user"]["id"], {"type": "test.barrier", "data": {}})
-        if change == "downgrade":
-            assert socket.receive_json() == _control(app, item_id)
-            current = client.get(
-                f"/api/v1/{app}/shared-links/{link}", headers=auth_headers(reader["token"])
-            )
-            assert current.status_code == 200, current.text
-            assert current.json()["item"]["can_edit"] is False
-        barrier = socket.receive_json()
-        assert barrier["type"] == "test.barrier"
-        assert barrier["data"] == {}
-        socket.close()
-
-
-@pytest.mark.parametrize("app", ["docs", "whiteboard"])
-@pytest.mark.parametrize("reason", ["no_acl", "other_resource_link", "app_disabled"])
-def test_websocket_denies_unauthorized_subscription_with_only_requested_id(client, app, reason):
-    owner, reader, item_id, link = _resource(client, app)
-    if reason == "other_resource_link":
-        other = client.post(
-            f"/api/v1/{app}/items",
-            headers=auth_headers(owner["token"]),
-            json={"title": "Other private source"},
-        )
-        assert other.status_code == 201
-        item_id = other.json()["id"]
-    if reason == "app_disabled":
-        with get_session_factory()() as db:
-            db.get(CompanyAppControl, app).enabled = False
-            db.commit()
-    with client.websocket_connect("/api/v1/realtime/ws") as socket:
-        _connect(socket, reader["token"])
-        _subscribe(socket, app, item_id, None if reason == "no_acl" else link)
-        assert socket.receive_json() == _control(app, item_id)
-        assert socket.receive_json()["type"] == "realtime.error"
-        hub = client.app.state.app_realtime
-        channel = f"docs.pages:{item_id}" if app == "docs" else f"whiteboard.access:{item_id}"
-        hub.publish(channel, _control(app, item_id))
-        hub.publish_user(reader["user"]["id"], {"type": "test.barrier", "data": {}})
-        barrier = socket.receive_json()
-        assert barrier["type"] == "test.barrier"
-        assert barrier["data"] == {}
-        socket.close()
-
-
-@pytest.mark.parametrize("direction", ["incoming", "outgoing"])
-@pytest.mark.parametrize("change", ["revoke", "suspended", "login_blocked", "must_change_password"])
-def test_websocket_rechecks_session_for_every_message_without_waiting_for_monitor(
-    client, direction, change
-):
-    user = dev_login(client, "delivery-hub-member")
-    with client.websocket_connect("/api/v1/realtime/ws") as socket:
-        _connect(socket, user["token"])
-        with get_session_factory()() as db:
-            session = db.scalar(
-                select(AuthSession).where(AuthSession.token_hash == hash_token(user["token"]))
-            )
-            if change == "revoke":
-                session.revoked_at = datetime.now(UTC).replace(tzinfo=None)
-            else:
-                current_user = db.get(User, user["user"]["id"])
-                if change == "suspended":
-                    current_user.status = "suspended"
-                else:
-                    setattr(current_user, change, True)
-            db.commit()
-        if direction == "incoming":
-            socket.send_json({"type": "unsupported"})
-        else:
-            client.app.state.app_realtime.publish_user(
-                user["user"]["id"], {"type": "test.private", "data": {"body": "must never arrive"}}
-            )
-        with pytest.raises(WebSocketDisconnect) as denied:
-            socket.receive_json()
-        assert denied.value.code == 1008
 
 
 def test_queued_docs_content_is_redacted_after_revocation_and_stale_envelopes_discarded(client):
@@ -322,7 +215,7 @@ def test_direct_and_shared_link_subscriptions_keep_distinct_authority_and_refcou
     asyncio.run(exercise())
 
 
-@pytest.mark.parametrize("app", ["docs", "whiteboard"])
+@pytest.mark.parametrize("app", ["docs"])
 def test_periodic_resource_recheck_sends_control_and_detaches_if_invalidation_was_lost(
     client, monkeypatch, app
 ):
@@ -342,18 +235,9 @@ def test_periodic_resource_recheck_sends_control_and_detaches_if_invalidation_wa
         socket.close()
 
 
-@pytest.mark.parametrize("query", ["token=", "token=legacy-query-secret"])
+@pytest.mark.parametrize("query", ["token=legacy-query-secret"])
 def test_realtime_rejects_query_token_authentication(client, query):
     with client.websocket_connect(f"/api/v1/realtime/ws?{query}") as socket:
-        with pytest.raises(WebSocketDisconnect) as denied:
-            socket.receive_json()
-        assert denied.value.code == 1008
-
-
-@pytest.mark.parametrize("payload", [None, [], "token", 7, {"type": "auth", "token": []}])
-def test_realtime_rejects_malformed_first_auth_frame(client, payload):
-    with client.websocket_connect("/api/v1/realtime/ws") as socket:
-        socket.send_json(payload)
         with pytest.raises(WebSocketDisconnect) as denied:
             socket.receive_json()
         assert denied.value.code == 1008

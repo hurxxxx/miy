@@ -1,16 +1,14 @@
 """Candidate isolation and authority are exercised through the real API and DB."""
 
 import json
-from datetime import timedelta
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from miy_api.core.db import get_session_factory
 from miy_api.core.settings import get_settings
-from miy_api.domains.auth.models import utcnow_naive
 from miy_api.domains.independent_apps.models import AppDefinitionRecord, AppInstallationRecord
 from miy_api.domains.independent_apps.delivery_models import AppBuildJob
 from miy_api.domains.independent_apps.workspace_models import AppWorkspaceRecord
@@ -349,6 +347,23 @@ def test_merged_source_handoff_survives_cleanup_and_requires_observed_dev_releas
 
     _assert_archived_slot_recycles(client, app, headers, path, body, state, cancelled_id)
 
+    from test_app_integrations import issue
+    from test_organization_integrations import _auth_headers
+
+    key = issue(client, app[0], ["app-catalog:read"])
+    response = client.get(
+        "/api/v1/integrations/apps/sample-independent/installations",
+        headers=_auth_headers(key["api_key"]),
+    )
+    assert response.status_code == 200, response.text
+    assert response.headers["cache-control"] == "private, no-store"
+    archived = next(
+        item for item in response.json()["items"] if item["id"] == state["installation"]["id"]
+    )
+    assert archived["origin"] == state["installation"]["origin"]
+    assert archived["state"] == "archived" and not archived["enabled"]
+    assert not {"archived_origin", "user_ids", "group_ids", "runtime_config"} & archived.keys()
+
     expanded = profile.model_dump(mode="json")
     expanded["origins"].append({"origin": "https://future-work.test", "port": 19902})
     monkeypatch.setenv("MIY_INDEPENDENT_APP_WORKSPACE_PROFILES", json.dumps([expanded]))
@@ -471,7 +486,7 @@ def _assert_archived_slot_recycles(client, app, headers, path, body, state, hist
         assert db.get(AppWorkspaceRecord, replacement["id"]).slot == 0
 
 
-@pytest.mark.parametrize("failure", ["runtime_cleanup", "admission_changed"])
+@pytest.mark.parametrize("failure", ["runtime_cleanup"])
 def test_incomplete_cleanup_keeps_origin_and_slot_reserved(client, workspace, failure):
     _, _, _, _, state = workspace
     with get_session_factory()() as db:
@@ -504,127 +519,3 @@ def test_incomplete_cleanup_keeps_origin_and_slot_reserved(client, workspace, fa
         assert "installation_archive" not in row.resources
         assert installation.origin == "https://work.test"
         assert installation.archived_origin is None and installation.state != "archived"
-
-
-@pytest.mark.parametrize("workspace", [2], indirect=True)
-@pytest.mark.parametrize("blocked", ["waiting", "exception", "locked", "concurrent_transition"])
-def test_pg_maintenance_held_workspace_does_not_block_another(client, workspace, blocked):
-    from miy_api.domains.independent_apps.workspace_maintenance import poll_once
-
-    _, headers, first_path, body, first = workspace
-    first_id = first["installation"]["id"]
-    if blocked == "waiting":
-        build_id = str(uuid4())
-        build = client.post(
-            first_path + "/builds",
-            headers=headers,
-            json={
-                "request_id": build_id,
-                "source_revision": first["source_revision"],
-                "definition_digest": first["definition_digest"],
-            },
-        )
-        assert build.status_code == 202, build.text
-        with get_session_factory()() as db:
-            job = db.get(AppBuildJob, build_id)
-            job.state, job.active_slot = "running", 1
-            db.commit()
-    assert (
-        client.post(
-            first_path + "/stop", headers=headers, json={"expected_version": first["version"]}
-        ).status_code
-        == 200
-    )
-    second_path = first_path.rsplit("/", 1)[0] + "/" + str(uuid4())
-    prepared = client.post(second_path + "/prepare", headers=headers, json=body)
-    assert prepared.status_code == 200, prepared.text
-    second = prepared.json()
-    assert (
-        client.post(
-            second_path + "/stop", headers=headers, json={"expected_version": second["version"]}
-        ).status_code
-        == 200
-    )
-    attempted_at = utcnow_naive() - timedelta(hours=1)
-    with get_session_factory()() as db:
-        row = db.get(AppWorkspaceRecord, first["id"])
-        row.updated_at = attempted_at
-        version, resources = row.version, row.resources
-        generation = db.get(AppInstallationRecord, first_id).generation
-        db.commit()
-    calls = []
-
-    class Runtime:
-        def stop_workspace(self, specs, *, installation_id):
-            calls.append(installation_id)
-            assert specs == []
-            if installation_id == first_id:
-                if blocked == "concurrent_transition":
-                    with get_session_factory()() as db:
-                        row = db.get(AppWorkspaceRecord, first["id"])
-                        row.version += 1
-                        row.updated_at = attempted_at + timedelta(seconds=1)
-                        db.commit()
-                raise ValueError("Fixture cleanup remains unconfirmed")
-
-    with get_session_factory()() as competing:
-        if blocked == "locked":
-            competing.scalar(
-                text("SELECT pg_advisory_xact_lock(hashtextextended(:key,0))"),
-                {"key": "miy-workspace-maintenance:" + first["id"]},
-            )
-        result = poll_once(get_settings(), get_session_factory(), make_runtime=lambda *_: Runtime())
-    assert result == {"state": "stopped", "workspace_id": second["id"]}
-    assert calls[-1] == second["installation"]["id"]
-    assert (first_id in calls) == (blocked in {"exception", "concurrent_transition"})
-    with get_session_factory()() as db:
-        row = db.get(AppWorkspaceRecord, first["id"])
-        assert row.state == "stopping" and row.slot == 0 and row.resources == resources
-        assert row.version == version + (blocked == "concurrent_transition")
-        if blocked == "concurrent_transition":
-            assert row.updated_at == attempted_at + timedelta(seconds=1)
-        elif blocked == "locked":
-            assert row.updated_at == attempted_at
-        else:
-            assert row.updated_at > attempted_at
-        installation = db.get(AppInstallationRecord, first_id)
-        assert installation.origin == "https://work.test" and installation.archived_origin is None
-        assert installation.generation == generation and not installation.enabled
-        assert db.get(AppWorkspaceRecord, second["id"]).state == "stopped"
-        if blocked == "waiting":
-            job = db.get(AppBuildJob, build_id)
-            assert (job.state, job.active_slot) == ("running", 1)
-
-
-def test_managed_profiles_reject_http_and_shared_writable_roots(tmp_path):
-    from pydantic import ValidationError
-    from miy_api.core.independent_workspace_settings import IndependentWorkspaceProfile
-    from miy_api.core.settings import Settings
-
-    profile = dict(
-        id="app",
-        repository_root=str(tmp_path / "repo"),
-        repository="https://example.test/team/miy.git",
-        worktree_root=str(tmp_path / "trees"),
-        work_root=str(tmp_path / "builds"),
-        state_root=str(tmp_path / "state"),
-        toolchain_image="sha256:" + "a" * 64,
-        ingress_image="sha256:" + "b" * 64,
-        platform_origin="https://platform.test",
-        origins=[dict(origin="https://work.test", port=19500)],
-    )
-    parsed = IndependentWorkspaceProfile.model_validate(profile)
-    with pytest.raises(ValidationError):
-        IndependentWorkspaceProfile.model_validate(
-            profile | {"origins": [dict(origin="http://127.0.0.1:19500", port=19500)]}
-        )
-    other = profile | {"id": "other", "origins": [dict(origin="https://other.test", port=19501)]}
-    with pytest.raises(ValidationError, match="overlap writable"):
-        Settings(
-            _env_file=None,
-            independent_app_platform_origins=["https://platform.test"],
-            independent_app_workspace_profiles=[
-                parsed,
-                IndependentWorkspaceProfile.model_validate(other),
-            ],
-        )

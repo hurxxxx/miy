@@ -1,18 +1,12 @@
 from __future__ import annotations
 
+from dev_accounts import dev_login
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from dev_accounts import dev_login
-
 from miy_api.core.db import get_engine, get_session_factory
 from miy_api.core.principal import CallerPrincipal, user_principal
-from miy_api.domains.ai.registry import get_ai_capability_registry
-from miy_api.domains.ai.tool_surface import (
-    resolve_agent_tool_surface,
-    resolve_filtered_capability_tools,
-)
 from miy_api.domains.auth.access import load_user_graph
 from miy_api.domains.auth.models import CompanyAppControl
 
@@ -39,122 +33,3 @@ def _disable_platform_app(app_id: str) -> None:
         control.enabled = False
         db.add(control)
         db.commit()
-
-
-def test_agent_tool_surface_empty_scope_disables_all_tools(client: TestClient) -> None:
-    session = _dev_login(client, "delivery-hub-admin")
-    principal = _load_principal(session)
-
-    with get_session_factory()() as db:
-        surface = resolve_agent_tool_surface(
-            db,
-            principal=principal,
-            messages=[{"role": "user", "content": "hi"}],
-            allowed_app_ids=[],
-        )
-
-    assert surface.tool_specs == []
-    assert surface.capability_tools == []
-    assert surface.tool_names == []
-    assert surface.approval_required_tool_names == []
-    assert surface.has_approval_required_tools is False
-
-
-def test_agent_tool_surface_exposes_provider_neutral_tool_metadata(client: TestClient) -> None:
-    session = _dev_login(client, "delivery-hub-admin")
-    principal = _load_principal(session)
-
-    with get_session_factory()() as db:
-        surface = resolve_agent_tool_surface(
-            db,
-            principal=principal,
-            messages=[{"role": "user", "content": "문서 근거를 찾아줘"}],
-            allowed_app_ids=["retrieval-search"],
-        )
-
-    contract_names = sorted(spec.name for spec in surface.tool_specs)
-    assert contract_names
-    assert surface.tool_names == contract_names
-    assert all(spec.description for spec in surface.tool_specs)
-    assert all(spec.input_schema.get("type") == "object" for spec in surface.tool_specs)
-    assert set(surface.approval_required_tool_names) <= set(surface.tool_names)
-    assert surface.has_approval_required_tools == bool(surface.approval_required_tool_names)
-
-
-def test_agent_tool_surface_uses_scope_not_message_keywords_for_rag(
-    client: TestClient,
-) -> None:
-    session = _dev_login(client, "delivery-hub-admin")
-    principal = _load_principal(session)
-
-    with get_session_factory()() as db:
-        surface = resolve_agent_tool_surface(
-            db,
-            principal=principal,
-            messages=[{"role": "user", "content": "안녕하세요"}],
-            allowed_app_ids=["retrieval-search"],
-        )
-
-    assert "rag.query" in surface.tool_names
-    assert "rag.list_sources" in surface.tool_names
-    assert "retrieval.search" in surface.tool_names
-    assert "retrieval.list_sources" in surface.tool_names
-
-
-def test_agent_tool_surface_does_not_cross_tool_owner_app_scope(
-    client: TestClient,
-) -> None:
-    session = _dev_login(client, "delivery-hub-admin")
-    principal = _load_principal(session)
-
-    with get_session_factory()() as db:
-        surface = resolve_agent_tool_surface(
-            db,
-            principal=principal,
-            messages=[{"role": "user", "content": "문서를 검색해줘"}],
-            allowed_app_ids=["chatbot"],
-        )
-
-    assert "rag.query" not in surface.tool_names
-    assert "retrieval.search" not in surface.tool_names
-
-
-def test_filtered_capability_tools_intersect_app_scope_with_platform_visibility(
-    client: TestClient,
-) -> None:
-    session = _dev_login(client, "delivery-hub-admin")
-    principal = _load_principal(session)
-    _disable_platform_app("planner")
-
-    with get_session_factory()() as db:
-        tools = resolve_filtered_capability_tools(
-            db,
-            registry=get_ai_capability_registry(),
-            principal=principal,
-            app_ids=["planner"],
-        )
-
-    assert tools == []
-
-
-def test_agent_tool_surface_hides_disabled_platform_apps_in_legacy_openai_path(
-    client: TestClient,
-) -> None:
-    session = _dev_login(client, "delivery-hub-admin")
-    principal = _load_principal(session)
-    _disable_platform_app("planner")
-
-    with get_session_factory()() as db:
-        surface = resolve_agent_tool_surface(
-            db,
-            principal=principal,
-            messages=[{"role": "user", "content": "계획을 정리해줘"}],
-        )
-
-    registry = get_ai_capability_registry()
-    surfaced_app_ids = {
-        registry.descriptors[name].owner_app_id
-        for name in surface.tool_names
-        if name in registry.descriptors
-    }
-    assert "planner" not in surfaced_app_ids

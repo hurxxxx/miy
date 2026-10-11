@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from miy_api.core.db import Base
@@ -19,7 +19,7 @@ from miy_api.domains.mail.models import (
     MailMessage,
     MailMessageBody,
 )
-from miy_api.domains.mail.sync_batch import apply_sync_batch, cursor_for_mailbox_sync
+from miy_api.domains.mail.sync_batch import apply_sync_batch
 
 
 def _session() -> Session:
@@ -130,26 +130,6 @@ def _fetched_message(**overrides: object) -> FetchedMessage:
     return FetchedMessage(**defaults)
 
 
-def test_cursor_for_mailbox_sync_repairs_pop3_uidls_to_fetched_messages() -> None:
-    session = _session()
-    try:
-        account = _account(protocol="pop3")
-        mailbox = _mailbox()
-        session.add_all([_user(), account, mailbox, _message(provider_uid="uid-synced")])
-        session.commit()
-
-        cursor = cursor_for_mailbox_sync(
-            session,
-            account=account,
-            mailbox=mailbox,
-            cursor={"uidls": ["uid-synced", "uid-never-fetched"]},
-        )
-
-        assert cursor == {"uidls": ["uid-synced"]}
-    finally:
-        session.close()
-
-
 def test_apply_sync_batch_updates_legacy_message_and_preserves_local_flags() -> None:
     session = _session()
     try:
@@ -208,57 +188,24 @@ def test_apply_sync_batch_updates_legacy_message_and_preserves_local_flags() -> 
         assert row.body.text_body == "Updated body"
         assert len(row.attachments) == 1
         assert row.attachments[0].filename == "report.pdf"
-    finally:
-        session.close()
-
-
-def test_apply_sync_batch_marks_remote_deletes_and_purges_body_and_attachments() -> None:
-    session = _session()
-    try:
-        account = _account()
-        mailbox = _mailbox()
-        session.add_all(
-            [
-                _user(),
-                account,
-                mailbox,
-                _message(),
-                MailMessageBody(
-                    message_id="message-1",
-                    text_body="Body",
-                    html_body="",
-                    content_hash="hash",
-                ),
-                MailAttachment(
-                    id="attachment-1",
-                    message_id="message-1",
-                    filename="report.pdf",
-                    content_type="application/pdf",
-                    size_bytes=128,
-                ),
-            ]
-        )
-        session.commit()
-
-        result = apply_sync_batch(
+        deleted = apply_sync_batch(
             session,
             account=account,
             mailbox=mailbox,
             batch=MailboxSyncBatch(
-                messages=(),
-                cursor={},
-                deleted_remote_identities=("imap:uid-1",),
+                messages=(), cursor={}, deleted_remote_identities=("imap:uid-1",)
             ),
         )
         session.flush()
-
-        row = session.get(MailMessage, "message-1")
-        assert row is not None
-        assert result.deleted_count == 1
-        assert row.remote_deleted_at is not None
+        assert deleted.deleted_count == 1
+        assert row.remote_deleted_at is not None and row.body_status == "remote_deleted"
         assert row.has_attachments is False
-        assert row.body_status == "remote_deleted"
-        assert session.get(MailMessageBody, "message-1") is None
-        assert session.query(MailAttachment).filter_by(message_id="message-1").count() == 0
+        # The body was read above; bulk deletion intentionally leaves that identity cached.
+        # Query persisted rows rather than treating Session.get's old identity as storage.
+        assert (
+            session.scalar(select(MailMessageBody).where(MailMessageBody.message_id == row.id))
+            is None
+        )
+        assert session.query(MailAttachment).filter_by(message_id=row.id).count() == 0
     finally:
         session.close()

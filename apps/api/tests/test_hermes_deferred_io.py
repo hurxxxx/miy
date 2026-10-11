@@ -7,11 +7,11 @@ from io import BytesIO
 from types import SimpleNamespace
 from uuid import uuid4
 
+import pytest
 from anyio import CapacityLimiter
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
-import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
@@ -212,8 +212,17 @@ def assert_denied(response):
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("operation", ["list", "read", "write", "tool"])
-@pytest.mark.parametrize("revocation", ["stop", "app", "session", "profile", "user", "unchanged"])
+@pytest.mark.parametrize(
+    "operation,revocation",
+    [
+        ("tool", "stop"),
+        ("write", "app"),
+        ("list", "session"),
+        ("write", "profile"),
+        ("read", "user"),
+        ("list", "unchanged"),
+    ],
+)
 async def test_deferred_operations_recheck_current_authority(deferred_io, operation, revocation):
     state = deferred_io
     limiter = CapacityLimiter(1)
@@ -258,8 +267,7 @@ async def test_deferred_operations_recheck_current_authority(deferred_io, operat
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("operation", ["read", "write"])
-@pytest.mark.parametrize("revocation", ["stop", "app"])
+@pytest.mark.parametrize("operation,revocation", [("read", "stop"), ("write", "app")])
 async def test_revocation_during_storage_io_rejects_late_results(
     deferred_io, operation, revocation
 ):

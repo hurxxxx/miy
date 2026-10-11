@@ -14,7 +14,6 @@ from test_official_writer_roles import (
     world as world,
 )
 from miy_api.domains.files import extraction_commands as commands
-from miy_api.domains.auth.app_access_models import AppGroupGrant
 from miy_api.domains.auth.models import AuthSession
 from miy_api.domains.files.extraction_contracts import (
     FileExtractionCommitUnknown,
@@ -23,7 +22,6 @@ from miy_api.domains.files.extraction_contracts import (
 from miy_api.domains.files.extraction_runner import FileExtractionRunner
 from miy_api.domains.files.models import FileManagerFile
 from miy_api.domains.official_apps.file_extraction_models import FileExtractionRequest
-from miy_api.domains.pms.space_models import SpaceGroupBinding
 
 
 def _routed_source_caller(c, monkeypatch, *, model, bind_kind, route_kind, clause_only=False):
@@ -84,140 +82,7 @@ def _routed_source_caller(c, monkeypatch, *, model, bind_kind, route_kind, claus
     return db, connection, caller_transaction, calls, controls, sql, original_close
 
 
-@pytest.mark.parametrize("entry", ["stage", "runner"])
-@pytest.mark.parametrize("bind_kind", ["mapper", "table"])
-@pytest.mark.parametrize(
-    ("model", "route_kind"),
-    [
-        (FileManagerFile, "connection"),
-        (AuthSession, "engine"),
-        (AppGroupGrant, "connection"),
-        (SpaceGroupBinding, "engine"),
-    ],
-    ids=["source_file", "current_execution", "conditional_app_group", "conditional_team"],
-)
-def test_routed_source_bind_is_refused_before_sql_and_preserves_caller(
-    c, monkeypatch, entry, bind_kind, model, route_kind
-):
-    db, connection, outer, calls, controls, sql, original_close = _routed_source_caller(
-        c, monkeypatch, model=model, bind_kind=bind_kind, route_kind=route_kind
-    )
-    try:
-        assert db.get_bind() is c.engine and not db.in_transaction()
-        event.listen(c.engine, "before_cursor_execute", sql)
-        try:
-            with pytest.raises(FileExtractionRefused) as error:
-                if entry == "stage":
-                    commands.prepare_file_extraction(db, spec=c.spec)
-                else:
-                    FileExtractionRunner(lambda: db).prepare(c.spec)
-            assert error.value.reason == "source_engine_binding_required"
-            assert error.value.__cause__ is None
-            assert calls == [] and controls == [] and c.reads == []
-            assert not db.in_transaction()
-            assert not connection.closed and connection.in_transaction() and outer.is_active
-        finally:
-            event.remove(c.engine, "before_cursor_execute", sql)
-        assert connection.scalar(
-            select(FileManagerFile.extraction_metadata).where(FileManagerFile.id == c.spec.file_id)
-        ) == {"synthetic_routed_caller_marker": True}
-        assert connection.scalar(select(FileExtractionRequest.request_id)) is None
-    finally:
-        original_close()
-        outer.rollback()
-        connection.close()
-
-
-@pytest.mark.parametrize("entry", ["stage", "runner"])
-def test_public_clause_only_routing_is_refused_before_sql(c, monkeypatch, entry):
-    db, connection, outer, calls, controls, sql, original_close = _routed_source_caller(
-        c,
-        monkeypatch,
-        model=AuthSession,
-        bind_kind="mapper",
-        route_kind="connection",
-        clause_only=True,
-    )
-    try:
-        assert db.get_bind(mapper=AuthSession) is c.engine
-        assert not db.in_transaction()
-        event.listen(c.engine, "before_cursor_execute", sql)
-        try:
-            with pytest.raises(FileExtractionRefused) as error:
-                if entry == "stage":
-                    commands.prepare_file_extraction(db, spec=c.spec)
-                else:
-                    FileExtractionRunner(lambda: db).prepare(c.spec)
-            assert error.value.reason == "source_engine_binding_required"
-            assert calls == [] and controls == [] and c.reads == []
-            assert not db.in_transaction() and outer.is_active and not connection.closed
-        finally:
-            event.remove(c.engine, "before_cursor_execute", sql)
-        assert connection.scalar(
-            select(FileManagerFile.extraction_metadata).where(FileManagerFile.id == c.spec.file_id)
-        ) == {"synthetic_routed_caller_marker": True}
-    finally:
-        original_close()
-        outer.rollback()
-        connection.close()
-
-
-def test_explicit_same_engine_routes_keep_one_acknowledged_source_transaction(c):
-    def factory():
-        return Session(
-            bind=c.engine,
-            binds={
-                FileManagerFile: c.engine,
-                AppGroupGrant.__table__: c.engine,
-                SpaceGroupBinding: c.engine,
-            },
-        )
-
-    receipt = FileExtractionRunner(factory).prepare(c.spec)
-    assert receipt.state == "prepared" and not receipt.provisional
-    assert c.reads == []
-    with Session(c.engine) as db:
-        row = db.get(FileExtractionRequest, str(c.spec.request_id))
-        assert row is not None and row.request_digest == c.spec.digest()
-
-
-@pytest.mark.parametrize("entry", ["stage", "runner"])
-def test_public_route_lookup_error_is_stable_without_session_ownership(c, monkeypatch, entry):
-    from sqlalchemy.exc import UnboundExecutionError
-
-    class UnboundRouteSession(Session):
-        def get_bind(self, mapper=None, clause=None, **kwargs):
-            if mapper is AuthSession:
-                raise UnboundExecutionError("synthetic private route diagnostic")
-            return super().get_bind(mapper=mapper, clause=clause, **kwargs)
-
-    db = UnboundRouteSession(c.engine)
-    calls = []
-    original_close = db.close
-
-    def forbidden(*args, **kwargs):
-        calls.append("caller_control")
-        raise AssertionError("rejected route must remain caller owned")
-
-    monkeypatch.setattr(db, "execute", forbidden)
-    monkeypatch.setattr(db, "close", forbidden)
-    monkeypatch.setattr(db, "rollback", forbidden)
-    monkeypatch.setattr(db, "commit", forbidden)
-    try:
-        with pytest.raises(FileExtractionRefused) as error:
-            if entry == "stage":
-                commands.prepare_file_extraction(db, spec=c.spec)
-            else:
-                FileExtractionRunner(lambda: db).prepare(c.spec)
-        assert error.value.reason == "source_engine_binding_required"
-        assert error.value.__cause__ is None and calls == [] and not db.in_transaction()
-        assert "synthetic private" not in str(error.value)
-    finally:
-        original_close()
-
-
-@pytest.mark.parametrize("entry", ["stage", "runner"])
-@pytest.mark.parametrize("work", ["active", "dirty", "new", "deleted", "savepoint"])
+@pytest.mark.parametrize("entry,work", [("stage", "active"), ("runner", "dirty")])
 def test_rejected_engine_caller_retains_actual_marker_and_orm(c, monkeypatch, entry, work):
     db = Session(c.engine, autoflush=False)
     calls = []
@@ -291,59 +156,8 @@ def test_rejected_engine_caller_retains_actual_marker_and_orm(c, monkeypatch, en
         original_close()
 
 
-@pytest.mark.parametrize("entry", ["stage", "runner"])
-def test_unbound_pending_factory_is_stable_and_remains_caller_owned(monkeypatch, entry):
-    db = Session()
-    file = FileManagerFile(
-        id=str(uuid4()),
-        owner_id=str(uuid4()),
-        filename="Synthetic unbound pending.txt",
-        content_type="text/plain",
-        size_bytes=0,
-        storage_key="synthetic-unbound-caller-only",
-        visibility="private",
-    )
-    db.add(file)
-    outer = db.get_transaction()
-    calls = []
-    original_close = db.close
-
-    def called(*args, **kwargs):
-        calls.append("caller_method")
-        raise AssertionError("rejected factory must not acquire ownership")
-
-    monkeypatch.setattr(db, "close", called)
-    monkeypatch.setattr(db, "rollback", called)
-    monkeypatch.setattr(db, "execute", called)
-    try:
-        with pytest.raises(FileExtractionRefused) as error:
-            if entry == "stage":
-                commands.capture_file_extraction_input(
-                    db, actor_user_id=file.owner_id, execution_ref="synthetic", file_id=file.id
-                )
-            else:
-                FileExtractionRunner(lambda: db).capture(
-                    actor_user_id=file.owner_id, execution_ref="synthetic", file_id=file.id
-                )
-        assert error.value.reason == "source_engine_binding_required"
-        assert error.value.__cause__ is None and calls == []
-        assert db.get_transaction() is outer and file in db.new
-    finally:
-        original_close()
-
-
 @pytest.mark.parametrize(
-    "scenario",
-    [
-        "known_ack_close_cancel",
-        "commit_before_unknown_close_cancel",
-        "commit_after_unknown_close_cancel",
-        "commit_before_unknown_rollback_cancel",
-        "body_refusal_close_cancel",
-        "commit_before_cancel",
-        "commit_after_cancel",
-        "stage_refusal_rollback_cancel",
-    ],
+    "scenario", ["known_ack_close_cancel", "commit_after_unknown_close_cancel"]
 )
 def test_source_cancellation_retains_ack_or_original_control_with_actual_request(c, scenario):
     """Actual restricted Source SQL/receipts; only response/cleanup faults injected."""

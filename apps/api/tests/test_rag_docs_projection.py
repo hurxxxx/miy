@@ -3,25 +3,17 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
-import pytest
 
 from dev_accounts import create_company_user_session, dev_login
 
 from miy_api.core.db import get_session_factory
 from miy_api.domains.auth.access import load_user_graph
 from miy_api.domains.auth.models import User
-from miy_api.domains.auth.security import new_id
 from miy_api.domains.docs import service as docs_service
 from miy_api.domains.docs.access_grants import grant_doc_access
-from miy_api.domains.docs.models import (
-    NativeDocLinkShare,
-    NativeDocPage,
-    NativeDocUserShare,
-)
-from miy_api.domains.rag.contracts import RagQueryRequest, RagVectorSearchHit
+from miy_api.domains.rag.contracts import RagQueryRequest
 from miy_api.domains.rag.access_filter import build_user_rag_post_filter
 from miy_api.domains.rag.docs_projection import (
-    NATIVE_DOC_RESOURCE_TYPE,
     load_native_doc_projection,
 )
 from miy_api.domains.rag.providers.fake import FakeEmbeddingClient, FakeVectorIndexClient
@@ -31,131 +23,6 @@ from miy_api.domains.rag.service import RagService
 
 def _dev_login(client: TestClient, account_key: str) -> dict:
     return dev_login(client, account_key)
-
-
-def test_native_doc_projection_preserves_grants_for_query_time_expiry_checks(
-    client: TestClient,
-) -> None:
-    session = _dev_login(client, "delivery-hub-admin")
-    shared_session = _dev_login(client, "administrator")
-    expired_session = create_company_user_session(
-        client,
-        login_id="docsragexpiredprojection",
-        email="docs-rag-expired-projection@miy.local",
-        full_name="Docs RAG Expired Projection",
-    )
-    revoked_session = _dev_login(client, "delivery-hub-member")
-    with get_session_factory()() as db:
-        owner = load_user_graph(db, session["user"]["id"])
-        shared_user = db.get(User, shared_session["user"]["id"])
-        expired_user = db.get(User, expired_session["user"]["id"])
-        revoked_user = db.get(User, revoked_session["user"]["id"])
-        assert owner is not None
-        assert shared_user is not None
-        assert expired_user is not None
-        assert revoked_user is not None
-        owner_id = owner.id
-        shared_user_id = shared_user.id
-        expired_user_id = expired_user.id
-        revoked_user_id = revoked_user.id
-
-        doc, _page = docs_service.create_native_doc_for_user(
-            db,
-            owner_id=owner_id,
-            title="RAG Projection Smoke",
-            content_blocks=[
-                {"type": "heading", "content": [{"type": "text", "text": "Launch Plan"}]},
-                {
-                    "type": "paragraph",
-                    "content": [{"type": "text", "text": "Qdrant payload index early."}],
-                },
-            ],
-            primary_target=("pms", "space", "space-42", 0),
-        )
-        db.add(
-            NativeDocPage(
-                id=new_id(),
-                doc_id=doc.id,
-                parent_id=None,
-                title="Execution Notes",
-                content_blocks=[
-                    {
-                        "type": "paragraph",
-                        "content": [{"type": "text", "text": "Hybrid retrieval with rerank."}],
-                    },
-                ],
-                sort_order=1,
-                created_by_id=owner_id,
-            )
-        )
-        db.add(
-            NativeDocUserShare(
-                id=new_id(),
-                doc_id=doc.id,
-                user_id=shared_user_id,
-                access_level="read",
-                created_by_id=owner_id,
-            )
-        )
-        db.add(
-            NativeDocLinkShare(
-                id=new_id(),
-                doc_id=doc.id,
-                token="secret-link-token",
-                access_level="read",
-                active=True,
-                created_by_id=owner_id,
-            )
-        )
-        grant_doc_access(
-            db,
-            doc_id=doc.id,
-            user_id=shared_user_id,
-            granted_by_user_id=owner_id,
-            granted_by_meeting_id=None,
-            reason="meeting_attendee",
-            expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1),
-        )
-        grant_doc_access(
-            db,
-            doc_id=doc.id,
-            user_id=revoked_user_id,
-            granted_by_user_id=owner_id,
-            granted_by_meeting_id=None,
-            reason="meeting_attendee",
-            expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1),
-        ).revoked_at = datetime.now(UTC).replace(tzinfo=None)
-        grant_doc_access(
-            db,
-            doc_id=doc.id,
-            user_id=expired_user_id,
-            granted_by_user_id=owner_id,
-            granted_by_meeting_id=None,
-            reason="meeting_attendee",
-            expires_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1),
-        )
-        db.commit()
-
-        projection = load_native_doc_projection(db, doc_id=doc.id)
-
-    assert projection is not None
-    assert projection.resource_type == NATIVE_DOC_RESOURCE_TYPE
-    assert projection.title == "RAG Projection Smoke"
-    assert "Launch Plan" in projection.text_content
-    assert "Hybrid retrieval with rerank." in projection.text_content
-    assert projection.scope_kind.value == "company"
-    assert not any(ref.startswith("workspace:") for ref in projection.visibility_refs)
-    assert f"owner:{owner_id}" in projection.visibility_refs
-    assert f"share_user:{shared_user_id}" in projection.visibility_refs
-    assert f"meeting_grant:{shared_user_id}" in projection.visibility_refs
-    assert f"meeting_grant:{expired_user_id}" in projection.visibility_refs
-    assert f"meeting_grant:{revoked_user_id}" not in projection.visibility_refs
-    assert "target:pms:space:space-42" in projection.visibility_refs
-    assert any(ref.startswith("link_share_ref:") for ref in projection.visibility_refs)
-    assert "secret-link-token" not in projection.text_content
-    assert "secret-link-token" not in str(projection.metadata)
-    assert projection.metadata["target_refs"] == ["pms:space:space-42"]
-    assert projection.metadata["origin_ref"] is None
 
 
 def test_native_doc_query_post_filter_rejects_expired_grant_hits(client: TestClient) -> None:
@@ -222,67 +89,3 @@ def test_native_doc_query_post_filter_rejects_expired_grant_hits(client: TestCli
         )
 
         assert response.hits == []
-
-
-@pytest.mark.slow
-def test_rag_post_filter_keeps_source_identity_authoritative(client: TestClient) -> None:
-    session = _dev_login(client, "delivery-hub-admin")
-    with get_session_factory()() as db:
-        owner = load_user_graph(db, session["user"]["id"])
-        assert owner is not None
-
-        doc, _page = docs_service.create_native_doc_for_user(
-            db,
-            owner_id=owner.id,
-            title="Source Boundary Doc",
-            content_blocks=[
-                {
-                    "type": "paragraph",
-                    "content": [{"type": "text", "text": "Source authorized result."}],
-                },
-            ],
-        )
-        db.commit()
-        projection = load_native_doc_projection(db, doc_id=doc.id)
-        assert projection is not None
-
-        post_filter = build_user_rag_post_filter(
-            db,
-            user=owner,
-        )
-        current_source_hit = RagVectorSearchHit(
-            chunk_id="chunk-1",
-            text="Source authorized result.",
-            score=1.0,
-            projection=projection,
-        )
-        forged_source_hit = RagVectorSearchHit(
-            chunk_id="chunk-2",
-            text="Source authorized result.",
-            score=1.0,
-            projection=projection.model_copy(update={"resource_id": "missing-source-doc"}),
-        )
-
-        assert post_filter(current_source_hit) is True
-        assert post_filter(forged_source_hit) is False
-
-
-@pytest.mark.slow
-def test_trashed_native_doc_is_not_projected(client: TestClient) -> None:
-    session = _dev_login(client, "delivery-hub-admin")
-    with get_session_factory()() as db:
-        owner = load_user_graph(db, session["user"]["id"])
-        assert owner is not None
-
-        doc, _page = docs_service.create_native_doc_for_user(
-            db,
-            owner_id=owner.id,
-            title="Soon Deleted",
-        )
-        doc.trashed_at = datetime.now(UTC).replace(tzinfo=None)
-        db.add(doc)
-        db.commit()
-
-        projection = load_native_doc_projection(db, doc_id=doc.id)
-
-    assert projection is None

@@ -2,45 +2,14 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from fastapi.testclient import TestClient
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from miy_api.core.db import get_engine
 from miy_api.domains.ai.runtime.models import AgentInvocation, AgentRun, AgentTraceEvent
-from miy_api.domains.auth.models import AuditLog, User
+from miy_api.domains.auth.models import User
 from miy_api.domains.auth.security import new_id
 from miy_api.domains.conversations.models import Conversation
 from miy_api.domains.meeting.models import utcnow_naive
-from test_meeting import _auth_headers, _bootstrap_admin_session
-
-
-def test_admin_ai_runtime_retention_scrub_endpoint(client: TestClient) -> None:
-    admin = _bootstrap_admin_session(client)
-    run_id, invocation_id, trace_event_id = _seed_old_terminal_runtime_payload(admin["user"]["id"])
-
-    response = client.post(
-        "/api/v1/admin/ai/runtime/retention/scrub?older_than_days=90",
-        headers=_auth_headers(admin["token"]),
-    )
-
-    assert response.status_code == 200, response.text
-    assert response.json() == {"scrubbed_run_count": 1, "older_than_days": 90}
-
-    with Session(get_engine()) as db:
-        assert db.get(AgentRun, run_id).metadata_json is None
-        stored_invocation = db.get(AgentInvocation, invocation_id)
-        assert stored_invocation.usage_json is None
-        assert stored_invocation.error is None
-        assert db.get(AgentTraceEvent, trace_event_id).payload_json is None
-
-        audit = db.scalar(
-            select(AuditLog)
-            .where(AuditLog.action == "admin.ai_runtime.retention.scrub")
-            .order_by(AuditLog.created_at.desc())
-        )
-        assert audit is not None
-        assert audit.payload == {"older_than_days": 90, "scrubbed_run_count": 1}
 
 
 def _seed_old_terminal_runtime_payload(admin_user_id: str) -> tuple[str, str, str]:

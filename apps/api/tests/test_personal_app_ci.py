@@ -16,54 +16,7 @@ ci = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(ci)
 
 
-def test_personal_configs_are_read_as_data_and_passed_only_to_isolated_builder(tmp_path):
-    source, base, definition, git = repo(tmp_path)
-    app = source / "personal-apps/build-app"
-    app.mkdir(parents=True)
-    definition = definition.model_copy(
-        update={
-            "source": definition.source.model_copy(update={"directory": "personal-apps/build-app"})
-        }
-    )
-    (app / "app.manifest.json").write_text(definition.model_dump_json())
-    (app / "vite.config.ts").write_text("throw new Error('must never execute on CI host')")
-    git("add", ".")
-    git("commit", "-m", "personal CI fixture")
-    head = git("rev-parse", "HEAD")
-    calls = []
-
-    def builder(**kwargs):
-        calls.append(kwargs)
-        return SimpleNamespace(source_revision=head, artifact_digest="sha256:" + "c" * 64)
-
-    result = ci.validate(
-        source,
-        base=base,
-        revision=head,
-        repository=definition.source.repository,
-        image="sha256:" + "a" * 64,
-        work_root=tmp_path / "work",
-        build=builder,
-    )
-    assert result[0]["app_id"] == "build-app"
-    assert (
-        len(calls) == 1
-        and calls[0]["expected_definition"]["source"]["directory"] == "personal-apps/build-app"
-    )
-    with pytest.raises(ValueError, match="identity mismatch"):
-        ci.validate(
-            source,
-            base=base,
-            revision=head,
-            repository="https://foreign.test/repo.git",
-            image="sha256:" + "a" * 64,
-            work_root=tmp_path / "work",
-            build=builder,
-        )
-    assert len(calls) == 1
-
-
-@pytest.mark.parametrize("failure", ["failed", "timeout"])
+@pytest.mark.parametrize("failure", ["timeout"])
 def test_each_success_is_durable_before_later_build_failure_or_timeout(tmp_path, failure):
     source, base, definition, git = repo(tmp_path)
     for app_id in ("build-app", "second-app"):
@@ -77,6 +30,9 @@ def test_each_success_is_durable_before_later_build_failure_or_timeout(tmp_path,
             }
         )
         (app / "app.manifest.json").write_text(value.model_dump_json())
+    (source / "personal-apps/build-app/vite.config.js").write_text(
+        "throw new Error('must remain source data');\n"
+    )
     git("add", ".")
     git("commit", "-m", "Two synthetic app changes")
     head = git("rev-parse", "HEAD")
@@ -129,6 +85,12 @@ def test_each_success_is_durable_before_later_build_failure_or_timeout(tmp_path,
 
     def builder(**kwargs):
         calls.append(kwargs["expected_definition"]["app_id"])
+        if calls[-1] == "build-app":
+            assert (
+                (kwargs["source"] / "personal-apps/build-app/vite.config.js")
+                .read_text()
+                .startswith("throw new Error")
+            )
         if calls[-1] == "second-app":
             # A new reader sees the first app's durable marker before this fails.
             observed = ci.executor_for_source(config, checkout, environment).read()

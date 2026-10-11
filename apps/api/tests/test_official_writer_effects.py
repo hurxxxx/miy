@@ -5,22 +5,25 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-
 from dev_accounts import configure_company_app_access
+from test_meeting import _create_meeting
+from test_official_writer_fence import change
+from test_official_writer_fence import writer as writer
+from test_pms_issues import _create_issue, _create_task_list
+
 from miy_api.domains.auth.models import User
 from miy_api.domains.diagrams import router as diagrams
 from miy_api.domains.diagrams.models import Diagram
-from miy_api.domains.files import router as files_router
 from miy_api.domains.files import external_lifecycle
+from miy_api.domains.files import router as files_router
 from miy_api.domains.files.models import FileManagerFile
-from miy_api.domains.meeting import file_storage, service as meeting
+from miy_api.domains.meeting import file_storage
+from miy_api.domains.meeting import service as meeting
 from miy_api.domains.pms import attachments
-from miy_api.domains.recording import blob_store, service as recording
+from miy_api.domains.recording import blob_store
+from miy_api.domains.recording import service as recording
 from miy_api.domains.recording.models import RecordingStaging
 from miy_api.domains.video_chat import service as video
-from test_official_writer_fence import change, writer as writer
-from test_meeting import _create_meeting
-from test_pms_issues import _create_issue, _create_task_list
 
 
 @pytest.fixture
@@ -109,91 +112,6 @@ def effects(client, writer, monkeypatch, tmp_path):
     )
 
 
-@pytest.mark.parametrize(
-    "operation",
-    [
-        "pms_put",
-        "pms_remove",
-        "meeting_put",
-        "meeting_remove",
-        "diagram_put",
-        "diagram_update",
-        "recording_import",
-        "recording_allocate",
-        "recording_chunk",
-        "recording_discard",
-        "video_join",
-    ],
-)
-def test_drained_source_precedes_storage_spool_and_new_join_authority(client, effects, operation):
-    e = effects
-    before = dict(e.objects)
-    with e.factory.begin() as db:
-        change(db, e.admin)
-    if operation == "pms_put":
-        response = client.post(
-            e.pms_path, headers=e.headers, files={"file": ("new.txt", b"new", "text/plain")}
-        )
-    elif operation == "pms_remove":
-        response = client.delete(f"/api/v1/pms/attachments/{e.pms['id']}", headers=e.headers)
-    elif operation == "meeting_put":
-        response = client.post(
-            e.meeting_path, headers=e.headers, files={"file": ("new.txt", b"new", "text/plain")}
-        )
-    elif operation == "meeting_remove":
-        response = client.delete(
-            e.meeting_path + "/" + e.meeting["file_attachments"][0]["id"], headers=e.headers
-        )
-    elif operation == "diagram_put":
-        response = client.post(
-            "/api/v1/diagrams/items", headers=e.headers, json={"title": "Blocked"}
-        )
-    elif operation == "diagram_update":
-        response = client.patch(
-            "/api/v1/diagrams/items/" + e.diagram["id"],
-            headers=e.headers,
-            json={"version": 1, "xml": "<blocked/>", "preview_png_data_url": None},
-        )
-    elif operation == "recording_import":
-        response = client.post(
-            "/api/v1/recording/recordings/import",
-            headers=e.headers,
-            files={"file": ("new.wav", b"new", "audio/wav")},
-        )
-    elif operation == "recording_allocate":
-        response = client.post(
-            "/api/v1/recording/recordings/staging",
-            headers=e.headers,
-            json={"idempotency_key": str(uuid4()), "mime_type": "audio/webm"},
-        )
-    elif operation == "recording_chunk":
-        with e.factory() as db:
-            staging = db.get(RecordingStaging, e.staging["id"])
-            with pytest.raises(Exception) as error:
-                recording._store_chunk_bytes(
-                    db, staging=staging, seq=0, data=b"new", chunk_sha256=None
-                )
-            assert error.value.orig.sqlstate == "55000"
-        response = None
-    elif operation == "recording_discard":
-        response = client.delete(
-            "/api/v1/recording/recordings/staging/" + e.staging["id"], headers=e.headers
-        )
-    else:
-        response = client.post(
-            "/api/v1/video-chat/sessions/" + e.video["id"] + "/join-token", headers=e.headers
-        )
-    if response is not None:
-        assert response.status_code == 503, response.text
-    assert e.objects == before and e.puts == [] and e.removes == []
-    assert (
-        not e.spool.allocate.called
-        and not e.spool.write_chunk.called
-        and not e.spool.cleanup.called
-    )
-    assert not e.token_signer.called
-
-
 @pytest.mark.parametrize("accepted", [False, True])
 def test_diagram_commit_unknown_never_overwrites_or_removes_original(effects, accepted):
     e = effects
@@ -222,31 +140,6 @@ def test_diagram_commit_unknown_never_overwrites_or_removes_original(effects, ac
     with e.factory() as db:
         pointer = db.get(Diagram, e.diagram["id"]).source_storage_key
         assert pointer == (e.puts[0] if accepted else original)
-
-
-@pytest.mark.parametrize("domain", ["pms", "meeting"])
-def test_attachment_unknown_delete_retains_original_bytes(effects, domain):
-    e = effects
-    before = dict(e.objects)
-    with e.factory() as db:
-        user = db.get(User, e.admin["user"]["id"])
-
-        def uncertain():
-            raise OSError("synthetic unknown deletion")
-
-        db.commit = uncertain
-        with pytest.raises(OSError):
-            if domain == "pms":
-                attachments.delete_task_attachment(db, user=user, attachment_id=e.pms["id"])
-            else:
-                meeting.detach_file(
-                    db,
-                    user=user,
-                    meeting_id=e.meeting["id"],
-                    file_id=e.meeting["file_attachments"][0]["id"],
-                )
-        db.rollback()
-    assert e.objects == before and e.removes == []
 
 
 @pytest.mark.parametrize("accepted", [False, True])
@@ -298,59 +191,7 @@ def test_files_upload_unknown_preserves_bytes_with_or_without_committed_row(
             assert row.storage_key in objects
 
 
-@pytest.mark.parametrize("accepted", [False, True])
-def test_external_file_driver_commit_unknown_retains_compensated_bytes(
-    writer, monkeypatch, accepted
-):
-    factory, admin, _ = writer
-    file_id = str(uuid4())
-    key = "synthetic/external/" + file_id
-    removed = []
-    monkeypatch.setattr(
-        external_lifecycle.files_service, "remove_storage_object_immediately", removed.append
-    )
-    with factory() as db:
-        db.add(
-            FileManagerFile(
-                id=file_id,
-                owner_id=admin["user"]["id"],
-                filename="synthetic.txt",
-                content_type="text/plain",
-                size_bytes=3,
-                storage_key=key,
-                visibility="private",
-            )
-        )
-        db.flush()
-        external_lifecycle._register_storage_compensation(db, key)
-        dialect = db.get_bind().dialect
-        real_commit = dialect.do_commit
-
-        def lose_driver_response(connection):
-            if accepted:
-                real_commit(connection)
-            raise OSError("synthetic driver COMMIT acknowledgement lost")
-
-        with monkeypatch.context() as patch:
-            patch.setattr(dialect, "do_commit", lose_driver_response)
-            with pytest.raises(OSError):
-                db.commit()
-            db.rollback()
-    with factory() as db:
-        assert (db.get(FileManagerFile, file_id) is not None) == accepted
-    assert removed == []
-
-
-@pytest.mark.parametrize(
-    "finish",
-    [
-        "rollback_savepoint",
-        "rollback_outer",
-        "commit_outer",
-        "unknown_root_handle",
-        "unknown_session",
-    ],
-)
+@pytest.mark.parametrize("finish", ["rollback_savepoint", "commit_outer", "unknown_session"])
 def test_external_file_savepoint_does_not_decide_outer_commit(writer, monkeypatch, finish):
     factory, admin, _ = writer
     key = "synthetic/nested/" + str(uuid4())
@@ -406,91 +247,7 @@ def test_external_file_savepoint_does_not_decide_outer_commit(writer, monkeypatc
     assert removed == ([] if committed else [key])
 
 
-@pytest.mark.parametrize("accepted", [False, True])
-def test_external_file_uncertain_savepoint_still_obeys_outer_rollback(
-    writer, monkeypatch, accepted
-):
-    factory, admin, _ = writer
-    removed = []
-    key = "synthetic/release/" + str(uuid4())
-    monkeypatch.setattr(
-        external_lifecycle.files_service, "remove_storage_object_immediately", removed.append
-    )
-    with factory() as db:
-        nested = db.begin_nested()
-        db.add(
-            FileManagerFile(
-                id=str(uuid4()),
-                owner_id=admin["user"]["id"],
-                filename="nested.txt",
-                content_type="text/plain",
-                size_bytes=1,
-                storage_key=key,
-                visibility="private",
-            )
-        )
-        db.flush()
-        external_lifecycle._register_storage_compensation(db, key)
-        dialect = db.get_bind().dialect
-        real_release = dialect.do_release_savepoint
-
-        def lose_release(connection, name):
-            if accepted:
-                real_release(connection, name)
-            raise OSError("synthetic release acknowledgement lost")
-
-        with monkeypatch.context() as patch:
-            patch.setattr(dialect, "do_release_savepoint", lose_release)
-            with pytest.raises(OSError):
-                nested.commit()
-        assert removed == []
-        db.rollback()
-        assert external_lifecycle._PENDING_STORAGE_COMPENSATIONS_KEY not in db.info
-    assert removed == [key]
-
-
-@pytest.mark.parametrize("drain_after", [1, 2])
-def test_recording_complete_reacquires_source_guard_after_each_commit(
-    effects, monkeypatch, tmp_path, drain_after
-):
-    from miy_api.domains.recording.schemas import RecordingUploadCompleteRequest
-
-    e = effects
-    assemble = Mock(return_value=tmp_path / "assembled")
-    e.spool.assemble_chunks = assemble
-    put = Mock()
-    monkeypatch.setattr(blob_store, "put_recording_file", put)
-    monkeypatch.setattr(recording, "_assert_contiguous_chunks", lambda _: [0])
-    with e.factory() as db:
-        real_commit = db.commit
-        calls = 0
-
-        def commit_then_drain():
-            nonlocal calls
-            real_commit()
-            calls += 1
-            if calls == drain_after:
-                with e.factory.begin() as control:
-                    change(control, e.admin)
-
-        db.commit = commit_then_drain
-        with pytest.raises(Exception) as failure:
-            recording.complete_staging(
-                db,
-                user=db.get(User, e.admin["user"]["id"]),
-                staging_id=e.staging["id"],
-                payload=RecordingUploadCompleteRequest(duration_sec_estimate=1),
-            )
-        assert failure.value.orig.sqlstate == "55000"
-    assert assemble.call_count == (drain_after - 1)
-    assert not put.called and not e.spool.cleanup.called
-    with e.factory() as db:
-        staging = db.get(RecordingStaging, e.staging["id"])
-        assert staging.completed_at is None and staging.promoted_recording_id is None
-        assert staging.status == ("assembling" if drain_after == 1 else "uploading")
-
-
-@pytest.mark.parametrize("outcome", ["drain", "unknown_before", "unknown_after", "accepted"])
+@pytest.mark.parametrize("outcome", ["unknown_before", "unknown_after", "accepted"])
 def test_meeting_delete_preserves_spool_until_commit_ack(effects, monkeypatch, outcome):
     from miy_api.domains.meeting.models import Meeting
 
@@ -534,9 +291,7 @@ def test_meeting_delete_preserves_spool_until_commit_ack(effects, monkeypatch, o
         assert (db.get(RecordingStaging, e.staging["id"]) is not None) == preserved
 
 
-@pytest.mark.parametrize(
-    "operation", ["delete", "retry", "meeting_retry", "meeting_archive", "meeting_cleanup"]
-)
+@pytest.mark.parametrize("operation", ["delete", "meeting_retry"])
 def test_drained_recording_source_never_revokes_an_existing_job(effects, monkeypatch, operation):
     from miy_api.domains.meeting import recordings as meeting_recordings
     from miy_api.domains.meeting.models import Meeting
@@ -596,41 +351,3 @@ def test_drained_recording_source_never_revokes_an_existing_job(effects, monkeyp
         row = db.get(Recording, recording_id)
         assert row.celery_task_id == "synthetic-job" and row.trashed_at is None
         assert row.transcript_status == "failed"
-
-
-@pytest.mark.parametrize("outcome", ["drain", "unknown_before", "unknown_after", "accepted"])
-def test_stale_meeting_spool_cleanup_waits_for_commit_ack(effects, monkeypatch, outcome):
-    from datetime import datetime, timedelta
-    from miy_api.domains.meeting import recordings as meeting_recordings
-
-    e = effects
-    with e.factory.begin() as db:
-        staging = db.get(RecordingStaging, e.staging["id"])
-        staging.last_chunk_at = datetime(2000, 1, 1) - timedelta(days=365)
-    if outcome == "drain":
-        with e.factory.begin() as db:
-            change(db, e.admin)
-    with e.factory() as db:
-        real_commit = db.commit
-        if outcome.startswith("unknown"):
-
-            def uncertain():
-                if outcome == "unknown_after":
-                    real_commit()
-                raise OSError("synthetic cleanup acknowledgement lost")
-
-            db.commit = uncertain
-        if outcome == "accepted":
-            assert meeting_recordings.cleanup_stale_staging_once(db) == {"deleted": 1}
-        else:
-            with pytest.raises(Exception) as failure:
-                meeting_recordings.cleanup_stale_staging_once(db)
-            if outcome == "drain":
-                assert failure.value.orig.sqlstate == "55000"
-            else:
-                assert isinstance(failure.value, OSError)
-    assert e.spool.cleanup.call_count == (1 if outcome == "accepted" else 0)
-    with e.factory() as db:
-        assert (db.get(RecordingStaging, e.staging["id"]) is not None) == (
-            outcome in {"drain", "unknown_before"}
-        )

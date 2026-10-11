@@ -9,80 +9,6 @@ def _dev_login(client: TestClient, account_key: str) -> dict:
     return dev_login(client, account_key)
 
 
-def test_docs_native_docs_and_direct_user_share_grant_docs_access(client: TestClient) -> None:
-    admin = _bootstrap_admin_session(client)
-
-    owner = _create_user(
-        client, admin["token"], email="docs-owner@miy.local", full_name="Docs Owner"
-    )
-    owner_token = _login(client, owner["user"]["email"], owner["temporary_password"])
-
-    me_response = client.get("/api/v1/auth/me", headers=_auth_headers(owner_token))
-    assert me_response.status_code == 200
-    me_payload = me_response.json()
-    assert "workspaces" not in me_payload
-
-    empty_hub_response = client.get("/api/v1/docs/hub", headers=_auth_headers(owner_token))
-    assert empty_hub_response.status_code == 200
-    assert empty_hub_response.json()["items"] == []
-
-    create_doc_response = client.post(
-        "/api/v1/docs/items",
-        headers=_auth_headers(owner_token),
-        json={"title": "Private Plan"},
-    )
-    assert create_doc_response.status_code == 201
-    native_doc = create_doc_response.json()
-    assert native_doc["source_type"] == "native_doc"
-    assert native_doc["can_edit"] is True
-    assert native_doc["can_share"] is True
-    assert native_doc["is_private"] is True
-
-    pages_response = client.get(
-        f"/api/v1/docs/items/{native_doc['id']}/pages",
-        headers=_auth_headers(owner_token),
-    )
-    assert pages_response.status_code == 200
-    page = pages_response.json()["items"][0]
-
-    shared_user = _create_user(
-        client,
-        admin["token"],
-        email="docs-shared@miy.local",
-        full_name="Docs Shared User",
-    )
-    shared_user_id = shared_user["user"]["id"]
-    shared_user_token = _login(
-        client, shared_user["user"]["email"], shared_user["temporary_password"]
-    )
-
-    share_response = client.put(
-        f"/api/v1/docs/items/{native_doc['id']}/sharing/users/{shared_user_id}",
-        headers=_auth_headers(owner_token),
-        json={"access_level": "read"},
-    )
-    assert share_response.status_code == 200
-    assert share_response.json()["users"][0]["access_level"] == "read"
-
-    shared_me_response = client.get("/api/v1/auth/me", headers=_auth_headers(shared_user_token))
-    assert shared_me_response.status_code == 200
-    assert "workspaces" not in shared_me_response.json()
-
-    shared_hub_response = client.get("/api/v1/docs/hub", headers=_auth_headers(shared_user_token))
-    assert shared_hub_response.status_code == 200
-    shared_items = shared_hub_response.json()["items"]
-    assert [item["id"] for item in shared_items] == [native_doc["id"]]
-    assert shared_items[0]["can_edit"] is False
-    assert shared_items[0]["can_share"] is False
-
-    shared_page_update_response = client.patch(
-        f"/api/v1/docs/pages/{page['id']}",
-        headers=_auth_headers(shared_user_token),
-        json={"content_blocks": [{"type": "paragraph", "content": "blocked"}]},
-    )
-    assert shared_page_update_response.status_code == 403
-
-
 def test_docs_hub_reuses_pms_acl_and_blocks_resharing_of_source_docs(client: TestClient) -> None:
     admin = _bootstrap_admin_session(client)
 
@@ -183,85 +109,6 @@ def test_docs_hub_reuses_pms_acl_and_blocks_resharing_of_source_docs(client: Tes
     assert update_space_page_response.status_code == 200
 
 
-def test_space_docs_filter_includes_readable_task_linked_docs(client: TestClient) -> None:
-    admin = _bootstrap_admin_session(client)
-
-    task_list = _create_task_list(client, admin["token"], key="AGG", name="Aggregate List")
-    other_space = _create_space(client, admin["token"], name="Outside Space")
-    other_task_list = _create_task_list(
-        client,
-        admin["token"],
-        key="OUT",
-        name="Outside List",
-        team_id=other_space["id"],
-    )
-    space_id = task_list["team_id"]
-
-    task = _create_task(client, admin["token"], task_list["id"], title="Aggregate task")
-    other_task = _create_task(client, admin["token"], other_task_list["id"], title="Outside task")
-
-    direct_space_doc = _create_space_doc(
-        client,
-        admin["token"],
-        space_id,
-        title="Direct Space Doc",
-    )
-    linked_doc = _create_native_doc(client, admin["token"], title="Linked Task Doc")
-    deduped_doc = _create_space_doc(
-        client,
-        admin["token"],
-        space_id,
-        title="Direct And Linked Doc",
-    )
-    secondary_space_doc = _create_space_doc(
-        client,
-        admin["token"],
-        space_id,
-        title="Secondary Space Doc",
-    )
-    _update_doc_target(client, admin["token"], secondary_space_doc["id"], other_space["id"])
-    outside_doc = _create_native_doc(client, admin["token"], title="Outside Task Doc")
-
-    _attach_task_doc(client, admin["token"], task["id"], linked_doc["id"])
-    _attach_task_doc(client, admin["token"], task["id"], deduped_doc["id"])
-    _attach_task_doc(client, admin["token"], other_task["id"], outside_doc["id"])
-
-    admin_items = _list_space_docs(client, admin["token"], space_id)
-    admin_titles = [item["title"] for item in admin_items]
-    assert direct_space_doc["title"] in admin_titles
-    assert linked_doc["title"] in admin_titles
-    assert admin_titles.count(deduped_doc["title"]) == 1
-    assert secondary_space_doc["title"] in admin_titles
-    assert outside_doc["title"] not in admin_titles
-
-    viewer = _create_user(
-        client,
-        admin["token"],
-        email="task-linked-doc-viewer@miy.local",
-        full_name="Task Linked Doc Viewer",
-    )
-    viewer_token = _login(client, viewer["user"]["email"], viewer["temporary_password"])
-
-    share_response = client.put(
-        f"/api/v1/docs/items/{linked_doc['id']}/sharing/users/{viewer['user']['id']}",
-        headers=_auth_headers(admin["token"]),
-        json={"access_level": "read"},
-    )
-    assert share_response.status_code == 200
-
-    viewer_without_task_access = _list_space_docs(client, viewer_token, space_id)
-    assert viewer_without_task_access == []
-
-    _add_task_list_member(client, admin["token"], task_list["id"], viewer["user"]["id"], "viewer")
-
-    viewer_items = _list_space_docs(client, viewer_token, space_id)
-    viewer_titles = [item["title"] for item in viewer_items]
-    assert direct_space_doc["title"] in viewer_titles
-    assert linked_doc["title"] in viewer_titles
-    assert secondary_space_doc["title"] in viewer_titles
-    assert outside_doc["title"] not in viewer_titles
-
-
 def test_internal_shared_links_require_auth_and_honor_read_vs_edit(client: TestClient) -> None:
     admin = _bootstrap_admin_session(client)
 
@@ -292,6 +139,26 @@ def test_internal_shared_links_require_auth_and_honor_read_vs_edit(client: TestC
     )
     assert pages_response.status_code == 200
     page = pages_response.json()["items"][0]
+
+    private_hub = client.get("/api/v1/docs/hub", headers=_auth_headers(recipient_token))
+    assert private_hub.status_code == 200
+    assert doc["id"] not in {item["id"] for item in private_hub.json()["items"]}
+    direct_share = client.put(
+        f"/api/v1/docs/items/{doc['id']}/sharing/users/{recipient['user']['id']}",
+        headers=_auth_headers(owner_token),
+        json={"access_level": "read"},
+    )
+    assert direct_share.status_code == 200, direct_share.text
+    shared_hub = client.get("/api/v1/docs/hub", headers=_auth_headers(recipient_token))
+    assert shared_hub.status_code == 200
+    shared = next(item for item in shared_hub.json()["items"] if item["id"] == doc["id"])
+    assert not shared["can_edit"] and not shared["can_share"]
+    denied_direct_edit = client.patch(
+        f"/api/v1/docs/pages/{page['id']}",
+        headers=_auth_headers(recipient_token),
+        json={"content_blocks": [{"type": "paragraph", "content": "blocked"}]},
+    )
+    assert denied_direct_edit.status_code == 403
 
     enable_read_link_response = client.put(
         f"/api/v1/docs/items/{doc['id']}/sharing/link",
@@ -356,139 +223,6 @@ def test_internal_shared_links_require_auth_and_honor_read_vs_edit(client: TestC
     )
     assert disabled_response.status_code == 403
     assert disabled_response.json()["code"] == "app.access_required"
-
-
-def test_docs_shareable_users_lists_company_colleagues(
-    client: TestClient,
-) -> None:
-    admin = _bootstrap_admin_session(client)
-
-    member = _create_user(
-        client,
-        admin["token"],
-        email="administrator-docs-member@miy.local",
-        full_name="Administrator Docs Member",
-    )
-    member_token = _login(client, member["user"]["email"], member["temporary_password"])
-
-    colleague = _create_user(
-        client,
-        admin["token"],
-        email="another-department-admin@miy.local",
-        full_name="Another Department Admin",
-    )
-    blocked = _create_user(
-        client,
-        admin["token"],
-        email="blocked-admin@miy.local",
-        full_name="Blocked Admin",
-    )
-    blocked_response = client.patch(
-        f"/api/v1/admin/users/{blocked['user']['id']}",
-        headers=_auth_headers(admin["token"]),
-        json={"login_blocked": True},
-    )
-    assert blocked_response.status_code == 200
-
-    response = client.get(
-        "/api/v1/docs/shareable-users",
-        headers=_auth_headers(member_token),
-        params={"q": "Admin"},
-    )
-    assert response.status_code == 200
-    emails = {item["email"] for item in response.json()}
-    assert "admin@miy.local" in emails
-    assert colleague["user"]["email"] in emails
-    assert member["user"]["email"] not in emails
-    assert blocked["user"]["email"] not in emails
-
-
-def test_native_doc_page_patch_rejects_cycle(client: TestClient) -> None:
-    admin = _bootstrap_admin_session(client)
-    owner = _create_user(
-        client, admin["token"], email="cycle-owner@miy.local", full_name="Cycle Owner"
-    )
-    owner_token = _login(client, owner["user"]["email"], owner["temporary_password"])
-
-    doc = client.post(
-        "/api/v1/docs/items",
-        headers=_auth_headers(owner_token),
-        json={"title": "Cycle Plan"},
-    ).json()
-
-    parent = client.post(
-        f"/api/v1/docs/items/{doc['id']}/pages",
-        headers=_auth_headers(owner_token),
-        json={"title": "Parent"},
-    ).json()
-    child = client.post(
-        f"/api/v1/docs/items/{doc['id']}/pages",
-        headers=_auth_headers(owner_token),
-        json={"title": "Child", "parent_id": parent["id"]},
-    ).json()
-
-    # Attempt to move Parent underneath Child — should be rejected as a cycle.
-    reject = client.patch(
-        f"/api/v1/docs/pages/{parent['id']}",
-        headers=_auth_headers(owner_token),
-        json={"parent_id": child["id"]},
-    )
-    assert reject.status_code == 409
-    assert reject.json()["code"] == "docs.page_parent_cycle"
-    assert reject.json()["detail"] == "페이지 부모 관계에 순환이 포함될 수 없습니다."
-
-    missing_parent = client.post(
-        f"/api/v1/docs/items/{doc['id']}/pages",
-        headers={**_auth_headers(owner_token), "Accept-Language": "en-US"},
-        json={"title": "Invalid child", "parent_id": "missing-parent"},
-    )
-    assert missing_parent.status_code == 404
-    assert missing_parent.json()["code"] == "docs.parent_page_not_found"
-    assert missing_parent.json()["detail"] == "Parent page not found."
-
-
-def test_duplicate_doc_via_read_share_creates_private_copy_for_recipient(
-    client: TestClient,
-) -> None:
-    admin = _bootstrap_admin_session(client)
-
-    owner = _create_user(
-        client, admin["token"], email="dup-share-owner@miy.local", full_name="Owner"
-    )
-    owner_token = _login(client, owner["user"]["email"], owner["temporary_password"])
-
-    recipient = _create_user(
-        client,
-        admin["token"],
-        email="dup-share-recipient@miy.local",
-        full_name="Recipient",
-    )
-    recipient_token = _login(client, recipient["user"]["email"], recipient["temporary_password"])
-
-    create_doc_response = client.post(
-        "/api/v1/docs/items",
-        headers=_auth_headers(owner_token),
-        json={"title": "Shared Plan"},
-    )
-    original = create_doc_response.json()
-
-    share_response = client.put(
-        f"/api/v1/docs/items/{original['id']}/sharing/users/{recipient['user']['id']}",
-        headers=_auth_headers(owner_token),
-        json={"access_level": "read"},
-    )
-    assert share_response.status_code == 200
-
-    # Recipient with read access can duplicate even though they cannot manage.
-    duplicate_response = client.post(
-        f"/api/v1/docs/items/{original['id']}/duplicate",
-        headers=_auth_headers(recipient_token),
-    )
-    assert duplicate_response.status_code == 201
-    duplicate = duplicate_response.json()
-    assert duplicate["title"] == "Shared Plan Copy"
-    assert duplicate["can_manage"] is True  # recipient is now the owner of the copy
-    assert duplicate["is_private"] is True
 
 
 def _bootstrap_admin_session(client: TestClient) -> dict:

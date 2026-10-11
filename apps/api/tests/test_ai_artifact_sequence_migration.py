@@ -3,12 +3,12 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from alembic import command
-from alembic.config import Config
 import pytest
 import sqlalchemy as sa
+from alembic.config import Config
 from sqlalchemy.orm import Session
 
+from alembic import command
 from miy_api.domains.ai_artifacts.contracts import AiArtifactCreate
 from miy_api.domains.ai_artifacts.models import AiArtifact
 from miy_api.domains.ai_artifacts.repository import AiArtifactRepository
@@ -39,9 +39,11 @@ def _create_completed(engine: sa.Engine, artifact_type: str) -> tuple[str, str]:
         return artifact.id, artifact.artifact_number
 
 
-@pytest.mark.parametrize("state", ["empty", "artifacts", "allocated", "unused"])
+@pytest.mark.parametrize(
+    "report_state,analysis_state", [("empty", "artifacts"), ("allocated", "unused")]
+)
 def test_artifact_sequences_restore_numbers_and_persist_completed_artifacts(
-    postgres_dsn: str, state: str
+    postgres_dsn: str, report_state: str, analysis_state: str
 ) -> None:
     config = _config(postgres_dsn)
     command.upgrade(config, "miy_api_keys_20261001")
@@ -58,13 +60,15 @@ def test_artifact_sequences_restore_numbers_and_persist_completed_artifacts(
                     'ko-KR', 'Asia/Seoul', 'korean', now(), now())
             """)
             )
-            if state != "empty":
+            if report_state != "empty" or analysis_state != "empty":
                 # The largest suffix may be on an older date, not the newest report.
                 for kind, number in (
                     ("report", "AIR-20260901-0000000042"),
                     ("report", "AIR-20260914-0000000003"),
                     ("analysis", "AIA-20260914-0000000007"),
                 ):
+                    if (report_state if kind == "report" else analysis_state) == "empty":
+                        continue
                     conn.execute(
                         sa.insert(AiArtifact).values(
                             id=number,
@@ -77,20 +81,17 @@ def test_artifact_sequences_restore_numbers_and_persist_completed_artifacts(
                             content_text="Retained content",
                         )
                     )
-            if state in {"allocated", "unused"}:
+            if report_state == "allocated":
                 conn.execute(sa.text("CREATE SEQUENCE ai_report_artifact_number_seq START 100"))
+                conn.execute(sa.text("SELECT nextval('ai_report_artifact_number_seq')"))
+            if analysis_state == "unused":
                 conn.execute(sa.text("CREATE SEQUENCE ai_analysis_artifact_number_seq START 200"))
-                if state == "allocated":
-                    conn.execute(sa.text("SELECT nextval('ai_report_artifact_number_seq')"))
-                    conn.execute(sa.text("SELECT nextval('ai_analysis_artifact_number_seq')"))
 
         command.upgrade(config, "head")
-        expected = {
-            "empty": (1, 1),
-            "artifacts": (43, 8),
-            "allocated": (101, 201),
-            "unused": (100, 200),
-        }[state]
+        expected = (
+            1 if report_state == "empty" else 101,
+            8 if analysis_state == "artifacts" else 200,
+        )
         created = []
         for kind, prefix, number in zip(("report", "analysis"), ("AIR", "AIA"), expected):
             artifact_id, artifact_number = _create_completed(engine, kind)
@@ -104,7 +105,7 @@ def test_artifact_sequences_restore_numbers_and_persist_completed_artifacts(
                 assert artifact.status == "completed"
                 assert artifact.visibility == "private"
                 assert artifact.content_sha256 and artifact.content_size_bytes
-            if state != "empty":
+            if report_state != "empty":
                 assert db.get(AiArtifact, "AIR-20260901-0000000042").content_text == (
                     "Retained content"
                 )

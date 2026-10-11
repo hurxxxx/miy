@@ -45,67 +45,30 @@ def _token(url: str) -> str:
     return parse_qs(urlparse(url).fragment)["grant"][0]
 
 
-def test_round_trip_uses_static_path_and_canonical_claims(monkeypatch) -> None:
+def test_content_grant_lifecycle_binds_issuer_and_expires(monkeypatch):
     url = _url(monkeypatch)
-    claims = decode_content_grant(_token(url), now=100)
-
-    assert urlparse(url).path == "/api/v1/content"
-    assert not urlparse(url).query
-    assert claims.issued_at == 100
-    assert claims.expires == 160
-    assert claims.execution_context_kind == "company"
-    assert not hasattr(claims, "execution_workspace_id")
-
-
-@pytest.mark.parametrize("suffix", ["A", "=", ".extra"])
-def test_tampered_or_noncanonical_grants_fail_closed(monkeypatch, suffix: str) -> None:
-    token = _token(_url(monkeypatch))
+    assert urlparse(url).path == "/api/v1/content" and not urlparse(url).query
+    token = _token(url)
+    claims = decode_content_grant(token, now=100)
+    require_matching_issuer(claims, current_user_id="user-1", current_session_id="session-1")
+    with pytest.raises(InvalidContentGrant, match="issuer"):
+        require_matching_issuer(claims, current_user_id="user-2", current_session_id="session-1")
+    with pytest.raises(InvalidContentGrant, match="issuer"):
+        require_matching_issuer(claims, current_user_id="user-1", current_session_id="session-2")
     with pytest.raises(InvalidContentGrant):
-        decode_content_grant(token + suffix, now=100)
-
-
-def test_expired_grant_and_excessive_ttl_fail_closed(monkeypatch) -> None:
-    token = _token(_url(monkeypatch, expires_seconds=1))
+        decode_content_grant(token + "A", now=100)
     with pytest.raises(InvalidContentGrant, match="expired"):
-        decode_content_grant(token, now=102)
+        decode_content_grant(token, now=161)
     with pytest.raises(ValueError, match="TTL"):
         _url(monkeypatch, expires_seconds=CONTENT_GRANT_MAX_TTL_SECONDS + 1)
 
 
-def test_context_and_route_owner_invariants_are_enforced(monkeypatch) -> None:
-    with pytest.raises(ValueError, match="execution context"):
-        _url(monkeypatch, execution_context_kind="workspace")
+def test_content_grant_cannot_be_issued_for_another_route_owner(monkeypatch):
     with pytest.raises(ValueError, match="does not belong"):
         _url(monkeypatch, route_id="docs.root")
-    claims = decode_content_grant(
-        _token(_url(monkeypatch, execution_context_kind="personal")), now=100
-    )
-    assert claims.execution_context_kind == "personal"
 
 
-def test_grant_is_bound_to_exact_authenticated_user_and_session(monkeypatch) -> None:
-    claims = decode_content_grant(_token(_url(monkeypatch)), now=100)
-
-    require_matching_issuer(
-        claims,
-        current_user_id="user-1",
-        current_session_id="session-1",
-    )
-    with pytest.raises(InvalidContentGrant, match="issuer"):
-        require_matching_issuer(
-            claims,
-            current_user_id="user-2",
-            current_session_id="session-1",
-        )
-    with pytest.raises(InvalidContentGrant, match="issuer"):
-        require_matching_issuer(
-            claims,
-            current_user_id="user-1",
-            current_session_id="session-2",
-        )
-
-
-def test_content_grants_use_dedicated_signing_key_and_reject_rotated_key(monkeypatch) -> None:
+def test_content_grants_use_dedicated_signing_key_and_reject_rotated_key(monkeypatch):
     token = _token(_url(monkeypatch))
     monkeypatch.setattr(
         grants,

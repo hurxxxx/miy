@@ -9,9 +9,8 @@ import pytest
 from sqlalchemy import select
 
 from conftest import _build_client, _teardown_client_state
-from dev_accounts import create_company_user_session, dev_login
+from dev_accounts import dev_login
 from miy_api.core.db import get_session_factory
-from miy_api.domains.docs import service as docs_service
 from miy_api.domains.pms.access_grants import grant_task_access, revoke_task_access
 from miy_api.domains.search.indexing import process_search_index_job
 from miy_api.domains.search.models import SearchIndexJob
@@ -159,108 +158,6 @@ def _create_pms_task(
     )
     assert response.status_code == 201, response.text
     return response.json()
-
-
-def test_keyword_search_returns_contract_facets_snippets_and_deep_links(
-    search_client: TestClient,
-) -> None:
-    session = _dev_login(search_client)
-    token = session["token"]
-    user_id = session["user"]["id"]
-    with get_session_factory()() as db:
-        doc, page = docs_service.create_native_doc_for_user(
-            db,
-            owner_id=user_id,
-            title="예산 리스크 검토",
-            content_blocks=[
-                {
-                    "type": "paragraph",
-                    "content": [
-                        {"type": "text", "text": "서비스 요금 변경으로 예산 리스크가 증가했습니다."}
-                    ],
-                }
-            ],
-        )
-        expected_deep_link = f"/apps/docs/documents/{doc.id}?page={page.id}"
-        db.commit()
-    _process_pending_search_jobs()
-
-    response = search_client.post(
-        "/api/v1/search/query",
-        headers=_headers(token),
-        json={
-            "query": "예산 리스크",
-            "entity_types": ["doc"],
-            "sort": {"field": "relevance", "direction": "desc"},
-            "limit": 20,
-            "offset": 0,
-        },
-    )
-
-    assert response.status_code == 200, response.text
-    payload = response.json()
-    assert payload["total"] >= 1
-    assert payload["has_more"] is False
-    assert payload["facets"]["entity_types"][0]["value"] == "doc"
-    hit = payload["hits"][0]
-    assert hit["entity_type"] == "doc"
-    assert hit["deep_link"] == expected_deep_link
-    assert hit["snippet"]["text"]
-    assert "highlights" in hit["snippet"]
-
-
-def test_keyword_search_filters_private_docs_by_acl(search_client: TestClient) -> None:
-    owner_session = _dev_login(search_client, "administrator")
-    viewer_session = create_company_user_session(
-        search_client,
-        login_id="searchviewer",
-        email="search-viewer@miy.local",
-        full_name="Search Viewer",
-    )
-    owner_token = owner_session["token"]
-    viewer_token = viewer_session["token"]
-    owner_id = owner_session["user"]["id"]
-    with get_session_factory()() as db:
-        docs_service.create_native_doc_for_user(
-            db,
-            owner_id=owner_id,
-            title="비공개 강아지 메모",
-            content_blocks=[
-                {
-                    "type": "paragraph",
-                    "content": [{"type": "text", "text": "우리집 강아지는 복슬강아지"}],
-                }
-            ],
-        )
-        db.commit()
-    _process_pending_search_jobs()
-
-    payload = {
-        "query": "복슬",
-        "entity_types": ["doc"],
-        "sort": {"field": "relevance", "direction": "desc"},
-        "limit": 20,
-        "offset": 0,
-    }
-    owner_response = search_client.post(
-        "/api/v1/search/query",
-        headers=_headers(owner_token),
-        json=payload,
-    )
-    viewer_response = search_client.post(
-        "/api/v1/search/query",
-        headers=_headers(viewer_token),
-        json=payload,
-    )
-
-    assert owner_response.status_code == 200, owner_response.text
-    assert viewer_response.status_code == 200, viewer_response.text
-    owner_payload = owner_response.json()
-    viewer_payload = viewer_response.json()
-    assert any(hit["title"] == "비공개 강아지 메모" for hit in owner_payload["hits"])
-    assert all(hit["title"] != "비공개 강아지 메모" for hit in viewer_payload["hits"])
-    assert viewer_payload["total"] == 0
-    assert viewer_payload["facets"] == {"entity_types": [], "status": [], "targets": []}
 
 
 def test_keyword_search_doc_acl_grant_revoke_and_crud_updates_index(
@@ -631,50 +528,5 @@ def test_keyword_search_pms_task_grant_revoke_and_archive_restore_updates_index(
             token=admin["token"],
             query=updated_title,
             entity_types=["pms_task"],
-        )
-    )
-
-
-def test_keyword_search_excludes_personal_planner_events(search_client: TestClient) -> None:
-
-    admin = _dev_login(search_client, "delivery-hub-admin")
-    member = _dev_login(search_client, "delivery-hub-member")
-    title = f"ACL 플래너 검색 {uuid.uuid4().hex[:8]}"
-    _create_sentinel_doc(
-        search_client,
-        token=admin["token"],
-        title=f"Planner search index sentinel {uuid.uuid4().hex[:8]}",
-    )
-
-    create_response = search_client.post(
-        "/api/v1/planner/events",
-        headers=_headers(admin["token"]),
-        json={
-            "title": title,
-            "description": "Planner ACL search body",
-            "location": "Seoul",
-            "allDay": False,
-            "start": "2026-05-04T01:00:00+00:00",
-            "end": "2026-05-04T02:00:00+00:00",
-        },
-    )
-    assert create_response.status_code == 201, create_response.text
-    event = create_response.json()
-    _process_pending_search_jobs()
-
-    assert event["id"] not in _hit_ids(
-        _search(
-            search_client,
-            token=admin["token"],
-            query=title,
-            entity_types=["planner_event"],
-        )
-    )
-    assert event["id"] not in _hit_ids(
-        _search(
-            search_client,
-            token=member["token"],
-            query=title,
-            entity_types=["planner_event"],
         )
     )

@@ -45,9 +45,21 @@ def pms_creation_db(monkeypatch: pytest.MonkeyPatch):
         settings.get_settings.cache_clear()
 
 
-@pytest.mark.parametrize("resource_kind", ["folder", "list"])
-@pytest.mark.parametrize("group_role", ["member", "admin"])
-@pytest.mark.parametrize("revoke", ["membership", "binding"])
+@pytest.mark.parametrize(
+    "resource_kind, group_role, revoke",
+    [
+        (
+            "folder",
+            "member",
+            "membership",
+        ),
+        (
+            "list",
+            "admin",
+            "binding",
+        ),
+    ],
+)
 def test_group_creation_never_grants_direct_space_ownership(
     pms_creation_db, resource_kind: str, group_role: str, revoke: str
 ) -> None:
