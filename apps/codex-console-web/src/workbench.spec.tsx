@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -472,6 +473,121 @@ it('offers source preparation for new projects and keeps development disabled un
     'An administrator must configure a folder for creating apps before source preparation is available.',
   );
   expect(startTask).not.toHaveBeenCalled();
+});
+
+it('keeps one prepared source form through its parent catalog refresh without reloading readiness', async () => {
+  const project = {
+    id: 'prepared-project',
+    app_id: apps[0].app_id,
+    title: 'Prepared project',
+    summary: 'Develop an independent app',
+    reuse_decision: 'new',
+    reuse_notes: 'Review existing capabilities',
+    created_at: '2026-10-11T00:00:00Z',
+  };
+  const catalog = {
+    items: [
+      {
+        ...apps[0],
+        discovery: 'source',
+        source_status: 'ready',
+        source_version: 1,
+        execution_status: 'unconfigured',
+      },
+    ],
+    projects: [project],
+    source_revision: null,
+    source_dirty: false,
+    checked_at: '2026-10-11T00:00:00Z',
+  };
+  const sourceResponses: Array<(value: unknown) => void> = [];
+  const refreshResponses: Array<(value: unknown) => void> = [];
+  let catalogReads = 0;
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === '/workbench/catalog') {
+      if (++catalogReads === 1) return catalog as never;
+      return new Promise((resolve) => refreshResponses.push(resolve)) as never;
+    }
+    if (path === '/workbench/runtime')
+      return { state: 'unconfigured', items: [], stale: true } as never;
+    if (path === '/workbench/source-setup/options')
+      return {
+        roots: [{ id: 'approved-root', label: 'My apps' }],
+        templates: [
+          {
+            id: 'basic',
+            name: 'Basic',
+            runtime_profile: 'web-api-v1',
+            bundle_digest: `sha256:${'a'.repeat(64)}`,
+            sdk_version: '0.1.0',
+          },
+        ],
+      } as never;
+    if (path === `/workbench/projects/${project.id}/source-setup`)
+      return new Promise((resolve) => sourceResponses.push(resolve)) as never;
+    throw new Error('Unexpected API request');
+  });
+  const startTask = vi.fn();
+  render(
+    <WorkbenchApps
+      area="studio"
+      t={translate('en-US')}
+      tasks={[]}
+      openTask={vi.fn()}
+      startTask={startTask}
+      newTask={vi.fn()}
+    />,
+  );
+  const panel = (await screen.findByText(project.title)).closest(
+    '.stack',
+  ) as HTMLElement;
+  fireEvent.click(
+    within(panel).getByRole('button', { name: 'Prepare app source' }),
+  );
+  await waitFor(() => expect(sourceResponses).toHaveLength(1));
+  // Resolve the original observation only. Any erroneous remount stays pending
+  // so the regression fails its assertions instead of flooding the microtask queue.
+  await act(async () => {
+    sourceResponses[0]({
+      setup: {
+        operation_id: 'bc58aef7-8d6e-4e7c-9599-5a55c094fb80',
+        project_id: project.id,
+        app_id: project.app_id,
+        root_id: 'approved-root',
+        template_id: 'basic',
+        repository: 'https://example.test/team/candidate-review.git',
+        bundle_digest: `sha256:${'a'.repeat(64)}`,
+        state: 'ready',
+        source_root: '/approved/candidate-review',
+        source_revision: 'b'.repeat(40),
+        source_version: 1,
+        failure_code: null,
+        created_at: project.created_at,
+        updated_at: project.created_at,
+      },
+    });
+  });
+  await waitFor(() => expect(refreshResponses).toHaveLength(1));
+  expect(
+    screen.getAllByRole('form', { name: 'Prepare app source' }),
+  ).toHaveLength(1);
+  expect(screen.getAllByText('App source prepared')).toHaveLength(1);
+  expect(sourceResponses).toHaveLength(1);
+  const revision = 'c'.repeat(40);
+  await act(async () => {
+    refreshResponses[0]({ ...catalog, source_revision: revision });
+  });
+  await screen.findByTitle(revision);
+  expect(
+    screen.getAllByRole('form', { name: 'Prepare app source' }),
+  ).toHaveLength(1);
+  expect(screen.getAllByText('App source prepared')).toHaveLength(1);
+  expect(sourceResponses).toHaveLength(1);
+  expect(catalogReads).toBe(2);
+  expect(startTask).not.toHaveBeenCalled();
+  expect(vi.mocked(api).mock.calls.every((call) => call[2] === 'GET')).toBe(
+    true,
+  );
 });
 
 it('allows a bound project to recheck a source collision without exposing export or mutation', async () => {
