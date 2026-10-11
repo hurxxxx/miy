@@ -18,7 +18,11 @@ from miy_api.domains.auth.app_access import can_use_app
 from miy_api.domains.auth.dependencies import AuthContext, resolve_auth_context_from_session_id
 from miy_api.domains.auth.models import utcnow_naive
 from miy_api.domains.auth.security import hash_token, new_id
-from miy_api.domains.independent_apps.models import AppInstallationRecord, AppSession
+from miy_api.domains.independent_apps.models import (
+    AppInstallationRecord,
+    AppSession,
+    load_installation_authority,
+)
 from miy_api.domains.independent_apps.service import SourceUserLoader, app_identity
 from miy_api.domains.independent_apps.verification import trusted_release
 from miy_api.domains.official_apps.models import OfficialAppBinding
@@ -172,9 +176,7 @@ def resolve_official_auth_context(
         app_session = db.get(AppSession, hash_token(token), populate_existing=True)
         if app_session is None:
             raise localized_http_exception(status_code=401, code="auth.session_invalid_or_expired")
-        installation = db.get(
-            AppInstallationRecord, app_session.installation_id, populate_existing=True
-        )
+        installation = load_installation_authority(db, app_session.installation_id)
         binding = db.scalar(
             select(OfficialAppBinding)
             .where(

@@ -60,6 +60,7 @@ from test_whiteboard_actor_writer import (
     PRODUCER,
     SERVICE,
     _collab_snapshot,
+    _capture_before_actor_revision,
     _commands,
     _migration_snapshot as _owner_snapshot,
     _oid,
@@ -78,6 +79,7 @@ MUTATING_COMMANDS = {"GRANT", "REVOKE", "ALTER", "INSERT", "UPDATE", "DELETE"}
 def http_world(current_head_http_world, request, tmp_path, monkeypatch):  # noqa: F811
     if getattr(request, "param", None) is None:
         return current_head_http_world
+    _capture_before_actor_revision(current_head_http_world)
     with current_head_http_world.core() as db:
         dsn = make_conninfo(
             **db.get_bind().url.translate_connect_args(username="user", database="dbname")
@@ -206,12 +208,15 @@ def acl_prepared(acl_boundary):
     c.source_engine = create_engine(
         c.engine.url.set(username=c.source, password=PASSWORD), pool_size=1, max_overflow=0
     )
-    c.execution = c.api.runtime.capture_whiteboard_write_execution(
-        c.world.factory,
-        token=c.world.token,
-        original_user_id=c.world.state["member_id"],
-        original_source_session_id=c.world.state["source_id"],
-    )
+    if hasattr(c.world, "owner_revision_execution"):
+        c.execution = c.world.owner_revision_execution
+    else:
+        c.execution = c.api.runtime.capture_whiteboard_write_execution(
+            c.world.factory,
+            token=c.world.token,
+            original_user_id=c.world.state["member_id"],
+            original_source_session_id=c.world.state["source_id"],
+        )
     try:
         yield c
     finally:

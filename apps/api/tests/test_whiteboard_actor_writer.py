@@ -1,6 +1,6 @@
 """Inactive owner-only actor admission in disposable, migrated PostgreSQL.
 
-Core auth uses its original restricted 14-table/87-column LOGIN. The distinct
+Core auth uses its current restricted 15-table/89-column LOGIN. The distinct
 actor LOGIN has no business/Core SELECT or DML; its private capability holds
 current positive witnesses until caller COMMIT/rollback. A synthetic, explicitly
 registered privileged Core fixture may mutate metadata through the unchanged
@@ -57,6 +57,16 @@ PRODUCER = "public.miy_recording_lock_producer(bigint,text,integer,text)"
 ROLE_GUARD = "public.miy_guard_official_source_writer_by_role()"
 
 
+def _capture_before_actor_revision(world):
+    """Capture current authority before a test pins only historical actor SQL."""
+    world.owner_revision_execution = _api().runtime.capture_whiteboard_write_execution(
+        world.factory,
+        token=world.token,
+        original_user_id=world.state["member_id"],
+        original_source_session_id=world.state["source_id"],
+    )
+
+
 @pytest.fixture
 def http_world(current_head_http_world, request, tmp_path, monkeypatch):  # noqa: F811
     """Keep actor behavior at head; pin only the owner revision's own checks."""
@@ -64,6 +74,9 @@ def http_world(current_head_http_world, request, tmp_path, monkeypatch):  # noqa
     if revision is None:
         return current_head_http_world
     assert revision == "wb_actor_owner_20261009"
+    # The current auth reader requires the current workspace fence. Capture its
+    # real detached execution before pinning only the historical actor SQL/schema.
+    _capture_before_actor_revision(current_head_http_world)
     with current_head_http_world.core() as db:
         dsn = db.get_bind().url.render_as_string(hide_password=False)
     original_config = _migration_config
@@ -235,6 +248,8 @@ def _prepare(c, db, name=None, *, identity=None):
 
 
 def _capture(c, **kwargs):
+    if not kwargs and hasattr(c.world, "owner_revision_execution"):
+        return c.world.owner_revision_execution
     return c.api.runtime.capture_whiteboard_write_execution(
         c.world.factory,
         token=kwargs.get("token", c.world.token),
