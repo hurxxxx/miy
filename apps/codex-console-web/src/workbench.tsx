@@ -516,7 +516,7 @@ export function WorkbenchApps({
                 </dl>
                 {app.discovery !== 'checkout' && app.discovery && (
                   <SourceBindingForm
-                    key={app.app_id}
+                    key={`source-binding:${app.app_id}`}
                     app={app}
                     t={t}
                     onSaved={() => setRefresh((value) => value + 1)}
@@ -531,7 +531,7 @@ export function WorkbenchApps({
                 )}
                 {area === 'apps' && (
                   <AppManagement
-                    key={app.app_id}
+                    key={`app-management:${app.app_id}`}
                     app={app}
                     runtime={
                       runtime.data && runtime.error
@@ -547,7 +547,7 @@ export function WorkbenchApps({
                 )}
                 {app.discovery && app.discovery !== 'checkout' && (
                   <AppInstallations
-                    key={app.app_id}
+                    key={`app-installations:${app.app_id}`}
                     appId={app.app_id}
                     refresh={refresh}
                     t={t}
@@ -663,7 +663,7 @@ export function WorkbenchApps({
                     )}
                     {!managed && preparingSource === project.id && (
                       <SourcePrepare
-                        key={project.id}
+                        key={`source-prepare:${project.id}`}
                         projectId={project.id}
                         appId={project.app_id}
                         t={t}
@@ -674,7 +674,7 @@ export function WorkbenchApps({
                       projectApp?.discovery === 'source' &&
                       projectApp.source_status === 'ready' && (
                         <SourceRegistrationExport
-                          key={project.id}
+                          key={`source-registration-export:${project.id}`}
                           projectId={project.id}
                           t={t}
                         />

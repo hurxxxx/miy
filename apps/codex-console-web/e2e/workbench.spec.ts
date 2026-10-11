@@ -252,6 +252,11 @@ test('new app project records reuse rationale and opens a plan with its own cont
     .getByLabel('요구사항과 완료 기준')
     .fill('요청을 검토하고 승인 기록을 관리한다.');
   const appId = `review-${Date.now()}`;
+  await page
+    .locator('form')
+    .filter({ has: page.getByLabel('프로젝트 이름', { exact: true }) })
+    .getByText('고급 프로젝트 설정', { exact: true })
+    .click();
   await page.getByLabel('앱 식별자').fill(appId);
   await page
     .getByLabel('검토한 기존 앱과 결정 근거')
@@ -318,6 +323,11 @@ test('new project prepares an app source and recovers its result without enablin
     .getByLabel('요구사항과 완료 기준')
     .fill('나만 볼 수 있는 업무 메모를 관리한다.');
   const appId = `notes-${Date.now()}`;
+  await page
+    .locator('form')
+    .filter({ has: page.getByLabel('프로젝트 이름', { exact: true }) })
+    .getByText('고급 프로젝트 설정', { exact: true })
+    .click();
   await page.getByLabel('앱 식별자').fill(appId);
   await page
     .getByLabel('검토한 기존 앱과 결정 근거')
@@ -339,6 +349,7 @@ test('new project prepares an app source and recovers its result without enablin
     .click();
   let form = page.getByRole('form', { name: '앱 소스 준비' });
   await form.getByLabel('시작 템플릿').selectOption('private-notes');
+  await form.getByText('고급 소스 설정', { exact: true }).click();
   await form
     .getByLabel('앱 저장소 주소')
     .fill(`https://example.test/team/${appId}.git`);

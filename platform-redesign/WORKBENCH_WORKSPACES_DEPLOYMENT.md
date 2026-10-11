@@ -474,4 +474,32 @@ Ruff·형식·diff 검사도 통과했다. 이 결과는 최초 CI 실패의 원
 작업으로 진행한다. 기본 실행 목록만 줄이는 방식에 그치지 않고 중복 테스트를
 통합·삭제하며, 실제 소요 시간과 필수 권한·데이터 보존·migration 검증을 확인한다.
 
+### Workbench 소스 준비 화면의 반복 생성 보완 (2026-10-11 UTC)
+
+[MR127](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/127)은 필수 리뷰
+job497을 통과해 dev `cdb033de6b7d19980773acbc151ee2b2246af548`로 정상 병합했다.
+[Pipeline319](https://gitlab.1punicorn.com/lumejs/mty/-/pipelines/319)의 개인 앱
+job499는 성공했다. 플랫폼 job498에서 API는6,760통과·7skip·실패0(네 구간
+pytest 시간 합계 약51.8분), web 검사는 통과했다. Workbench frontend237건과
+backend1,413건도 통과했지만 브라우저31통과·2실패로 전체 릴리스는 실패했다.
+API 네 JUnit은 후속 브라우저 정리 뒤에도 보존됐다.
+
+두 브라우저 사례는 접힌 고급 설정 안의 입력을 직접 채우려 했다. 실제 사용자처럼
+고급 프로젝트·소스 설정을 먼저 펼치도록 수정했다. 이후 로컬 브라우저 검사는
+32통과·1실패였으며, 남은 실패에서 실제 제품 결함을 확인했다. 형제 컴포넌트가
+같은 React key를 사용해 부모 catalog 갱신 때 소스 준비 폼이 다시 생성되고,
+ready 조회와 갱신을 반복했다. 실패 trace에는 같은 폼281개와 ready GET277회가
+관측됐다. POST 재전송은 없었다.
+
+다섯 key를 컴포넌트 역할과 기존 앱·프로젝트 ID의 조합으로 구분한다. 부모 갱신
+전후에 폼·ready 표시·원 GET이 각각 하나로 유지되는 직접 회귀를 추가했다.
+요청·권한·상태 전이·timeout은 변경하지 않는다. 관련 frontend19건, 타입 검사와
+새 빌드, 전체 브라우저33건 및 등록 브라우저3건이 한 번의 묶음 검사에서 통과했다.
+독립 리뷰에서 추가 P1/P2는 없었다. 테스트 한 파일의 형식만 후속 정리했다.
+
+제품 UI가 변경됐으므로 기존 r21 재사용 대신 새 Workbench 릴리스를 별도로
+빌드·전환해야 한다. 기존 SQLite·작업·세션 설정과 template-current를 보존하고,
+필수 리뷰·새 전체 릴리스 검증 후 Core/공식 앱 운영 배포 및 GitHub 동기화를
+진행한다. 아직 운영 배포·GitHub PR106/107 병합 완료를 뜻하지 않는다.
+
 최종 공개 문서는 이 파일과 [개선 기록](workbench-equipment-pilot/IMPROVEMENTS.md)이며, 세부 실행 영수증·스크린샷·서비스/SQLite 백업은 비공개 `.runtime/workbench-workspaces-20261011/deployment/`와 전용 backup 경로에 보존한다. private evidence나 설정 파일을 Git에 추가하지 않는다.
