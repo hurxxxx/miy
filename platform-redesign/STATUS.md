@@ -1,6 +1,10 @@
 # 현재 진행 상태
 
-**2026-10-11 Workbench 작업별 환경:** 배포·실제 인수를 진행 중이다. 개발 설정·앱 데이터 DB·격리 SDK·5개 HTTPS 포트를 준비했고, 별도 Workbench 첫 배포와 이전 시범 앱 보관을 수행했다. 플랫폼 MR !114의 필수 리뷰에서 발견한 정리·복구 경계를 보완하고 있으며 최종 배포와 새 장비 앱의 전체 브라우저 인수는 남아 있다. 현재 배포본·원격 리뷰·검증 결과와 잔여 작업은 [배포·실제 인수 기록](WORKBENCH_WORKSPACES_DEPLOYMENT.md)이 소유한다. [구현 기록](WORKBENCH_WORKSPACES_IMPLEMENTATION.md)의 로컬 검사와 실제 서비스 인수를 구분한다.
+**2026-10-11 관리형 작업 환경 릴리스:** 운영자 지원 단일 소유자의 자연어 계획·구현→미리보기→필수 리뷰→dev 실행→임시 환경 정리와 영속 데이터 보존 대표 흐름을 확인했다. 전체323 통과·MR123 병합 후 개발·운영·별도 Workbench r22 반영 및 공개 브라우저 확인과 GitHub main PR106 병합을 마쳤다. 현재 후속은 이 owner 문서의 정상 리뷰·GitHub dev PR107 동기화와 소유 임시 branch 정리다. 정확한 identity·공개 인수 한계는 [게시 체크포인트](PUBLICATION_CHECKPOINT.md), 대표 앱 흐름과 실패 이력은 [배포·실제 인수 기록](WORKBENCH_WORKSPACES_DEPLOYMENT.md)이 소유한다. API 중복 검사 축소는 전달 이후 별도 작업이며 기준은 6,768건·3,029.876초다.
+
+기록 기준: 2026-10-11 UTC. 의미 검색·일반 직원 계정·다중 사용자·앱별 상세 기능의 별도 범위는 유지한다.
+
+## 이전 checkpoint — 2026-10-10
 
 **현재 checkpoint — 2026-10-10: 이번 필수 최소 구조 구현과 개발·운영·별도 Workbench 전달을 완료했다.** 최신 full287과 실제 반영, 대표 UI·DB/API/Docker·native SDK·기존 정상3턴 근거를 함께 인수했다. Workbench native Codex 스키마 불일치도 해결했고 실제 모델 목록·계정 연결을 확인했다. 이 문서 동결 시점에는 이 기록의 정상 리뷰·게시를 준비하며, 이 묶음의 최종 전달 결과는 해당 PR/MR의 최종 상태가 원본이다. 전체 자연어 앱 E2E·다중 사용자·격리 앱의 운영 전면 가동을 완료한 것으로 확대하지 않는다.
 
@@ -8,7 +12,7 @@
 
 **추가 실제 브라우저 확인 — 2026-10-10:** 공개 개발 로그인·Docs/PMS/Files 실제 조회·Workbench 연결/계정/목록/기존 세션·에이전트·대표 모바일 표시·운영 로그인 화면을 확인했다. 수정 전 Vite proxy 설정을 계속 쓰던 개발 프로세스의500은 source bytes를 바꾸지 않은 native 설정 재읽기로 해소했다. 허용 앱 생성 폴더0개·카탈로그의 실행 환경 configured 항목0개이고 Workbench는 운영 플랫폼을 사용하므로 새 개인 앱의 생성·등록·수정·배포 전체 흐름은 중단 상태다. 원 실패와 후속 한정 성공은 [실제 브라우저 결과](BROWSER_ACCEPTANCE.md)에서 구분한다. 이번 결과 문서는 로컬 변경이며 새 게시·운영 배포는 수행하지 않았다.
 
-## 최신 전달 상태와 남은 단계
+## 이전 전달 상태 — 2026-10-10
 
 - Source `f652`의 required286/job454는 SUCCESS41.835358초/MERGE_READY다. [내부 MR112](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/112) → dev `4a8ab880`, [GitHub PR104](https://github.com/hurxxxx/miy/pull/104) → main `67d4d6a1`, 동일 tree `94a8212e`이며 소유 원격·로컬 브랜치를 정리했다. Protected dev/main은 보존했다.
 - [Release MR105](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/105)의 full287/job455는 exact source `4a8ab88075bd9fc0a3ad7ae4569de469fd85e689`/tree `94a8212e0f4b48d3156df34e8d7d563f4b3e973c`의 SUCCESS4656.144209초다. Requested/selected full·status passed·suite 선택 생략 없음이며 API6572/16/37/15·web928·Workbench backend1160과 frontend/native 전체 chain을 통과했다. 미수신 세부 count는 추정하지 않는다.

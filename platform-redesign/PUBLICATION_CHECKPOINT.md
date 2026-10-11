@@ -1,6 +1,29 @@
 # GitHub 게시 체크포인트
 
-## 현재 checkpoint — 2026-10-10 필수 최소 구조 게시·반영 완료
+## 현재 checkpoint — 2026-10-11 관리형 작업 환경 릴리스
+
+[전체323](https://gitlab.1punicorn.com/lumejs/mty/-/pipelines/323) 통과 후 [릴리스 MR123](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/123)을 정상 병합하고 개발·운영·별도 Workbench에 반영했다. 대표 앱의 자연어 구현→미리보기→리뷰→dev 실행→임시 자원 정리는 [배포·실제 인수 기록](WORKBENCH_WORKSPACES_DEPLOYMENT.md)이 소유한다.
+
+| 전달 경계            | 확인 결과                                                                                                                                                                                                                                                                |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 전체 gate            | source `3a411c3a84f61de443bae62c7b9ef8f7df88b7e8`, tree `fca932f5d899b9d532b5dc5de584cdd39d21a9ad`; release job504 PASS 4172.221초, 개인 앱 job505 PASS; requested/selected full, 생략 없음                                                                              |
+| API 축소 전 기준     | 6,761 PASS·기존 7 SKIP·실패 0, 총 6,768건. API+정적 검사 실제 경과 3,029.876초; testcase 시간 합산이 아님                                                                                                                                                                |
+| 정상 release         | MR123 → main/prod `a7d976a55516a20233a69c0ebb47249bc2214afc`, 검증 tree와 일치                                                                                                                                                                                           |
+| 개발                 | 동일 검증 source에서 native supervisor 및 앱 delivery consumer 갱신, 이전 process identities 종료·Core/공식 health/ready 확인. consumer는 Main-only TERM 후 정상 exit0·빈 cgroup을 확인하고 시작                                                                         |
+| 운영 준비·반영       | fresh PostgreSQL18 custom backup 1,124,105bytes·TOC/cluster identity 확인·protected env snapshot; native prepare 740.709초·deploy 83.269초 PASS. 기존 guarded drain·migration·배포 내 direct/public smoke 완료                                                           |
+| 운영 artifact        | Core `sha256:b44726ac7438c5b592e1117525cbce4108c6310efba70002504d2e84e778db17`; Official API+web `sha256:febd120e99b0f0e4ba6630543138a4ea1c4b2e17666b6934ad39b3e1f76f0c1b`; Official worker `sha256:5561f43ab1fdfe6683d31c052d8ed530c6798f7211593a18a7dafa5b62dce72c`    |
+| 운영 실행            | gateway/Core API·worker/Beat/Official API·worker 6역할 healthy·정확 image/revision/tree 일치; schema `independent_archive_20261011`. 이전 이미지·설정·백업 보존                                                                                                          |
+| 공개 인수            | container/public Core·공식 JS bytes 일치, health/readiness 및 비인증 HTTP·공통/Docs WS 거부, 운영 로그인 화면 브라우저 PASS. 실제 운영 사용자 로그인·양성 Yjs ACL과 NULL build-ID의 live guard는 미검증                                                                  |
+| 별도 Workbench       | `20261011-workbench-ui-r22`, 원 source `7e5cf6ad40d2419f3b486f42fc20593d2c5c93ba`, digest `sha256:38099eddf643ec0929edb3db591033230755da3a7f82a24c5460bf02d939de65`, dirty=false. 이후 release source까지 소비 입력 불변을 확인해 재사용하고 최신 SHA로 relabel하지 않음 |
+| Workbench 보존·공개  | native SQLite backup·integrity/schema0009, Task18·Agent11·Project1·Workspace1과 선택 기록 내용 보존, template r4/PID 유지. 실제 dev 포털 SSO→새 backend/JS→Studio·앱·플랫폼·세션·모니터링 PASS, 화면 오류·중복 key 경고·업무 쓰기·새 모델 턴 0                           |
+| GitHub main          | [PR106](https://github.com/hurxxxx/miy/pull/106) 정상 병합 `188a8cefeced849ae0ca507654eee5493a28decd`; GitLab main과 tree `fca932f5d899b9d532b5dc5de584cdd39d21a9ad` 일치                                                                                                |
+| 문서·GitHub dev 후속 | 이 세 owner 문서를 정상 required review로 GitLab dev에 반영한 뒤 [PR107](https://github.com/hurxxxx/miy/pull/107)에 동기화한다. 최종 병합·대응 branch tree 확인·소유 branch/worktree 정리는 해당 MR/PR 최종 상태와 전달 영수증이 원본이다                                |
+
+Workbench의 기존 종료 제한 시간 초과(DEF-005)는 이번에도 관측했다. 서비스 PID/cgroup 종료와 DB 기록 보존 확인 후 전환했으며 정상 graceful 종료 성공으로 표시하지 않는다. 공개 관측 도구의 dev host/readiness 가정과 세션 attention badge 선택자는 실제 계약에 맞춰 고쳤고, 중간 관측 실패는 비공개 기록으로 보존했다. 이 과정에서 개발 재시작이나 제품 full 검사를 반복하지 않았다.
+
+의미 검색(임베딩 서버 없음), 일반 직원·다중 사용자·앱별 상세 기능은 별도 범위다. 플랫폼 운영 배포는 장비 앱 자체의 운영 설치를 뜻하지 않는다. API 중복 검사 통합·삭제는 이번 전달·동기화 이후의 별도 요청 작업이며 위 6,768건·50분30초가 축소 전 기준이다. 문서만 갱신하는 후속에서는 변경 없는 제품 전체 검사·산출물 빌드·서비스 배포를 반복하지 않는다.
+
+## 이전 checkpoint — 2026-10-10 필수 최소 구조 게시·반영 완료
 
 필수 최소 구조의 정상 리뷰·병합·전체 gate 및 플랫폼/공식 묶음·별도 Workbench 실제 반영은 완료했다. 현재 남은 전달은 이 여섯 owner 문서의 정상 required review·PR/MR이다. 전체 자연어 앱 E2E·다중 사용자·격리 앱 운영 전면 가동 완료와 구분하며, 아래 dated checkpoint는 이전 시점 기록으로 보존한다.
 

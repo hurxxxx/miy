@@ -4,16 +4,17 @@
 
 ## 최신 인수 상태 — 2026-10-11 최종 확인
 
-| 항목 | 실제 상태 |
-| --- | --- |
-| HTTPS 슬롯 | feat0~feat4 →19520~19524 정확한 연결 확인 완료 |
-| Workbench | r21 실제 적용, 원래 세션·agent·project 보존 및 같은 정리 intent 복구 완료 |
-| Core development | archive migration 적용, 앱 데이터/배포 설정 적용 및 health200 |
-| 장비·비품 앱 | Workbench 자연어 계획·ASK 실행·등록 및 리뷰 지적 수정 완료, source ee3afef |
-| 임시 preview | feat0 실제 배포·소스 일치, 가짜 장비 생성/수정/reload 보존/검색·비인증401 확인 |
-| dev 통합 | 실제 MR117/pipeline308의 개인 앱 검사482·필수 리뷰483 통과, dev de88e30에 병합 |
-| 영속 dev 실행·정리 | feat4 실행·데이터 보존, 임시 DB/계정·SDK·컨테이너·네트워크·worktree·local/remote branch의 정확한 제거 확인 완료 |
-| 보류 | 의미 검색(임베딩 서버 없음), 일반 직원 계정 검증, 운영자 연결 UX·종료 지연·응답 불확실 UX |
+| 항목               | 실제 상태                                                                                                                                                             |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HTTPS 슬롯         | feat0~feat4 →19520~19524 정확한 연결 확인 완료                                                                                                                        |
+| Workbench          | r22 실제 적용·포털 SSO와 5개 주요 화면 PASS, 원 작업·agent·project·기록 및 template r4 보존. 정확한 identity·종료 제한은 [게시 체크포인트](PUBLICATION_CHECKPOINT.md) |
+| Core development   | archive migration 적용, 앱 데이터/배포 설정 적용 및 health200                                                                                                         |
+| 장비·비품 앱       | Workbench 자연어 계획·ASK 실행·등록 및 리뷰 지적 수정 완료, source ee3afef                                                                                            |
+| 임시 preview       | feat0 실제 배포·소스 일치, 가짜 장비 생성/수정/reload 보존/검색·비인증401 확인                                                                                        |
+| dev 통합           | 실제 MR117/pipeline308의 개인 앱 검사482·필수 리뷰483 통과, dev de88e30에 병합                                                                                        |
+| 영속 dev 실행·정리 | feat4 실행·데이터 보존, 임시 DB/계정·SDK·컨테이너·네트워크·worktree·local/remote branch의 정확한 제거 확인 완료                                                       |
+| 후속 release 전달  | full323 PASS·MR123 정상 병합·개발/운영/별도 Workbench 반영·GitHub main PR106 병합. 문서와 dev PR107의 최종 전달은 [게시 체크포인트](PUBLICATION_CHECKPOINT.md)        |
+| 보류               | 의미 검색(임베딩 서버 없음), 일반 직원 계정 검증, 운영자 연결 UX·종료 지연·응답 불확실 UX                                                                             |
 
 이하 기록은 발견·수정·검증의 시점별 이력이며, 이전 릴리스·실패 상태는 최신 완료 여부와 구분한다.
 
@@ -203,7 +204,6 @@ r18 session/management 종료는 둘 다15초 timeout 뒤 PID/ControlPID0·cgrou
 
 원래의 첫 turn 미생성 Task를 r19에서 재시도하면 `codex_request_failed`가 native 제출 경계 전에 발생했다. previous execution root/runtime generation은 null이며 계획·업무 코드·turn 손실은 없다. 오류 원문이나 실패 method는 수집하지 않았으므로 빈 thread의 cold resume 문제가 원인이라고 확정하지 않는다. 실패 이력을 유지하고 정상 UI의 **개발 세션 시작**으로 같은 workspace에 Task `e38072df-7dbe-44b5-8cf9-9a8e021bfb30`을 생성해 같은 업무 요청을 보냈다. 새 Task는 실제 thread/turn 생성·plan running·agent active·명령 실행까지 진행했으며 별도 앱 코드 작성이나 DB 상태 우회는 없었다. 아직 첫 계획 완료·구현·유의미한 세션 재연결은 관측 중이다.
 
-
 ## 장비 앱 계획·구현과 실제 실행 환경 장애
 
 같은 workspace의 새 Task에서 native AI가 개인 계정별 보관과 전사 공유를 구분해 질문했고, 사용자 역할로 **본인 계정의 가상 장비 데이터 저장**을 선택했다. 계획 revision7/version1이 완료된 뒤 정상 UI의 **이 계획으로 실행**, 실행 권한 **ask**를 명시 승인했다. AI가 자기 앱 subtree의 React·FastAPI·업무 검사 파일을 수정했으며 관찰자가 업무 코드를 대신 작성하지 않았다. 계획·구현 시작은 확인했지만 앱 등록·미리보기·dev 반영·정리는 아직 완료되지 않았다.
@@ -212,13 +212,11 @@ r18 session/management 종료는 둘 다15초 timeout 뒤 PID/ControlPID0·cgrou
 
 해당 테스트의 일회성 승인 버튼을 눌렀으나 API가503으로 거절했고 원 pending request는 그대로다. 승인 성공으로 기록하지 않는다. 별도 소스 metadata 검사에서 앱 subtree 안에 새 `.git` 디렉터리가 발견됐고 이는 helper의 명시적 거절 조건이다. 생성 원인과 정확한 실패 경계를 조사 중이며 스레드 실패와 같은 원인으로 단정하지 않는다. 현재 readiness 검사 실패 시 원 pending의 거절·turn 중지도 함께 막히므로, 기존 살아있는 controller의 정확한 identity/generation을 확인한 권한 축소 동작만 허용하는 최소 보완을 진행한다. 새 실행·권한 승인·자동 재전송·lease 강제 해제는 허용하지 않는다.
 
-
 읽기 전용 확인에서 문제의 하위 `.git`은 UID1000·0755·entry0이며 상위 worktree의 정상 `.git` 파일과 별개였다. [고정 Codex0.160.1 sandbox 구현](https://github.com/openai/codex/blob/rust-v0.160.1/codex-rs/linux-sandbox/src/bwrap.rs#L1220-L1281)은 writable root의 없는 `.git`을 읽기 전용 synthetic mount target으로 만들며 [종료 경로](https://github.com/openai/codex/blob/rust-v0.160.1/codex-rs/linux-sandbox/src/linux_run_main.rs#L583-L632)에서 정리한다. 생성 시각·코드 경로가 일치하나 실제 생성 PID와 잔존 원인은 독립 수집하지 않았다.
 
 정확한 빈 디렉터리의 inode·소유권·mode·내용 없음을 재확인해 `rmdir`로만 제거하고 기존 브라우저의 **중단**을 눌렀다. interrupt200과 native Task/agent interrupted·stage review·pending0을 관측했다. 앱24개 파일과 상위 worktree `.git` 해시는 보존됐고 승인 재전송·새 모델 실행·DB 상태 변경은 하지 않았다. 이 조치는 재발 방지 배포가 아니라 현재 실행의 정상 종료 복구다.
 
 이후 정상 UI의 **환경 중지** operation `9b2c1534-039d-4e64-877b-fbc990ecb943`는 waiting/workspace_busy다. 첫 turn 전에 실패한 이전 Task는 root Agent idle, Task/Agent turn null·runtime generation null·operation2건 failed·resource lease0·pending0이지만, workspace busy는 이를 실행 중으로 세고 stop_tasks는 건너뛰는 불일치를 확인했다. 이 일반적인 첫 제출 실패 경계의 정합화도 필수 보완에 포함한다. SDK는 아직 active이며 환경 중지를 성공으로 보고하지 않는다.
-
 
 ## 실행 환경 복구 후보 검증
 
@@ -227,7 +225,6 @@ r18 session/management 종료는 둘 다15초 timeout 뒤 PID/ControlPID0·cgrou
 managed app-root의 `.git`은 정확한 소유자의 빈 일반 디렉터리만 native 임시 보호 대상으로 인정한다. 파일·symlink·하위 `.git`·실제 metadata·외부 사용자 쓰기 권한은 계속 거절한다. 첫 turn 전 실패의 exact idle root만 workspace busy에서 구분하며 모든 실패 operation 기록·pending·lease·하위 agent·불확실 실행의 차단을 유지한다. 기존 대기 stop의 실패를 먼저 재현했고 같은 intent 계속하기와 실패 경계36건이 통과했다. native 서비스는 대역이며 실제 SDK·브라우저 검증과 구분한다.
 
 SDK backend의 새 고정 예산은256이고 proxy64·CPU100%·메모리1GiB·네트워크/소스 격리는 유지한다. 과거64 환경의 관측·중지·정리는 원 bytes로 계속 검증한다. 기존 workspace의 재개에는 inactive/PID0을 증명한 명시 `upgrade-budget`가 필요하며, 동일 source/token/port·stopped 상태를 보존하고 시작은 기존 UI에 맡긴다. helper와 root broker의 실제 파일·journal 연결 및 유실/소유권 경계23건이 통과했다. 최초 결과 수집기의 기존 fixture id 이름 충돌은 수집 실패로 기록한 뒤 수집기만 보정했다. 실제256 실행과 앱 테스트 성공은 아직 검증하지 않았다. 이전 전체 검사 묶음은 반복하지 않았다.
-
 
 ## 복구 릴리스 실제 반영
 
@@ -240,7 +237,6 @@ r19의 두 Workbench 서비스 종료도15초 timeout 뒤 PID/ControlPID0·cgrou
 환경 중지는 원 operation `9b2c1534-039d-4e64-877b-fbc990ecb943`의 명시 **계속 확인·반영**으로 완료했다. 첫 계속하기는 workspace_busy 대기를 유지했고 두 번째 명시 계속하기에서 succeeded/stopped가 됐다. backend와 두 proxy unit은 실제 inactive·PID/ControlPID0·cgroup 부재·Result success였다. 상태나 lease를 직접 수정하지 않았다.
 
 중지된 같은 환경에 검토된 `upgrade-budget`를 한 번 실행했다. 동일 UUID/source/token/port와 앱24파일·상위 worktree `.git`을 보존했고 실제 backend TasksMax256·inactive/PID0을 확인했다. 그 후 기존 UI의 **환경 재개**로 ready/version15를 확인했다. 기존 Task/계획 revision7/version1을 ask 권한으로 다시 승인해 동일 native thread의 구현을 이어가는 중이며, 아직 앱 테스트·등록·미리보기 인수 성공은 주장하지 않는다.
-
 
 같은 Task와 native thread가 새 controller generation/새 turn으로 정상 재개되어 완료됐다. 실제 native `pnpm test`는4 PASS·0 FAIL, Python unittest는4 PASS, Vite build는 성공했다. AI는 이번 turn에서 test/build를 각각 두 번 수행했으므로 4건을 중복 합산하지 않으며, 관찰자가 동일 검사를 다시 실행하지 않았다. source checkpoint `17b8453fb377e70f1db71bcd6da273210c2a3a38`이 자동 저장됐고 작업 tree는 clean이다. 아직 위임이 없어 auto_refresh operation은 명시 `app_delivery_unconfigured`로 실패했으며 이를 앱 실행 성공으로 표시하지 않는다. 편집 환경과 admission은 ready를 유지했다.
 
@@ -275,7 +271,6 @@ r19의 두 Workbench 서비스 종료도15초 timeout 뒤 PID/ControlPID0·cgrou
 - GitLab 서버의 시각/경로/status만 추출한 확인에서 job472의 `/job`와 MR117 조회는 각각200이었다. MR 조회는 native job 검증 뒤 호출되므로 인증/native job 단계를 통과한 증거다. 이후 MR 본문 predicate·소유 journal 쓰기·local Git 준비 중 정확한 실패 위치는 당시 공통 오류 및 종료 후 정상 cleanup 때문에 남지 않았다. 현재 MR 메타데이터 일치만으로 과거 실패 원인을 단정하지 않는다.
 - 고정 driver의 기존 `personal_app_runner_required` 실패 코드는 유지하고 허용된 단계/거절 원인/예외 종류/HTTP 상태만 추가했다. 토큰·응답본문·명령 인자/출력·예외 메시지·환경값을 출력하지 않는다. 현재 pipeline/소스 증거를 완화하거나 자동 재시도를 추가하지 않았다. 직접 영향9개 메서드(신규21 subcase 포함)·Ruff/format/diffcheck PASS. 실제 job 재시도 결과는 아직 없으며 코드 필수 리뷰·immutable runner 설치 후 해당 작업만 재실행한다.
 
-
 ### 실제 개인 앱 CI 연결 진단 (2026-10-11 08:48 UTC)
 
 - 안전 진단 [MR !118](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/118), source `6f4344cd35196e83b0bcd30ab704e620cab6248e`는 pipeline305/job474 필수 리뷰를 통과했고 dev `13a3b42317653604b480ba6ed046f8e381ea44f2`에 병합했다. 고정 runner4만 immutable r5로 반영했다. Workbench r20/Core를 다시 배포한 것은 아니다. 플랫폼 수정의 임시 local/remote branch/worktree는 정리했고 앱 기능 branch는 유지했다.
@@ -284,12 +279,10 @@ r19의 두 Workbench 서비스 종료도15초 timeout 뒤 PID/ControlPID0·cgrou
 
 고정 Runner19.4.1/revision3c39fceb의 upstream custom executor는 외부 `step_script`를 callback argv `build_script`로 바꾼다. 두 exact 이름을 기존의 동일 current-MR 증명/journal/fixed wrapper로만 연결했다. 제공 script 파일·before/after/cache/artifact·임의 step 이름은 계속 실행하지 않는다. 직접 영향5메서드(실제 main 인수 경로의 fixed wrapper 호출, 두 alias의 재실행·오래된 MR·미검증 journal 거절 및 기존 경계)와 Ruff/format/AST/diffcheck PASS. 실제 runner 반영과 required app job 통과는 필수 리뷰 후 확인한다.
 
-
 ### Runner callback 호환 실제 반영
 
 - [MR !119](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/119) source `c7dfab004e531c7a8823a3628152d622bd579b2f`는 pipeline306/job477의 필수 리뷰를 통과했다(48.374초). exact source/target/review evidence/보호 dev/discussion을 확인해 dev `a1de55986ca6321052bf6ec62da4b3a43fbc1204`에 병합했고 고정 runner4만 immutable r6로 반영했다. 독립 읽기 검토에서 추가 P1/P2 없음. 해당 플랫폼 작업의 local/remote branch·clean worktree를 정리했다.
 - 명시 재시도 job478(기존 pipeline304/source17b8453)은 Git 취득·callback 분기를 통과한 뒤 `validation/trusted_command_failed`로 실패했다(5.150초). 검증기가 실행되는 전용 계정의 설치/권한 경계를 확인 중이다. 앱 MR117을 병합하거나 검증 실패를 우회하지 않았으며 같은 Workbench integration/preview를 유지한다.
-
 
 ### 전용 CI 계정의 소스 읽기 경계
 
@@ -297,13 +290,11 @@ r19의 두 Workbench 서비스 종료도15초 timeout 뒤 PID/ControlPID0·cgrou
 - 별도 필수 결함으로 umask0077일 때 검증된 snapshot bind root가 호스트 UID993/0700이어서 고정 container UID1000이 읽을 수 없는 것을 확인했다. 기존 Core의 호스트 UID1000 미리보기 성공과 모순되지 않는다. immutable source 검증 뒤 해당 root만0755로 명시하고 바깥 work/temporary/context/Dockerconfig의0700·read-only mount·container UID와 격리 예산은 유지했다.
 - 새 회귀의 기존 코드 실패를 확인한 뒤 직접 영향6 PASS(1.15초), 실제 승인 immutable image의 다른 비root UID 읽기·Ruff/format/AST/diffcheck PASS. 실제 읽기 증명은 host1000/container1001로 nonowner 경계를 검증했으며 앱 기능 실행은0이다. 실제 job478의 첫 실패 원인과 동일하다는 단정이나 실제 CI 완료 주장은 하지 않는다. 필수 리뷰·고정 runner 반영 후 같은 앱 CI를 확인한다.
 
-
 ### 실제 개인 앱 검사 통과와 리뷰 피드백
 
 - [MR !120](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/120) source `c6bb00f260191d467be5515c1c7be4bf7271d542`는 pipeline307/job479 필수 리뷰를 통과했고(49.300초), dev `5fa1b324a54660df5b239cc795d186cfa2b4b45d`에 병합했다. exact gate 확인 뒤 고정 runner4를 immutable r7로 반영하고 수정용 local/remote branch·clean worktree를 정리했다.
 - 같은 앱 source17b8453/pipeline304의 실제 retry job480은5.181초에 성공했다. 앱 artifact `sha256:a0e77ab6cf0bd5180a1f1d97058995078fbb5184e65695463364049254f5b560`의 검증 결과가 passed다. 별도 private 진단 copy만 exact source/owner/clean 상태 확인 후 정리했고 실제 앱 workspace는 보존했다. 이전 실패 job은 이력으로 유지한다.
 - 필수 앱 리뷰를 job481로 재개했으나 관리번호 정규화 순서의 P2 한 건으로 MERGE_BLOCKED였다. 정규화로 길이가 늘어나는 입력은 생성되지만 같은 저장값의 조회/수정이 길이 제한으로 거절될 수 있다. 필수 gate를 우회하지 않고 동일 Workbench 구현 Task에서 이 저장 일관성 결함만 수정하도록 짧은 계획을 요청했다. 관찰자가 업무 코드를 직접 쓰거나 일반 기능 고도화를 추가하지 않는다.
-
 
 ### 자연어 리뷰 수정·dev 병합과 안정 실행
 
@@ -316,7 +307,6 @@ r19의 두 Workbench 서비스 종료도15초 timeout 뒤 PID/ControlPID0·cgrou
 
 - 안정 dev 앱에서 별도 가짜 관리번호 `WB-SYN-DEV-001`을 정상 UI로 생성해 HTTP201·reload 보존을 확인했다. 임시 데이터는 계속 보이지 않으며, 이 안정 데이터가 정리 이후에도 보존되는지 최종 확인한다. 독립 읽기 리뷰에서 cleanup 보완의 추가 P1/P2는 없었다.
 
-
 ### r21 적용과 같은 intent의 실제 정리 완료
 
 - [MR !121](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/121), clean source `5e6da1cbd606261c006a0c165d11abc6dba29825`의 pipeline309/job484 필수 리뷰가90.361초에 성공했다. 보호 dev·exact source/target·필수 job 및 review context를 확인한 뒤 `76ece913b565efa4513ef52f13204a5285d57899`에 병합했다. 정상 로컬·원격 수정용 branch와 해당 clean 빌드 worktree만 정리했다.
@@ -326,7 +316,6 @@ r19의 두 Workbench 서비스 종료도15초 timeout 뒤 PID/ControlPID0·cgrou
 - 관찰 스크립트의 response 대기는 응답을 포착하지 못했다. 이를 제품 timeout으로 해석하지 않으며 브라우저의 완료 화면·정상 GET 결과·서버 원 operation receipt를 근거로 결과를 확인했다. 화면 최상위 오류는 없어졌고 원 operation의 과거 failure_code는 이력에 남아 있다.
 - Workbench가 관리하던 정확한 작업 경로와 로컬 feature branch, `origin`의 같은 feature branch가 모두 없는 것을 별도 읽기로 확인했다. 정리 후 안정 portal/feat4 앱을 다시 열어 기존 가짜 `WB-SYN-DEV-001` 데이터 보존·임시 `WB-SYN-001` 미노출·비인증 API401을 확인했다. 임시 데이터가 안정 DB로 복사됐다고 해석하지 않는다.
 - 정리한 미리보기 링크는 숨겨지고 MR 링크가 유지된다. 안정 개발 앱으로 바로 이동하는 링크와 복구 후 과거 failure 표시는 후속 UX 개선으로 기록하며 새 기능 수정을 추가하지 않는다. 일반 직원 인증·의미 검색·다중 사용자·전사 공유 장비 업무와 앱별 상세 검증은 이번 인수 범위 밖이다.
-
 
 ### 최종 자원 대조와 인수 범위
 
@@ -525,5 +514,11 @@ slow/migration/external 구간은 모두 통과했다. web·Workbench 후속 구
 독립 읽기 리뷰에서 P1/P2는 발견하지 못했으며 Ruff·형식·diff 검사를 통과했다.
 필수 리뷰와 새 전체 릴리스 결과 확인 후 운영·별도 Workbench·GitHub 전달을 계속한다.
 API 중복 검사 축소는 전달 이후의 별도 작업으로 유지한다.
+
+## 전체323 통과와 후속 전달 — 2026-10-11 UTC
+
+전체323 통과 후 MR123을 정상 병합하고 개발·Core/공식 운영·별도 Workbench r22 반영과 공개 브라우저 인수를 마쳤다. GitHub main PR106도 정상 병합했다. 정확한 source·artifact·runtime·백업 및 공개 인수 한계는 [게시 체크포인트](PUBLICATION_CHECKPOINT.md)가 소유한다. 이 문서 묶음과 GitHub dev PR107의 정상 리뷰·동기화 결과는 해당 MR/PR에서 확인한다.
+
+기존 r21과 장비 앱의 단일 소유자 대표 흐름, stable 데이터 보존·temporary 자원 제거 및 원 실패 이력은 보존한다. 의미 검색·직원 계정·앱별 상세 기능은 별도 범위이며, 이번 플랫폼 운영 배포를 장비 앱의 별도 운영 설치로 확대하지 않는다. API 중복 검사 통합·삭제는 전달 이후의 별도 작업이다.
 
 최종 공개 문서는 이 파일과 [개선 기록](workbench-equipment-pilot/IMPROVEMENTS.md)이며, 세부 실행 영수증·스크린샷·서비스/SQLite 백업은 비공개 `.runtime/workbench-workspaces-20261011/deployment/`와 전용 backup 경로에 보존한다. private evidence나 설정 파일을 Git에 추가하지 않는다.
