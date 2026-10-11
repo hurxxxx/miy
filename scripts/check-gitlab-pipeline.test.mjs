@@ -76,7 +76,8 @@ test('contract rejects extra or weakened jobs', () => {
       'true',
     ),
     source.replace('      - test-results/\n', ''),
-    source.replace('        - test-results/api/fast.xml\n', ''),
+    source.replace('      - api-test-results/\n', ''),
+    source.replace('        - api-test-results/fast.xml\n', ''),
     source.replace('    access: maintainer\n', '    access: all\n'),
     source.replace("    MIY_API_PYTEST_WORKERS: '2'\n", ''),
     source.replace("    NODE_OPTIONS: '--max-old-space-size=3072'\n", ''),
@@ -174,6 +175,11 @@ process.exit(path.basename(report) === 'fast.xml' ? Number(process.env.FAST_STAT
         .split('\n')
         .map((line) => JSON.parse(line));
       assert.equal(calls.length, 4);
+      // A later browser suite clears its output root. API evidence must survive.
+      const browserOutput = path.join(root, 'test-results');
+      fs.mkdirSync(browserOutput, { recursive: true });
+      fs.writeFileSync(path.join(browserOutput, 'previous-run.txt'), 'browser');
+      fs.rmSync(browserOutput, { recursive: true });
       for (const [index, name] of [
         'fast',
         'slow',
@@ -181,7 +187,7 @@ process.exit(path.basename(report) === 'fast.xml' ? Number(process.env.FAST_STAT
         'external',
       ].entries()) {
         const { args, cwd } = calls[index];
-        const report = path.join(root, `test-results/api/${name}.xml`);
+        const report = path.join(root, `api-test-results/${name}.xml`);
         assert.equal(cwd, path.join(root, 'apps/api'));
         assert.equal(args[args.lastIndexOf('-m') + 1], selectors[index]);
         assert.ok(args.includes('--tb=short'));

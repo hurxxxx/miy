@@ -9,6 +9,7 @@
 .nx
 .dev
 **/test-results
+**/api-test-results
 **/playwright-report
 **/blob-report
 **/celerybeat-schedule*

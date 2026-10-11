@@ -117,12 +117,13 @@ release_validation:
     paths:
       - release-validation-context.md
       - test-results/
+      - api-test-results/
     reports:
       junit:
-        - test-results/api/fast.xml
-        - test-results/api/slow.xml
-        - test-results/api/migration.xml
-        - test-results/api/external.xml
+        - api-test-results/fast.xml
+        - api-test-results/slow.xml
+        - api-test-results/migration.xml
+        - api-test-results/external.xml
 
 personal_app_validation:
   stage: validate
