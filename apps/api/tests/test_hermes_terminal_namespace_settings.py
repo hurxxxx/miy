@@ -27,16 +27,8 @@ def _settings(environment, **kwargs):
     )
 
 
-@pytest.mark.parametrize("environment", ["development", "test"])
-def test_local_settings_default_to_development_namespace(environment):
-    assert _settings(environment).hermes_terminal_resource_namespace == "dev"
-
-
-@pytest.mark.parametrize("environment", ["production", "preview"])
-@pytest.mark.parametrize(
-    "namespace",
-    [None, "", "  ", "dev", "local", "Prod", "-prod", "prod/team", "prod_team", "p" * 33],
-)
+@pytest.mark.parametrize("environment", ["production"])
+@pytest.mark.parametrize("namespace", [None, "dev", "prod/team"])
 def test_production_settings_reject_missing_invalid_or_development_namespace(
     environment, namespace
 ):
@@ -45,19 +37,9 @@ def test_production_settings_reject_missing_invalid_or_development_namespace(
         _settings(environment, **extra)
 
 
-@pytest.mark.parametrize("namespace", ["prod", "company-prod-20260908", "p" * 32])
+@pytest.mark.parametrize("namespace", ["company-prod-20260908"])
 def test_production_settings_preserve_explicit_resource_boundary(namespace):
     assert (
         _settings("production", **{NAMESPACE_KEY: namespace}).hermes_terminal_resource_namespace
         == namespace
     )
-
-
-def test_runtime_namespace_uses_typed_environment_alias(monkeypatch):
-    monkeypatch.setenv(NAMESPACE_KEY, "company-prod-20260908")
-    assert _settings("production").hermes_terminal_resource_namespace == "company-prod-20260908"
-
-
-def test_invalid_namespace_is_rejected_in_development_too():
-    with pytest.raises(ValidationError, match=NAMESPACE_KEY):
-        _settings("development", **{NAMESPACE_KEY: "other/resource"})

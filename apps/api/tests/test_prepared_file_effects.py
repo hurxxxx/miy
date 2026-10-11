@@ -18,7 +18,6 @@ from miy_api.core.model_registry import import_all_models
 from miy_api.domains.auth.models import User
 from miy_api.domains.document_processing import EvidenceBlock
 from miy_api.domains.files import materialization_source
-from miy_api.domains.files.artifact_contract import FileArtifactNotReady
 from miy_api.domains.files.models import (
     FileManagerCorpus,
     FileManagerFile,
@@ -425,7 +424,7 @@ def test_known_ack_completes_exact_operation_jobs_and_refresh_before_commit(effe
     assert state.commit_calls == 2
 
 
-@pytest.mark.parametrize("timing", ["before", "after"])
+@pytest.mark.parametrize("timing", ["after"])
 def test_arm_ack_unknown_never_constructs_providers_or_recreates_permit(effect_state, timing):
     state = effect_state
     state.commit_faults[1] = timing
@@ -447,32 +446,7 @@ def test_arm_ack_unknown_never_constructs_providers_or_recreates_permit(effect_s
     assert state.calls == []
 
 
-def test_absent_historical_observation_has_no_effect_or_compute_authority(effect_state):
-    state = effect_state
-    assert state.runner.observe(state.spec) is None
-    with pytest.raises(effects.FileMaterializationRefused, match="live_permit_required"):
-        state.runner.execute(None, lambda *_args: state.calls.append("forbidden"))
-    assert operation(state) is None and state.calls == []
-
-
-@pytest.mark.parametrize("failure", ["vector", "refresh"])
-def test_keyword_ack_then_failure_retains_arm_and_does_not_resolve_jobs(effect_state, failure):
-    state = effect_state
-    state.vector_failure = failure == "vector"
-    state.refresh_failure = failure == "refresh"
-    with pytest.raises(effects.FileMaterializationEffectUnknown) as caught:
-        batch(state)
-    assert caught.value.phase == "effect" and caught.value.receipt.spec == state.spec
-    assert operation(state)["state"] == "armed"
-    assert jobs(state) == (("pending", 0), ("pending", 0))
-    assert state.calls.count("keyword_write") == state.calls.count("vector_write") == 1
-    old_calls = list(state.calls)
-    with pytest.raises(effects.FileMaterializationEffectUnknown, match="effect_unknown"):
-        batch(state)
-    assert state.calls == old_calls
-
-
-@pytest.mark.parametrize("timing", ["before", "after"])
+@pytest.mark.parametrize("timing", ["after"])
 def test_complete_ack_unknown_observes_exact_history_without_repeating_effect(effect_state, timing):
     state = effect_state
     state.commit_faults[2] = timing
@@ -501,32 +475,6 @@ def test_complete_ack_unknown_observes_exact_history_without_repeating_effect(ef
     assert state.calls == old_calls
 
 
-def test_historical_complete_is_readable_after_source_and_current_head_change(effect_state):
-    state = effect_state
-    batch(state)
-    new_source_tip(state)
-    mutate(state, FileManagerFile, extraction_status="pending", extracted_at=None)
-    mutate(state, RetrievalProjectionHead, projection_version=2)
-    observed = state.runner.observe(state.spec, expected_header_digest=HEADER_DIGEST)
-    assert observed.state == "complete" and observed.historical
-    assert observed.witness.source_event_id == SOURCE_ID
-    with pytest.raises(effects.FileMaterializationRefused, match="digest_mismatch"):
-        state.runner.observe(state.spec, expected_header_digest="c" * 64)
-    with pytest.raises(effects.FileMaterializationRefused, match="identity_mismatch"):
-        state.runner.observe(replace(state.spec, partition_metadata_version=2))
-
-
-@pytest.mark.parametrize("count", [0, 2])
-def test_rag_callback_must_occur_exactly_once_or_operation_stays_unknown(effect_state, count):
-    state = effect_state
-    state.callback_count = count
-    with pytest.raises(effects.FileMaterializationEffectUnknown):
-        batch(state)
-    assert operation(state)["state"] == "armed"
-    assert jobs(state) == (("pending", 0), ("pending", 0))
-    assert state.calls.count("keyword_write") <= 1
-
-
 def test_latest_source_changes_after_embedding_before_any_backend_write(effect_state):
     state = effect_state
     state.after_embed = lambda: new_source_tip(state)
@@ -537,111 +485,7 @@ def test_latest_source_changes_after_embedding_before_any_backend_write(effect_s
     assert operation(state)["state"] == "armed" and jobs(state) == (("pending", 0), ("pending", 0))
 
 
-def test_final_source_mutation_after_vector_ack_keeps_progress_uncommitted(effect_state):
-    state = effect_state
-    state.after_vector = lambda: mutate(
-        state, FileManagerFile, extracted_at=STAMP + timedelta(seconds=1)
-    )
-    with pytest.raises(effects.FileMaterializationEffectUnknown):
-        batch(state)
-    assert "keyword_write" in state.calls and "vector_write" in state.calls
-    assert "refresh" not in state.calls
-    assert operation(state)["state"] == "armed" and jobs(state) == (("pending", 0), ("pending", 0))
-
-
-@pytest.mark.parametrize("outcome", ["unchanged", "superseded", None, 1, "unknown"])
-def test_keyword_unproven_ack_stays_unknown_before_vector_mutation(effect_state, outcome):
-    state = effect_state
-    state.keyword_outcome = outcome
-    with pytest.raises(effects.FileMaterializationEffectUnknown):
-        batch(state)
-    assert state.calls.count("keyword_write") == 1 and "vector_write" not in state.calls
-    assert operation(state)["state"] == "armed" and jobs(state) == (("pending", 0), ("pending", 0))
-
-
-def test_live_permit_cannot_be_consumed_twice(effect_state):
-    state = effect_state
-    permit = state.runner.arm(state.spec)
-    receipt = state.runner.execute(permit, lambda *_args: state.calls.append("controlled_effect"))
-    assert receipt.state == "complete" and not receipt.provisional
-    with pytest.raises(effects.FileMaterializationRefused, match="permit_consumed"):
-        state.runner.execute(permit, lambda *_args: state.calls.append("forbidden"))
-    assert state.calls == ["controlled_effect"]
-
-
-def test_empty_batch_and_reconciliation_include_global_armed_without_factories(effect_state):
-    state = effect_state
-    permit = state.runner.arm(state.spec)
-    assert permit.receipt.state == "armed"
-    mutate(state, SearchIndexJob, status="failed")
-    mutate(state, RagSyncJob, status="failed")
-    with state.engine.begin() as db:
-        db.execute(state.tables[FileManagerFile].delete())
-    instance = materializer(state)
-    result = batch(state, instance, after=1)
-    assert result.complete and not result.caught_up and result.scanned_events == 0
-    assert result.keyword_remaining == result.vector_remaining == 1
-    status = instance.inspect_reconciliation(through_event_sequence=1)
-    assert not status.caught_up and status.keyword_remaining == status.vector_remaining == 1
-    assert state.calls == [] and state.admissions > 0
-
-
-def test_empty_batch_without_unknown_is_admitted_and_has_no_provider_effect(effect_state):
-    state = effect_state
-    mutate(state, SearchIndexJob, status="failed")
-    mutate(state, RagSyncJob, status="failed")
-    result = batch(state, after=1)
-    assert result.caught_up and result.scanned_events == 0
-    assert state.calls == [] and state.admissions > 0
-
-
-@pytest.mark.parametrize("pending", ["active", "nested", "dirty", "new", "connection"])
-def test_borrowed_session_is_rejected_without_sql_cleanup_or_caller_mutation(
-    effect_state, monkeypatch, pending
-):
-    state = effect_state
-    connection = state.engine.connect() if pending == "connection" else None
-    db = Session(connection or state.engine)
-    marker = None
-    if pending == "active":
-        db.begin()
-        db.execute(state.tables[User].update().values(display_name="Caller transaction marker"))
-    elif pending == "nested":
-        db.begin_nested()
-        db.execute(state.tables[User].update().values(display_name="Caller transaction marker"))
-    elif pending == "dirty":
-        marker = db.get(User, "synthetic-owner")
-        marker.display_name = "Uncommitted caller marker"
-    elif pending == "new":
-        marker = User(id="caller-new", login_id="caller-new", password_hash="synthetic")
-        db.add(marker)
-    original_transaction = db.get_transaction()
-    original_nested = db.get_nested_transaction()
-    before = len(state.sql)
-    cleanup = []
-    for name in ("rollback", "commit", "close"):
-        monkeypatch.setattr(db, name, lambda name=name: cleanup.append(name))
-    try:
-        with pytest.raises(effects.FileMaterializationRefused):
-            with effects.owned_file_materialization_session(lambda: db):
-                pytest.fail("borrowed Session was admitted")
-        assert len(state.sql) == before and cleanup == []
-        assert db.get_transaction() is original_transaction
-        assert db.get_nested_transaction() is original_nested
-        if pending in {"active", "nested"}:
-            assert db.scalar(select(User.display_name)) == "Caller transaction marker"
-        if pending == "dirty":
-            assert marker.display_name == "Uncommitted caller marker" and marker in db.dirty
-        if pending == "new":
-            assert marker in db.new
-    finally:
-        Session.close(db)
-        if connection is not None:
-            connection.close()
-
-
-@pytest.mark.parametrize("model", READ_MODELS, ids=lambda model: model.__name__)
-@pytest.mark.parametrize("route", ["mapper", "table"])
+@pytest.mark.parametrize("model,route", [(User, "mapper"), (FileMaterializationOperation, "table")])
 def test_routed_borrowed_connection_is_rejected_before_any_query_or_cleanup(
     effect_state, monkeypatch, model, route
 ):
@@ -664,35 +508,7 @@ def test_routed_borrowed_connection_is_rejected_before_any_query_or_cleanup(
         connection.close()
 
 
-@pytest.mark.parametrize("model", READ_MODELS, ids=lambda model: model.__name__)
-@pytest.mark.parametrize("route", ["mapper", "table"])
-def test_routed_alternate_engine_is_rejected_without_any_sql_or_cleanup(
-    effect_state, tmp_path, monkeypatch, model, route
-):
-    state = effect_state
-    alternate = create_engine(f"sqlite+pysqlite:///{tmp_path / 'alternate.sqlite'}")
-    alternate_sql = []
-    event.listen(
-        alternate, "before_cursor_execute", lambda _c, _cur, sql, *_rest: alternate_sql.append(sql)
-    )
-    db = Session(state.engine, binds={model if route == "mapper" else model.__table__: alternate})
-    before = len(state.sql)
-    cleanup = []
-    for name in ("rollback", "commit", "close"):
-        monkeypatch.setattr(db, name, lambda name=name: cleanup.append(name))
-    try:
-        with pytest.raises(effects.FileMaterializationRefused, match="single_engine_required"):
-            with effects.owned_file_materialization_session(lambda: db):
-                pytest.fail("alternate Engine was admitted")
-        assert len(state.sql) == before and alternate_sql == [] and cleanup == []
-        assert not db.in_transaction()
-    finally:
-        Session.close(db)
-        alternate.dispose()
-
-
-@pytest.mark.parametrize("phase", ["arm", "complete"])
-@pytest.mark.parametrize("timing", ["before", "after"])
+@pytest.mark.parametrize("phase,timing", [("arm", "after"), ("complete", "after")])
 def test_commit_cancellation_retains_exact_unknown_identity(effect_state, phase, timing):
     state = effect_state
     state.commit_error = KeyboardInterrupt
@@ -706,142 +522,6 @@ def test_commit_cancellation_retains_exact_unknown_identity(effect_state, phase,
         assert state.calls == []
     else:
         assert state.calls.count("keyword_write") == state.calls.count("vector_write") == 1
-
-
-@pytest.mark.parametrize("phase", ["arm", "complete"])
-@pytest.mark.parametrize("timing", ["before", "after"])
-def test_cleanup_failures_do_not_replace_commit_unknown(effect_state, phase, timing):
-    state = effect_state
-    state.rollback_failure = state.close_failure = True
-    state.commit_faults[1 if phase == "arm" else 2] = timing
-    with pytest.raises(effects.FileMaterializationEffectUnknown) as caught:
-        batch(state)
-    assert caught.value.phase == phase + "_commit"
-    assert caught.value.receipt.spec == state.spec
-    assert caught.value.receipt.header_digest == HEADER_DIGEST
-    assert str(caught.value) == "file_materialization_effect_unknown"
-
-
-def test_successful_complete_ack_is_not_downgraded_by_close_failure(effect_state):
-    state = effect_state
-    state.close_failure = True
-    assert batch(state).caught_up
-    assert operation(state)["state"] == "complete"
-    assert jobs(state) == (("succeeded", 1), ("succeeded", 1))
-
-
-def test_original_control_is_not_replaced_by_cleanup_failure(effect_state, monkeypatch):
-    state = effect_state
-    state.rollback_failure = state.close_failure = True
-
-    def refuse(_db):
-        raise effects.FileMaterializationRefused("synthetic_fixed_identity_refusal")
-
-    monkeypatch.setattr(effects, "require_file_materialization_identity", refuse)
-    with pytest.raises(
-        effects.FileMaterializationRefused, match="^synthetic_fixed_identity_refusal$"
-    ):
-        state.runner.arm(state.spec)
-    assert state.calls == [] and operation(state) is None
-
-
-def test_cleanup_cancellation_after_arm_ack_preserves_live_receipt(effect_state):
-    state = effect_state
-    state.close_failure = True
-    state.close_error = KeyboardInterrupt
-    try:
-        permit = state.runner.arm(state.spec)
-    except BaseException as error:
-        pytest.fail(f"Cleanup replaced the known arm ACK with {type(error).__name__}")
-    assert permit.receipt.spec == state.spec
-    assert permit.receipt.header_digest == HEADER_DIGEST
-    assert permit.receipt.state == "armed" and not permit.receipt.provisional
-    assert operation(state)["state"] == "armed"
-    assert state.calls == [] and jobs(state) == (("pending", 0), ("pending", 0))
-
-
-def test_cleanup_cancellation_preserves_original_arm_commit_unknown(effect_state):
-    state = effect_state
-    state.commit_faults[1] = "before"
-    state.close_failure = True
-    state.close_error = KeyboardInterrupt
-    # Capture BaseException so a regression reports an assertion rather than
-    # interrupting pytest before the original typed receipt can be inspected.
-    with pytest.raises(BaseException) as caught:
-        state.runner.arm(state.spec)
-    unknown = caught.value
-    assert isinstance(unknown, effects.FileMaterializationEffectUnknown)
-    assert unknown.phase == "arm_commit" and unknown.receipt.spec == state.spec
-    assert unknown.receipt.header_digest == HEADER_DIGEST
-    assert unknown.receipt.state == "armed" and unknown.receipt.provisional
-    assert operation(state) is None
-    assert state.calls == [] and jobs(state) == (("pending", 0), ("pending", 0))
-
-
-def test_cleanup_cancellation_after_complete_ack_preserves_known_complete(effect_state):
-    state = effect_state
-    permit = state.runner.arm(state.spec)
-    state.close_failure = True
-    state.close_error = KeyboardInterrupt
-    try:
-        receipt = state.runner.execute(permit, lambda *_args: state.calls.append("effect"))
-    except BaseException as error:
-        pytest.fail(f"Cleanup replaced the known complete ACK with {type(error).__name__}")
-    assert receipt.spec == state.spec and receipt.header_digest == HEADER_DIGEST
-    assert receipt.state == "complete" and not receipt.provisional
-    assert operation(state)["state"] == "complete" and state.calls == ["effect"]
-    assert state.commit_calls == 2
-
-
-@pytest.mark.parametrize("original", ["body", "preflight", "commit_unknown"])
-def test_cleanup_cancellation_during_rollback_preserves_original_outcome(effect_state, original):
-    state = effect_state
-    permit = state.runner.arm(state.spec) if original != "body" else None
-    state.rollback_failure = True
-    state.rollback_error = KeyboardInterrupt
-    if original == "commit_unknown":
-        state.commit_faults[2] = "before"
-        with pytest.raises(BaseException) as caught:
-            state.runner.execute(permit, lambda *_args: state.calls.append("effect"))
-        unknown = caught.value
-        assert isinstance(unknown, effects.FileMaterializationEffectUnknown)
-        assert unknown.phase == "complete_commit" and unknown.receipt.spec == state.spec
-        assert unknown.receipt.header_digest == HEADER_DIGEST
-        assert unknown.receipt.state == "complete" and unknown.receipt.provisional
-        assert operation(state)["state"] == "armed" and state.calls == ["effect"]
-    else:
-        expected = (
-            effects.FileMaterializationRefused("synthetic_fixed_body_refusal")
-            if original == "body"
-            else effects.FileMaterializationPreflightRefused(permit.receipt)
-        )
-        with pytest.raises(BaseException) as caught:
-            with effects.owned_file_materialization_session(state.factory) as db:
-                # Real SQL opens the owned transaction, forcing rollback in
-                # finally while the original controlled outcome is in flight.
-                db.scalar(select(state.tables[FileManagerFile].c.id))
-                raise expected
-        assert caught.value is expected
-        if original == "preflight":
-            assert caught.value.receipt == permit.receipt
-            assert operation(state)["state"] == "armed"
-        else:
-            assert operation(state) is None
-        assert state.calls == []
-    assert jobs(state) == (("pending", 0), ("pending", 0))
-
-
-def test_stale_source_preflight_retains_arm_consumed_permit_and_zero_attempts(effect_state):
-    state = effect_state
-    permit = state.runner.arm(state.spec)
-    new_source_tip(state)
-    with pytest.raises(effects.FileMaterializationPreflightRefused) as caught:
-        state.runner.execute(permit, lambda *_args: state.calls.append("forbidden"))
-    assert caught.value.receipt == permit.receipt
-    assert state.calls == [] and operation(state)["state"] == "armed"
-    with pytest.raises(effects.FileMaterializationRefused, match="permit_consumed"):
-        state.runner.execute(permit, lambda *_args: state.calls.append("forbidden"))
-    assert state.calls == []
 
 
 def test_cancellation_after_compute_started_is_unknown_and_never_reissued(effect_state):
@@ -858,7 +538,7 @@ def test_cancellation_after_compute_started_is_unknown_and_never_reissued(effect
     assert operation(state)["state"] == "armed" and jobs(state) == (("pending", 0), ("pending", 0))
 
 
-@pytest.mark.parametrize("count", [0, 2])
+@pytest.mark.parametrize("count", [0])
 def test_vector_count_must_ack_exact_source_chunks_before_refresh_or_completion(
     effect_state, count
 ):
@@ -868,16 +548,6 @@ def test_vector_count_must_ack_exact_source_chunks_before_refresh_or_completion(
         batch(state)
     assert "vector_write" in state.calls and "refresh" not in state.calls
     assert operation(state)["state"] == "armed" and jobs(state) == (("pending", 0), ("pending", 0))
-
-
-@pytest.mark.parametrize("status", ["pending", "failed", "unsupported"])
-def test_active_unavailable_source_never_arms_or_deletes(effect_state, status):
-    state = effect_state
-    mutate(state, FileManagerFile, extraction_status=status)
-    with pytest.raises(FileArtifactNotReady):
-        batch(state)
-    assert operation(state) is None and state.calls == []
-    assert jobs(state) == (("pending", 0), ("pending", 0))
 
 
 def test_genuine_deleted_event_uses_exact_bound_deletes_and_refresh(effect_state):

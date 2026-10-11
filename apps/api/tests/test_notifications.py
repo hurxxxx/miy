@@ -33,8 +33,23 @@ def test_notification_read_routes_update_unread_count(client: TestClient) -> Non
         title="Second notification",
     )
 
+    other_notification = _create_notification(
+        client,
+        author_token=commenter["token"],
+        commenter_token=recipient["token"],
+        title="Other recipient notification",
+    )
+
     _read_all_notifications(client, recipient_token=recipient["token"])
     _assert_unread_count(client, recipient_token=recipient["token"], count=0)
+    _read_all_notifications(client, recipient_token=recipient["token"])
+    _assert_unread_count(client, recipient_token=recipient["token"], count=0)
+    from miy_api.core.db import get_session_factory
+    from miy_api.domains.pms.models import Notification
+
+    with get_session_factory()() as db:
+        other = db.get(Notification, other_notification)
+        assert other.user_id == commenter["user"]["id"] and not other.is_read
 
 
 def _create_notification(

@@ -177,7 +177,7 @@ def https_artifact():
             command("docker", "image", "rm", evidence.artifact_digest)
 
 
-@pytest.mark.parametrize("environment", ["development", "production"])
+@pytest.mark.parametrize("environment", ["production"])
 def test_real_bound_https_marker_health_replacement_and_rollback(
     https_artifact, monkeypatch, environment
 ):

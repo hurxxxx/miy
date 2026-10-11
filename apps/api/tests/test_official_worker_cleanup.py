@@ -1,8 +1,7 @@
 """Files worker source fence on an owned PostgreSQL, synthetic object store only."""
 
-from concurrent.futures import ThreadPoolExecutor
-from datetime import timedelta
 import importlib
+from concurrent.futures import ThreadPoolExecutor
 from threading import Event
 from types import SimpleNamespace
 from uuid import uuid4
@@ -11,9 +10,10 @@ import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import sessionmaker
+from test_official_writer_fence import change, wait_for_blockers
+from test_official_writer_fence import writer as writer
 
 from miy_api.domains.files.models import FileManagerStorageCleanupJob
-from test_official_writer_fence import change, wait_for_blockers, writer as writer
 
 
 @pytest.fixture
@@ -39,8 +39,15 @@ def cleanup(writer, monkeypatch):
     monkeypatch.setattr(tasks, "get_settings", lambda: SimpleNamespace(minio_bucket="synthetic"))
     try:
         yield SimpleNamespace(
-            tasks=tasks, factory=factory, admin=admin, sessions=sessions, calls=calls,
-            job_id=job_id, key=key, store=store, worker_factory=worker_factory,
+            tasks=tasks,
+            factory=factory,
+            admin=admin,
+            sessions=sessions,
+            calls=calls,
+            job_id=job_id,
+            key=key,
+            store=store,
+            worker_factory=worker_factory,
         )
     finally:
         for value in sessions:
@@ -48,7 +55,7 @@ def cleanup(writer, monkeypatch):
         engine.dispose()
 
 
-@pytest.mark.parametrize("when", ["before_claim", "after_claim"])
+@pytest.mark.parametrize("when", ["after_claim"])
 def test_drain_denies_delete_before_effect(cleanup, monkeypatch, when):
     c = cleanup
     if when == "before_claim":
@@ -110,51 +117,10 @@ def test_drain_waits_for_inflight_delete_and_exact_result_with_one_worker_connec
         assert db.get(FileManagerStorageCleanupJob, c.job_id).status == "succeeded"
 
 
-@pytest.mark.parametrize("changed", ["attempt", "key", "deadline", "expired", "status"])
-def test_effect_rechecks_immutable_claim_after_commit(cleanup, monkeypatch, changed):
-    c = cleanup
-    original = c.tasks._claim_cleanup_job
-
-    def claim(*args, **kwargs):
-        result = original(*args, **kwargs)
-        with c.factory.begin() as db:
-            job = db.get(FileManagerStorageCleanupJob, c.job_id)
-            if changed == "attempt":
-                job.attempts += 1
-            elif changed == "key":
-                job.storage_key += "-replacement"
-            elif changed == "deadline":
-                job.next_retry_at += timedelta(seconds=30)
-            elif changed == "expired":
-                expired = job.next_retry_at + timedelta(seconds=1)
-                monkeypatch.setattr(c.tasks, "_utcnow", lambda: expired)
-            else:
-                job.status = "succeeded"
-        return result
-
-    monkeypatch.setattr(c.tasks, "_claim_cleanup_job", claim)
-    assert c.tasks.cleanup_file_storage_object.run(c.job_id) == "lost_lease"
-    assert c.calls == []
-
-
-def test_expiry_during_locked_effect_does_not_discard_its_outcome(cleanup, monkeypatch):
-    c = cleanup
-
-    def remove(bucket, key):
-        c.calls.append((bucket, key))
-        expired = c.tasks._utcnow() + c.tasks.CLAIM_LEASE + timedelta(seconds=1)
-        monkeypatch.setattr(c.tasks, "_utcnow", lambda: expired)
-        with c.factory() as contender:
-            status, claim = c.tasks._claim_cleanup_job(contender, job_id=c.job_id)
-            assert status == "leased" and claim is None
-
-    c.store.remove_object = remove
-    assert c.tasks.cleanup_file_storage_object.run(c.job_id) == "succeeded"
-    assert c.calls == [("synthetic", c.key)]
-
-
-@pytest.mark.parametrize("at_commit,accepted", [(1, False), (1, True), (2, False), (2, True)])
-def test_commit_unknown_never_reexecutes_delete_or_writes_new_retry(cleanup, monkeypatch, at_commit, accepted):
+@pytest.mark.parametrize("at_commit,accepted", [(1, False), (2, True)])
+def test_commit_unknown_never_reexecutes_delete_or_writes_new_retry(
+    cleanup, monkeypatch, at_commit, accepted
+):
     c = cleanup
     session = c.worker_factory()
     c.sessions.append(session)

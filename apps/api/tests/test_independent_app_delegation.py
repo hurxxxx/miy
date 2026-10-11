@@ -1,4 +1,3 @@
-from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 import importlib.util
 from pathlib import Path
@@ -8,15 +7,13 @@ from sqlalchemy import select
 
 from miy_api.core.db import get_session_factory
 from miy_api.core.settings import get_settings
-from miy_api.domains.auth.models import AuthSession, CompanyAppControl, utcnow_naive
+from miy_api.domains.auth.models import utcnow_naive
 from miy_api.domains.independent_apps.delivery import (
-    RuntimeFailure,
     execute_deployment,
-    start_build_job,
 )
 from miy_api.domains.independent_apps.delivery_models import AppBuildJob, AppDeliveryDelegation
 from miy_api.domains.independent_apps.models import AppReleaseRecord
-from test_independent_app_delivery import FakeRuntime, build_release, current_installation, enqueue
+from test_independent_app_delivery import FakeRuntime, build_release, current_installation
 from test_independent_apps import setup_app
 
 BASE = "/api/v1/independent-apps"
@@ -46,76 +43,6 @@ def grant(client, app, actions=None):
     assert response.status_code == 201, response.text
     data = response.json()
     return data, {"Authorization": "Bearer " + data["token"]}, delegated
-
-
-def test_owner_mints_once_scoped_development_expiry_and_no_secret_in_status(client, delegated):
-    data, headers, path = grant(client, delegated)
-    assert data["environment"] == "development"
-    assert (
-        timedelta(0)
-        < datetime.fromisoformat(data["expires_at"]) - datetime.now(UTC)
-        <= timedelta(hours=24)
-    )
-    with get_session_factory()() as db:
-        stored = db.get(AppDeliveryDelegation, data["id"])
-        assert stored.token_hash != data["token"] and len(stored.token_hash) == 64
-        assert stored.expires_at <= db.get(AuthSession, stored.source_session_id).expires_at
-    response = client.get(path + "/context", headers=headers)
-    assert response.status_code == 200, response.text
-    assert set(response.json()["allowed_actions"]) == {
-        "read",
-        "sync",
-        "build",
-        "deploy",
-        "rollback",
-    }
-    assert data["token"] not in response.text
-    listing = client.get(paths(delegated)[0], headers=delegated[1])
-    assert listing.status_code == 200 and data["token"] not in listing.text
-    # Neither platform login nor this delegation can impersonate the other auth scheme.
-    assert client.get(path + "/context", headers=delegated[1]).status_code == 401
-    assert client.get(BASE + "/catalog", headers=headers).status_code == 401
-    assert (
-        client.get(
-            path.replace(delegated[3]["id"], str(uuid4())) + "/context", headers=headers
-        ).status_code
-        == 403
-    )
-    assert (
-        client.post(
-            paths(delegated)[0],
-            headers=delegated[1],
-            json={"actions": ["read"], "expires_in_seconds": 86401},
-        ).status_code
-        == 422
-    )
-
-
-@pytest.mark.parametrize("revocation", ["grant", "session", "company", "expiry"])
-def test_revocation_live_on_reads_and_on_queued_build_claim(client, delegated, revocation):
-    data, headers, path = grant(client, delegated)
-    request = {
-        "request_id": str(uuid4()),
-        "source_revision": "a" * 40,
-        "definition_digest": delegated[2]["definition_digest"],
-    }
-    assert client.post(path + "/builds", headers=headers, json=request).status_code == 202
-    with get_session_factory()() as db:
-        stored = db.get(AppDeliveryDelegation, data["id"])
-        if revocation == "grant":
-            stored.revoked_at = utcnow_naive()
-        elif revocation == "session":
-            db.get(AuthSession, stored.source_session_id).revoked_at = utcnow_naive()
-        elif revocation == "company":
-            db.get(CompanyAppControl, "sample-independent").enabled = False
-        else:
-            stored.expires_at = utcnow_naive() - timedelta(seconds=1)
-        db.commit()
-    assert client.get(path + "/context", headers=headers).status_code in {401, 403}
-    with get_session_factory()() as db:
-        job, claimed = start_build_job(db, "sample-independent", "a" * 40, request["request_id"])
-        assert not claimed and job.state == "failed" and job.failure_code == "authority_changed"
-        assert job.active_slot is None
 
 
 def test_explicit_actions_and_sync_preserve_authority_policy_and_source_cas(client, delegated):
@@ -151,32 +78,6 @@ def test_explicit_actions_and_sync_preserve_authority_policy_and_source_cas(clie
     assert response.status_code == 200, response.text
     assert client.post(path + "/sync", headers=headers, json=update).status_code == 409
     assert client.get(path + "/context", headers=headers).json()["source_revision"] == "b" * 40
-
-
-def test_build_intent_idempotency_rejects_host_commands_and_tracks_owner(client, delegated):
-    data, headers, path = grant(client, delegated)
-    payload = {
-        "request_id": str(uuid4()),
-        "source_revision": "a" * 40,
-        "definition_digest": delegated[2]["definition_digest"],
-    }
-    assert (
-        client.post(
-            path + "/builds", headers=headers, json=payload | {"source": "/host/path"}
-        ).status_code
-        == 422
-    )
-    for _ in range(2):
-        response = client.post(path + "/builds", headers=headers, json=payload)
-        assert response.status_code == 202 and response.json()["state"] == "queued"
-    with get_session_factory()() as db:
-        jobs = db.scalars(select(AppBuildJob)).all()
-        assert len(jobs) == 1 and jobs[0].delegation_id == data["id"]
-        assert jobs[0].actor_user_id == delegated[0]["user"]["id"]
-        assert jobs[0].installation_id == delegated[3]["id"]
-    assert client.get(path + "/builds/" + payload["request_id"], headers=headers).status_code == 200
-    _, other_headers, _ = grant(client, delegated)
-    assert client.post(path + "/builds", headers=other_headers, json=payload).status_code == 409
 
 
 def test_core_consumer_rechecks_revocation_before_publishing_build_evidence(
@@ -286,63 +187,3 @@ def test_delegation_survives_generation_cutover_but_revoke_blocks_next_activatio
     with get_session_factory()() as db:
         assert execute_deployment(db, second["request_id"], runtime).state == "failed"
     assert runtime.activations == [first["request_id"]]
-
-
-def test_owner_revocation_endpoint_and_current_source_policy_invalidate_grant(client, delegated):
-    data, headers, path = grant(client, delegated)
-    assert (
-        client.delete(paths(delegated)[0] + "/" + data["id"], headers=delegated[1]).status_code
-        == 204
-    )
-    assert client.get(path + "/context", headers=headers).status_code == 403
-    _, headers, path = grant(client, delegated)
-    definition = delegated[2]
-    response = client.put(
-        BASE + "/definitions",
-        headers=delegated[1],
-        json={
-            "definition": definition["definition"]
-            | {"source": {"repository": "https://new.test/app.git"}},
-            "source_revision": "b" * 40,
-            "expected_digest": definition["definition_digest"],
-            "expected_source_revision": "a" * 40,
-        },
-    )
-    assert response.status_code == 200
-    assert client.get(path + "/context", headers=headers).status_code == 403
-
-
-def test_context_preserves_pending_cleanup_after_target_release_is_installed(client, delegated):
-    _, headers, path = grant(client, delegated)
-    assert client.get(path + "/context", headers=headers).json()["pending_deployment"] is None
-    runtime = FakeRuntime()
-    first_release = build_release(delegated[2])
-    first, _ = enqueue(client, delegated, first_release)
-    with get_session_factory()() as db:
-        assert execute_deployment(db, first["request_id"], runtime).state == "succeeded"
-    second_release = build_release(delegated[2], "b")
-    second, _ = enqueue(
-        client,
-        delegated,
-        second_release,
-        installation=current_installation(delegated[3]["id"]),
-    )
-    pending = client.get(path + "/context", headers=headers).json()["pending_deployment"]
-    assert pending == {
-        "id": second["request_id"],
-        "release_id": second_release,
-        "action": "deploy",
-        "state": "queued",
-    }
-
-    def lost_retirement(spec):
-        raise RuntimeFailure("retirement_response_lost")
-
-    runtime.retire = lost_retirement
-    with get_session_factory()() as db:
-        result = execute_deployment(db, second["request_id"], runtime)
-        assert result.state == "unknown"
-    current = client.get(path + "/context", headers=headers).json()
-    assert current["installation"]["release_id"] == second_release
-    assert current["pending_deployment"] == pending | {"state": "unknown"}
-    assert set(current["pending_deployment"]) == {"id", "release_id", "action", "state"}

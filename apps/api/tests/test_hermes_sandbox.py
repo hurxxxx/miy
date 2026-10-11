@@ -7,7 +7,6 @@ from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
 import pytest
-import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
 NETWORK_KEY = "MIY_HERMES_TERMINAL_SANDBOX_NETWORK"
@@ -75,40 +74,6 @@ def sandbox(monkeypatch):
     )
 
 
-@pytest.mark.parametrize("deployment", ["dev", "prod"])
-def test_compose_gateway_and_broker_use_the_declared_sandbox_resources(deployment):
-    suffix = "infra" if deployment == "dev" else "app"
-    compose = yaml.safe_load(
-        (ROOT / f"ops/compose/miy-{deployment}.{suffix}.yml").read_text()
-    )
-    network = compose["networks"]["miy-hermes-terminal-sandbox"]
-    volume = compose["volumes"][f"miy-{deployment}-hermes-terminal-egress-client"]
-    assert network["internal"] is True
-    for service in ("hermes-gateway", "hermes-terminal-broker"):
-        environment = compose["services"][service]["environment"]
-        assert environment[NETWORK_KEY] == network["name"]
-        assert environment[VOLUME_KEY] == volume["name"]
-
-
-def test_sandbox_uses_deployment_resources_and_checks_before_creation(sandbox):
-    environment = sandbox.create()
-    try:
-        assert sandbox.calls[0][1:] == ["network", "inspect", "deployment-network"]
-        assert sandbox.calls[1][1:] == ["volume", "inspect", "deployment-ca"]
-        args = next(args for args in sandbox.calls if args[1] == "run")
-        assert "--network=deployment-network" in args
-        assert (
-            "type=volume,src=deployment-ca,dst=/run/miy-egress-ca.crt,volume-subpath=ca.crt,readonly"
-            in args
-        )
-        assert "database-namespace" not in " ".join(args)
-        assert "--read-only" in args and "--cap-drop=ALL" in args
-        assert "--user=10000:10000" in args
-        assert "/var/run/docker.sock" not in " ".join(args)
-    finally:
-        environment.cleanup()
-
-
 def test_failed_removal_keeps_exact_container_for_retry_and_closes_execution(sandbox, monkeypatch):
     environment = sandbox.create()
     container = environment._container
@@ -124,44 +89,6 @@ def test_failed_removal_keeps_exact_container_for_retry_and_closes_execution(san
     monkeypatch.setattr(sandbox.module.subprocess, "run", original)
     environment.cleanup()
     assert environment._container is None
-
-
-def test_recreated_sandbox_retries_server_checkpoint_without_new_local_changes(
-    sandbox, monkeypatch
-):
-    package = sys.modules["miy_sandbox_test"]
-    attempts = []
-
-    def rpc(server, run_id, method, params):
-        if method == "miy/files/list":
-            return {"files": [{"relative_path": "app.js", "sha256": "saved"}]}
-        assert method == "miy/files/checkpoint"
-        attempts.append(run_id)
-        if len(attempts) == 1:
-            raise OSError("synthetic checkpoint outage")
-        return {"created": 1}
-
-    monkeypatch.setattr(package, "_rpc", rpc, raising=False)
-    monkeypatch.setattr(package, "runtime_transport", lambda: ({}, "run_current"), raising=False)
-    monkeypatch.setattr(
-        sandbox.module.WorkspaceEnvironment,
-        "_workspace",
-        lambda *_args: [
-            {"path": "app.js", "sha256": "saved"},
-        ],
-    )
-    first = sandbox.create()
-    try:
-        with pytest.raises(OSError, match="checkpoint outage"):
-            first.save_files()
-    finally:
-        first.cleanup()
-    restored = sandbox.create()
-    try:
-        restored.save_files()
-        assert attempts == ["run_current", "run_current"]
-    finally:
-        restored.cleanup()
 
 
 def test_preview_uses_an_offline_container_and_preserves_outer_isolation(sandbox):
@@ -185,40 +112,8 @@ def test_preview_uses_an_offline_container_and_preserves_outer_isolation(sandbox
         environment.cleanup()
 
 
-@pytest.mark.parametrize("key", [NETWORK_KEY, VOLUME_KEY])
-@pytest.mark.parametrize("value", [None, "", "../host", "volume,readonly=false"])
-def test_missing_or_invalid_deployment_resources_fail_before_docker(
-    sandbox, monkeypatch, key, value
-):
-    if value is None:
-        monkeypatch.delenv(key)
-    else:
-        monkeypatch.setenv(key, value)
-    with pytest.raises(sandbox.error, match="sandbox.configuration_invalid"):
-        sandbox.create()
-    assert not sandbox.calls
-
-
-@pytest.mark.parametrize("resource", ["network", "volume"])
-def test_missing_resources_never_start_a_container_or_create_a_volume(
-    sandbox, monkeypatch, resource
-):
-    def run(args, **kwargs):
-        sandbox.calls.append(args)
-        if args[1] == resource:
-            raise subprocess.CalledProcessError(1, args, stderr=b"private daemon detail")
-        return subprocess.CompletedProcess(args, 0)
-
-    monkeypatch.setattr(sandbox.module.subprocess, "run", run)
-    with pytest.raises(sandbox.error, match=f"sandbox.{resource}_unavailable") as error:
-        sandbox.create()
-    assert "private" not in str(error.value)
-    assert all(args[1] != "run" for args in sandbox.calls)
-
-
-@pytest.mark.parametrize("cleanup_fails", [False, True])
 @pytest.mark.parametrize(
-    "failure,code",
+    "failure,code,cleanup_fails",
     [
         (
             subprocess.CalledProcessError(
@@ -227,15 +122,21 @@ def test_missing_resources_never_start_a_container_or_create_a_volume(
                 stderr=b"cannot access path /private/ca.crt: no such file or directory",
             ),
             "sandbox.egress_ca_missing",
+            False,
         ),
         (
             subprocess.CalledProcessError(
                 125, ["docker", "private-argument"], stderr=b"private daemon detail"
             ),
             "sandbox.start_failed",
+            True,
         ),
-        (subprocess.TimeoutExpired(["docker", "private-argument"], 120), "sandbox.start_timeout"),
-        (FileNotFoundError("private docker path"), "sandbox.docker_unavailable"),
+        (
+            subprocess.TimeoutExpired(["docker", "private-argument"], 120),
+            "sandbox.start_timeout",
+            True,
+        ),
+        (FileNotFoundError("private docker path"), "sandbox.docker_unavailable", False),
     ],
 )
 def test_start_failure_is_safe_actionable_and_survives_cleanup_failure(

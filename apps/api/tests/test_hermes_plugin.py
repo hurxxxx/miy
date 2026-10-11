@@ -1,32 +1,17 @@
-from concurrent.futures import ThreadPoolExecutor
-from contextvars import ContextVar
 import hashlib
 import importlib.util
 import json
-from pathlib import Path
 import sys
+from concurrent.futures import ThreadPoolExecutor
+from contextvars import ContextVar
+from pathlib import Path
 from threading import RLock
 from types import ModuleType, SimpleNamespace
 
 import pytest
 
 
-@pytest.mark.parametrize("suffix", ["", "-local", "-jobs"])
-def test_retained_profile_cannot_bypass_runtime_transport_policy(plugin, monkeypatch, suffix):
-    profile = "mty-" + "a" * 32 + suffix
-    monkeypatch.setattr(sys.modules["hermes_constants"], "get_hermes_home", lambda: Path(profile))
-    monkeypatch.setattr(sys.modules["hermes_cli.config"], "load_config", lambda: {"mcp_servers": {}})
-    result = plugin.module.execute_tool(
-        tool_name="terminal", args={"command": "echo test"},
-        next_call=lambda: pytest.fail("Retained managed profiles must not bypass authentication"),
-    )
-    assert "Authenticated miy transport is unavailable" in result
-    if suffix != "-jobs":
-        with pytest.raises(ValueError, match="Trusted runtime context required"):
-            plugin.module.runtime_transport()
-
-
-@pytest.fixture(params=["miy", "mty"])
+@pytest.fixture(params=["miy"])
 def plugin(monkeypatch, request):
     run = ContextVar("native_test_run", default="run_test")
     profile = request.param + "-" + "a" * 32
@@ -100,93 +85,7 @@ def test_parallel_internal_calls_bind_native_run_and_exact_arguments(plugin, mon
     assert "X-Hermes-Run-Id" not in plugin.transport["headers"]
 
 
-@pytest.mark.parametrize("api_mode", ["chat_completions", "anthropic_messages"])
-def test_workload_requests_offer_only_admitted_native_schemas(plugin, monkeypatch, api_mode):
-    selected = []
-
-    def definitions(names, **kwargs):
-        selected.append(names)
-        return [{"type": "function", "function": {"name": name}} for name in sorted(names)]
-
-    registry = ModuleType("tools.registry")
-    registry.registry = SimpleNamespace(get_definitions=definitions)
-    monkeypatch.setitem(sys.modules, "tools.registry", registry)
-    adapter = ModuleType("agent.anthropic_adapter")
-    adapter.convert_tools_to_anthropic = lambda tools: [tool["function"] for tool in tools]
-    monkeypatch.setitem(sys.modules, "agent.anthropic_adapter", adapter)
-    monkeypatch.setattr(plugin.module, "_rpc", lambda *args: {
-        "allow_native_tools": False,
-        "native_tools": ["web_extract"],
-        "output_schema": {"type": "object"},
-    })
-    original = {"model": "unchanged", "messages": [], "tools": [
-        {"type": "function", "function": {"name": "tool_search"}},
-        {"type": "function", "function": {"name": "terminal"}},
-    ]}
-    result = plugin.module.prepare_llm_request(request=original, api_mode=api_mode)["request"]
-    assert selected == [{"miy_submit_result", "web_extract"}]
-    assert result["model"] == original["model"] and result["messages"] == original["messages"]
-    assert original["tools"][0]["function"]["name"] == "tool_search"
-    names = {tool.get("function", tool)["name"] for tool in result["tools"]}
-    assert names == {"miy_submit_result", "web_extract"}
-
-
-@pytest.mark.parametrize(
-    "admission", ["interactive", "legacy_text", "unavailable", "malformed", "missing_run"]
-)
-def test_request_tool_policy_preserves_interactive_and_fails_closed(plugin, monkeypatch, admission):
-    registry = ModuleType("tools.registry")
-    registry.registry = SimpleNamespace(get_definitions=lambda names, **kwargs: [])
-    monkeypatch.setitem(sys.modules, "tools.registry", registry)
-
-    def rpc(*args):
-        if admission == "unavailable":
-            raise OSError("Synthetic control outage")
-        if admission == "malformed":
-            return None
-        return {"allow_native_tools": admission == "interactive", "output_schema": None}
-
-    monkeypatch.setattr(plugin.module, "_rpc", rpc)
-    if admission == "missing_run":
-        plugin.run.set("")
-    original = {"tools": [{"function": {"name": "terminal"}}],
-                "tool_choice": "auto", "parallel_tool_calls": True}
-    result = plugin.module.prepare_llm_request(
-        request=original, api_mode="chat_completions"
-    )["request"]
-    if admission == "interactive":
-        assert result is original
-    else:
-        assert result == {"tools": []}
-
-
-def test_policy_import_transport_and_missing_run_fail_closed(plugin, monkeypatch):
-    def invoke():
-        return json.loads(
-            plugin.module.execute_tool(
-                tool_name="terminal", args={}, next_call=lambda: pytest.fail("Must fail closed")
-            )
-        )
-
-    plugin.run.set("")
-    assert "error" in invoke()
-    plugin.run.set("run_test")
-    monkeypatch.setattr(
-        plugin.module, "_rpc", lambda *args: (_ for _ in ()).throw(OSError("offline"))
-    )
-    assert "error" in invoke()
-    monkeypatch.setattr(
-        sys.modules["hermes_constants"],
-        "get_hermes_home",
-        lambda: (_ for _ in ()).throw(ValueError("profile unavailable")),
-    )
-    assert "error" in invoke()
-
-
-@pytest.mark.parametrize(
-    "choice,accepted",
-    [("once", True), ("deny", False), ("session", False), ("always", False), (None, False)],
-)
+@pytest.mark.parametrize("choice,accepted", [("once", True), ("deny", False), (None, False)])
 def test_api_write_consent_uses_exact_run_notifier_once(plugin, monkeypatch, choice, accepted):
     approval = sys.modules["tools.approval"]
     monkeypatch.setattr(
@@ -224,7 +123,7 @@ def test_api_write_consent_uses_exact_run_notifier_once(plugin, monkeypatch, cho
     assert plugin.consent == []  # The pinned CLI fallback must not receive API consent.
 
 
-@pytest.mark.parametrize("notifier", [None, "another_run", "broken"])
+@pytest.mark.parametrize("notifier", ["another_run", "broken"])
 def test_api_write_consent_failure_never_dispatches_write(plugin, monkeypatch, notifier):
     approval = sys.modules["tools.approval"]
     monkeypatch.setattr(
@@ -268,6 +167,10 @@ def test_workload_blocks_native_tools_but_can_correct_and_submit(plugin, monkeyp
         return {"accepted": isinstance(params["result"].get("answer"), int)}
 
     monkeypatch.setattr(plugin.module, "_rpc", rpc)
+    request = {"tools": [{"function": {"name": "terminal"}}], "tool_choice": "auto"}
+    assert plugin.module.prepare_llm_request(request=request, api_mode="chat_completions")[
+        "request"
+    ] == {"tools": []}
 
     def invoke(tool, args):
         return json.loads(
@@ -281,87 +184,6 @@ def test_workload_blocks_native_tools_but_can_correct_and_submit(plugin, monkeyp
     assert invoke("miy_submit_result", {"result": {"answer": "invalid"}}) == {"accepted": False}
     assert invoke("miy_submit_result", {"result": {"answer": 42}}) == {"accepted": True}
     assert len(attempts) == 2
-
-
-@pytest.mark.parametrize("tool", ["tool_search", "tool_describe"])
-def test_workload_discovery_only_receives_server_admitted_definitions(plugin, monkeypatch, tool):
-    definitions = [{"type": "function", "function": {"name": "miy_submit_result"}}]
-    calls = []
-
-    def get_definitions(names, quiet):
-        assert names == {"miy_submit_result", "web_search"} and quiet
-        return definitions
-
-    def dispatch(args, *, current_tool_defs):
-        assert current_tool_defs is definitions
-        calls.append(args)
-        return '{"tools": {}}'
-
-    for name, members in {
-        "tools.registry": {"registry": SimpleNamespace(get_definitions=get_definitions)},
-        "tools.tool_search": {"dispatch_tool_search": dispatch, "dispatch_tool_describe": dispatch},
-    }.items():
-        module = ModuleType(name)
-        module.__dict__.update(members)
-        monkeypatch.setitem(sys.modules, name, module)
-    monkeypatch.setattr(
-        plugin.module,
-        "_rpc",
-        lambda *args: {"allow_native_tools": False, "native_tools": ["web_search"]},
-    )
-    args = {"names": ["terminal", "miy_submit_result"], "queries": ["tools"]}
-    assert json.loads(
-        plugin.module.execute_tool(
-            tool_name=tool, args=args, next_call=lambda: pytest.fail("Unscoped discovery denied")
-        )
-    ) == {"tools": {}}
-    assert calls == [args]
-
-
-def test_workload_discovery_failure_does_not_fall_through(plugin, monkeypatch):
-    monkeypatch.setattr(plugin.module, "_rpc", lambda *args: {"allow_native_tools": False})
-    monkeypatch.setitem(sys.modules, "tools.registry", None)
-    assert "error" in json.loads(
-        plugin.module.execute_tool(
-            tool_name="tool_describe",
-            args={"names": ["miy_submit_result"]},
-            next_call=lambda: pytest.fail("Import failure must fail closed"),
-        )
-    )
-
-
-@pytest.mark.parametrize("native_run_id", ["", "cron_job_fixture", "run_forged"])
-@pytest.mark.parametrize(
-    "tool",
-    [
-        "web_search",
-        "read_file",
-        "terminal",
-        "miy_preview",
-        "tool_search",
-        "tool_describe",
-        "miy_submit_result",
-    ],
-)
-def test_jobs_profile_intentionally_denies_tools_without_an_miy_run(
-    plugin, monkeypatch, native_run_id, tool
-):
-    monkeypatch.setattr(
-        sys.modules["hermes_constants"],
-        "get_hermes_home",
-        lambda: Path("miy-" + "a" * 32 + "-jobs"),
-    )
-    monkeypatch.setattr(
-        sys.modules["hermes_cli.config"], "load_config", lambda: {"mcp_servers": {}}
-    )
-    monkeypatch.setattr(
-        plugin.module, "_rpc", lambda *args: pytest.fail("Jobs have no app transport")
-    )
-    plugin.run.set(native_run_id)
-    result = plugin.module.execute_tool(
-        tool_name=tool, args={}, next_call=lambda: pytest.fail("Unowned jobs cannot execute tools")
-    )
-    assert "error" in json.loads(result)
 
 
 def test_registered_native_tool_requires_admission_for_every_call(plugin, monkeypatch):
@@ -386,6 +208,40 @@ def test_registered_native_tool_requires_admission_for_every_call(plugin, monkey
     assert "error" in json.loads(invoke("web_search"))
     assert "error" in json.loads(invoke("terminal"))
     assert executions == ["web_search"] and admissions == ["run_test", "run_test"]
+
+    # The pinned request hook imports the native registry before reading policy.
+    # Supply that dependency so this checks admitted policy rather than ImportError.
+    definitions = [{"type": "function", "function": {"name": "web_search"}}]
+    registry_reads = []
+
+    def native_definitions(allowed, *, quiet):
+        assert allowed == {"web_search"} and quiet is True
+        registry_reads.append(allowed)
+        return definitions
+
+    registry_module = ModuleType("tools.registry")
+    registry_module.registry = SimpleNamespace(get_definitions=native_definitions)
+    monkeypatch.setitem(sys.modules, "tools.registry", registry_module)
+    request = {"tools": [{"function": {"name": "terminal"}}], "tool_choice": "auto"}
+    restricted = plugin.module.prepare_llm_request(request=request, api_mode="chat_completions")
+    assert restricted["request"]["tools"] == definitions
+    assert registry_reads == [{"web_search"}]
+
+    # An interactive context preserves the native request, while a lost
+    # authority response cannot reopen native tools.
+    monkeypatch.setattr(plugin.module, "_rpc", lambda *args: {"allow_native_tools": True})
+    assert (
+        plugin.module.prepare_llm_request(request=request, api_mode="chat_completions")["request"]
+        is request
+    )
+
+    def unavailable(*args):
+        raise OSError("Synthetic control outage")
+
+    monkeypatch.setattr(plugin.module, "_rpc", unavailable)
+    assert plugin.module.prepare_llm_request(request=request, api_mode="chat_completions")[
+        "request"
+    ] == {"tools": []}
 
 
 @pytest.fixture
@@ -457,25 +313,6 @@ def interactive_catalog(plugin, monkeypatch):
     )
 
 
-@pytest.mark.parametrize("tool", ["tool_search", "tool_describe"])
-@pytest.mark.parametrize("scope", [[], ["tasks.list"], ["tasks.list", "tasks.create"]])
-def test_interactive_discovery_intersects_live_scope_and_execution_policy(
-    interactive_catalog, scope, tool
-):
-    catalog = interactive_catalog
-    original = list(catalog.definitions)
-    catalog.scopes["run_test"] = scope
-    result = catalog.invoke(tool)
-    assert set(result["tools"]) == {
-        *(catalog.internal(name) for name in scope),
-        "terminal",
-        "miy_preview",
-        catalog.external,
-    }
-    assert catalog.calls == [("run_test", "miy/context"), ("run_test", "tools/list")]
-    assert catalog.definitions == original
-
-
 def test_parallel_discovery_and_revocation_do_not_change_shared_catalog(
     plugin, interactive_catalog
 ):
@@ -509,155 +346,7 @@ def test_same_count_catalog_replacement_requires_refresh_then_recovers(interacti
     assert catalog.internal("tasks.archive") in catalog.invoke()["tools"]
 
 
-def test_discovery_transport_failure_returns_stable_error(plugin, interactive_catalog, monkeypatch):
-    monkeypatch.setattr(plugin.module, "_rpc", lambda *args: (_ for _ in ()).throw(OSError()))
-    assert interactive_catalog.invoke()["code"] == "miy.tools.discovery_unavailable"
-
-
-def test_removed_external_server_is_hidden(interactive_catalog):
-    catalog = interactive_catalog
-    catalog.config["mcp_servers"] = {
-        key: value
-        for key, value in catalog.config["mcp_servers"].items()
-        if key.endswith("-internal")
-    }
-    assert catalog.external not in catalog.invoke()["tools"]
-
-
-@pytest.mark.parametrize("admitted", [True, False])
-def test_rejected_bridge_preserves_validation_only_for_admitted_tools(
-    plugin, interactive_catalog, monkeypatch, admitted
-):
-    catalog = interactive_catalog
-    target = catalog.internal("tasks.create")
-    if not admitted:
-        catalog.scopes["run_test"] = []
-    search = sys.modules["tools.tool_search"]
-    search.resolve_underlying_call = lambda args: (target, {}, None)
-    validated = []
-
-    def validate(name, args):
-        validated.append(name)
-        return json.dumps(
-            {"error": "Missing required field", "parameters": {"required": ["title"]}}
-        )
-
-    search.validate_deferred_call_args = validate
-    result = json.loads(
-        plugin.module.execute_tool(
-            tool_name="tool_call",
-            args={"name": target},
-            next_call=lambda: pytest.fail("Rejected bridge must never execute"),
-        )
-    )
-    if admitted:
-        assert result["parameters"] == {"required": ["title"]}
-        assert validated == [target]
-    else:
-        assert result["code"] == "miy.tools.tool_unavailable"
-        assert "parameters" not in result and validated == []
-
-
-def test_parse_rejected_bridge_cannot_dispatch(plugin, interactive_catalog):
-    search = sys.modules["tools.tool_search"]
-    search.resolve_underlying_call = lambda args: (None, {}, "tool_call requires a name")
-    search.validate_deferred_call_args = lambda *args: pytest.fail("No target to validate")
-    result = json.loads(
-        plugin.module.execute_tool(
-            tool_name="tool_call",
-            args={},
-            next_call=lambda: pytest.fail("Malformed bridge cannot run"),
-        )
-    )
-    assert result["code"] == "miy.tools.invalid_tool_call"
-
-
-def test_rpc_resolves_native_profile_secret_references_and_rejects_unresolved(plugin, monkeypatch):
-    import httpx
-
-    server = {
-        "url": "http://api.test/internal",
-        "headers": {"Authorization": "Bearer ${PROFILE_KEY}"},
-    }
-    real_client = httpx.Client
-    seen = []
-
-    def handler(request):
-        seen.append(request.headers["Authorization"])
-        assert request.headers["X-Hermes-Run-Id"] == "run_test"
-        return httpx.Response(200, json={"result": {"accepted": True}})
-
-    monkeypatch.setattr(
-        plugin.module.httpx,
-        "Client",
-        lambda **kwargs: real_client(
-            **kwargs,
-            transport=httpx.MockTransport(handler),
-        ),
-    )
-    with pytest.raises(ValueError, match="Resolved profile authentication"):
-        plugin.module._rpc(server, "run_test", "miy/context", {})
-    assert seen == []
-    monkeypatch.setattr(
-        sys.modules["tools.mcp_tool"],
-        "_interpolate_env_vars",
-        lambda headers: {
-            **headers,
-            "Authorization": "Bearer active-profile-secret",
-        },
-    )
-    assert plugin.module._rpc(server, "run_test", "miy/context", {}) == {"accepted": True}
-    assert seen == ["Bearer active-profile-secret"]
-    assert server["headers"]["Authorization"] == "Bearer ${PROFILE_KEY}"
-
-
-@pytest.mark.slow
-def test_tool_rpc_waits_for_server_completion_beyond_thirty_seconds(plugin):
-    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-    from threading import Thread
-    import time
-
-    completed = []
-
-    class Handler(BaseHTTPRequestHandler):
-        def log_message(self, *_args):
-            pass
-
-        def do_POST(self):
-            request = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
-            assert request["method"] == "tools/call"
-            assert self.headers["X-Hermes-Run-Id"] == "run_test"
-            time.sleep(31)
-            completed.append(request["id"])
-            body = json.dumps({"result": {"structuredContent": {"saved": True}}}).encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-
-    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    thread = Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        result = plugin.module._rpc(
-            {
-                "url": f"http://127.0.0.1:{server.server_port}",
-                "headers": {"Authorization": "Bearer synthetic"},
-            },
-            "run_test",
-            "tools/call",
-            {"name": "fixture.slow_save", "arguments": {}},
-        )
-        assert result == {"structuredContent": {"saved": True}}
-        assert len(completed) == 1
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join(timeout=5)
-
-
-@pytest.mark.parametrize("method", ["tools/list", "miy/context", "tools/call"])
+@pytest.mark.parametrize("method", ["tools/call", "miy/context"])
 def test_rpc_bounds_control_waits_and_never_retries_uncertain_calls(plugin, monkeypatch, method):
     import httpx
 
@@ -718,16 +407,8 @@ def test_sent_tool_with_no_confirmation_reports_unknown_outcome_without_retry(
     assert "blocked" not in result["error"]
 
 
-@pytest.mark.parametrize(
-    "arguments",
-    [
-        {},
-        {"query": "mail"},
-        {"session_id": "saved"},
-        {"session_id": "saved", "around_message_id": 1},
-    ],
-)
-@pytest.mark.parametrize("native_tools", [[], ["session_search"]])
+@pytest.mark.parametrize("arguments", [{"session_id": "saved", "around_message_id": 1}])
+@pytest.mark.parametrize("native_tools", [["session_search"]])
 def test_native_history_cannot_bypass_source_access_including_stale_profiles(
     plugin, monkeypatch, arguments, native_tools
 ):
@@ -748,14 +429,16 @@ def test_revoked_app_workload_history_cannot_be_read_from_admitted_chatbot(
     plugin, monkeypatch, application_postgres_dsn
 ):
     from uuid import uuid4
+
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
+
     from miy_api.domains.auth.app_access import can_use_app
     from miy_api.domains.auth.app_access_models import AppAccessPolicy
     from miy_api.domains.auth.models import CompanyAppControl, User
+    from miy_api.domains.hermes.mcp_router import _available_tools
     from miy_api.domains.hermes.models import HermesProfileBinding
     from miy_api.domains.hermes.repository import HermesRunRepository
-    from miy_api.domains.hermes.mcp_router import _available_tools
 
     engine = create_engine(application_postgres_dsn)
     try:

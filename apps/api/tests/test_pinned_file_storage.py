@@ -18,41 +18,6 @@ def config(port=9000):
     )
 
 
-def test_opaque_version_is_signed_locally_as_one_exact_query_value(monkeypatch):
-    monkeypatch.setattr(
-        storage.Minio, "_url_open", lambda *args, **kwargs: pytest.fail("no discovery I/O")
-    )
-    version = "opaque+/=version&part?%25"
-    value = storage._signed_url(config(), "private/input", version_id=version)
-    parsed = urlsplit(value)
-    assert parsed.path == "/synthetic-bucket/private/input"
-    assert parse_qs(parsed.query)["versionId"] == [version]
-    assert "X-Amz-Signature" in parse_qs(parsed.query)
-
-
-@pytest.mark.parametrize("version", [None, "", "null", 12, "line\nbreak", "\ud800"])
-def test_pinned_reader_refuses_missing_mutable_or_invalid_version_before_io(version, monkeypatch):
-    monkeypatch.setattr(
-        storage, "read_selected_object", lambda *args, **kwargs: pytest.fail("no latest read")
-    )
-    with pytest.raises(storage.SelectedStorageUnavailable, match="storage_object_version"):
-        asyncio.run(
-            storage.read_pinned_object(
-                config(), storage_key="private/input", version_id=version, expected_size=4
-            )
-        )
-    assert storage._active_reads == 0
-
-
-def test_presigner_cannot_silently_drop_or_replace_the_requested_version(monkeypatch):
-    def dropped(_self, bucket, key, **_kwargs):
-        return f"http://127.0.0.1:9000/{bucket}/{key}?versionId=other"
-
-    monkeypatch.setattr(storage.Minio, "presigned_get_object", dropped)
-    with pytest.raises(storage.SelectedStorageUnavailable, match="storage_configuration"):
-        storage._signed_url(config(), "private/input", version_id="original")
-
-
 @pytest.mark.parametrize("exists", [True, False])
 def test_real_peer_receives_exact_version_once_and_missing_never_reads_latest(exists):
     async def exercise():

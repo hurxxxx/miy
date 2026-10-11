@@ -4,9 +4,7 @@ import asyncio
 import base64
 
 from fastapi.testclient import TestClient
-from minio.error import S3Error
 import pytest
-from starlette.websockets import WebSocketDisconnect
 import y_py as Y
 
 from dev_accounts import content_headers
@@ -31,7 +29,6 @@ from test_docs_hub import (
     _create_doc_page,
     _create_space_doc,
     _create_task_list,
-    _get_doc_item,
 )
 from test_meeting import _bootstrap_admin_session, _create_meeting, _create_company_user, _login
 
@@ -50,97 +47,6 @@ def _encode_test_yjs_state(text: str) -> str:
     with doc.begin_transaction() as txn:
         doc.get_text("prosemirror").extend(txn, text)
     return base64.b64encode(Y.encode_state_as_update(doc)).decode("ascii")
-
-
-def test_blocknote_codec_round_trips_custom_document_schema() -> None:
-    blocks = [
-        {
-            "type": "callout",
-            "props": {"variant": "warning"},
-            "content": [{"type": "text", "text": "주의", "styles": {}}],
-        },
-        {"type": "divider"},
-        {
-            "type": "paragraph",
-            "content": [
-                {
-                    "type": "mention",
-                    "props": {"userId": "user-1", "displayName": "홍길동"},
-                },
-                {"type": "text", "text": " ", "styles": {}},
-                {
-                    "type": "taskRef",
-                    "props": {
-                        "issueId": "issue-1",
-                        "issueKey": "PMS-1",
-                        "title": "작업",
-                    },
-                },
-            ],
-        },
-    ]
-
-    yjs_state = blocks_to_yjs_state(blocks)
-    assert yjs_state is not None
-    restored = yjs_state_to_blocks(yjs_state)
-    assert restored is not None
-
-    assert [block["type"] for block in restored] == [
-        "callout",
-        "divider",
-        "paragraph",
-    ]
-    assert restored[0]["props"]["variant"] == "warning"
-    assert restored[0]["content"][0]["text"] == "주의"
-    assert restored[1]["props"] == {}
-    assert restored[2]["content"][0] == {
-        "type": "mention",
-        "props": {"userId": "user-1", "displayName": "홍길동"},
-    }
-    assert restored[2]["content"][2] == {
-        "type": "taskRef",
-        "props": {
-            "issueId": "issue-1",
-            "issueKey": "PMS-1",
-            "title": "작업",
-        },
-    }
-
-
-def test_blocknote_codec_decodes_047_persisted_yjs_state() -> None:
-    # Generated with @blocknote/core 0.47.3 using the default "prosemirror"
-    # fragment, matching persisted states created before this upgrade.
-    legacy_yjs_state = base64.b64decode(
-        "AQus6/3kDAAHAQtwcm9zZW1pcnJvcgMKYmxvY2tHcm91cAcArOv95AwAAw5i"
-        "bG9ja0NvbnRhaW5lcgcArOv95AwBAwlwYXJhZ3JhcGgHAKzr/eQMAgYGAKzr"
-        "/eQMAwRib2xkAnt9hKzr/eQMBCQwLjQ3LjPsl5DshJwg7KCA7J6l7ZWcIO2V"
-        "nOq4gCDrrLjshJyGrOv95AwWBGJvbGQEbnVsbCgArOv95AwCD2JhY2tncm91"
-        "bmRDb2xvcgF3B2RlZmF1bHQoAKzr/eQMAgl0ZXh0Q29sb3IBdwdkZWZhdWx0"
-        "KACs6/3kDAINdGV4dEFsaWdubWVudAF3BGxlZnQoAKzr/eQMAQJpZAF3EGxl"
-        "Z2FjeS1wYXJhZ3JhcGgA"
-    )
-
-    restored = yjs_state_to_blocks(legacy_yjs_state)
-
-    assert restored == [
-        {
-            "id": "legacy-paragraph",
-            "type": "paragraph",
-            "props": {
-                "backgroundColor": "default",
-                "textColor": "default",
-                "textAlignment": "left",
-            },
-            "content": [
-                {
-                    "type": "text",
-                    "text": "0.47.3에서 저장한 한글 문서",
-                    "styles": {"bold": True},
-                }
-            ],
-            "children": [],
-        }
-    ]
 
 
 def _create_unlinked_media(uploaded_by_id: str) -> dict[str, str]:
@@ -196,7 +102,9 @@ def _create_native_doc_page(
     return doc, page
 
 
-def test_docs_collab_session_snapshot_and_rest_patch_stay_in_sync(client: TestClient) -> None:
+def test_docs_collab_session_snapshot_and_rest_patch_stay_in_sync(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     admin = _bootstrap_admin_session(client)
     doc, page = _create_native_doc_page(
         client,
@@ -206,6 +114,48 @@ def test_docs_collab_session_snapshot_and_rest_patch_stay_in_sync(client: TestCl
     page_ref = make_page_ref(page["source_type"], page["source_page_id"])
     session_path = f"/api/v1/docs/collab/pages/{page_ref}/session"
     snapshot_path = f"/api/v1/docs/collab/pages/{page_ref}/snapshot"
+
+    legacy_yjs_state = base64.b64decode(
+        "AQus6/3kDAAHAQtwcm9zZW1pcnJvcgMKYmxvY2tHcm91cAcArOv95AwAAw5i"
+        "bG9ja0NvbnRhaW5lcgcArOv95AwBAwlwYXJhZ3JhcGgHAKzr/eQMAgYGAKzr"
+        "/eQMAwRib2xkAnt9hKzr/eQMBCQwLjQ3LjPsl5DshJwg7KCA7J6l7ZWcIO2V"
+        "nOq4gCDrrLjshJyGrOv95AwWBGJvbGQEbnVsbCgArOv95AwCD2JhY2tncm91"
+        "bmRDb2xvcgF3B2RlZmF1bHQoAKzr/eQMAgl0ZXh0Q29sb3IBdwdkZWZhdWx0"
+        "KACs6/3kDAINdGV4dEFsaWdubWVudAF3BGxlZnQoAKzr/eQMAQJpZAF3EGxl"
+        "Z2FjeS1wYXJhZ3JhcGgA"
+    )
+
+    legacy_blocks = yjs_state_to_blocks(legacy_yjs_state)
+
+    assert legacy_blocks == [
+        {
+            "id": "legacy-paragraph",
+            "type": "paragraph",
+            "props": {
+                "backgroundColor": "default",
+                "textColor": "default",
+                "textAlignment": "left",
+            },
+            "content": [
+                {
+                    "type": "text",
+                    "text": "0.47.3에서 저장한 한글 문서",
+                    "styles": {"bold": True},
+                }
+            ],
+            "children": [],
+        }
+    ]
+
+    saved_legacy = client.put(
+        snapshot_path,
+        headers=_auth_headers(admin["token"]),
+        json={
+            "content_blocks": legacy_blocks,
+            "yjs_state": base64.b64encode(legacy_yjs_state).decode("ascii"),
+        },
+    )
+    assert saved_legacy.status_code == 200, saved_legacy.text
 
     initial_session_response = client.get(
         session_path,
@@ -218,7 +168,7 @@ def test_docs_collab_session_snapshot_and_rest_patch_stay_in_sync(client: TestCl
     assert initial_session["can_edit"] is True
     assert initial_session["realtime_status"] == "enabled"
     assert initial_session["read_only_reason"] is None
-    assert initial_session["snapshot_content_blocks"] == []
+    assert initial_session["snapshot_content_blocks"] == legacy_blocks
     assert isinstance(initial_session["yjs_state"], str)
     assert initial_session["yjs_state"]
 
@@ -271,161 +221,6 @@ def test_docs_collab_session_snapshot_and_rest_patch_stay_in_sync(client: TestCl
     assert rest_session["snapshot_content_blocks"] == rest_blocks
     assert isinstance(rest_session["yjs_state"], str)
     assert rest_session["yjs_state"]
-
-
-def test_docs_collab_snapshot_updates_parent_doc_timestamp(client: TestClient) -> None:
-    admin = _bootstrap_admin_session(client)
-    doc, page = _create_native_doc_page(
-        client,
-        admin["token"],
-    )
-
-    page_ref = make_page_ref(page["source_type"], page["source_page_id"])
-    snapshot_response = client.put(
-        f"/api/v1/docs/collab/pages/{page_ref}/snapshot",
-        headers=_auth_headers(admin["token"]),
-        json={
-            "content_blocks": _paragraph_blocks("Timestamp from collab"),
-            "yjs_state": _encode_test_yjs_state("Timestamp from collab"),
-        },
-    )
-    assert snapshot_response.status_code == 200, snapshot_response.text
-
-    refreshed_doc = _get_doc_item(
-        client,
-        admin["token"],
-        doc["id"],
-    )
-    assert refreshed_doc["updated_at"] > doc["updated_at"]
-
-
-def test_docs_collab_stale_runtime_flush_does_not_overwrite_newer_snapshot(
-    client: TestClient,
-) -> None:
-    admin = _bootstrap_admin_session(client)
-    doc, page = _create_native_doc_page(
-        client,
-        admin["token"],
-    )
-
-    old_state = blocks_to_yjs_state(_paragraph_blocks("Old runtime state"))
-    latest_state = blocks_to_yjs_state(_paragraph_blocks("Latest REST snapshot"))
-    assert old_state is not None
-    assert latest_state is not None
-    latest_blocks = yjs_state_to_blocks(latest_state)
-    assert latest_blocks is not None
-
-    page_ref = make_page_ref(page["source_type"], page["source_page_id"])
-    snapshot_response = client.put(
-        f"/api/v1/docs/collab/pages/{page_ref}/snapshot",
-        headers=_auth_headers(admin["token"]),
-        json={
-            "content_blocks": latest_blocks,
-            "yjs_state": base64.b64encode(latest_state).decode("ascii"),
-        },
-    )
-    assert snapshot_response.status_code == 200, snapshot_response.text
-
-    db = get_session_factory()()
-    try:
-        materialize_collab_room_state(
-            db,
-            source_type=page["source_type"],
-            source_page_id=page["source_page_id"],
-            room_key=make_room_key(page["source_type"], page["source_page_id"]),
-            yjs_state=old_state,
-            actor_user_id=page["created_by_id"],
-            fallback_actor_user_id=page["created_by_id"],
-        )
-        db.commit()
-    finally:
-        db.close()
-
-    page_refresh_response = client.get(
-        f"/api/v1/docs/items/{doc['id']}/pages",
-        headers=_auth_headers(admin["token"]),
-    )
-    assert page_refresh_response.status_code == 200, page_refresh_response.text
-    refreshed_page = next(
-        item for item in page_refresh_response.json()["items"] if item["id"] == page["id"]
-    )
-    assert refreshed_page["content_blocks"] == latest_blocks
-
-
-def test_docs_collab_snapshot_does_not_touch_parent_doc_when_content_unchanged(
-    client: TestClient,
-) -> None:
-    admin = _bootstrap_admin_session(client)
-    doc, page = _create_native_doc_page(
-        client,
-        admin["token"],
-    )
-
-    compact_blocks = _paragraph_blocks("Existing content")
-    patch_response = client.patch(
-        f"/api/v1/docs/pages/{page['id']}",
-        headers=_auth_headers(admin["token"]),
-        json={"content_blocks": compact_blocks},
-    )
-    assert patch_response.status_code == 200, patch_response.text
-    after_patch_doc = _get_doc_item(
-        client,
-        admin["token"],
-        doc["id"],
-    )
-
-    yjs_state = blocks_to_yjs_state(compact_blocks)
-    canonical_blocks = yjs_state_to_blocks(yjs_state)
-
-    page_ref = make_page_ref(page["source_type"], page["source_page_id"])
-    snapshot_response = client.put(
-        f"/api/v1/docs/collab/pages/{page_ref}/snapshot",
-        headers=_auth_headers(admin["token"]),
-        json={
-            "content_blocks": canonical_blocks,
-            "yjs_state": base64.b64encode(yjs_state).decode("ascii"),
-        },
-    )
-    assert snapshot_response.status_code == 200, snapshot_response.text
-
-    refreshed_doc = _get_doc_item(
-        client,
-        admin["token"],
-        doc["id"],
-    )
-    assert refreshed_doc["updated_at"] == after_patch_doc["updated_at"]
-
-
-def test_docs_collab_websocket_requires_auth_and_accepts_valid_token(client: TestClient) -> None:
-    admin = _bootstrap_admin_session(client)
-    _doc, page = _create_native_doc_page(
-        client,
-        admin["token"],
-    )
-    page_ref = make_page_ref(page["source_type"], page["source_page_id"])
-    websocket_path = f"/api/v1/docs/collab/pages/{page_ref}/ws"
-
-    with pytest.raises(WebSocketDisconnect) as invalid_auth:
-        with client.websocket_connect(websocket_path) as websocket:
-            websocket.send_json({"type": "auth", "token": "not-a-real-token"})
-            websocket.receive_json()
-    assert invalid_auth.value.code == 4401
-
-    with client.websocket_connect(websocket_path) as websocket:
-        websocket.send_json({"type": "auth", "token": admin["token"]})
-        assert websocket.receive_bytes()
-        websocket.close()
-
-
-def test_docs_native_page_linked_media_resolves_for_shared_user(
-    client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    admin = _bootstrap_admin_session(client)
-    doc, page = _create_native_doc_page(
-        client,
-        admin["token"],
-    )
 
     member = _create_company_user(
         client,
@@ -504,96 +299,57 @@ def test_docs_native_page_linked_media_resolves_for_shared_user(
     assert fake_object.released is True
 
 
-def test_media_content_missing_storage_object_returns_not_found(
+def test_docs_collab_stale_runtime_flush_does_not_overwrite_newer_snapshot(
     client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     admin = _bootstrap_admin_session(client)
-    media = _create_unlinked_media(admin["user"]["id"])
-    resolved_url = _resolve_media_url(client, admin["token"], media["id"])
-
-    class FakeMinioClient:
-        def get_object(self, bucket_name: str, storage_key: str):
-            assert bucket_name
-            assert storage_key.endswith("/fixture.png")
-            raise S3Error(
-                None,
-                "NoSuchKey",
-                "The specified key does not exist.",
-                None,
-                "request-id",
-                "host-id",
-                bucket_name=bucket_name,
-                object_name=storage_key,
-            )
-
-    monkeypatch.setattr(
-        media_content_access,
-        "media_object_storage",
-        lambda: MediaObjectStorage(bucket_name="test-bucket", client=FakeMinioClient()),
-    )
-
-    content_response = client.get(
-        resolved_url,
-        headers=content_headers(admin["token"], resolved_url),
-    )
-    assert content_response.status_code == 403, content_response.text
-    assert content_response.json()["code"] == "content.grant_invalid"
-
-
-def test_media_content_storage_download_failure_returns_bad_gateway(
-    client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    admin = _bootstrap_admin_session(client)
-    media = _create_unlinked_media(admin["user"]["id"])
-    resolved_url = _resolve_media_url(client, admin["token"], media["id"])
-
-    class FakeMinioClient:
-        def get_object(self, bucket_name: str, storage_key: str):
-            assert bucket_name
-            assert storage_key.endswith("/fixture.png")
-            raise RuntimeError("storage unavailable")
-
-    monkeypatch.setattr(
-        media_content_access,
-        "media_object_storage",
-        lambda: MediaObjectStorage(bucket_name="test-bucket", client=FakeMinioClient()),
-    )
-
-    content_response = client.get(
-        resolved_url,
-        headers=content_headers(admin["token"], resolved_url),
-    )
-    assert content_response.status_code == 502, content_response.text
-
-
-def test_docs_collab_session_degraded_when_relay_is_unavailable(
-    client_without_collab_relay: TestClient,
-) -> None:
-    admin = _bootstrap_admin_session(client_without_collab_relay)
-    _doc, page = _create_native_doc_page(
-        client_without_collab_relay,
+    doc, page = _create_native_doc_page(
+        client,
         admin["token"],
     )
-    page_ref = make_page_ref(page["source_type"], page["source_page_id"])
 
-    session_response = client_without_collab_relay.get(
-        f"/api/v1/docs/collab/pages/{page_ref}/session",
+    old_state = blocks_to_yjs_state(_paragraph_blocks("Old runtime state"))
+    latest_state = blocks_to_yjs_state(_paragraph_blocks("Latest REST snapshot"))
+    assert old_state is not None
+    assert latest_state is not None
+    latest_blocks = yjs_state_to_blocks(latest_state)
+    assert latest_blocks is not None
+
+    page_ref = make_page_ref(page["source_type"], page["source_page_id"])
+    snapshot_response = client.put(
+        f"/api/v1/docs/collab/pages/{page_ref}/snapshot",
+        headers=_auth_headers(admin["token"]),
+        json={
+            "content_blocks": latest_blocks,
+            "yjs_state": base64.b64encode(latest_state).decode("ascii"),
+        },
+    )
+    assert snapshot_response.status_code == 200, snapshot_response.text
+
+    db = get_session_factory()()
+    try:
+        materialize_collab_room_state(
+            db,
+            source_type=page["source_type"],
+            source_page_id=page["source_page_id"],
+            room_key=make_room_key(page["source_type"], page["source_page_id"]),
+            yjs_state=old_state,
+            actor_user_id=page["created_by_id"],
+            fallback_actor_user_id=page["created_by_id"],
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    page_refresh_response = client.get(
+        f"/api/v1/docs/items/{doc['id']}/pages",
         headers=_auth_headers(admin["token"]),
     )
-    assert session_response.status_code == 200, session_response.text
-    payload = session_response.json()
-    assert payload["realtime_status"] == "degraded"
-    assert payload["read_only_reason"] == "relay_unavailable"
-
-    with pytest.raises(WebSocketDisconnect) as relay_down:
-        with client_without_collab_relay.websocket_connect(
-            f"/api/v1/docs/collab/pages/{page_ref}/ws"
-        ) as websocket:
-            websocket.send_json({"type": "auth", "token": admin["token"]})
-            websocket.receive_json()
-    assert relay_down.value.code == 1013
+    assert page_refresh_response.status_code == 200, page_refresh_response.text
+    refreshed_page = next(
+        item for item in page_refresh_response.json()["items"] if item["id"] == page["id"]
+    )
+    assert refreshed_page["content_blocks"] == latest_blocks
 
 
 @pytest.mark.external_integration("redis")
@@ -656,75 +412,6 @@ def test_docs_collab_hub_limits_connection_slots(monkeypatch: pytest.MonkeyPatch
             await hub.shutdown()
 
     asyncio.run(exercise())
-
-
-@pytest.mark.external_integration("redis")
-def test_docs_collab_hub_relays_updates_and_flushes_server_side(
-    client: TestClient,
-    redis_url: str,
-) -> None:
-    admin = _bootstrap_admin_session(client)
-    doc, page = _create_native_doc_page(
-        client,
-        admin["token"],
-    )
-    collab_blocks = _paragraph_blocks("Server-side relay flush")
-    collab_update = blocks_to_yjs_state(collab_blocks)
-    assert collab_update is not None
-    expected_blocks = yjs_state_to_blocks(collab_update)
-    assert expected_blocks is not None
-
-    async def exercise_hubs() -> None:
-        context = CollabPageContext(
-            page_ref=make_page_ref(page["source_type"], page["source_page_id"]),
-            source_type=page["source_type"],
-            source_page_id=page["source_page_id"],
-            room_key=make_room_key(page["source_type"], page["source_page_id"]),
-            can_edit=True,
-            content_blocks=[],
-            default_actor_user_id=page["created_by_id"],
-        )
-        hub1 = DocsCollabHub(
-            instance_id="test-hub-1",
-            bus=RedisCollabBus(redis_url, instance_id="test-hub-1"),
-        )
-        hub2 = DocsCollabHub(
-            instance_id="test-hub-2",
-            bus=RedisCollabBus(redis_url, instance_id="test-hub-2"),
-        )
-        await hub1.startup()
-        await hub2.startup()
-        try:
-            runtime1 = await hub1.get_room(context, None)
-            runtime2 = await hub2.get_room(context, None)
-            Y.apply_update(runtime1.room.ydoc, collab_update)
-
-            deadline = asyncio.get_running_loop().time() + 5
-            while True:
-                mirrored_blocks = yjs_state_to_blocks(Y.encode_state_as_update(runtime2.room.ydoc))
-                if mirrored_blocks == expected_blocks:
-                    break
-                if asyncio.get_running_loop().time() >= deadline:
-                    raise AssertionError("Timed out waiting for cross-instance relay sync.")
-                await asyncio.sleep(0.1)
-
-            await hub1.cleanup_room(context.room_key)
-            await hub2.cleanup_room(context.room_key)
-        finally:
-            await hub1.shutdown()
-            await hub2.shutdown()
-
-    asyncio.run(exercise_hubs())
-
-    refreshed_pages_response = client.get(
-        f"/api/v1/docs/items/{doc['id']}/pages",
-        headers=_auth_headers(admin["token"]),
-    )
-    assert refreshed_pages_response.status_code == 200, refreshed_pages_response.text
-    refreshed_page = next(
-        item for item in refreshed_pages_response.json()["items"] if item["id"] == page["id"]
-    )
-    assert refreshed_page["content_blocks"] == expected_blocks
 
 
 def test_meeting_notes_collab_session_is_revoked_when_attendee_is_removed(

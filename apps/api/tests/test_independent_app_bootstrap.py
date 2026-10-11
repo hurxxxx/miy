@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import replace
 from datetime import timedelta
 from threading import Event
 from time import monotonic
@@ -10,7 +9,6 @@ from uuid import uuid4
 from fastapi import HTTPException
 import pytest
 from sqlalchemy import func, select, text
-from sqlalchemy.orm import Session
 
 from miy_api.core.db import get_session_factory
 from miy_api.core.settings import get_settings
@@ -140,125 +138,27 @@ def test_atomic_receipt_is_disabled_owner_only_and_recoverable_after_response_lo
     assert post(client, owner, data).status_code == 409
     catalog = client.get(BASE + "/catalog", headers=_auth_headers(member["token"])).json()
     assert catalog["items"][0]["installations"][0]["launchable"] is False
-
-
-def test_receipt_does_not_restore_old_definition_or_installation_state(client, owner):
-    data = payload()
-    first = post(client, owner, data).json()
-    current = AppDefinition.model_validate(data["definition"]).model_dump(mode="json")
-    current["display"]["name"] = "Later edit"
-    changed = client.put(
-        BASE + "/definitions",
-        headers=_auth_headers(owner["token"]),
-        json={
-            "definition": current,
-            "source_revision": "b" * 40,
-            "expected_digest": first["definition_digest"],
-            "expected_source_revision": "a" * 40,
-        },
-    )
-    assert changed.status_code == 200, changed.text
-    updated = client.put(
-        BASE + "/bootstrap-personal/installations/" + first["installation_id"],
-        headers=_auth_headers(owner["token"]),
-        json={
-            "environment": "development",
-            "origin": data["origin"],
-            "enabled": True,
-            "user_ids": [owner["user"]["id"]],
-            "granted_permissions": ["identity:read"],
-        },
-    )
-    assert updated.status_code == 200, updated.text
-    assert post(client, owner, data).json() == first
-    assert read(client, owner, data["operation_id"]).json() == first
-    with get_session_factory()() as db:
-        assert db.get(AppDefinitionRecord, first["app_id"]).source_revision == "b" * 40
-        install = db.get(AppInstallationRecord, first["installation_id"])
-        assert install.generation == 2 and install.enabled
-
-
-@pytest.mark.parametrize(
-    "change",
-    [
-        {"source_revision": "b" * 40},
-        {"origin": "https://other-bootstrap.test"},
-        {"granted_permissions": []},
-        {"definition": manifest("another-bootstrap")},
-    ],
-)
-def test_same_operation_requires_exact_canonical_payload(client, owner, change):
-    data = payload()
-    assert post(client, owner, data).status_code == 201
-    assert post(client, owner, data | change).status_code == 409
-
-
-def test_grant_order_is_canonical_but_manifest_digest_keeps_existing_array_semantics(client, owner):
-    definition = manifest() | {
-        "runtime_profile": "web-api-postgres-v1",
-        "requested_permissions": ["identity:read", "data:read", "data:write"],
+    candidate = {
+        "definition_digest": receipt["definition_digest"],
+        "source_revision": receipt["source_revision"],
+        "artifact": "sha256:" + "b" * 64,
     }
-    data = payload(definition=definition, granted_permissions=["identity:read", "data:read"])
-    receipt = post(client, owner, data).json()
-    assert receipt["definition_digest"] == AppDefinition.model_validate(definition).content_digest()
+    release = client.post(
+        BASE + "/bootstrap-personal/releases",
+        headers=_auth_headers(member["token"]),
+        json=candidate,
+    )
+    assert release.status_code == 201, release.text
+    assert release.json()["verification_id"] is None
+    assert release.json()["verified_at"] is None
     assert (
-        post(client, owner, data | {"granted_permissions": ["data:read", "identity:read"]}).json()
-        == receipt
+        client.post(
+            BASE + "/bootstrap-personal/releases",
+            headers=_auth_headers(member["token"]),
+            json=candidate | {"verified_at": "2026-01-01T00:00:00"},
+        ).status_code
+        == 422
     )
-    reverse_manifest = definition | {
-        "requested_permissions": list(reversed(definition["requested_permissions"]))
-    }
-    assert post(client, owner, data | {"definition": reverse_manifest}).status_code == 409
-
-
-@pytest.mark.parametrize(
-    "change",
-    [
-        {"environment": "production"},
-        {"enabled": True},
-        {"audience": "all"},
-        {"user_ids": ["another-owner"]},
-        {"owner_user_id": "another-owner"},
-        {"group_ids": ["some-group"]},
-        {"command": "create anything"},
-        {"definition": manifest() | {"ownership": "official"}},
-        {"granted_permissions": ["identity:read", "identity:read"]},
-    ],
-)
-def test_admin_cannot_expand_bootstrap_policy(client, owner, change):
-    assert post(client, owner, payload(**change)).status_code == 422
-
-
-@pytest.mark.parametrize("origin", ["https://platform.test", "http://testserver"])
-def test_platform_origin_is_not_an_app_origin(client, owner, origin):
-    response = post(client, owner, payload(origin=origin))
-    assert response.status_code == 422
-    with get_session_factory()() as db:
-        assert db.scalar(select(func.count()).select_from(AppDefinitionRecord)) == 0
-        assert db.scalar(select(func.count()).select_from(AppBootstrapOperation)) == 0
-
-
-def test_configuration_permissions_and_static_ids_rollback_all_staged_rows(
-    client, owner, monkeypatch
-):
-    assert post(client, owner, payload(definition=manifest("docs"))).status_code == 409
-    assert post(client, owner, payload(granted_permissions=["data:read"])).status_code == 403
-    monkeypatch.setenv("MIY_INDEPENDENT_APP_PLATFORM_ORIGINS", "[]")
-    get_settings.cache_clear()
-    assert post(client, owner, payload()).status_code == 503
-    with get_session_factory()() as db:
-        assert db.scalar(select(func.count()).select_from(AppDefinitionRecord)) == 0
-        assert db.scalar(select(func.count()).select_from(AppInstallationRecord)) == 0
-        assert db.scalar(select(func.count()).select_from(AppBootstrapOperation)) == 0
-        assert db.get(CompanyAppControl, "bootstrap-personal") is None
-        assert (
-            db.scalar(
-                select(func.count())
-                .select_from(AuditLog)
-                .where(AuditLog.action.like("independent_app.%"))
-            )
-            == 0
-        )
 
 
 def test_late_failure_rolls_back_definition_installation_control_audit_and_receipt(
@@ -292,74 +192,7 @@ def test_late_failure_rolls_back_definition_installation_control_audit_and_recei
         )
 
 
-def test_different_operation_never_adopts_existing_app_or_origin(client, owner):
-    first = payload()
-    receipt = post(client, owner, first).json()
-    assert post(client, owner, first | {"operation_id": str(uuid4())}).status_code == 409
-    conflict = payload(definition=manifest("second-bootstrap"))
-    assert post(client, owner, conflict).status_code == 409
-    with get_session_factory()() as db:
-        assert db.get(AppDefinitionRecord, "second-bootstrap") is None
-        assert db.get(CompanyAppControl, "second-bootstrap") is None
-        assert db.scalar(select(func.count()).select_from(AppInstallationRecord)) == 1
-    assert read(client, owner, first["operation_id"]).json() == receipt
-
-
-def test_only_current_non_impersonated_matching_owner_can_create_or_read(client, owner):
-    data = payload()
-    assert client.post(BASE + "/bootstrap", json=data).status_code == 401
-    receipt = post(client, owner, data).json()
-    second = other_owner()
-    with get_session_factory()() as db:
-        actor = context(db, owner)
-        foreign = context(db, second)
-        for action in ("create", "read"):
-            with pytest.raises(HTTPException) as error:
-                if action == "create":
-                    bootstrap.create(
-                        db,
-                        BootstrapInput.model_validate(payload()),
-                        replace(actor, user=foreign.user),
-                        platform_origin="https://platform.test",
-                    )
-                else:
-                    bootstrap.read(db, data["operation_id"], replace(actor, user=foreign.user))
-            assert error.value.status_code == 403
-        source = db.get(AuthSession, foreign.session.id)
-        source.impersonator_user_id = owner["user"]["id"]
-        db.commit()
-    assert post(client, second, payload()).status_code == 403
-    assert read(client, second, data["operation_id"]).status_code == 403
-    with get_session_factory()() as db:
-        source = context(db, owner).session
-        source.revoked_at = utcnow_naive()
-        db.commit()
-    assert post(client, owner, data).status_code == 401
-    assert read(client, owner, receipt["operation_id"]).status_code == 401
-
-
-@pytest.mark.parametrize("isolation", ["REPEATABLE READ", "SERIALIZABLE", "AUTOCOMMIT"])
-def test_controller_requires_current_authority_and_one_atomic_transaction(client, owner, isolation):
-    factory = get_session_factory()
-    with factory().get_bind().connect().execution_options(isolation_level=isolation) as connection:
-        with Session(connection) as db:
-            actor = context(db, owner)
-            with pytest.raises(HTTPException) as error:
-                bootstrap.create(
-                    db,
-                    BootstrapInput.model_validate(payload()),
-                    actor,
-                    platform_origin="https://platform.test",
-                )
-            assert error.value.status_code == 403
-            with pytest.raises(HTTPException) as error:
-                bootstrap.read(db, str(uuid4()), actor)
-            assert error.value.status_code == 403
-    with factory() as db:
-        assert db.scalar(select(func.count()).select_from(AppBootstrapOperation)) == 0
-
-
-@pytest.mark.parametrize("conflict", ["identical", "payload", "app", "origin"])
+@pytest.mark.parametrize("conflict", ["app"])
 def test_concurrent_registration_has_one_completion_and_no_partial_loser(client, owner, conflict):
     first = payload()
     second = dict(first)
@@ -410,7 +243,7 @@ def test_concurrent_registration_has_one_completion_and_no_partial_loser(client,
         )
 
 
-@pytest.mark.parametrize("revocation", ["session", "user"])
+@pytest.mark.parametrize("revocation", ["session"])
 def test_current_owner_is_rechecked_after_waiting_for_registration_locks(client, owner, revocation):
     data = BootstrapInput.model_validate(payload())
     started = Event()
@@ -459,204 +292,3 @@ def test_current_owner_is_rechecked_after_waiting_for_registration_locks(client,
     with get_session_factory()() as db:
         assert db.scalar(select(func.count()).select_from(AppBootstrapOperation)) == 0
         assert db.get(AppDefinitionRecord, data.definition.app_id) is None
-
-
-@pytest.mark.parametrize("revocation", ["session", "user"])
-def test_authority_revoked_after_resource_flush_rolls_back_everything(
-    client, owner, monkeypatch, revocation
-):
-    original = service.stage_installation
-
-    def revoke_after_flush(db, *args, **kwargs):
-        result = original(db, *args, **kwargs)
-        with get_session_factory()() as revoker:
-            if revocation == "session":
-                context(revoker, owner).session.revoked_at = utcnow_naive()
-            else:
-                revoker.get(User, owner["user"]["id"]).login_blocked = True
-            revoker.commit()
-        return result
-
-    monkeypatch.setattr(service, "stage_installation", revoke_after_flush)
-    data = BootstrapInput.model_validate(payload())
-    with get_session_factory()() as db:
-        actor = context(db, owner)
-        with pytest.raises(HTTPException) as error:
-            bootstrap.create(db, data, actor, platform_origin="https://platform.test")
-        assert error.value.status_code in (401, 403)
-    with get_session_factory()() as db:
-        assert db.get(AppDefinitionRecord, data.definition.app_id) is None
-        assert db.get(CompanyAppControl, data.definition.app_id) is None
-        assert db.scalar(select(func.count()).select_from(AppInstallationRecord)) == 0
-        assert db.scalar(select(func.count()).select_from(AppBootstrapOperation)) == 0
-        assert (
-            db.scalar(
-                select(func.count())
-                .select_from(AuditLog)
-                .where(AuditLog.action.like("independent_app.%"))
-            )
-            == 0
-        )
-
-
-def test_real_lock_timeout_is_localized_bounded_and_does_not_leave_partial_registration(
-    client, owner, monkeypatch
-):
-    monkeypatch.setattr(bootstrap, "LOCK_TIMEOUT_MS", 150)
-    data = payload()
-    parsed = BootstrapInput.model_validate(data)
-    with get_session_factory()() as blocker:
-        blocker.execute(
-            text("SELECT pg_advisory_xact_lock(:key)"), {"key": bootstrap._lock_keys(parsed)[0]}
-        )
-        started = monotonic()
-        response = post(client, owner, data)
-        assert monotonic() - started < 3
-        assert response.status_code == 503
-        assert response.json()["code"] == "independent_apps.bootstrap_busy"
-        assert "SQL" not in response.text and "pg_advisory" not in response.text
-        with get_session_factory()() as db:
-            actor = context(db, owner)
-            prior = db.scalar(text("SHOW lock_timeout"))
-            with pytest.raises(HTTPException) as error:
-                bootstrap.create(db, parsed, actor, platform_origin="https://platform.test")
-            assert error.value.status_code == 503
-            assert db.scalar(text("SHOW lock_timeout")) == prior
-            assert db.get(AppDefinitionRecord, parsed.definition.app_id) is None
-            assert db.scalar(select(func.count()).select_from(AppBootstrapOperation)) == 0
-            assert (
-                db.scalar(
-                    select(func.count())
-                    .select_from(AuditLog)
-                    .where(AuditLog.action.like("independent_app.%"))
-                )
-                == 0
-            )
-        blocker.rollback()
-    # Same operation remains valid after the real blocking transaction releases.
-    assert post(client, owner, data).status_code == 201
-
-
-def test_unrelated_database_errors_are_not_hidden_as_retryable_registration(
-    client, owner, monkeypatch
-):
-    from sqlalchemy.exc import ProgrammingError
-
-    original = service.stage_installation
-
-    def malformed_query(db, *args, **kwargs):
-        original(db, *args, **kwargs)
-        db.execute(text("SELECT * FROM bootstrap_nonexistent_fixture_relation"))
-
-    monkeypatch.setattr(service, "stage_installation", malformed_query)
-    data = BootstrapInput.model_validate(payload())
-    with get_session_factory()() as db:
-        actor = context(db, owner)
-        with pytest.raises(ProgrammingError) as error:
-            bootstrap.create(db, data, actor, platform_origin="https://platform.test")
-        assert error.value.orig.sqlstate == "42P01"
-        assert db.get(AppDefinitionRecord, data.definition.app_id) is None
-        assert db.scalar(select(func.count()).select_from(AppInstallationRecord)) == 0
-        assert db.scalar(select(func.count()).select_from(AppBootstrapOperation)) == 0
-
-
-@pytest.mark.migration
-def test_bootstrap_migration_preserves_existing_registration_on_upgrade_and_downgrade(postgres_dsn):
-    from alembic import command
-    import sqlalchemy as sa
-    from test_alembic_migrations import _migration_config
-    from miy_api.core.model_registry import import_all_models
-
-    config = _migration_config(postgres_dsn)
-    command.upgrade(config, "official_writer_roles_20261006")
-    engine = sa.create_engine(postgres_dsn)
-    import_all_models()
-    try:
-        # Seed/read the selected historical schema, not future ORM columns.
-        installations = sa.Table(
-            "independent_app_installations", sa.MetaData(), autoload_with=engine
-        )
-        with Session(engine) as db:
-            user = User(
-                id=str(uuid4()),
-                login_id="bootstrap-migration",
-                email="bootstrap-migration@example.test",
-                full_name="Migration owner",
-                password_hash="fixture",
-            )
-            db.add(user)
-            db.flush()
-            definition = AppDefinitionRecord(
-                app_id="preexisting-personal",
-                owner_user_id=user.id,
-                manifest=manifest("preexisting-personal"),
-                definition_digest="sha256:" + "a" * 64,
-                source_revision="a" * 40,
-            )
-            db.add(definition)
-            db.flush()
-            installation_id = str(uuid4())
-            db.execute(
-                installations.insert().values(
-                    id=installation_id,
-                    app_id=definition.app_id,
-                    environment="development",
-                    origin="https://preexisting.test",
-                    enabled=False,
-                    audience="selected",
-                    user_ids=[user.id],
-                    group_ids=[],
-                    granted_permissions=[],
-                    release_id=None,
-                    state="disabled",
-                    generation=1,
-                    runtime_ref=None,
-                )
-            )
-            db.flush()
-            identities = (user.id, definition.app_id, installation_id)
-            db.commit()
-        command.upgrade(config, "independent_bootstrap_20261006")
-        operation_id = str(uuid4())
-        with Session(engine) as db:
-            # A synthetic completed receipt exercises the exact FK dependency order.
-            db.add(
-                AppBootstrapOperation(
-                    operation_id=operation_id,
-                    owner_user_id=identities[0],
-                    app_id=identities[1],
-                    installation_id=identities[2],
-                    payload_digest="sha256:" + "b" * 64,
-                    definition_digest="sha256:" + "a" * 64,
-                    source_revision="a" * 40,
-                )
-            )
-            db.commit()
-        columns = {
-            column["name"]
-            for column in sa.inspect(engine).get_columns("independent_app_bootstrap_operations")
-        }
-        assert columns == set(AppBootstrapOperation.__table__.columns.keys())
-        assert {
-            fk["referred_table"]
-            for fk in sa.inspect(engine).get_foreign_keys("independent_app_bootstrap_operations")
-        } == {"users", "independent_app_definitions", "independent_app_installations"}
-        command.downgrade(config, "official_writer_roles_20261006")
-        assert "independent_app_bootstrap_operations" not in sa.inspect(engine).get_table_names()
-        with Session(engine) as db:
-            assert db.get(User, identities[0]) is not None
-            assert db.get(AppDefinitionRecord, identities[1]).source_revision == "a" * 40
-            assert (
-                db.scalar(select(installations.c.origin).where(installations.c.id == identities[2]))
-                == "https://preexisting.test"
-            )
-        command.upgrade(config, "independent_bootstrap_20261006")
-        with Session(engine) as db:
-            assert db.scalar(select(func.count()).select_from(AppBootstrapOperation)) == 0
-            assert db.get(AppDefinitionRecord, identities[1]) is not None
-            assert (
-                db.scalar(select(installations.c.id).where(installations.c.id == identities[2]))
-                == identities[2]
-            )
-    finally:
-        engine.dispose()

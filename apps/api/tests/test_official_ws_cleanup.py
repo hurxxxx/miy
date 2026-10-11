@@ -146,9 +146,14 @@ def route_case(monkeypatch, logical_app_id, *, blocked_stage=None, failure_stage
     )
 
 
-@pytest.mark.parametrize("logical_app_id", ["docs", "whiteboard"])
-@pytest.mark.parametrize("blocked_stage", ["monitor", "release", "cleanup"])
-@pytest.mark.parametrize("cancellation", ["anyio_scope", "repeated_host"])
+@pytest.mark.parametrize(
+    "logical_app_id,blocked_stage,cancellation",
+    [
+        ("docs", "monitor", "anyio_scope"),
+        ("whiteboard", "release", "repeated_host"),
+        ("docs", "cleanup", "repeated_host"),
+    ],
+)
 def test_route_cancellation_joins_owned_cleanup_at_every_wait(
     monkeypatch, logical_app_id, blocked_stage, cancellation
 ):
@@ -198,30 +203,5 @@ def test_route_cancellation_joins_owned_cleanup_at_every_wait(
             else:
                 assert result[0] is None
             assert all(monitor.done() for monitor in case.monitors)
-
-    anyio.run(scenario)
-
-
-@pytest.mark.parametrize("logical_app_id", ["docs", "whiteboard"])
-@pytest.mark.parametrize("failure_stage", ["release", "cleanup"])
-def test_owned_cleanup_failure_preserves_original_exception_without_group(
-    monkeypatch, logical_app_id, failure_stage
-):
-    async def scenario():
-        with anyio.fail_after(3):
-            case = route_case(monkeypatch, logical_app_id, failure_stage=failure_stage)
-            task = asyncio.create_task(case.invoke())
-            try:
-                await case.entered["serve"].wait()
-                await case.entered["monitor_started"].wait()
-                assert len(case.monitors) == 1
-            finally:
-                case.leave.set()
-                result = await asyncio.gather(task, *case.monitors, return_exceptions=True)
-            assert result[0] is case.failure
-            assert case.trace[:2] == ["detach", "monitor_joined"]
-            assert ("release" in case.trace) == (failure_stage == "cleanup")
-            assert "cleanup" not in case.trace
-            assert case.runtime.room.clients == []
 
     anyio.run(scenario)

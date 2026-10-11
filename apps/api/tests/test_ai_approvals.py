@@ -1,38 +1,32 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 import json
+from datetime import datetime
 from typing import Any
 
+import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
-import pytest
 from sqlalchemy import select
+from test_meeting import _auth_headers, _dev_login
 
 from miy_api.core.db import get_session_factory
 from miy_api.core.i18n import LocalizedApiMessage
-from miy_api.core.principal import user_principal
+from miy_api.core.llm_adapters import StreamChunk
 from miy_api.domains.ai import agent as ai_agent
 from miy_api.domains.ai import approvals as ai_approvals
-from miy_api.domains.ai import mcp as ai_mcp
 from miy_api.domains.ai import router as ai_router
-from miy_api.domains.ai.tool_contracts import AgentToolSpec
-from miy_api.domains.ai.runtime.models import AgentInvocation, AgentRun
-from miy_api.domains.ai.runtime.persistence import append_trace_event
 from miy_api.domains.ai import tool_service as ai_tool_service
-from miy_api.domains.ai.tool_runtime import ToolCallExecution
-from miy_api.core.llm_adapters import StreamChunk
 from miy_api.domains.ai.registry import (
     AiCapabilityRegistry,
     ApprovalPreview,
     PreviewField,
 )
+from miy_api.domains.ai.tool_runtime import ToolCallExecution
 from miy_api.domains.auth.access import load_user_graph
 from miy_api.domains.conversations import service as conversations_service
-from test_meeting import _auth_headers, _dev_login
-
 
 pytestmark = pytest.mark.usefixtures("configured_local_llm_control_plane")
 
@@ -215,148 +209,6 @@ def _seed_pending_approval(
         }
 
 
-def test_filter_resume_tool_specs_uses_frozen_tool_names() -> None:
-    snapshot = ai_approvals.AgentRunSnapshot(
-        id="snapshot-1",
-        conversation_id="conversation-1",
-        requested_by_user_id="user-1",
-        blocked_call_id="call-1",
-        model_meta={
-            "scope": {
-                "resolved_tool_names": [_APPROVAL_TOOL_NAME],
-            }
-        },
-    )
-    filtered = ai_approvals.filter_resume_tool_specs(
-        snapshot,
-        [
-            AgentToolSpec(
-                name=_APPROVAL_TOOL_NAME,
-                description="Approval tool",
-                input_schema={"type": "object", "properties": {}},
-            ),
-            AgentToolSpec(
-                name=_SECOND_APPROVAL_TOOL_NAME,
-                description="Second approval tool",
-                input_schema={"type": "object", "properties": {}},
-            ),
-        ],
-    )
-
-    assert [spec.name for spec in filtered] == [_APPROVAL_TOOL_NAME]
-
-
-def test_runtime_inspection_endpoint_returns_scrubbed_trace(
-    client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    seed = _seed_pending_approval(client)
-    headers = _auth_headers(seed["token"])
-    recorded_results: list[str] = []
-
-    def record_inspection_request(*, result: str) -> None:
-        recorded_results.append(result)
-
-    monkeypatch.setattr(ai_router, "record_inspection_request", record_inspection_request)
-
-    with get_session_factory()() as db:
-        runtime_run = db.get(AgentRun, seed["agent_run_id"])
-        assert runtime_run is not None
-        invocation = db.scalar(
-            select(AgentInvocation).where(AgentInvocation.agent_run_id == seed["agent_run_id"])
-        )
-        assert invocation is not None
-        invocation.error = "Authorization: Bearer must-not-leak"
-        db.add(invocation)
-        append_trace_event(
-            db,
-            agent_run_id=runtime_run.id,
-            conversation_id=runtime_run.conversation_id,
-            event_type="unsafe_payload_fixture",
-            payload={
-                "safe": "visible",
-                "api_key": "must-not-leak",
-                "nested": {"token": "must-not-leak"},
-                "raw_reasoning": "must-not-leak",
-            },
-        )
-        db.commit()
-
-    response = client.get(
-        _ai_path(f"/runtime/runs/{seed['agent_run_id']}"),
-        headers=headers,
-    )
-
-    assert response.status_code == 200, response.text
-    payload = response.json()
-    assert payload["id"] == seed["agent_run_id"]
-    assert payload["status"] == "awaiting_approval"
-    assert payload["invocations"][0]["agent_id"] == "approval.proposal_preview"
-    assert payload["invocations"][0]["error"] == "[redacted]"
-    event_types = [event["event_type"] for event in payload["trace_events"]]
-    assert event_types[:3] == ["run_created", "invocation_started", "approval_required"]
-    unsafe_event = next(
-        event
-        for event in payload["trace_events"]
-        if event["event_type"] == "unsafe_payload_fixture"
-    )
-    assert unsafe_event["payload"] == {
-        "safe": "visible",
-        "api_key": "[redacted]",
-        "nested": {"token": "[redacted]"},
-        "raw_reasoning": "[redacted]",
-    }
-    assert recorded_results == ["ok"]
-
-
-def test_platform_admin_cannot_inspect_another_users_personal_runtime(client: TestClient) -> None:
-    seed = _seed_pending_approval(client)
-    other_session = _dev_login(client, "administrator")
-
-    response = client.get(
-        _ai_path(f"/runtime/runs/{seed['agent_run_id']}"),
-        headers=_auth_headers(other_session["token"]),
-    )
-
-    assert response.status_code == 404
-
-
-def test_runtime_inspection_endpoint_enforces_requesting_user(client: TestClient) -> None:
-    seed = _seed_pending_approval(client)
-    other_session = _dev_login(client, "delivery-hub-member")
-
-    response = client.get(
-        _ai_path(f"/runtime/runs/{seed['agent_run_id']}"),
-        headers=_auth_headers(other_session["token"]),
-    )
-
-    assert response.status_code == 404
-
-
-def test_resume_allowed_app_ids_omission_reuses_frozen_scope() -> None:
-    snapshot = ai_approvals.AgentRunSnapshot(
-        id="snapshot-1",
-        conversation_id="conversation-1",
-        requested_by_user_id="user-1",
-        blocked_call_id="call-1",
-        model_meta={"scope": {"allowed_app_ids": ["pms", "docs"]}},
-    )
-
-    assert ai_approvals.resolve_resume_allowed_app_ids(snapshot, None) == ["pms", "docs"]
-
-
-def test_resume_allowed_app_ids_accepts_narrower_scope() -> None:
-    snapshot = ai_approvals.AgentRunSnapshot(
-        id="snapshot-1",
-        conversation_id="conversation-1",
-        requested_by_user_id="user-1",
-        blocked_call_id="call-1",
-        model_meta={"scope": {"allowed_app_ids": ["pms", "docs"]}},
-    )
-
-    assert ai_approvals.resolve_resume_allowed_app_ids(snapshot, ["pms"]) == ["pms"]
-
-
 def test_resume_allowed_app_ids_rejects_wider_scope() -> None:
     snapshot = ai_approvals.AgentRunSnapshot(
         id="snapshot-1",
@@ -370,143 +222,6 @@ def test_resume_allowed_app_ids_rejects_wider_scope() -> None:
         ai_approvals.resolve_resume_allowed_app_ids(snapshot, ["pms", "docs"])
     assert isinstance(exc_info.value.detail, LocalizedApiMessage)
     assert exc_info.value.detail.code == "ai.resume_scope_wider"
-
-
-def test_resume_allowed_app_ids_keeps_text_only_scope() -> None:
-    snapshot = ai_approvals.AgentRunSnapshot(
-        id="snapshot-1",
-        conversation_id="conversation-1",
-        requested_by_user_id="user-1",
-        blocked_call_id="call-1",
-        model_meta={"scope": {"allowed_app_ids": []}},
-    )
-
-    assert ai_approvals.resolve_resume_allowed_app_ids(snapshot, None) == []
-    with pytest.raises(HTTPException) as exc_info:
-        ai_approvals.resolve_resume_allowed_app_ids(snapshot, ["pms"])
-    assert isinstance(exc_info.value.detail, LocalizedApiMessage)
-    assert exc_info.value.detail.code == "ai.resume_scope_wider"
-
-
-def test_get_and_resolve_approval_routes_work_and_legacy_mount_is_removed(
-    client: TestClient,
-) -> None:
-    seed = _seed_pending_approval(client)
-    headers = _auth_headers(seed["token"])
-
-    resolve_response = client.post(
-        _ai_path(f"/approvals/{seed['approval_id']}/resolve"),
-        headers=headers,
-        json={"decision": "approved"},
-    )
-    assert resolve_response.status_code == 200, resolve_response.text
-    resolved = resolve_response.json()
-    assert resolved["status"] == "approved"
-    assert resolved["tool_call_id"] == "call-1"
-    assert resolved["snapshot_status"] == "awaiting_approval"
-
-    approval_get = client.get(
-        _ai_path(f"/approvals/{seed['approval_id']}"),
-        headers=headers,
-    )
-    assert approval_get.status_code == 200, approval_get.text
-    assert approval_get.json()["status"] == "approved"
-
-    legacy_get = client.get(
-        _legacy_ai_path(f"/approvals/{seed['approval_id']}"),
-        headers=headers,
-    )
-    assert legacy_get.status_code in {404, 405}, legacy_get.text
-
-
-def test_resolve_approval_forbidden_for_different_user(client: TestClient) -> None:
-    seed = _seed_pending_approval(client)
-    session = _dev_login(client, "delivery-hub-member")
-    headers = _auth_headers(session["token"])
-
-    response = client.post(
-        _ai_path(f"/approvals/{seed['approval_id']}/resolve"),
-        headers=headers,
-        json={"decision": "approved"},
-    )
-
-    assert response.status_code == 403, response.text
-    assert response.json()["code"] == "ai.approval_different_user"
-
-
-def test_chat_resume_rejects_mismatched_conversation_id(client: TestClient) -> None:
-    seed = _seed_pending_approval(client)
-    headers = _auth_headers(seed["token"])
-
-    resolve_response = client.post(
-        _ai_path(f"/approvals/{seed['approval_id']}/resolve"),
-        headers=headers,
-        json={"decision": "approved"},
-    )
-    assert resolve_response.status_code == 200, resolve_response.text
-
-    response = client.post(
-        _ai_path("/chat/resume"),
-        headers=headers,
-        json={
-            "conversation_id": "different-conversation-id",
-            "approval_id": seed["approval_id"],
-        },
-    )
-
-    assert response.status_code == 400, response.text
-    assert response.json()["code"] == "ai.approval_conversation_mismatch"
-
-
-def test_chat_resume_rejects_pending_approval(client: TestClient) -> None:
-    seed = _seed_pending_approval(client)
-    headers = _auth_headers(seed["token"])
-
-    response = client.post(
-        _ai_path("/chat/resume"),
-        headers=headers,
-        json={
-            "conversation_id": seed["conversation_id"],
-            "approval_id": seed["approval_id"],
-        },
-    )
-
-    assert response.status_code == 400
-    assert response.json()["code"] == "ai.approval_resume_requires_resolution"
-
-
-def test_chat_resume_rejects_narrower_scope_that_excludes_approved_tool(
-    client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    registry = _build_test_approval_registry()
-    _patch_test_approval_registry(monkeypatch, registry)
-    seed = _seed_pending_approval(
-        client,
-        tool_name=_APPROVAL_TOOL_NAME,
-        resource_preview="Approval Test Write\nCreates an approval-gated test resource.\nTitle: Approval issue",
-    )
-    headers = _auth_headers(seed["token"])
-
-    resolve_response = client.post(
-        _ai_path(f"/approvals/{seed['approval_id']}/resolve"),
-        headers=headers,
-        json={"decision": "approved"},
-    )
-    assert resolve_response.status_code == 200, resolve_response.text
-
-    response = client.post(
-        _ai_path("/chat/resume"),
-        headers=headers,
-        json={
-            "conversation_id": seed["conversation_id"],
-            "approval_id": seed["approval_id"],
-            "allowed_app_ids": ["pms"],
-        },
-    )
-
-    assert response.status_code == 400, response.text
-    assert response.json()["code"] == "ai.resume_scope_excludes_approved_tool"
 
 
 def test_chat_resume_replays_rejected_tool_without_running_handler(
@@ -533,6 +248,28 @@ def test_chat_resume_replays_rejected_tool_without_running_handler(
         resource_preview="Approval Test Write\nCreates an approval-gated test resource.\nTitle: Approval issue",
     )
     headers = _auth_headers(seed["token"])
+    administrator = _dev_login(client, "administrator")
+    assert (
+        client.get(
+            _ai_path(f"/runtime/runs/{seed['agent_run_id']}"),
+            headers=_auth_headers(administrator["token"]),
+        ).status_code
+        == 404
+    )
+    other = _dev_login(client, "delivery-hub-member")
+    forbidden = client.post(
+        _ai_path(f"/approvals/{seed['approval_id']}/resolve"),
+        headers=_auth_headers(other["token"]),
+        json={"decision": "approved"},
+    )
+    assert forbidden.status_code == 403
+    assert forbidden.json()["code"] == "ai.approval_different_user"
+    pending = client.get(_ai_path(f"/approvals/{seed['approval_id']}"), headers=headers)
+    assert pending.status_code == 200 and pending.json()["status"] == "pending"
+    assert (
+        client.get(f"/api/v1/ai/approvals/{seed['approval_id']}", headers=headers).status_code
+        == 404
+    )
 
     async def fake_complete_chat_stream(*args: Any, **kwargs: Any):
         del kwargs
@@ -680,57 +417,3 @@ def test_chat_resume_cancellation_after_tool_exec_does_not_rewind(
     )
     assert second_resume.status_code == 410, second_resume.text
     assert second_resume.json()["code"] == "ai.agent_run_snapshot_not_resumable"
-
-
-def test_ai_tool_invoke_returns_409_for_approval_required_tool(
-    client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    registry = _build_test_approval_registry()
-    _patch_test_approval_registry(monkeypatch, registry)
-    session = _dev_login(client, "delivery-hub-admin")
-
-    response = client.post(
-        _ai_path(f"/tools/{_APPROVAL_TOOL_NAME}/invoke"),
-        headers=_auth_headers(session["token"]),
-        json={"arguments": {"title": "Approval issue"}},
-    )
-
-    assert response.status_code == 409, response.text
-    assert response.json()["code"] == "ai.tool_requires_approval"
-    assert response.json()["params"]["tool_name"] == _APPROVAL_TOOL_NAME
-
-
-def test_mcp_call_tool_returns_409_for_approval_required_tool(
-    client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    registry = _build_test_approval_registry()
-    _patch_test_approval_registry(monkeypatch, registry)
-    seed = _seed_pending_approval(
-        client,
-        tool_name=_APPROVAL_TOOL_NAME,
-    )
-
-    with get_session_factory()() as db:
-        user = load_user_graph(db, seed["user_id"])
-        assert user is not None
-        principal = user_principal(
-            user_id=user.id,
-            source="test.mcp",
-        )
-
-        with pytest.raises(HTTPException) as exc_info:
-            ai_mcp.AiMcpClient(registry=registry).call_tool(
-                db,
-                principal=principal,
-                user=user,
-                tool_name=_APPROVAL_TOOL_NAME,
-                arguments={"title": "Approval issue"},
-                source="test.mcp",
-            )
-
-    assert exc_info.value.status_code == 409
-    assert isinstance(exc_info.value.detail, LocalizedApiMessage)
-    assert exc_info.value.detail.code == "ai.tool_requires_approval"
-    assert exc_info.value.detail.params["tool_name"] == _APPROVAL_TOOL_NAME

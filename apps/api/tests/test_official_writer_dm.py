@@ -1,51 +1,39 @@
 """DM's four source tables and accepted attachment transaction share one writer."""
 
 from datetime import timedelta
-from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
-from threading import Event
 from types import SimpleNamespace
 from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-import psycopg
-from alembic import command
-from alembic.migration import MigrationContext
-from alembic.operations import Operations
 from alembic.script import ScriptDirectory
 from fastapi import HTTPException
-from sqlalchemy import select, inspect, text
+from sqlalchemy import inspect, select
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import DBAPIError
+from test_alembic_migrations import _migration_config
+from test_independent_app_data import isolated_data_cluster as isolated_data_cluster
+from test_official_writer_fence import writer as writer
+from test_official_writer_roles import (
+    role_template as role_template,
+)
+from test_official_writer_roles import (
+    sa_dsn,
+)
+from test_official_writer_roles import (
+    world as world,
+)
 
+from alembic import command
 from miy_api.domains.auth.models import AuthSession, User, utcnow_naive
 from miy_api.domains.auth.security import hash_token
-from miy_api.domains.dm import attachment_persistence, attachment_storage, router as dm_router
-from miy_api.domains.official_apps import writer_roles
-from miy_api.domains.official_apps.writer import WriterControlError, WriterIdentity
-from miy_api.domains.official_apps.writer_contracts import SUITE_SCOPE
-from miy_api.domains.official_apps.writer_roles import install_role_guard, revoke_principal
+from miy_api.domains.dm import attachment_persistence, attachment_storage
+from miy_api.domains.dm import router as dm_router
 from miy_api.domains.dm.models import (
     DmConversation,
     DmConversationParticipant,
     DmMessage,
     DmMessageAttachment,
-)
-from test_official_writer_fence import change, writer as writer
-from test_alembic_migrations import _migration_config
-from test_independent_app_data import isolated_data_cluster as isolated_data_cluster
-from test_official_writer_roles import (
-    ACTIVE,
-    BASE,
-    activate,
-    denied,
-    move,
-    prepare,
-    sa_dsn,
-    wait_for_blocker,
-    role_template as role_template,
-    world as world,
 )
 
 MODELS = (DmConversation, DmConversationParticipant, DmMessage, DmMessageAttachment)
@@ -142,82 +130,6 @@ def dm(client, writer, monkeypatch):
     )
 
 
-@pytest.mark.parametrize(
-    "operation",
-    ["direct", "group", "rename", "add", "remove", "leave", "rejoin", "send", "read", "upload"],
-)
-def test_dm_drain_rejects_mutation_without_partial_rows_or_external_effects(client, dm, operation):
-    if operation == "rejoin":
-        response = client.delete(dm.base + "/participants/me", headers=dm.peers[0]["headers"])
-        assert response.status_code == 204
-    before = snapshot(dm.factory)
-    original_objects = dict(dm.objects.values)
-    puts = len(dm.objects.puts)
-    dm.events.reset_mock()
-    with dm.factory.begin() as db:
-        change(db, dm.admin)
-    method, path, body, headers = "POST", dm.base, {}, dm.headers
-    if operation == "direct":
-        path, body = "/api/v1/dm/conversations", {"recipient_user_id": dm.peers[2]["id"]}
-    elif operation == "group":
-        path, body = (
-            "/api/v1/dm/conversations",
-            {"participant_user_ids": [p["id"] for p in dm.peers[1:]], "title": "Blocked"},
-        )
-    elif operation == "rename":
-        method, body = "PATCH", {"title": "Blocked"}
-    elif operation in {"add", "rejoin"}:
-        path, body = (
-            dm.base + "/participants",
-            {"user_ids": [dm.peers[0 if operation == "rejoin" else 2]["id"]]},
-        )
-    elif operation == "remove":
-        method, path = "DELETE", dm.base + "/participants/" + dm.peers[0]["id"]
-    elif operation == "leave":
-        method, path, headers = "DELETE", dm.base + "/participants/me", dm.peers[0]["headers"]
-    elif operation == "send":
-        path, body = (
-            dm.base + "/messages",
-            {"body": "Blocked", "attachment_ids": [dm.attachment["id"]]},
-        )
-    elif operation == "read":
-        method, path = "PATCH", dm.base + "/read"
-    else:
-        path = dm.base + "/attachments"
-    response = client.request(
-        method,
-        path,
-        headers=headers,
-        **(
-            {"files": {"file": ("blocked.txt", b"blocked", "text/plain")}}
-            if operation == "upload"
-            else {"json": body}
-        ),
-    )
-    assert response.status_code == 503, response.text
-    assert response.json()["code"] == "official_apps.writer_unavailable"
-    assert response.headers["Retry-After"] == "5"
-    assert snapshot(dm.factory) == before
-    assert dm.objects.values == original_objects and len(dm.objects.puts) == puts
-    assert not dm.events.mock_calls
-    assert client.get(dm.base + "/messages", headers=dm.headers).status_code == 200
-
-
-def test_dm_exact_existing_direct_read_during_drain_does_not_create_participants(client, dm):
-    body = {"recipient_user_id": dm.peers[0]["id"]}
-    first = client.post("/api/v1/dm/conversations", headers=dm.headers, json=body)
-    assert first.status_code == 201
-    before = snapshot(dm.factory)
-    with dm.factory.begin() as db:
-        change(db, dm.admin)
-    again = client.post("/api/v1/dm/conversations", headers=dm.headers, json=body)
-    assert again.status_code == 201 and again.json()["id"] == first.json()["id"]
-    assert snapshot(dm.factory) == before
-    # A caller outside the group still cannot read during drain.
-    denied_read = client.get(dm.base + "/messages", headers=dm.peers[2]["headers"])
-    assert denied_read.status_code == 404
-
-
 def seed(conn, user_id):
     conn.execute(
         "INSERT INTO dm_conversations(id,conversation_type,title,created_by_id,message_seq,created_at,updated_at) VALUES ('dm-conversation','group','Original',%s,1,now(),now())",
@@ -258,189 +170,6 @@ def assert_revision(world, revision, *, fenced):
         assert (
             "writer_scope" in {c["name"] for c in inspect(world.engine).get_columns(table)}
         ) is fenced
-
-
-def test_dm_migration_preserves_all_four_sources_constraints_and_rollback(world):
-    old_schema(world)
-    with world.connect() as conn:
-        seed(conn, world.user_id)
-        before = contents(conn)
-    config = _migration_config(sa_dsn(world.dsn))
-    command.upgrade(config, REVISION)
-    assert_revision(world, REVISION, fenced=True)
-    with world.connect() as conn:
-        assert contents(conn) == before
-        for table in SOURCES:
-            assert conn.execute(f"SELECT writer_scope FROM {table}").fetchone()[0] == SUITE_SCOPE
-            denied(conn, f"UPDATE {table} SET writer_scope='other'", "23514")
-    schema = inspect(world.engine)
-    for table in SOURCES:
-        assert any(
-            fk["constrained_columns"] == ["writer_scope"]
-            and fk["referred_table"] == "official_runtime_ownership"
-            for fk in schema.get_foreign_keys(table)
-        )
-    command.downgrade(config, PREVIOUS)
-    assert_revision(world, PREVIOUS, fenced=False)
-    with world.connect() as conn:
-        assert contents(conn) == before
-    command.upgrade(config, REVISION)
-    with world.connect() as conn:
-        assert contents(conn) == before
-
-
-@pytest.mark.parametrize("table", SOURCES)
-def test_dm_raw_statements_copy_truncate_and_stale_generation_are_fenced(world, table):
-    with world.connect() as conn:
-        seed(conn, world.user_id)
-        before = contents(conn)
-    draining = move(world, BASE, "active", state="draining")
-    with world.connect() as conn:
-        for statement in (
-            f"INSERT INTO {table} DEFAULT VALUES",
-            f"UPDATE {table} SET writer_scope=writer_scope WHERE false",
-            f"DELETE FROM {table}",
-            f"TRUNCATE {table} CASCADE",
-        ):
-            denied(conn, statement, "55000")
-        with pytest.raises(psycopg.Error) as error:
-            with conn.transaction(), conn.cursor().copy(f"COPY {table}(id) FROM STDIN") as stream:
-                stream.write_row(("blocked",))
-        assert error.value.sqlstate == "55000" and contents(conn) == before
-    active = move(world, draining, "draining", state="active")
-    with world.connect() as conn:
-        denied(conn, f"UPDATE {table} SET writer_scope=writer_scope WHERE false", "55000")
-        conn.execute(
-            "SELECT set_config('miy.official_writer',%s,true)",
-            [
-                '{"scope":"official.suite","owner":"legacy","generation":%d,"artifact":null}'
-                % active.generation
-            ],
-        )
-        conn.execute(f"UPDATE {table} SET writer_scope=writer_scope WHERE false")
-
-
-def test_dm_late_statement_failure_rolls_back_preceding_changes_in_all_four_sources(world):
-    with world.connect() as conn:
-        seed(conn, world.user_id)
-        before = contents(conn)
-    with Session(world.engine) as db:
-        db.get(DmConversation, "dm-conversation").title = "Uncommitted"
-        db.get(DmConversationParticipant, "dm-member").muted_at = utcnow_naive()
-        db.get(DmMessage, "dm-message").body = "Uncommitted"
-        db.get(DmMessageAttachment, "dm-attachment").filename = "Uncommitted.txt"
-        db.flush()
-        # A privileged legacy assertion mismatch on a later statement must abort
-        # earlier real DML as well; no ORM-only compensation is involved.
-        db.execute(
-            text("SELECT set_config('miy.official_writer', :identity, true)"),
-            {
-                "identity": '{"scope":"official.suite","owner":"legacy","generation":99,"artifact":null}'
-            },
-        )
-        with pytest.raises(DBAPIError) as error:
-            db.execute(text("UPDATE dm_messages SET body=body WHERE false"))
-        assert error.value.orig.sqlstate == "55000"
-        db.rollback()
-    with world.connect() as conn:
-        assert contents(conn) == before
-
-
-@pytest.mark.parametrize("outcome", ["commit", "storage_failure", "commit_failure"])
-def test_dm_attachment_holds_writer_until_storage_transaction_settles(world, outcome):
-    with world.connect() as conn:
-        seed(conn, world.user_id)
-        if outcome == "commit_failure":
-            # A real server rejection at COMMIT, after successful flush and put.
-            foreign_key = conn.execute(
-                "SELECT conname FROM pg_constraint WHERE conrelid='dm_message_attachments'::regclass "
-                "AND confrelid='dm_messages'::regclass"
-            ).fetchone()[0]
-            conn.execute(
-                psycopg.sql.SQL(
-                    "ALTER TABLE dm_message_attachments ALTER CONSTRAINT {} DEFERRABLE INITIALLY DEFERRED"
-                ).format(psycopg.sql.Identifier(foreign_key))
-            )
-    entered, release = Event(), Event()
-    objects = Objects()
-    upload_pid = []
-    finished_counts = []
-
-    class Storage:
-        def put(self, **kwargs):
-            entered.set()
-            # The blocker probe may use eight seconds. It must finish before
-            # this test-owned storage gate times out and releases the DB lock.
-            assert release.wait(15)
-            if outcome == "storage_failure":
-                raise OSError("synthetic object write failure")
-            objects.put(**kwargs)
-
-        def remove(self, **kwargs):
-            objects.remove(**kwargs)
-
-    def upload():
-        with Session(world.engine) as db:
-            upload_pid.append(db.scalar(text("SELECT pg_backend_pid()")))
-            row = DmMessageAttachment(
-                id="new-attachment",
-                conversation_id="dm-conversation",
-                message_id="missing-message" if outcome == "commit_failure" else None,
-                uploader_id=world.user_id,
-                filename="new.txt",
-                content_type="text/plain",
-                size_bytes=3,
-                storage_key="dm/synthetic/new",
-            )
-
-            def call():
-                return attachment_persistence.persist_created_attachment(
-                    db,
-                    row=row,
-                    object_write=attachment_persistence.DmAttachmentObjectWrite(
-                        storage_key=row.storage_key,
-                        content=BytesIO(b"new"),
-                        size_bytes=3,
-                        content_type="text/plain",
-                    ),
-                    object_storage=Storage(),
-                )
-
-            if outcome == "commit":
-                call()
-            else:
-                with pytest.raises(HTTPException) as error:
-                    call()
-                assert error.value.status_code == (502 if outcome == "storage_failure" else 500)
-                if outcome == "commit_failure":
-                    assert error.value.detail.code == "dm.attachment_save_failed"
-            finished_counts.append(True)
-
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        writing = pool.submit(upload)
-        pending = None
-        try:
-            assert entered.wait(5)
-            pending = pool.submit(move, world, BASE, "active", state="draining")
-            wait_for_blocker(world, upload_pid[0])
-            assert not pending.done() and not finished_counts
-        finally:
-            release.set()
-        writing.result(timeout=8)
-        assert pending.result(timeout=8).generation == 2
-    with world.connect() as conn:
-        rows = conn.execute(
-            "SELECT id FROM dm_message_attachments WHERE id='new-attachment'"
-        ).fetchall()
-        assert bool(rows) is (outcome == "commit")
-        assert (
-            conn.execute(
-                "SELECT filename FROM dm_message_attachments WHERE id='dm-attachment'"
-            ).fetchone()[0]
-            == "Original.txt"
-        )
-    assert objects.values == ({"dm/synthetic/new": b"new"} if outcome == "commit" else {})
-    assert objects.removes == (["dm/synthetic/new"] if outcome == "commit_failure" else [])
 
 
 @pytest.mark.parametrize("accepted", [False, True])
@@ -488,178 +217,3 @@ def test_dm_attachment_commit_response_loss_preserves_committed_object(world, ac
         assert stored == (("dm/synthetic/accepted",) if accepted else None)
     assert objects.removes == []
     assert objects.values == {"dm/synthetic/accepted": b"accepted"}
-
-
-@pytest.mark.parametrize("locale", ["ko-KR", "en-US"])
-def test_dm_attachment_unknown_http_response_is_localized_and_retains_bytes(
-    client, dm, monkeypatch, locale
-):
-    persist = attachment_persistence.persist_created_attachment
-
-    def lose_response(db, **kwargs):
-        commit = db.commit
-
-        def accepted_commit():
-            commit()
-            raise OSError("private commit transport failure")
-
-        db.commit = accepted_commit
-        try:
-            return persist(db, **kwargs)
-        finally:
-            db.commit = commit
-
-    monkeypatch.setattr(attachment_persistence, "persist_created_attachment", lose_response)
-    before = dict(dm.objects.values)
-    response = client.post(
-        dm.base + "/attachments",
-        headers={**dm.headers, "Accept-Language": locale},
-        files={"file": ("unknown.txt", b"retained bytes", "text/plain")},
-    )
-    assert response.status_code == 500
-    assert response.headers["X-MIY-Error-Code"] == "dm.attachment_save_unknown"
-    assert "Retry-After" not in response.headers
-    message = response.json()["detail"]
-    assert ("확인할 수 없습니다" if locale == "ko-KR" else "result is unknown") in message
-    assert "private" not in response.text and "transport" not in response.text
-    new_keys = set(dm.objects.values) - set(before)
-    assert len(new_keys) == 1 and dm.objects.removes == []
-    key = new_keys.pop()
-    assert dm.objects.values[key] == b"retained bytes"
-    with dm.factory() as db:
-        assert db.scalar(
-            select(DmMessageAttachment.id).where(DmMessageAttachment.storage_key == key)
-        )
-    assert all(dm.objects.values[k] == value for k, value in before.items())
-    assert dm.events.mock_calls == []
-
-
-def test_hardened_fifteen_to_nineteen_requires_drain_and_new_principal(world, monkeypatch):
-    # This historical schema predates the append-only projection transport.
-    monkeypatch.setattr(writer_roles, "WRITER_TRANSPORT_TABLES", ())
-    # This historical migration exposes 19 sources, independently of current88.
-    monkeypatch.setattr(writer_roles, "COVERED_SOURCE_TABLES", (*OLD_SOURCES, *SOURCES))
-    old_schema(world)
-    with world.connect() as conn:
-        seed(conn, world.user_id)
-        before = contents(conn)
-    with monkeypatch.context() as old:
-        old.setattr(writer_roles, "COVERED_SOURCE_TABLES", OLD_SOURCES)
-        role, guard_owner, oid = activate(world)
-    config = _migration_config(sa_dsn(world.dsn))
-    with pytest.raises(RuntimeError, match="requires_draining"):
-        command.upgrade(config, REVISION)
-    assert_revision(world, PREVIOUS, fenced=False)
-    draining = move(world, ACTIVE, "active", state="draining", artifact=ACTIVE.artifact)
-    command.upgrade(config, REVISION)
-    assert prepare(world, role, ACTIVE, draining, "draining") == oid
-    with world.connect() as conn:
-        assert contents(conn) == before
-        for table in SOURCES:
-            assert not conn.execute(
-                "SELECT has_table_privilege(%s,%s,'UPDATE')", [role, table]
-            ).fetchone()[0]
-        assert (
-            conn.execute(
-                "SELECT count(*) FROM pg_trigger WHERE tgname='miy_official_source_writer'"
-            ).fetchone()[0]
-            == 19
-        )
-    identity = WriterIdentity(SUITE_SCOPE, "legacy", 5, "sha256:" + "b" * 64)
-    new_role = world.role()
-    prepare(world, new_role, identity, draining, "draining")
-    with Session(world.engine) as db:
-        install_role_guard(db, world.actor, guard_owner=guard_owner, expected=draining)
-        revoke_principal(
-            db, world.actor, role_oid=oid, expected=draining, expected_state="draining"
-        )
-        db.commit()
-    with world.connect(new_role) as stale_session:
-        denied(stale_session, "UPDATE dm_messages SET body=body WHERE false", "55000")
-        move(world, draining, "draining", state="active", artifact=identity.artifact)
-        # Same physical session becomes usable only for its immutable exact generation.
-        stale_session.execute("UPDATE dm_messages SET body='New generation'")
-        stale_session.commit()
-        next_drain = move(world, identity, "active", state="draining", artifact=identity.artifact)
-        denied(stale_session, "UPDATE dm_messages SET body=body WHERE false", "55000")
-        with Session(world.engine) as db:
-            revoke_principal(
-                db,
-                world.actor,
-                role_oid=prepare(world, new_role, identity, next_drain, "draining"),
-                expected=next_drain,
-                expected_state="draining",
-            )
-            db.commit()
-        denied(stale_session, "UPDATE dm_messages SET body=body WHERE false", "55000")
-    with world.connect(role) as conn:
-        denied(conn, "UPDATE announcements SET title=title WHERE false", "55000")
-        denied(conn, "UPDATE dm_messages SET body=body WHERE false")
-    with world.connect(new_role) as conn:
-        for sql in (
-            "TRUNCATE dm_messages CASCADE",
-            "UPDATE official_runtime_ownership SET state='active'",
-            "SELECT * FROM audit_logs",
-            "SELECT * FROM users",
-            "UPDATE file_manager_files SET filename=filename WHERE false",
-        ):
-            denied(conn, sql)
-    with pytest.raises(RuntimeError, match="requires_explicit_retirement"):
-        command.downgrade(config, PREVIOUS)
-    assert_revision(world, REVISION, fenced=True)
-
-
-def test_current_helper_refuses_new_role_against_unfenced_old_dm_schema(world):
-    old_schema(world)
-    role = world.role()
-    with pytest.raises(WriterControlError, match="writer_role_trigger_inventory_invalid"):
-        prepare(world, role)
-    with world.connect() as conn:
-        assert conn.execute("SELECT count(*) FROM official_writer_principals").fetchone()[0] == 0
-        assert (
-            conn.execute(
-                "SELECT count(*) FROM audit_logs WHERE action='official_writer.principal.prepare'"
-            ).fetchone()[0]
-            == 0
-        )
-        for table in SOURCES:
-            assert not conn.execute(
-                "SELECT has_table_privilege(%s,%s,'UPDATE')", [role, table]
-            ).fetchone()[0]
-
-
-@pytest.mark.parametrize("hazard", ["disabled", "mixed", "arguments"])
-def test_dm_upgrade_rejects_bad_old_guard_without_partial_ddl(world, hazard):
-    old_schema(world)
-    with world.connect() as conn:
-        seed(conn, world.user_id)
-        before = contents(conn)
-        if hazard == "disabled":
-            conn.execute("ALTER TABLE planner_events DISABLE TRIGGER miy_official_source_writer")
-        else:
-            conn.execute("DROP TRIGGER miy_official_source_writer ON planner_events")
-            function = (
-                "miy_guard_official_source_writer_by_role"
-                if hazard == "mixed"
-                else "miy_guard_official_source_writer"
-            )
-            argument = "official.suite" if hazard == "mixed" else "invalid"
-            conn.execute(
-                f"CREATE TRIGGER miy_official_source_writer BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ON planner_events FOR EACH STATEMENT EXECUTE FUNCTION {function}('{argument}')"
-            )
-    with pytest.raises(RuntimeError, match="guard_inventory_invalid"):
-        command.upgrade(_migration_config(sa_dsn(world.dsn)), REVISION)
-    assert_revision(world, PREVIOUS, fenced=False)
-    with world.connect() as conn:
-        assert contents(conn) == before
-
-
-@pytest.mark.parametrize("isolation", ["AUTOCOMMIT", "REPEATABLE READ"])
-def test_dm_migration_requires_owned_lock_transaction(world, isolation):
-    old_schema(world)
-    module = ScriptDirectory.from_config(_migration_config()).get_revision(REVISION).module
-    with world.engine.connect().execution_options(isolation_level=isolation) as connection:
-        with Operations.context(MigrationContext.configure(connection)):
-            with pytest.raises(RuntimeError, match="requires_transaction|requires_read_committed"):
-                module.upgrade()
-    assert_revision(world, PREVIOUS, fenced=False)

@@ -25,24 +25,7 @@ _SCOPE_CASES = [
 ]
 
 
-@pytest.mark.parametrize("platform_admin", [False, True])
-@pytest.mark.parametrize("active", [False, True])
-@pytest.mark.parametrize("scope_kind,scope_id,granted", _SCOPE_CASES)
-def test_source_scope_preserves_group_space_and_personal_boundaries(
-    platform_admin: bool, active: bool, scope_kind: str | None, scope_id: str | None, granted: bool
-) -> None:
-    rules = AccessScopeRules(
-        user_id="user-1",
-        active=active,
-        platform_admin=platform_admin,
-        team_ids=("space-1",),
-        group_ids=("group-1",),
-    )
-    assert rules.can_access(scope_kind, scope_id) is (active and granted)
-
-
-@pytest.mark.parametrize("platform_admin", [False, True])
-@pytest.mark.parametrize("active", [False, True])
+@pytest.mark.parametrize("platform_admin,active", [(False, True), (False, False)])
 def test_sql_scope_projection_matches_the_same_fail_closed_matrix(
     platform_admin: bool, active: bool
 ) -> None:

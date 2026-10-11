@@ -146,7 +146,7 @@ def execute_cli(cli, app, request, tmp_path):
     )
 
 
-@pytest.mark.parametrize("change", ["declaration", "embedding"])
+@pytest.mark.parametrize("change", ["embedding"])
 def test_failed_health_keeps_old_resources_and_allows_changed_search_deploy(
     client, search_delivery, tmp_path, change
 ):

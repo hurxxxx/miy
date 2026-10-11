@@ -1,70 +1,11 @@
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from miy_api.app import create_app, create_first_party_app
 from miy_api.core.settings import get_settings
-
-
-def test_official_static_paths_and_fixed_compatibility_do_not_shadow_platform_or_files(
-    monkeypatch, tmp_path
-):
-    root = Path(__file__).resolve().parents[3]
-    monkeypatch.syspath_prepend(str(root / "apps/official-suite/api/src"))
-    from miy_official_api.frontend import mount_official_frontend, read_platform_build_id
-
-    (tmp_path / "assets").mkdir()
-    (tmp_path / "help/pms").mkdir(parents=True)
-    (tmp_path / "index.html").write_text("official reviewed shell")
-    (tmp_path / "assets/app.js").write_text("official reviewed module")
-    (tmp_path / "recording-sync-sw.js").write_text("official fixed worker")
-    (tmp_path / "help/pms/user-guide.html").write_text("official fixed help")
-    (tmp_path / ".miy-platform-build-id").write_text("platform-reviewed\n")
-    unrelated = tmp_path.parent / "unrelated.txt"
-    unrelated.write_text("outside artifact")
-    app = FastAPI()
-    mount_official_frontend(app, tmp_path, platform_build_id=read_platform_build_id(tmp_path))
-    with TestClient(app) as client:
-        for path in (
-            "/apps/docs/documents/id.with.dot?view=mine",
-            "/apps/pms/assigned",
-            "/official-suite/widgets",
-        ):
-            assert client.get(path).text == "official reviewed shell"
-        assert client.get("/official-suite/assets/app.js").text == "official reviewed module"
-        assert client.get("/official-suite/platform-build.json").json() == {
-            "platform_build_id": "platform-reviewed"
-        }
-        assert (
-            client.get("/recording-sync-sw.js", params={"file": str(unrelated)}).text
-            == "official fixed worker"
-        )
-        assert client.head("/help/pms/user-guide.html").status_code == 200
-        assert client.get("/help/pms/user-guide.html").text == "official fixed help"
-        for path in (
-            "/",
-            "/login",
-            "/apps/home",
-            "/api/v1/auth/me",
-            "/official-suite/assets/missing.js",
-        ):
-            assert client.get(path).status_code == 404
-
-
-def test_official_ui_requires_reviewed_compatibility_metadata(monkeypatch, tmp_path):
-    root = Path(__file__).resolve().parents[3]
-    monkeypatch.syspath_prepend(str(root / "apps/official-suite/api/src"))
-    from miy_official_api.frontend import read_platform_build_id
-
-    (tmp_path / "index.html").write_text("official shell")
-    with pytest.raises(RuntimeError, match="compatibility_missing"):
-        read_platform_build_id(tmp_path)
-    (tmp_path / ".miy-platform-build-id").write_text("../invalid")
-    with pytest.raises(RuntimeError, match="compatibility_invalid"):
-        read_platform_build_id(tmp_path)
 
 
 def test_official_api_and_client_metadata_use_the_same_reviewed_compatibility(

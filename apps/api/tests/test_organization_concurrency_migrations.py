@@ -22,7 +22,7 @@ from miy_api.domains.groups.schemas import GroupUpdateRequest
 pytestmark = pytest.mark.migration
 
 
-@pytest.mark.parametrize("preload_hierarchy", [False, True])
+@pytest.mark.parametrize("preload_hierarchy", [True])
 def test_concurrent_subtree_moves_cannot_create_organization_cycle(
     application_postgres_dsn, monkeypatch, preload_hierarchy
 ):

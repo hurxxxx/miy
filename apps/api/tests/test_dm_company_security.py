@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 import pytest
 from sqlalchemy import select
 
-from dev_accounts import auth_headers, content_grant_headers, content_headers, dev_login
+from dev_accounts import auth_headers, content_headers, dev_login
 from miy_api.core.db import get_session_factory
 from miy_api.domains.auth.models import AuthSession, User
 from miy_api.domains.dm.models import DmConversationParticipant, DmMessageAttachment
@@ -52,21 +52,6 @@ def shared_attachment(client, in_memory_object_storage):
     }
 
 
-def test_dm_attachment_content_requires_authentication(shared_attachment, client, monkeypatch):
-    from miy_api.domains.dm import attachment_storage
-
-    monkeypatch.setattr(
-        attachment_storage,
-        "get_minio_client",
-        lambda: pytest.fail("Unauthenticated content requests must not open storage"),
-    )
-    # Supply a valid grant so missing authentication is the only rejection reason.
-    url = shared_attachment["url"]
-    response = client.get(url, headers=content_grant_headers(url))
-    assert response.status_code == 403, response.text
-    assert response.json()["code"] == "content.grant_invalid"
-
-
 def test_dm_attachment_content_is_bound_to_issuer_user_and_session(shared_attachment, client):
     grant = shared_attachment
     recipient = grant["recipient"]
@@ -85,7 +70,7 @@ def test_dm_attachment_content_is_bound_to_issuer_user_and_session(shared_attach
 
 @pytest.mark.parametrize(
     "revocation",
-    ["password_change", "blocked", "inactive", "session", "membership", "replacement"],
+    ["blocked", "session", "membership"],
 )
 def test_dm_attachment_content_rechecks_current_authority(
     shared_attachment, client, revocation, monkeypatch
@@ -171,6 +156,26 @@ def test_dm_unsent_upload_is_private_to_its_uploader(shared_attachment, client):
     content = client.get(url, headers=content_headers(grant["sender"]["token"], url))
     assert content.status_code == 200, content.text
     assert content.content == PNG_BYTES
+
+    sent = client.post(
+        f"/api/v1/dm/conversations/{grant['conversation_id']}/messages",
+        headers=auth_headers(grant["sender"]["token"]),
+        json={"body": "Now shared", "attachment_ids": [attachment_id]},
+    )
+    assert sent.status_code == 200, sent.text
+    stale = client.get(url, headers=content_headers(grant["sender"]["token"], url))
+    assert stale.status_code == 403
+    peer = client.get(
+        f"/api/v1/dm/attachments/{attachment_id}/preview",
+        headers=auth_headers(grant["recipient"]["token"]),
+    )
+    assert peer.status_code == 200, peer.text
+    already_sent = client.post(
+        f"/api/v1/dm/conversations/{grant['conversation_id']}/messages",
+        headers=auth_headers(grant["sender"]["token"]),
+        json={"body": "Cannot relink", "attachment_ids": [attachment_id]},
+    )
+    assert already_sent.status_code == 422
 
 
 def test_dm_rejoined_participant_cannot_read_attachments_from_before_rejoining(

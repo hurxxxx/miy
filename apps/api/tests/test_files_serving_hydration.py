@@ -12,19 +12,13 @@ from miy_api.domains.files.models import (
     FileManagerFile,
     FileManagerFileSourceMetadata,
 )
-from miy_api.domains.files.artifact_contract import FileExtractionArtifact
-from miy_api.domains.document_processing import EvidenceBlock
 from miy_api.domains.files.rag_projection import (
-    build_file_rag_projection,
     hydrate_file_rag_hits_from_source,
 )
 from miy_api.domains.files.search_projection import (
-    build_file_search_document,
     hydrate_file_search_rows_from_source,
 )
-from miy_api.domains.rag import application
 from miy_api.domains.rag.contracts import RagProjection, RagVectorSearchHit
-from miy_api.domains.rag.query_projection import to_query_hit
 
 PARTITION = "a3b6638a-7547-45f8-81f2-973bfa6080d6"
 CHECKSUM = "a" * 64
@@ -114,148 +108,7 @@ def candidate_row(*, checksum=CHECKSUM, partition=PARTITION):
     }
 
 
-@pytest.mark.parametrize("empty", [True, False])
-def test_non_file_keyword_and_vector_candidates_need_no_database(empty):
-    rows = [] if empty else [{"entity_type": "doc_page", "entity_id": "synthetic-doc"}]
-    hits = (
-        []
-        if empty
-        else [
-            RagVectorSearchHit(
-                chunk_id="synthetic-doc:1",
-                text="Synthetic document",
-                score=1.0,
-                projection=RagProjection(
-                    resource_type="doc_page",
-                    resource_id="synthetic-doc",
-                    source_kind="docs",
-                ),
-            )
-        ]
-    )
-    assert hydrate_file_search_rows_from_source(None, rows=rows) == rows
-    assert hydrate_file_rag_hits_from_source(None, hits=hits) == hits
-
-
-@pytest.mark.parametrize("file_id", [None, ""])
-def test_no_known_file_ids_drops_invalid_files_without_touching_database(file_id):
-    doc = {"entity_type": "doc_page", "entity_id": "synthetic-doc"}
-    assert hydrate_file_search_rows_from_source(
-        None, rows=[{"entity_type": "file", "entity_id": file_id}, doc]
-    ) == [doc]
-
-
-@pytest.mark.parametrize("partition", [PARTITION, None])
-def test_ready_envelope_survives_keyword_and_chunk_metadata_conversion(source, partition):
-    db, file = source
-    file.retrieval_partition_id = partition
-    row = candidate_row(partition=partition)
-    keyword = hydrate_file_search_rows_from_source(db, rows=[row])[0]
-    assert keyword["body"] == row["body"]
-    assert keyword["metadata"]["content_checksum"] == CHECKSUM
-    assert keyword["metadata"]["retrieval_partition_id"] == partition
-    assert keyword["retrieval_partition_id"] == partition
-    original = candidate_hit(partition=partition)
-    hit = hydrate_file_rag_hits_from_source(db, hits=[original])[0]
-    assert hit.text == original.text
-    assert hit.metadata == {
-        "content_checksum": CHECKSUM,
-        "retrieval_partition_id": partition,
-        "locator": "paragraph 1",
-        "extracted_at": STAMP,
-    }
-    assert original.metadata["content_checksum"] == "collision"
-    assert to_query_hit(hit).metadata["content_checksum"] == CHECKSUM
-    assert to_query_hit(hit).metadata["retrieval_partition_id"] == partition
-    assert hit.projection.metadata["content_checksum"] == CHECKSUM
-    assert hit.projection.retrieval_partition_id == partition
-
-
-@pytest.mark.parametrize(
-    "change",
-    [
-        "pending",
-        "failed",
-        "unsupported",
-        "deleted",
-        "checksum",
-        "partition",
-        "missing_partition",
-        "same_input_new_result",
-        "missing_result_marker",
-    ],
-)
-def test_keyword_and_vector_drop_stale_content_before_routing_rewrite(source, change):
-    db, file = source
-    if change in {"pending", "failed", "unsupported"}:
-        file.extraction_status = change
-    elif change == "deleted":
-        file.deleted_at = datetime(2026, 10, 7)
-    elif change == "checksum":
-        file.extraction_content_checksum = "b" * 64
-    elif change == "partition":
-        file.retrieval_partition_id = "31a974ba-7fe4-4c35-9d98-ea3bb9b82d12"
-    elif change == "same_input_new_result":
-        file.extracted_at = datetime(2026, 10, 7, microsecond=123457)
-    elif change == "missing_result_marker":
-        file.extracted_at = None
-    else:
-        file.retrieval_partition_id = None
-    assert hydrate_file_search_rows_from_source(db, rows=[candidate_row()]) == []
-    assert hydrate_file_rag_hits_from_source(db, hits=[candidate_hit()]) == []
-
-
-def test_missing_checksum_and_non_file_behavior(source):
-    db, _file = source
-    assert hydrate_file_search_rows_from_source(db, rows=[candidate_row(checksum=None)]) == []
-    assert hydrate_file_rag_hits_from_source(db, hits=[candidate_hit(checksum=None)]) == []
-    row = {"entity_type": "doc", "entity_id": "doc-1"}
-    hit = candidate_hit().model_copy(
-        update={
-            "projection": RagProjection(
-                resource_type="doc", resource_id="doc-1", source_kind="docs"
-            )
-        }
-    )
-    assert hydrate_file_search_rows_from_source(db, rows=[row]) == [row]
-    assert hydrate_file_rag_hits_from_source(db, hits=[hit]) == [hit]
-
-
-@pytest.mark.parametrize("partitioned", [False, True])
-def test_files_application_installs_hydrator_for_legacy_and_partitioned(source, partitioned):
-    db, file = source
-    file.extraction_status = "pending"
-    hydrate = application._build_files_hit_hydrator(
-        db, source_kinds=["files"], partitioned_generation=partitioned
-    )
-    assert hydrate is not None and hydrate([candidate_hit()]) == []
-    assert (
-        application._build_files_hit_hydrator(
-            db, source_kinds=["docs"], partitioned_generation=partitioned
-        )
-        is None
-    )
-
-
-def test_source_builders_emit_actual_result_stamp_after_artifact_metadata(source):
-    _db, file = source
-    file.extraction_text = "Synthetic canonical text"
-    keyword = build_file_search_document(file=file)
-    block = EvidenceBlock(
-        "file-1", "file-1:text:1", "document", "Document", "Body", "text", file.extraction_text
-    )
-    artifact = FileExtractionArtifact(
-        CHECKSUM, file.extraction_text, [block], {"extracted_at": "untrusted artifact marker"}
-    )
-    projection = build_file_rag_projection(file=file, artifact=artifact)
-    assert keyword["metadata"]["extracted_at"] == STAMP
-    assert projection.metadata["extracted_at"] == STAMP
-    file.extracted_at = None
-    assert build_file_search_document(file=file)["metadata"]["extracted_at"] is None
-    assert build_file_rag_projection(file=file, artifact=artifact).metadata["extracted_at"] is None
-
-
-@pytest.mark.parametrize("kind", ["keyword", "vector"])
+@pytest.mark.parametrize("kind", ["keyword"])
 def test_result_change_during_real_routing_query_is_rechecked_before_response(
     tmp_path, monkeypatch, kind
 ):

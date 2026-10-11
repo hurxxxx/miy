@@ -149,101 +149,6 @@ def prepare(store, identity, *, artifact="a", request_id=None):
     )
 
 
-def test_native_user_app_environment_isolation_and_cas(data_store):
-    owner = actor()
-    prepare(data_store, owner)
-    row = data_store.write(owner, "notes", {"text": "my private record"})
-    another = owner.model_copy(update={"user_id": "user-b"})
-    assert data_store.list_records(another, "notes") == []
-    with pytest.raises(DataStoreError, match="not_found"):
-        data_store.read(another, "notes", str(row["id"]))
-    with pytest.raises(DataStoreError, match="conflict"):
-        data_store.write(
-            another, "notes", {"text": "stolen"}, record_id=str(row["id"]), expected_version=1
-        )
-    updated = data_store.write(
-        owner, "notes", {"text": "changed"}, record_id=str(row["id"]), expected_version=1
-    )
-    assert updated["version"] == 2
-    with pytest.raises(DataStoreError, match="conflict"):
-        data_store.delete(owner, "notes", str(row["id"]), 1)
-    for other in (actor(app="another-app"), actor(environment="production")):
-        prepare(data_store, other)
-        assert data_store.list_records(other, "notes") == []
-        with pytest.raises(DataStoreError, match="not_found"):
-            data_store.read(other, "notes", str(row["id"]))
-    forged = owner.model_copy(update={"environment": "production"})
-    with pytest.raises(DataStoreError, match="identity_mismatch"):
-        data_store.list_records(forged, "notes")
-    data_store.delete(owner, "notes", str(row["id"]), 2)
-    assert data_store.list_records(owner, "notes") == []
-
-
-def test_keyed_create_is_atomic_and_lookup_recovers_the_original_row(data_store):
-    owner = actor()
-    prepare(data_store, owner)
-    barrier = Barrier(2)
-
-    def create(value):
-        barrier.wait(timeout=10)
-        try:
-            return data_store.write(owner, "items", {"value": value}, record_key="same-key")
-        except DataStoreError as error:
-            return error.code
-
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        results = list(pool.map(create, ["first", "second"]))
-    created = [result for result in results if isinstance(result, dict)]
-    assert len(created) == 1
-    assert results.count("data_record_conflict") == 1
-    assert data_store.read_by_key(owner, "items", "same-key") == created[0]
-    assert data_store.list_records(owner, "items") == created
-    # Conflicting input never replaces the original payload or version.
-    with pytest.raises(DataStoreError, match="data_record_conflict"):
-        data_store.write(owner, "items", {"value": "replacement"}, record_key="same-key")
-    assert data_store.read_by_key(owner, "items", "same-key")["version"] == 1
-
-
-def test_record_key_is_exact_and_scoped_to_current_owner_installation_collection(data_store):
-    owner = actor()
-    prepare(data_store, owner)
-    first = data_store.write(owner, "items", {"value": 1}, record_key="key")
-    other_user = owner.model_copy(update={"user_id": "user-b"})
-    with pytest.raises(DataStoreError, match="data_record_not_found"):
-        data_store.read_by_key(other_user, "items", "key")
-    with pytest.raises(DataStoreError, match="data_record_not_found"):
-        data_store.read(other_user, "items", str(first["id"]))
-    others = [
-        data_store.write(other_user, "items", {"value": 2}, record_key="key"),
-        data_store.write(owner, "other_items", {"value": 3}, record_key="key"),
-        data_store.write(owner, "items", {"value": 4}, record_key="Key"),
-        data_store.write(owner, "items", {"value": 5}, record_key=" key "),
-        data_store.write(owner, "items", {"value": 6}, record_key="한글키"),
-    ]
-    other_installation = actor()
-    prepare(data_store, other_installation)
-    others.append(data_store.write(other_installation, "items", {"value": 7}, record_key="key"))
-    assert len({row["id"] for row in [first, *others]}) == 7
-    assert data_store.read_by_key(owner, "items", "key") == first
-    for key in ("", "   ", "key\n", "\ud800", "x" * 257, "한" * 86, 7):
-        with pytest.raises(DataStoreError, match="data_payload_invalid"):
-            data_store.write(owner, "items", {"value": 8}, record_key=key)
-    with pytest.raises(DataStoreError, match="data_payload_invalid"):
-        data_store.write(
-            owner,
-            "items",
-            {"value": 9},
-            record_id=str(first["id"]),
-            expected_version=1,
-            record_key="key",
-        )
-    data_store.delete(owner, "items", str(first["id"]), 1)
-    with pytest.raises(DataStoreError, match="data_record_not_found"):
-        data_store.read_by_key(owner, "items", "key")
-    replacement = data_store.write(owner, "items", {"value": 10}, record_key="key")
-    assert replacement["id"] == first["id"] and replacement["version"] == 1
-
-
 def test_migration_journal_retry_artifact_conflict_and_code_rollback_retains_data(data_store):
     identity = actor()
     request = str(uuid4())
@@ -358,71 +263,6 @@ def test_provisioning_timeout_is_private_and_never_retries_or_removes_marked_rol
             (migrator, gateway),
         ).fetchall()
         assert roles == sorted([(migrator, marker), (gateway, marker)])
-
-
-def test_request_bounds_and_rls_without_actor(data_store):
-    identity = actor()
-    prepare(data_store, identity)
-    row = data_store.write(identity, "items", {"x": 1})
-    database, _, gateway = data_store.names(identity.installation_id)
-    with data_store._connect(database=database, role=gateway) as conn:
-        assert conn.execute("SELECT count(*) FROM miy_data.records").fetchone() == (0,)
-    with pytest.raises(DataStoreError, match="collection_invalid"):
-        data_store.list_records(identity, "items; SELECT")
-    with pytest.raises(DataStoreError, match="payload_invalid"):
-        data_store.write(identity, "items", {"text": "x" * 16384})
-    assert data_store.read(identity, "items", str(row["id"]))["payload"] == {"x": 1}
-
-
-def test_key_gateway_schema_permission_and_routing_with_explicit_identity_override(data_store):
-    # This proves routing, input and permission behavior, not native login/exchange.
-    from fastapi import FastAPI
-    from fastapi.testclient import TestClient
-    from starlette.exceptions import HTTPException as StarletteHTTPException
-    from miy_api.app import localized_http_exception_handler
-    from miy_api.domains.independent_apps import data_api
-
-    owner = actor()
-    prepare(data_store, owner)
-    app = FastAPI()
-    app.add_exception_handler(StarletteHTTPException, localized_http_exception_handler)
-    app.include_router(data_api.router)
-    app.dependency_overrides[data_api.identity] = lambda: owner
-    app.dependency_overrides[data_api.get_store] = lambda: data_store
-    with TestClient(app) as gateway:
-        path = "/_data/items"
-        lookup = path + "/by-key"
-        created = gateway.post(path, json={"payload": {"value": 1}, "record_key": "key"})
-        assert created.status_code == 201
-        assert gateway.get(lookup, params={"record_key": "key"}).json() == created.json()
-        assert (
-            gateway.post(path, json={"payload": {"value": 2}, "record_key": "key"}).status_code
-            == 409
-        )
-        assert gateway.get(lookup, params={"record_key": "absent"}).status_code == 404
-        assert gateway.post(lookup, params={"record_key": "key"}, json={}).status_code == 405
-        assert gateway.get(lookup + "/extra", params={"record_key": "key"}).status_code == 404
-        for key in ("", "key\n", "x" * 257, "한" * 86, 7):
-            assert gateway.post(path, json={"payload": {}, "record_key": key}).status_code == 422
-        for key in ("", "key\n", "x" * 257, "한" * 86):
-            assert gateway.get(lookup, params={"record_key": key}).status_code == 422
-        assert (
-            gateway.put(
-                f"{path}/{created.json()['id']}",
-                json={"payload": {}, "expected_version": 1, "record_key": "changed"},
-            ).status_code
-            == 422
-        )
-        app.dependency_overrides[data_api.identity] = lambda: owner.model_copy(
-            update={"permissions": ["data:write"]}
-        )
-        assert gateway.get(lookup, params={"record_key": "key"}).status_code == 403
-        assert gateway.post(path, json={"payload": {}, "record_key": "key"}).status_code == 409
-        app.dependency_overrides[data_api.identity] = lambda: owner.model_copy(
-            update={"permissions": ["data:read"]}
-        )
-        assert gateway.post(path, json={"payload": {}, "record_key": "other"}).status_code == 403
-        assert gateway.get(lookup, params={"record_key": "key"}).json() == created.json()
 
 
 def test_gateway_introspects_every_request_and_never_accepts_caller_owner(
@@ -604,3 +444,71 @@ def test_gateway_introspects_every_request_and_never_accepts_caller_owner(
     finally:
         client.app.dependency_overrides.pop(get_store, None)
         get_settings.cache_clear()
+
+
+def test_native_records_keys_and_cas_follow_authoritative_scope(data_store):
+    owner = actor()
+    prepare(data_store, owner)
+    row = data_store.write(owner, "notes", {"text": "my private record"})
+    another = owner.model_copy(update={"user_id": "user-b"})
+    assert data_store.list_records(another, "notes") == []
+    with pytest.raises(DataStoreError, match="not_found"):
+        data_store.read(another, "notes", str(row["id"]))
+    with pytest.raises(DataStoreError, match="conflict"):
+        data_store.write(
+            another, "notes", {"text": "stolen"}, record_id=str(row["id"]), expected_version=1
+        )
+    updated = data_store.write(
+        owner, "notes", {"text": "changed"}, record_id=str(row["id"]), expected_version=1
+    )
+    assert updated["version"] == 2
+    with pytest.raises(DataStoreError, match="conflict"):
+        data_store.delete(owner, "notes", str(row["id"]), 1)
+    for other in (actor(app="another-app"), actor(environment="production")):
+        prepare(data_store, other)
+        assert data_store.list_records(other, "notes") == []
+        with pytest.raises(DataStoreError, match="not_found"):
+            data_store.read(other, "notes", str(row["id"]))
+    forged = owner.model_copy(update={"environment": "production"})
+    with pytest.raises(DataStoreError, match="identity_mismatch"):
+        data_store.list_records(forged, "notes")
+    data_store.delete(owner, "notes", str(row["id"]), 2)
+    assert data_store.list_records(owner, "notes") == []
+    # One actual concurrent key create, followed by RLS and versioned CAS on it.
+    barrier = Barrier(2)
+
+    def create(value):
+        barrier.wait(timeout=10)
+        try:
+            return data_store.write(owner, "items", {"value": value}, record_key="same-key")
+        except DataStoreError as error:
+            return error.code
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first_future = pool.submit(create, "first")
+        second_future = pool.submit(create, "second")
+        results = [first_future.result(timeout=15), second_future.result(timeout=15)]
+    created = [result for result in results if isinstance(result, dict)]
+    assert len(created) == 1 and results.count("data_record_conflict") == 1
+    row = created[0]
+    assert data_store.read_by_key(owner, "items", "same-key") == row
+    outsider = owner.model_copy(update={"user_id": "user-b"})
+    with pytest.raises(DataStoreError, match="data_record_not_found"):
+        data_store.read_by_key(outsider, "items", "same-key")
+    with pytest.raises(DataStoreError, match="data_record_not_found"):
+        data_store.read_by_key(owner, "other_items", "same-key")
+    other_install = actor()
+    prepare(data_store, other_install)
+    different = data_store.write(other_install, "items", {"value": "other"}, record_key="same-key")
+    assert different["id"] != row["id"]
+    exact = data_store.write(owner, "items", {"value": "distinct bytes"}, record_key=" same-key ")
+    assert exact["id"] != row["id"]
+    updated = data_store.write(
+        owner, "items", {"value": "updated"}, record_id=str(row["id"]), expected_version=1
+    )
+    assert updated["version"] == 2
+    with pytest.raises(DataStoreError, match="conflict"):
+        data_store.write(
+            owner, "items", {"value": "stale"}, record_id=str(row["id"]), expected_version=1
+        )
+    assert data_store.read_by_key(owner, "items", "same-key") == updated

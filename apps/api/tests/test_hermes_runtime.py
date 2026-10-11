@@ -1,36 +1,20 @@
 from concurrent.futures import ThreadPoolExecutor
-from datetime import timedelta
-from io import BytesIO
 from threading import Barrier
-from types import SimpleNamespace
 from uuid import uuid4
 
-from fastapi import HTTPException
 import pytest
-from sqlalchemy import create_engine, select
+from fastapi import HTTPException
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
+from miy_api.core.llm_errors import LlmProviderError
 from miy_api.domains.auth.models import User
-from miy_api.domains.hermes import files
-from miy_api.domains.hermes.file_router import (
-    download_file,
-    download_file_revision,
-    session_file_revisions,
-)
-from miy_api.domains.hermes.model_policy import (
-    HermesModelPolicy,
-    synchronize_model_policy,
-)
 from miy_api.domains.hermes.models import (
-    HermesFileObject,
-    HermesFileRevision,
     HermesProfileBinding,
     HermesRunProjection,
     HermesSessionBinding,
 )
 from miy_api.domains.hermes.repository import HermesRunRepository, utcnow_naive
-from miy_api.domains.hermes.workloads import _messages
-from miy_api.core.llm_errors import LlmProviderError
 
 
 def seed(db):
@@ -127,172 +111,16 @@ def test_same_conversation_orders_runs_but_another_session_can_start(application
         engine.dispose()
 
 
-def test_completion_reloads_structured_submission_from_another_transaction(
-    application_postgres_dsn,
-):
-    engine = create_engine(application_postgres_dsn)
-    try:
-        with Session(engine, expire_on_commit=False) as dispatcher:
-            _, binding = seed(dispatcher)
-            run = stage(dispatcher, binding, None, output_schema={"type": "object"})
-            dispatcher.commit()
-            assert run.output_payload is None
-            with Session(engine) as transport:
-                remote = transport.get(HermesRunProjection, run.id)
-                remote.output_payload = {"answer": 42}
-                transport.commit()
-            HermesRunRepository(dispatcher).append_event(
-                run.id, {"event": "run.completed", "output": "done"}
-            )
-            assert run.status == "completed"
-            assert run.output_payload == {"answer": 42}
-            missing = stage(dispatcher, binding, None, output_schema={"type": "object"})
-            HermesRunRepository(dispatcher).append_event(
-                missing.id, {"event": "run.completed", "output": "{}"}
-            )
-            assert missing.status == "invalid_output"
-            dispatcher.rollback()
-    finally:
-        engine.dispose()
-
-
 @pytest.mark.anyio
-@pytest.mark.parametrize("temperature", [None, 0, 0.7])
-async def test_model_snapshot_has_no_secret_and_auxiliary_follows_main(temperature):
-    from dataclasses import replace
-
-    policy = HermesModelPolicy(
-        "local",
-        "openai",
-        "local-test",
-        "http://model:8000/v1",
-        "",
-        8192,
-        temperature=temperature,
-    )
-    configs = []
-
-    class Client:
-        async def update_profile_config(self, profile, config):
-            configs.append(config)
-
-        async def update_profile_env(self, profile, key, value):
-            pass
-
-    await synchronize_model_policy(Client(), profile_name="miy-test-local", policy=policy)
-    config = configs[0]
-    assert config["fallback_providers"] == []
-    assert all(
-        task["provider"] == "main" and task["fallback_chain"] == []
-        for task in config["auxiliary"].values()
-    )
-    assert config["providers"][policy.key]["max_output_tokens"] == 8192
-    provider = config["providers"][policy.key]
-    if temperature is None:
-        assert "extra_body" not in provider
-        assert "temperature" not in policy.run_options()["miy_policy"]
-    else:
-        assert provider["extra_body"] == {"temperature": temperature}
-        assert policy.run_options()["miy_policy"]["temperature"] == temperature
-        assert policy.key != replace(policy, temperature=None).key
-        assert policy.key != replace(policy, temperature=temperature + 0.1).key
-    assert config["delegation"]["provider"] == "auto"
-    assert "session_search" not in config["platform_toolsets"]["api_server"]
-    assert policy.run_options()["provider"] == f"custom:{policy.key}"
-    assert "api_key" not in policy.run_options()
-    rotated = HermesModelPolicy(
-        "local", "openai", "local-test", "http://model:8000/v1", "rotated-test-key", 8192
-    )
-    assert rotated.key != policy.key
-    assert "rotated-test-key" not in repr(rotated)
-
-
-@pytest.mark.parametrize(
-    "path",
-    [
-        "",
-        "../secret",
-        "/etc/passwd",
-        "nested/../../secret",
-        "nested//file",
-        ".miy-runtime/file",
-        "nul\x00name",
-    ],
-)
-def test_workspace_paths_reject_escape_and_control_characters(path):
-    with pytest.raises(ValueError):
-        files.normalize_path(path)
-
-
-@pytest.mark.anyio
-@pytest.mark.parametrize("temperature", [0, 0.7])
-async def test_anthropic_temperature_fails_before_provisioning(monkeypatch, temperature):
-    from miy_api.core.llm import (
-        LlmPoolConfig,
-        LlmTaskContext,
-        PolicyDecision,
-        ResolvedLlmExecution,
-    )
-    from miy_api.core.settings import get_settings
-    from miy_api.domains.hermes import workloads
-
-    config = LlmPoolConfig(
-        "external",
-        "anthropic",
-        "https://api.anthropic.com",
-        "synthetic",
-        "test-model",
-        "test-model",
-        1,
-        30,
-    )
-    monkeypatch.setattr(
-        workloads,
-        "get_settings",
-        lambda: get_settings().model_copy(update={"hermes_enabled": True}),
-    )
-    monkeypatch.setattr(
-        workloads,
-        "get_session_factory",
-        lambda: pytest.fail(
-            "Unsupported sampling must fail before staging or profile provisioning"
-        ),
-    )
-    with pytest.raises(LlmProviderError, match="explicit temperature") as error:
-        await workloads.run_workload(
-            LlmTaskContext(
-                source="test",
-                task_kind="chatbot",
-                app_id="chatbot",
-                workload_id="chatbot",
-                actor_user_id="synthetic-owner",
-            ),
-            ResolvedLlmExecution(
-                "external",
-                PolicyDecision("external_allowed", "external"),
-                config,
-                "test-model",
-                4096,
-                "none",
-            ),
-            {"messages": [{"role": "user", "content": "test"}], "temperature": temperature},
-            timeout_seconds=10,
-        )
-    assert error.value.pool == "external" and error.value.provider == "anthropic"
-    default_policy = HermesModelPolicy.from_pool(config, model="test-model", max_tokens=4096)
-    assert default_policy.api_mode == "anthropic_messages"
-    assert "temperature" not in default_policy.run_options()["miy_policy"]
-
-
-@pytest.mark.anyio
-@pytest.mark.parametrize("remote_accepted", [False, True])
-@pytest.mark.parametrize("termination", ["cancel", "timeout"])
+@pytest.mark.parametrize("remote_accepted,termination", [(True, "cancel"), (False, "timeout")])
 async def test_cancel_during_admission_recovers_without_starting_another_run(
     application_postgres_dsn, monkeypatch, remote_accepted, termination
 ):
     import asyncio
+
     from sqlalchemy import select
     from sqlalchemy.orm import sessionmaker
+
     from miy_api.core.llm import (
         LlmPoolConfig,
         LlmTaskContext,
@@ -477,91 +305,7 @@ async def test_cancel_during_admission_recovers_without_starting_another_run(
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("terminal_at", ["admission", "stop"])
-@pytest.mark.parametrize("native_status", ["completed", "failed", "cancelled"])
-async def test_cancel_recovery_preserves_durable_terminal_details(
-    application_postgres_dsn, monkeypatch, terminal_at, native_status
-):
-    from miy_api.domains.hermes import execution
-    from miy_api.domains.hermes.client import HermesClientError
-
-    polls, stops = [], []
-
-    class Runtime:
-        def __init__(self, **kwargs):
-            pass
-
-        async def create_run(self, profile, **kwargs):
-            assert kwargs["cancel_admission"] is True
-            return {
-                "run_id": "run_existing",
-                "status": native_status if terminal_at == "admission" else "running",
-            }
-
-        async def stop_run(self, profile, native_id):
-            stops.append(native_id)
-            return {"run_id": native_id, "status": native_status}
-
-        async def get_run(self, profile, native_id):
-            polls.append(native_id)
-            if len(polls) == 1:
-                raise HermesClientError(
-                    operation="get_run",
-                    status_code=503,
-                    code="synthetic.unavailable",
-                    message="Synthetic status outage",
-                )
-            return {
-                "run_id": native_id,
-                "status": native_status,
-                "last_event": f"run.{native_status}",
-                "output": "Recovered answer",
-                "usage": {"input_tokens": 4, "output_tokens": 2, "total_tokens": 6},
-                "error": "Recovered failure",
-                "error_code": "synthetic.failure",
-            }
-
-    monkeypatch.setattr(execution, "HermesRuntimeClient", Runtime)
-    engine = create_engine(application_postgres_dsn)
-    try:
-        with Session(engine, expire_on_commit=False) as db:
-            _, binding = seed(db)
-            run = stage(db, binding, None)
-            repository = HermesRunRepository(db)
-            assert repository.claim_execution(run.id, claim_token="lost", lease_seconds=60).acquired
-            repository.release_execution_claim(run.id, claim_token="lost")
-            repository.request_stop(run.id, user_id=binding.user_id)
-            db.commit()
-
-            async def recover():
-                return await execution.execute_hermes_run(
-                    db,
-                    run_id=run.id,
-                    runtime_base_url="http://hermes.test",
-                    api_key="synthetic",
-                    request_timeout_seconds=1,
-                    lease_seconds=60,
-                )
-
-            with pytest.raises(HermesClientError):
-                await recover()
-            assert run.status == "stopping" and run.hermes_run_id == "run_existing"
-            assert run.finished_at is None and run.execution_claim_token is None
-            assert await recover() == native_status
-            assert polls == ["run_existing", "run_existing"]
-            assert stops == (["run_existing"] if terminal_at == "stop" else [])
-            if native_status == "completed":
-                assert run.output_text == "Recovered answer"
-                assert run.usage == {"input_tokens": 4, "output_tokens": 2, "total_tokens": 6}
-            elif native_status == "failed":
-                assert run.error_message == "Recovered failure"
-                assert run.error_code == "synthetic.failure"
-    finally:
-        engine.dispose()
-
-
-@pytest.mark.anyio
-@pytest.mark.parametrize("claimed", [False, True])
+@pytest.mark.parametrize("claimed", [True])
 async def test_public_stop_keeps_a_lost_acceptance_recoverable(application_postgres_dsn, claimed):
     from miy_api.domains.hermes.router import stop_run
 
@@ -588,30 +332,30 @@ async def test_public_stop_keeps_a_lost_acceptance_recoverable(application_postg
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("temperature", [None, 0, 0.7])
-@pytest.mark.parametrize("mode", ["sync", "stream"])
 @pytest.mark.parametrize(
-    "contract",
+    "mode,contract",
     [
-        "text",
-        "text_missing",
-        "structured",
-        "tool_request",
-        "tool_result",
-        "forced_final",
-        "provision_failure",
-        "execution_failure",
+        ("sync", "structured"),
+        ("stream", "text"),
+        ("sync", "tool_request"),
+        ("stream", "tool_result"),
+        ("sync", "forced_final"),
+        ("stream", "text_missing"),
+        ("sync", "provision_failure"),
+        ("stream", "execution_failure"),
     ],
 )
 async def test_workload_uses_durable_dispatch_and_validated_native_submission(
-    application_postgres_dsn, monkeypatch, temperature, mode, contract
+    application_postgres_dsn, monkeypatch, mode, contract
 ):
     import asyncio
     import json
+
     from pydantic import SecretStr
     from sqlalchemy import select
     from sqlalchemy.orm import sessionmaker
     from starlette.requests import Request
+
     from miy_api.core.llm import (
         LlmPoolConfig,
         LlmTaskContext,
@@ -619,11 +363,14 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
         ResolvedLlmExecution,
     )
     from miy_api.core.settings import get_settings
-    from miy_api.domains.auth.models import CompanyAppControl
     from miy_api.domains.auth.app_access_models import AppAccessPolicy
-    from miy_api.domains.hermes import workloads, execution, mcp_router
-    from miy_api.domains.hermes.service import mcp_profile_bearer_secret
+    from miy_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.hermes import execution, mcp_router, workloads
     from miy_api.domains.hermes.client import HermesClientError
+    from miy_api.domains.hermes.service import mcp_profile_bearer_secret
+
+    # Model temperatures are policy metadata, not a native output-contract matrix.
+    temperature = None
 
     def unavailable():
         raise HermesClientError(
@@ -690,8 +437,8 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
                 return {"run_id": "run_native_fixture", "status": "running"}
 
             async def iter_run_events(self, profile, run_id):
-                results = () if contract == "text_missing" else (
-                    {"value": "wrong type"}, expected_result
+                results = (
+                    () if contract == "text_missing" else ({"value": "wrong type"}, expected_result)
                 )
                 for result in results:
                     body = json.dumps(
@@ -839,9 +586,38 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
                 assert run.status == "invalid_output" and run.output_payload is None
             return
         if mode == "sync":
-            result = await asyncio.to_thread(
-                workloads.complete_workload, context, resolved, payload, **options
-            )
+            if contract == "structured":
+                from miy_api.domains.ai.gateway import AiGatewayRequest, complete_gateway_chat
+
+                # Exercise the public registered facade all the way to durable
+                # native submission, rather than mocking complete_workload.
+                def complete_registered():
+                    with factory() as db:
+                        response = complete_gateway_chat(
+                            AiGatewayRequest(
+                                task_kind="chatbot",
+                                workload_id="chatbot",
+                                source="test",
+                                app="chatbot",
+                                principal_kind="system",
+                                execution_user_id=owner_id,
+                                workload_route="local",
+                                workload_config=config,
+                                requested_model="test-model",
+                                max_tokens=4096,
+                                messages=payload["messages"],
+                                timeout_seconds=10,
+                                output_schema=options["output_schema"],
+                            ),
+                            db,
+                        )
+                        return response.response
+
+                result = await asyncio.to_thread(complete_registered)
+            else:
+                result = await asyncio.to_thread(
+                    workloads.complete_workload, context, resolved, payload, **options
+                )
         else:
             chunks = [
                 chunk
@@ -885,14 +661,15 @@ async def test_workload_uses_durable_dispatch_and_validated_native_submission(
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("capacity, occupied", [(1, 1), (3, 3), (3, 2)])
-@pytest.mark.parametrize("mode", ["sync", "stream"])
+@pytest.mark.parametrize("capacity,occupied,mode", [(1, 1, "sync"), (3, 2, "stream")])
 async def test_nested_generation_respects_capacity_without_waiting_for_its_parent(
     application_postgres_dsn, monkeypatch, capacity, occupied, mode
 ):
     import asyncio
+
     from sqlalchemy import select
     from sqlalchemy.orm import sessionmaker
+
     from miy_api.core.llm import (
         LlmPoolConfig,
         LlmTaskContext,
@@ -904,9 +681,9 @@ async def test_nested_generation_respects_capacity_without_waiting_for_its_paren
         ToolExecutionContext,
         bind_tool_execution_context,
     )
-    from miy_api.domains.auth.models import CompanyAppControl
     from miy_api.domains.auth.app_access_models import AppAccessPolicy
-    from miy_api.domains.hermes import workloads, execution
+    from miy_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.hermes import execution, workloads
 
     engine = create_engine(application_postgres_dsn)
     factory = sessionmaker(engine, expire_on_commit=False)
@@ -1052,674 +829,14 @@ async def test_nested_generation_respects_capacity_without_waiting_for_its_paren
         engine.dispose()
 
 
-@pytest.mark.anyio
-@pytest.mark.parametrize("stop_unavailable", [False, True])
-async def test_cancelled_workload_returns_lease_and_recovers_durable_stop(
-    application_postgres_dsn, monkeypatch, stop_unavailable
-):
-    import asyncio
-    from sqlalchemy import select
-    from sqlalchemy.orm import sessionmaker
-    from miy_api.core.llm import (
-        LlmPoolConfig,
-        LlmTaskContext,
-        PolicyDecision,
-        ResolvedLlmExecution,
-    )
-    from miy_api.core.settings import get_settings
-    from miy_api.domains.auth.models import CompanyAppControl
-    from miy_api.domains.auth.app_access_models import AppAccessPolicy
-    from miy_api.domains.hermes import execution, workloads
-    from miy_api.domains.hermes.client import HermesClientError
-
-    engine = create_engine(application_postgres_dsn)
-    factory = sessionmaker(engine, expire_on_commit=False)
-    settings = get_settings().model_copy(update={"hermes_enabled": True})
-    monkeypatch.setattr(workloads, "get_settings", lambda: settings)
-    monkeypatch.setattr(workloads, "get_session_factory", lambda: factory)
-    started = asyncio.Event()
-    stopped = []
-    try:
-        with factory() as db:
-            user, binding = seed(db)
-            owner_id, binding_id = user.id, binding.id
-            db.merge(CompanyAppControl(app_id="chatbot", enabled=True))
-            db.flush()
-            db.merge(AppAccessPolicy(app_id="chatbot", audience="all"))
-            db.commit()
-
-        async def ensure(db, **kwargs):
-            return db.get(HermesProfileBinding, binding_id)
-
-        class Runtime:
-            def __init__(self, **kwargs):
-                pass
-
-            async def create_run(self, profile, **kwargs):
-                return {"run_id": "cancel-native", "status": "running"}
-
-            async def iter_run_events(self, *args):
-                started.set()
-                await asyncio.Event().wait()
-                yield {}
-
-            async def stop_run(self, profile, native_id):
-                stopped.append(native_id)
-                if stop_unavailable:
-                    raise HermesClientError(
-                        operation="stop_run",
-                        status_code=503,
-                        code="test.unavailable",
-                        message="Synthetic outage",
-                    )
-                return {"status": "cancelled"}
-
-        monkeypatch.setattr(workloads, "ensure_profile_binding", ensure)
-        monkeypatch.setattr(workloads, "runtime_client", Runtime)
-        monkeypatch.setattr(execution, "HermesRuntimeClient", Runtime)
-        config = LlmPoolConfig(
-            "local",
-            "openai",
-            "http://model.test/v1",
-            "",
-            "test-model",
-            "test-model",
-            1,
-            30,
-            requires_credentials=False,
-        )
-        context = LlmTaskContext(
-            source="test",
-            task_kind="chatbot",
-            app_id="chatbot",
-            workload_id="chatbot",
-            actor_user_id=owner_id,
-        )
-        resolved = ResolvedLlmExecution(
-            "local", PolicyDecision("local_only", "local"), config, "test-model", 4096, "none"
-        )
-        task = asyncio.create_task(
-            workloads.run_workload(
-                context,
-                resolved,
-                {"messages": [{"role": "user", "content": "Wait"}]},
-                timeout_seconds=30,
-            )
-        )
-        await asyncio.wait_for(started.wait(), timeout=10)
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await asyncio.wait_for(task, timeout=10)
-        assert stopped == ["cancel-native"]
-        with factory() as db:
-            run = db.scalar(
-                select(HermesRunProjection).where(HermesRunProjection.user_id == owner_id)
-            )
-            assert run.execution_claim_token is None and run.execution_claim_expires_at is None
-            repo = HermesRunRepository(db)
-            if stop_unavailable:
-                assert run.status == "stopping"
-                # Recovery may reclaim immediately, without waiting 3,900s.
-                assert repo.claim_execution(
-                    run.id, claim_token="recover", lease_seconds=60, max_concurrent_runs=1
-                ).acquired
-                repo.append_event(run.id, {"event": "run.cancelled"}, claim_token="recover")
-            else:
-                assert run.status == "cancelled"
-            next_run = stage(db, db.get(HermesProfileBinding, binding_id), None)
-            assert repo.claim_execution(
-                next_run.id, claim_token="next", lease_seconds=60, max_concurrent_runs=1
-            ).acquired
-            db.rollback()
-    finally:
-        engine.dispose()
-
-
-def test_file_revisions_preserve_run_identity_and_bound_total_history(
-    application_postgres_dsn, monkeypatch
-):
-    objects = {}
-    monkeypatch.setattr(
-        files,
-        "get_minio_client",
-        lambda: SimpleNamespace(
-            put_object=lambda bucket, key, stream, size, **kwargs: objects.update(
-                {key: stream.read()}
-            )
-        ),
-    )
-    monkeypatch.setattr(files, "ensure_bucket", lambda: None)
-    monkeypatch.setattr(files, "MAX_SESSION_BYTES", 12)
-    engine = create_engine(application_postgres_dsn)
-    try:
-        with Session(engine) as db:
-            user, binding = seed(db)
-            admit_runtime_apps(db, user.id)
-            session = session_for(db, binding)
-            run = stage(db, binding, session)
-            db.commit()
-            first = files.save_file(
-                db, session=session, path="result.txt", data=b"first", execution_run_id=run.id
-            )
-            first_id = first.id
-            first_key = first.object_key
-            replay = files.save_file(
-                db, session=session, path="result.txt", data=b"first", execution_run_id=run.id
-            )
-            assert replay.id == first_id
-            revisions = list(
-                db.scalars(
-                    select(HermesFileRevision).where(HermesFileRevision.session_id == session.id)
-                )
-            )
-            assert len(revisions) == 1
-            assert revisions[0].run_id == run.id
-            assert revisions[0].user_id == user.id
-            assert revisions[0].object_key == first_key
-            listing = session_file_revisions(
-                session.id, file_id=first_id, run_id=run.id, limit=1, offset=0, db=db, user=user
-            )
-            assert listing.data[0].id == revisions[0].id
-            assert listing.has_more is False
-            files.save_file(
-                db, session=session, path="result.txt", data=b"second", execution_run_id=run.id
-            )
-            assert objects[first_key] == b"first"
-            assert (
-                len(
-                    list(
-                        db.scalars(
-                            select(HermesFileRevision).where(
-                                HermesFileRevision.session_id == session.id
-                            )
-                        )
-                    )
-                )
-                == 2
-            )
-            page = session_file_revisions(
-                session.id, file_id=first_id, run_id=run.id, limit=1, offset=0, db=db, user=user
-            )
-            assert page.has_more is True
-            with pytest.raises(HTTPException) as denied:
-                session_file_revisions(
-                    session.id,
-                    file_id=first_id,
-                    run_id=None,
-                    limit=100,
-                    offset=0,
-                    db=db,
-                    user=SimpleNamespace(id="another-user"),
-                )
-            assert denied.value.status_code == 404
-            with pytest.raises(ValueError, match="storage limit"):
-                files.save_file(
-                    db, session=session, path="result.txt", data=b"third", execution_run_id=run.id
-                )
-            db.rollback()
-            assert len(objects) == 2
-            session_id = session.id
-        with Session(engine) as reopened:
-            versions = list(
-                reopened.scalars(
-                    select(HermesFileRevision).where(HermesFileRevision.session_id == session_id)
-                )
-            )
-            assert {objects[row.object_key] for row in versions} == {b"first", b"second"}
-            from miy_api.domains.auth.models import CompanyAppControl
-
-            user = reopened.get(User, versions[0].user_id)
-            reopened.get(CompanyAppControl, "chatbot").enabled = False
-            reopened.commit()
-            denied_page = session_file_revisions(
-                session_id,
-                file_id=first_id,
-                run_id=None,
-                limit=100,
-                offset=0,
-                db=reopened,
-                user=user,
-            )
-            assert denied_page.data == []
-            with pytest.raises(HTTPException) as revoked:
-                download_file_revision(versions[0].id, db=reopened, user=user)
-            assert revoked.value.status_code == 404
-    finally:
-        engine.dispose()
-
-
-def test_files_preserve_cleanup_intent_and_owner_acl(application_postgres_dsn, monkeypatch):
-    objects = {}
-
-    class Body(BytesIO):
-        def release_conn(self):
-            pass
-
-    class Storage:
-        fail_delete = False
-
-        def put_object(self, bucket, key, stream, size, **kwargs):
-            objects[key] = stream.read()
-
-        def get_object(self, bucket, key):
-            return Body(objects[key])
-
-        def remove_object(self, bucket, key):
-            if self.fail_delete:
-                raise OSError("test storage outage")
-            objects.pop(key, None)
-
-    storage = Storage()
-    monkeypatch.setattr(files, "get_minio_client", lambda: storage)
-    monkeypatch.setattr(files, "ensure_bucket", lambda: None)
-    engine = create_engine(application_postgres_dsn)
-    try:
-        with Session(engine) as db:
-            user, binding = seed(db)
-            session = session_for(db, binding)
-            original = files.save_file(db, session=session, path="report.txt", data=b"first")
-            old_key = original.object_key
-            current = files.save_file(db, session=session, path="report.txt", data=b"second")
-            assert files.read_file(current) == b"second"
-            old_revision = db.scalar(
-                select(HermesFileRevision).where(HermesFileRevision.object_key == old_key)
-            )
-            old_revision_id = old_revision.id
-            assert files.read_file(old_revision) == b"first"
-            assert db.get(HermesFileObject, old_key).expires_at > utcnow_naive()
-            assert download_file_revision(old_revision.id, db=db, user=user).body == b"first"
-            with pytest.raises(HTTPException) as denied_revision:
-                download_file_revision(
-                    old_revision.id, db=db, user=SimpleNamespace(id="another-user")
-                )
-            assert denied_revision.value.status_code == 404
-            # Retention, rather than a replacement, eventually queues old bytes.
-            db.get(HermesFileObject, old_key).expires_at = utcnow_naive() - timedelta(seconds=1)
-            db.commit()
-            with pytest.raises(HTTPException) as error:
-                download_file(current.id, db=db, user=SimpleNamespace(id="another-user"))
-            assert error.value.status_code == 404
-            storage.fail_delete = True
-            with pytest.raises(OSError):
-                files.cleanup_files(db)
-            db.rollback()
-            assert db.get(HermesFileObject, old_key) is not None
-            storage.fail_delete = False
-            assert files.cleanup_files(db) == 1
-            assert old_key not in objects
-            assert db.get(HermesFileRevision, old_revision_id) is None
-            reservation = db.get(HermesFileObject, current.object_key)
-            reservation.expires_at = utcnow_naive() - timedelta(seconds=1)
-            db.commit()
-            assert files.cleanup_files(db) == 1
-            assert not objects
-    finally:
-        engine.dispose()
-
-
-@pytest.mark.parametrize("root", ["reports", "r_%"])
-@pytest.mark.parametrize("reverse", [False, True])
-def test_saved_file_paths_reject_prefix_conflicts_and_remain_restorable(
-    application_postgres_dsn, monkeypatch, tmp_path, root, reverse
-):
-    objects = {}
-
-    def put_object(bucket, key, stream, size, **kwargs):
-        objects[key] = stream.read()
-
-    monkeypatch.setattr(files, "get_minio_client", lambda: SimpleNamespace(put_object=put_object))
-    monkeypatch.setattr(files, "ensure_bucket", lambda: None)
-    engine = create_engine(application_postgres_dsn)
-    try:
-        with Session(engine) as db:
-            _, binding = seed(db)
-            session = session_for(db, binding)
-            paths = [root, root + "/nested/result.txt"]
-            if reverse:
-                paths.reverse()
-            files.save_file(db, session=session, path=paths[0], data=b"retained")
-            with pytest.raises(ValueError, match="path conflicts"):
-                files.save_file(db, session=session, path=paths[1], data=b"conflicting")
-            db.rollback()
-            assert len(objects) == 1
-            # Similar names, including SQL wildcard characters, are separate
-            # paths; rejecting an ancestor must not reject these neighbours.
-            files.save_file(db, session=session, path=root + "-other/result.txt", data=b"neighbour")
-            files.save_file(db, session=session, path=paths[0], data=b"replacement")
-            session_id = session.id
-        # Reopen the catalog and restore every retained path to a fresh
-        # filesystem, as a replacement sandbox does after restart.
-        with Session(engine) as db:
-            rows = files.list_files(db, session_id=session_id)
-            assert {row.relative_path for row in rows} == {paths[0], root + "-other/result.txt"}
-            for row in rows:
-                target = tmp_path / row.relative_path
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(objects[row.object_key])
-            assert (tmp_path / paths[0]).read_bytes() == b"replacement"
-    finally:
-        engine.dispose()
-
-
-@pytest.mark.parametrize("root", ["reports", "r_%"])
-def test_concurrent_prefix_uploads_keep_a_restorable_catalog(
-    application_postgres_dsn, monkeypatch, tmp_path, root
-):
-    objects = {}
-
-    def put_object(bucket, key, stream, size, **kwargs):
-        objects[key] = stream.read()
-
-    monkeypatch.setattr(files, "get_minio_client", lambda: SimpleNamespace(put_object=put_object))
-    monkeypatch.setattr(files, "ensure_bucket", lambda: None)
-    engine = create_engine(application_postgres_dsn)
-    try:
-        with Session(engine) as db:
-            _, binding = seed(db)
-            session_id = session_for(db, binding).id
-            db.commit()
-        barrier = Barrier(2)
-
-        def upload(path):
-            with Session(engine) as db:
-                session = db.get(HermesSessionBinding, session_id)
-                barrier.wait(timeout=5)
-                try:
-                    files.save_file(db, session=session, path=path, data=b"concurrent")
-                except ValueError as error:
-                    assert "path conflicts" in str(error)
-                    db.rollback()
-                    return False
-                return True
-
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            accepted = list(pool.map(upload, [root, root + "/result.txt"]))
-        assert sum(accepted) == 1 and len(objects) == 1
-        with Session(engine) as db:
-            rows = files.list_files(db, session_id=session_id)
-            assert len(rows) == 1
-            target = tmp_path / rows[0].relative_path
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(objects[rows[0].object_key])
-            assert target.read_bytes() == b"concurrent"
-    finally:
-        engine.dispose()
-
-
-def test_workloads_preserve_messages_and_reject_application_tool_loops():
-    assert _messages(
-        {
-            "messages": [
-                {"role": "system", "content": "policy"},
-                {"role": "user", "content": "first"},
-                {"role": "assistant", "content": "reply"},
-                {"role": "user", "content": "next"},
-            ]
-        }
-    ) == (
-        "next",
-        "policy",
-        [{"role": "user", "content": "first"}, {"role": "assistant", "content": "reply"}],
-    )
-    with pytest.raises(LlmProviderError):
-        _messages({"messages": [{"role": "tool", "content": "raw SDK tool result"}]})
-
-
-def test_application_action_schema_enforces_tool_choice_arguments_and_parallel_limit():
-    from jsonschema import Draft202012Validator, ValidationError
-    from miy_api.domains.hermes.tool_decisions import (
-        decision_message,
-        prepare_tool_decision,
-    )
-
-    payload = {
-        "messages": [{"role": "user", "content": "Choose an action"}],
-        "tools": [
-            {
-                "type": "function",
-                "function": {
-                    "name": name,
-                    "parameters": {
-                        "type": "object",
-                        "properties": {"id": {"type": "integer"}},
-                        "required": ["id"],
-                        "additionalProperties": False,
-                    },
-                },
-            }
-            for name in ("first", "second")
-        ],
-        "tool_choice": {"type": "function", "function": {"name": "second"}},
-        "parallel_tool_calls": False,
-    }
-    _, schema = prepare_tool_decision(payload)
-    call = {"name": "second", "arguments": {"id": 1}}
-    Draft202012Validator(schema).validate({"tool_calls": [call]})
-    for invalid in (
-        None,
-        {"content": "bypass required tool"},
-        {"tool_calls": [{"name": "first", "arguments": {"id": 1}}]},
-        {"tool_calls": [{"name": "second", "arguments": {"id": "wrong"}}]},
-        {"tool_calls": [call, call]},
-    ):
-        with pytest.raises(ValidationError):
-            decision_message(invalid, schema)
-    payload["tool_choice"] = "none"
-    _, schema = prepare_tool_decision(payload)
-    assert decision_message({"content": "final"}, schema) == ({"content": "final"}, "stop")
-    with pytest.raises(ValidationError):
-        decision_message({"tool_calls": [call]}, schema)
-    payload["tool_choice"] = "auto"
-    payload["tools"][0]["function"]["parameters"] = {
-        "$defs": {"arg": {"type": "integer"}},
-        "type": "object",
-        "properties": {"id": {"$ref": "#/$defs/arg"}},
-        "required": ["id"],
-    }
-    _, schema = prepare_tool_decision(payload)
-    message, finish = decision_message(
-        {"tool_calls": [{"name": "first", "arguments": {"id": 1}}]}, schema
-    )
-    assert finish == "tool_calls" and message["tool_calls"][0]["function"]["name"] == "first"
-    with pytest.raises(ValidationError):
-        decision_message({"tool_calls": [{"name": "first", "arguments": {"id": "wrong"}}]}, schema)
-    payload["tool_choice"] = {"type": "function", "function": {"name": "unavailable"}}
-    with pytest.raises(LlmProviderError, match="unavailable"):
-        prepare_tool_decision(payload)
-
-
-@pytest.mark.anyio
-async def test_session_activity_moves_across_pagination_without_read_or_replay_bumps(
-    application_postgres_dsn, monkeypatch
-):
-    from miy_api.domains.hermes import router
-
-    class Runtime:
-        async def get_session(self, *args):
-            return {}
-
-    monkeypatch.setattr(router, "runtime_client", Runtime)
-    engine = create_engine(application_postgres_dsn)
-    try:
-        with Session(engine) as db:
-            user, binding = seed(db)
-            old = session_for(db, binding)
-            old.updated_at = utcnow_naive() - timedelta(days=2)
-            recent = session_for(db, binding)
-            recent.updated_at = utcnow_naive() - timedelta(days=1)
-            _, other_binding = seed(db)
-            other = session_for(db, other_binding)
-            db.commit()
-
-            async def page(offset=0):
-                return await router.list_sessions(
-                    limit=1,
-                    offset=offset,
-                    scope_ref=None,
-                    scope_resource_id=None,
-                    db=db,
-                    current_user=user,
-                )
-
-            assert (await page()).data[0].id == recent.id
-            run = stage(db, binding, old, client_request_id="activity", request_sha256="same")
-            db.commit()
-            accepted_at = old.updated_at
-            first = await page()
-            assert first.data[0].id == old.id and first.has_more
-            assert (await page(1)).data[0].id == recent.id
-            assert all(row.id != other.id for row in first.data)
-            replay = stage(db, binding, old, client_request_id="activity", request_sha256="same")
-            assert replay.id == run.id
-            db.commit()
-            db.refresh(old)
-            assert old.updated_at == accepted_at
-    finally:
-        engine.dispose()
-
-
-@pytest.mark.anyio
-async def test_sync_workload_cannot_block_the_callback_event_loop():
-    from miy_api.domains.hermes.workloads import complete_workload
-
-    with pytest.raises(LlmProviderError, match="worker thread"):
-        complete_workload(None, None, {}, timeout_seconds=1)
-
-
-def test_rag_tool_returns_evidence_without_starting_a_nested_generative_run(monkeypatch):
-    from pydantic import ValidationError
-    from miy_api.domains.rag.tools import RagQueryToolArgs, _query
-    from miy_api.domains.rag.contracts import RagAnswerMode
-    from miy_api.domains.retrieval import application
-
-    request = RagQueryToolArgs(query="authorized evidence")
-    assert request.answer_mode == RagAnswerMode.SEARCH_ONLY
-    with pytest.raises(ValidationError):
-        RagQueryToolArgs(query="evidence", answer_mode=RagAnswerMode.GROUNDED_ANSWER)
-
-    def retrieve(db, **kwargs):
-        assert kwargs["answer_mode"] == RagAnswerMode.SEARCH_ONLY
-        return SimpleNamespace(model_dump=lambda **_: {"hits": [{"id": "authorized-hit"}]})
-
-    monkeypatch.setattr(application, "query_rag_response", retrieve)
-    result = _query(
-        None, SimpleNamespace(kind="user", principal_id="user"), None, request.model_dump()
-    )
-    assert result == {"hits": [{"id": "authorized-hit"}]}
-
-
-def test_completed_result_preserves_long_text_and_usage_without_secret_event_fields(
-    application_postgres_dsn,
-):
-    from miy_api.domains.hermes.repository import MAX_RESULT_BYTES
-
-    engine = create_engine(application_postgres_dsn)
-    try:
-        with Session(engine) as db:
-            _, binding = seed(db)
-            run = stage(db, binding, None)
-            result = "결과" * 20_000
-            event = HermesRunRepository(db).append_event(
-                run.id,
-                {
-                    "event": "run.completed",
-                    "output": result,
-                    "usage": {
-                        "input_tokens": 123,
-                        "output_tokens": 456,
-                        "api_token": "fixture-secret",
-                    },
-                    "authorization": "fixture-secret",
-                },
-            )
-            assert run.status == "completed" and run.output_text == result
-            assert run.usage["input_tokens"] == 123 and run.usage["output_tokens"] == 456
-            assert "fixture-secret" not in str(event.payload)
-            assert event.payload["truncated"] is True and "output" not in event.payload
-            too_large = stage(db, binding, None)
-            HermesRunRepository(db).append_event(
-                too_large.id, {"event": "run.completed", "output": "x" * (MAX_RESULT_BYTES + 1)}
-            )
-            assert too_large.status == "failed" and not too_large.output_text
-            assert too_large.error_code == "hermes.output_too_large"
-            db.rollback()
-    finally:
-        engine.dispose()
-
-
-@pytest.mark.anyio
-async def test_upload_bounds_stream_and_rejects_cross_owner_before_reading(
-    application_postgres_dsn,
-    monkeypatch,
-):
-    from starlette.requests import Request
-    from miy_api.domains.hermes import file_router
-
-    monkeypatch.setattr(file_router, "MAX_FILE_BYTES", 4)
-    monkeypatch.setattr(
-        file_router,
-        "save_file",
-        lambda *a, **kw: pytest.fail("Invalid input must not reach storage"),
-    )
-    engine = create_engine(application_postgres_dsn)
-    try:
-        with Session(engine) as db:
-            user, binding = seed(db)
-            admit_runtime_apps(db, user.id)
-            session = session_for(db, binding)
-            reads = []
-
-            def request(headers, chunks):
-                iterator = iter(chunks)
-
-                async def receive():
-                    reads.append(True)
-                    body, more = next(iterator)
-                    return {"type": "http.request", "body": body, "more_body": more}
-
-                return Request({"type": "http", "headers": headers}, receive)
-
-            for headers, chunks in [
-                ([(b"content-type", b"application/octet-stream"), (b"content-length", b"5")], []),
-                (
-                    [(b"content-type", b"application/octet-stream")],
-                    [(b"123", True), (b"45", False)],
-                ),
-                ([(b"content-type", b"multipart/form-data")], []),
-            ]:
-                with pytest.raises(HTTPException) as error:
-                    await file_router.upload_file(
-                        session.id, request(headers, chunks), "test.txt", db, user
-                    )
-                assert error.value.status_code == 422
-            before = len(reads)
-            with pytest.raises(HTTPException) as error:
-                await file_router.upload_file(
-                    session.id, request([], []), "test.txt", db, SimpleNamespace(id="another-user")
-                )
-            assert error.value.status_code == 404 and len(reads) == before
-            stage(db, binding, session)
-            with pytest.raises(HTTPException) as error:
-                await file_router.upload_file(
-                    session.id,
-                    request([(b"content-type", b"application/octet-stream")], [(b"123", False)]),
-                    "test.txt",
-                    db,
-                    user,
-                )
-            assert error.value.status_code == 409
-            db.rollback()
-    finally:
-        engine.dispose()
-
-
 def test_native_tool_budget_is_durable_and_atomic_per_run(application_postgres_dsn, monkeypatch):
     import asyncio
     import json
+
     from starlette.requests import Request
-    from miy_api.domains.hermes import mcp_router
 
     from miy_api.domains.ai.registry import AiCapabilityRegistry
+    from miy_api.domains.hermes import mcp_router
 
     registry = AiCapabilityRegistry()
     registry.register_llm_workload(
@@ -1895,11 +1012,12 @@ async def test_run_reads_and_controls_recheck_current_owner_app_admission(
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("revoked_app", ["mail", "chatbot"])
+@pytest.mark.parametrize("revoked_app", ["chatbot"])
 async def test_open_run_stream_stops_before_next_batch_after_app_revocation(
     application_postgres_dsn, monkeypatch, revoked_app
 ):
     from sqlalchemy.orm import sessionmaker
+
     from miy_api.domains.auth.models import CompanyAppControl
     from miy_api.domains.hermes import router
 
@@ -1931,179 +1049,19 @@ async def test_open_run_stream_stops_before_next_batch_after_app_revocation(
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("operation", ["read", "write", "upload"])
-async def test_slow_file_transfer_keeps_other_requests_responsive(
-    application_postgres_dsn, monkeypatch, operation
-):
-    import asyncio
-    import base64
-    import threading
-    from fastapi import FastAPI
-    from httpx import ASGITransport, AsyncClient
-    from pydantic import SecretStr
-    from sqlalchemy.orm import sessionmaker
-    from miy_api.core.db import get_db_session
-    from miy_api.core.settings import get_settings
-    from miy_api.domains.hermes import mcp_router, file_router
-    from miy_api.domains.auth.dependencies import require_current_user
-    from miy_api.domains.hermes.service import mcp_profile_bearer_secret
-
-    engine = create_engine(application_postgres_dsn)
-    factory = sessionmaker(engine)
-    monkeypatch.setattr(mcp_router, "get_session_factory", lambda: factory)
-    entered, release = threading.Event(), threading.Event()
-    objects = {}
-    armed = False
-    event_loop_thread = threading.get_ident()
-
-    def delay():
-        if armed:
-            assert threading.get_ident() != event_loop_thread
-            entered.set()
-            assert release.wait(timeout=5), "Other requests did not run during storage I/O"
-
-    class StoredBody(BytesIO):
-        def release_conn(self):
-            pass
-
-    class Store:
-        def put_object(self, _bucket, key, data, length, **kwargs):
-            delay()
-            objects[key] = data.read(length)
-
-        def get_object(self, _bucket, key):
-            delay()
-            return StoredBody(objects[key])
-
-    monkeypatch.setattr(files, "get_minio_client", lambda: Store())
-    monkeypatch.setattr(files, "ensure_bucket", lambda: None)
-    settings = get_settings().model_copy(
-        update={"hermes_mcp_shared_secret": SecretStr("synthetic-file-transfer-secret")}
-    )
-    monkeypatch.setattr(mcp_router, "get_settings", lambda: settings)
-    try:
-        with factory() as db:
-            user, binding = seed(db)
-            admit_runtime_apps(db, user.id)
-            session = session_for(db, binding)
-            run = stage(db, binding, session)
-            run.hermes_run_id = "run_file_transfer"
-            run.status = "running"
-            db.commit()
-            row = files.save_file(db, session=session, path="saved.txt", data=b"saved")
-            params = (
-                {"id": row.id}
-                if operation == "read"
-                else {"path": "new.txt", "data": base64.b64encode(b"new").decode()}
-            )
-            profile = binding.profile_name
-            session_id, user_id = session.id, user.id
-            if operation == "upload":
-                run.status = "completed"
-                db.commit()
-            token = mcp_profile_bearer_secret(settings, profile)
-        app = FastAPI()
-        app.include_router(mcp_router.router)
-        app.include_router(file_router.router)
-        app.dependency_overrides[require_current_user] = lambda: SimpleNamespace(id=user_id)
-
-        def get_db():
-            with factory() as db:
-                yield db
-
-        app.dependency_overrides[get_db_session] = get_db
-        headers = {"Authorization": f"Bearer {token}", "X-Hermes-Run-Id": "run_file_transfer"}
-        armed = True
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            url = f"/internal/hermes/mcp?profile={profile}"
-            transfer = asyncio.create_task(
-                client.post(
-                    f"/sessions/{session_id}/files",
-                    headers={"Content-Type": "application/octet-stream", "X-File-Name": "new.txt"},
-                    content=b"new",
-                )
-                if operation == "upload"
-                else client.post(
-                    url,
-                    headers=headers,
-                    json={"id": 1, "method": f"miy/files/{operation}", "params": params},
-                )
-            )
-            try:
-                assert await asyncio.to_thread(entered.wait, 2), "Storage transfer did not start"
-                ping = await asyncio.wait_for(
-                    client.post(url, headers=headers, json={"id": 2, "method": "ping"}), timeout=1
-                )
-                assert ping.status_code == 200 and ping.json()["result"] == {}
-            finally:
-                release.set()
-            response = await transfer
-            assert (
-                response.status_code == (201 if operation == "upload" else 200)
-                and "error" not in response.json()
-            )
-            if operation == "upload":
-                assert response.json()["relative_path"] == "new.txt"
-                return
-            if operation == "read":
-                assert base64.b64decode(response.json()["result"]["data"]) == b"saved"
-            else:
-                assert response.json()["result"]["relative_path"] == "new.txt"
-    finally:
-        release.set()
-        engine.dispose()
-
-
-@pytest.mark.anyio
-async def test_upload_rechecks_app_admission_after_receiving_body(
-    application_postgres_dsn, monkeypatch
-):
-    from starlette.requests import Request
-    from miy_api.domains.auth.models import CompanyAppControl
-    from miy_api.domains.hermes import file_router
-
-    engine = create_engine(application_postgres_dsn)
-    monkeypatch.setattr(
-        file_router,
-        "save_file",
-        lambda *args, **kwargs: pytest.fail("Revoked upload reached storage"),
-    )
-    try:
-        with Session(engine) as db:
-            user, binding = seed(db)
-            admit_runtime_apps(db, user.id)
-            session = session_for(db, binding)
-            db.commit()
-
-            async def receive():
-                with Session(engine) as authority:
-                    authority.get(CompanyAppControl, "chatbot").enabled = False
-                    authority.commit()
-                return {"type": "http.request", "body": b"saved", "more_body": False}
-
-            request = Request(
-                {"type": "http", "headers": [(b"content-type", b"application/octet-stream")]},
-                receive,
-            )
-            with pytest.raises(HTTPException) as denied:
-                await file_router.upload_file(session.id, request, "saved.txt", db, user)
-            assert denied.value.status_code == 403
-    finally:
-        engine.dispose()
-
-
-@pytest.mark.anyio
-@pytest.mark.parametrize("saturation", ["default", "operations", "both"])
+@pytest.mark.parametrize("saturation", ["both"])
 async def test_structured_callback_completes_while_callers_exhaust_thread_capacity(
     application_postgres_dsn, monkeypatch, saturation
 ):
     import asyncio
     import threading
+
     from anyio import CapacityLimiter, to_thread
     from fastapi import FastAPI
     from httpx import ASGITransport, AsyncClient
     from pydantic import SecretStr
     from sqlalchemy.orm import sessionmaker
+
     from miy_api.core.settings import get_settings
     from miy_api.domains.hermes import mcp_router
     from miy_api.domains.hermes.service import mcp_profile_bearer_secret

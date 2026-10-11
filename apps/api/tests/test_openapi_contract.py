@@ -11,8 +11,8 @@ def test_openapi_schema_exports_without_runtime_initialization(
         "postgresql+psycopg://openapi:openapi@127.0.0.1:1/openapi",
     )
 
-    from miy_api.core.settings import get_settings
     from miy_api import app as app_module
+    from miy_api.core.settings import get_settings
     from miy_api.openapi_contract import assert_openapi_contract
 
     get_settings.cache_clear()

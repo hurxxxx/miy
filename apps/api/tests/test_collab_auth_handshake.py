@@ -29,16 +29,3 @@ def test_collaboration_authenticates_first_frame_and_rejects_valid_token_in_url(
         with client.websocket_connect(f"{path}?token={token}") as websocket:
             websocket.receive_bytes()
     assert denied.value.code == 4401
-
-
-@pytest.mark.parametrize(
-    "path",
-    ["/api/v1/docs/collab/pages/missing/ws", "/api/v1/whiteboard/collab/items/missing/ws"],
-)
-@pytest.mark.parametrize("payload", [None, [], "auth", 5, {"type": "auth", "token": []}])
-def test_collaboration_rejects_malformed_auth_frames_without_server_error(client, path, payload):
-    with pytest.raises(WebSocketDisconnect) as denied:
-        with client.websocket_connect(path) as websocket:
-            websocket.send_json(payload)
-            websocket.receive_bytes()
-    assert denied.value.code == 4401

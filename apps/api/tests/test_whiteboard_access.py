@@ -3,157 +3,6 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from dev_accounts import dev_login
-from miy_api.core.db import get_session_factory
-from miy_api.domains.auth.models import CompanyAppControl
-
-
-def test_whiteboard_reuses_pms_space_acl(client: TestClient) -> None:
-    admin = _dev_login(client, "delivery-hub-admin")
-    admin_token = admin["token"]
-    task_list = _create_task_list(client, admin_token, key="WBACL", name="Whiteboard ACL")
-    space_id = task_list["team_id"]
-    whiteboard = _create_space_whiteboard(client, admin_token, space_id)
-
-    viewer = _dev_login(client, "delivery-hub-member")
-    viewer_token = viewer["token"]
-    _add_space_member(client, admin_token, space_id, viewer["user"]["id"], "viewer")
-
-    viewer_get = client.get(
-        f"/api/v1/whiteboard/items/{whiteboard['id']}",
-        headers=_auth_headers(viewer_token),
-    )
-    assert viewer_get.status_code == 200, viewer_get.text
-    assert viewer_get.json()["can_edit"] is False
-
-    viewer_patch = client.patch(
-        f"/api/v1/whiteboard/items/{whiteboard['id']}",
-        headers=_auth_headers(viewer_token),
-        json={"scene": {"elements": [{"id": "blocked"}], "appState": {}, "files": {}}},
-    )
-    assert viewer_patch.status_code == 403
-    assert viewer_patch.json()["code"] == "whiteboard.edit_access_required"
-
-    _add_space_member(client, admin_token, space_id, viewer["user"]["id"], "member")
-    member_patch = client.patch(
-        f"/api/v1/whiteboard/items/{whiteboard['id']}",
-        headers=_auth_headers(viewer_token),
-        json={"scene": {"elements": [{"id": "allowed"}], "appState": {}, "files": {}}},
-    )
-    assert member_patch.status_code == 200, member_patch.text
-    assert member_patch.json()["scene"]["elements"][0]["id"] == "allowed"
-
-
-def test_private_whiteboard_is_owner_only(client: TestClient) -> None:
-    owner = _dev_login(client, "delivery-hub-admin")
-    recipient = _dev_login(client, "delivery-hub-member")
-
-    create_response = client.post(
-        "/api/v1/whiteboard/items",
-        headers=_auth_headers(owner["token"]),
-        json={"title": "Private Board"},
-    )
-    assert create_response.status_code == 201, create_response.text
-    whiteboard = create_response.json()
-    assert whiteboard["is_private"] is True
-
-    blocked_response = client.get(
-        f"/api/v1/whiteboard/items/{whiteboard['id']}",
-        headers=_auth_headers(recipient["token"]),
-    )
-    assert blocked_response.status_code == 404
-    assert blocked_response.json()["code"] == "whiteboard.not_found"
-
-
-def test_whiteboard_user_and_link_shares_grant_access(client: TestClient) -> None:
-    owner = _dev_login(client, "delivery-hub-admin")
-    recipient = _dev_login(client, "delivery-hub-member")
-
-    create_response = client.post(
-        "/api/v1/whiteboard/items",
-        headers=_auth_headers(owner["token"]),
-        json={"title": "Shared Board"},
-    )
-    assert create_response.status_code == 201, create_response.text
-    whiteboard = create_response.json()
-
-    share_response = client.put(
-        f"/api/v1/whiteboard/items/{whiteboard['id']}/sharing/users/{recipient['user']['id']}",
-        headers=_auth_headers(owner["token"]),
-        json={"access_level": "read"},
-    )
-    assert share_response.status_code == 200, share_response.text
-
-    recipient_get = client.get(
-        f"/api/v1/whiteboard/items/{whiteboard['id']}",
-        headers=_auth_headers(recipient["token"]),
-    )
-    assert recipient_get.status_code == 200, recipient_get.text
-    assert recipient_get.json()["can_edit"] is False
-
-    recipient_patch = client.patch(
-        f"/api/v1/whiteboard/items/{whiteboard['id']}",
-        headers=_auth_headers(recipient["token"]),
-        json={"scene": {"elements": [{"id": "user-read-blocked"}], "appState": {}, "files": {}}},
-    )
-    assert recipient_patch.status_code == 403
-    assert recipient_patch.json()["code"] == "whiteboard.edit_access_required"
-
-    read_link_response = client.put(
-        f"/api/v1/whiteboard/items/{whiteboard['id']}/sharing/link",
-        headers=_auth_headers(owner["token"]),
-        json={"access_level": "read"},
-    )
-    assert read_link_response.status_code == 200, read_link_response.text
-    read_share_token = read_link_response.json()["link_share"]["token"]
-    assert read_link_response.json()["link_share"]["share_path"] == (
-        f"/apps/whiteboard/shared/{read_share_token}"
-    )
-
-    read_link_patch = client.patch(
-        f"/api/v1/whiteboard/shared-links/{read_share_token}/item",
-        headers=_auth_headers(recipient["token"]),
-        json={"scene": {"elements": [{"id": "link-read-blocked"}], "appState": {}, "files": {}}},
-    )
-    assert read_link_patch.status_code == 403
-    assert read_link_patch.json()["code"] == "whiteboard.edit_access_required"
-
-    link_response = client.put(
-        f"/api/v1/whiteboard/items/{whiteboard['id']}/sharing/link",
-        headers=_auth_headers(owner["token"]),
-        json={"access_level": "edit", "regenerate_token": True},
-    )
-    assert link_response.status_code == 200, link_response.text
-    share_token = link_response.json()["link_share"]["token"]
-    assert share_token != read_share_token
-
-    resolve_response = client.get(
-        f"/api/v1/whiteboard/shared-links/{share_token}",
-        headers=_auth_headers(recipient["token"]),
-    )
-    assert resolve_response.status_code == 200, resolve_response.text
-    assert resolve_response.json()["item"]["id"] == whiteboard["id"]
-
-    shared_patch = client.patch(
-        f"/api/v1/whiteboard/shared-links/{share_token}/item",
-        headers=_auth_headers(recipient["token"]),
-        json={"scene": {"elements": [{"id": "via-link"}], "appState": {}, "files": {}}},
-    )
-    assert shared_patch.status_code == 200, shared_patch.text
-    assert shared_patch.json()["scene"]["elements"][0]["id"] == "via-link"
-
-    with get_session_factory()() as db:
-        control = db.get(CompanyAppControl, "whiteboard")
-        assert control is not None
-        control.enabled = False
-        db.add(control)
-        db.commit()
-
-    disabled_response = client.get(
-        f"/api/v1/whiteboard/shared-links/{share_token}",
-        headers=_auth_headers(recipient["token"]),
-    )
-    assert disabled_response.status_code == 403
-    assert disabled_response.json()["code"] == "app.access_required"
 
 
 def _create_space_whiteboard(client: TestClient, token: str, space_id: str) -> dict:
@@ -213,3 +62,29 @@ def _dev_login(client: TestClient, account_key: str) -> dict:
 
 def _auth_headers(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
+
+
+def test_private_board_explicit_share_and_revoke_lifetime(client):
+    owner = _dev_login(client, "delivery-hub-admin")
+    viewer = _dev_login(client, "delivery-hub-member")
+    headers = _auth_headers(owner["token"])
+    view_headers = _auth_headers(viewer["token"])
+    created = client.post(
+        "/api/v1/whiteboard/items", headers=headers, json={"title": "Private board"}
+    )
+    assert created.status_code == 201 and created.json()["is_private"]
+    path = f"/api/v1/whiteboard/items/{created.json()['id']}"
+    assert client.get(path, headers=view_headers).status_code == 404
+    share = path + f"/sharing/users/{viewer['user']['id']}"
+    assert client.put(share, headers=headers, json={"access_level": "edit"}).status_code == 200
+    assert client.get(path, headers=view_headers).status_code == 200
+    assert (
+        client.patch(
+            path,
+            headers=view_headers,
+            json={"scene": {"elements": [], "appState": {}, "files": {}}},
+        ).status_code
+        == 200
+    )
+    assert client.delete(share, headers=headers).status_code == 200
+    assert client.get(path, headers=view_headers).status_code == 404

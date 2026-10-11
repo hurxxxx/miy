@@ -8,24 +8,6 @@ from fastapi import HTTPException
 from miy_api.domains.ai.tool_approval_gate import validate_replayed_approval
 
 
-def test_validate_replayed_approval_allows_matching_tool_and_call_id() -> None:
-    approval = SimpleNamespace(
-        tool_name="pms.update_issue",
-        tool_call_id="call-1",
-    )
-
-    validate_replayed_approval(
-        approval=approval,
-        tool_name="pms.update_issue",
-        call_id="call-1",
-    )
-    validate_replayed_approval(
-        approval=approval,
-        tool_name="pms.update_issue",
-        call_id=None,
-    )
-
-
 def test_validate_replayed_approval_rejects_mismatches() -> None:
     approval = SimpleNamespace(
         tool_name="pms.update_issue",

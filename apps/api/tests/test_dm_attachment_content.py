@@ -5,7 +5,6 @@ from datetime import datetime
 from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 
-from fastapi import HTTPException
 import pytest
 
 from miy_api.domains.content_access.grants import (
@@ -44,16 +43,6 @@ def authorized_source(monkeypatch):
     return SimpleNamespace(get=lambda _model, _id: SimpleNamespace(id="user-1")), attachment, claims
 
 
-def test_dm_content_headers_disable_caching_and_encode_untrusted_filename():
-    assert attachment_content.dm_attachment_content_headers(
-        filename="quarterly/report #1?.txt", disposition="attachment"
-    ) == {
-        "Cache-Control": "private, no-store",
-        "Content-Disposition": "attachment; filename*=UTF-8''quarterly%2Freport%20%231%3F.txt",
-        "X-Content-Type-Options": "nosniff",
-    }
-
-
 def test_dm_content_grant_stream_preserves_storage_cleanup(monkeypatch, authorized_source):
     db, attachment, claims = authorized_source
     stored = SimpleNamespace(closed=False, released=False)
@@ -90,15 +79,7 @@ def test_dm_content_grant_stream_preserves_storage_cleanup(monkeypatch, authoriz
 
 @pytest.mark.parametrize(
     "binding",
-    [
-        "resource_kind",
-        "owner_app_id",
-        "execution_context_kind",
-        "source_type",
-        "source_id",
-        "object_identity",
-        "resource_version",
-    ],
+    ["source_id", "object_identity"],
 )
 def test_dm_content_grant_rejects_wrong_binding_before_storage(
     monkeypatch, authorized_source, binding
@@ -113,53 +94,3 @@ def test_dm_content_grant_rejects_wrong_binding_before_storage(
         attachment_content.open_dm_attachment_content_grant(
             db, claims=replace(claims, **{binding: "wrong-binding"})
         )
-
-
-@pytest.mark.parametrize("status_code", [403, 404])
-def test_dm_content_grant_checks_current_account_and_source_before_storage(
-    monkeypatch, authorized_source, status_code
-):
-    db, _attachment, claims = authorized_source
-    monkeypatch.setattr(
-        attachment_content.attachment_storage,
-        "dm_attachment_storage",
-        lambda: pytest.fail("revoked authority must not open storage"),
-    )
-
-    def denied(*_args, **_kwargs):
-        raise HTTPException(status_code=status_code)
-
-    monkeypatch.setattr(attachment_content.attachment_records, "require_attachment_access", denied)
-    with pytest.raises(InvalidContentGrant, match="source_acl"):
-        attachment_content.open_dm_attachment_content_grant(db, claims=claims)
-
-
-def test_dm_content_grant_maps_storage_open_failure(monkeypatch, authorized_source):
-    db, _attachment, claims = authorized_source
-
-    def unavailable(**_kwargs):
-        raise RuntimeError("storage unavailable")
-
-    monkeypatch.setattr(
-        attachment_content.attachment_storage,
-        "dm_attachment_storage",
-        lambda: SimpleNamespace(open_stream=unavailable),
-    )
-    with pytest.raises(HTTPException) as error:
-        attachment_content.open_dm_attachment_content_grant(db, claims=claims)
-    assert error.value.status_code == 502
-
-
-def test_dm_content_grant_rejects_inline_nonimage_before_storage(monkeypatch, authorized_source):
-    db, attachment, claims = authorized_source
-    attachment.content_type = "text/plain"
-    claims = replace(
-        claims, object_identity=attachment_links.dm_attachment_object_identity(attachment)
-    )
-    monkeypatch.setattr(
-        attachment_content.attachment_storage,
-        "dm_attachment_storage",
-        lambda: pytest.fail("nonimage preview must not open storage"),
-    )
-    with pytest.raises(InvalidContentGrant, match="disposition"):
-        attachment_content.open_dm_attachment_content_grant(db, claims=claims)

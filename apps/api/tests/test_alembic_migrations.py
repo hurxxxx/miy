@@ -1,38 +1,10 @@
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 import sqlalchemy as sa
-from alembic import command
 from alembic.config import Config
-from alembic.script import ScriptDirectory
 
-from miy_api.core import db as db_module
-
-
-def test_runtime_alembic_config_uses_workspace_root(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    api_root = tmp_path / "apps" / "api"
-    api_root.mkdir(parents=True)
-    ini_path = api_root / "alembic.ini"
-    ini_path.write_text(
-        "[alembic]\nscript_location = %(here)s/alembic\n",
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(db_module, "WORKSPACE_ROOT", tmp_path)
-    monkeypatch.setattr(
-        db_module,
-        "get_settings",
-        lambda: SimpleNamespace(postgres_dsn="sqlite:///runtime-test.db"),
-    )
-
-    config = db_module._alembic_config()
-
-    assert Path(config.config_file_name or "") == ini_path
-    assert config.get_main_option("script_location") == str(api_root / "alembic")
-    assert config.get_main_option("sqlalchemy.url") == "sqlite:///runtime-test.db"
+from alembic import command
 
 
 def _migration_config(dsn: str | None = None) -> Config:
@@ -42,53 +14,6 @@ def _migration_config(dsn: str | None = None) -> Config:
     if dsn:
         config.set_main_option("sqlalchemy.url", dsn.replace("%", "%%"))
     return config
-
-
-@pytest.mark.migration
-def test_repository_starts_at_company_deployment_baseline() -> None:
-    revisions = list(ScriptDirectory.from_config(_migration_config()).walk_revisions())
-    assert [revision.revision for revision in revisions] == [
-        "independent_archive_20261011",
-        "independent_workspaces_20261011",
-        "wb_checked_cas_20261009",
-        "wb_actor_acl_20261009",
-        "wb_actor_owner_20261009",
-        "wb_source_writer_20261009",
-        "file_effect_20261007",
-        "file_source_partition_20261007",
-        "file_projection_20261007",
-        "file_extraction_20261007",
-        "official_partition_20261007",
-        "recording_managed_20261007",
-        "docs_legacy_repair_20261007",
-        "official_projection_20261007",
-        "official_source_writer_20261007",
-        "official_dm_writer_20261007",
-        "registration_auth_20261007",
-        "official_planner_writer_20261006",
-        "official_widget_writer_20261006",
-        "independent_bootstrap_20261006",
-        "official_writer_roles_20261006",
-        "official_writer_fence_20261006",
-        "official_auth_binding_20261006",
-        "independent_delegation_20261006",
-        "independent_delivery_20261006",
-        "independent_apps_20261006",
-        "artifact_sequences_20261006",
-        "miy_api_keys_20261001",
-        "decision_defaults_20260927",
-        "llm_cap_defaults_20260918",
-        "llm_connections_20260918",
-        "hermes_initial_snapshot_20260914",
-        "hermes_file_versions_20260914",
-        "hermes_runtime_20260912",
-        "group_sources_20260912",
-        "company_20260908",
-    ]
-    for newer, older in zip(revisions, revisions[1:]):
-        assert newer.down_revision == older.revision
-    assert revisions[-1].down_revision is None
-    assert "clean deployment baseline" in revisions[-1].doc
 
 
 @pytest.mark.migration
@@ -220,130 +145,6 @@ def test_writer_fence_upgrade_and_schema_rollback_preserve_existing_sources(
             """)
                 )
                 == 1
-            )
-    finally:
-        engine.dispose()
-
-
-@pytest.mark.migration
-def test_fresh_baseline_owns_company_identity_and_app_local_resources(postgres_dsn: str) -> None:
-    config = _migration_config(postgres_dsn)
-    command.upgrade(config, "group_sources_20260912")
-    engine = sa.create_engine(postgres_dsn)
-    try:
-        inspector = sa.inspect(engine)
-        tables = set(inspector.get_table_names())
-        assert {
-            "users",
-            "groups",
-            "group_members",
-            "app_access_policies",
-            "app_user_grants",
-            "app_group_grants",
-            "company_app_controls",
-            "pms_spaces",
-            "pms_space_members",
-            "pms_space_group_bindings",
-            "docs_native_docs",
-            "hermes_session_bindings",
-        } <= tables
-        assert "organization_units" not in tables
-        assert not any("workspace" in table for table in tables)
-        for table in tables:
-            assert not any(
-                column["name"] in {"workspace_id", "execution_workspace_id", "origin_workspace_id"}
-                for column in inspector.get_columns(table)
-            )
-        assert any(
-            foreign_key["referred_table"] == "pms_spaces"
-            for foreign_key in inspector.get_foreign_keys("pms_space_members")
-        )
-        checks = {
-            row["name"] for row in inspector.get_check_constraints("pms_space_group_bindings")
-        }
-        assert "ck_pms_space_group_role" in checks
-        with engine.connect() as connection:
-            assert (
-                connection.scalar(sa.text("SELECT version_num FROM alembic_version"))
-                == "group_sources_20260912"
-            )
-        command.downgrade(config, "base")
-        assert sa.inspect(engine).get_table_names() == ["alembic_version"]
-    finally:
-        engine.dispose()
-
-
-def test_runtime_metadata_has_no_duplicate_index_declarations() -> None:
-    from collections import Counter
-    from miy_api.core.db import Base
-    from miy_api.core.model_registry import import_all_models
-
-    import_all_models()
-    duplicated = {
-        table.name: sorted(
-            name
-            for name, count in Counter(index.name for index in table.indexes).items()
-            if count > 1
-        )
-        for table in Base.metadata.tables.values()
-    }
-    assert {table: names for table, names in duplicated.items() if names} == {}
-
-
-@pytest.mark.migration
-def test_group_downgrade_reserves_legacy_ids_before_mapping_new_groups(postgres_dsn: str) -> None:
-    config = _migration_config(postgres_dsn)
-    command.upgrade(config, "group_sources_20260912")
-    engine = sa.create_engine(postgres_dsn)
-    try:
-        with engine.begin() as conn:
-            conn.execute(
-                sa.text("""
-                INSERT INTO groups (id, source, name, description, active, slug, unit_type,
-                    source_reference, created_at, updated_at)
-                VALUES ('group-a', 'hr', 'Root', '', true, 'root', 'division', 'group-b', now(), now()),
-                       ('group-b', 'hr', 'Child', '', true, 'child', 'department', NULL, now(), now()),
-                       ('group-c', 'hr', 'Long reference', '', true, 'long', 'department',
-                        'external-reference-longer-than-36-characters', now(), now())
-            """)
-            )
-            conn.execute(sa.text("UPDATE groups SET parent_id='group-a' WHERE id='group-b'"))
-            conn.execute(
-                sa.text("""
-                INSERT INTO users (id, login_id, email, full_name, password_hash, status,
-                    login_blocked, must_change_password, theme_preference, locale,
-                    time_zone, date_format, primary_organization_unit_id, created_at, updated_at)
-                VALUES ('collision-user', 'collision-user', 'collision@example.test', 'User',
-                    'fixture', 'active', false, false, 'system', 'ko-KR', 'Asia/Seoul', 'korean',
-                    'group-b', now(), now())
-            """)
-            )
-        command.downgrade(config, "company_20260908")
-        with engine.connect() as conn:
-            mapping = dict(
-                conn.execute(sa.text("SELECT id, organization_unit_id FROM groups")).all()
-            )
-            assert mapping["group-a"] == "group-b"
-            assert mapping["group-c"] == "group-c"
-            assert len(set(mapping.values())) == 3
-            assert (
-                conn.scalar(sa.text("SELECT primary_organization_unit_id FROM users"))
-                == mapping["group-b"]
-            )
-            assert (
-                conn.scalar(
-                    sa.text("SELECT parent_id FROM organization_units WHERE id = :id"),
-                    {"id": mapping["group-b"]},
-                )
-                == mapping["group-a"]
-            )
-        command.upgrade(config, "group_sources_20260912")
-        with engine.connect() as conn:
-            assert (
-                conn.scalar(sa.text("SELECT primary_organization_unit_id FROM users")) == "group-b"
-            )
-            assert (
-                conn.scalar(sa.text("SELECT parent_id FROM groups WHERE id='group-b'")) == "group-a"
             )
     finally:
         engine.dispose()

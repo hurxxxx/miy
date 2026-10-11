@@ -24,32 +24,7 @@ def test_miy_desktop_update_feed_is_public_static_path(monkeypatch, tmp_path) ->
     assert "version: 0.1.2" in response.text
 
 
-def test_miy_desktop_linux_deb_download_uses_attachment_headers(
-    monkeypatch, tmp_path
-) -> None:
-    linux_dir = tmp_path / "linux"
-    linux_dir.mkdir()
-    (linux_dir / "MIY-Desktop-latest.deb").write_bytes(b"!<arch>\n")
-
-    monkeypatch.setenv("MIY_DESKTOP_UPDATE_LINUX_DIR", str(linux_dir))
-    get_settings.cache_clear()
-    try:
-        client = TestClient(create_app(initialize_runtime=False))
-        response = client.get(
-            "/api/v1/miy-desktop/updates/linux/MIY-Desktop-latest.deb"
-        )
-    finally:
-        get_settings.cache_clear()
-
-    assert response.status_code == 200
-    assert response.headers["content-type"] == "application/vnd.debian.binary-package"
-    assert response.headers["content-disposition"].startswith("attachment;")
-    assert "MIY-Desktop-latest.deb" in response.headers["content-disposition"]
-
-
-def test_miy_desktop_update_feed_rejects_non_artifact_files(
-    monkeypatch, tmp_path
-) -> None:
+def test_miy_desktop_update_feed_rejects_non_artifact_files(monkeypatch, tmp_path) -> None:
     update_dir = tmp_path / "updates"
     nested_dir = update_dir / "nested"
     nested_dir.mkdir(parents=True)

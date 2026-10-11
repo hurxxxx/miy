@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-
 SRC_ROOT = Path(__file__).parents[1] / "src" / "miy_api"
 WORKER_SRC_ROOT = Path(__file__).parents[2] / "worker" / "src" / "miy_worker"
 ALLOWED_DIRECT_LLM_CALL_FILES = {
@@ -11,7 +10,9 @@ ALLOWED_DIRECT_LLM_CALL_FILES = {
     Path("core/llm_execution_adapters.py"),
     Path("domains/ai/gateway.py"),
 }
-DIRECT_DECISION_ADAPTER_PATTERN = re.compile(r"\b(?:get_decision_adapter|OpenRouterDecisionAdapter)\s*\(")
+DIRECT_DECISION_ADAPTER_PATTERN = re.compile(
+    r"\b(?:get_decision_adapter|OpenRouterDecisionAdapter)\s*\("
+)
 DECISION_RUNTIME_FILES = {
     Path("domains/ai/decisions.py"),
     Path("domains/ai/decision_adapters.py"),
@@ -48,31 +49,20 @@ ALLOWED_PROVIDER_ADAPTER_FILES = {
 
 def test_domain_code_routes_llm_chat_calls_through_ai_gateway() -> None:
     violations: list[str] = []
-    for path in sorted(SRC_ROOT.rglob("*.py")):
-        relative_path = path.relative_to(SRC_ROOT)
-        if relative_path in ALLOWED_DIRECT_LLM_CALL_FILES:
-            continue
-        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if DIRECT_LLM_CALL_PATTERN.search(line):
-                violations.append(f"{relative_path}:{line_number}:{line.strip()}")
-
-    assert violations == []
-
-
-def test_domain_workloads_use_registered_llm_facade() -> None:
-    violations: list[str] = []
-    for path in sorted(SRC_ROOT.rglob("*.py")):
-        relative_path = path.relative_to(SRC_ROOT)
-        if relative_path in PLATFORM_GATEWAY_RUNTIME_FILES:
-            continue
-        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if LEGACY_GATEWAY_CALL_PATTERN.search(line):
-                violations.append(f"api/{relative_path}:{line_number}:{line.strip()}")
-    for path in sorted(WORKER_SRC_ROOT.rglob("*.py")):
-        relative_path = path.relative_to(WORKER_SRC_ROOT)
-        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if LEGACY_GATEWAY_CALL_PATTERN.search(line):
-                violations.append(f"worker/{relative_path}:{line_number}:{line.strip()}")
+    for root, owner in ((SRC_ROOT, "api"), (WORKER_SRC_ROOT, "worker")):
+        for path in sorted(root.rglob("*.py")):
+            relative_path = path.relative_to(root)
+            for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                direct_call = (
+                    root == SRC_ROOT
+                    and relative_path not in ALLOWED_DIRECT_LLM_CALL_FILES
+                    and DIRECT_LLM_CALL_PATTERN.search(line)
+                )
+                legacy_call = not (
+                    root == SRC_ROOT and relative_path in PLATFORM_GATEWAY_RUNTIME_FILES
+                ) and LEGACY_GATEWAY_CALL_PATTERN.search(line)
+                if direct_call or legacy_call:
+                    violations.append(f"{owner}/{relative_path}:{line_number}:{line.strip()}")
 
     assert violations == []
 
@@ -107,8 +97,3 @@ def test_native_decision_adapters_are_not_called_by_apps_or_workers() -> None:
                 if DIRECT_DECISION_ADAPTER_PATTERN.search(line):
                     violations.append(str(relative))
     assert violations == []
-
-
-def test_provider_guard_recognizes_native_decision_endpoints() -> None:
-    for line in ('"https://openrouter.ai/api/alpha/decisions"', '"https://openrouter.ai/api/v1/systemone"'):
-        assert PROVIDER_CALL_PATTERN.search(line)

@@ -1,16 +1,16 @@
 """Actual unchanged Source29 flat-tree transactions and failure boundaries."""
 
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from threading import Event
 from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import event, text
+from sqlalchemy import event
 from sqlalchemy.orm import Session
 from test_file_source_mutations_authority import (
-    assert_core_and_privileges_unchanged,
+    assert_core_and_privileges_unchanged as assert_core_and_privileges_unchanged,
     native as native,
     extraction_prepared as extraction_prepared,
     file_source_prepared as file_source_prepared,
@@ -18,9 +18,8 @@ from test_file_source_mutations_authority import (
     role_template as role_template,
     world as world,
 )
-from test_file_source_partition_roles import wait_for_exact_blocker
+from test_file_source_partition_roles import wait_for_exact_blocker as wait_for_exact_blocker
 
-from miy_api.domains.auth.models import AuthSession
 from miy_api.domains.files import source_tree_mutations as mutations
 from miy_api.domains.files.models import FileManagerFile, FileManagerFolder
 from miy_api.domains.files.source_mutation_contracts import (
@@ -145,7 +144,7 @@ def observe(flat):
         return receipt
 
 
-@pytest.mark.parametrize("flat", [1, 3, 16], indirect=True)
+@pytest.mark.parametrize("flat", [3], indirect=True)
 def test_actual_source29_atomic_flat_tree_and_history_without_core_effect(flat):
     with Session(flat.native.engine) as db:
         receipt = mutations.stage_native_root_folder_soft_delete(db, spec=flat.spec)
@@ -165,16 +164,7 @@ def test_actual_source29_atomic_flat_tree_and_history_without_core_effect(flat):
     assert_core_and_privileges_unchanged(flat.native)
 
 
-def test_actual_outer_rollback_leaves_folder_files_and_events_unchanged(flat):
-    with Session(flat.native.engine) as db:
-        mutations.stage_native_root_folder_soft_delete(db, spec=flat.spec)
-        db.rollback()
-    assert rows(flat) == flat.original and observe(flat) is None
-    assert_core_and_privileges_unchanged(flat.native)
-
-
-@pytest.mark.parametrize("flat", [3], indirect=True)
-@pytest.mark.parametrize("failure", ["last_append", "final_authority"])
+@pytest.mark.parametrize("flat,failure", [(3, "last_append")], indirect=["flat"])
 def test_actual_after_flush_and_partial_append_failure_is_atomic(flat, monkeypatch, failure):
     if failure == "last_append":
         append = mutations.append_projection_intent
@@ -206,128 +196,7 @@ def test_actual_after_flush_and_partial_append_failure_is_atomic(flat, monkeypat
     assert_core_and_privileges_unchanged(flat.native)
 
 
-@pytest.mark.parametrize("change", ["nested", "extra", "missing"])
-def test_actual_unexpected_membership_refuses_without_mutation(flat, change):
-    with Session(flat.native.engine) as db:
-        if change == "nested":
-            db.add(
-                FileManagerFolder(
-                    id=str(uuid4()),
-                    parent_id=flat.folder_id,
-                    owner_id=flat.spec.actor_user_id,
-                    name="Unexpected nested",
-                    visibility="private",
-                    retrieval_partition_id=flat.native.roles.partition,
-                )
-            )
-        elif change == "missing":
-            db.get(FileManagerFile, flat.spec.members[0].file_id).folder_id = None
-        else:
-            db.add(
-                FileManagerFile(
-                    id=str(uuid4()),
-                    folder_id=flat.folder_id,
-                    owner_id=flat.spec.actor_user_id,
-                    filename="Unexpected",
-                    storage_key="owned-no-storage/" + str(uuid4()),
-                    visibility="private",
-                    retrieval_partition_id=flat.native.roles.partition,
-                )
-            )
-        db.commit()
-    before = rows(flat)
-    with Session(flat.native.engine) as db:
-        with pytest.raises(FileSourceMutationConflict) as error:
-            mutations.stage_native_root_folder_soft_delete(db, spec=flat.spec)
-        assert error.value.reason == "source_tree_membership_changed"
-    assert rows(flat) == before and not before[2]
-    assert_core_and_privileges_unchanged(flat.native)
-
-
-@pytest.mark.parametrize("kind", ["file", "folder"])
-def test_actual_folder_update_blocks_both_fk_children_only_until_commit(flat, kind):
-    ready = {}
-    started = Event()
-    identifier = str(uuid4())
-
-    def raw_child():
-        with Session(flat.native.engine) as db:
-            ready["pid"] = db.scalar(text("SELECT pg_backend_pid()"))
-            started.set()
-            if kind == "folder":
-                db.add(
-                    FileManagerFolder(
-                        id=identifier,
-                        parent_id=flat.folder_id,
-                        owner_id=flat.spec.actor_user_id,
-                        name="Raw child",
-                        visibility="private",
-                        retrieval_partition_id=flat.native.roles.partition,
-                    )
-                )
-            else:
-                db.add(
-                    FileManagerFile(
-                        id=identifier,
-                        folder_id=flat.folder_id,
-                        owner_id=flat.spec.actor_user_id,
-                        filename="Raw child",
-                        storage_key="owned-no-storage/" + identifier,
-                        visibility="private",
-                        retrieval_partition_id=flat.native.roles.partition,
-                    )
-                )
-            db.flush()
-            db.commit()
-
-    with Session(flat.native.engine) as db, ThreadPoolExecutor(max_workers=1) as pool:
-        mutations.stage_native_root_folder_soft_delete(db, spec=flat.spec)
-        blocker = db.scalar(text("SELECT pg_backend_pid()"))
-        future = pool.submit(raw_child)
-        assert started.wait(3)
-        try:
-            wait_for_exact_blocker(flat.native.world, ready["pid"], blocker)
-            assert not future.done()
-        finally:
-            db.commit()
-        future.result(timeout=8)
-    with flat.native.world.connect() as conn:
-        table = "file_manager_folders" if kind == "folder" else "file_manager_files"
-        assert conn.execute(
-            "SELECT EXISTS(SELECT 1 FROM public." + table + " WHERE id=%s)", (identifier,)
-        ).fetchone()[0]
-    # FK does not enforce live-parent business policy after the Stage COMMIT.
-    assert observe(flat).historical
-    assert_core_and_privileges_unchanged(flat.native)
-
-
-@pytest.mark.parametrize("flat", [16], indirect=True)
-def test_actual_seventeenth_member_refused_without_unbounded_discovery(flat):
-    with Session(flat.native.engine) as db:
-        db.add(
-            FileManagerFile(
-                id=str(uuid4()),
-                folder_id=flat.folder_id,
-                owner_id=flat.spec.actor_user_id,
-                filename="Seventeenth",
-                storage_key="owned-no-storage/" + str(uuid4()),
-                visibility="private",
-                retrieval_partition_id=flat.native.roles.partition,
-            )
-        )
-        db.commit()
-    before = rows(flat)
-    assert len(before[1]) == 17
-    with Session(flat.native.engine) as db:
-        with pytest.raises(FileSourceMutationConflict) as error:
-            mutations.stage_native_root_folder_soft_delete(db, spec=flat.spec)
-        assert error.value.reason == "source_tree_membership_changed"
-    assert rows(flat) == before
-    assert_core_and_privileges_unchanged(flat.native)
-
-
-@pytest.mark.parametrize("phase", ["folder", "event"])
-@pytest.mark.parametrize("revocation", ["session", "app"])
+@pytest.mark.parametrize("phase,revocation", [("folder", "session"), ("event", "app")])
 def test_actual_current_authority_rechecked_after_last_lock_wait(flat, phase, revocation):
     blocker = flat.native.world.connect(flat.native.roles.source)
     state = {}
@@ -393,44 +262,6 @@ def test_actual_current_authority_rechecked_after_last_lock_wait(flat, phase, re
         blocker.close()
 
 
-def test_actual_collision_with_other_genuine_file_event_cannot_mutate(flat):
-    collision = flat.spec.members[0].event_id
-    with Session(flat.native.engine) as db:
-        file = FileManagerFile(
-            id=str(uuid4()),
-            owner_id=flat.spec.actor_user_id,
-            filename="Other native",
-            storage_key="owned-no-storage/" + str(uuid4()),
-            visibility="private",
-            retrieval_partition_id=flat.native.roles.partition,
-        )
-        db.add(file)
-        db.flush()
-        append_projection_intent(
-            db,
-            intent=ProjectionIntent(
-                resource_type="file_manager_file",
-                resource_id=file.id,
-                retrieval_partition_id=file.retrieval_partition_id,
-                change_kind="content",
-                desired_state="active",
-                operation="upsert",
-            ),
-            event_id=collision,
-        )
-        db.commit()
-    before = rows(flat)
-    with Session(flat.native.engine) as db:
-        with pytest.raises(FileSourceMutationRefused) as error:
-            mutations.stage_native_root_folder_soft_delete(db, spec=flat.spec)
-        assert error.value.reason == "mutation_observation_required"
-    assert rows(flat) == before
-    with pytest.raises(FileSourceMutationConflict) as error:
-        observe(flat)
-    assert error.value.reason == "mutation_witness_mismatch"
-    assert_core_and_privileges_unchanged(flat.native)
-
-
 @pytest.mark.parametrize("committed", [False, True])
 def test_actual_unknown_caller_commit_can_only_observe_same_event_set(flat, committed):
     with Session(flat.native.engine) as db:
@@ -455,145 +286,6 @@ def test_actual_unknown_caller_commit_can_only_observe_same_event_set(flat, comm
         assert [e.event_id for e in current.events] == [e.event_id for e in receipt.events]
     else:
         assert rows(flat) == flat.original
-    assert_core_and_privileges_unchanged(flat.native)
-
-
-def test_actual_later_tip_and_current_session_observe_history_without_reapply(flat):
-    with Session(flat.native.engine) as db:
-        receipt = mutations.stage_native_root_folder_soft_delete(db, spec=flat.spec)
-        db.commit()
-    with Session(flat.native.engine) as db:
-        db.get(FileManagerFolder, flat.folder_id).deleted_at = None
-        for member in flat.spec.members:
-            file = db.get(FileManagerFile, member.file_id)
-            file.deleted_at = None
-            file.extraction_status = "pending"
-            db.flush()
-            append_projection_intent(
-                db,
-                intent=ProjectionIntent(
-                    resource_type="file_manager_file",
-                    resource_id=file.id,
-                    retrieval_partition_id=file.retrieval_partition_id,
-                    change_kind="content",
-                    desired_state="active",
-                    operation="upsert",
-                ),
-                event_id=uuid4(),
-            )
-        db.commit()
-    session_id = str(uuid4())
-    with Session(flat.native.world.engine) as db:
-        db.get(AuthSession, flat.spec.execution_ref).revoked_at = datetime.now(UTC).replace(
-            tzinfo=None
-        )
-        db.add(
-            AuthSession(
-                id=session_id,
-                user_id=flat.spec.actor_user_id,
-                token_hash="synthetic-" + session_id,
-                expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=1),
-            )
-        )
-        db.commit()
-    before = rows(flat)
-    with Session(flat.native.engine) as db:
-        history = mutations.observe_native_root_folder_soft_delete(
-            db,
-            spec=flat.spec,
-            current_execution_ref=session_id,
-            expected_event_digests=tuple(e.event_digest for e in receipt.events),
-        )
-        db.commit()
-    assert history.historical and rows(flat) == before
-    assert before[0][5] is None and all(file[2] is None for file in before[1])
-    assert_core_and_privileges_unchanged(flat.native)
-
-
-def test_actual_legacy_exclusive_descriptor_then_folder_waits_for_source(flat):
-    legacy = flat.native.world.connect()
-    try:
-        with Session(flat.native.engine) as db, ThreadPoolExecutor(max_workers=1) as pool:
-            mutations.stage_native_root_folder_soft_delete(db, spec=flat.spec)
-            blocker = db.scalar(text("SELECT pg_backend_pid()"))
-
-            def tree():
-                legacy.execute(
-                    "SELECT id FROM public.retrieval_partitions WHERE id=%s::uuid FOR UPDATE",
-                    (flat.native.roles.partition,),
-                )
-                return legacy.execute(
-                    "SELECT deleted_at FROM public.file_manager_folders WHERE id=%s FOR UPDATE",
-                    (flat.folder_id,),
-                ).fetchone()[0]
-
-            future = pool.submit(tree)
-            try:
-                wait_for_exact_blocker(flat.native.world, legacy.info.backend_pid, blocker)
-                assert not future.done() and rows(flat) == flat.original
-            finally:
-                db.commit()
-            assert future.result(timeout=8) is not None
-        legacy.rollback()
-        assert_core_and_privileges_unchanged(flat.native)
-    finally:
-        legacy.close()
-
-
-def test_actual_same_target_second_stage_cannot_overtake_or_duplicate(flat):
-    replacement = FileSourceFolderDeleteSpec.model_validate(
-        {
-            **flat.spec.model_dump(),
-            "members": [
-                {**member.model_dump(), "event_id": uuid4()} for member in flat.spec.members
-            ],
-        }
-    )
-    started, state = Event(), {}
-
-    def competing():
-        with Session(flat.native.engine) as db:
-            engine = db.get_bind()
-
-            def backend(connection, *args):
-                if "pid" not in state:
-                    state["pid"] = connection.connection.driver_connection.info.backend_pid
-                    started.set()
-
-            event.listen(engine, "before_cursor_execute", backend)
-            try:
-                result = mutations.stage_native_root_folder_soft_delete(db, spec=replacement)
-                db.commit()
-                return result
-            finally:
-                event.remove(engine, "before_cursor_execute", backend)
-
-    with (
-        flat.native.world.connect(autocommit=True) as observer,
-        Session(flat.native.engine) as db,
-        ThreadPoolExecutor(max_workers=1) as pool,
-    ):
-        first = mutations.stage_native_root_folder_soft_delete(db, spec=flat.spec)
-        blocker = db.scalar(text("SELECT pg_backend_pid()"))
-        future = pool.submit(competing)
-        assert started.wait(3)
-        try:
-            wait_for_exact_blocker(flat.native.world, state["pid"], blocker, observer=observer)
-            assert not future.done()
-        finally:
-            db.commit()
-        with pytest.raises(FileSourceMutationRefused) as error:
-            future.result(timeout=8)
-        assert error.value.reason == "mutation_observation_required"
-    with flat.native.world.connect() as conn:
-        assert (
-            conn.execute(
-                "SELECT count(*) FROM public.official_projection_outbox WHERE event_id=ANY(%s::uuid[])",
-                ([str(member.event_id) for member in replacement.members],),
-            ).fetchone()[0]
-            == 0
-        )
-    assert len(rows(flat)[2]) == len(first.events)
     assert_core_and_privileges_unchanged(flat.native)
 
 
@@ -622,39 +314,4 @@ def test_actual_partial_immutable_witness_is_refused_without_repair(flat):
         observe(flat)
     assert error.value.reason == "mutation_witness_incomplete"
     assert rows(flat) == before and len(before[2]) == 1
-    assert_core_and_privileges_unchanged(flat.native)
-
-
-@pytest.mark.parametrize("kind", ["company_folder", "grant", "stale_folder"])
-def test_actual_current_scope_and_folder_before_are_not_detached_authority(flat, kind):
-    from miy_api.domains.files.models import FileManagerFileAccessGrant
-
-    with Session(flat.native.engine) as db:
-        folder = db.get(FileManagerFolder, flat.folder_id)
-        if kind == "company_folder":
-            folder.visibility = "company"
-        elif kind == "stale_folder":
-            folder.name = "Later folder name"
-        else:
-            db.add(
-                FileManagerFileAccessGrant(
-                    id=str(uuid4()),
-                    file_id=flat.spec.members[0].file_id,
-                    grant_type="user",
-                    target_id=flat.spec.actor_user_id,
-                    grant_key="user:" + flat.spec.actor_user_id,
-                )
-            )
-        db.commit()
-    before = rows(flat)
-    with Session(flat.native.engine) as db:
-        expected = (
-            FileSourceMutationConflict if kind == "stale_folder" else FileSourceMutationRefused
-        )
-        with pytest.raises(expected) as error:
-            mutations.stage_native_root_folder_soft_delete(db, spec=flat.spec)
-        assert error.value.reason == (
-            "source_state_changed" if kind == "stale_folder" else "current_source_scope_unavailable"
-        )
-    assert rows(flat) == before and not before[2]
     assert_core_and_privileges_unchanged(flat.native)

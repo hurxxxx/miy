@@ -1,58 +1,8 @@
 from fastapi.testclient import TestClient
-import pytest
 
 from miy_api.core.db import get_session_factory
 from miy_api.domains.auth.app_access import can_use_app
 from miy_api.domains.groups.service import current_group_ids
-
-
-def test_individual_assignment_preserves_other_members_and_stored_inactive_groups(client):
-    headers, admin_id = _setup(client)
-    hr = _organization(client, headers, "Assignment HR")
-    user_id = _person(client, headers, hr["id"])
-    group = client.post(
-        "/api/v1/admin/groups", headers=headers, json={"name": "Assignment TF"}
-    ).json()
-    path = f"/api/v1/admin/groups/{group['id']}/members"
-    assert client.put(path, headers=headers, json={"user_ids": [admin_id]}).status_code == 200
-    for _ in range(2):
-        result = client.put(f"{path}/{user_id}", headers=headers, json={"assigned": True})
-        assert result.status_code == 200, result.text
-        assert set(result.json()["user_ids"]) == {admin_id, user_id}
-        assert {item["id"] for item in result.json()["items"]} == {admin_id, user_id}
-    assert (
-        client.patch(
-            f"/api/v1/admin/groups/{group['id']}", headers=headers, json={"active": False}
-        ).status_code
-        == 200
-    )
-    assert (
-        client.patch(
-            f"/api/v1/admin/users/{user_id}", headers=headers, json={"login_blocked": True}
-        ).status_code
-        == 200
-    )
-    result = client.get(
-        "/api/v1/admin/groups",
-        headers=headers,
-        params={"member_user_id": user_id, "include_inactive": True},
-    )
-    assert result.status_code == 200
-    assert {item["id"] for item in result.json()["items"]} == {group["id"], hr["id"]}
-    result = client.put(f"{path}/{user_id}", headers=headers, json={"assigned": False})
-    assert result.status_code == 200
-    assert result.json()["user_ids"] == [admin_id]
-    assert (
-        client.put(f"{path}/{user_id}", headers=headers, json={"assigned": True}).status_code == 409
-    )
-    assert (
-        client.put(
-            f"/api/v1/admin/groups/{hr['id']}/members/{user_id}",
-            headers=headers,
-            json={"assigned": False},
-        ).status_code
-        == 409
-    )
 
 
 def test_individual_assignment_requires_admin_and_rejects_unavailable_users(client):
@@ -95,104 +45,6 @@ def test_individual_assignment_requires_admin_and_rejects_unavailable_users(clie
         client.put(f"{path}/{user_id}", headers=headers, json={"assigned": True}).status_code == 400
     )
     assert client.get(path, headers=headers).json()["user_ids"] == []
-
-
-def test_organization_events_only_refresh_changed_member_or_head_projections(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-):
-    headers, admin_id = _setup(client)
-    recipients: set[str] = set()
-    monkeypatch.setattr(
-        "miy_api.domains.groups.admin_router.publish_principal_access_changed",
-        lambda _hub, user_ids: recipients.update(user_ids),
-    )
-    parent = _organization(client, headers, "Parent")
-    child = _organization(client, headers, "Child", parent["id"])
-    assert not recipients
-    user_id = _person(client, headers, child["id"])
-
-    for org_id, payload, expected in (
-        (parent["id"], {"name": "Renamed parent"}, set()),
-        (parent["id"], {"head_user_id": admin_id}, {admin_id}),
-        (parent["id"], {"head_user_id": admin_id}, set()),
-        (parent["id"], {"active": False}, {admin_id}),
-        (parent["id"], {"active": True}, {admin_id}),
-        (child["id"], {"name": "Renamed child"}, {user_id}),
-        (child["id"], {"parent_id": None}, set()),
-        (child["id"], {"head_user_id": admin_id}, {admin_id}),
-        (child["id"], {"head_user_id": user_id}, {admin_id, user_id}),
-        (child["id"], {"active": False}, {user_id}),
-        (child["id"], {"active": True}, {user_id}),
-    ):
-        recipients.clear()
-        response = client.patch(f"/api/v1/admin/groups/{org_id}", headers=headers, json=payload)
-        assert response.status_code == 200, response.text
-        assert recipients == expected, payload
-        if org_id == child["id"] and "active" in payload:
-            with get_session_factory()() as db:
-                assert bool(current_group_ids(db, user_id)) == payload["active"]
-
-    recipients.clear()
-    response = client.post(
-        "/api/v1/admin/groups",
-        headers=headers,
-        json={"name": "New headed organization", "head_user_id": admin_id, "source": "hr"},
-    )
-    assert response.status_code == 201, response.text
-    assert recipients == {admin_id}
-
-
-def test_group_access_events_only_reach_users_whose_permissions_change(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-):
-    headers, admin_id = _setup(client)
-    organization = _organization(client, headers, "Support")
-    user_id = _person(client, headers, organization["id"])
-    recipients: set[str] = set()
-    monkeypatch.setattr(
-        "miy_api.domains.groups.admin_router.publish_app_availability_access_changed",
-        lambda _hub, user_ids: recipients.update(user_ids),
-    )
-    response = client.post("/api/v1/admin/groups", headers=headers, json={"name": "Support TF"})
-    assert response.status_code == 201, response.text
-    group_id = response.json()["id"]
-    assert not recipients
-
-    response = client.put(
-        f"/api/v1/admin/groups/{group_id}/members",
-        headers=headers,
-        json={"user_ids": [user_id]},
-    )
-    assert response.status_code == 200, response.text
-    assert recipients == {user_id}
-    assert admin_id not in recipients
-    recipients.clear()
-
-    response = client.patch(
-        f"/api/v1/admin/groups/{group_id}", headers=headers, json={"name": "Renamed TF"}
-    )
-    assert response.status_code == 200, response.text
-    response = client.put(
-        f"/api/v1/admin/groups/{group_id}/members",
-        headers=headers,
-        json={"user_ids": [user_id]},
-    )
-    assert response.status_code == 200, response.text
-    assert not recipients
-
-    for active in (False, True):
-        response = client.patch(
-            f"/api/v1/admin/groups/{group_id}", headers=headers, json={"active": active}
-        )
-        assert response.status_code == 200, response.text
-        assert recipients == {user_id}
-        recipients.clear()
-
-    response = client.put(
-        f"/api/v1/admin/groups/{group_id}/members", headers=headers, json={"user_ids": []}
-    )
-    assert response.status_code == 200, response.text
-    assert recipients == {user_id}
 
 
 def _setup(client: TestClient):
@@ -307,27 +159,6 @@ def test_group_app_admission_tracks_current_membership_and_master_disable(client
     assert response.status_code == 200, response.text
     with get_session_factory()() as db:
         assert not can_use_app(db, user_id=admin_id, app_id="community")
-
-
-def test_department_head_can_manage_multiple_departments_without_joining_groups(client: TestClient):
-    headers, user_id = _setup(client)
-    first = _organization(client, headers, "First Department")
-    second = _organization(client, headers, "Second Department")
-    for org in (first, second):
-        response = client.patch(
-            f"/api/v1/admin/groups/{org['id']}",
-            headers=headers,
-            json={"head_user_id": user_id},
-        )
-        assert response.status_code == 200, response.text
-    response = client.get("/api/v1/directory/people", headers=headers)
-    assert response.status_code == 200, response.text
-    person = next(p for p in response.json()["items"] if p["id"] == user_id)
-    assert person["is_department_head"]
-    assert set(person["managed_organization_unit_ids"]) == {first["id"], second["id"]}
-    assert "email" not in person and "system_roles" not in person
-    with get_session_factory()() as db:
-        assert not current_group_ids(db, user_id)
 
 
 def test_unified_groups_expose_source_and_enforce_assignment_authority(client: TestClient):

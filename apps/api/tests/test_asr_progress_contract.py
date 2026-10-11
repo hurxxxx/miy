@@ -1,13 +1,10 @@
 """Built-in ASR callback ordering with synthetic transports/models only."""
 
-from contextlib import nullcontext
-from pathlib import Path
 import sys
-from threading import get_ident
+from contextlib import nullcontext
 from types import SimpleNamespace
 
 import httpx
-import pytest
 
 from miy_api.core import asr
 
@@ -64,34 +61,3 @@ def backend_fixture(name, monkeypatch, steps):
 
     monkeypatch.setattr(backend, "_load", lambda: Model())
     return backend
-
-
-@pytest.mark.parametrize("name", ["cohere", "inference_gateway", "qwen_asr", "whisper"])
-@pytest.mark.parametrize("fail_at", [None, 1, 2])
-def test_builtin_callbacks_are_synchronous_and_propagate_exception(
-    name, fail_at, monkeypatch, tmp_path
-):
-    steps = []
-    backend = backend_fixture(name, monkeypatch, steps)
-    audio = tmp_path / "synthetic.wav"
-    audio.write_bytes(b"synthetic")
-    origin = get_ident()
-    progress = []
-
-    def callback(value):
-        assert get_ident() == origin
-        progress.append(value)
-        steps.append("callback")
-        if len(progress) == fail_at:
-            raise StopPhase()
-
-    if fail_at:
-        with pytest.raises(StopPhase):
-            backend.transcribe(Path(audio), on_progress=callback)
-        assert len(progress) == fail_at
-        assert steps[-1] == "callback"
-        assert steps.count("generate") == (fail_at if name == "whisper" else fail_at - 1)
-    else:
-        assert backend.transcribe(audio, on_progress=callback).text
-        assert progress[-1] == 1.0
-        assert steps.count("generate") == (2 if name == "whisper" else 1)

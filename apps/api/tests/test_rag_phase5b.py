@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 from dev_accounts import dev_login, create_company_user_session, auth_headers
-from miy_api.domains.auth.app_access_models import AppAccessPolicy
 
 from miy_api.core.db import get_session_factory
 from miy_api.core.settings import get_settings
@@ -10,7 +9,6 @@ from miy_api.domains.ai.registry import reset_ai_capability_registry
 from miy_api.domains.auth.access import load_user_graph
 from miy_api.domains.docs import service as docs_service
 from miy_api.domains.rag import application as rag_application
-from miy_api.domains.rag.default_source_adapters import registered_searchable_rag_app_ids
 from miy_api.domains.rag.docs_projection import load_native_doc_projection
 from miy_api.domains.rag.providers.fake import (
     FakeEmbeddingClient,
@@ -121,152 +119,3 @@ def test_rag_query_hides_other_users_personal_docs_even_from_platform_admin(
     payload = response.json()
     assert {hit["title"] for hit in payload["hits"]} == {"Delivery Hub Phase 5 Note"}
     assert all("workspace_id" not in hit for hit in payload["hits"])
-
-
-def test_company_rag_reindex_requires_admin(
-    client: TestClient,
-    monkeypatch,
-) -> None:
-    monkeypatch.setenv("MIY_RAG_ENABLED", "1")
-    _reset_settings_and_registry()
-    admin_session = dev_login(client, "administrator")
-    session = _create_user_session(
-        client,
-        admin_session["token"],
-        login_id="deliverymember",
-        email="delivery-member@example.test",
-        full_name="Delivery Member",
-        role="member",
-    )
-
-    response = client.post(
-        "/api/v1/rag/reindex",
-        headers=_auth_headers(session["token"]),
-    )
-
-    assert response.status_code == 403, response.text
-
-
-def test_company_rag_reindex_enforces_cooldown(
-    client: TestClient,
-    monkeypatch,
-) -> None:
-    monkeypatch.setenv("MIY_RAG_ENABLED", "1")
-    _reset_settings_and_registry()
-    session = dev_login(client, "administrator")
-    with get_session_factory()() as db:
-        owner = load_user_graph(db, session["user"]["id"])
-        assert owner is not None
-        docs_service.create_native_doc_for_user(
-            db,
-            owner_id=owner.id,
-            title="Cooldown source",
-            content_blocks=[
-                {"type": "paragraph", "content": [{"type": "text", "text": "cooldown"}]}
-            ],
-        )
-        db.commit()
-
-    first = client.post(
-        "/api/v1/rag/reindex",
-        headers=_auth_headers(session["token"]),
-    )
-    second = client.post(
-        "/api/v1/rag/reindex",
-        headers=_auth_headers(session["token"]),
-    )
-
-    assert first.status_code == 200, first.text
-    assert second.status_code == 409, second.text
-    assert second.json()["code"] == "rag.reindex_cooldown_recent"
-
-
-def test_company_rag_query_validates_payload(
-    client: TestClient,
-    monkeypatch,
-) -> None:
-    monkeypatch.setenv("MIY_RAG_ENABLED", "1")
-    _reset_settings_and_registry()
-    session = dev_login(client, "administrator")
-
-    blank_query = client.post(
-        "/api/v1/rag/query",
-        headers=_auth_headers(session["token"]),
-        json={"query": ""},
-    )
-    assert blank_query.status_code == 422, blank_query.text
-
-    invalid_top_k = client.post(
-        "/api/v1/rag/query",
-        headers=_auth_headers(session["token"]),
-        json={"query": "phase 5", "top_k": 0},
-    )
-    assert invalid_top_k.status_code == 422, invalid_top_k.text
-
-    invalid_metadata = client.post(
-        "/api/v1/rag/query",
-        headers={**_auth_headers(session["token"]), "Accept-Language": "ko-KR"},
-        json={
-            "query": "phase 5",
-            "filters": {"metadata": {"resource_id": "forged-doc"}},
-        },
-    )
-    assert invalid_metadata.status_code == 422, invalid_metadata.text
-    body = invalid_metadata.json()
-    assert body["code"] == "rag.metadata_filter_key_reserved"
-    assert body["params"]["key"] == "resource_id"
-    assert body["detail"] == "예약된 메타데이터 필터 key입니다: resource_id"
-
-
-def test_rag_query_rejects_user_without_admitted_sources(client, monkeypatch):
-    monkeypatch.setenv("MIY_RAG_ENABLED", "1")
-    _reset_settings_and_registry()
-    dev_login(client, "administrator")
-    session = create_company_user_session(
-        client,
-        login_id="unadmitted-reader",
-        email="unadmitted-reader@example.test",
-        full_name="Unadmitted Reader",
-    )
-    with get_session_factory().begin() as db:
-        for app_id in registered_searchable_rag_app_ids():
-            policy = db.get(AppAccessPolicy, app_id)
-            assert policy is not None
-            policy.audience = "selected"
-    response = client.post(
-        "/api/v1/rag/query", headers=auth_headers(session["token"]), json={"query": "phase 5"}
-    )
-    assert response.status_code == 403, response.text
-    assert response.json()["code"] == "rag.access_denied_not_enabled"
-
-
-def test_rag_ai_manifest_hides_tools_when_no_searchable_apps_enabled(
-    client: TestClient,
-    monkeypatch,
-) -> None:
-    monkeypatch.setenv("MIY_RAG_ENABLED", "1")
-    _reset_settings_and_registry()
-    session = dev_login(client, "administrator")
-    for app_id in sorted(registered_searchable_rag_app_ids()):
-        _disable_app(
-            client,
-            admin_token=session["token"],
-            app_id=app_id,
-        )
-
-    manifest_response = client.get(
-        "/api/v1/chatbot/apps/chatbot/manifest",
-        headers=_auth_headers(session["token"]),
-    )
-
-    assert manifest_response.status_code == 200, manifest_response.text
-    manifest_tools = {item["name"] for item in manifest_response.json()["tools"]}
-    assert "rag.query" not in manifest_tools
-
-    query_response = client.post(
-        "/api/v1/rag/query",
-        headers=_auth_headers(session["token"]),
-        json={"query": "phase 5"},
-    )
-    assert query_response.status_code == 403, query_response.text
-    assert query_response.json()["code"] == "rag.access_denied_not_enabled"

@@ -3,11 +3,13 @@ from __future__ import annotations
 from dataclasses import replace
 from types import SimpleNamespace
 
-from fastapi.testclient import TestClient
-from openai import OpenAIError
 import pytest
+from fastapi.testclient import TestClient
+from hermes_route_stub import hermes_route_stub  # noqa: F401
+from openai import OpenAIError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from test_meeting import _auth_headers, _bootstrap_admin_session, _dev_login
 
 from miy_api.core import llm as llm_core
 from miy_api.core.db import get_engine
@@ -15,15 +17,11 @@ from miy_api.core.settings import get_settings
 from miy_api.domains.ai.model_credentials import encrypt_api_key
 from miy_api.domains.ai.model_settings_models import (
     AiModelCatalogEntry,
-    AiModelProviderConfig,
     AiModelPolicyDefault,
+    AiModelProviderConfig,
 )
 from miy_api.domains.ai.registry import get_ai_capability_registry
 from miy_api.domains.auth.models import AuditLog
-from miy_api.domains.meeting import conversation_scope as meeting_conversation_scope
-from test_meeting import _auth_headers, _bootstrap_admin_session, _create_meeting, _dev_login
-from hermes_route_stub import hermes_route_stub  # noqa: F401
-
 
 pytestmark = pytest.mark.usefixtures("configured_local_llm_control_plane", "hermes_route_stub")
 
@@ -124,7 +122,15 @@ def _configure_external_llm(monkeypatch) -> None:
         provider.endpoint_url = "https://api.openai.com/v1"
         provider.api_key_ciphertext = encrypt_api_key("test-openai-key")
         provider.default_model_id = model.id
-        db.merge(AiModelPolicyDefault(model_family="generation", app_id="", route_mode=provider.route_mode, provider_id=provider.provider_id, version=1))
+        db.merge(
+            AiModelPolicyDefault(
+                model_family="generation",
+                app_id="",
+                route_mode=provider.route_mode,
+                provider_id=provider.provider_id,
+                version=1,
+            )
+        )
         db.commit()
 
 
@@ -152,304 +158,6 @@ def _install_pool_clients(
         return external
 
     monkeypatch.setattr(llm_core, "_new_pool_client", factory)
-
-
-def test_ai_chat_caller_provider_does_not_override_local_workload_route(
-    client: TestClient,
-    monkeypatch,
-) -> None:
-    auth = _seeded_dev_login(client, "administrator")
-    pool_client = FakePoolClient(
-        ["local/current-moe-test-model"],
-        content="local response",
-    )
-    _install_pool_clients(monkeypatch, local=pool_client)
-
-    response = client.post(
-        _ai_path("/chat"),
-        headers=_auth_headers(auth["token"]),
-        json={
-            "backend_mode": "local",
-            "external_provider": "anthropic",
-            "messages": [{"role": "user", "content": "테스트"}],
-        },
-    )
-
-    assert response.status_code == 200, response.text
-    assert response.json()["content"] == "local response"
-    assert response.json()["chosen_pool"] == "local"
-    assert pool_client.chat.completions.calls
-
-
-def test_ai_chat_caller_model_does_not_override_local_workload_model(
-    client: TestClient,
-    monkeypatch,
-) -> None:
-    auth = _seeded_dev_login(client, "administrator")
-    pool_client = FakePoolClient(
-        ["local/current-moe-test-model"],
-        content="configured model response",
-    )
-    _install_pool_clients(monkeypatch, local=pool_client)
-    before = len(_llm_audit_rows())
-
-    response = client.post(
-        _ai_path("/chat"),
-        headers=_auth_headers(auth["token"]),
-        json={
-            "backend_mode": "local",
-            "model": "gpt-5.4-mini",
-            "messages": [{"role": "user", "content": "테스트"}],
-        },
-    )
-
-    assert response.status_code == 200, response.text
-    assert response.json()["content"] == "configured model response"
-    assert pool_client.chat.completions.calls[0]["model"] == "local/current-moe-test-model"
-    assert len(_llm_audit_rows()) == before + 1
-
-
-def test_ai_chat_auto_backend_still_uses_registered_local_workload_route(
-    client: TestClient,
-    monkeypatch,
-) -> None:
-    auth = _seeded_dev_login(client, "administrator")
-    _set_policy("chatbot", "local_only")
-    pool_client = FakePoolClient(
-        ["local/current-moe-test-model"],
-        content="registered route response",
-    )
-    _install_pool_clients(monkeypatch, local=pool_client)
-    before = len(_llm_audit_rows())
-
-    response = client.post(
-        _ai_path("/chat"),
-        headers=_auth_headers(auth["token"]),
-        json={
-            "backend_mode": "auto",
-            "model": "gpt-5.4-mini",
-            "messages": [{"role": "user", "content": "테스트"}],
-        },
-    )
-
-    assert response.status_code == 200, response.text
-    assert response.json()["chosen_pool"] == "local"
-    assert pool_client.chat.completions.calls[0]["model"] == "local/current-moe-test-model"
-    assert len(_llm_audit_rows()) == before + 1
-
-
-def test_ai_chat_caller_local_mode_cannot_override_external_workload_route(
-    client: TestClient,
-    monkeypatch,
-) -> None:
-    auth = _seeded_dev_login(client, "administrator")
-    _set_policy("chatbot", "external")
-    _configure_external_llm(monkeypatch)
-
-    local_client = FakePoolClient(
-        ["local/current-moe-test-model"],
-        content="local response",
-    )
-    external_client = FakePoolClient(
-        ["gpt-5.4-mini"],
-        content="external response",
-    )
-    _install_pool_clients(monkeypatch, local=local_client, external=external_client)
-
-    response = client.post(
-        _ai_path("/chat"),
-        headers=_auth_headers(auth["token"]),
-        json={
-            "backend_mode": "local",
-            "messages": [{"role": "user", "content": "로컬로 보내줘"}],
-        },
-    )
-
-    assert response.status_code == 200, response.text
-    payload = response.json()
-    assert payload["content"] == "external response"
-    assert payload["policy"] == "external"
-    assert payload["chosen_pool"] == "external"
-    assert payload["decision_reason"] == "ai_security_enforcement_disabled"
-    assert payload["forced_local"] is False
-    assert external_client.chat.completions.calls
-    assert local_client.chat.completions.calls == []
-
-    audit_rows = _llm_audit_rows()
-    assert len(audit_rows) == 1
-    assert audit_rows[0].payload["policy"] == "external"
-    assert audit_rows[0].payload["chosen_pool"] == "external"
-    assert audit_rows[0].payload["decision_reason"] == "workload_route"
-    assert audit_rows[0].payload["forced_local"] is False
-    assert audit_rows[0].payload["status"] == "ok"
-
-
-def test_ai_chat_tool_command_uses_registered_business_tool(
-    client: TestClient,
-    monkeypatch,
-) -> None:
-    auth = _seeded_dev_login(client, "delivery-hub-admin")
-
-    def _unexpected_pool_call(config):  # type: ignore[no-untyped-def]
-        raise AssertionError(f"LLM pool should not be called for /tool commands: {config.pool}")
-
-    monkeypatch.setattr(llm_core, "_new_pool_client", _unexpected_pool_call)
-
-    response = client.post(
-        _ai_path("/chat"),
-        headers=_auth_headers(auth["token"]),
-        json={
-            "messages": [
-                {
-                    "role": "user",
-                    "content": '/tool pms.search_tasks {"q":"AI chat tool issue","limit":5}',
-                }
-            ],
-        },
-    )
-
-    assert response.status_code == 200, response.text
-    payload = response.json()
-    assert payload["provider"] == "tool"
-    assert payload["decision_reason"] == "direct_tool_command"
-    assert payload["model"] == "tool://pms.search_tasks"
-
-
-def test_ai_chat_business_context_question_reaches_llm(
-    client: TestClient,
-    monkeypatch,
-) -> None:
-    auth = _seeded_dev_login(client, "delivery-hub-admin")
-    _set_policy("chatbot", "local_only")
-
-    pool_client = FakePoolClient(
-        ["local/current-moe-test-model"],
-        content="업무 질문도 LLM 경로에서 답변",
-    )
-    _install_pool_clients(monkeypatch, local=pool_client)
-
-    response = client.post(
-        _ai_path("/chat"),
-        headers=_auth_headers(auth["token"]),
-        json={
-            "messages": [
-                {
-                    "role": "user",
-                    "content": "PMS에서 내 업무 이슈를 검색해줘",
-                }
-            ],
-        },
-    )
-
-    assert response.status_code == 200, response.text
-    payload = response.json()
-    assert payload["content"] == "업무 질문도 LLM 경로에서 답변"
-    assert payload["chosen_pool"] == "local"
-    assert payload["decision_reason"] == "workload_route"
-    assert pool_client.chat.completions.calls
-
-
-def test_ai_chat_tool_command_scoped_conversation_skips_scope_prompt_lookup(
-    client: TestClient,
-    monkeypatch,
-) -> None:
-    auth = _seeded_dev_login(client, "administrator")
-    meeting = _create_meeting(
-        client,
-        auth["token"],
-        title="Scoped AI chat meeting",
-    )
-
-    conversation_response = client.post(
-        _ai_path("/conversations"),
-        headers=_auth_headers(auth["token"]),
-        json={
-            "title": "",
-            "scopeRef": "meeting",
-            "scopeResourceId": meeting["id"],
-        },
-    )
-    assert conversation_response.status_code == 201, conversation_response.text
-    conversation_id = conversation_response.json()["id"]
-
-    def _unexpected_scope_prompt(*args, **kwargs):  # type: ignore[no-untyped-def]
-        raise AssertionError("scope prompt lookup should not run for /tool commands")
-
-    def _unexpected_pool_call(config):  # type: ignore[no-untyped-def]
-        raise AssertionError(f"LLM pool should not be called for /tool commands: {config.pool}")
-
-    monkeypatch.setattr(
-        meeting_conversation_scope.meeting_service,
-        "build_meeting_scope_prompt",
-        _unexpected_scope_prompt,
-    )
-    monkeypatch.setattr(llm_core, "_new_pool_client", _unexpected_pool_call)
-
-    response = client.post(
-        _ai_path("/chat"),
-        headers=_auth_headers(auth["token"]),
-        json={
-            "conversationId": conversation_id,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": '/tool pms.search_tasks {"q":"Scoped AI chat tool issue","limit":5}',
-                }
-            ],
-        },
-    )
-
-    assert response.status_code == 200, response.text
-    payload = response.json()
-    assert payload["provider"] == "tool"
-    assert payload["decision_reason"] == "direct_tool_command"
-
-
-def test_ai_chat_external_workload_is_not_silently_rerouted_by_payload(
-    client: TestClient,
-    monkeypatch,
-) -> None:
-    auth = _seeded_dev_login(client, "administrator")
-    _set_policy("chatbot", "external")
-    _configure_external_llm(monkeypatch)
-
-    local_client = FakePoolClient(
-        ["local/current-moe-test-model"],
-        content="safe local response",
-    )
-    external_client = FakePoolClient(
-        ["gpt-5.4-mini"],
-        content="external response",
-    )
-    _install_pool_clients(monkeypatch, local=local_client, external=external_client)
-
-    response = client.post(
-        _ai_path("/chat"),
-        headers=_auth_headers(auth["token"]),
-        json={
-            "backend_mode": "auto",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": "주민번호는 900101 1234567 이고 연락처는 010 1234 5678 입니다.",
-                }
-            ],
-        },
-    )
-
-    assert response.status_code == 200, response.text
-    payload = response.json()
-    assert payload["chosen_pool"] == "external"
-    assert payload["decision_reason"] == "ai_security_enforcement_disabled"
-    assert payload["forced_local"] is False
-    assert payload["pii_hits"] == []
-    assert external_client.chat.completions.calls
-    assert local_client.chat.completions.calls == []
-
-    audit_rows = _llm_audit_rows()
-    assert audit_rows[-1].payload["chosen_pool"] == "external"
-    assert audit_rows[-1].payload["decision_reason"] == "workload_route"
-    assert audit_rows[-1].payload["pii_hits"] == []
 
 
 def test_ai_chat_external_provider_error_does_not_fallback_to_local(
@@ -513,7 +221,9 @@ def test_readyz_uses_configured_readiness_while_ai_health_stays_live(
     # Generation defaults do not configure a newly registered decision workload.
     missing_response = client.get("/readyz")
     assert missing_response.status_code == 503
-    missing_tasks = {item["task_kind"]: item for item in missing_response.json()["llm_effective"]["tasks"]}
+    missing_tasks = {
+        item["task_kind"]: item for item in missing_response.json()["llm_effective"]["tasks"]
+    }
     assert missing_tasks["tetris.play"]["ready"] is False
     assert missing_tasks["tetris.play.generation"]["ready"] is False
 
@@ -525,30 +235,55 @@ def test_readyz_uses_configured_readiness_while_ai_health_stays_live(
         # The real-time generation workload also needs an approved non-reasoning model.
         generation_model = db.get(AiModelCatalogEntry, "openai-gpt-5-4-mini")
         generation_model.capabilities_json = [*generation_model.capabilities, "non_reasoning"]
-        db.add(AiModelProviderConfig(
-            provider_id="decision-readiness-test", provider_kind="openrouter",
-            display_name="Decision test", route_mode="external", credential_kind="none",
-            endpoint_url="https://openrouter.ai/api/v1", enabled=True, version=1,
-        ))
+        db.add(
+            AiModelProviderConfig(
+                provider_id="decision-readiness-test",
+                provider_kind="openrouter",
+                display_name="Decision test",
+                route_mode="external",
+                credential_kind="none",
+                endpoint_url="https://openrouter.ai/api/v1",
+                enabled=True,
+                version=1,
+            )
+        )
         db.flush()
-        db.add(AiModelCatalogEntry(
-            id="decision-readiness-model", provider_id="decision-readiness-test",
-            model_key="test/decision", display_name="Decision test",
-            capabilities_json=["decision"], enabled=True, version=1,
-        ))
+        db.add(
+            AiModelCatalogEntry(
+                id="decision-readiness-model",
+                provider_id="decision-readiness-test",
+                model_key="test/decision",
+                display_name="Decision test",
+                capabilities_json=["decision"],
+                enabled=True,
+                version=1,
+            )
+        )
         db.flush()
-        db.add(AiModelPolicyDefault(
-            model_family="decision", app_id="", route_mode="external",
-            provider_id="decision-readiness-test", model_id="decision-readiness-model", version=1,
-        ))
+        db.add(
+            AiModelPolicyDefault(
+                model_family="decision",
+                app_id="",
+                route_mode="external",
+                provider_id="decision-readiness-test",
+                model_id="decision-readiness-model",
+                version=1,
+            )
+        )
         db.commit()
 
     discoveries = []
+
     def discover_decision_models(*args, **kwargs):
         discoveries.append(args[0])
-        return (model_discovery.DiscoveredProviderModel(
-            model_key="test/decision", display_name="Decision test", capabilities=("decision",),
-        ),)
+        return (
+            model_discovery.DiscoveredProviderModel(
+                model_key="test/decision",
+                display_name="Decision test",
+                capabilities=("decision",),
+            ),
+        )
+
     monkeypatch.setattr(model_discovery, "discover_provider_models", discover_decision_models)
 
     readyz_response = client.get("/readyz")

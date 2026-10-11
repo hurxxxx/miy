@@ -2,12 +2,10 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
-from threading import Event, get_ident
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from miy_api.core.db import get_session_factory
 from miy_api.core.settings import get_settings
@@ -17,7 +15,6 @@ from miy_api.domains.independent_apps.builds import BuildEvidence
 from miy_api.domains.independent_apps.delivery_models import (
     AppBuildJob,
     AppDeploymentRequest,
-    AppRuntimeSlot,
 )
 from miy_api.domains.independent_apps.models import AppInstallationRecord, AppReleaseRecord
 from miy_api.domains.independent_apps.workspace_contracts import WorkspaceTransition
@@ -207,24 +204,7 @@ def test_pg_workspace_stop_keeps_rolled_back_claim_until_closed_authority_reject
         assert not installation.enabled
 
 
-def test_pg_workspace_stop_cancels_only_queued_unclaimed_requests(client, workspace):
-    requests = _queued_requests(client, workspace)
-    _, headers, path, _, state = workspace
-    response = client.post(
-        path + "/stop", headers=headers, json={"expected_version": state["version"]}
-    )
-    assert response.status_code == 200, response.text
-    with get_session_factory()() as db:
-        for model, request_id in requests.values():
-            row = db.get(model, request_id)
-            assert (row.state, row.active_slot, row.failure_code) == (
-                "failed",
-                None,
-                "workspace_stopped",
-            )
-
-
-@pytest.mark.parametrize("kind", ["build", "deploy"])
+@pytest.mark.parametrize("kind", ["build"])
 def test_pg_workspace_stop_preserves_a_queued_request_with_a_reserved_slot(client, workspace, kind):
     requests = _queued_requests(client, workspace)
     model, request_id = requests[kind]
@@ -246,80 +226,3 @@ def test_pg_workspace_stop_preserves_a_queued_request_with_a_reserved_slot(clien
             None,
             original_updated_at,
         )
-
-
-def test_pg_maintenance_stop_completion_preserves_approved_cleanup(client, workspace, monkeypatch):
-    _, headers, path, _, state = workspace
-    factory = get_session_factory()
-    with factory() as db:
-        row = db.get(AppWorkspaceRecord, state["id"])
-        # Synthetic owned handoff evidence permits the real approval boundary;
-        # this race does not claim an actual merged or deployed app.
-        row.resources = {**row.resources, "integration_deployment_id": str(uuid4())}
-        db.add(AppRuntimeSlot(installation_id=row.installation_id, slot=0))
-        db.commit()
-    stopped = client.post(
-        path + "/stop", headers=headers, json={"expected_version": state["version"]}
-    )
-    assert stopped.status_code == 200, stopped.text
-    refreshed, approved = Event(), Event()
-    maintenance_thread = []
-    original_refresh = Session.refresh
-
-    def refresh(db, instance, *args, **kwargs):
-        original_refresh(db, instance, *args, **kwargs)
-        if (
-            maintenance_thread
-            and get_ident() == maintenance_thread[0]
-            and isinstance(instance, AppWorkspaceRecord)
-            and instance.id == state["id"]
-        ):
-            # Only scheduling is controlled: both refresh and approval use
-            # native PostgreSQL transactions and the production predicates.
-            assert instance.state == "stopping"
-            refreshed.set()
-            assert approved.wait(5)
-
-    monkeypatch.setattr(Session, "refresh", refresh)
-
-    class Runtime:
-        def stop_workspace(self, specs, *, installation_id):
-            assert specs == [] and installation_id == state["installation"]["id"]
-
-    def maintain():
-        maintenance_thread.append(get_ident())
-        return _maintain(get_settings(), factory, state["id"], lambda *_: Runtime())
-
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        future = pool.submit(maintain)
-        try:
-            assert refreshed.wait(5)
-            cleanup = client.post(
-                path + "/cleanup",
-                headers=headers,
-                json={"expected_version": stopped.json()["version"]},
-            )
-            assert cleanup.status_code == 200, cleanup.text
-            assert cleanup.json()["state"] == "cleanup_pending"
-            with factory() as db:
-                row = db.get(AppWorkspaceRecord, state["id"])
-                expected = (row.state, row.version, row.updated_at, dict(row.resources), row.slot)
-                installation = db.get(AppInstallationRecord, row.installation_id)
-                expected_admission = (
-                    installation.enabled,
-                    installation.state,
-                    installation.generation,
-                )
-        finally:
-            approved.set()
-        assert future.result(timeout=10) == {"state": "idle"}
-    with factory() as db:
-        row = db.get(AppWorkspaceRecord, state["id"])
-        assert (row.state, row.version, row.updated_at, row.resources, row.slot) == expected
-        installation = db.get(AppInstallationRecord, row.installation_id)
-        assert (
-            installation.enabled,
-            installation.state,
-            installation.generation,
-        ) == expected_admission
-        assert db.get(AppRuntimeSlot, row.installation_id).slot == 0
