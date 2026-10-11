@@ -5,8 +5,8 @@ import json
 
 import pytest
 
-from mty_api import backfill_keyword_search
-from mty_api.domains.retrieval.evaluation import (
+from miy_api import backfill_keyword_search
+from miy_api.domains.retrieval.evaluation import (
     RetrievalEvaluationReport,
     RetrievalQualityGateArtifact,
     retrieval_quality_corpus_sha256,

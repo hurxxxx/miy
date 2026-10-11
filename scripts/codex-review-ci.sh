@@ -24,7 +24,7 @@ progress_file="${project_root}/codex-review-progress-start.md"
 cleanup() {
   [[ -n "$review_workspace" ]] || return 0
   case "$review_workspace" in
-    /tmp/mty-codex-review.??????)
+    /tmp/miy-codex-review.??????)
       rm -rf -- "$review_workspace"
       ;;
     *)
@@ -86,8 +86,8 @@ const names = ['REVIEW_TARGET_SHA', 'CI_API_V4_URL', 'CI_PROJECT_ID', 'CI_PIPELI
   'CI_MERGE_REQUEST_DIFF_BASE_SHA'];
 const input = Object.fromEntries(names.map(name => [name, process.env[name]]));
 try {
-  process.stdout.write(execFileSync('sudo', ['-n', '-H', '-u', 'mty-review-evidence',
-    '/usr/local/libexec/mty-review-evidence'], {
+  process.stdout.write(execFileSync('sudo', ['-n', '-H', '-u', 'miy-review-evidence',
+    '/usr/local/libexec/miy-review-evidence'], {
     input: JSON.stringify(input), encoding: 'utf8', timeout: 240000,
     maxBuffer: 65536, stdio: ['pipe', 'pipe', 'pipe'],
     env: { PATH: process.env.PATH, HOME: process.env.HOME, LANG: 'C.UTF-8' },
@@ -166,7 +166,7 @@ prepare_review_workspace() {
   [[ "$(git rev-parse "$target_ref")" == "$target_sha" ]] ||
     fail "target branch SHA changed during review setup."
 
-  review_workspace="$(mktemp -d /tmp/mty-codex-review.XXXXXX)" ||
+  review_workspace="$(mktemp -d /tmp/miy-codex-review.XXXXXX)" ||
     fail "could not create review workspace."
   env GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null \
     git clone --quiet --local --no-hardlinks --no-checkout \
@@ -214,7 +214,7 @@ prepare_review_workspace() {
 
 write_prompt() {
   cat <<'PROMPT'
-Review this GitLab feature MR for MTY.
+Review this GitLab feature MR for miy.
 
 Scope:
 - Base branch is origin/dev.
@@ -226,8 +226,17 @@ Scope:
   Do not require this job to succeed before producing its own review result. All other required
   jobs must already have succeeded. GitLab still requires the final successful pipeline before
   any later merge; this review does not authorize or perform a merge.
-- Fail closed on missing verified metadata, stale refs, other failed/pending required checks,
+- The authenticated metadata is authoritative for which jobs and commit statuses are configured.
+  Do not invent an additional required check or block only because no additional job/status exists.
+  A command unavailable in this credential-free review checkout is residual risk, not by itself a blocker.
+- A policy or CI change may intentionally replace target-branch behavior. Review its proposed future
+  contract as code against the target policy's safety and authority objectives; do not reject it solely
+  because validation breadth changes. Block bypasses, trust inversions, untested routing, or omitted
+  affected consumers.
+- Fail closed on missing verified metadata, stale refs, configured failed/pending required checks,
   conflicts, unresolved blocking discussions, or concrete source defects.
+- Review the complete diff before deciding. Report every independent concrete blocker found in one
+  response instead of stopping after the first finding.
 
 Focus:
 - Bugs, regressions, missing tests, security/auth/RBAC/app and source ACL boundary breaks.

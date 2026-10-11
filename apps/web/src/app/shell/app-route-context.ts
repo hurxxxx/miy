@@ -1,5 +1,5 @@
-import type { AppId, AppRouteId } from '@mty/contracts/app-contracts';
-import { matchAppRoute } from '@mty/contracts/app-routes';
+import type { AppId, AppRouteId } from '@miy/contracts/app-contracts';
+import { matchAppRoute } from '@miy/contracts/app-routes';
 
 export type AppRouteContext =
   | { kind: 'launcher' | 'shell'; appId: null }

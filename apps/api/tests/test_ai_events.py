@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from mty_api.domains.ai.events import (
+from miy_api.domains.ai.events import (
     AgentEventEnvelope,
     EnvelopeEncoder,
     make_envelope,

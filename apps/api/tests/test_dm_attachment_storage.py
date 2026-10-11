@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from mty_api.domains.dm import attachment_storage
+from miy_api.domains.dm import attachment_storage
 
 
 def test_dm_attachment_storage_put_rewinds_content_and_maps_client_arguments() -> None:

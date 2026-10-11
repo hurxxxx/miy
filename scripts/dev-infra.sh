@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-if [[ "$(basename "$ROOT_DIR")" == "prod" && "${MTY_ALLOW_PROD_CHECKOUT_DEV_COMMANDS:-0}" != "1" ]]; then
+if [[ "$(basename "$ROOT_DIR")" == "prod" && "${MIY_ALLOW_PROD_CHECKOUT_DEV_COMMANDS:-0}" != "1" ]]; then
   echo "Refusing to manage development infra from the production checkout." >&2
   exit 1
 fi
@@ -39,10 +39,10 @@ case "$COMMAND" in
     if dev_use_local_minio; then
       services=(minio "${services[@]}")
     fi
-    if [[ "$(printf '%s' "${MTY_API_VIDEO_CHAT_ENABLED:-true}" | tr '[:upper:]' '[:lower:]')" != "false" ]]; then
+    if [[ "$(printf '%s' "${MIY_API_VIDEO_CHAT_ENABLED:-true}" | tr '[:upper:]' '[:lower:]')" != "false" ]]; then
       services+=(livekit)
     fi
-    if [[ "$(dev_lower "${MTY_HERMES_ENABLED:-false}")" == "true" ]]; then
+    if [[ "$(dev_lower "${MIY_HERMES_ENABLED:-false}")" == "true" ]]; then
       services+=(
         hermes-bootstrap
         hermes-gateway

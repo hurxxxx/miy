@@ -6,7 +6,10 @@
     "libsDir": "packages"
   },
   "namedInputs": {
-    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "default": [
+      "{projectRoot}/**/*",
+      "sharedGlobals"
+    ],
     "production": [
       "default",
       "!{projectRoot}/**/*.spec.*",
@@ -23,15 +26,24 @@
   "targetDefaults": {
     "build": {
       "cache": true,
-      "inputs": ["production", "^production"]
+      "inputs": [
+        "production",
+        "^production"
+      ]
     },
     "test": {
       "cache": true,
-      "inputs": ["default", "^production"]
+      "inputs": [
+        "default",
+        "^production"
+      ]
     },
     "lint": {
       "cache": true,
-      "inputs": ["default", "^production"]
+      "inputs": [
+        "default",
+        "^production"
+      ]
     }
   },
   "plugins": [
@@ -39,7 +51,10 @@
       "plugin": "@nx/eslint/plugin",
       "options": {
         "targetName": "lint"
-      }
+      },
+      "exclude": [
+        "personal-apps/**"
+      ]
     },
     {
       "plugin": "@nx/vite/plugin",
@@ -53,7 +68,10 @@
         "typecheckTargetName": "typecheck",
         "buildDepsTargetName": "build-deps",
         "watchDepsTargetName": "watch-deps"
-      }
+      },
+      "exclude": [
+        "personal-apps/**"
+      ]
     },
     {
       "plugin": "@nx/vitest",
@@ -61,7 +79,10 @@
         "testTargetName": "test",
         "ciTargetName": "test-ci",
         "testMode": "watch"
-      }
+      },
+      "exclude": [
+        "personal-apps/**"
+      ]
     }
   ],
   "generators": {

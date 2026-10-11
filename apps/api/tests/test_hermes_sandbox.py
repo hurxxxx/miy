@@ -10,8 +10,8 @@ import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
-NETWORK_KEY = "MTY_HERMES_TERMINAL_SANDBOX_NETWORK"
-VOLUME_KEY = "MTY_HERMES_TERMINAL_EGRESS_CLIENT_VOLUME"
+NETWORK_KEY = "MIY_HERMES_TERMINAL_SANDBOX_NETWORK"
+VOLUME_KEY = "MIY_HERMES_TERMINAL_EGRESS_CLIENT_VOLUME"
 
 
 @pytest.fixture
@@ -35,12 +35,12 @@ def sandbox(monkeypatch):
         module = ModuleType(name)
         module.__dict__.update(members)
         monkeypatch.setitem(sys.modules, name, module)
-    directory = ROOT / "ops/hermes/plugins/mty_runtime"
-    package = ModuleType("mty_sandbox_test")
+    directory = ROOT / "ops/hermes/plugins/miy_runtime"
+    package = ModuleType("miy_sandbox_test")
     package.__path__ = [str(directory)]
     monkeypatch.setitem(sys.modules, package.__name__, package)
     spec = importlib.util.spec_from_file_location(
-        "mty_sandbox_test.sandbox", directory / "sandbox.py"
+        "miy_sandbox_test.sandbox", directory / "sandbox.py"
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -79,10 +79,10 @@ def sandbox(monkeypatch):
 def test_compose_gateway_and_broker_use_the_declared_sandbox_resources(deployment):
     suffix = "infra" if deployment == "dev" else "app"
     compose = yaml.safe_load(
-        (ROOT / f"ops/compose/mty-{deployment}.{suffix}.yml").read_text()
+        (ROOT / f"ops/compose/miy-{deployment}.{suffix}.yml").read_text()
     )
-    network = compose["networks"]["mty-hermes-terminal-sandbox"]
-    volume = compose["volumes"][f"mty-{deployment}-hermes-terminal-egress-client"]
+    network = compose["networks"]["miy-hermes-terminal-sandbox"]
+    volume = compose["volumes"][f"miy-{deployment}-hermes-terminal-egress-client"]
     assert network["internal"] is True
     for service in ("hermes-gateway", "hermes-terminal-broker"):
         environment = compose["services"][service]["environment"]
@@ -98,13 +98,89 @@ def test_sandbox_uses_deployment_resources_and_checks_before_creation(sandbox):
         args = next(args for args in sandbox.calls if args[1] == "run")
         assert "--network=deployment-network" in args
         assert (
-            "type=volume,src=deployment-ca,dst=/run/mty-egress-ca.crt,volume-subpath=ca.crt,readonly"
+            "type=volume,src=deployment-ca,dst=/run/miy-egress-ca.crt,volume-subpath=ca.crt,readonly"
             in args
         )
         assert "database-namespace" not in " ".join(args)
         assert "--read-only" in args and "--cap-drop=ALL" in args
         assert "--user=10000:10000" in args
         assert "/var/run/docker.sock" not in " ".join(args)
+    finally:
+        environment.cleanup()
+
+
+def test_failed_removal_keeps_exact_container_for_retry_and_closes_execution(sandbox, monkeypatch):
+    environment = sandbox.create()
+    container = environment._container
+    original = sandbox.module.subprocess.run
+    monkeypatch.setattr(
+        sandbox.module.subprocess,
+        "run",
+        lambda args, **kwargs: subprocess.CompletedProcess(args, 1),
+    )
+    with pytest.raises(sandbox.error, match="sandbox.cleanup_failed"):
+        environment.cleanup()
+    assert environment._closed and environment._container == container
+    monkeypatch.setattr(sandbox.module.subprocess, "run", original)
+    environment.cleanup()
+    assert environment._container is None
+
+
+def test_recreated_sandbox_retries_server_checkpoint_without_new_local_changes(
+    sandbox, monkeypatch
+):
+    package = sys.modules["miy_sandbox_test"]
+    attempts = []
+
+    def rpc(server, run_id, method, params):
+        if method == "miy/files/list":
+            return {"files": [{"relative_path": "app.js", "sha256": "saved"}]}
+        assert method == "miy/files/checkpoint"
+        attempts.append(run_id)
+        if len(attempts) == 1:
+            raise OSError("synthetic checkpoint outage")
+        return {"created": 1}
+
+    monkeypatch.setattr(package, "_rpc", rpc, raising=False)
+    monkeypatch.setattr(package, "runtime_transport", lambda: ({}, "run_current"), raising=False)
+    monkeypatch.setattr(
+        sandbox.module.WorkspaceEnvironment,
+        "_workspace",
+        lambda *_args: [
+            {"path": "app.js", "sha256": "saved"},
+        ],
+    )
+    first = sandbox.create()
+    try:
+        with pytest.raises(OSError, match="checkpoint outage"):
+            first.save_files()
+    finally:
+        first.cleanup()
+    restored = sandbox.create()
+    try:
+        restored.save_files()
+        assert attempts == ["run_current", "run_current"]
+    finally:
+        restored.cleanup()
+
+
+def test_preview_uses_an_offline_container_and_preserves_outer_isolation(sandbox):
+    environment = sandbox.module.WorkspaceEnvironment(
+        policy={"image": "pinned-image", "no_proxy": "localhost"},
+        server={},
+        run_id="synthetic-run",
+        timeout=30,
+        preview=True,
+    )
+    try:
+        args = next(args for args in sandbox.calls if args[1] == "run")
+        assert "--network=none" in args
+        assert "--cap-drop=ALL" in args and "--security-opt=no-new-privileges" in args
+        assert "--read-only" in args and "--user=10000:10000" in args
+        assert any(value.endswith("chromium-seccomp.json") for value in args)
+        assert not any(
+            "unconfined" in value or "--cap-add" in value or "--ipc=host" in value for value in args
+        )
     finally:
         environment.cleanup()
 

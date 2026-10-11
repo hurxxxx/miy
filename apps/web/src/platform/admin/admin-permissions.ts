@@ -1,4 +1,4 @@
-import { createCoreAdminSectionRegistry } from '@mty/core-web/admin';
+import { createCoreAdminSectionRegistry } from '@miy/core-web/admin';
 
 import { ADMIN_SECTION_DEFINITIONS, type AdminSection } from './admin-sections';
 

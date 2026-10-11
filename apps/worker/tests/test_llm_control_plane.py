@@ -16,7 +16,7 @@ API_SRC = WORKSPACE_ROOT / "apps" / "api" / "src"
 if str(API_SRC) not in sys.path:
     sys.path.insert(0, str(API_SRC))
 
-import mty_api.platform_extensions as platform_extensions  # noqa: E402
+import miy_api.platform_extensions as platform_extensions  # noqa: E402
 
 
 REQUIRED_PROVIDER_IDS = ("anthropic", "gemini", "local", "openai")
@@ -42,13 +42,16 @@ def _init_worker_db(
             connection.execute(
                 """
                 CREATE TABLE ai_model_provider_configs (
-                    provider_id TEXT PRIMARY KEY
+                    provider_id TEXT PRIMARY KEY, provider_kind TEXT, credential_kind TEXT
                 )
                 """
             )
             connection.execute("CREATE TABLE ai_model_catalog_entries (id TEXT PRIMARY KEY)")
             connection.execute(
-                "CREATE TABLE ai_model_route_overrides (workload_id TEXT PRIMARY KEY)"
+                "CREATE TABLE ai_model_policy_defaults (app_id TEXT, route_mode TEXT)"
+            )
+            connection.execute(
+                "CREATE TABLE ai_model_route_overrides (workload_id TEXT PRIMARY KEY, app_id TEXT)"
             )
         if seed_provider_rows:
             connection.executemany(
@@ -62,7 +65,12 @@ def _init_worker_db(
 
 def _reload_worker_module(module_name: str):
     for cached_name in list(sys.modules):
-        if cached_name == "mty_worker" or cached_name.startswith("mty_worker."):
+        if (
+            cached_name == "miy_worker"
+            or cached_name.startswith("miy_worker.")
+            or cached_name == "miy_official_worker"
+            or cached_name.startswith("miy_official_worker.")
+        ):
             sys.modules.pop(cached_name, None)
     return importlib.import_module(module_name)
 
@@ -77,11 +85,11 @@ def test_celery_app_fails_fast_when_llm_routing_tables_are_missing(
         create_routing_tables=False,
         seed_provider_rows=False,
     )
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
-    monkeypatch.setenv("MTY_WORKER_QUEUE_GROUP", "all")
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
+    monkeypatch.setenv("MIY_WORKER_QUEUE_GROUP", "all")
 
     with pytest.raises(RuntimeError, match="Run API migrations before starting the worker"):
-        _reload_worker_module("mty_worker.celery_app")
+        _reload_worker_module("miy_worker.celery_app")
 
 
 def test_celery_app_skips_llm_routing_precheck_for_non_llm_queue_group(
@@ -94,13 +102,33 @@ def test_celery_app_skips_llm_routing_precheck_for_non_llm_queue_group(
         create_routing_tables=False,
         seed_provider_rows=False,
     )
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
-    monkeypatch.setenv("MTY_WORKER_QUEUE_GROUP", "default")
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
+    monkeypatch.setenv("MIY_WORKER_QUEUE_GROUP", "default")
 
-    celery_module = _reload_worker_module("mty_worker.celery_app")
+    celery_module = _reload_worker_module("miy_worker.celery_app")
 
     assert celery_module.settings.queue_group == "default"
-    assert celery_module.celery_app.main == "mty_worker"
+    assert celery_module.celery_app.main == "miy_worker"
+
+
+@pytest.mark.parametrize("configured, expected", [(None, 1), ("3", 3)])
+def test_native_celery_worker_uses_configured_concurrency_not_host_cpu_count(
+    monkeypatch, tmp_path, configured, expected
+):
+    from celery.worker.worker import WorkController
+
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(_worker_db_path(tmp_path)))
+    monkeypatch.setenv("MIY_WORKER_QUEUE_GROUP", "default")
+    monkeypatch.setenv("MIY_WORKER_BROKER_URL", "memory://")
+    monkeypatch.setenv("MIY_WORKER_RESULT_BACKEND", "cache+memory://")
+    if configured is None:
+        monkeypatch.delenv("MIY_WORKER_CONCURRENCY", raising=False)
+    else:
+        monkeypatch.setenv("MIY_WORKER_CONCURRENCY", configured)
+    module = _reload_worker_module("miy_worker.celery_app")
+    controller = SimpleNamespace(app=module.celery_app)
+    WorkController.setup_defaults(controller)
+    assert controller.concurrency == expected
 
 
 def test_meeting_summarize_uses_complete_chat_without_local_precheck(
@@ -113,10 +141,10 @@ def test_meeting_summarize_uses_complete_chat_without_local_precheck(
         create_routing_tables=True,
         seed_provider_rows=True,
     )
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
 
-    meeting_module = _reload_worker_module("mty_worker.tasks.meeting")
+    meeting_module = _reload_worker_module("miy_worker.tasks.meeting")
 
     recording = SimpleNamespace(
         id="rec-1",
@@ -147,7 +175,7 @@ def test_meeting_summarize_uses_complete_chat_without_local_precheck(
     fake_session = FakeSession()
     captured: dict[str, Any] = {}
 
-    from mty_api.domains.meeting import rag_sync as meeting_rag_sync
+    from miy_api.domains.meeting import rag_sync as meeting_rag_sync
 
     monkeypatch.setattr(
         meeting_rag_sync, "enqueue_meeting_rag_sync_by_id", lambda *_args, **_kwargs: None
@@ -203,10 +231,10 @@ def test_mail_sync_task_imports_after_control_plane_ready(
         create_routing_tables=True,
         seed_provider_rows=True,
     )
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
 
-    mail_module = _reload_worker_module("mty_worker.tasks.mail")
+    mail_module = _reload_worker_module("miy_worker.tasks.mail")
 
     assert mail_module.sync_mail_job.name == "mail.sync_job"
     assert mail_module.sync_mail_account.name == "mail.sync_account"
@@ -223,8 +251,8 @@ def test_celery_app_initializes_platform_extensions_with_worker_settings(
         create_routing_tables=True,
         seed_provider_rows=True,
     )
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
-    monkeypatch.setenv("MTY_AI_DEFAULT_EXTERNAL_LLM_PROVIDER", "openai")
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
+    monkeypatch.setenv("MIY_AI_DEFAULT_EXTERNAL_LLM_PROVIDER", "openai")
 
     captured: dict[str, Any] = {}
 
@@ -238,11 +266,11 @@ def test_celery_app_initializes_platform_extensions_with_worker_settings(
         fake_initialize_platform_extensions,
     )
 
-    _reload_worker_module("mty_worker.celery_app")
+    _reload_worker_module("miy_worker.celery_app")
 
     settings = captured["settings"]
-    assert settings.__class__.__module__ == "mty_worker.settings"
-    assert settings.ai_default_external_llm_provider == "openai"
+    assert settings.__class__.__module__ == "miy_worker.settings"
+    assert not hasattr(settings, "ai_default_external_llm_provider")
 
 
 def test_meeting_extract_insights_invokes_worker_service_without_stopping_pipeline(
@@ -255,10 +283,10 @@ def test_meeting_extract_insights_invokes_worker_service_without_stopping_pipeli
         create_routing_tables=True,
         seed_provider_rows=True,
     )
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
 
-    meeting_module = _reload_worker_module("mty_worker.tasks.meeting")
+    meeting_module = _reload_worker_module("miy_worker.tasks.meeting")
 
     recording = SimpleNamespace(
         id="rec-2",
@@ -292,7 +320,7 @@ def test_meeting_extract_insights_invokes_worker_service_without_stopping_pipeli
     captured: dict[str, object] = {}
     heartbeats: list[tuple[int, str | None]] = []
 
-    from mty_api.domains.meeting import rag_sync as meeting_rag_sync
+    from miy_api.domains.meeting import rag_sync as meeting_rag_sync
 
     monkeypatch.setattr(
         meeting_rag_sync, "enqueue_meeting_rag_sync_by_id", lambda *_args, **_kwargs: None
@@ -346,14 +374,14 @@ def test_meeting_insights_module_imports_under_worker_env(
         create_routing_tables=True,
         seed_provider_rows=True,
     )
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
 
-    meeting_module = _reload_worker_module("mty_worker.tasks.meeting")
+    meeting_module = _reload_worker_module("miy_worker.tasks.meeting")
 
     imported = meeting_module.meeting_insights_module()
 
-    assert imported.__name__ == "mty_api.domains.meeting.insights"
+    assert imported.__name__ == "miy_api.domains.meeting.insights"
 
 
 def test_meeting_mark_failed_rolls_back_pending_transaction(
@@ -366,9 +394,9 @@ def test_meeting_mark_failed_rolls_back_pending_transaction(
         create_routing_tables=True,
         seed_provider_rows=True,
     )
-    monkeypatch.setenv("MTY_POSTGRES_DSN", _worker_dsn(db_path))
+    monkeypatch.setenv("MIY_POSTGRES_DSN", _worker_dsn(db_path))
 
-    meeting_module = _reload_worker_module("mty_worker.tasks.meeting")
+    meeting_module = _reload_worker_module("miy_worker.tasks.meeting")
     recording = SimpleNamespace(
         transcription_status="summarizing",
         failure_reason=None,

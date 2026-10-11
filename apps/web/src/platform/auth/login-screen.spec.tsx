@@ -20,7 +20,7 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-vi.mock('@mty/ui/feedback/feedback-provider', () => ({
+vi.mock('@miy/ui/feedback/feedback-provider', () => ({
   useFeedback: () => ({ error: testContext.feedbackError }),
 }));
 

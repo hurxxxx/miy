@@ -1,4 +1,4 @@
-import { Badge, Button, Dialog, EmptyState } from '@mty/ui';
+import { Badge, Button, Dialog, EmptyState } from '@miy/ui';
 import {
   ChevronDown,
   ChevronRight,

@@ -1,0 +1,18 @@
+[Unit]
+Description=Private Codex template sessions with a separately pinned release
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/.local/share/miy-codex-console/template-current/apps/codex-console-api
+EnvironmentFile=%h/.config/miy-codex-console/console.env
+ExecStart=%h/.local/share/miy-codex-console/template-current/apps/codex-console-api/.venv/bin/codex-console templates
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=false
+
+[Install]
+WantedBy=default.target

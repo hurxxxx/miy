@@ -2,7 +2,7 @@ import { ChevronRight, Plus, RefreshCw, Save } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button, useFeedback } from '@mty/ui';
+import { Button, useFeedback } from '@miy/ui';
 
 import {
   AdminAiModelSettingsApiError,
@@ -18,7 +18,13 @@ import {
   SurfaceCard,
 } from './admin-shared';
 
-const MODEL_CAPABILITIES = ['chat', 'tool_calling', 'vision'] as const;
+const MODEL_CAPABILITIES = [
+  'chat',
+  'non_reasoning',
+  'tool_calling',
+  'vision',
+  'decision',
+] as const;
 
 interface ModelDraft {
   modelKey: string;
@@ -418,7 +424,11 @@ export function AdminAiModelSettingsSection({ token }: { token: string }) {
                           className="app-text-caption truncate text-app-ink/50"
                           title={`${model.provider_id} · ${draft.modelKey} · ${model.id}`}
                         >
-                          {model.provider_id} · {draft.modelKey}
+                          {data.providers.find(
+                            (provider) =>
+                              provider.provider_id === model.provider_id,
+                          )?.display_name ?? model.provider_id}{' '}
+                          · {draft.modelKey}
                         </div>
                       </div>
                     </div>

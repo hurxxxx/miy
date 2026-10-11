@@ -49,11 +49,17 @@ approval policy remain in [AI Write Policy](write-policy.md).
   reads and does not offer an unapproved publication endpoint.
 - A replacement creates a new artifact that explicitly supersedes a completed artifact of the same
   owner, app, and type. It never edits the prior artifact in place.
+- PostgreSQL allocates report and analysis numbers through `ai_report_artifact_number_seq` and
+  `ai_analysis_artifact_number_seq`. Alembic revision `artifact_sequences_20261006` restores
+  sequences omitted from the deployment baseline, advancing past existing artifact suffixes
+  across all dates without rewinding an existing allocation position. Code rollback retains this
+  compatible repair. Apply it through the normal [API migration path](../../../apps/api/README.md#alembic).
 
 ## Checks
 
 ```bash
 (cd apps/api && uv run --python 3.12 --group dev python -m pytest tests/test_ai_approvals.py tests/test_ai_graph_artifacts.py -q)
+(cd apps/api && uv run --python 3.12 --group dev python -m pytest tests/test_ai_artifact_sequence_migration.py -q)
 (cd apps/worker && uv run --python 3.12 --group dev python -m pytest tests/test_ai_graph_tasks.py -q)
 pnpm exec vitest run --root apps/web src/app-modules/chatbot/api/ai-artifacts-api.spec.ts src/app-modules/chatbot/views/chat/artifacts/AiReportArtifact.spec.tsx src/app-modules/chatbot/views/chat/artifacts/artifact-download.spec.ts
 ```

@@ -1,0 +1,2 @@
+# Personal apps run only in the isolated app builder. Never import their configs.
+personal-apps/**

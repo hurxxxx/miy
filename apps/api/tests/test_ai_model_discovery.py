@@ -4,14 +4,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from mty_api.core.llm_provider_registry import (
+from miy_api.core.llm_provider_registry import (
     ExternalLlmProviderDescriptor,
     ensure_default_external_llm_providers_registered,
     register_external_llm_provider,
     reset_external_llm_providers,
 )
-from mty_api.domains.ai import model_discovery
-from mty_api.domains.ai.model_discovery import (
+from miy_api.domains.ai import model_discovery
+from miy_api.domains.ai.model_discovery import (
     ProviderModelDiscoveryError,
     discover_provider_models,
 )
@@ -179,7 +179,7 @@ def test_gemini_discovery_normalizes_resource_names_and_advertised_actions(
 def test_discovery_limits_unique_results_and_display_name_length(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    client = _FakeClient([SimpleNamespace(id=f"model-{index}") for index in range(501)])
+    client = _FakeClient([SimpleNamespace(id=f"model-{index}") for index in range(model_discovery.MAX_DISCOVERED_MODELS + 1)])
     monkeypatch.setattr(
         model_discovery,
         "_new_openai_client",
@@ -193,8 +193,8 @@ def test_discovery_limits_unique_results_and_display_name_length(
         10,
     )
 
-    assert len(result) == 500
-    assert result[-1].model_key == "model-499"
+    assert len(result) == model_discovery.MAX_DISCOVERED_MODELS
+    assert result[-1].model_key == f"model-{model_discovery.MAX_DISCOVERED_MODELS - 1}"
 
 
 def test_provider_errors_are_replaced_with_a_safe_code(
@@ -227,3 +227,42 @@ def test_unknown_provider_fails_before_sdk_dispatch() -> None:
         discover_provider_models("unknown", "https://provider.test", "secret", 5)
 
     assert caught.value.code == "provider_not_supported"
+
+
+@pytest.mark.parametrize("provider", ["openai", "anthropic", "gemini"])
+def test_discovery_does_not_send_credentials_to_redirect_targets(provider):
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from threading import Thread
+
+    paths = []
+
+    class RedirectHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            paths.append(self.path)
+            if self.path == "/redirected":
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"data": [], "models": []}')
+            else:
+                self.send_response(307)
+                self.send_header("Location", "/redirected")
+                self.end_headers()
+
+        def log_message(self, *_args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), RedirectHandler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        with pytest.raises(ProviderModelDiscoveryError):
+            discover_provider_models(
+                provider, f"http://127.0.0.1:{server.server_port}", "synthetic-key", 2
+            )
+        assert len(paths) == 1
+        assert "/redirected" not in paths
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)

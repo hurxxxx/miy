@@ -2,6 +2,9 @@
   "name": "api",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/api/src",
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*", "sharedGlobals", "{workspaceRoot}/config/runtime*.json"]
+  },
   "projectType": "application",
   "tags": ["scope:api", "type:app"],
   "targets": {
@@ -9,14 +12,25 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/api",
-        "command": "env -u OPENROUTER_API_KEY MTY_API_AUTO_MIGRATE=${MTY_API_AUTO_MIGRATE:-1} uv run --python 3.12 uvicorn mty_api.main:app --app-dir src --host ${MTY_DEV_API_HOST:-127.0.0.1} --port ${MTY_API_DEV_PORT:-8001} --reload --reload-dir src"
+        "commands": [
+          "env -u OPENROUTER_API_KEY MIY_API_AUTO_MIGRATE=${MIY_API_AUTO_MIGRATE:-1} uv run --python 3.12 uvicorn miy_api.main:app --app-dir src --host ${MIY_DEV_API_HOST:-127.0.0.1} --port ${MIY_API_DEV_PORT:-8001} --reload --reload-dir src"
+        ]
+      },
+      "configurations": {
+        "first-party": {
+          "commands": [
+            "env -u OPENROUTER_API_KEY MIY_API_AUTO_MIGRATE=${MIY_API_AUTO_MIGRATE:-1} uv run --python 3.12 uvicorn miy_api.platform_runtime:app --app-dir src --host ${MIY_DEV_API_HOST:-127.0.0.1} --port ${MIY_API_DEV_PORT:-8001} --reload --reload-dir src",
+            "env -u OPENROUTER_API_KEY MIY_API_AUTO_MIGRATE=0 MIY_API_SEED_DEV_LOGIN_ACCOUNT=0 MIY_API_INSTANCE_ID=dev-official-api uv run --python 3.12 uvicorn miy_official_api.development:app --app-dir ../official-suite/api/src --host ${MIY_DEV_API_HOST:-127.0.0.1} --port 18781 --reload --reload-dir src --reload-dir ../official-suite/api/src"
+          ],
+          "parallel": true
+        }
       }
     },
     "serve": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/api",
-        "command": "env -u OPENROUTER_API_KEY uv run --python 3.12 uvicorn mty_api.main:app --app-dir src --host 127.0.0.1 --port ${MTY_API_DEV_PORT:-8001}"
+        "command": "env -u OPENROUTER_API_KEY uv run --python 3.12 uvicorn miy_api.main:app --app-dir src --host 127.0.0.1 --port ${MIY_API_DEV_PORT:-8001}"
       }
     },
     "lint": {
@@ -30,7 +44,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/api",
-        "command": "uv run --python 3.12 --group dev python -m pytest -n ${MTY_API_PYTEST_WORKERS:-8} --dist=worksteal -m 'not slow and not external_integration and not migration'"
+        "command": "uv run --python 3.12 --group dev python -m pytest -n ${MIY_API_PYTEST_WORKERS:-8} --dist=worksteal -m 'not slow and not external_integration and not migration'"
       }
     },
     "test-migrations": {
@@ -121,7 +135,7 @@
       "cache": false,
       "options": {
         "cwd": "apps/api",
-        "command": "UV_PROJECT_ENVIRONMENT=../../.runtime/ci-api-venv uv run --no-sync --frozen --python 3.12 --group dev python -m pytest tests/test_platform_adapter_registries.py tests/test_keyword_search_registry.py tests/test_ai_gateway_direct_call_guard.py -q"
+        "command": "UV_PROJECT_ENVIRONMENT=../../.runtime/ci-api-venv uv run --no-sync --frozen --python 3.12 --group dev python -m pytest tests/test_platform_adapter_registries.py tests/test_keyword_search_registry.py tests/test_ai_gateway_direct_call_guard.py tests/test_runtime_config.py tests/test_database_pool.py -q"
       }
     },
     "ci-contracts": {

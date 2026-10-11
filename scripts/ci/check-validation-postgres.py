@@ -22,7 +22,7 @@ def check_postgres(major_file: Path, dsn: str) -> int:
     if not re.fullmatch(r"[1-9][0-9]+", expected):
         raise ValidationError("Image PostgreSQL identity is invalid; rebuild the validation image.")
     if not dsn:
-        raise ValidationError("MTY_CI_POSTGRES_DSN is required for release validation.")
+        raise ValidationError("MIY_CI_POSTGRES_DSN is required for release validation.")
 
     for tool in ("pg_dump", "pg_restore", "psql"):
         result = subprocess.run(
@@ -53,7 +53,7 @@ def main() -> int:
     parser.add_argument("--major-file", type=Path, required=True)
     args = parser.parse_args()
     try:
-        major = check_postgres(args.major_file, os.getenv("MTY_CI_POSTGRES_DSN", ""))
+        major = check_postgres(args.major_file, os.getenv("MIY_CI_POSTGRES_DSN", ""))
     except ValidationError as error:
         print(f"[validation-postgres] {error}", file=sys.stderr)
         return 2

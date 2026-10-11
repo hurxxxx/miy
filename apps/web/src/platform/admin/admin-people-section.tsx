@@ -10,7 +10,7 @@ import {
   SearchField,
   useConfirm,
   useFeedback,
-} from '@mty/ui';
+} from '@miy/ui';
 import { UserGroupsDialog } from './admin-user-groups-dialog';
 
 import {
@@ -425,7 +425,7 @@ export function PeopleSection({ token }: { token: string }) {
         new Blob([encodeAdminPeopleCsv({ header, rows })], {
           type: 'text/csv;charset=utf-8',
         }),
-        'mty-people.csv',
+        'miy-people.csv',
       );
     } catch (caughtError) {
       feedback.error(

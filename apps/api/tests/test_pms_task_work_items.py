@@ -1,8 +1,8 @@
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from mty_api.core.db import get_session_factory
-from mty_api.domains.pms.models import ChecklistItem, TaskActivityLog
+from miy_api.core.db import get_session_factory
+from miy_api.domains.pms.models import ChecklistItem, TaskActivityLog
 from test_pms_issues import _auth_headers, _bootstrap_admin, _create_issue, _create_task_list
 
 

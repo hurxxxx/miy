@@ -201,24 +201,106 @@ def _application_seed_rows(connection, table_names) -> dict[str, str]:
     }
 
 
+def test_baseline_restore_failure_preserves_recording_authority_and_recovers(
+    application_postgres_state: conftest.ApplicationPostgresState,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import psycopg
+
+    engine = create_engine(application_postgres_state.dsn)
+    original = conftest._run_postgres_cli
+
+    def restore_failure(command, *, dsn):
+        result = original(command, dsn=dsn)
+        if command[0] == "pg_restore":
+            from pathlib import Path
+
+            generated = Path(command[command.index("--file") + 1])
+            with generated.open("a") as output:
+                output.write("\nSELECT public.synthetic_baseline_restore_failure();\n")
+        return result
+
+    def recording_guards(connection):
+        return connection.execute(
+            text("""
+            SELECT c.relname,t.tgname,t.tgenabled,p.proname
+            FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+            JOIN pg_namespace n ON n.oid=c.relnamespace
+            JOIN pg_proc p ON p.oid=t.tgfoid
+            WHERE n.nspname='public' AND NOT t.tgisinternal
+              AND c.relname IN ('recording_stage_commands','core_recording_publications','file_extraction_requests')
+            ORDER BY 1,2
+        """)
+        ).all()
+
+    try:
+        conftest._restore_application_postgres_state(application_postgres_state)
+        with engine.begin() as connection:
+            expected = recording_guards(connection)
+            assert len(expected) == 10 and all(row[2] == "O" for row in expected)
+            connection.execute(text("DELETE FROM app_access_policies"))
+            seed_before = _application_seed_rows(
+                connection, ("company_app_controls", "app_access_policies")
+            )
+        with monkeypatch.context() as patch:
+            patch.setattr(conftest, "_run_postgres_cli", restore_failure)
+            with pytest.raises(RuntimeError, match="synthetic_baseline_restore_failure"):
+                conftest._restore_application_postgres_state(application_postgres_state)
+        with engine.connect() as connection:
+            assert recording_guards(connection) == expected
+            assert _application_seed_rows(connection, seed_before) == seed_before
+            with pytest.raises(Exception) as error:
+                connection.execute(
+                    text("UPDATE core_recording_publications SET state=state WHERE false")
+                )
+            assert error.value.orig.sqlstate == "42501"
+            connection.rollback()
+            with pytest.raises(Exception) as file_error:
+                connection.execute(
+                    text("UPDATE file_extraction_requests SET state=state WHERE false")
+                )
+            assert file_error.value.orig.sqlstate == "55000"
+            connection.rollback()
+            assert connection.scalar(text("SELECT count(*) FROM official_writer_principals")) == 0
+        with psycopg.connect(
+            application_postgres_state.dsn.replace("postgresql+psycopg://", "postgresql://", 1)
+        ) as connection:
+            with pytest.raises(psycopg.Error) as error:
+                with connection.cursor().copy(
+                    "COPY public.core_recording_publications (publication_id) FROM STDIN"
+                ):
+                    pass
+            assert error.value.sqlstate == "42501"
+        # Rollback preserves the prior composition; a subsequent exact restore
+        # must still recover the canonical application seed.
+        conftest._restore_application_postgres_state(application_postgres_state)
+        with engine.connect() as connection:
+            assert recording_guards(connection) == expected
+            assert connection.scalar(text("SELECT count(*) FROM company_app_controls")) > 0
+            assert connection.scalar(text("SELECT count(*) FROM app_access_policies")) > 0
+            assert connection.scalar(text("SELECT count(*) FROM core_recording_publications")) == 0
+    finally:
+        engine.dispose()
+
+
 def test_test_resource_names_are_scoped_to_the_run() -> None:
     infra = _infra()
 
     minio_target = infra.new_minio_target()
     index_prefix = infra.new_opensearch_index_prefix()
 
-    assert minio_target.bucket.startswith("mty-api-test-abc123-")
-    assert index_prefix.startswith("mty_api_test_abc123_")
-    assert infra.postgres_run_prefix == "mty_test_abc123_"
+    assert minio_target.bucket.startswith("miy-api-test-abc123-")
+    assert index_prefix.startswith("miy_api_test_abc123_")
+    assert infra.postgres_run_prefix == "miy_test_abc123_"
 
 
 def test_cleanup_refuses_resources_outside_the_current_run() -> None:
     infra = _infra()
 
     with pytest.raises(RuntimeError, match="outside this test run"):
-        infra.cleanup_minio_bucket("mty-dev")
+        infra.cleanup_minio_bucket("miy-dev")
     with pytest.raises(RuntimeError, match="outside this test run"):
-        infra.cleanup_opensearch_indices("mty-dev")
+        infra.cleanup_opensearch_indices("miy-dev")
 
 
 def test_opensearch_cleanup_deletes_and_verifies_run_prefix(monkeypatch) -> None:
@@ -245,25 +327,25 @@ def test_opensearch_cleanup_deletes_and_verifies_run_prefix(monkeypatch) -> None
         lambda url, **_kwargs: calls.append(("get", url)) or Response(),
     )
 
-    infra.cleanup_opensearch_indices("mty_api_test_abc123_case")
+    infra.cleanup_opensearch_indices("miy_api_test_abc123_case")
 
     assert calls == [
-        ("delete", "http://127.0.0.1:59210/mty_api_test_abc123_case*"),
+        ("delete", "http://127.0.0.1:59210/miy_api_test_abc123_case*"),
         (
             "get",
-            "http://127.0.0.1:59210/_cat/indices/mty_api_test_abc123_case*",
+            "http://127.0.0.1:59210/_cat/indices/miy_api_test_abc123_case*",
         ),
     ]
 
 
 def test_load_refuses_production_profile(monkeypatch) -> None:
     values = {
-        "MTY_TEST_REDIS_URL": "redis://127.0.0.1:56380/0",
-        "MTY_TEST_MINIO_ENDPOINT": "http://127.0.0.1:59010",
-        "MTY_TEST_MINIO_ACCESS_KEY": "test-access",
-        "MTY_TEST_MINIO_SECRET_KEY": "test-secret",
-        "MTY_TEST_OPENSEARCH_URL": "http://127.0.0.1:59210",
-        "MTY_ENV_PROFILE": "production",
+        "MIY_TEST_REDIS_URL": "redis://127.0.0.1:56380/0",
+        "MIY_TEST_MINIO_ENDPOINT": "http://127.0.0.1:59010",
+        "MIY_TEST_MINIO_ACCESS_KEY": "test-access",
+        "MIY_TEST_MINIO_SECRET_KEY": "test-secret",
+        "MIY_TEST_OPENSEARCH_URL": "http://127.0.0.1:59210",
+        "MIY_ENV_PROFILE": "production",
     }
     monkeypatch.setattr(
         infra_module.os,
@@ -278,11 +360,11 @@ def test_load_refuses_production_profile(monkeypatch) -> None:
 
 def test_load_refuses_missing_environment_profile(monkeypatch) -> None:
     values = {
-        "MTY_TEST_REDIS_URL": "redis://127.0.0.1:56380/0",
-        "MTY_TEST_MINIO_ENDPOINT": "http://127.0.0.1:59010",
-        "MTY_TEST_MINIO_ACCESS_KEY": "test-access",
-        "MTY_TEST_MINIO_SECRET_KEY": "test-secret",
-        "MTY_TEST_OPENSEARCH_URL": "http://127.0.0.1:59210",
+        "MIY_TEST_REDIS_URL": "redis://127.0.0.1:56380/0",
+        "MIY_TEST_MINIO_ENDPOINT": "http://127.0.0.1:59010",
+        "MIY_TEST_MINIO_ACCESS_KEY": "test-access",
+        "MIY_TEST_MINIO_SECRET_KEY": "test-secret",
+        "MIY_TEST_OPENSEARCH_URL": "http://127.0.0.1:59210",
     }
     monkeypatch.setattr(
         infra_module.os,
@@ -325,7 +407,7 @@ def test_minio_cleanup_verifies_bucket_absence(monkeypatch) -> None:
         lambda _self: fake_client,
     )
 
-    bucket = "mty-api-test-abc123-case"
+    bucket = "miy-api-test-abc123-case"
     infra.cleanup_minio_bucket(bucket)
 
     assert removed == [f"{bucket}/item", bucket]
@@ -335,12 +417,12 @@ def test_unrecognized_test_endpoint_requires_explicit_non_production_ack(
     monkeypatch,
 ) -> None:
     values = {
-        "MTY_TEST_REDIS_URL": "redis://production-alias.invalid:6379/0",
-        "MTY_TEST_MINIO_ENDPOINT": "https://production-alias.invalid:9000",
-        "MTY_TEST_MINIO_ACCESS_KEY": "test-access",
-        "MTY_TEST_MINIO_SECRET_KEY": "test-secret",
-        "MTY_TEST_OPENSEARCH_URL": "https://production-alias.invalid:9200",
-        "MTY_ENV_PROFILE": "development",
+        "MIY_TEST_REDIS_URL": "redis://production-alias.invalid:6379/0",
+        "MIY_TEST_MINIO_ENDPOINT": "https://production-alias.invalid:9000",
+        "MIY_TEST_MINIO_ACCESS_KEY": "test-access",
+        "MIY_TEST_MINIO_SECRET_KEY": "test-secret",
+        "MIY_TEST_OPENSEARCH_URL": "https://production-alias.invalid:9200",
+        "MIY_ENV_PROFILE": "development",
     }
     monkeypatch.setattr(
         infra_module.os,
@@ -359,9 +441,7 @@ def test_unrecognized_postgres_template_is_rejected_without_ack(monkeypatch) -> 
     monkeypatch.setattr(
         infra_module.os,
         "getenv",
-        lambda name, default=None: (
-            "development" if name == "MTY_ENV_PROFILE" else default
-        ),
+        lambda name, default=None: "development" if name == "MIY_ENV_PROFILE" else default,
     )
     monkeypatch.setattr(infra_module, "_approved_dev_values", lambda _name: set())
     monkeypatch.setattr(infra_module, "_env_values", lambda _path: {})
@@ -404,10 +484,10 @@ def test_application_composition_restores_environment_before_external_discovery(
     from fastapi import FastAPI
 
     original_endpoint = "http://127.0.0.1:59010"
-    monkeypatch.setenv("MTY_MINIO_ENDPOINT", original_endpoint)
+    monkeypatch.setenv("MIY_MINIO_ENDPOINT", original_endpoint)
 
     def build(patch, **_kwargs):
-        patch.setenv("MTY_MINIO_ENDPOINT", "http://127.0.0.1:1")
+        patch.setenv("MIY_MINIO_ENDPOINT", "http://127.0.0.1:1")
         return FastAPI()
 
     monkeypatch.setattr(conftest, "_build_test_application", build)
@@ -417,6 +497,6 @@ def test_application_composition_restores_environment_before_external_discovery(
     )
     try:
         next(lifecycle)
-        assert infra_module.os.getenv("MTY_MINIO_ENDPOINT") == original_endpoint
+        assert infra_module.os.getenv("MIY_MINIO_ENDPOINT") == original_endpoint
     finally:
         lifecycle.close()

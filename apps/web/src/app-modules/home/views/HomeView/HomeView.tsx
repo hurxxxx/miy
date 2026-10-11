@@ -12,8 +12,8 @@ import {
 import {
   APP_CONTRACT_BY_ID,
   type AppId,
-} from '@mty/contracts/app-contracts';
-import { buildAppHref } from '@mty/contracts/app-routes';
+} from '@miy/contracts/app-contracts';
+import { buildAppHref } from '@miy/contracts/app-routes';
 import {
   AlertTriangle,
   BarChart3,

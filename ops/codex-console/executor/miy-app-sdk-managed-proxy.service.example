@@ -1,0 +1,30 @@
+# Core-owned companion to @UNIT_STEM@.service; never auto-installed.
+[Unit]
+Description=MIY managed SDK ingress
+BindsTo=@UNIT_STEM@.service @UNIT_STEM@-proxy.socket
+After=@UNIT_STEM@.service @UNIT_STEM@-proxy.socket
+JoinsNamespaceOf=@UNIT_STEM@.service
+
+[Service]
+Type=notify
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+PrivateNetwork=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+CPUQuota=100%
+MemoryMax=1073741824
+MemorySwapMax=0
+TasksMax=64
+# Keep active native connections; exit-idle-time still retires an idle proxy.
+RuntimeMaxSec=infinity
+TimeoutStopSec=3
+KillMode=control-group
+Restart=no
+LimitCORE=0
+StandardOutput=null
+StandardError=null
+ExecStart=/usr/lib/systemd/systemd-socket-proxyd \
+    --connections-max=2 --exit-idle-time=10s 127.0.0.1:@PRIVATE_PORT@

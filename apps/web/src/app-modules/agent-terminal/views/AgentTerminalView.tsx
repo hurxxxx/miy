@@ -6,7 +6,7 @@ import {
   Select,
   useConfirm,
   useFeedback,
-} from '@mty/ui';
+} from '@miy/ui';
 import {
   CircleStop,
   GitBranch,

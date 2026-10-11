@@ -19,7 +19,7 @@ Contract:
 - Every evidence/citation passes source-owned final ACL before presentation or external model input.
 
 The persisted search/vector projection uses the `open-work-hub-retrieval-v1`
-identity namespace. Keep this opaque v1 value during the MTY rename: changing
+identity namespace. Keep this opaque v1 value during the miy rename: changing
 it changes UUIDs for existing documents and vector points. A future rename of
 the namespace requires a versioned reindex, cutover and rollback plan.
 

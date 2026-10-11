@@ -1,6 +1,6 @@
 # Bento Slides
 
-MTY embeds official `bento/slides` single-HTML runtime in a separate-origin iframe. Hub owns document list/auth/storage; Bento owns editing and `.bento.html` serialization.
+miy embeds official `bento/slides` single-HTML runtime in a separate-origin iframe. Hub owns document list/auth/storage; Bento owns editing and `.bento.html` serialization.
 
 ## Pinned Runtime
 
@@ -19,13 +19,13 @@ protocol unit coverage but no dedicated Bento browser harness.
 
 ```bash
 ./scripts/dev-infra.sh up
-docker compose --env-file .env.example -f ops/compose/mty-dev.infra.yml up -d --build bento
+docker compose --env-file .env.example -f ops/compose/miy-dev.infra.yml up -d --build bento
 ```
 
 - Local URL: `http://127.0.0.1:18084/`
 - Health: `/healthz`
-- Public env: `MTY_BENTO_SERVER_URL`
-- The external HTTPS proxy connects the dedicated Bento hostname directly to `MTY_BENTO_BIND_HOST:MTY_BENTO_PORT`. Keep the default loopback binding for a local proxy; otherwise use only the exact private proxy-facing IPv4 address. Wildcard, public-IP, IPv6, and hostname bindings are forbidden in production.
+- Public env: `MIY_BENTO_SERVER_URL`
+- The external HTTPS proxy connects the dedicated Bento hostname directly to `MIY_BENTO_BIND_HOST:MIY_BENTO_PORT`. Keep the default loopback binding for a local proxy; otherwise use only the exact private proxy-facing IPv4 address. Wildcard, public-IP, IPv6, and hostname bindings are forbidden in production.
 - Do not serve Bento below the Hub origin; iframe must not access Hub storage/tokens.
 
 ## Data/Auth
@@ -38,6 +38,15 @@ docker compose --env-file .env.example -f ops/compose/mty-dev.infra.yml up -d --
   and an audit record, and company ownership cannot revert to personal under the
   [App Platform Contract](../../domains/app-platform/README.md).
 - Save uses version compare to avoid overwriting concurrent edits.
+- During ordinary navigation within the same login, captured edits drain in order,
+  including the latest received debounce value. Each successful save supplies the
+  version for the next queued patch. Responses update a replaced view only through
+  its private queue bookkeeping, without changing the current screen.
+- Queued saves capture the shared AuthProvider's
+  [credential-generation predicate](../../../packages/platform-web/README.md).
+  A legacy auth context without this predicate permits queued writes only while its
+  original view remains mounted. Server authentication, edit permission and version
+  checks remain authoritative; a submitted request cannot be cancelled by this guard.
 - Delete flow: archive first, permanent delete second.
 - Iframe bridge validates exact origin and `window` sender. No Hub auth token enters iframe.
 - Import parses only `#bento-doc` JSON; it never executes imported HTML.

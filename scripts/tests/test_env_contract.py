@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import re
+import shutil
 import sys
 import tempfile
 import unittest
 from pathlib import Path
-
+from unittest.mock import patch
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "check-env-contract.py"
 SPEC = importlib.util.spec_from_file_location("check_env_contract", MODULE_PATH)
@@ -17,6 +19,158 @@ SPEC.loader.exec_module(env_contract)
 
 
 class EnvContractScannerTest(unittest.TestCase):
+    def test_rolling_cutover_validates_each_checkout_contract_without_ignoring_peer_errors(self):
+        source = MODULE_PATH.parents[1]
+        with tempfile.TemporaryDirectory() as folder:
+            parent = Path(folder)
+            for name in ("dev", "prod"):
+                root = parent / name
+                root.mkdir()
+                shutil.copytree(source / "config", root / "config")
+                for relative_path in env_contract.SETTINGS_FILE_PARTS:
+                    peer_relative = Path(str(relative_path).replace("miy_api", "legacy_api").replace("miy_worker", "legacy_worker"))
+                    destination = root / (peer_relative if name == "prod" else relative_path)
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(source / relative_path, destination)
+                template = (source / ".env.example").read_text()
+                if name == "prod":
+                    template += "\nPEER_APP_PORT=1234\nMIY_LLM_LOCAL_API_KEY=synthetic-only\n"
+                (root / ".env.example").write_text(template)
+                (root / ".env").write_text(template)
+                (root / "scripts").mkdir()
+                (root / "scripts/check-env-contract.py").write_text(
+                    'from pathlib import Path\n'
+                    'SETTINGS_FILE_PARTS = [Path("apps/api/src/legacy_api/core/settings.py"), '
+                    'Path("apps/worker/src/legacy_worker/settings.py")]\n'
+                    'DEPLOY_ENV_KEYS: frozenset[str] = frozenset({"PEER_APP_PORT"})\n'
+                    'FORBIDDEN_ENV_KEYS = frozenset(["OLD_RETIRED_KEY"])\n'
+                    'SKIP_SETTINGS_KEYS = {"MIY_API_MIY_DESKTOP_UPDATE_DIRS"}\n'
+                    if name == "prod" else
+                    'from pathlib import Path\n'
+                    'SETTINGS_FILE_PARTS = [Path("apps/api/src/miy_api/core/settings.py"), '
+                    'Path("apps/worker/src/miy_worker/settings.py")]\n'
+                    'DEPLOY_ENV_KEYS: frozenset[str] = frozenset({"MIY_APP_PORT"})\n'
+                    'FORBIDDEN_ENV_KEYS = frozenset(["OLD_RETIRED_KEY"])\n'
+                    'SKIP_SETTINGS_KEYS = {"UNUSED_DEV_KEY"}\n'
+                )
+            report = env_contract.build_report(parent / "dev")
+            self.assertTrue(report.ok, self.messages(report))
+            peer_env = parent / "prod/.env"
+            peer_env.write_text(peer_env.read_text() + "OLD_RETIRED_KEY=synthetic-secret\n")
+            report = env_contract.build_report(parent / "dev")
+            self.assertIn("forbidden_env_key", self.codes(report))
+            self.assertIn("env_keyset_mismatch", self.codes(report))
+            self.assertIn("prod:", self.messages(report))
+            self.assertNotIn("synthetic-secret", self.messages(report))
+            peer_env.write_text(peer_env.read_text().replace("OLD_RETIRED_KEY=synthetic-secret\n", "").replace("PEER_APP_PORT=1234\n", ""))
+            self.assertIn("missing_settings_key", self.codes(env_contract.build_report(parent / "dev")))
+            (parent / "prod/scripts/check-env-contract.py").unlink()
+            self.assertIn("invalid_peer_env_contract", self.codes(env_contract.build_report(parent / "dev")))
+
+    def test_llm_env_cutover_matches_current_template_and_typed_settings(self):
+        source = MODULE_PATH.parents[1]
+        migration_spec = importlib.util.spec_from_file_location(
+            "migrate_llm_settings_contract", source / "scripts/migrate-llm-settings.py"
+        )
+        migration = importlib.util.module_from_spec(migration_spec)
+        migration_spec.loader.exec_module(migration)
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            shutil.copytree(source / "config", root / "config")
+            for relative_path in env_contract.SETTINGS_FILE_PARTS:
+                destination = root / relative_path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source / relative_path, destination)
+            template = (source / ".env.example").read_text()
+            (root / ".env.example").write_text(template)
+            retired = set(migration.RETIRED) | {"OPENROUTER_API_KEY"}
+            old_env = template + "\n" + "\n".join(
+                f"{key}=synthetic-only" for key in sorted(retired)
+            ) + "\n"
+            (root / ".env").write_text(old_env)
+            self.assertIn("forbidden_env_key", self.codes(env_contract.build_report(root)))
+            (root / ".env").write_text(migration.prune_keys(old_env, retired))
+            report = env_contract.build_report(root)
+            self.assertTrue(report.ok, self.messages(report))
+
+    def test_rolling_cutover_accepts_peer_before_runtime_config_contract(self):
+        source = MODULE_PATH.parents[1]
+        with tempfile.TemporaryDirectory() as folder:
+            parent = Path(folder)
+            dev = parent / "dev"
+            dev.mkdir()
+            shutil.copytree(source / "config", dev / "config")
+            for relative_path in env_contract.SETTINGS_FILE_PARTS:
+                destination = dev / relative_path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source / relative_path, destination)
+            template = (source / ".env.example").read_text()
+            (dev / ".env.example").write_text(template)
+            (dev / ".env").write_text(template)
+
+            prod = parent / "prod"
+            api_settings = prod / env_contract.SETTINGS_FILE_PARTS[0]
+            worker_settings = prod / env_contract.SETTINGS_FILE_PARTS[1]
+            api_settings.parent.mkdir(parents=True)
+            worker_settings.parent.mkdir(parents=True)
+            api_settings.write_text(
+                "class Settings:\n"
+                '    model_config = SettingsConfigDict(env_prefix="LEGACY_")\n'
+                "    postgres_dsn: str\n"
+            )
+            worker_settings.write_text(
+                "class Settings:\n"
+                '    model_config = SettingsConfigDict(env_prefix="LEGACY_")\n'
+                "    worker_broker_url: str\n"
+            )
+            legacy_env = (
+                "LEGACY_APP_BIND_HOST=127.0.0.1\n"
+                "LEGACY_APP_FORWARDED_ALLOW_IPS=127.0.0.1\n"
+                "LEGACY_APP_PORT=8000\n"
+                "LEGACY_APP_PUBLIC_URL=https://example.test\n"
+                "LEGACY_POSTGRES_DSN=postgresql://example.test/app\n"
+                "LEGACY_WORKER_BROKER_URL=redis://example.test/0\n"
+            )
+            (prod / ".env.example").write_text(legacy_env)
+            (prod / ".env").write_text(legacy_env)
+            (prod / "scripts").mkdir()
+            legacy_contract = (
+                "from pathlib import Path\n"
+                f"SETTINGS_FILE_PARTS = [Path({str(env_contract.SETTINGS_FILE_PARTS[0])!r}), "
+                f"Path({str(env_contract.SETTINGS_FILE_PARTS[1])!r})]\n"
+                "DEPLOY_ENV_KEYS = frozenset(["
+                "'LEGACY_APP_BIND_HOST', 'LEGACY_APP_FORWARDED_ALLOW_IPS', "
+                "'LEGACY_APP_PORT', 'LEGACY_APP_PUBLIC_URL'])\n"
+                'FORBIDDEN_ENV_KEYS = frozenset(["OLD_RETIRED_KEY"])\n'
+                "SKIP_SETTINGS_KEYS = frozenset([])\n"
+            )
+            (prod / "scripts/check-env-contract.py").write_text(legacy_contract)
+
+            report = env_contract.build_report(dev)
+            self.assertTrue(report.ok, self.messages(report))
+
+            shutil.copyfile(MODULE_PATH, prod / "scripts/check-env-contract.py")
+            report = env_contract.build_report(dev)
+            self.assertIn("invalid_runtime_config", self.codes(report))
+
+            (prod / "scripts/check-env-contract.py").write_text(legacy_contract)
+            (prod / "config").mkdir()
+            (prod / "config/runtime.json").write_text("{}")
+            report = env_contract.build_report(dev)
+            self.assertIn("invalid_runtime_config", self.codes(report))
+
+    def test_build_report_rejects_invalid_runtime_config_without_values(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            shutil.copytree(MODULE_PATH.parents[1] / "config", root / "config")
+            path = root / "config/runtime.json"
+            doc = json.loads(path.read_text())
+            doc["defaults"]["MIY_HERMES_API_KEY"] = "synthetic-secret"
+            path.write_text(json.dumps(doc))
+            report = env_contract.build_report(root)
+            self.assertIn("invalid_runtime_config", self.codes(report))
+            self.assertNotIn("synthetic-secret", self.messages(report))
+
     def evaluate(
         self,
         root: Path,
@@ -26,6 +180,7 @@ class EnvContractScannerTest(unittest.TestCase):
         source_texts: dict[str, str] | None = None,
         forbidden_patterns: tuple[re.Pattern[str], ...] = (),
         forbidden_env_keys: tuple[str, ...] = (),
+        runtime_config_keys: tuple[str, ...] = (),
     ):
         env_files = []
         for name, text in env_texts.items():
@@ -72,7 +227,34 @@ class EnvContractScannerTest(unittest.TestCase):
             current_env_name="dev",
             forbidden_patterns=forbidden_patterns,
             forbidden_env_keys=forbidden_env_keys,
+            runtime_config_keys=runtime_config_keys,
         )
+
+    def test_public_defaults_cover_optional_env_overrides_without_hiding_secret_mismatches(self):
+        settings = '''
+class Settings:
+    model_config = SettingsConfigDict(env_prefix="MIY_")
+    tuning: int = 5
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = self.evaluate(
+                root,
+                env_texts={"dev": "MIY_SECRET=private\n",
+                           "example": "MIY_TUNING=8\nMIY_SECRET=\n"},
+                settings_texts={"settings.py": settings},
+                runtime_config_keys=("MIY_TUNING",),
+            )
+            self.assertNotIn("env_keyset_mismatch", self.codes(report))
+            self.assertNotIn("env_key_order_mismatch", self.codes(report))
+            self.assertNotIn("MIY_TUNING", self.messages(report))
+            report = self.evaluate(
+                root,
+                env_texts={"dev": "MIY_SECRET=private\n", "example": ""},
+                runtime_config_keys=("MIY_TUNING",),
+            )
+            self.assertIn("env_keyset_mismatch", self.codes(report))
+            self.assertIn("unknown_runtime_config_key", self.codes(report))
 
     def messages(self, report) -> str:
         return "\n".join(failure.message for failure in report.failures)
@@ -97,20 +279,54 @@ class EnvContractScannerTest(unittest.TestCase):
 
         self.assertEqual(scanned, [source])
 
+    def test_source_files_do_not_follow_runtime_symlinks_outside_checkout(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory)
+            root = parent / "dev"
+            root.mkdir()
+            source = root / "app.py"
+            source.write_text("print('source')\n", encoding="utf-8")
+            external = parent / "console.env"
+            external.write_text("OPEN_" "WORK_HUB_LEGACY=private\n", encoding="utf-8")
+            (root / ".env").symlink_to(external)
+
+            scanned = env_contract.source_files(root)
+
+        self.assertEqual(scanned, [source])
+
+    def test_source_files_prune_ignored_trees_before_reading_their_entries(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "src" / "app.py"
+            source.parent.mkdir()
+            source.write_text("print('source')\n", encoding="utf-8")
+            ignored = root / ".runtime"
+            ignored.mkdir()
+            original_scandir = env_contract.os.scandir
+
+            def guarded_scandir(path):
+                self.assertNotEqual(Path(path), ignored)
+                return original_scandir(path)
+
+            with patch.object(env_contract.os, "scandir", side_effect=guarded_scandir):
+                scanned = env_contract.source_files(root)
+
+        self.assertEqual(scanned, [source])
+
     def test_reports_duplicate_env_keys_without_values(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             report = self.evaluate(
                 root,
                 env_texts={
-                    "dev": "MTY_ONE=secret-one\nMTY_ONE=secret-two\n",
-                    "example": "MTY_ONE=example\n",
+                    "dev": "MIY_ONE=secret-one\nMIY_ONE=secret-two\n",
+                    "example": "MIY_ONE=example\n",
                 },
             )
 
         self.assertIn("duplicate_env_key", self.codes(report))
         messages = self.messages(report)
-        self.assertIn("dev: duplicate keys: MTY_ONE", messages)
+        self.assertIn("dev: duplicate keys: MIY_ONE", messages)
         self.assertNotIn("secret-one", messages)
         self.assertNotIn("secret-two", messages)
 
@@ -120,8 +336,8 @@ class EnvContractScannerTest(unittest.TestCase):
             report = self.evaluate(
                 root,
                 env_texts={
-                    "dev": "MTY_ONE=1\nMTY_TWO=2\n",
-                    "example": "MTY_ONE=1\nMTY_THREE=3\n",
+                    "dev": "MIY_ONE=1\nMIY_TWO=2\n",
+                    "example": "MIY_ONE=1\nMIY_THREE=3\n",
                 },
             )
 
@@ -137,8 +353,8 @@ class EnvContractScannerTest(unittest.TestCase):
             report = self.evaluate(
                 root,
                 env_texts={
-                    "dev": "MTY_ONE=secret-one\nMTY_TWO=secret-two\n",
-                    "example": "MTY_TWO=example-two\nMTY_ONE=example-one\n",
+                    "dev": "MIY_ONE=secret-one\nMIY_TWO=secret-two\n",
+                    "example": "MIY_TWO=example-two\nMIY_ONE=example-one\n",
                 },
             )
 
@@ -149,14 +365,14 @@ class EnvContractScannerTest(unittest.TestCase):
         self.assertNotIn("example-one", messages)
 
     def test_reports_retired_or_externally_owned_env_keys(self) -> None:
-        retired_key = "MTY_RETIRED"
+        retired_key = "MIY_RETIRED"
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             report = self.evaluate(
                 root,
                 env_texts={
-                    "dev": f"MTY_PRESENT=1\n{retired_key}=secret\n",
-                    "example": f"MTY_PRESENT=1\n{retired_key}=example\n",
+                    "dev": f"MIY_PRESENT=1\n{retired_key}=secret\n",
+                    "example": f"MIY_PRESENT=1\n{retired_key}=example\n",
                 },
                 forbidden_env_keys=(retired_key,),
             )
@@ -169,7 +385,7 @@ class EnvContractScannerTest(unittest.TestCase):
     def test_env_file_paths_include_optional_local_profile(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / ".env.local").write_text("MTY_PRESENT=1\n", encoding="utf-8")
+            (root / ".env.local").write_text("MIY_PRESENT=1\n", encoding="utf-8")
 
             paths = env_contract.env_file_paths(root, "dev")
 
@@ -178,10 +394,10 @@ class EnvContractScannerTest(unittest.TestCase):
     def test_reports_settings_keys_missing_from_env(self) -> None:
         settings = """
 class Settings:
-    present: str = Field(validation_alias="MTY_PRESENT")
-    missing: str = Field(validation_alias="MTY_MISSING")
+    present: str = Field(validation_alias="MIY_PRESENT")
+    missing: str = Field(validation_alias="MIY_MISSING")
 """
-        env_text = "MTY_PRESENT=1\n" + "".join(
+        env_text = "MIY_PRESENT=1\n" + "".join(
             f"{key}=example\n" for key in sorted(env_contract.DEPLOY_ENV_KEYS)
         )
         with tempfile.TemporaryDirectory() as directory:
@@ -197,7 +413,7 @@ class Settings:
 
         self.assertIn("missing_settings_key", self.codes(report))
         self.assertIn(
-            "env files are missing settings keys: MTY_MISSING",
+            "env files are missing settings keys: MIY_MISSING",
             self.messages(report),
         )
 
@@ -209,8 +425,8 @@ class Settings:
             report = self.evaluate(
                 root,
                 env_texts={
-                    "dev": "MTY_PRESENT=1\n",
-                    "example": "MTY_PRESENT=1\n",
+                    "dev": "MIY_PRESENT=1\n",
+                    "example": "MIY_PRESENT=1\n",
                 },
                 source_texts={"app.py": f"api_key = {token!r}\n"},
                 forbidden_patterns=(pattern,),
@@ -219,21 +435,42 @@ class Settings:
         self.assertIn("forbidden_env_token", self.codes(report))
         self.assertIn("app.py: forbidden env token", self.messages(report))
 
+    def test_rejects_earlier_brand_env_keys_without_matching_current_or_unrelated_names(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for brand in ("OWH", "OPEN_WORK_HUB"):
+                for scope in ("", "VITE_"):
+                    with self.subTest(brand=brand, scope=scope):
+                        legacy = f"{scope}{brand}_CODEX_CONSOLE_PORT"
+                        report = self.evaluate(
+                            root,
+                            env_texts={"dev": "MIY_PRESENT=1\n", "example": "MIY_PRESENT=1\n"},
+                            source_texts={
+                                "legacy.py": f"port = os.getenv({legacy!r})\n",
+                                "current.py": "port = os.getenv('MIY_CODEX_CONSOLE_PORT')\n",
+                                "browser.ts": "const port = import.meta.env.VITE_MIY_PORT;\n",
+                                "unrelated.py": "arrowhead = True\nALLOWH_PORT = 1\n",
+                            },
+                            forbidden_patterns=tuple(env_contract.FORBIDDEN_ENV_PATTERNS),
+                        )
+                        self.assertEqual([hit.path for hit in report.forbidden_hits], ["legacy.py"])
+                        self.assertIn("forbidden_env_token", self.codes(report))
+
     def test_forbids_exact_legacy_redis_alias_without_matching_scoped_keys(self) -> None:
-        legacy_token = "MTY_" + "REDIS_URL"
+        legacy_token = "MIY_" + "REDIS_URL"
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             report = self.evaluate(
                 root,
                 env_texts={
-                    "dev": "MTY_PRESENT=1\n",
-                    "example": "MTY_PRESENT=1\n",
+                    "dev": "MIY_PRESENT=1\n",
+                    "example": "MIY_PRESENT=1\n",
                 },
                 source_texts={
                     "legacy.py": f"redis_url = os.getenv({legacy_token!r})\n",
                     "scoped.py": (
-                        "collab = os.getenv('MTY_API_COLLAB_REDIS_URL')\n"
-                        "realtime = os.getenv('MTY_API_REALTIME_REDIS_URL')\n"
+                        "collab = os.getenv('MIY_API_COLLAB_REDIS_URL')\n"
+                        "realtime = os.getenv('MIY_API_REALTIME_REDIS_URL')\n"
                     ),
                 },
                 forbidden_patterns=tuple(env_contract.FORBIDDEN_ENV_PATTERNS),

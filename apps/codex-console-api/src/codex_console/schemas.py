@@ -1,0 +1,286 @@
+from typing import Any, Literal
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from .app_sources import APP_ID_PATTERN
+
+DOCUMENT_CHAR_LIMIT = 100000
+MESSAGE_CHAR_LIMIT = 32000
+
+
+class Input(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+
+class LoginInput(Input):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=False)
+    password: str = Field(min_length=1, max_length=1024)
+
+
+class MIYSessionInput(Input):
+    issuer: str = Field(min_length=8, max_length=2048)
+    code: str = Field(min_length=20, max_length=256, pattern=r"^cc1_[A-Za-z0-9_-]+$")
+
+
+class TaskContext(Input):
+    purpose: Literal["development", "inspection", "deployment", "recovery", "registration"] = (
+        "development"
+    )
+    service_id: str | None = Field(default=None, max_length=100)
+    area: Literal["studio", "apps", "platform"] | None = None
+    app_id: str | None = Field(default=None, pattern=APP_ID_PATTERN, max_length=80)
+    project_id: UUID | None = None
+    workspace_id: UUID | None = None
+    maintenance_id: UUID | None = None
+    installation_id: UUID | None = None
+    release_unit: str | None = Field(default=None, max_length=120)
+
+
+class NewTask(Input):
+    title: str = Field(min_length=1, max_length=200)
+    context: TaskContext | None = None
+    isolate: bool = False
+
+
+class TaskPreferences(Input):
+    pinned: bool
+
+
+class NativeTurnObservation(BaseModel):
+    id: str
+    status: Literal["inProgress", "completed", "interrupted", "failed"]
+    observed_at: str
+
+
+class NativeObservationOut(BaseModel):
+    thread_status: Literal["notLoaded", "idle", "active", "systemError"] | None = None
+    thread_checked_at: str | None = None
+    last_turn: NativeTurnObservation | None = None
+    attempted_at: str | None = None
+    error_code: Literal["unavailable", "read_failed", "identity_mismatch"] | None = None
+    freshness: Literal["fresh", "stale", "unavailable", "unknown"]
+
+
+class AgentOut(BaseModel):
+    thread_id: str
+    parent_thread_id: str | None = None
+    name: str
+    role: str | None = None
+    status: str
+    flags: list[str] = []
+    turn_id: str | None = None
+    activity: str | None = None
+    progress: dict[str, Any] | None = None
+    updated_at: str
+    observation: NativeObservationOut | None = None
+
+
+class ServiceOut(BaseModel):
+    id: str
+    name: str
+    environment: str
+    status: str
+    version: str | None = None
+    checked_at: str | None = None
+    stale: bool = True
+
+
+class SkillOut(BaseModel):
+    name: str
+    description: str
+
+
+class ImportThread(Input):
+    thread_id: str = Field(min_length=1, max_length=160)
+    confirm_inactive: Literal[True]
+
+
+class ExecutionOptions(Input):
+    model: str | None = Field(default=None, min_length=1, max_length=200)
+    effort: str | None = Field(default=None, min_length=1, max_length=40)
+    permissions: Literal["ask", "yolo"] = "ask"
+
+
+class MessageBody(Input):
+    operation_id: UUID
+    text: str = Field(default="", max_length=MESSAGE_CHAR_LIMIT)
+    stage: Literal["plan"] = "plan"
+    attachment_ids: list[UUID] = Field(default_factory=list, max_length=20)
+    skill_names: list[str] = Field(default_factory=list, max_length=5)
+
+    @model_validator(mode="after")
+    def nonempty(self):
+        if not self.text and not self.attachment_ids:
+            raise ValueError("A message or attachment is required")
+        return self
+
+
+class Message(MessageBody, ExecutionOptions):
+    pass
+
+
+class Implement(ExecutionOptions):
+    operation_id: UUID
+    revision_id: int | None = Field(default=None, gt=0)
+    text: str = Field(default="", max_length=MESSAGE_CHAR_LIMIT)
+    attachment_ids: list[UUID] = Field(default_factory=list, max_length=20)
+    skill_names: list[str] = Field(default_factory=list, max_length=5)
+
+    @model_validator(mode="after")
+    def authorization(self):
+        if self.revision_id is None and not self.text:
+            raise ValueError("A direct execution request needs text")
+        return self
+
+
+class GitStatusOut(BaseModel):
+    root: str
+    branch: str | None
+    head: str | None
+    detached: bool
+    upstream: str | None
+    ahead: int | None
+    behind: int | None
+    staged: int
+    unstaged: int
+    untracked: int
+    conflicts: int
+    changed: int
+    checked_at: str
+
+
+class DocumentInput(Input):
+    kind: Literal["plan"] | None = None
+    base_version: int = Field(ge=0)
+    body: str = Field(min_length=1, max_length=DOCUMENT_CHAR_LIMIT)
+
+
+class Recover(Input):
+    confirm_workspace: bool = False
+
+
+class Answer(Input):
+    decision: Literal["accept", "decline", "cancel"] | None = None
+    answers: dict[str, list[str]] | None = None
+
+
+class SessionOut(BaseModel):
+    authenticated: bool
+
+
+class RevisionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    kind: str
+    version: int
+    body: str
+    created_at: str
+
+
+class TaskOut(BaseModel):
+    id: str
+    workspace_id: str | None = None
+    title: str
+    stage: str
+    status: str
+    thread_id: str | None
+    turn_id: str | None
+    root: str
+    isolated: bool
+    approved_revision: int | None
+    error_code: str | None
+    updated_at: str
+    model: str | None = None
+    effort: str | None = None
+    permissions: Literal["read-only", "ask", "yolo"] = "read-only"
+    progress: dict[str, Any] | None = None
+    context: dict[str, Any] | None = None
+    pinned: bool = False
+    agents: list[AgentOut] = []
+    pending_count: int = 0
+    executor: Literal["session", "templates"] = "session"
+    template_snapshot: dict[str, Any] | None = None
+
+
+class ModelOut(BaseModel):
+    model: str
+    name: str
+    is_default: bool
+    default_effort: str
+    efforts: list[str]
+
+
+class RequestOut(BaseModel):
+    id: str
+    method: str
+    payload: dict[str, Any]
+
+
+class TaskDetail(TaskOut):
+    implementation_permissions: list[Literal["ask", "yolo"]] = ["ask", "yolo"]
+    failed_request_text: str | None = None
+    revisions: list[RevisionOut]
+    items: list[dict[str, Any]]
+    history_truncated: bool
+    requests: list[RequestOut]
+    event_id: int
+    attachments: list["AttachmentOut"]
+    attachment_limits: "AttachmentLimits"
+
+
+class AttachmentOut(BaseModel):
+    id: str
+    name: str
+    size: int
+    deleted: bool
+
+
+class AttachmentLimits(BaseModel):
+    file_bytes: int
+    task_bytes: int
+    files: int
+    selection: int
+
+
+class AccountOut(BaseModel):
+    connected: bool
+    auth_type: str | None = None
+    plan_type: str | None = None
+    rate_limits: dict[str, Any] | None = None
+    error_code: str | None = None
+
+
+class DeviceLoginOut(BaseModel):
+    login_id: str
+    verification_url: str
+    user_code: str
+
+
+class ThreadSummary(BaseModel):
+    id: str
+    title: str
+    preview: str
+    updated_at: int
+
+
+class ThreadPage(BaseModel):
+    items: list[ThreadSummary]
+    cursor: str | None
+
+
+class ChangeOut(BaseModel):
+    path: str
+    status: str
+    old_path: str | None
+
+
+class DiffOut(BaseModel):
+    path: str
+    binary: bool
+    old: str
+    new: str
+
+
+class Ok(BaseModel):
+    ok: bool = True

@@ -5,12 +5,12 @@ from typing import Any
 
 import pytest
 
-from mty_api.core.llm import LlmPoolConfig
-from mty_api.core.settings import get_settings
-from mty_api.domains.ai import audit as audit_module
-from mty_api.domains.ai import gateway as gateway_module
-from mty_api.domains.ai import masking as masking_module
-from mty_api.domains.ai.gateway import (
+from miy_api.core.llm import LlmPoolConfig
+from miy_api.core.settings import get_settings
+from miy_api.domains.ai import audit as audit_module
+from miy_api.domains.ai import gateway as gateway_module
+from miy_api.domains.ai import masking as masking_module
+from miy_api.domains.ai.gateway import (
     AiGatewayContextPack,
     AiGatewayPolicyViolation,
     AiGatewayRequest,
@@ -19,12 +19,12 @@ from mty_api.domains.ai.gateway import (
     execute_llm,
     resolve_gateway_execution,
 )
-from mty_api.domains.ai.privacy_filter import PrivacyFilterDetection, PrivacyFilterSpan
-from mty_api.domains.ai.registry import (
+from miy_api.domains.ai.privacy_filter import PrivacyFilterDetection, PrivacyFilterSpan
+from miy_api.domains.ai.registry import (
     get_ai_capability_registry,
     reset_ai_capability_registry,
 )
-from mty_api.domains.ai.security_policy import (
+from miy_api.domains.ai.security_policy import (
     POLICY_MASK_AND_SEND_REASON,
     AiSecurityPolicyDecision,
 )
@@ -125,7 +125,7 @@ def test_chatbot_task_is_registered_with_default_budgets() -> None:
 
 
 def test_common_completion_executes_hermes_instead_of_provider_sdk(monkeypatch):
-    from mty_api.domains.hermes import workloads
+    from miy_api.domains.hermes import workloads
 
     calls = []
 
@@ -162,7 +162,7 @@ def test_gateway_unknown_task_kind_does_not_route_external() -> None:
 def test_registered_external_provider_is_blocked_by_egress_allowlist_even_when_security_is_off(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("MTY_LLM_EXTERNAL_ALLOWED_PROVIDERS", "openai")
+    monkeypatch.setenv("MIY_LLM_EXTERNAL_ALLOWED_PROVIDERS", "openai")
     get_settings.cache_clear()
     try:
         with pytest.raises(AiGatewayPolicyViolation) as exc_info:
@@ -700,9 +700,11 @@ def test_execute_llm_uses_registered_admin_route_without_caller_model_controls(
         "resolve_llm_workload_route",
         lambda *_args, **_kwargs: SimpleNamespace(
             workload=workload,
+            runtime_adapter_id=workload.default_runtime_adapter,
             route="external",
             provider_id="anthropic",
             adapter_provider="anthropic",
+            requires_credentials=True,
             endpoint_url="https://api.anthropic.com",
             api_key=SimpleNamespace(get_secret_value=lambda: "database-key"),
             model_key="claude-sonnet-4-6",
@@ -715,8 +717,9 @@ def test_execute_llm_uses_registered_admin_route_without_caller_model_controls(
     def fake_complete(request, db):
         captured["request"] = request
         captured["db"] = db
-        return SimpleNamespace(text="ok"), SimpleNamespace(), request.workload_config
+        return SimpleNamespace(text="ok"), SimpleNamespace(provider=request.workload_config.provider, model=request.workload_config.default_model, chosen_pool=request.workload_config.pool), request.workload_config
 
+    monkeypatch.setattr(gateway_module, "require_workload_owner", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(gateway_module, "complete_gateway_chat_text", fake_complete)
     db = object()
     result = execute_llm(
@@ -741,7 +744,7 @@ def test_execute_llm_uses_registered_admin_route_without_caller_model_controls(
     assert request.workload_config.api_key == "database-key"
     assert request.workload_config.base_url == "https://api.anthropic.com"
     assert request.workload_config.provider == "anthropic"
-    assert result.config.default_model == "claude-sonnet-4-6"
+    assert result.metadata.model == "claude-sonnet-4-6"
 
 
 def test_execute_llm_uses_route_cap_when_caller_omits_max_tokens(
@@ -754,9 +757,11 @@ def test_execute_llm_uses_route_cap_when_caller_omits_max_tokens(
         "resolve_llm_workload_route",
         lambda *_args, **_kwargs: SimpleNamespace(
             workload=workload,
+            runtime_adapter_id=workload.default_runtime_adapter,
             route="local",
             provider_id="local",
-            adapter_provider="vllm",
+            adapter_provider="local",
+            requires_credentials=False,
             endpoint_url="http://local.test/v1",
             api_key=SimpleNamespace(get_secret_value=lambda: "local-key"),
             model_key="local-model",
@@ -768,8 +773,9 @@ def test_execute_llm_uses_route_cap_when_caller_omits_max_tokens(
 
     def fake_complete(request, _db):
         captured["request"] = request
-        return SimpleNamespace(text="ok"), SimpleNamespace(), request.workload_config
+        return SimpleNamespace(text="ok"), SimpleNamespace(provider=request.workload_config.provider, model=request.workload_config.default_model, chosen_pool=request.workload_config.pool), request.workload_config
 
+    monkeypatch.setattr(gateway_module, "require_workload_owner", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(gateway_module, "complete_gateway_chat_text", fake_complete)
     execute_llm(
         "chatbot",

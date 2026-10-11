@@ -5,8 +5,8 @@ import pytest
 from sqlalchemy import func, select
 
 from dev_accounts import auth_headers, dev_login
-from mty_api.core.db import get_session_factory
-from mty_api.domains.auth.models import AuditLog, AuthSession, User
+from miy_api.core.db import get_session_factory
+from miy_api.domains.auth.models import AuditLog, AuthSession, User
 
 
 @pytest.mark.parametrize("actor_account", ["administrator", "delivery-hub-member"])

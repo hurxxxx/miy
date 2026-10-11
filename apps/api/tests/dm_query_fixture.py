@@ -7,9 +7,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from mty_api.core.model_registry import import_all_models
-from mty_api.domains.auth.models import User
-from mty_api.domains.dm.models import (
+from miy_api.core.model_registry import import_all_models
+from miy_api.domains.auth.models import User
+from miy_api.domains.dm.models import (
     DmConversation,
     DmConversationParticipant,
     DmMessage,

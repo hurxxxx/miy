@@ -1,4 +1,4 @@
-import { InlineNotice } from '@mty/ui/feedback/inline-notice';
+import { InlineNotice } from '@miy/ui/feedback/inline-notice';
 import { useTranslation } from 'react-i18next';
 
 export function AccessDeniedView({

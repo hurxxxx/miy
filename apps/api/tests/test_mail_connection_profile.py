@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from mty_api.domains.mail.clients import MailConnectionSettings
-from mty_api.domains.mail.connection_profile import (
+from miy_api.domains.mail.clients import MailConnectionSettings
+from miy_api.domains.mail.connection_profile import (
     encrypt_connection_secrets,
     incoming_identity,
     settings_from_account,
@@ -9,8 +9,8 @@ from mty_api.domains.mail.connection_profile import (
     settings_from_payload,
     validate_connection_profile,
 )
-from mty_api.domains.mail.models import MailAccount
-from mty_api.domains.mail.schemas import (
+from miy_api.domains.mail.models import MailAccount
+from miy_api.domains.mail.schemas import (
     MailAccountConnectionRequest,
     MailAccountUpdateRequest,
 )

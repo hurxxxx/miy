@@ -75,7 +75,7 @@ def test_ai_create_rejects_meeting_scope_for_non_participant(client: TestClient)
     outsider = _create_company_user(
         client,
         admin_token,
-        email="conversation-outsider@mty.local",
+        email="conversation-outsider@miy.local",
         full_name="Conversation Outsider",
     )
     outsider_token = _login(

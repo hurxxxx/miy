@@ -4,14 +4,14 @@ import json
 import sys
 from types import SimpleNamespace
 
-from mty_api.core.settings import Settings
-from mty_api.domains.ai import privacy_filter
+from miy_api.core.settings import Settings
+from miy_api.domains.ai import privacy_filter
 
 
 def _settings(**overrides: object) -> Settings:
     values = {
         "postgres_dsn": (
-            "postgresql+psycopg://mty_test:mty_test@127.0.0.1:5432/mty_test"
+            "postgresql+psycopg://miy_test:miy_test@127.0.0.1:5432/miy_test"
         ),
         "opf_enabled": True,
         "opf_checkpoint": "openai/privacy-filter",

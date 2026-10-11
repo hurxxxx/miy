@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "app_id": "app-8565f140",
+  "display": {
+    "name": "장비·비품 관리 재검증",
+    "translations": {},
+    "icon": "app-window"
+  },
+  "source": {
+    "repository": "https://gitlab.1punicorn.com/lumejs/mty",
+    "directory": "personal-apps/app-8565f140"
+  },
+  "ownership": "personal",
+  "sdk_version": 1,
+  "runtime_profile": "web-api-postgres-v1",
+  "entrypoints": {
+    "ui": "/",
+    "api": "/api",
+    "health": "/healthz"
+  },
+  "requested_permissions": [
+    "identity:read",
+    "data:read",
+    "data:write"
+  ]
+}

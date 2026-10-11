@@ -1,0 +1,49 @@
+# Render trusted placeholders and verify native-pin.json before installation.
+# This finite single-checkout pilot is not enabled by default.
+[Unit]
+Description=MIY pinned native app executor
+
+[Service]
+Type=exec
+User=@EXECUTOR_UID@
+Group=@EXECUTOR_GID@
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+PrivateNetwork=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+BindReadOnlyPaths=@VENDOR_ROOT@
+BindPaths=@SOURCE_ROOT@
+CPUQuota=100%
+MemoryMax=1073741824
+MemorySwapMax=0
+TasksMax=64
+RuntimeMaxSec=270
+TimeoutStopSec=3
+KillMode=control-group
+Restart=no
+LimitCORE=0
+StandardOutput=null
+StandardError=null
+ExecStart=@VENDOR_ROOT@/codex-resources/bwrap \
+    --unshare-user --uid @EXECUTOR_UID@ --gid @EXECUTOR_GID@ \
+    --unshare-pid --unshare-ipc --unshare-uts --cap-drop ALL \
+    --new-session --die-with-parent --clearenv \
+    --proc /proc --dev /dev --size 67108864 --tmpfs /tmp \
+    --dir /tmp/home --dir /tmp/codex-home --dir /tmp/temp \
+    --dir /bin --dir /usr --dir /usr/lib \
+    --dir /usr/lib/x86_64-linux-gnu --dir /lib64 \
+    --ro-bind @VENDOR_ROOT@ @VENDOR_ROOT@ \
+    --ro-bind /usr/bin/dash /bin/sh \
+    --ro-bind /usr/lib/x86_64-linux-gnu/libc.so.6 /usr/lib/x86_64-linux-gnu/libc.so.6 \
+    --ro-bind /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2 \
+    --bind @SOURCE_ROOT@ @SOURCE_ROOT@ \
+    --ro-bind @SOURCE_ROOT@/.git @SOURCE_ROOT@/.git \
+    --setenv PATH /bin --setenv HOME /tmp/home \
+    --setenv CODEX_HOME /tmp/codex-home --setenv TMPDIR /tmp/temp \
+    --setenv SHELL /bin/sh --chdir @SOURCE_ROOT@ --remount-ro / \
+    -- @VENDOR_ROOT@/bin/codex exec-server \
+    --listen ws://127.0.0.1:@PRIVATE_PORT@ \
+    --ws-auth capability-token --ws-token-sha256 @TOKEN_SHA256@

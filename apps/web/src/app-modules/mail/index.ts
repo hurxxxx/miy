@@ -1,9 +1,2 @@
-import { mailManifest } from './manifest';
-import { mailGlobalRoutes } from './routes';
-
-export { mailGlobalRoutes, mailManifest };
-
-export const mailModule = {
-  globalRoutes: mailGlobalRoutes,
-  manifest: mailManifest,
-} as const;
+/** Compatibility entry; the official suite owns this module composition. */
+export * from '@miy/official-suite-web/mail/module';

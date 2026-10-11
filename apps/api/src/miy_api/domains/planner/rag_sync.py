@@ -1,0 +1,16 @@
+from __future__ import annotations
+
+from sqlalchemy.orm import Session
+
+from miy_api.domains.planner.models import PlannerEvent
+from miy_api.domains.rag.contracts import RagSyncOperation
+
+
+def enqueue_planner_event_rag_sync(
+    db: Session,
+    *,
+    event: PlannerEvent,
+    operation: RagSyncOperation,
+) -> None:
+    """Personal planner events are not projected into company search/RAG."""
+    del db, event, operation

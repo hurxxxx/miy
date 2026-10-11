@@ -3,8 +3,8 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from dev_accounts import dev_login
-from mty_api.core.db import get_session_factory
-from mty_api.domains.auth.models import CompanyAppControl
+from miy_api.core.db import get_session_factory
+from miy_api.domains.auth.models import CompanyAppControl
 
 
 def test_whiteboard_reuses_pms_space_acl(client: TestClient) -> None:

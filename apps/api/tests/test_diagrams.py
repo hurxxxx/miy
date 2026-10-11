@@ -113,8 +113,8 @@ def test_diagrams_create_update_archive_restore_and_preview(client: TestClient) 
 def test_diagrams_requires_current_app_admission(client: TestClient) -> None:
     session = dev_login(client, "delivery-hub-member")
 
-    from mty_api.core.db import get_session_factory
-    from mty_api.domains.auth.app_access_models import AppAccessPolicy
+    from miy_api.core.db import get_session_factory
+    from miy_api.domains.auth.app_access_models import AppAccessPolicy
 
     with get_session_factory()() as db:
         db.get(AppAccessPolicy, "diagrams").audience = "selected"

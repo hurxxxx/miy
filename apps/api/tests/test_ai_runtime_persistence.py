@@ -11,16 +11,16 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
-from mty_api.domains.ai import approvals as ai_approvals
-from mty_api.domains.ai.runtime.models import AgentInvocation, AgentRun, AgentTraceEvent
-from mty_api.domains.ai.runtime.persistence import (
+from miy_api.domains.ai import approvals as ai_approvals
+from miy_api.domains.ai.runtime.models import AgentInvocation, AgentRun, AgentTraceEvent
+from miy_api.domains.ai.runtime.persistence import (
     append_trace_event,
 )
-from mty_api.domains.ai.runtime.retention import scrub_completed_runtime_records
-from mty_api.domains.auth.models import User
-from mty_api.domains.auth.security import new_id
-from mty_api.domains.conversations.models import Conversation
-from mty_api.domains.meeting.models import utcnow_naive
+from miy_api.domains.ai.runtime.retention import scrub_completed_runtime_records
+from miy_api.domains.auth.models import User
+from miy_api.domains.auth.security import new_id
+from miy_api.domains.conversations.models import Conversation
+from miy_api.domains.meeting.models import utcnow_naive
 
 
 @pytest.fixture
@@ -28,11 +28,11 @@ def runtime_session_factory(
     monkeypatch: pytest.MonkeyPatch,
     application_postgres_dsn: str,
 ) -> Iterator[sessionmaker[Session]]:
-    monkeypatch.setenv("MTY_POSTGRES_DSN", application_postgres_dsn)
-    monkeypatch.setenv("MTY_LLM_HEALTHCHECK_ON_STARTUP", "0")
+    monkeypatch.setenv("MIY_POSTGRES_DSN", application_postgres_dsn)
+    monkeypatch.setenv("MIY_LLM_HEALTHCHECK_ON_STARTUP", "0")
 
-    from mty_api.core.db import get_engine, get_session_factory
-    from mty_api.core.settings import get_settings
+    from miy_api.core.db import get_engine, get_session_factory
+    from miy_api.core.settings import get_settings
 
     get_settings.cache_clear()
     get_engine.cache_clear()
@@ -54,7 +54,7 @@ def _seed_scope(db: Session) -> tuple[User, Conversation]:
     user = User(
         id=new_id(),
         login_id=f"runtime-{suffix}",
-        email=f"runtime-{suffix}@mty.local",
+        email=f"runtime-{suffix}@miy.local",
         full_name="Runtime Test User",
         password_hash="test",
     )
@@ -302,9 +302,9 @@ def test_append_trace_event_persists_only_scrubbed_or_size_limited_payload(
     monkeypatch: pytest.MonkeyPatch,
     oversized: bool,
 ) -> None:
-    from mty_api.core.settings import get_settings
+    from miy_api.core.settings import get_settings
 
-    monkeypatch.setenv("MTY_AI_RUNTIME_TRACE_PAYLOAD_MAX_BYTES", "1024")
+    monkeypatch.setenv("MIY_AI_RUNTIME_TRACE_PAYLOAD_MAX_BYTES", "1024")
     get_settings.cache_clear()
     payload = {
         "prompt": "must-not-leak",

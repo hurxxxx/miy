@@ -25,7 +25,7 @@ test('isReadableRepoFile skips tracked symlinks that resolve to directories', ()
   );
 });
 
-const legacyBase = '/projects/mty-';
+const legacyBase = '/projects/miy-';
 const legacyPath = (suffix) => `${legacyBase}${suffix}`;
 
 test('buildLegacyPathPattern detects legacy prod and dev checkouts only at path boundaries', () => {
@@ -36,6 +36,23 @@ test('buildLegacyPathPattern detects legacy prod and dev checkouts only at path 
   assert.equal(pattern.test(`${legacyPath('prod')}uction`), false);
   assert.equal(pattern.test(`${legacyPath('dev')}-local`), false);
   assert.equal(pattern.test(`${legacyPath('dev')}_local`), false);
+});
+
+test('rejects earlier branding paths while accepting miy and unrelated directories', () => {
+  const pattern = buildLegacyPathPattern();
+  for (const legacy of [
+    `/projects/${'open-work-hub'}`,
+    `/.config/${'owh'}-codex-console`,
+    `/.local/share/${'owh'}-codex-console`,
+  ]) {
+    assert.equal(pattern.test(`/home/user${legacy}/current`), true);
+    assert.equal(pattern.test(`ROOT="/home/user${legacy}"`), true);
+    assert.equal(pattern.test(`/home/user${legacy}-unrelated`), false);
+    assert.equal(pattern.test(`/home/user${legacy}_unrelated`), false);
+  }
+  assert.equal(pattern.test('/home/user/projects/miy/dev'), false);
+  assert.equal(pattern.test('/home/user/.config/miy-codex-console/console.env'), false);
+  assert.equal(pattern.test('/home/user/.local/share/miy-codex-console/current'), false);
 });
 
 test('findLegacyPathReferences detects legacy prod and dev paths from in-memory files', () => {

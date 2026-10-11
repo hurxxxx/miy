@@ -16,7 +16,7 @@ import { ensureClaudeSkillsBridge } from './setup-claude-skills.mjs';
 
 async function fixture(t) {
   const repoRoot = await mkdtemp(
-    path.join(os.tmpdir(), 'mty-claude-skills-'),
+    path.join(os.tmpdir(), 'miy-claude-skills-'),
   );
   t.after(async () => {
     await rm(repoRoot, { recursive: true, force: true });

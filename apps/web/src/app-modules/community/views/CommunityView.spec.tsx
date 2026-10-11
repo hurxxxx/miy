@@ -17,52 +17,56 @@ import {
   listCommunityChannels,
   listCommunityPosts,
   markCommunityPostRead,
-} from '../api/community-api';
+} from '@miy/official-suite-web/community/api/community-api';
 import { CommunityView } from './CommunityView';
 
 const realtimeHandlers = vi.hoisted(
   () => new Map<string, (event: unknown) => void>(),
 );
 
-vi.mock('@/src/platform/auth/auth-provider', () => ({
+vi.mock('@miy/platform-web/auth-context', async (original) => ({
+  ...(await original<Record<string, unknown>>()),
   useAuth: () => ({ token: 'token', user: null }),
 }));
 
-vi.mock('@/src/platform/media/use-media-upload', () => ({
+vi.mock('@miy/platform-web/media', () => ({
   useMediaUpload: () => ({
     resolveFileUrl: async (url: string) => url,
     uploadFile: async () => 'media:test',
   }),
 }));
 
-vi.mock('@/src/platform/realtime/realtime-provider', () => ({
+vi.mock('@miy/platform-web/realtime', () => ({
   useRealtimeEvent: (type: string, handler: (event: unknown) => void) => {
     realtimeHandlers.set(type, handler);
   },
 }));
 
-vi.mock('@/src/platform/community/CommunityMarkdownEditor', () => ({
-  CommunityMarkdownEditor: ({
-    ariaLabel,
-    onChange,
-    value,
-  }: {
-    ariaLabel: string;
-    onChange: (value: string) => void;
-    value: string;
-  }) => (
-    <textarea
-      aria-label={ariaLabel}
-      onChange={(event) => onChange(event.target.value)}
-      value={value}
-    />
-  ),
-  CommunityMarkdownViewer: ({ markdown }: { markdown: string }) => (
-    <div>{markdown}</div>
-  ),
-}));
+vi.mock(
+  '@miy/official-suite-web/community/editor/CommunityMarkdownEditor',
+  () => ({
+    CommunityMarkdownEditor: ({
+      ariaLabel,
+      onChange,
+      value,
+    }: {
+      ariaLabel: string;
+      onChange: (value: string) => void;
+      value: string;
+    }) => (
+      <textarea
+        aria-label={ariaLabel}
+        onChange={(event) => onChange(event.target.value)}
+        value={value}
+      />
+    ),
+    CommunityMarkdownViewer: ({ markdown }: { markdown: string }) => (
+      <div>{markdown}</div>
+    ),
+  }),
+);
 
-vi.mock('../api/community-api', () => ({
+vi.mock('@miy/official-suite-web/community/api/community-api', () => ({
   createCommunityComment: vi.fn(),
   createCommunityPost: vi.fn(),
   deleteCommunityComment: vi.fn(),

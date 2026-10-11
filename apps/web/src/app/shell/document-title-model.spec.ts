@@ -10,7 +10,7 @@ function t(key: string, options?: Record<string, unknown>): string {
   if (key === 'documentTitle.profile') return 'Profile';
   if (key === 'launcher.title') return 'App launcher';
   if (key === 'documentTitle.app')
-    return `${String(options?.app)} | MTY`;
+    return `${String(options?.app)} | miy`;
   return String(options?.defaultValue ?? key);
 }
 
@@ -34,7 +34,7 @@ describe('document title model', () => {
       title({
         activeAppId: 'launcher',
       }),
-    ).toBe('App launcher | MTY');
+    ).toBe('App launcher | miy');
   });
 
   it('uses platform app titles', () => {
@@ -42,12 +42,12 @@ describe('document title model', () => {
       title({
         activeAppId: 'settings',
       }),
-    ).toBe('Settings | MTY');
+    ).toBe('Settings | miy');
     expect(
       title({
         activeAppId: 'profile',
       }),
-    ).toBe('Profile | MTY');
+    ).toBe('Profile | miy');
   });
 
   it('uses the settings app title for administration', () => {
@@ -55,7 +55,7 @@ describe('document title model', () => {
       title({
         activeAppId: 'settings',
       }),
-    ).toBe('Settings | MTY');
+    ).toBe('Settings | miy');
   });
 
   it('falls back from i18n key to app bootstrap title and app registry title', () => {
@@ -64,14 +64,14 @@ describe('document title model', () => {
         activeAppId: 'custom-app',
         apps: [{ app_id: 'custom-app', title: 'Custom app' }],
       }),
-    ).toBe('Custom app | MTY');
-    expect(title({ activeAppId: 'docs' })).toBe('docs | MTY');
+    ).toBe('Custom app | miy');
+    expect(title({ activeAppId: 'docs' })).toBe('docs | miy');
   });
 
   it('uses app titles consistently for direct app routes', () => {
     expect(title({ activeAppId: 'retrieval-search' })).toBe(
-      'retrieval-search | MTY',
+      'retrieval-search | miy',
     );
-    expect(title()).toBe('Chatbot | MTY');
+    expect(title()).toBe('Chatbot | miy');
   });
 });

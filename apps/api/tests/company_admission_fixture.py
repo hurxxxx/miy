@@ -2,19 +2,19 @@
 
 from sqlalchemy.orm import Session
 
-from mty_api.domains.auth.app_access_models import (
+from miy_api.domains.auth.app_access_models import (
     AppAccessPolicy,
     AppGroupGrant,
     AppUserGrant,
 )
-from mty_api.domains.auth.app_catalog import iter_app_catalog
-from mty_api.domains.auth.models import (
+from miy_api.domains.auth.app_catalog import iter_app_catalog
+from miy_api.domains.auth.models import (
     AuditLog,
     CompanyAppControl,
     User,
     UserSystemRole,
 )
-from mty_api.domains.groups.models import Group, GroupMember
+from miy_api.domains.groups.models import Group, GroupMember
 
 
 def company_authority_tables():

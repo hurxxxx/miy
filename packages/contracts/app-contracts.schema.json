@@ -1,11 +1,18 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["$schema", "apps"],
+  "required": ["$schema", "apps", "official_app_ids"],
   "additionalProperties": false,
   "properties": {
     "$schema": {
       "const": "./app-contracts.schema.json"
+    },
+    "official_app_ids": {
+      "description": "Owned official app scopes; composition does not activate a runtime writer.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"}
     },
     "apps": {
       "type": "array",
@@ -61,6 +68,10 @@
               },
               "pinned_by_default": {
                 "type": "boolean"
+              },
+              "url_setting": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$"
               }
             }
           },
@@ -101,6 +112,59 @@
                 }
               }
             }
+          },
+          "management": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "summary",
+              "capabilities",
+              "source_paths",
+              "release_unit"
+            ],
+            "properties": {
+              "summary": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "capabilities": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "maxItems": 20,
+                "uniqueItems": true
+              },
+              "source_paths": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 20,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[a-zA-Z0-9_./-]+$"
+                },
+                "uniqueItems": true
+              },
+              "release_unit": {
+                "enum": ["miy-app", "miy-workbench"]
+              }
+            }
+          },
+          "title_translations": {
+            "type": "object",
+            "propertyNames": {
+              "pattern": "^[a-z]{2}-[A-Z]{2}$"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "maxProperties": 20
           }
         }
       }

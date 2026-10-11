@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from mty_api.domains.ai.runtime.trace_payload import (
+from miy_api.domains.ai.runtime.trace_payload import (
     prepare_trace_payload,
     scrub_trace_payload,
 )

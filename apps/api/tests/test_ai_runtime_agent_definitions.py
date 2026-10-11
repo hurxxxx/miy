@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from mty_api.domains.ai.runtime.agent_definitions import (
+from miy_api.domains.ai.runtime.agent_definitions import (
     AgentDefinition,
     AgentDefinitionResolver,
     resolve_agent_definitions,

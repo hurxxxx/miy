@@ -101,6 +101,7 @@ export function Dialog({
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay
+          data-ui-overlay
           className={cn(
             'fixed inset-0 bg-ui-static-black/32 backdrop-blur-sm',
             dialogOverlayLayerClass(layer),

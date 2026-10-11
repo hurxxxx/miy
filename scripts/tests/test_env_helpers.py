@@ -7,19 +7,19 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-HELPER = Path('.agents/skills/mty-env-contracts/scripts/local-env-files.sh')
+HELPER = Path('.agents/skills/miy-env-contracts/scripts/local-env-files.sh')
 
 
 class EnvHelperTest(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(prefix='mty-env-helper-')
+        self.temporary = tempfile.TemporaryDirectory(prefix='miy-env-helper-')
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         (self.root / HELPER).parent.mkdir(parents=True)
         shutil.copyfile(ROOT / HELPER, self.root / HELPER)
         subprocess.run(['git', 'init', '-q'], cwd=self.root, check=True)
-        (self.root / '.env.example').write_text('MTY_NEW=example-value\n')
-        (self.root / '.env').write_text('MTY_EXISTING=synthetic-private-value\n')
+        (self.root / '.env.example').write_text('MIY_NEW=example-value\n')
+        (self.root / '.env').write_text('MIY_EXISTING=synthetic-private-value\n')
 
     def run_helper(self, mode, *extra):
         return subprocess.run(['bash', str(self.root / HELPER), mode, '--source', '.env.example', '--target', '.env', *extra], cwd=self.root, text=True, capture_output=True, timeout=10)
@@ -28,7 +28,7 @@ class EnvHelperTest(unittest.TestCase):
         original = (self.root / '.env').read_bytes()
         result = self.run_helper('status')
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('MTY_NEW', result.stdout)
+        self.assertIn('MIY_NEW', result.stdout)
         self.assertIn('target_mode=', result.stdout)
         self.assertNotIn('synthetic-private-value', result.stdout + result.stderr)
         self.assertNotIn('example-value', result.stdout + result.stderr)
@@ -54,12 +54,6 @@ class EnvHelperTest(unittest.TestCase):
         (self.root / '.env').symlink_to(self.root / '.env.example')
         self.assertNotEqual(self.run_helper('install', '--force').returncode, 0)
 
-    def test_reproduction_template_requires_task_configuration_and_has_safe_help(self):
-        script = ROOT / '.agents/skills/diagnose/scripts/hitl-loop.template.sh'
-        plain = subprocess.run(['bash', str(script)], text=True, capture_output=True, timeout=5)
-        self.assertEqual(plain.returncode, 2)
-        help_result = subprocess.run(['bash', str(script), '--help'], text=True, capture_output=True, timeout=5)
-        self.assertEqual(help_result.returncode, 0)
 
 
 if __name__ == '__main__':

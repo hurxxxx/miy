@@ -23,6 +23,16 @@ test('current app contracts satisfy schema and policy invariants', () => {
   assert.doesNotThrow(() => validateAppContracts(cloneSource(), schema));
 });
 
+test('official scopes require explicit registered unique app IDs', () => {
+  const candidate = cloneSource();
+  candidate.official_app_ids.push('unknown-app');
+  assert.throws(() => validateAppContracts(candidate, schema), /Unknown official app id/);
+  candidate.official_app_ids = ['docs', 'docs'];
+  assert.throws(() => validateAppContracts(candidate, schema), /Invalid app contract schema/);
+  delete candidate.official_app_ids;
+  assert.throws(() => validateAppContracts(candidate, schema), /Invalid app contract schema/);
+});
+
 test('schema rejects unknown root fields', () => {
   const candidate = cloneSource();
   candidate.legacy = true;

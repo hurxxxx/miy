@@ -11,9 +11,10 @@ from test_meeting import _auth_headers, _bootstrap_admin_session, _create_compan
 
 @pytest.fixture(autouse=True)
 def _clear_livekit_public_url(monkeypatch: pytest.MonkeyPatch):
-    from mty_api.core.settings import get_settings
+    from miy_api.core.settings import get_settings
 
-    monkeypatch.setenv("MTY_LIVEKIT_PUBLIC_URL", "")
+    monkeypatch.setenv("MIY_LIVEKIT_PUBLIC_URL", "")
+    monkeypatch.setenv("MIY_VIDEO_CHAT_ROOM_PREFIX", "miy")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
@@ -50,7 +51,7 @@ def test_video_chat_session_create_list_and_join_token(client: TestClient) -> No
     assert session["status"] == "open"
     assert session["provider"] == "livekit"
     assert session["meeting_id"] is None
-    assert session["room_name"].startswith("mty-")
+    assert session["room_name"].startswith("miy-")
 
     listed = client.get(
         "/api/v1/video-chat/sessions",
@@ -95,9 +96,9 @@ def test_video_chat_join_token_prefers_configured_public_livekit_url(
     client: TestClient,
     monkeypatch,
 ) -> None:
-    from mty_api.core.settings import get_settings
+    from miy_api.core.settings import get_settings
 
-    monkeypatch.setenv("MTY_LIVEKIT_PUBLIC_URL", "wss://video.example.test")
+    monkeypatch.setenv("MIY_LIVEKIT_PUBLIC_URL", "wss://video.example.test")
     get_settings.cache_clear()
     try:
         admin = _bootstrap_admin_session(client)
@@ -155,7 +156,7 @@ def test_video_chat_ended_session_cannot_issue_join_token(client: TestClient) ->
         headers=_auth_headers(admin["token"]),
     )
     assert token_response.status_code == 409, token_response.text
-    assert token_response.headers["X-MTY-Error-Code"] == "video_chat.session_closed"
+    assert token_response.headers["X-MIY-Error-Code"] == "video_chat.session_closed"
 
 
 def test_video_chat_non_owner_cannot_end_session(client: TestClient) -> None:
@@ -164,7 +165,7 @@ def test_video_chat_non_owner_cannot_end_session(client: TestClient) -> None:
     member = _create_company_user(
         client,
         admin["token"],
-        email="video-member@mty.local",
+        email="video-member@miy.local",
         full_name="Video Member",
     )
     member_token = _login(
@@ -179,7 +180,7 @@ def test_video_chat_non_owner_cannot_end_session(client: TestClient) -> None:
     )
 
     assert end_response.status_code == 403, end_response.text
-    assert end_response.headers["X-MTY-Error-Code"] == "video_chat.host_required"
+    assert end_response.headers["X-MIY-Error-Code"] == "video_chat.host_required"
 
     fresh_response = client.get(
         f"/api/v1/video-chat/sessions/{session['id']}",
@@ -198,11 +199,11 @@ def test_video_chat_recording_and_captions_are_feature_flagged(client: TestClien
         headers=_auth_headers(admin["token"]),
     )
     assert recording.status_code == 503, recording.text
-    assert recording.headers["X-MTY-Error-Code"] == "video_chat.recording_not_enabled"
+    assert recording.headers["X-MIY-Error-Code"] == "video_chat.recording_not_enabled"
 
     captions = client.post(
         f"/api/v1/video-chat/sessions/{session['id']}/captions/start",
         headers=_auth_headers(admin["token"]),
     )
     assert captions.status_code == 503, captions.text
-    assert captions.headers["X-MTY-Error-Code"] == "video_chat.captions_not_enabled"
+    assert captions.headers["X-MIY-Error-Code"] == "video_chat.captions_not_enabled"

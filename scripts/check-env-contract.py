@@ -2,71 +2,75 @@
 from __future__ import annotations
 
 import ast
+import os
 import re
 import sys
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from re import Pattern
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SETTINGS_FILE_PARTS = [
-    Path("apps/api/src/mty_api/core/settings.py"),
-    Path("apps/worker/src/mty_worker/settings.py"),
+    Path("apps/api/src/miy_api/core/settings.py"),
+    Path("apps/worker/src/miy_worker/settings.py"),
 ]
 SETTINGS_FILES = [ROOT / part for part in SETTINGS_FILE_PARTS]
 DEPLOY_ENV_KEYS: frozenset[str] = frozenset(
     {
-        "MTY_APP_BIND_HOST",
-        "MTY_APP_FORWARDED_ALLOW_IPS",
-        "MTY_APP_PORT",
-        "MTY_APP_PUBLIC_URL",
+        "MIY_APP_BIND_HOST",
+        "MIY_APP_FORWARDED_ALLOW_IPS",
+        "MIY_APP_PORT",
+        "MIY_APP_PUBLIC_URL",
     }
 )
 
 FORBIDDEN_ENV_KEYS = frozenset(
     {
-        "MTY_AI_MANAGER_ENABLED",
-        "MTY_AI_MANAGER_HOSTED_TOOLS_ENABLED",
-        "MTY_AI_MANAGER_MAX_LOOPS",
-        "MTY_AI_MANAGER_MODEL",
-        "MTY_AI_MANAGER_PROVIDER",
-        "MTY_AI_MANAGER_STORE_RESPONSE",
-        "MTY_AI_MANAGER_TRACE_SENSITIVE_DATA",
-        "MTY_API_RECORDING_CHUNK_SECONDS",
-        "MTY_CUSTOMER_CODE",
-        "MTY_ENABLED_EXTENSION_APPS",
-        "MTY_INFERENCE_GATEWAY_ASR_CONCURRENCY",
-        "MTY_INFERENCE_GATEWAY_ASR_ENABLED",
-        "MTY_INFERENCE_GATEWAY_ASR_LANGUAGE",
-        "MTY_INFERENCE_GATEWAY_ASR_MAX_NEW_TOKENS",
-        "MTY_INFERENCE_GATEWAY_ASR_MODEL",
-        "MTY_INFERENCE_GATEWAY_ASR_PUBLIC_MODEL",
-        "MTY_INFERENCE_GATEWAY_ASR_REVISION",
-        "MTY_INFERENCE_GATEWAY_DEVICE",
-        "MTY_INFERENCE_GATEWAY_DOCLING_CONCURRENCY",
-        "MTY_INFERENCE_GATEWAY_DOCLING_ENABLED",
-        "MTY_INFERENCE_GATEWAY_DTYPE",
-        "MTY_INFERENCE_GATEWAY_EMBEDDING_BATCH_SIZE",
-        "MTY_INFERENCE_GATEWAY_EMBEDDING_CONCURRENCY",
-        "MTY_INFERENCE_GATEWAY_EMBEDDING_ENABLED",
-        "MTY_INFERENCE_GATEWAY_EMBEDDING_MODEL",
-        "MTY_INFERENCE_GATEWAY_EMBEDDING_QUERY_PROMPT_NAME",
-        "MTY_INFERENCE_GATEWAY_EMBEDDING_REVISION",
-        "MTY_INFERENCE_GATEWAY_HF_TOKEN_FILE",
-        "MTY_INFERENCE_GATEWAY_HOST",
-        "MTY_INFERENCE_GATEWAY_MAX_EMBEDDING_INPUTS",
-        "MTY_INFERENCE_GATEWAY_MAX_RERANK_DOCUMENTS",
-        "MTY_INFERENCE_GATEWAY_MAX_TEXT_CHARS",
-        "MTY_INFERENCE_GATEWAY_MAX_UPLOAD_BYTES",
-        "MTY_INFERENCE_GATEWAY_PORT",
-        "MTY_INFERENCE_GATEWAY_RERANKER_BATCH_SIZE",
-        "MTY_INFERENCE_GATEWAY_RERANKER_CONCURRENCY",
-        "MTY_INFERENCE_GATEWAY_RERANKER_ENABLED",
-        "MTY_INFERENCE_GATEWAY_RERANKER_MODEL",
-        "MTY_INFERENCE_GATEWAY_RERANKER_REVISION",
-        "MTY_RAG_UI_ENABLED",
+        "MIY_LLM_LOCAL_API_KEY",
+        "MIY_LLM_LOCAL_BASE_URL",
+        "MIY_LLM_LOCAL_PROVIDER",
+        "MIY_AI_DEFAULT_EXTERNAL_LLM_PROVIDER",
+        "MIY_AI_MANAGER_ENABLED",
+        "MIY_AI_MANAGER_HOSTED_TOOLS_ENABLED",
+        "MIY_AI_MANAGER_MAX_LOOPS",
+        "MIY_AI_MANAGER_MODEL",
+        "MIY_AI_MANAGER_PROVIDER",
+        "MIY_AI_MANAGER_STORE_RESPONSE",
+        "MIY_AI_MANAGER_TRACE_SENSITIVE_DATA",
+        "MIY_API_RECORDING_CHUNK_SECONDS",
+        "MIY_CUSTOMER_CODE",
+        "MIY_ENABLED_EXTENSION_APPS",
+        "MIY_INFERENCE_GATEWAY_ASR_CONCURRENCY",
+        "MIY_INFERENCE_GATEWAY_ASR_ENABLED",
+        "MIY_INFERENCE_GATEWAY_ASR_LANGUAGE",
+        "MIY_INFERENCE_GATEWAY_ASR_MAX_NEW_TOKENS",
+        "MIY_INFERENCE_GATEWAY_ASR_MODEL",
+        "MIY_INFERENCE_GATEWAY_ASR_PUBLIC_MODEL",
+        "MIY_INFERENCE_GATEWAY_ASR_REVISION",
+        "MIY_INFERENCE_GATEWAY_DEVICE",
+        "MIY_INFERENCE_GATEWAY_DOCLING_CONCURRENCY",
+        "MIY_INFERENCE_GATEWAY_DOCLING_ENABLED",
+        "MIY_INFERENCE_GATEWAY_DTYPE",
+        "MIY_INFERENCE_GATEWAY_EMBEDDING_BATCH_SIZE",
+        "MIY_INFERENCE_GATEWAY_EMBEDDING_CONCURRENCY",
+        "MIY_INFERENCE_GATEWAY_EMBEDDING_ENABLED",
+        "MIY_INFERENCE_GATEWAY_EMBEDDING_MODEL",
+        "MIY_INFERENCE_GATEWAY_EMBEDDING_QUERY_PROMPT_NAME",
+        "MIY_INFERENCE_GATEWAY_EMBEDDING_REVISION",
+        "MIY_INFERENCE_GATEWAY_HF_TOKEN_FILE",
+        "MIY_INFERENCE_GATEWAY_HOST",
+        "MIY_INFERENCE_GATEWAY_MAX_EMBEDDING_INPUTS",
+        "MIY_INFERENCE_GATEWAY_MAX_RERANK_DOCUMENTS",
+        "MIY_INFERENCE_GATEWAY_MAX_TEXT_CHARS",
+        "MIY_INFERENCE_GATEWAY_MAX_UPLOAD_BYTES",
+        "MIY_INFERENCE_GATEWAY_PORT",
+        "MIY_INFERENCE_GATEWAY_RERANKER_BATCH_SIZE",
+        "MIY_INFERENCE_GATEWAY_RERANKER_CONCURRENCY",
+        "MIY_INFERENCE_GATEWAY_RERANKER_ENABLED",
+        "MIY_INFERENCE_GATEWAY_RERANKER_MODEL",
+        "MIY_INFERENCE_GATEWAY_RERANKER_REVISION",
+        "MIY_RAG_UI_ENABLED",
         "GOOGLE_CLOUD_API_KEY",
         "GOOGLE_APPLICATION_CREDENTIALS",
         "GOOGLE_CLOUD_PROJECT",
@@ -74,8 +78,8 @@ FORBIDDEN_ENV_KEYS = frozenset(
 )
 
 FORBIDDEN_ENV_PATTERNS = [
-    re.compile(r"\bOPEN_WORK_HUB_[A-Z0-9_]*\b"),
-    re.compile(r"(?<!MTY_)\bLOCAL_AI_[A-Z0-9_]*\b"),
+    re.compile(r"\b(?:VITE_)?(?:OPEN_WORK_HUB|OWH)_[A-Z0-9_]*\b"),
+    re.compile(r"(?<!MIY_)\bLOCAL_AI_[A-Z0-9_]*\b"),
     re.compile(r"\bAI_AGENT_MAX_[A-Z0-9_]*\b"),
     re.compile(r"\bAI_TOOL_CALLING_ENABLED\b"),
     re.compile(r"\bOPENAI_API_KEY\b"),
@@ -83,7 +87,7 @@ FORBIDDEN_ENV_PATTERNS = [
     re.compile(r"\bGEMINI_API_KEY\b"),
     re.compile(r"\bCOHERE_API_KEY\b"),
     re.compile(r"\bHUGGINGFACE_HUB_TOKEN\b"),
-    re.compile(r"\bMTY_REDIS_URL\b"),
+    re.compile(r"\bMIY_REDIS_URL\b"),
 ]
 
 SKIP_DIRS = {
@@ -101,7 +105,7 @@ SKIP_DIRS = {
     "node_modules",
 }
 SKIP_FILE_PARTS = (".backup",)
-SKIP_SETTINGS_KEYS = {"MTY_API_MTY_DESKTOP_UPDATE_DIRS"}
+SKIP_SETTINGS_KEYS = {"MIY_API_MIY_DESKTOP_UPDATE_DIRS"}
 SOURCE_FILE_SUFFIXES = {
     ".py",
     ".sh",
@@ -185,6 +189,7 @@ class EnvContractReport:
     settings_files: tuple[SettingsFileScan, ...]
     forbidden_hits: tuple[ForbiddenTokenHit, ...]
     failures: tuple[EnvContractFailure, ...]
+    deploy_env_keys: frozenset[str]
 
     @property
     def ok(self) -> bool:
@@ -199,7 +204,7 @@ class EnvContractReport:
         keys: set[str] = set()
         for settings_file in self.settings_files:
             keys.update(settings_file.keys)
-        keys.update(DEPLOY_ENV_KEYS)
+        keys.update(self.deploy_env_keys)
         return frozenset(keys)
 
     def success_message(self) -> str:
@@ -224,15 +229,13 @@ def env_file_paths(root: Path, env_name: str) -> dict[str, Path]:
     local_env = root / ".env.local"
     if local_env.exists():
         env_files["local"] = local_env
-    for sibling_name in ("dev", "prod"):
-        sibling_env = root.parent / sibling_name / ".env"
-        if sibling_name != env_name and sibling_env.exists():
-            env_files[sibling_name] = sibling_env
     return env_files
 
 
-def settings_file_paths(root: Path) -> tuple[Path, ...]:
-    return tuple(root / part for part in SETTINGS_FILE_PARTS)
+def settings_file_paths(
+    root: Path, parts: Iterable[Path] = SETTINGS_FILE_PARTS
+) -> tuple[Path, ...]:
+    return tuple(root / part for part in parts)
 
 
 def parse_env_text(text: str) -> tuple[tuple[str, ...], dict[str, tuple[int, ...]]]:
@@ -310,7 +313,9 @@ def uppercase_field_name(name: str) -> str:
     return name.upper()
 
 
-def settings_env_keys_from_tree(tree: ast.AST) -> frozenset[str]:
+def settings_env_keys_from_tree(
+    tree: ast.AST, *, skip_settings_keys: Iterable[str] = SKIP_SETTINGS_KEYS
+) -> frozenset[str]:
     keys: set[str] = set()
     for node in tree.body:
         if not isinstance(node, ast.ClassDef) or node.name != "Settings":
@@ -346,29 +351,33 @@ def settings_env_keys_from_tree(tree: ast.AST) -> frozenset[str]:
                 keys.update(aliases)
             elif env_prefix:
                 keys.add(env_prefix + uppercase_field_name(field_name))
-    return frozenset(keys - SKIP_SETTINGS_KEYS)
+    return frozenset(keys - set(skip_settings_keys))
 
 
 def settings_env_keys_from_text(
     text: str,
     *,
     filename: str = "<settings>",
+    skip_settings_keys: Iterable[str] = SKIP_SETTINGS_KEYS,
 ) -> frozenset[str]:
     tree = ast.parse(text, filename=filename)
-    return settings_env_keys_from_tree(tree)
+    return settings_env_keys_from_tree(tree, skip_settings_keys=skip_settings_keys)
 
 
 def settings_env_keys(path: Path) -> frozenset[str]:
     return settings_env_keys_from_text(path.read_text(encoding="utf-8"), filename=str(path))
 
 
-def scan_settings_file(settings_file: TextFileContent) -> SettingsFileScan:
+def scan_settings_file(
+    settings_file: TextFileContent, *, skip_settings_keys: Iterable[str] = SKIP_SETTINGS_KEYS
+) -> SettingsFileScan:
     if settings_file.text is None:
         return SettingsFileScan(settings_file.path, frozenset(), missing=True)
     try:
         keys = settings_env_keys_from_text(
             settings_file.text,
             filename=settings_file.display_name,
+            skip_settings_keys=skip_settings_keys,
         )
     except SyntaxError as exc:
         return SettingsFileScan(
@@ -393,14 +402,21 @@ def source_files(
     *,
     excluded_paths: Iterable[Path] = (),
 ) -> list[Path]:
+    resolved_root = root.resolve()
     excluded = {path.resolve() for path in excluded_paths}
     result: list[Path] = []
-    for path in root.rglob("*"):
-        if not path.is_file():
-            continue
-        if path.resolve() in excluded:
-            continue
-        if should_scan_source_file(path, root):
+    for directory, directories, filenames in os.walk(root, followlinks=False):
+        # Prune before traversal: local runtimes and vendor trees can contain
+        # millions of files, none of which belong to this source contract.
+        directories[:] = [name for name in directories if name not in SKIP_DIRS]
+        for filename in filenames:
+            path = Path(directory) / filename
+            if not should_scan_source_file(path, root) or not path.is_file():
+                continue
+            resolved = path.resolve()
+            # A linked runtime config outside the checkout is not repository source.
+            if not resolved.is_relative_to(resolved_root) or resolved in excluded:
+                continue
             result.append(path)
     return result
 
@@ -433,10 +449,16 @@ def evaluate_env_contract(
     current_env_name: str,
     forbidden_patterns: Iterable[Pattern[str]],
     forbidden_env_keys: Iterable[str] = (),
+    runtime_config_keys: Iterable[str] = (),
+    deploy_env_keys: Iterable[str] = DEPLOY_ENV_KEYS,
+    skip_settings_keys: Iterable[str] = SKIP_SETTINGS_KEYS,
 ) -> EnvContractReport:
+    public_keys = frozenset(runtime_config_keys)
+    deploy_keys = frozenset(deploy_env_keys)
     parsed_env_files = tuple(parse_env(env_file) for env_file in env_files)
     settings_scans = tuple(
-        scan_settings_file(settings_file) for settings_file in settings_files
+        scan_settings_file(settings_file, skip_settings_keys=skip_settings_keys)
+        for settings_file in settings_files
     )
     forbidden_hits = scan_forbidden_tokens(source_file_contents, forbidden_patterns)
 
@@ -476,8 +498,8 @@ def evaluate_env_contract(
         for env_file in parsed_env_files:
             if env_file.name == current_env_name or env_file.missing:
                 continue
-            missing = sorted(base.key_set - env_file.key_set)
-            extra = sorted(env_file.key_set - base.key_set)
+            missing = sorted(base.key_set - env_file.key_set - public_keys)
+            extra = sorted(env_file.key_set - base.key_set - public_keys)
             if missing or extra:
                 failures.append(
                     EnvContractFailure(
@@ -488,7 +510,9 @@ def evaluate_env_contract(
                         ),
                     )
                 )
-            elif env_file.keys != base.keys:
+            elif tuple(key for key in env_file.keys if key not in public_keys) != tuple(
+                key for key in base.keys if key not in public_keys
+            ):
                 failures.append(
                     EnvContractFailure(
                         code="env_key_order_mismatch",
@@ -527,11 +551,18 @@ def evaluate_env_contract(
                 )
             )
 
-    settings_keys: set[str] = set(DEPLOY_ENV_KEYS)
+    settings_keys: set[str] = set(deploy_keys)
     for settings_scan in settings_scans:
         settings_keys.update(settings_scan.keys)
+    unknown_public_keys = public_keys - settings_keys
+    if unknown_public_keys:
+        failures.append(EnvContractFailure(
+            code="unknown_runtime_config_key",
+            message="runtime config contains keys without typed settings: "
+            + ", ".join(sorted(unknown_public_keys)),
+        ))
     if base is not None and not base.missing:
-        missing_settings_keys = sorted(settings_keys - base.key_set)
+        missing_settings_keys = sorted(settings_keys - base.key_set - public_keys)
         if missing_settings_keys:
             failures.append(
                 EnvContractFailure(
@@ -557,6 +588,7 @@ def evaluate_env_contract(
         settings_files=settings_scans,
         forbidden_hits=forbidden_hits,
         failures=tuple(failures),
+        deploy_env_keys=deploy_keys,
     )
 
 
@@ -585,26 +617,170 @@ def load_text_file(path: Path, *, root: Path = ROOT) -> TextFileContent:
     )
 
 
-def build_report(root: Path = ROOT) -> EnvContractReport:
+def _checkout_report(
+    root: Path,
+    *,
+    forbidden_env_keys: Iterable[str],
+    settings_parts: Iterable[Path] = SETTINGS_FILE_PARTS,
+    deploy_env_keys: Iterable[str] = DEPLOY_ENV_KEYS,
+    skip_settings_keys: Iterable[str] = SKIP_SETTINGS_KEYS,
+    scan_sources: bool,
+    allow_legacy_runtime_config: bool = False,
+) -> EnvContractReport:
+    sys.path.insert(0, str(ROOT / "apps/api/src"))
+    from miy_api.core.runtime_config import (
+        RuntimeConfigError,
+        load_runtime_document,
+    )
+
+    runtime_paths = (root / "config/runtime.json", root / "config/runtime.schema.json")
+    config_failure = None
+    if allow_legacy_runtime_config and not any(path.exists() for path in runtime_paths):
+        public_keys = frozenset()
+    else:
+        try:
+            runtime_document = load_runtime_document(root)
+            public_keys = frozenset(runtime_document["defaults"])
+        except RuntimeConfigError as error:
+            public_keys = frozenset()
+            config_failure = EnvContractFailure(code="invalid_runtime_config", message=str(error))
     env_name = current_env_name(root)
     env_files = tuple(
         load_env_file(name, path) for name, path in env_file_paths(root, env_name).items()
     )
     settings_files = tuple(
-        load_text_file(path, root=root) for path in settings_file_paths(root)
+        load_text_file(path, root=root) for path in settings_file_paths(root, settings_parts)
     )
     source_file_contents = tuple(
         load_text_file(path, root=root)
         for path in source_files(root, excluded_paths={Path(__file__).resolve()})
-    )
-    return evaluate_env_contract(
+    ) if scan_sources else ()
+    report = evaluate_env_contract(
         env_files=env_files,
         settings_files=settings_files,
         source_file_contents=source_file_contents,
         current_env_name=env_name,
         forbidden_patterns=FORBIDDEN_ENV_PATTERNS,
-        forbidden_env_keys=FORBIDDEN_ENV_KEYS,
+        forbidden_env_keys=forbidden_env_keys,
+        runtime_config_keys=public_keys,
+        deploy_env_keys=deploy_env_keys,
+        skip_settings_keys=skip_settings_keys,
     )
+    if config_failure is not None:
+        report = replace(report, failures=(*report.failures, config_failure))
+    return report
+
+
+def _checkout_assignment(tree: ast.Module, name: str) -> ast.AST:
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == name for target in node.targets
+        ):
+            return node.value
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id == name:
+            if node.value is not None:
+                return node.value
+    raise ValueError(f"Missing {name} contract")
+
+
+def _checkout_string_set(tree: ast.Module, name: str) -> frozenset[str]:
+    expression = _checkout_assignment(tree, name)
+    if isinstance(expression, ast.Call):
+        if not (
+            isinstance(expression.func, ast.Name)
+            and expression.func.id == "frozenset"
+            and len(expression.args) == 1
+            and not expression.keywords
+        ):
+            raise ValueError(f"Invalid {name} contract")
+        expression = expression.args[0]
+    values = ast.literal_eval(expression)
+    if not isinstance(values, (set, tuple, list)) or not all(isinstance(v, str) for v in values):
+        raise ValueError(f"Invalid {name} contract")
+    return frozenset(values)
+
+
+def _checkout_settings_parts(tree: ast.Module) -> tuple[Path, ...]:
+    expression = _checkout_assignment(tree, "SETTINGS_FILE_PARTS")
+    if not isinstance(expression, (ast.List, ast.Tuple)) or not expression.elts:
+        raise ValueError("Invalid SETTINGS_FILE_PARTS contract")
+    parts: list[Path] = []
+    for element in expression.elts:
+        if not (
+            isinstance(element, ast.Call)
+            and isinstance(element.func, ast.Name)
+            and element.func.id == "Path"
+            and len(element.args) == 1
+            and not element.keywords
+            and isinstance(element.args[0], ast.Constant)
+            and isinstance(element.args[0].value, str)
+        ):
+            raise ValueError("Invalid SETTINGS_FILE_PARTS contract")
+        part = Path(element.args[0].value)
+        if part.is_absolute() or ".." in part.parts or part.suffix != ".py":
+            raise ValueError("Invalid SETTINGS_FILE_PARTS path")
+        parts.append(part)
+    return tuple(parts)
+
+
+def _checkout_peer_contract(
+    root: Path,
+) -> tuple[tuple[Path, ...], frozenset[str], frozenset[str], frozenset[str]]:
+    """Read the peer release's declared contract without executing its code."""
+    tree = ast.parse((root / "scripts/check-env-contract.py").read_text())
+    return (
+        _checkout_settings_parts(tree),
+        _checkout_string_set(tree, "DEPLOY_ENV_KEYS"),
+        _checkout_string_set(tree, "FORBIDDEN_ENV_KEYS"),
+        _checkout_string_set(tree, "SKIP_SETTINGS_KEYS"),
+    )
+
+
+def _checkout_uses_runtime_config(root: Path) -> bool:
+    """Inspect the peer contract without importing or executing peer code."""
+    tree = ast.parse((root / "scripts/check-env-contract.py").read_text())
+    return any(
+        isinstance(node, ast.Name) and node.id == "load_runtime_document"
+        for node in ast.walk(tree)
+    )
+
+
+def build_report(root: Path = ROOT) -> EnvContractReport:
+    report = _checkout_report(root, forbidden_env_keys=FORBIDDEN_ENV_KEYS, scan_sources=True)
+    # Dev can be ahead of production. Validate both, each against the template,
+    # typed settings, public defaults and retired keys shipped in that checkout.
+    for name in ("dev", "prod"):
+        peer = root.parent / name
+        if peer.resolve() == root.resolve() or not (peer / ".env").exists():
+            continue
+        try:
+            settings_parts, deploy_env_keys, retired_keys, skip_settings_keys = _checkout_peer_contract(peer)
+            peer_report = _checkout_report(
+                peer,
+                forbidden_env_keys=retired_keys,
+                settings_parts=settings_parts,
+                deploy_env_keys=deploy_env_keys,
+                skip_settings_keys=skip_settings_keys,
+                scan_sources=False,
+                allow_legacy_runtime_config=not _checkout_uses_runtime_config(peer),
+            )
+        except (OSError, ValueError, SyntaxError):
+            failure = EnvContractFailure(
+                code="invalid_peer_env_contract",
+                message=f"{name}: missing or invalid checkout environment contract",
+            )
+            report = replace(report, failures=(*report.failures, failure))
+            continue
+        report = replace(
+            report,
+            env_files=(*report.env_files, *(replace(item, name=name if item.name == name else f"{name}.{item.name}")
+                        for item in peer_report.env_files)),
+            settings_files=(*report.settings_files, *peer_report.settings_files),
+            deploy_env_keys=report.deploy_env_keys | peer_report.deploy_env_keys,
+            failures=(*report.failures, *(replace(item, message=f"{name}: {item.message}")
+                       for item in peer_report.failures)),
+        )
+    return report
 
 
 def format_report_lines(report: EnvContractReport) -> tuple[str, ...]:

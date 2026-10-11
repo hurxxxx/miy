@@ -1,0 +1,13 @@
+# Core-owned companion to miy-app-sdk-development.service; never auto-installed.
+[Unit]
+Description=MIY persistent loopback SDK development listener
+BindsTo=miy-app-sdk-development.service
+After=miy-app-sdk-development.service
+
+[Socket]
+ListenStream=127.0.0.1:@HOST_PORT@
+Accept=no
+Service=miy-app-sdk-development-proxy.service
+
+[Install]
+WantedBy=sockets.target

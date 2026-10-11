@@ -8,6 +8,27 @@ Web·API·Worker는 저장소 소스에서 실행하고, 최초 셋업의 Postgr
 서버 셋업은 개발 Web을 `0.0.0.0`에서 실행하고 PC가 서버 IP로 직접 접속할 수 있도록 준비한다.
 조직 최초 도입의 완료 기준은 GitLab 관리자·인증·프로젝트·Runner·CI 변수 구성, 실제 개발 MR 파이프라인 성공, 외부 접속과 개발 시드 계정 로그인이다.
 운영 배포는 [Release Domain](docs/domains/release/README.md)의 별도 절차를 따른다.
+운영 갱신은 기존 API·worker·scheduler를 중지한 뒤 migration과 Files 결과 표식
+전환 검사를 마치고 새 런타임을 시작한다. Files 검색이 활성화된 기존 데이터는
+재색인된 실제 Source·keyword·vector 결과의 일치를 확인해야 하며, 검사 실패는
+검증된 이전 런타임으로 복원을 시도한다. `up`의 자동 복원은 새 런타임 시작 전,
+변경되지 않은 기존 컨테이너를 확인할 수 있을 때만 허용한다. worker의 기존
+작업 종료 유예를 보존하며 재색인·서비스 전환은 자동 활성화하지 않는다.
+
+공통 브랜드와 패키지 이름은 **miy**이며 접속 도메인은 설치 설정으로 관리한다.
+기존 MTY·OWH·Open Work Hub 설치를 갱신할 때는 [이름 전환 절차](docs/domains/release/README.md#miy-naming-cutover)에
+따라 `.env` 키를 `MIY_*`로 이전하고 기존 데이터 경로를 보존한 뒤 새 패키지를 설치한다.
+Hermes를 사용하는 기존 설치는 [Hermes 이름 전환](docs/domains/ai/hermes.md#naming-cutover)의
+bootstrap 플러그인 설정 정리와 검증도 수행한다. 기존 프로필 식별자와 세션은 보존한다.
+기존 디렉터리의 이름도 바꾸려면 [설치 경로 이전](docs/domains/release/README.md#existing-installation-paths)에 따라
+Git worktree·서비스·bind mount를 함께 옮기고 임시 경로 링크 없이 검증한다.
+새 Compose 기본 이름으로 실행하기 전에 기존 볼륨·DB·bucket의 이전 또는 명시적 연결을 확인한다.
+아이콘 원본은 `apps/web/public/brand-icon.svg`이며 `pnpm generate:brand-icons`로
+PNG·favicon을 재생성한다. 이 명령은 설치된 Playwright Chromium을 사용한다.
+
+README의 전체 셋업 요청에는 [MIY Workbench 설치](docs/apps/codex-console/README.md#설치)도 포함된다.
+현재 ChatGPT 구독 로그인을 사용하며 miy 개발 서버와 별도 프로세스·로그인·DB로 실행한다.
+개인 앱의 **MIY Workbench**을 클릭하면 새 탭으로 열린다. [함께 설치하는 절차](#61-codex-콘솔-함께-설치)를 완료한다.
 
 ## 설치 계정 권한
 
@@ -39,16 +60,17 @@ Codex 실행 후 `/permissions`에서 **Full access**를 선택한다.
 > AGENTS.md와 INSTALL.md를 읽고 이 리눅스 서버에
 > 개발 환경을 설치해줘. 기존 설정과 데이터를 보존하고 필요한 도구만 설치해줘.
 > PostgreSQL·Redis는 Docker가 아닌 호스트에 네이티브로 설치하고 systemd 서비스로 관리해줘.
-> 개발 설정을 해당 서비스에 맞추고 MTY_WEB_DEV_HOST=0.0.0.0으로 ./dev.sh --minimal-infra --no-infra를 실행해줘.
+> 개발 설정을 해당 서비스에 맞추고 MIY_WEB_DEV_HOST=0.0.0.0으로 ./dev.sh --minimal-infra --no-infra를 실행해줘.
 > API·개발 DB·Redis는 loopback 수신을 유지하고, 내 PC에서 서버 IP로 직접 접속해 시드 계정으로 로그인할 수 있게 해줘.
 > pnpm dev:login-smoke 명령과 agent-browser로 서버 IP 주소의 로그인과 화면을 확인해줘.
 > 조직 최초 도입이면 README 4절의 셋업 요청 범위로 GitLab·Runner·CI 변수와 개발 MR 파이프라인 성공까지 진행해줘. GitLab 도메인·DNS 설정은 제외하고 서버 IP를 사용해줘.
+> 6.1절의 Codex 콘솔도 전용 DB·비밀번호·지속 실행 서비스·HTTPS 접속까지 구성하고, 개인 앱에서 새 탭 열기와 구독 연결을 확인해줘.
 > 비밀값은 대화에 요청하지 말고 서버에서 입력할 방법을 안내해줘.
 > 로그인 정보는 1.1절에 따라 프로젝트 루트의 .auth_info에 기록·갱신하고, 비밀값 대신 파일 경로를 알려줘.
 > 끝나면 접속 방법, 실행한 검사, 사용 가능한 기능과 추가 설정이 필요한 기능을 알려줘.
 
 에이전트는 [AGENTS.md](AGENTS.md)와
-[개발 환경 스킬](.agents/skills/mty-dev-environment/SKILL.md)을 따른다.
+[개발 환경 스킬](.agents/skills/miy-dev-environment/SKILL.md)을 따른다.
 이 문서는 설치 절차의 진입점이며 기능별 설정은 아래의 소유 문서에서 확인한다.
 로케일 복구, 플랫폼별 브라우저·CA 신뢰, 접속 검사와 GitLab·Runner 설치 후 점검은
 [설치 환경별 운영 확인](docs/domains/release/installation-operations.md)에서 관리한다.
@@ -56,7 +78,7 @@ Codex 실행 후 `/permissions`에서 **Full access**를 선택한다.
 ### 1.1. 로그인 정보 파일 관리
 
 셋업을 진행하는 프로젝트 루트에 **`.auth_info`** 파일 하나를 만들어 사용자가 서버에서 직접 열어 볼 수 있는 일반 텍스트로 관리한다.
-기본 설치 경로에서는 `mty/dev/.auth_info`이며, 개발·운영 체크아웃을 분리한 뒤에도 이 파일을 기준으로 갱신한다.
+기본 설치 경로에서는 `miy/dev/.auth_info`이며, 개발·운영 체크아웃을 분리한 뒤에도 이 파일을 기준으로 갱신한다.
 
 - GitLab 관리자·자동화 계정, 개발·운영 시드 계정, PostgreSQL 등 데이터베이스 계정과 Redis 등 인증이 필요한 서비스의 로그인 정보를 기록한다. 파일 안에서 공통(GitLab)·개발·운영을 구분한다.
 - 각 항목에는 서비스명, 접속 URL 또는 호스트·포트, 계정 아이디, 비밀번호, 해당하는 DB 이름, 최종 갱신일을 적는다. 비밀번호 대신 토큰을 사용하는 계정은 토큰과 만료일도 기록한다.
@@ -85,31 +107,34 @@ Git과 CA 인증서가 없으면 Linux 배포판의 패키지 관리자로 먼�
 기존 변경사항과 원격 설정을 보존한다. 아래의 clone·원격 추가·브랜치 생성은 새 체크아웃용이다.
 저장소 주소에는 토큰이나 비밀번호를 넣지 않고 SSH 키 또는 자격증명 관리자를 사용한다.
 
-| 설치 상황 | 진행 순서 |
-| --- | --- |
+| 설치 상황                               | 진행 순서                                                                                                      |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | 조직 최초 도입: 내부 GitLab이 아직 없음 | 2.1절에서 GitHub 원본을 clone → 2.4절과 3~5절에서 최소 실행 확인 → 2.2절에서 내부 GitLab 구성과 초기 코드 등록 |
-| 기존 조직에 개발자·서버 추가 | 2.3절에서 내부 GitLab을 clone → 2.4절 이후 개발 환경 설치 |
+| 기존 조직에 개발자·서버 추가            | 2.3절에서 내부 GitLab을 clone → 2.4절 이후 개발 환경 설치                                                      |
 
-| 원격 이름 | 대상 | 용도 |
-| --- | --- | --- |
-| `upstream` | `https://github.com/hurxxxx/mty.git` | 원본 코드와 업데이트를 가져오는 곳 |
-| `origin` | 조직 내부 GitLab 프로젝트 | 내부 변경사항, MR, CI와 배포 기준을 관리하는 곳 |
+| 원격 이름  | 대상                                 | 용도                                            |
+| ---------- | ------------------------------------ | ----------------------------------------------- |
+| `upstream` | `https://github.com/hurxxxx/miy.git` | 원본 코드와 업데이트를 가져오는 곳              |
+| `origin`   | 조직 내부 GitLab 프로젝트            | 내부 변경사항, MR, CI와 배포 기준을 관리하는 곳 |
 
 원격 역할과 브랜치·게시 권한은 [저장소 정책](AGENTS.md#git-and-delivery)을 따른다.
-체크아웃은 하나의 `mty` 디렉터리 아래에서 관리한다.
-최소 첫 실행은 `mty/dev`에서 준비한다. 내부 GitLab의 `main` 등록 뒤 개발·운영 경로를 함께
-준비하는 설치에서는 2.5절에 따라 `mty/prod`를 만든다. 작업별 체크아웃은 필요할 때
-`mty/worktrees/<작업명>`에 추가한다.
+기존 설치를 miy로 옮길 때는 새 저장소 주소로 clone하기 전에
+[miy 이름 전환 절차](docs/domains/release/README.md#miy-naming-cutover)를 따른다.
+기존 Hermes 프로필·세션 ID는 유지하며, 새 게이트웨이의 bootstrap이 관리 대상 프로필의 런타임 플러그인 설정만 갱신한다.
+체크아웃은 하나의 `miy` 디렉터리 아래에서 관리한다.
+최소 첫 실행은 `miy/dev`에서 준비한다. 내부 GitLab의 `main` 등록 뒤 개발·운영 경로를 함께
+준비하는 설치에서는 2.5절에 따라 `miy/prod`를 만든다. 작업별 체크아웃은 필요할 때
+`miy/worktrees/<작업명>`에 추가한다.
 
 ### 2.1. 조직 최초 도입: GitHub 원본에서 시작
 
-원하는 작업 위치에 `mty`를 만들고 그 아래의 새 `dev` 디렉터리에 Git 이력을 포함해 내려받는다.
+원하는 작업 위치에 `miy`를 만들고 그 아래의 새 `dev` 디렉터리에 Git 이력을 포함해 내려받는다.
 이 예시는 원본 `main`의 체크아웃 시점 커밋을 최초 기준으로 사용한다.
 
 ```bash
-mkdir -p mty
-cd mty
-git clone --origin upstream --branch main https://github.com/hurxxxx/mty.git dev
+mkdir -p miy
+cd miy
+git clone --origin upstream --branch main https://github.com/hurxxxx/miy.git dev
 cd dev
 git switch --no-track -c dev
 git config remote.pushDefault origin
@@ -180,11 +205,11 @@ PC 접속은 로그인 화면과 실제 로그인으로 확인한다. 재구성�
 
 새 GitLab의 초기 셋업은 에이전트가 다음 계정으로 완료한다. GitLab이 만드는 `root`를 사용하며 별도 관리자 계정 생성을 사용자에게 요구하지 않는다.
 
-| 초기 셋업 항목 | 값 |
-| --- | --- |
-| 관리자 로그인 아이디 | `root` |
-| 초기 셋업 비밀번호 | `test1234!` |
-| `glab` 인증 | `root` 소유 PAT를 에이전트가 발급해 표준 입력으로 전달 |
+| 초기 셋업 항목       | 값                                                     |
+| -------------------- | ------------------------------------------------------ |
+| 관리자 로그인 아이디 | `root`                                                 |
+| 초기 셋업 비밀번호   | `test1234!`                                            |
+| `glab` 인증          | `root` 소유 PAT를 에이전트가 발급해 표준 입력으로 전달 |
 
 1. GitLab이 생성한 `root` 계정과 현재 초기화 상태를 확인한다. 자동 생성된 초기 비밀번호가 필요하면 서버의 `/etc/gitlab/initial_root_password`를 보호된 입력으로 사용한다. Docker 설치에서는 컨테이너 내부의 같은 경로다.
 2. 새 설치의 `root` 비밀번호를 위 초기 셋업 값으로 설정하고 실제 GitLab 로그인까지 확인한다. 자동 생성 비밀번호는 이 값과 같다고 가정하지 않는다. 공식 관리자 화면 또는 아래 비밀번호 재설정 절차를 에이전트가 수행한다.
@@ -212,7 +237,7 @@ sudo docker exec -it '<GitLab-컨테이너>' gitlab-rake 'gitlab:password:reset[
 기준 문서: [최초 로그인](https://docs.gitlab.com/install/next_steps/),
 [사용자 생성](https://docs.gitlab.com/user/profile/account/create_accounts/),
 [비밀번호 변경·복구](https://docs.gitlab.com/security/reset_user_password/).
-GitLab의 `root`는 OS의 `root`나 MTY의 개발용 `administrator` 계정과 별개다.
+GitLab의 `root`는 OS의 `root`나 miy의 개발용 `administrator` 계정과 별개다.
 
 #### 2.2.3. glab 설치와 내부 GitLab 인증
 
@@ -241,7 +266,7 @@ SSH 방식의 Git 접근은 에이전트가 서버 설치 계정의 SSH 공개�
 ```bash
 GITLAB_HOST='<서버-IP>'
 GITLAB_API_HOST="$GITLAB_HOST:8443" # 실제 GitLab HTTPS 포트로 변경
-GITLAB_REPO="https://$GITLAB_API_HOST/group/mty"
+GITLAB_REPO="https://$GITLAB_API_HOST/group/miy"
 glab auth login --hostname "$GITLAB_HOST" --api-host "$GITLAB_API_HOST" \
   --api-protocol https --git-protocol ssh --stdin < '<PAT만-담은-임시파일>'
 glab auth status --hostname "$GITLAB_HOST"
@@ -319,10 +344,10 @@ git ls-remote --heads origin main dev
 `glab`은 GitLab API를 조작하는 도구이며 Runner나 CI 실행 환경을 대신 설치하지 않는다.
 정확한 실행 조건과 이미지·태그는 [현재 CI 정의](.gitlab-ci.yml)가 기준이다.
 
-| 현재 실행 대상 | 필요한 준비 |
-| --- | --- |
-| 같은 프로젝트의 작업 브랜치 → `dev` MR | `codex-local` 태그의 리뷰 Runner와 설치된 Codex 리뷰 실행기 |
-| 같은 프로젝트의 `dev` → `main` 릴리스 MR | `mty-validation` 태그의 검증 Runner, 검증 이미지, 테스트 DB와 CI 변수 |
+| 현재 실행 대상                                  | 필요한 준비                                                                                              |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| 같은 프로젝트의 작업 브랜치 → `dev` MR          | `codex-local` 태그의 리뷰 Runner와 설치된 Codex 리뷰 실행기                                              |
+| 같은 프로젝트의 `dev` → `main` 릴리스 MR        | `miy-validation` 태그의 검증 Runner, 검증 이미지, 테스트 DB와 CI 변수                                    |
 | `contracts-v<버전>` 형식 중 CI 규칙에 맞는 태그 | 검증 Runner와 GitLab npm Package Registry 접근. 실제 패키지 게시이므로 설치 확인용 태그를 만들지 않는다. |
 
 일반 브랜치 push나 `glab ci run --branch dev`는 현재 workflow의 MR 조건을 만족하지 않는다.
@@ -347,22 +372,26 @@ sudo gitlab-runner verify
 등록 성공만으로 작업 실행 준비가 끝나는 것은 아니다. 검증 Runner가 사용하는 Docker 데몬에서
 **승인된 저장소 커밋**으로 다음 이미지를 준비한다.
 프로젝트 DB에 읽기 전용으로 접속해 실제 서버 메이저 버전을 확인한다. `psql --version`은 클라이언트 버전이므로 서버 버전 대신 사용하지 않는다.
-아래 예시의 `mty-dev`는 에이전트가 기존 개발 DB 설정을 바탕으로 준비한 [libpq 연결 서비스](https://www.postgresql.org/docs/current/libpq-pgservice.html) 이름이다. 비밀번호는 소유자만 읽을 수 있는 passfile로 전달하고 명령 인자에 쓰지 않는다. `psql`, Docker, Buildx와 `jq`가 필요하다.
+아래 예시의 `miy-dev`는 에이전트가 기존 개발 DB 설정을 바탕으로 준비한 [libpq 연결 서비스](https://www.postgresql.org/docs/current/libpq-pgservice.html) 이름이다. 비밀번호는 소유자만 읽을 수 있는 passfile로 전달하고 명령 인자에 쓰지 않는다. `psql`, Docker, Buildx와 `jq`가 필요하다.
 
 ```bash
-project_postgres_version_num="$(psql -XAtw 'service=mty-dev' -c 'SHOW server_version_num')"
+project_postgres_version_num="$(psql -XAtw 'service=miy-dev' -c 'SHOW server_version_num')"
 if [[ ! "$project_postgres_version_num" =~ ^[0-9]{6,}$ ]]; then
   echo '프로젝트 PostgreSQL 서버 버전을 확인하지 못했습니다.' >&2
   exit 1
 fi
 project_postgres_major="$((10#$project_postgres_version_num / 10000))"
 bash scripts/build-ci-validation-image.sh --postgres-major "$project_postgres_major"
-docker build -f ops/opensearch/Dockerfile -t mty-opensearch:3.3.2-nori .
+docker build -f ops/opensearch/Dockerfile -t miy-opensearch:3.3.2-nori .
 ```
 
-검증 이미지 이름은 현재 `mty-validation:node22-python312`다.
+검증 이미지 이름은 현재 `miy-validation:node22-python312`다.
+Console 검사는 이미지에 digest로 고정한 공식 Python standalone 3.12.14(20260929 배포물)를
+사용한다. 빌드·재사용 검증은 포함된 SQLite의 WAL-reset 수정 버전을 확인한다.
+API·Worker의 기존 이미지 가상환경과 Node·uv base pin은 유지한다.
+이미지·BuildKit 캐시의 보관 범위와 용량 설정은 [빌드·테스트 저장 공간](docs/domains/release/README.md#build-and-test-storage)을 따른다. 검증 이미지를 커밋별로 복사·백업하지 않고, 의존성이 같은 이미지를 재사용한다.
 개발 서버의 Node.js 24 설치와는 별도이며, 이름만 같은 다른 이미지로 대체하지 않는다.
-빌드 스크립트는 선택한 PostgreSQL 메이저의 공식 Bookworm 이미지 태그를 불변 digest로 확인한다. PostgreSQL 버전·digest·Docker 플랫폼·Dockerfile·의존성이 일치하면 기존 이미지를 다시 검사해 재사용하고, 다르면 빌드한다. 빌드·클라이언트 검사 실패는 설치 실패로 처리한다.
+빌드 스크립트는 선택한 PostgreSQL 메이저의 공식 Bookworm 이미지 태그를 불변 digest로 확인한다. 같은 공식 이미지에서 `pg_dump`·`pg_restore`·`psql`과 테스트 전용 `initdb`·`postgres` 서버 바이너리·지원 파일을 검증 이미지에 함께 담는다. PostgreSQL 버전·digest·Docker 플랫폼·Dockerfile·의존성이 일치하면 기존 이미지를 다시 검사해 재사용하고, 다르면 빌드한다. 다섯 바이너리의 메이저 검사와 실제 이미지 빌드·재사용 검증이 성공해야 설치 완료로 기록하며, 스크립트 수정이나 문서 갱신만으로 완료로 보지 않는다.
 출력된 PostgreSQL 버전·이미지 digest·플랫폼·의존성 해시를 셋업 결과에 기록한다. 같은 입력으로 재현하려면 `--postgres-client-image 'postgres@sha256:<기록한-digest>'`를 전달한다. ARM64를 포함한 [플랫폼·재빌드 계약](docs/domains/release/README.md#validation-image-platform-and-database)을 따른다.
 로컬 이미지를 쓰는 전용 Runner는 `if-not-present` 등 그 배포 방식에 맞는 pull 정책을 구성한다.
 다른 Docker 데몬에서 실행하는 Runner라면 같은 검증된 이미지가 그 데몬에도 준비되어야 한다.
@@ -373,20 +402,31 @@ OpenSearch는 앱의 최소 첫 실행에는 선택 사항이지만 현재 릴�
 
 리뷰 Runner의 **실제 실행 계정**에 Git·Node.js·Codex·Linux 샌드박스 선행 도구와 Codex 인증을 준비한다.
 개발 사용자의 로그인이나 nvm 설정이 Runner 서비스에 자동으로 전달된다고 가정하지 말고 서비스의 PATH를 맞춘다.
+Codex 로그인·재인증은 Runner 계정으로 전환한 뒤 그 계정의 홈이나 소유한 디렉터리로
+이동해 실행한다. `sudo -H`만 사용하면 현재 작업 디렉터리는 개발 사용자 홈에 남아
+해당 프로젝트의 `.codex/config.toml` 접근이 거부될 수 있다. 실제 계정·홈·CLI와
+선택된 `CODEX_HOME`을 확인하고 공식 `codex login --device-auth`의 브라우저 인증을
+완료한다. 다른 사용자의 인증 파일을 복사하거나 권한을 넓히지 않는다. `login status`의
+로그인 표시만으로 refresh 인증의 복구를 판단하지 말고 원래 필수 리뷰 job의 성공을 확인한다.
 shell executor의 로그인 셸이 서비스 PATH를 초기화할 수 있으므로, Runner 작업 계정에서도 도구 탐색을 확인한다.
 필요하면 해당 Runner의 `config.toml`에 지원되는 `environment = ["PATH=<검증한-도구-경로>:<기본-PATH>"]`를 지정하고 실제 job으로 재검사한다.
-리뷰 전·후 GitLab 메타데이터 검증은 Codex와 **다른 OS 계정** `mty-review-evidence`에서 수행한다.
+실제 job이 `Prepare environment`에서 실패하면 [shell executor 준비 단계 복구](docs/domains/release/installation-operations.md#shell-executor-preparation-failures)를 따른다.
+리뷰 전·후 GitLab 메타데이터 검증은 Codex와 **다른 OS 계정** `miy-review-evidence`에서 수행한다.
 [리뷰 실행기 인증 계약](docs/agents/local-codex-review.md#contract)에 따라 홈 `0700`인 비로그인 서비스 계정을 준비하고,
 그 계정으로 단일 프로젝트 비관리자 GitLab 계정의 `read_api` PAT를 표준 입력으로 받아 `glab`을 인증한다.
 Runner 상세 조회에는 해당 프로젝트의 Maintainer 역할이 필요하다. 인증 파일은 `0600`으로 유지하고 Runner 홈·CI 변수에 복사하지 않는다.
 `glab`의 `--hostname`에는 호스트명, `--api-host`에는 포트를 포함한 주소를 사용하며 실제 API 접속을 확인한다.
-예를 들어 서비스 계정은 `sudo useradd --system --create-home --home-dir /var/lib/mty-review-evidence --shell /usr/sbin/nologin mty-review-evidence`로 만들고,
-기존 계정이 있으면 재생성하지 않고 소유권과 접근 범위를 검증한다. 홈에는 `sudo chmod 700 /var/lib/mty-review-evidence`를 적용한다.
-`/etc/mty/review-evidence.json`을 root 소유로 준비해 실제 값의 `{"api_url":"https://<서버-IP>:8443/api/v4","project_id":<프로젝트-ID>}`를 기록한다.
-`/etc/sudoers.d/mty-review-evidence`에는 실제 Runner 사용자 기준으로 다음 한 명령만 허용하고 `0440` 및 `visudo -cf` 검사를 적용한다.
+예를 들어 서비스 계정은 `sudo useradd --system --create-home --home-dir /var/lib/miy-review-evidence --shell /usr/sbin/nologin miy-review-evidence`로 만들고,
+기존 계정이 있으면 재생성하지 않고 소유권과 접근 범위를 검증한다. 홈에는 `sudo chmod 700 /var/lib/miy-review-evidence`를 적용한다.
+`/etc/miy/review-evidence.json`을 root 소유로 준비해 실제 값의 `{"api_url":"https://<서버-IP>:8443/api/v4","project_id":<프로젝트-ID>}`를 기록한다.
+이 파일에는 인증 토큰을 넣지 않는다. `sudo chown root:miy-review-evidence /etc/miy/review-evidence.json`과
+`sudo chmod 0640 /etc/miy/review-evidence.json`으로 증거 확인 계정만 읽을 수 있게 한다.
+`sudo -u miy-review-evidence test -r /etc/miy/review-evidence.json` 및 같은 계정의 `test ! -w`를 확인한다.
+Runner 계정에는 이 그룹을 부여하지 않고, 인증 파일은 계정의 비공개 홈에서 계속 `0600`으로 유지한다.
+`/etc/sudoers.d/miy-review-evidence`에는 실제 Runner 사용자 기준으로 다음 한 명령만 허용하고 `0440` 및 `visudo -cf` 검사를 적용한다.
 
 ```sudoers
-gitlab-runner ALL=(mty-review-evidence) NOPASSWD: /usr/local/libexec/mty-review-evidence ""
+gitlab-runner ALL=(miy-review-evidence) NOPASSWD: /usr/local/libexec/miy-review-evidence ""
 ```
 
 아래 설치기는 PATH에서 Node.js와 `glab`의 실제 실행 경로를 찾아 실행 파일과 상위 디렉터리가
@@ -399,7 +439,7 @@ root 소유이며 그룹·다른 사용자가 쓸 수 없는지 검사한다. �
 bash scripts/install-codex-review-runner-entrypoint.sh
 ```
 
-설치 대상은 `/usr/local/bin/mty-codex-review-ci`와 `/usr/local/libexec/mty-review-evidence`다.
+설치 대상은 `/usr/local/bin/miy-codex-review-ci`와 `/usr/local/libexec/miy-review-evidence`다.
 설치 계정에서 `bash scripts/check-review-credential-isolation.sh`를 실행해 합성 인증 파일의 Runner 접근 거부와 sudo 명령 제한을 확인한다.
 MR 소스의 스크립트를 직접 실행하도록 바꾸지 않으며, 리뷰의 읽기 전용 실행과 CI 신원·이미지 검사를 유지한다.
 상세 계약은 [Local Codex MR Review](docs/agents/local-codex-review.md),
@@ -409,9 +449,11 @@ Runner 업데이트 후에는 [네트워크·테스트 DB 재검사와 복구](d
 #### 2.2.6. CI 변수 등록과 실제 실행 확인
 
 검증 Runner에서 접근할 수 있는 **CI 전용 비운영 PostgreSQL DB와 계정**을 준비한다.
-테스트용 DB 생성·삭제에 필요한 권한만 부여하고 GitLab 자체 DB, 개발 업무 DB나 운영 DB를 사용하지 않는다.
+테스트용 DB 생성·삭제에 필요한 `CREATEDB`만 부여하고 `NOCREATEROLE`·비-superuser를 유지한다. GitLab 자체 DB, 개발 업무 DB나 운영 DB를 사용하지 않는다.
+독립 앱 데이터·공식 authority reader의 역할 생성·권한 검증 테스트는 검증 이미지의 같은 메이저 서버로 모듈별 일회용 PostgreSQL 프로세스를 소유한다. root CI 안에서도 서버는 비특권 UID로 실행하며, 비공개 임시 비밀번호 파일·SCRAM·loopback과 종료·프로세스 회수·임시 디렉터리 정리를 사용한다. CI에서 서버 바이너리가 없으면 권한 검사를 skip하지 않고 실패한다. 공유 CI 계정에 `CREATEROLE`을 추가하거나 운영 DB 역할을 바꾸지 않는다. 로컬 Docker no-pull 대안과 세부 계약은 [검증 환경 소유 계약](docs/domains/release/README.md#validation-image-platform-and-database)을 따른다.
 Docker 작업 안의 `127.0.0.1`은 호스트 DB 주소가 아니므로 Runner의 실제 네트워크에서 접속 가능한 주소를 사용한다.
 CI 서버와 검증 이미지 클라이언트의 메이저 버전은 프로젝트 DB와 맞춘다. PostgreSQL 17 같은 특정 메이저 버전을 요구하지 않는다.
+CI 테스트 DB 생성에는 서버 측 `vector` 확장도 필요하다. [CI PostgreSQL 확장 준비](docs/domains/release/installation-operations.md#ci-postgresql-extensions)에 따라 설치·검증하고, 확장 생성을 위해 CI 계정에 superuser 권한을 주지 않는다.
 같은 비운영 PostgreSQL 인스턴스에 별도 CI DB·계정을 둘 수 있으며, CI 계정은 개발 업무 DB를 소유하거나 접근하지 못하게 한다. 별도 CI 클러스터가 필요하면 같은 메이저 버전으로 만들고 별도 데이터 디렉터리·포트·계정을 사용한다.
 전용 CI 클러스터는 DB 관리자가 `template1`에 pgvector 확장을 먼저 설치하고, CI 계정으로 만든 임시 DB가 이를 상속하는지 확인한다. 원격 테스트 계정에 superuser를 부여하지 않는다. 명령과 공유 클러스터 제한은 [CI DB 준비 계약](docs/domains/release/README.md#validation-image-platform-and-database)을 따른다.
 릴리스 CI는 실제 DB 서버와 이미지의 `pg_dump`·`pg_restore`·`psql` 버전이 일치하는지 테스트 시작 전에 검사한다. 불일치 시 DB 연결 대상과 [검증 이미지 구성](docs/domains/release/README.md#validation-image-platform-and-database)을 바로잡고 재실행한다.
@@ -419,7 +461,7 @@ Docker 전용 네트워크로 연결할 때는 해당 인터페이스와 CIDR에
 부팅 시 네트워크를 만드는 Docker 서비스가 DB보다 먼저 준비되도록 systemd 의존성을 설정한다.
 Debian 계열에서 클러스터 이름은 `ci`처럼 하이픈 없이 정해 systemd 인스턴스 이름의 경로 변환을 피한다.
 
-새 프로젝트에 `MTY_CI_POSTGRES_DSN`을 아래와 같이 등록한다.
+새 프로젝트에 `MIY_CI_POSTGRES_DSN`을 아래와 같이 등록한다.
 기존 변수가 있으면 새로 만들거나 덮어쓰기 전에 환경 범위와 소유자를 확인한다.
 에이전트가 셋업한 CI DB의 값은 보호된 입력에서 표준 입력으로 전달한다. 이미 알고 있는 값을 사용자에게 다시 요청하지 않는다.
 사용자가 직접 인증 정보를 제공하는 경우에만 아래 대화형 입력을 사용한다. 비밀값을 명령 인자·대화·로그에 남기지 않는다.
@@ -428,7 +470,7 @@ Debian 계열에서 클러스터 이름은 `ci`처럼 하이픈 없이 정해 sy
 set +x
 read -r -s -p 'CI PostgreSQL DSN: ' ci_postgres_dsn
 printf '\n'
-printf '%s' "$ci_postgres_dsn" | glab variable set MTY_CI_POSTGRES_DSN \
+printf '%s' "$ci_postgres_dsn" | glab variable set MIY_CI_POSTGRES_DSN \
   --repo "$GITLAB_REPO" --masked --protected --raw --scope ci-validation
 unset ci_postgres_dsn
 ```
@@ -438,6 +480,8 @@ unset ci_postgres_dsn
 필요 조건은 [보호 리소스 접근 안내](https://docs.gitlab.com/ci/pipelines/merge_request_pipelines/#control-access-to-protected-variables-and-runners)를 따른다.
 변수가 보이지 않는다고 보호를 해제하거나 관리자 토큰을 대신 넣지 않는다.
 `CI_JOB_TOKEN` 등 GitLab이 공급하는 기본 변수를 수동으로 재정의하지 않는다.
+
+릴리스 검증 job의 새 checkout과 생성 파일 권한은 저장소에 정의된 [CI 준비·권한 계약](docs/domains/release/README.md#build-and-test-storage)을 따른다.
 
 저장소 루트에서 CI 설정을 검사하고 파이프라인 목록을 확인한다.
 
@@ -478,14 +522,14 @@ GitLab 접속, 관리자 로그인·비밀번호 변경, `glab` 인증, Runner �
 ### 2.3. 기존 조직에 개발자·서버 추가
 
 내부 GitLab에 `dev` 브랜치가 준비되어 있으면 프로젝트의 Clone 메뉴에서 주소를 받아
-원하는 작업 위치의 `mty/dev`에 내려받는다.
+원하는 작업 위치의 `miy/dev`에 내려받는다.
 
 ```bash
-mkdir -p mty
-cd mty
+mkdir -p miy
+cd miy
 git clone --branch dev '<GitLab에서-받은-저장소-주소>' dev
 cd dev
-git remote add upstream https://github.com/hurxxxx/mty.git
+git remote add upstream https://github.com/hurxxxx/miy.git
 git config remote.pushDefault origin
 ```
 
@@ -510,16 +554,16 @@ free -h
 서버별 사용자명·절대 경로·기존 서비스가 있다고 가정하지 않는다.
 사용 중인 체크아웃과 DB가 개발 대상인지 확인하고, 기존 변경사항과 데이터는 유지한다.
 
-| 도구 | 버전 기준 및 설치 방법 |
-| --- | --- |
-| Bash, Git, curl, CA 인증서, 시스템 `python3`, `lsof`, `pgrep` | 해당 Linux 배포판의 패키지 관리자로 준비. 개발 스크립트와 환경설정 도구가 사용한다. |
-| Node.js와 npm | Codex 실행 전에 [README](README.md)의 nvm 설치·Bash 재로드·`nvm install 24` 명령을 따른다. 버전 범위는 [package.json](package.json)의 `engines.node`가 기준이다. |
-| bubblewrap (Linux Codex) | Codex 실행 전에 설치한다. [README](README.md) · [공식 샌드박스 요건](https://developers.openai.com/codex/concepts/sandboxing#prerequisites) |
-| pnpm | 루트 `package.json`의 `packageManager`에 지정된 버전을 사용한다. [공식 설치 안내](https://pnpm.io/installation) |
-| uv와 앱용 Python | [uv 설치 안내](https://docs.astral.sh/uv/getting-started/installation/)와 [Python 설치 안내](https://docs.astral.sh/uv/guides/install-python/)를 따른다. Python 범위는 [API](apps/api/pyproject.toml)·[Worker](apps/worker/pyproject.toml)의 `requires-python`이 기준이다. |
-| agent-browser | 최초 셋업과 에이전트의 화면 확인에 사용한다. CLI가 없을 때 `npm install --global agent-browser`로 설치하고 `agent-browser --version`으로 확인한다. 브라우저 준비와 검사는 4.1절을 따른다. |
-| PostgreSQL·Redis | 4절에 따라 호스트에 네이티브로 설치하고 systemd 서비스로 관리한다. |
-| Docker Engine와 Compose·Buildx 플러그인 (선택) | Docker 기반 추가 서비스나 기존 Compose 방식을 사용할 때만 [Docker 공식 설치 안내](https://docs.docker.com/engine/install/)를 따른다. CI 검증 이미지 빌드는 Buildx도 필요하다. 네이티브 최소 구성에는 필요하지 않다. |
+| 도구                                                                                 | 버전 기준 및 설치 방법                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bash, Git, curl, CA 인증서, 시스템 `python3`, `lsof`, `pgrep`, `flock`(`util-linux`) | 해당 Linux 배포판의 패키지 관리자로 준비. 개발 스크립트와 환경설정 도구가 사용하며, `flock`은 운영 후보 준비·배포·롤백의 동시 실행을 막는다.                                                                                                                               |
+| Node.js와 npm                                                                        | Codex 실행 전에 [README](README.md)의 nvm 설치·Bash 재로드·`nvm install 24` 명령을 따른다. 버전 범위는 [package.json](package.json)의 `engines.node`가 기준이다.                                                                                                           |
+| bubblewrap (Linux Codex)                                                             | Codex 실행 전에 설치한다. [README](README.md) · [공식 샌드박스 요건](https://developers.openai.com/codex/concepts/sandboxing#prerequisites)                                                                                                                                |
+| pnpm                                                                                 | 루트 `package.json`의 `packageManager`에 지정된 버전을 사용한다. [공식 설치 안내](https://pnpm.io/installation)                                                                                                                                                            |
+| uv와 앱용 Python                                                                     | [uv 설치 안내](https://docs.astral.sh/uv/getting-started/installation/)와 [Python 설치 안내](https://docs.astral.sh/uv/guides/install-python/)를 따른다. Python 범위는 [API](apps/api/pyproject.toml)·[Worker](apps/worker/pyproject.toml)의 `requires-python`이 기준이다. |
+| agent-browser                                                                        | 최초 셋업과 에이전트의 화면 확인에 사용한다. CLI가 없을 때 `npm install --global agent-browser`로 설치하고 `agent-browser --version`으로 확인한다. 브라우저 준비와 검사는 4.1절을 따른다.                                                                                  |
+| PostgreSQL·Redis                                                                     | 4절에 따라 호스트에 네이티브로 설치하고 systemd 서비스로 관리한다.                                                                                                                                                                                                         |
+| Docker Engine와 Compose·Buildx 플러그인 (선택)                                       | Docker 기반 추가 서비스나 기존 Compose 방식을 사용할 때만 [Docker 공식 설치 안내](https://docs.docker.com/engine/install/)를 따른다. CI 검증 이미지 빌드는 Buildx도 필요하다. 네이티브 최소 구성에는 필요하지 않다.                                                        |
 
 Node/npm 설치 후 pnpm이 없거나 버전이 다르면 현재 Node 설치의 패키지 관리 방식에 맞춰
 아래의 프로젝트 지정 버전을 설치한다. 프로젝트 의존성 설치는 일반 개발 사용자로 진행한다.
@@ -549,6 +593,7 @@ docker info --format '{{.ServerVersion}}'
 ```
 
 `docker` 실행 파일만 존재하거나 기존 컨테이너가 보인다는 이유로 준비 완료로 판단하지 않는다.
+Docker 데이터가 놓인 실제 파일시스템의 여유 공간도 확인하고, 다른 디스크로 옮길 때는 [호스트 저장 공간 이전 절차](docs/domains/release/installation-operations.md#docker-storage-relocation)를 따른다.
 첫 Python 의존성 설치에는 AI 라이브러리도 포함되어 다운로드가 클 수 있다.
 추가 기능의 모델 다운로드·브라우저 설치까지 고려하고, 서버 사양이 검증되었다고 추정하지 않는다.
 
@@ -557,11 +602,11 @@ docker info --format '{{.ServerVersion}}'
 내부 GitLab의 `origin/dev`·`origin/main`이 준비된 뒤, 개발·운영 경로 구성을 포함한 설치에서 진행한다.
 운영 서비스 실행과 자격증명 설정은 별도 단계다. 개발만 필요한 참여자에게 운영 접근 권한을 추가하지 않는다.
 
-| 상대 경로 | 브랜치·용도 | 환경설정 |
-| --- | --- | --- |
-| `mty/dev` | `dev` → `origin/dev`, 개발 실행과 통합 | 개발용 `.env` |
-| `mty/prod` | `main` → `origin/main`, 승인된 운영 작업 전용 | 운영 준비 시 별도 `.env` 구성 |
-| `mty/worktrees/<작업명>` | 요청된 기능·MR 작업 브랜치 | 해당 작업에 필요한 개발 설정 |
+| 상대 경로                | 브랜치·용도                                   | 환경설정                      |
+| ------------------------ | --------------------------------------------- | ----------------------------- |
+| `miy/dev`                | `dev` → `origin/dev`, 개발 실행과 통합        | 개발용 `.env`                 |
+| `miy/prod`               | `main` → `origin/main`, 승인된 운영 작업 전용 | 운영 준비 시 별도 `.env` 구성 |
+| `miy/worktrees/<작업명>` | 요청된 기능·MR 작업 브랜치                    | 해당 작업에 필요한 개발 설정  |
 
 `dev`에서 실행하는 아래 명령은 **`prod`가 아직 없는 경우**의 예시다.
 기존 디렉터리나 등록된 worktree가 있으면 브랜치·dirty 상태·소유자를 먼저 확인해 재사용하고 덮어쓰지 않는다.
@@ -605,28 +650,78 @@ uv sync --frozen --python 3.12 --directory apps/worker
 Hermes 구조화 작업의 기본 의존성은 API와 Worker 양쪽에 설치되어야 한다. 체크아웃을 갱신한 뒤에도 위 두 `uv sync`를 실행한다. 선택 ML 패키지는 필요하지 않으며, 기능별 설정은 [Hermes 설치 문서](docs/domains/ai/hermes.md#development-checkout)를 따른다.
 
 잠금 파일을 변경하거나 의존성을 업그레이드해서 설치 오류를 우회하지 않는다.
+챗봇 UI 의존성도 위 `pnpm install --frozen-lockfile`로 설치한다. 별도 Desktop 설치는 필요 없으며, 채택 버전과 연결 방식은 [챗봇 UI 문서](docs/apps/chatbot/hermes-desktop/README.md)에서 관리한다.
 실패한 패키지·인증·네트워크·빌드 도구 문제를 구분하여 해결한다.
 
-환경설정은 먼저 기존 파일 유무와 키 목록을 확인한다. 이 도구는 값을 출력하지 않는다.
+환경설정은 기존 파일을 보존하며, 파일이 없을 때만 소유자 전용 개발 템플릿을 설치한다. 설치에 별도 skill 실행은 필요하지 않다.
 
 ```bash
-bash .agents/skills/mty-env-contracts/scripts/local-env-files.sh status --source .env.example --target .env
+if [ ! -e .env ] && [ ! -L .env ]; then
+  install -m 600 .env.example .env
+fi
 ```
 
-결과가 `status=missing_target`일 때만 다음 명령으로 개발용 템플릿을 설치한다.
+이미 `.env`가 있다면 유지한다. 템플릿과 값이 다르다는 이유로 덮어쓰지 않는다. 필요한 키만 기존 값을 보존하여 맞추고 `pnpm check:env-contract`로 키 목록과 순서를 확인한다. 이 검사는 설정 값을 출력하지 않는다. 비밀 값·파일을 Git에 추가하지 않는다.
+
+독립 앱을 시범 사용할 때는 `MIY_INDEPENDENT_APP_PLATFORM_ORIGINS`에 플랫폼의 실제 브라우저 출처를 JSON 배열로 설정한다. 예를 들어 API와 Vite가 분리된 로컬 구성은 `["http://127.0.0.1:4200", "http://127.0.0.1:8001"]`처럼 실제 사용하는 값을 지정한다. 기본값 `[]`에서는 독립 앱 설치·세션 발급이 닫히며 기존 내장 앱에는 영향을 주지 않는다. 출처 경계·등록·SDK·개발 설치와 운영 승격은 [독립 앱 계약](apps/api/src/miy_api/domains/independent_apps/README.md), 별도 저장소 생성과 앱 서버의 공개 설정은 [독립 앱 템플릿](templates/independent-app/README.md)을 따른다.
+
+최초 등록에는 최소 `independent_bootstrap_20261006`을 포함한 현재 Alembic head를 적용한 코어 API와 해당 포털 UI가 필요하다. Workbench의 등록 초안 JSON을 MIY 포털 `/apps/register`에서 현재 소유자 로그인으로 확인하면 personal 정의와 소유자만 대상으로 하는 비활성 development 설치를 원자적으로 만든다. 기존 앱을 덮어쓰거나 개발 서버·executor를 기동하지 않는다. 파일 인계와 응답 유실 복구는 [최초 앱 등록 절차](docs/apps/codex-console/README.md#등록-초안-파일로-최초-앱-등록)를 따른다.
+
+Workbench에서 파일 없이 최초 등록을 이어갈 설치는 `registration_auth_20261007`을 포함한 현재 head·포털 승인 화면을 함께 준비한다. Core의 `MIY_CODEX_CONSOLE_REGISTRATION_AUDIENCES`에는 정확한 Workbench base URL을 JSON 배열로 지정한다(하위 경로가 있으면 포함, 끝 `/` 없음, 기본 `[]`는 비활성). HTTPS 또는 로컬 loopback HTTP만 허용한다. 별도 브라우저 CSP를 설정한 경우 포털의 `form-action`이 해당 callback을 허용해야 한다. 기존 metadata key나 identity-only SSO에 쓰기 권한을 추가하지 않는다. [최초 등록 위임 계약](apps/api/src/miy_api/domains/independent_apps/README.md#optional-workbench-first-registration-authorization)의 별도 짧은 승인은 비활성 개인 앱 등록만 허용하며 실행·배포와 구분한다.
+
+독립 앱의 사용자 선택 파일 읽기는 별도 선택 기능이다. 코어에만 `MIY_INDEPENDENT_APP_FILE_SELECTION_SIGNING_KEY`를 설치하며 기본 빈 값은 이 기능을 비활성화한다. 키는 비기본·비placeholder 32바이트 이상이어야 하고 앱 소스·Workbench·브라우저에 전달하지 않는다. `MIY_INDEPENDENT_APP_FILE_SELECTION_STORAGE_REGION`은 기존 객체 저장소의 실제 region과 맞춘다(기본 `us-east-1`). 앱은 `identity:read`와 `files:read-selected`를 요청하고 설치에서 명시적으로 허용받아야 한다. 기존 앱 권한은 자동 확대하지 않는다. 사용자가 고른 최대 10 MiB 파일 하나만 짧은 유효기간 안에 현재 세션·원본 권한·버전을 재확인해 읽으며 이미 전달한 bytes는 회수할 수 없다. 계약과 검증 범위는 [선택 파일 읽기 계약](apps/api/src/miy_api/domains/independent_apps/README.md#selected-platform-files)를 따른다. 실제 키 설정이나 서비스 활성화는 소스 구현에 포함되지 않는다.
+
+독립 앱 배포 실행기는 별도 선택 기능이다. 기존 마이그레이션 명령으로 현재 Alembic head까지 적용하고, 코어 운영자가 승인한 로컬 빌드·nginx 이미지 ID, Docker 접근, 권한 `0700`의 전용 상태 디렉터리를 준비한다. 플랫폼 체크아웃에서만 [코어 배포 CLI](apps/api/src/miy_api/domains/independent_apps/README.md#local-development-delivery)를 실행한다. 앱 작업 디렉터리에는 플랫폼 DB·로그인·Docker 자격을 넣지 않는다. 앱 세션 교환에는 컨테이너에서 도달 가능한 플랫폼 API 경로가 필요하며, 호스트 loopback 전용 API는 자동으로 외부 수신으로 변경하지 않는다. 기본 개발 설치는 loopback HTTP를 사용한다. 서버 개발 미리보기와 운영 설치에는 아래의 명시적인 HTTPS 연결이 필요하다.
+
+서버 개발 미리보기는 delivery target에 `environment: "development"`, 플랫폼과 분리된 `app_origin: "https://app.example.com"`, `loopback_port: 19431`을 함께 지정한다. 운영 target은 `environment: "production"`과 이 두 필드가 필수이며 코어 런타임도 `MIY_ENVIRONMENT=production`이어야 한다. 개발·운영 target마다 HTTPS 출처와 loopback 포트가 달라야 하고, installation마다 scratch/state 경로를 분리한다. 앱 컨테이너 수신은 `127.0.0.1`을 유지하며 앞단에서 [HTTPS 프록시 예제](ops/independent-apps/app-https.nginx.conf.example)의 도메인·인증서·포트를 정확한 운영자 설정과 맞춘다. WebSocket upgrade 전달과 응답 buffering 설정은 [NGINX 공식 문서](https://nginx.org/en/docs/http/websocket.html)를 따른다. 예제는 자동 설치하지 않으며 실제 HTTPS 도달·세션 교환·포털 embedding 확인이 배포 완료 조건이다.
+
+개인 앱 운영 승격은 같은 플랫폼 등록 DB에 기록된 성공한 개발 설치의 불변 산출물을 사용한다. 운영 포털에서 개발할 앱은 그 포털의 등록 DB에 별도 개발 installation을 만들며, 앱 데이터는 설치별로 격리한다. 코어 관리자가 비활성 운영 installation과 정확한 target을 준비하고 `/independent-apps/{app_id}/promotions`로 승격을 요청한다. 정상 관측과 현재 관리자 권한 확인 전에는 운영 설치가 활성화되지 않는다. 플랫폼 자체의 개발 DB에서 운영 DB로 앱 등록·빌드 증거를 복사하는 기능은 이번 범위에 포함하지 않는다.
+
+Workbench의 위임된 요청을 자동 소비하려면 코어 설정의 `MIY_INDEPENDENT_APP_DELIVERY_TARGETS`에 앱·설치·독립 소스 경로·전용 scratch/state·승인된 이미지·플랫폼 출처를 명시한다. 기본값 `[]`는 비활성이다. [설정 계약과 명령](apps/api/src/miy_api/domains/independent_apps/README.md#optional-core-queue-consumer)의 `poll-once`는 요청 하나만, `serve`는 foreground 반복 소비를 수행한다. 예시 service 파일만 제공하며 설치·기동은 자동 수행하지 않는다. 중단된 running/unknown/cleanup 요청은 같은 ID로 기존 runtime을 관측하고 확인된 정리를 이어간다. 불확실한 배포를 새로 재실행하지 않으며, 저장된 관측 근거가 부족하면 상태를 유지하고 운영자 확인을 기다린다.
+
+DB가 필요한 독립 앱에는 `web-api-postgres-v1` 프로파일과 [개인 메모 템플릿](templates/independent-app-data/README.md)을 사용한다. 별도의 앱 데이터 PostgreSQL 클러스터를 준비하고 코어 API·실행기 설정에만 `MIY_INDEPENDENT_APP_DATA_POSTGRES_DSN`과 `MIY_INDEPENDENT_APP_DATA_CREDENTIAL_KEY`를 설치한다. 기본 빈 값은 비활성이다. 기존 코어·개발 DB에 대한 권한을 자동 변경하지 않으며, 클러스터의 `PUBLIC CONNECT` 제한을 확인하지 못하면 프로비저닝을 거부한다. 앱 DB·역할 분리, 고정 v1 마이그레이션, 설치별 백업과 키 변경 절차는 [데이터 계약](apps/api/src/miy_api/domains/independent_apps/DATA.md)이 소유한다. 이 키를 바꾸는 것은 자동 회전이 아니며 기존 로그인 실패로 드러난다. 데이터 경계 검사는 [검증 환경 소유 계약](docs/domains/release/README.md#validation-image-platform-and-database)의 같은 메이저 일회용 네이티브 클러스터를 사용하며, CI 바이너리 부재 시 실패하고 로컬에서만 같은 메이저 Docker no-pull 대안을 허용한다.
+
+공식 업무 앱은 [공식 suite](apps/official-suite/README.md)의 별도 UI·API·worker 산출물로 전달한다. `pnpm nx build web`은 포털을, `pnpm nx build official-suite`는 공식 업무 화면을 각각 빌드한다. 같은 브라우저 출처에서 기존 `/apps/<공식 앱 ID>` 주소를 공식 UI로 전달하며, 포털의 업무 위젯은 `/official-suite/widgets`의 신뢰된 문서를 사용한다. 기존 로그인·입장·원본 ACL은 서버에서 계속 검사한다. 공식 산출물에는 호환되는 플랫폼 UI build ID를 고정하며, 다른 ID의 플랫폼에 임의로 연결하거나 stale-client 쓰기 차단을 해제하지 않는다.
+
+개발 환경은 기존 진입점으로 최초 migration·seed와 정상 legacy 소비자를 준비한 뒤 `./dev.sh --first-party --restart`로 전환한다. 전환은 API·Beat의 새 작업 발행을 멈추고 정확한 소비자와 큐의 작업 종료를 확인한다. 불명확한 broker 상태는 전환을 보류하며 메시지를 삭제하지 않는다. 성공한 전환의 선택 상태를 소유자 전용 로컬 runtime 파일에 보존해 같은 토폴로지는 완전 중단·재부팅 후에도 바로 재시작한다. 반대 토폴로지로의 전환에는 계속 살아 있는 소비자의 종료 증명이 필요하다. 포털 Vite는 4200, 공식 Vite는 4201, 공식 개발 API는 18781을 사용한다. `--api-only`·`--web-only`의 시작 범위는 유지한다. 운영 first-party는 Core의 로컬 NGINX gateway가 기존 `MIY_APP_BIND_HOST`·`MIY_APP_PORT`를 유지하고 공통 API `127.0.0.1:18779`·공식 API `127.0.0.1:18780`로 등록 계약에 따른 요청을 전달한다. 기존 도메인·TLS 앞단의 경로 설정을 바꾸지 않으며 gateway는 최소 수신·신뢰 설정만 받고 앱 비밀 설정과 runtime 저장소를 공유하지 않는다. 두 내부 포트 충돌과 기존 proxy 신뢰 계약을 guarded release에서 확인한다.
+
+실행 가능한 분리 entry는 `miy_api.platform_runtime:app`과 `miy_official_api.runtime:app`이다. 플랫폼·공식 소비자는 각각 소유 namespace만 처리하고 `miy_worker.first_party_beat:celery_app` 하나가 기존 스케줄을 유지한다. [서비스 전환 owner](ops/first-party/README.md)의 guarded release가 플랫폼 이미지와 공식 API/worker 이미지, 다섯 프로세스의 검증·복구·ingress를 함께 관리한다. UI/API owner map은 등록 계약과 실제 RouterSpec에서 생성한다. 예제 파일·소스 동기화·wheel 생성만으로 배포 완료가 되지 않는다. `pnpm nx api-build official-suite`와 `pnpm nx worker-build official-suite`는 각각 호환 wheel을 포함한 별도 빌드 대상이다.
+
+이 경로는 현재 공통 DB의 기존 트랜잭션·인증·writer를 사용하는 신뢰된 first-party 구성이다. 이전 [비활성 Source-only API 후보](ops/official-suite-api/README.md)의 `miy_official_api.main:app`·`miy_api.platform_main:app`과 기본 Docker target은 업무 HTTP/WS를 거부하는 별도 후보로 남는다. 새 경로에서 역할·writer generation을 자동 생성·입양하거나 기존 보호를 우회하지 않는다. 별도 source principal과 전체 journal 확장은 [후속 고도화](platform-redesign/FOLLOW_UP_ENHANCEMENTS.md)로 보류했다.
+
+이전 Source-only 후보의 [인증 위임 bridge](apps/api/src/miy_api/domains/official_apps/README.md)는 코어가 승인한 검증 artifact·설치 generation의 앱 세션만 기존 사용자/입장/원본 ACL에 연결한다. `official_auth_binding_20261006` migration은 승인 테이블만 추가하며 자동 binding이나 활성화를 만들지 않는다. 현재 공통 DB에서 권한을 조회하는 내부 adapter 단계이며, 위 first-party 서비스의 필수 실행 절차로 적용하지 않는다.
+
+이전 Source-only writer 후보의 아래 migration·role 준비 기록은 first-party 전환의 추가 절차가 아니다. 해당 기록의 공식 writer source는 19개이며 기존 Personal Widgets의 할 일·메모, Planner 일정과 DM 대화·참여자·메시지·첨부를 포함한다. `official_widget_writer_20261006`과 뒤이은 `official_planner_writer_20261006`은 새 revision으로 범위를 확장하고 과거 migration snapshot을 보존한다. 이후 `registration_auth_20261007` 뒤의 `official_dm_writer_20261007`은 DM 네 원본을 추가한다. [DM 보호·첨부 commit 경계](platform-redesign/OFFICIAL_API_CUTOVER.md#dm-4개-원본-보호와-첨부-commit-경계--로컬-검증-완료)와 미완료 범위를 함께 확인한다. 기존 cooperative guard는 그대로 유지한다. 이미 역할 guard를 설치한 DB는 [강화된 DB 업그레이드 순서](platform-redesign/OFFICIAL_API_CUTOVER.md#personal-widgets-두-원본-추가와-강화된-db의-업그레이드)와 뒤의 Planner 계약에 따라 writer drain/중단 → migration → 새 generation의 새 principal 명시 준비와 현재 19-table 검증 → 이전 principal 회수 → exact CAS 순서로 준비한다. migration이나 기존 principal 재조회는 권한을 자동 확대하지 않는다. 이 내부 준비 경계는 운영 전환·공식 서비스 활성화 명령이 아니며 인증·ACL·partition·감사 등 전체 API 실행 권한도 아직 완성되지 않았다. role guard 사용 중 schema downgrade는 명시 retirement 없이 거부되며 호환 image rollback과 구분한다.
+
+챗봇에서 PMS 등 앱의 승인 기반 쓰기를 사용하려면 [앱 도구 활성화와 실제 동작 검증](docs/domains/ai/hermes.md#app-tool-enablement-and-verification)을 따른다. 기본 설치는 읽기 전용이며, 코드 갱신만으로 쓰기 도구가 켜지지는 않는다. 기능 플래그, 프로세스의 도구 목록 갱신, PMS 편집 권한, 건별 승인을 함께 확인한다.
+
+앱 도구 등록·입력 스키마·쓰기 플래그를 변경했다면 진행 중인 개발 작업을 정리하고,
+위 절차에 따라 API·Worker와 gateway의 목록을 갱신한다. 연결 상태가 정상이어도 이전
+목록이 남을 수 있다. 새 챗봇 실행에서 도구 검색과 실제 PMS 호출을 확인하고,
+`miy.tools.catalog_refresh_required`가 나오면 갱신 완료로 처리하지 않는다.
+[고정 Hermes 이미지의 앱 도구 검사](docs/domains/ai/hermes.md#sandbox-execution-check)도 실행한다.
+
+DB 풀·시간제한·재시도·임베딩/리랭커 모델의 공통 권장값은 Git 추적 대상인
+[`config/runtime.json`](config/runtime.json)에서 관리한다. `defaults` 위에
+`MIY_ENV_PROFILE`에 해당하는 `profiles` 설정이 적용되며, `.env`와 프로세스 환경변수는
+이를 덮어쓸 수 있다. 비밀키·접속정보·설치별 설정은 계속 `.env`에 둔다.
+설정 범위·우선순위·운영 반영은 [공개 런타임 설정](docs/domains/release/README.md#public-runtime-configuration)을 따른다.
+
+기존 설치는 다음 dry run으로 중복 기본값을 확인한다. 제거 대상 키 이름만 출력하며,
+기본값과 다른 기존 지정값은 보존한다. 확인 후 `--apply`를 붙이면 `0600` 백업을 만들고
+중복 항목만 제거한다. 현재 체크아웃에 설정 파일과 새 로더가 모두 있어야 하며,
+운영의 이전 코드에서 먼저 제거하지 않는다.
 
 ```bash
-bash .agents/skills/mty-env-contracts/scripts/local-env-files.sh install --source .env.example --target .env
+uv run --frozen --python 3.12 --directory apps/api python ../../scripts/runtime-config-migrate.py
 ```
-
-이미 `.env`가 있다면 유지한다. `status=different`는 사용자 설정이 있다는 뜻일 수 있으며
-템플릿으로 덮어쓸 이유가 아니다. 필요한 키만 기존 값을 보존하여 맞춘다.
-환경 파일 취급은 [환경설정 절차](.agents/skills/mty-env-contracts/references/env-files.md)를 따른다.
 
 ```bash
 pnpm check:env-contract
 pnpm check:path-hardcoding
 ```
+
+두 체크아웃이 함께 있으면 환경 계약 검사는 개발·운영 각각의 체크아웃에 선언된 설정 파일 경로와 환경 키를 기준으로 검사한다. 별도 저장소 밖에 설치한 Codex Console 설정은 [Console 배포 절차](docs/apps/codex-console/README.md#배포-완료-확인)에서 검증한다.
 
 API 키는 사용자가 서버의 편집기 또는 비밀 입력 경로로 `.env`에 넣는다.
 파일 권한은 소유자만 읽고 쓸 수 있는 `0600`으로 유지한다.
@@ -638,6 +733,12 @@ Claude Code를 사용할 때 공통 스킬 연결도 확인한다.
 pnpm setup:claude-skills
 pnpm check:skills
 ```
+
+프로젝트 스킬은 MIY 전용 기능만 제공하며 일반 개발 절차는 강제하지 않는다.
+Codex 프로젝트 훅은 Git 메타데이터·생성 계약의 직접 패치를 막는 `PreToolUse`만 사용한다.
+기존 세션은 카탈로그와 훅 변경을 반영하려면 새로 시작하고, 네이티브 `/hooks`에서 실제 정의를 확인·신뢰한다.
+세션 시작·종료 때 자동 검사는 실행되지 않으므로 변경 범위에 맞는 테스트를 직접 실행한다.
+훅 신뢰 기록을 자동으로 만들지 않는다. 설치 확인과 검증 범위는 [에이전트 계약](docs/agents/vibe-coding-harness.md#local-codex-hooks)을 따른다.
 
 ## 4. 최소 환경으로 첫 로그인 확인
 
@@ -651,15 +752,15 @@ OpenSearch를 포함한 추가 서비스는 이 단계에서 필요하지 않으
    문서 앞의 **PostgreSQL·Redis 최초 설치 버전** 기준에 따라 최신 안정 버전을 확인하고,
    [PostgreSQL Ubuntu 설치 안내](https://www.postgresql.org/download/linux/ubuntu/)와
    [Redis 공식 APT 설치 안내](https://redis.io/docs/latest/operate/oss_and_stack/install/install-stack/apt/)를 따라 네이티브 패키지를 설치한다.
-   [개발 Compose](ops/compose/mty-dev.infra.yml)의 고정 메이저 버전을 네이티브 신규 설치 버전으로 대신 사용하지 않는다.
+   [개발 Compose](ops/compose/miy-dev.infra.yml)의 고정 메이저 버전을 네이티브 신규 설치 버전으로 대신 사용하지 않는다.
 2. 프로젝트용 개발 DB·사용자와 Redis 인스턴스를 준비하고 loopback 주소에서만 접근하도록 구성한다.
    기존 서비스·데이터·포트를 보존하고, 실제 PostgreSQL 클러스터와 Redis의 systemd unit을 확인해 시작·자동 시작을 설정한다.
-3. `.env`의 `MTY_POSTGRES_DSN`, `MTY_INFRA_POSTGRES_PORT`,
-   `MTY_INFRA_REDIS_PORT`를 실제 네이티브 서비스에 맞춘다.
+3. `.env`의 `MIY_POSTGRES_DSN`, `MIY_INFRA_POSTGRES_PORT`,
+   `MIY_INFRA_REDIS_PORT`를 실제 네이티브 서비스에 맞춘다.
    템플릿의 포트 `55433`·`56380`을 네이티브 기본 포트와 같다고 가정하지 않는다.
    기존 개발용 Redis·Worker 연결 재정의도 [개발 환경 설정](scripts/dev-env.sh)에 따라 함께 맞추고 비밀값은 출력하지 않는다.
-   Redis 인증이 필요하면 `MTY_DEV_REDIS_URL`과 `MTY_DEV_REDIS_RESULT_BACKEND`를 설정한다.
-   `--minimal-infra`는 PostgreSQL DSN을 `MTY_INFRA_POSTGRES_*`에서 구성하므로 사용자·비밀번호·DB 이름도 맞춘다.
+   Redis 인증이 필요하면 `MIY_DEV_REDIS_URL`과 `MIY_DEV_REDIS_RESULT_BACKEND`를 설정한다.
+   `--minimal-infra`는 PostgreSQL DSN을 `MIY_INFRA_POSTGRES_*`에서 구성하므로 사용자·비밀번호·DB 이름도 맞춘다.
 4. systemd 상태뿐 아니라 실제 대상에 대한 `pg_isready`, DB 사용자 인증과 쿼리,
    Redis의 인증된 `PING` 응답으로 연결을 확인한다. 기존 데이터베이스를 재생성하거나 Redis 데이터를 비우지 않는다.
 
@@ -680,15 +781,29 @@ systemd unit에는 실제 바이너리·설정·데이터 경로를 사용하고
 
 첫 실행 전에 개발 `.env`에서 다음 항목을 설정한다. 서버 IP는 PC에서 실제로 접속할 주소로 바꾸고 기존의 다른 설정은 보존한다.
 
+DB 연결 설정은 [API·Worker 연결 예산](docs/domains/release/README.md#database-connection-budgets)을 따른다.
+개발·운영이 PostgreSQL 서버를 공유하면 모든 프로세스의 한도를 합산한다.
+기존 설치의 API 풀 32/64 설정은 새 기본값으로 자동 변경되지 않으므로 해당 절의 설정 검토·적용·검증 절차를 함께 수행한다.
+접속이 몰릴 때 풀 대기가 발생하면 같은 절의 인증 동시 요청 검사를 실행하고,
+열린 챗봇 이벤트 스트림이 초기 조회 연결을 계속 점유하지 않는지 확인한다.
+풀 크기를 늘리기 전에 요청 처리 스레드의 대기와 연결 반환 시점을 구분한다.
+
 ```dotenv
-MTY_WEB_DEV_HOST=0.0.0.0
-MTY_WEB_DEV_PORT=4200
-MTY_API_DEV_LOGIN_ALLOWED_HOSTS=<서버-IP>
+MIY_WEB_DEV_HOST=0.0.0.0
+MIY_WEB_DEV_PORT=4200
+MIY_API_DEV_LOGIN_ALLOWED_HOSTS=<서버-IP>
 ```
+
+DNS 또는 Tailscale 호스트명으로 접속한다면 해당 호스트명을
+`MIY_WEB_DEV_ALLOWED_HOSTS`에 추가한다(여러 호스트는 쉼표로 구분).
+`MIY_API_DEV_LOGIN_ALLOWED_HOSTS`에도 실제 개발 로그인 호스트를 허용하고
+설정을 읽는 개발 서비스를 재시작한다. `allowedHosts: true`로 전체 호스트를 허용하지 않는다.
+HTTP IP·호스트명 접속에서 로그인 후 생성된 HTML 파일의 미리보기와 소스 탭까지 확인한다.
+HTTPS 또는 localhost에서만 검사하면 보안 컨텍스트 전용 브라우저 API 의존성을 놓칠 수 있다.
 
 Web은 모든 IPv4 인터페이스에서 수신하고 API 요청을 loopback의 API로 프록시한다.
 API·개발 PostgreSQL·Redis의 수신 주소는 loopback으로 유지한다. `0.0.0.0`은 수신 설정이며 사용자에게 전달할 접속 주소는 서버 IP다.
-새 개발 DB의 시드 비밀번호는 첫 실행 전에 `MTY_API_DEV_LOGIN_PASSWORD`에 고유한 값으로 설정하고 `.auth_info`에 기록한다.
+새 개발 DB의 시드 비밀번호는 첫 실행 전에 `MIY_API_DEV_LOGIN_PASSWORD`에 고유한 값으로 설정하고 `.auth_info`에 기록한다.
 기존 DB에서는 기존 계정·비밀번호를 보존한다. 이 환경값을 바꾸는 것만으로 기존 계정의 비밀번호가 갱신되지는 않는다.
 
 첫 실행은 터미널에서 아래 명령으로 확인한다. 최종 인계 전에는 7절의 지속 실행과 외부 로그인 확인까지 마친다.
@@ -701,6 +816,7 @@ API·개발 PostgreSQL·Redis의 수신 주소는 loopback으로 유지한다. `
 기본 설정에서는 API 시작 전에 Alembic 마이그레이션을 실행한다.
 DB를 지우거나 `stamp`로 오류를 건너뛰지 않는다. 이전 스키마라면
 [API 마이그레이션 안내](apps/api/README.md#alembic)를 먼저 확인한다.
+AI 보고서를 저장하기 전에는 [AI 산출물 번호 시퀀스 복구](docs/domains/ai/execution.md#artifacts-and-visibility)를 포함한 현재 head까지 적용한다. 기존 산출물과 이미 할당한 번호는 유지하며 코드 롤백 시 시퀀스를 삭제하지 않는다.
 
 기존 Docker 방식을 선택한 경우에만 위 실행 명령 대신 `pnpm dev:minimal`을 사용하고,
 컨테이너 상태는 `pnpm dev:infra:minimal:status`로 확인한다. 네이티브 구성에서는 이 명령들을 사용하지 않는다.
@@ -714,7 +830,7 @@ pnpm dev:login-smoke
 
 PC에 안내할 Web 주소는 `http://<서버-IP>:4200`이며, 서버 내부 API 주소는 `http://127.0.0.1:8001`이다.
 포트를 변경한 환경에서는 실제 개발 설정을 따른다. 서버 내부의 loopback 검사 통과 후에도 5절의 외부 접속 검사를 완료해야 한다.
-개발용 로그인 아이디는 `administrator`이며 비밀번호는 `.auth_info`에서 확인한다. 템플릿의 초기 비밀번호는 `mty-dev-only`이므로 새 설치에서는 위 단계에서 바꾼 값을 사용한다.
+개발용 로그인 아이디는 `administrator`이며 비밀번호는 `.auth_info`에서 확인한다. 템플릿의 초기 비밀번호는 `miy-dev-only`이므로 새 설치에서는 위 단계에서 바꾼 값을 사용한다.
 공유·공개 운영 서비스에는 개발용 기본 계정을 사용하지 않는다.
 확인한 개발용 시드 계정과 DB·Redis 접속 정보는 [로그인 정보 파일](#11-로그인-정보-파일-관리)의 개발 항목에 기록한다.
 
@@ -739,15 +855,15 @@ Snap 등은 호스트 글꼴 설치만으로 한글이 표시된다고 가정하
 PC에서 사용할 서버 IP의 개발 주소로 로그인 화면을 열고 현재 화면의 요소를 확인한다. IP·포트는 실제 설정으로 바꾼다.
 
 ```bash
-agent-browser --session mty-setup open 'http://<서버-IP>:<개발-Web-포트>/login'
-agent-browser --session mty-setup snapshot -i
+agent-browser --session miy-setup open 'http://<서버-IP>:<개발-Web-포트>/login'
+agent-browser --session miy-setup snapshot -i
 ```
 
 1.1절의 비밀값 취급 절차를 지키며 로그인하고, 앱 목록·주요 화면의 접근과 로그아웃 후 로그인 화면 복귀까지 확인한다.
 페이지 열기나 snapshot 출력만으로 로그인 검사를 통과했다고 보고하지 않는다. 검사 결과와 미확인 항목을 구분하고, 실패한 경우에도 사용한 세션을 종료한다.
 
 ```bash
-agent-browser --session mty-setup close
+agent-browser --session miy-setup close
 ```
 
 사설 GitLab 인증서는 2.2.1절의 CA 신뢰 설정을 적용하고 TLS 검증을 유지한다.
@@ -794,7 +910,7 @@ PID·network namespace가 호스트와 분리됐는지 `/proc/<PID>/ns/`로 검�
 ## 5. 내 PC 브라우저에서 서버 접속
 
 기본 접속 방식은 **SSH 터널 없이 서버 IP로 직접 접속**하는 것이다.
-4절에서 설정한 `.env`의 `MTY_WEB_DEV_HOST=0.0.0.0`과 실제 Web 포트를 확인한다.
+4절에서 설정한 `.env`의 `MIY_WEB_DEV_HOST=0.0.0.0`과 실제 Web 포트를 확인한다.
 개발 앱을 재시작한 뒤 `ss -ltn`으로 `0.0.0.0:<개발-Web-포트>` 수신을 확인한다.
 VM 네트워크·라우팅·방화벽에서 PC가 해당 IP와 Web 포트에 도달할 수 있게 구성한다. NAT 환경이면 필요한 포트 전달을 함께 설정한다.
 사용자에게 `http://<서버-IP>:<개발-Web-포트>/login`을 안내한다. `0.0.0.0`이나 서버의 `127.0.0.1`을 PC 접속 주소로 안내하지 않는다.
@@ -803,12 +919,12 @@ VM 네트워크·라우팅·방화벽에서 PC가 해당 IP와 Web 포트에 도
 서버에서는 실제 PC 접속 주소를 대상으로 다음 검사를 수행한다. IP·포트는 환경에 맞춘다.
 
 ```bash
-MTY_DEV_SMOKE_API_URL='http://<서버-IP>:<개발-Web-포트>' pnpm dev:login-smoke
-agent-browser --session mty-setup open 'http://<서버-IP>:<개발-Web-포트>/login'
-agent-browser --session mty-setup snapshot -i
+MIY_DEV_SMOKE_API_URL='http://<서버-IP>:<개발-Web-포트>' pnpm dev:login-smoke
+agent-browser --session miy-setup open 'http://<서버-IP>:<개발-Web-포트>/login'
+agent-browser --session miy-setup snapshot -i
 ```
 
-4.1절에 따라 시드 계정으로 로그인·화면·로그아웃을 확인하고 `agent-browser --session mty-setup close`로 세션을 종료한다.
+4.1절에 따라 시드 계정으로 로그인·화면·로그아웃을 확인하고 `agent-browser --session miy-setup close`로 세션을 종료한다.
 **PC 또는 같은 외부 접속 경로의 브라우저에서도** 로그인 화면을 열고 `.auth_info`의 시드 계정으로 실제 로그인해 앱 화면·로그아웃까지 확인한다.
 서버에서 자기 IP로 실행한 검사만으로 PC의 접속 성공을 단정하지 않는다. PC 조작 권한이 없으면 사용자에게 이 마지막 확인만 요청하고, 그동안 GitLab·CI 등 나머지 셋업을 계속한다.
 GitLab의 별도 HTTPS 접속·인증서 설정은 2.2.1절을 따른다.
@@ -822,18 +938,26 @@ Bento 등 별도 주소를 쓰는 기능은 사용 시 해당 기능 문서의 �
 
 ## 6. 실제 기능 개발용 서비스 연결
 
+**파일 업로드·챗봇 작업 파일을 사용하려면 MinIO를 필수로 준비한다.**
+최소 PostgreSQL·Redis 실행만으로는 파일 저장 기능이 동작하지 않는다.
+로컬 MinIO 설치 또는 기존 MinIO 연결, API·Worker 설정 일치와 실제 저장 검사는
+[Hermes 필수 파일 저장소](docs/domains/ai/hermes.md#required-file-storage)를 따른다.
+게이트웨이가 healthy이거나 샌드박스 검사만 통과했다고 파일 저장 준비가 완료된 것은 아니다.
+
 사용할 기능의 설정을 준비한 뒤 최소 실행을 종료하고 전체 개발 경로로 전환한다.
 `.env.example`에는 추가 서비스와 모델 준비를 전제로 한 설정도 있으므로
 복사만으로 모든 기능이 준비된다고 가정하지 않는다.
 
-| 확인 대상 | 준비할 내용과 소유 문서 |
-| --- | --- |
-| PostgreSQL·Redis·파일 저장소·검색 | 네이티브 DB·Redis 연결은 유지하고 필요한 저장소·검색만 추가한다. 개발 DB, 큐, 버킷, 색인 연결이 실제 실행 대상과 일치하는지 확인한다. Docker 서비스 정의는 [개발 Compose](ops/compose/mty-dev.infra.yml), 앱 연결 설정은 [개발 환경 설정](scripts/dev-env.sh)을 따른다. |
-| 개인정보 필터 | `MTY_OPF_SERVICE_BASE_URL`에 별도 서비스 주소가 있으면 해당 서비스를 먼저 준비한다. 아래 실행 예와 [서비스 구현](apps/api/src/mty_api/domains/ai/privacy_filter_service.py)을 따른다. |
-| 모든 생성형 AI·챗봇 작업 파일 | 관리자 LLM 정책, 공급자 키 암호화 설정, Hermes 활성화, Docker 소켓 그룹·동시 실행 한도·마이그레이션은 [Hermes 설치 문서](docs/domains/ai/hermes.md#fresh-environment-setup)를 따른다. 기존 설치에서 플러그인·샌드박스 설정을 갱신할 때는 [게이트웨이 재생성 → API·Worker 갱신 절차](docs/domains/ai/hermes.md#updating-an-existing-development-installation)를 따른다. API·Worker의 프로필 정책만 바뀌는 경우는 [대화 컨텍스트 정책 적용 절차](docs/domains/ai/hermes.md#conversation-context-policy)를 따른다. 신규·기존 설치 모두 [실제 샌드박스·챗봇 명령 실행 검사](docs/domains/ai/hermes.md#sandbox-execution-check)로 완료를 확인하고, 실패 시 [오류별 복구 절차](docs/domains/ai/hermes.md#sandbox-startup-recovery)를 적용한다. 공급자별 temperature 지원과 확장 제약은 해당 문서의 [런타임 계약](docs/domains/ai/hermes.md#pinned-runtime-contract)·[확장 제약](docs/domains/ai/hermes.md#pinned-upstream-gaps)을 확인한다. 로컬 모델은 OpenRouter 키 없이 시작할 수 있다. 호스트에 Hermes를 별도 설치하지 않는다. |
-| 문서 AI·OCR·음성 인식 | 설정한 [Inference Gateway](docs/domains/inference-gateway/README.md)와 [RAG](docs/domains/rag/README.md) 연결을 준비한다. 개발 Compose가 외부 추론 서버까지 설치하지는 않는다. |
-| 슬라이드·다이어그램 | [Bento](docs/apps/bento/README.md)와 [Diagrams](docs/apps/diagrams/README.md)의 서버 주소·브라우저 연결을 확인한다. Bento의 별도 런타임 이미지와 Web bridge 프로토콜도 함께 맞춘다. |
-| 화상회의·녹음 | [Recording](docs/apps/recording/README.md)의 LiveKit·네트워크·추론 서비스 요구사항을 확인한다. |
+| 확인 대상                         | 준비할 내용과 소유 문서                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PostgreSQL·Redis·파일 저장소·검색 | 네이티브 DB·Redis 연결은 유지하고 필요한 저장소·검색만 추가한다. 개발 DB, 큐, 버킷, 색인 연결이 실제 실행 대상과 일치하는지 확인한다. Docker 서비스 정의는 [개발 Compose](ops/compose/miy-dev.infra.yml), 앱 연결 설정은 [개발 환경 설정](scripts/dev-env.sh)을 따른다.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 개인정보 필터                     | `MIY_OPF_SERVICE_BASE_URL`에 별도 서비스 주소가 있으면 해당 서비스를 먼저 준비한다. 아래 실행 예와 [서비스 구현](apps/api/src/miy_api/domains/ai/privacy_filter_service.py)을 따른다.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 판단 모델(분류·선택·점수·확률)    | 먼저 DB 마이그레이션을 적용한다. 관리자에서 OpenRouter 연결·암호화 키를 저장하고 모델 목록을 갱신한 뒤 `판단` 기능 모델을 검토·활성화한다. AI 모델 기본 설정에서 `판단 모델` 종류를 선택하고 모델을 지정한다. 생성 모델 기본값과는 별도로 저장된다. `모델 목록에서 확인 (추론 없음)`으로 접근을 확인하고, 실제 유료 검증은 등록된 합성 workload로 `execute_decision`을 명시적으로 호출한다. 입력 제한·등록 예시·확인 기준은 [판단 workload 계약](docs/domains/ai/gateway.md#decision-workloads)을 따른다. Hermes 설치는 판단 API 호출의 전제 조건이 아니다.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 기본 생성형 AI·챗봇 작업 파일     | 관리자 LLM 정책(전역·앱·워크로드 상속), 공급자 키 암호화 설정, Hermes 활성화, Docker 소켓 그룹·동시 실행 한도·마이그레이션은 [Hermes 설치 문서](docs/domains/ai/hermes.md#fresh-environment-setup)를 따른다. 기존 설치에서 플러그인·샌드박스 설정을 갱신할 때는 [게이트웨이 재생성 → API·Worker 갱신 절차](docs/domains/ai/hermes.md#updating-an-existing-development-installation)를 따른다. API·Worker의 프로필 정책만 바뀌는 경우는 [대화 컨텍스트 정책 적용 절차](docs/domains/ai/hermes.md#conversation-context-policy)를 따른다. 네이티브 파일 쓰기는 Docker 호스트/VM의 Landlock ABI 3+가 필요하다. 신규·기존 설치 모두 [실제 샌드박스·네이티브 코드·파일·구조화 결과 제출·챗봇 실행 검사](docs/domains/ai/hermes.md#sandbox-execution-check)로 완료를 확인하고, 실패 시 [오류별 복구 절차](docs/domains/ai/hermes.md#sandbox-startup-recovery)를 적용한다. 정적 결과물은 기본 제공 Chromium과 `miy_preview`로 검사하며 Playwright를 추가 설치하지 않는다. [오프라인 렌더링·파일 수정·실행 종료 확인](docs/domains/ai/hermes.md#static-preview-execution)도 셋업 검증에 포함한다. 공급자별 temperature 지원과 확장 제약은 해당 문서의 [런타임 계약](docs/domains/ai/hermes.md#pinned-runtime-contract)·[확장 제약](docs/domains/ai/hermes.md#pinned-upstream-gaps)을 확인한다. 로컬 모델은 OpenRouter 키 없이 시작할 수 있다. 기본 모델·앱별 모델·공급자 API 키는 관리자 LLM 설정에서 관리하며, 기존 설치의 LLM 환경변수는 [DB 설정 이관 절차](docs/domains/ai/hermes.md#db-connection-and-default-policy-cutover)로 정리한다. 기존 로컬 연결이 암묵적 기본 주소를 사용했다면 해당 절차의 명시적 주소 사전 조건을 먼저 충족한다. vLLM/Ollama 서버는 별도로 실행한 뒤 관리자 연결에 등록한다. 호스트에 Hermes를 별도 설치하지 않는다. |
+| 예외적 단일 생성 호출             | 명시적으로 등록된 [공통 직접 호출 어댑터](docs/domains/ai/gateway.md#direct-completion-exceptions)는 Hermes 없이 실행한다. 관리자 연결·암호화 키·활성 모델·출력 상한은 동일하게 준비한다. 구조화 출력은 선택한 엔드포인트의 JSON Schema 지원을 실제 등록 워크로드로 확인한다.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 문서 AI·OCR·음성 인식             | 설정한 [Inference Gateway](docs/domains/inference-gateway/README.md)와 [RAG](docs/domains/rag/README.md) 연결을 준비한다. 개발 Compose가 외부 추론 서버까지 설치하지는 않는다.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 슬라이드·다이어그램               | [Bento](docs/apps/bento/README.md)와 [Diagrams](docs/apps/diagrams/README.md)의 서버 주소·브라우저 연결을 확인한다. Bento의 별도 런타임 이미지와 Web bridge 프로토콜도 함께 맞춘다.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 화상회의·녹음                     | [Recording](docs/apps/recording/README.md)의 LiveKit·네트워크·추론 서비스 요구사항을 확인한다.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 개발 개인정보 필터를 이 서버에서 실행하는 경우, 별도 터미널에서 설정된 loopback 주소를 사용한다.
 이 프로세스도 계속 실행해야 하며 초기 모델 준비가 끝나야 API의 필수 검사에 통과한다.
@@ -845,13 +969,13 @@ Bento 등 별도 주소를 쓰는 기능은 사용 시 해당 기능 문서의 �
   uv run --frozen --python 3.12 python - <<'PY'
 from urllib.parse import urlparse
 import uvicorn
-from mty_api.core.settings import get_settings
+from miy_api.core.settings import get_settings
 
 endpoint = urlparse(get_settings().opf_service_base_url)
 if endpoint.scheme != 'http' or endpoint.hostname != '127.0.0.1' or not endpoint.port:
     raise SystemExit('Check the configured development privacy-filter endpoint first.')
 uvicorn.run(
-    'mty_api.domains.ai.privacy_filter_service:app',
+    'miy_api.domains.ai.privacy_filter_service:app',
     host=endpoint.hostname,
     port=endpoint.port,
 )
@@ -873,6 +997,13 @@ pnpm dev:infra:up
 ./dev.sh --with-worker --no-infra
 ```
 
+데모 환경의 Worker는 `config/runtime.json`의 `MIY_WORKER_CONCURRENCY=1`로
+작업 실행 자식 프로세스 하나를 유지한다. 개발·운영 모두 같은 설정을 사용하며,
+운영 적용에는 해당 설정을 포함한 릴리스 이미지가 필요하다. `.env`에 비밀이 아닌
+동시 실행 수를 복제하지 않는다. 작업은 순차 처리되고 Worker 감독 프로세스와 Beat는
+별도로 유지된다. 조정과 재시작은 [Worker 실행 계약](docs/domains/release/README.md#persistent-development-runtime)을 따른다.
+공유 서버의 메모리 한도·스왑 확인과 LXC 호스트 설정은 [메모리·스왑 운영 확인](docs/domains/release/installation-operations.md#memory-and-swap)을 따른다.
+
 네이티브 DB·Redis는 4절의 연결 검사로, Docker 서비스는 `pnpm infra:dev:status`로 확인한다.
 별도 터미널에서 Worker를 포함한 앱 상태를 확인한다.
 
@@ -886,6 +1017,123 @@ curl --fail --silent --output /dev/null http://127.0.0.1:8001/readyz
 AI 보호 정책을 끄지 않는다. 추가 키·서버가 필요한 기능은 미설정 상태로 명시한다.
 별도의 사용자 요청 없이 준비 확인만을 위해 유료 추론을 실행하지 않는다.
 
+Hermes 애플리케이션 응답·도구 정책을 갱신할 때는 [기존 설치 갱신](docs/domains/ai/hermes.md#updating-an-existing-development-installation)에 따라 게이트웨이와 API·Worker를 갱신한다. 일반 텍스트 응답도 검증된 결과 제출을 사용하므로, 도구 노출·결과 제출·누락 시 실패 동작을 함께 확인한다.
+
+## 6.1. Codex 콘솔 함께 설치
+
+여러 miy 서버를 발행 origin으로 구분하는 원격 자동 로그인은 miy 개발 사이트와 Console **양쪽의 HTTPS origin**을 사용한다.
+HTTP 개발 사이트를 유지하면서 별도 TLS 프록시 포트를 연결할 수 있다. 새 HTTPS 개발
+호스트의 launch URL 매핑, 정확한 origin·소유자 UUID 허용 목록, 브라우저와 Console 런타임의
+사설 CA 신뢰는 [Console 접속 절차](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)를
+따른다. 다중 서버 구성에서는 원격 HTTP 발행 origin을 허용하지 않으며, 만료된 일회용 코드는 모든 구성에서 거부한다.
+같은 miy 서버를 여러 주소로 여는 데모는 [서버와 소유자 한 쌍](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)만
+등록하면 주소별 허용 목록 없이 기존 로그인을 사용할 수 있다. 코드는 설정한 서버에서만 검증한다.
+구버전 PostgreSQL 저장소는 [이전과 백업 절차](docs/apps/codex-console/README.md#독립-저장소와-백업)에
+따라 복원본에서 migration·import를 검증한 뒤 이전한다.
+
+[MIY Workbench 소유 문서](docs/apps/codex-console/README.md)의 설치·서비스 실행·개인 앱 연결
+절차를 수행한다. miy PostgreSQL에 의존하지 않는 전용 로컬 SQLite 파일을 준비하고, Codex를 구독으로
+로그인한 OS 사용자로 서비스를 실행한다. 콘솔은 [현재 기준 버전](docs/apps/codex-console/README.md#설치)
+이상의 안정 CLI를 사용한다. `MIY_CODEX_CONSOLE_BINARY`는 버전별 디렉터리의 검증된 실제
+실행 파일을 명시적으로 선택하고, 검증 명령도 같은 파일을 사용한다. 전역 CLI 업데이트와
+Workbench의 CLI 전환을 분리하며, 최소 버전·선택 RPC 스키마와 원격 실행의 고정 버전 계약은
+[서비스 실행](docs/apps/codex-console/README.md#서비스로-실행)과 [검증과 복구](docs/apps/codex-console/README.md#검증과-복구)를 따른다.
+시작 시 RPC 스키마 호환성을 검사하며
+기본 개발·복구 기능에는 Platform API 키나 miy AI 공급자 설정을 요구하지 않는다. 운영 앱 집계 연결은 아래 별도 조회 키를 사용한다.
+
+- [독립 저장소와 백업](docs/apps/codex-console/README.md#독립-저장소와-백업)에 따라 영구 데이터 경로·0600 권한·online backup을 준비한다. Python에 포함된 SQLite의 WAL 수정 버전을 확인한다. 기존 PostgreSQL 설치는 원본을 보존하며 검증된 이전 도구로 복사한다.
+- 콘솔의 `.env`와 웹 비밀번호를 준비하고 migration·정적 UI 빌드·관리/세션/템플릿 세 systemd 서비스의
+  자동 시작을 완료한다. [서비스와 작업 현황](docs/apps/codex-console/README.md#서비스와-작업-현황)의
+  세 포트·management 단일 프록시 경로·읽기 전용 모니터·병렬 작업 제한을 설정한다. 템플릿 실행기는 별도 고정 CLI와 `template-current` 릴리스를 사용한다.
+- 앱 운영 집계를 제공할 설치는 [운영 조회와 개발 화면 연결](docs/apps/codex-console/README.md#운영-조회와-개발-화면-연결)에 따라 MIY 조회 API를 먼저 배포하고 전용 키·origin을 Workbench 환경 파일에 설치한다. `glab`은 서비스 OS 사용자로 내부 GitLab에 인증한다. Studio·앱 관리·플랫폼 화면, 미설정/권한 거부 표시, 기존 작업, SQLite 백업·복원을 확인한다.
+- 새 프로젝트의 업무명·요구사항 기반 기본값과 로컬 소스 준비는 [프로젝트에서 새 앱 소스 준비](docs/apps/codex-console/README.md#프로젝트에서-새-앱-소스-준비)를 따른다. 원격 Git 저장소 생성과 실행 환경 설치는 별도다.
+- 독립 앱 소스를 연결하려면 Console의 별도 환경 파일에 `MIY_CODEX_CONSOLE_APP_SOURCE_ROOTS`를 절대 경로 JSON 배열로 설치한다. 기본 `[]`는 비활성이다. 운영·자격 증명·Console 저장소를 제외하고, 앱 목록의 **앱 소스 연결**에서 `app.manifest.json`이 있는 실제 체크아웃을 선택한다. `console_sqlite_0005` 마이그레이션과 기존 작업 경로 보존 규칙은 [독립 앱 소스 연결](docs/apps/codex-console/README.md#독립-앱-소스-연결)을 따른다. 환경 파일 설치와 별도 서비스 전환은 각각 해당 설치·배포 절차를 따른다.
+- SDK를 사용하는 격리 앱 개발 환경은 [SDK 프로파일 계약](docs/apps/codex-console/README.md#지속-앱-개발용-sdk-executor)에 따라 검증된 native/SDK 캐시와 코어 운영자 소유의 executor·socket proxy를 준비한다. 기존 `MIY_CODEX_CONSOLE_APP_EXECUTION_ENVIRONMENTS`의 정확한 소스·endpoint·capability에 `toolchain_profile: "miy-native-sdk-20261009-v2"`를 연결한다. 지속 개발용 service 예제는 자원·네트워크·mount·인증 격리를 유지하면서 운영자 중단 전까지 살아 있으며, 기존 270초 pilot을 덮어쓰지 않는다. native Task 중단·동일 thread 재개·unknown 관측·실제 종료를 인수하고 새 Workbench release를 별도로 반영한 후 사용한다. 예제만 추가한 상태를 SDK 활성화로 표시하지 않는다.
+- 새 프로젝트에서 템플릿 앱 소스를 준비하려면 `MIY_CODEX_CONSOLE_APP_CREATION_ROOTS`를 명시한다. 기본 `[]`는 생성 비활성이고, 각 경로는 `APP_SOURCE_ROOTS` 안의 서비스 사용자 소유·그룹/다른 사용자 쓰기 불가 디렉터리여야 한다. 현재 스키마 `console_sqlite_0008`까지 적용한 뒤 Studio 프로젝트의 **앱 소스 준비**에서 템플릿과 저장소 주소를 선택한다. `0006`은 소스 준비 기록, `0007`은 기존 결과와 분리된 nullable native agent 관측을 추가한다. 기존 파일을 덮지 않고 첫 로컬 Git revision과 소스 연결을 만들며, 중단·응답 유실은 저장된 같은 요청으로 조회·재개한다. 이 단계는 플랫폼 등록·설치·원격 Git 게시·executor 설치를 수행하지 않는다. 스키마 변경 전 서비스 중지·백업은 [저장소 계약](docs/apps/codex-console/README.md#독립-저장소와-백업), 준비 절차는 [프로젝트에서 새 앱 소스 준비](docs/apps/codex-console/README.md#프로젝트에서-새-앱-소스-준비)의 계약을 따른다.
+- 최초 플랫폼 등록은 **앱 등록 초안 내려받기** → MIY 포털 `/apps/register`의 파일 가져오기·현재 소유자 확인으로 진행할 수 있다. 원본 manifest는 64 KiB, 인계 파일은 256 KiB 상한이다. 응답 유실은 같은 operation UUID로 조회하며 불명확한 요청을 자동 재실행하지 않는다. receipt는 최초 등록 기록으로 현재 실행 준비 완료를 뜻하지 않는다. [파일 등록 절차](docs/apps/codex-console/README.md#등록-초안-파일로-최초-앱-등록)는 COOP·토큰 경계를 유지하며, 아래 선택 기능을 켜지 않은 서버에서도 유지한다.
+- 파일 없는 등록 연결은 `console_sqlite_0008`과 별도 Workbench release를 준비한 뒤 `MIY_CODEX_CONSOLE_REGISTRATION_AUTHORIZATION_ENABLED=true`로 명시 활성화한다(기본 false). Core audience allowlist와 현재 MIY issuer/소유자 UUID 설정이 일치해야 한다. 새 등록 작업에서 현재 MIY 사용자가 한 번 승인하고, Codex 구현 승인 아래 실제 저장된 앱 정의를 등록한다. 서버 credential 디렉터리는 SQLite 파일 옆 `registration-credentials`이며 앱 작업 경로 밖에 둔다. 0700 디렉터리·0600 단일 링크 파일, 원래 Workbench 세션/Task binding, 응답 유실의 같은 operation 조회·만료 후 명시 재연결은 [Workbench 최초 등록 위임](docs/apps/codex-console/README.md#workbench에서-최초-등록-한-번-허용)을 따른다. 기존 Task에 도구가 자동 추가되거나 등록으로 executor·배포 권한이 생기지 않는다. 서비스 중지·백업·migration·독립 release 검증은 기존 저장/배포 계약을 적용한다.
+- 최초 등록 후에는 MIY 소유자로 로그인해 등록 결과·앱 목록의 **내 개발 설치** 또는 Workbench 등록 기록의 **MIY에서 내 개발 미리보기 설정**을 연다. 초기 개발 설치의 사용 허용과 요청된 접근 권한을 명시적으로 저장한다. 원본 주소·대상 사용자·소스는 이 화면에서 바꾸지 않으며, 배포/검증이 시작된 설치는 읽기 전용이다. 저장 응답을 확인하지 못하면 자동 재저장 대신 현재 설정을 다시 읽는다. 이 설정은 앱 서버 실행·데이터 저장소 준비·배포를 수행하지 않는다. 자세한 범위는 [소유자 최초 개발 미리보기 설정](apps/api/src/miy_api/domains/independent_apps/README.md#owner-only-initial-development-preview-settings)을 따른다.
+- 독립 앱의 실제 Codex 실행은 소스 연결 외에 검증된 원격 executor가 필요하다. 같은 소유 문서의 `prepare-independent-app-workspace.py`와 `verify-independent-app-executor.py`로 자격 증명 없는 별도 checkout과 읽기 전용·편집 정책을 확인한 뒤 `MIY_CODEX_CONSOLE_APP_EXECUTION_ENVIRONMENTS`를 설정한다. 기본 Docker 환경에서 내부 sandbox가 실패하면 설정을 발급하지 않으며, 계획 정책을 무제한 실행으로 바꾸지 않는다. 미연결 새 앱 프로젝트는 계획만 가능하다. 개발 설치별 위임과 큐 소비자는 [독립 앱 배포 도구](docs/apps/codex-console/README.md#독립-앱-배포-도구)의 별도 선택 기능이다.
+- Docker 내부 sandbox를 제공할 수 없는 지원 manager에서는 [단일 checkout의 표준 executor 정의](docs/apps/codex-console/README.md#단일-checkout의-표준-executor-정의)를 검토할 수 있다. 공식 pinned package·root-owned immutable cache·정확한 mount/자원·bearer 검증 후 운영자가 명시적으로 연결하는 270초 유한 pilot이며, source 예제나 문법 검사만으로 설치·Workbench 배포 완료를 판단하지 않는다.
+- 지침·스킬에서는 프로젝트 폴더와 스킬 참고 문서의 탐색·내부 링크, 관리자·시스템·플러그인 스킬의 읽기 전용 표시를 확인한다. `MIY_CODEX_CONSOLE_WORKSPACE`는 대상 Git 저장소이며 MIY 저장소에 한정되지 않는다. **Codex 스킬 발견 상태**와 **지침 탐색 설정**으로 작업 경로별 native 결과·대체 파일명·합산 제한을 확인한다. 설치 파일 목록과 실제 실행 가능 범위는 [지침·스킬 계약](docs/apps/codex-console/README.md#서비스와-작업-현황)을 따른다.
+- [중단 후 계속하기](docs/apps/codex-console/README.md#실행-설정과-중단-후-계속하기)를 확인한다. 일반 실행과 상태 확인에는 Git 사전 검사가 없으며, 삭제된 작업 경로나 명령 실패는 같은 대화에서 Codex가 판단한다. 새 작업·템플릿의 명시적 격리를 사용할 때만 [작업 공간 설정](docs/apps/codex-console/README.md#브랜치와-작업-공간)의 기준 ref와 워크트리 경로를 준비한다.
+- 설치 호스트의 콘솔 Vite와 공개 HTTPS 주소에서 각각 작업실 로그인을 확인한다.
+  접속 범위와 쿠키 계약은 [Codex Console 접속](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
+- 같은 개발 사이트를 로컬·원격 주소로 함께 열면 `MIY_CODEX_CONSOLE_LAUNCH_URL_BY_HOST`로
+  서로 다른 Console 주소가 필요한 호스트만 설정한다. 모든 접속에서 같은 콘솔을 쓰면 기본 launch URL 하나를 사용한다.
+  키 형식과 fallback은 [Codex Console 접속](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
+- [추론 강도 허용 목록](docs/apps/codex-console/README.md#개인-cli-클라이언트와-제품-ai의-연결-경계)을
+  확인한다. 기본값은 `xhigh`까지이며 새 강도는 명시적으로 허용할 때까지 표시하지 않는다.
+- [파일 첨부 설정](docs/apps/codex-console/README.md#파일-보관과-메시지별-첨부)에 따라 원본 DB
+  백업·Git 저장소 밖의 읽기 사본 경로·업로드 용량과 HTTPS 프록시 제한을 준비한다.
+- 전용 HTTPS 주소에서 콘솔로 직접 연결해 miy 개발 Web 재시작과 접속 경로를 분리한다.
+  앞단 프록시가 다른 호스트이면 [사설망 연결 설정](docs/apps/codex-console/README.md#tls-프록시가-다른-호스트에-있을-때)을 따른다.
+  기존 개발 사이트의 `/codex-console/`를 Vite로 연결하는 대안은 개발 Web 재시작 시 접속이 중단된다.
+  IP 기반 최초 설치에는 [HTTPS 신뢰 등록](docs/domains/release/installation-operations.md#https-trust)을 적용한다.
+  인증 교환 서버의 원격 HTTP 등록이나 Codex 인증 파일 복사로 우회하지 않는다.
+- miy 자동 로그인의 인증 교환은 HTTPS origin에서 확인한다. 사설 CA를 사용하면 PC와 Console 서비스 호스트
+  양쪽의 신뢰 저장소를 준비한다. [서버의 인증서 검증](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 따른다.
+- 서버에서 직접 사용하는 브라우저는 `http://127.0.0.1:19365/`로 진입해 설정한 콘솔 화면 주소로
+  이동하는지 확인한다. [콘솔 설치의 로컬 진입점](docs/apps/codex-console/README.md#설치)을 따른다.
+  여러 접속 주소의 자동 로그인은 [단일 miy 서버 설정](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)을 사용한다.
+- miy의 typed launch URL 설정과 관리자 앱 사용 설정에서 `codex-console`을 활성화한다.
+  URL 미설정·비활성화 상태에서는 개인 앱에 노출되지 않는다. 자동 로그인을 사용할 때는
+  [개인 앱과 HTTPS 접속 연결](docs/apps/codex-console/README.md#개인-앱과-https-접속-연결)에 따라
+  콘솔 `.env`에서 개발·운영 miy의 정확한 origin을 각 환경의 단일 콘솔 소유자 사용자 UUID에
+  연결한다. 자동 로그인을 사용하지 않거나 교환이 실패한 경우에는 별도 작업실 비밀번호로
+  직접 로그인한다.
+- `개인 앱 → Codex 콘솔` 클릭 시 기존 탭은 유지되고 새 탭이 열리는지 확인한다. 자동 로그인을
+  설정했다면 소유자 miy 세션에서 비밀번호 화면 없이 열리고 URL fragment가 즉시 제거되어야
+  하며, 다른 사용자는 자동 로그인되지 않아야 한다. 자동 로그인을 설정하지 않았다면 작업실
+  비밀번호 화면이 표시되어야 한다. 이어서 ChatGPT 구독 연결 상태, 로그아웃 후 접근 차단,
+  프록시 아래의 정적 파일·API·SSE를 확인한다.
+- [실행 설정과 재개](docs/apps/codex-console/README.md#실행-설정과-중단-후-계속하기)에 따라
+  구독 모델 목록·계획/실행 모드, **이 계획으로 실행** 확인 창의 승인/YOLO 선택·취소·같은 작업의 후속 요청 권한 유지와 탭 종료 후 백그라운드 작업 복원·중단 재개를 확인한다.
+  설치한 세션 user unit은 `NoNewPrivileges=false`를 유지하고, 재시작 뒤 메인 PID가 `NoNewPrivs: 0`인지와
+  YOLO에서 설치 계정에 이미 허용된 비대화형 sudo·그룹 자원 접근이 동작하는지 확인한다. 이 설정은
+  새 OS 권한을 부여하지 않으므로 필요한 sudoers·그룹 권한은 호스트에서 별도로 준비한다.
+- 파일 두 개를 보관하고 하나만 메시지에 선택해 전달한다. 전송 후 선택 해제, 첨부 기록과
+  파일 목록의 새로고침 복원, 128 KiB 초과 업로드도 확인한다.
+- 접속 주소·전용 웹 비밀번호·DB 정보는 [`.auth_info`](#11-로그인-정보-파일-관리)에 기록한다.
+  콘솔의 실제 서비스 이름·실행 계정·중지/재시작 명령을 인계한다.
+- 업데이트 후에는 [콘솔 배포 완료 확인](docs/apps/codex-console/README.md#배포-완료-확인)에 따라
+  실제 릴리스 경로·health·로그인 후 API와 브라우저 동작까지 검증한다.
+  `MIY_CODEX_CONSOLE_WEB_DIST`가 현재 서비스 릴리스의 웹 정적 파일을 가리키는지도 확인한다.
+- **Codex 업데이트 필요**가 표시되면 [검증과 복구](docs/apps/codex-console/README.md#검증과-복구)의
+  안내에서 호환성 업데이트 템플릿을 실행해 별도 Codex 세션으로 수정·검증·반영한다. 일반 UI/세션 재시작 중에도 템플릿 작업과 승인 대기가 보존되는지 확인한다.
+
+`dev.sh`는 콘솔을 시작하거나 종료하지 않는다. 콘솔은 자신을 수정하는 개발 체크아웃과
+분리된 릴리스에서 실행한다. 업데이트에는 새 릴리스 빌드·설정 연결·검증·전용 DB 백업과
+스키마 변경 시 세 서비스를 중지한 상태에서 [콘솔 DB migration](docs/apps/codex-console/README.md#설치)·서비스 재시작을
+사용하며, 원본 Codex 인증과 전용 DB는 유지한다. 스키마가 같으면 템플릿 실행기는 유지한 채 일반 릴리스만 갱신한다. 새 서버를 실행하기 전에 필요한 migration을 완료하고,
+이전 서버로 되돌릴 때는 해당 릴리스의 DB 백업도 함께 복원한다. 이미 사용 중인 전용 DB·비밀번호·서비스
+설정은 재설치 시 초기화하지 않는다.
+
+콘솔의 [작업 공간 설정](docs/apps/codex-console/README.md#브랜치와-작업-공간)에 따라 기준 ref,
+외부 워크트리 경로와 운영 체크아웃 금지 목록을 설정한다. miy 설치는 `origin/dev`와
+체크아웃 루트의 `worktrees`를 사용하고 실제 prod 경로를 등록한다. SQLite는 소스·워크트리·릴리스 밖에 둔다.
+새 작업의 계획 기본값, 질문만으로 문서 미생성, 요청한 문서의 생성·확정 변경 자동 갱신,
+직접 실행과 작업별 브랜치 탭을 확인한다.
+
+## 6.2. 테트리스 개인 앱 사용
+
+테트리스는 miy API·Web과 함께 설치되며 수동 플레이에는 별도 서비스나 환경 설정이 필요 없다.
+새 서버에서는 [테트리스 설치·활성화](docs/apps/tetris/README.md#설치와-앱-활성화)에 따라
+플랫폼 관리자가 앱을 켜고 대상 사용자를 선택한다. 개인 앱에서 테트리스를 열고 키보드와
+화면 버튼 조작·점수 증가·일시정지·재개 및 비허용 사용자 차단을 확인한다. 게임 진행은
+일시적인 화면 상태이며 페이지 이동·새로고침 시 초기화된다.
+플레이어 2를 없음으로 두면 혼자 플레이하며, 사람은 한 명까지 참여한다.
+AI 플레이를 사용하려면 [테트리스 AI 설정](docs/apps/tetris/README.md#ai-플레이)에 따라
+판단 모델을 `tetris.play`에 연결하고, 일반 LLM은 `tetris.play.generation`의 생성 기본값과
+JSON Schema 호환 연결을 준비한다. 이 워크로드는 공통 직접 호출 어댑터를 사용하므로
+Hermes가 필요 없다. 생성 모델은 추론을 끈 실제 호출을 확인한 뒤 관리자 카탈로그에서
+`추론 없이 응답` 기능을 승인해야 한다. 테트리스는 이 기능을 요구하므로 모델을 바꿔도
+추론을 끈다. 추론 필수 모델은 선택할 수 없다. 상세 계약은
+[공통 추론 끔 정책](docs/domains/ai/gateway.md#non-reasoning-workloads)을 따른다.
+양방향 즉시 공격, AI 대기 중 낙하, 오류 후 0.5초 간격 재시도, 게임 종료 시 양쪽 요청 중단을
+확인한다. 수동 혼자 플레이는 모델 설정 없이 가능하다. `MIY_LLM_REQUIRED=true`이면
+전체 서버 준비 상태(`/readyz`)에 두 워크로드의 유효한 기본 연결이 모두 필요하다.
+
 ## 7. 실행 종료·재시작과 완료 확인
 
 `dev.sh`는 전경 실행이다. `Ctrl+C` 또는 터미널 종료 시 앱 프로세스가 멈추며 네이티브 DB·Redis와 Docker 인프라는 남는다.
@@ -894,6 +1142,7 @@ AI 보호 정책을 끄지 않는다. 추가 키·서버가 필요한 기능은 
 다른 터미널에서 중지할 때는 실행 대상에 맞춰 `./dev.sh --stop` 또는
 `./dev.sh --with-worker --stop`을 사용한다. 호스트 감독 서비스로 실행 중이면
 [지속 실행 계약](docs/domains/release/README.md#persistent-development-runtime)에 따라 그 감독 서비스를 사용한다.
+Worker 종료 대상은 UID·정확한 checkout cwd·인터프리터·명령·부모 관계로 확인한 네이티브 Main이며, 같은 명령을 가진 prefork 자식과 shell/uv 래퍼에는 신호를 보내지 않는다. 식별이 불명확하면 종료를 보류한다. 일반 종료·같은 구조 재시작은 Worker 작업 완료를 기다린 뒤 API·UI·Beat를 정리한다. 네이티브 `setsid --wait`가 Nx를 별도 세션으로 실행해 터미널 신호를 Bash 종료 처리로 모으므로 설치되어 있어야 한다. 감독 서비스는 Main만 신호를 받게 하고 전체 warm 종료 유예를 보존한다(`KillMode=process`, `SendSIGKILL=no`). 이 소스 변경은 이미 실행 중인 launcher 코드를 갱신하지 않는다. 구조 전환은 기존 API·Beat 발행 중지 후 새 native drain 절차를 유지한다.
 네이티브 DB·Redis를 멈춰야 한다면 대상이 이 프로젝트 전용인지 확인한 뒤 해당 systemd unit만 중지한다.
 공유 서비스는 임의로 중지하지 않는다. Docker 최소 인프라만 멈출 때는 `pnpm dev:infra:minimal:down`을 사용한다.
 데이터 디렉터리나 볼륨을 삭제하지 않는다.
@@ -923,7 +1172,8 @@ Runner는 `sudo systemctl stop gitlab-runner`, `sudo systemctl start gitlab-runn
 - 세션 종료와 무관한 개발 앱 실행, PostgreSQL·Redis 인증 연결과 API readiness.
 - IP 기반 GitLab 로그인, 관리자 설정·`glab` 인증, 비공개 프로젝트와 `origin` 연결, `dev`·`main` 등록·보호와 개발·운영 체크아웃 분리.
 - Runner 등록·온라인 상태와 필요한 이미지·CI 변수·테스트 DB 준비, 검증용 `dev` 대상 MR의 최신 커밋에 대한 실제 파이프라인 성공.
-- `.auth_info`의 최신 개발·GitLab·DB 로그인 정보, 소유자 전용 권한과 Git 제외·미추적 상태.
+- Codex 콘솔의 지속 실행·HTTPS 접속과 개인 앱 새 탭 열기, 전용 로그인·구독 연결 및 메시지별 파일 선택 첨부 확인.
+- `.auth_info`의 최신 개발·GitLab·DB·Codex 콘솔 로그인 정보, 소유자 전용 권한과 Git 제외·미추적 상태.
 
 GitLab 패키지 다운로드·lint·최소 환경 실행은 중간 단계다. 실패한 필수 항목은 원인을 해결하고 재검사한다.
 필수 인증이나 외부 네트워크 권한처럼 사용자만 처리할 수 있는 항목이 남으면 정확한 미완료 항목과 필요한 조치만 요청하며, 독립적으로 가능한 설치 작업은 계속한다.
@@ -944,6 +1194,8 @@ GitLab 패키지 다운로드·lint·최소 환경 실행은 중간 단계다. �
 이 가이드의 영향받는 절차와 연결된 소유 문서를 같은 변경에서 갱신한다.
 이 문서에는 다른 설치에서도 재사용할 절차·전제 조건·복구 방법을 남긴다.
 특정 서버의 로그인 정보는 `.auth_info`에서 관리하고, 비밀값을 제외한 접속 안내·실행 시각·검사 결과만 설치 결과로 전달한다.
+
+개발·운영 버전이 다른 순차 갱신 중에는 환경 계약 검사가 각 체크아웃의 설정 계약을 사용한다. `config/runtime.json` 도입 전 버전의 다른 체크아웃에만 런타임 설정 파일의 부재를 허용하며, 현재 버전의 파일 누락이나 불완전한 설정은 계속 오류로 처리한다. 다른 체크아웃의 코드를 실행하지 않고 선언된 계약만 읽는다.
 
 ## 8. 내부 관리 시작 후 원본 업데이트
 
@@ -970,3 +1222,32 @@ git log --oneline origin/dev..upstream/main
 [저장소 정책](AGENTS.md#git-and-delivery)에 따라 진행한다.
 원격 관리 방식은 [Git 공식 설명](https://git-scm.com/book/en/v2/Git-Basics-Working-with-Remotes)과
 [GitHub의 upstream 설정 안내](https://docs.github.com/en/pull-requests/how-tos/work-with-forks/configuring-a-remote-repository-for-a-fork)를 참고한다.
+
+### Workbench 작업별 환경의 추가 준비
+
+작업별 기능 브랜치·SDK 실행은 기본 비활성이다. Core Alembic
+`independent_archive_20261011`을 포함한 현재 head와 Workbench SQLite `console_sqlite_0009`, 별도 Workbench
+release를 함께 준비한다. `MIY_INDEPENDENT_APP_WORKSPACE_PROFILES`는 Core 소유 저장소·이미지·
+scratch/state 경로와 준비된 HTTPS/loopback 슬롯만 포함한다. Workbench에는
+`MIY_CODEX_CONSOLE_MANAGED_WORKSPACES_ENABLED`와 보호된 managed helper 고정 argv를 설정한다.
+[작업별 개발 환경 계약](docs/apps/codex-console/README.md#작업별-개발-환경)의 native bundle,
+user systemd/namespace, 명시 `workspace` 위임과 안정된 개발 installation target을 확인한다.
+플랫폼 `.env`를 앱 worktree에 복사하지 않는다.
+
+고정 system-unit broker를 사용하는 설치는 Workbench release와 별도로
+root 소유 `/usr/local/libexec/miy-workbench-environment`의 소스 hash도 확인한다.
+broker 변경이 포함된 갱신은 작업 종료·백업·Workbench 서비스 중지 후 검토된 bytes로
+교체하고 재시작한다. release 전환만으로 root entrypoint가 바뀌지는 않는다.
+기존 관리형 SDK의 자원 한도를 갱신할 때는 [고정 system-unit broker의 업그레이드 절차](docs/apps/codex-console/README.md#고정-system-unit-broker)를 따른다.
+실행 중인 환경의 제한을 임의로 풀거나 unit·journal의 hash를 직접 수정하지 않는다.
+
+검색 앱은 private OpenSearch/Qdrant, 등록된 Core inference gateway embedding 및 설치별
+앱 데이터 PostgreSQL을 준비한 뒤 `MIY_INDEPENDENT_APP_SEARCH_ENABLED=true`로 켠다.
+개발 Compose의 검색 엔진 공개 포트는 loopback에만 bind한다. 기존 서비스 재기동 없이
+파일 변경만으로 네트워크 격리가 적용됐다고 판단하지 않는다. 이번 검색 연결은 개발
+설치 대상이며 운영 검색 승격은 후속이다.
+
+앱 MR을 실제 병합하려면 [개인 앱 CI](docs/domains/release/README.md#personal-app-ci-boundary)의
+전용 runner와 설치된 Core entrypoint도 필요하다. 서비스 전환 후 새 작업 → native 편집 →
+포털 새 탭 실행 → 필수 MR/CI → 개발 설치 실행 확인 → 임시 자원 정리를 대표 흐름으로
+확인한다. 코드·생성 계약·로컬 테스트 완료와 서버 배포/브라우저 인수 완료를 구분한다.

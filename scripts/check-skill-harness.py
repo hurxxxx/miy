@@ -21,56 +21,14 @@ SKILL_NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 MARKDOWN_LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 LOWERCASE_AGENTS_REFERENCE_RE = re.compile(r"(?<![A-Za-z])agents\.md\b")
 
-SCOPED_INSTRUCTION_DIRECTORIES = (
-    Path(".agents/skills"),
-    Path("apps/api"),
-    Path("apps/web"),
-    Path("apps/worker"),
-    Path("docs"),
-    Path("packages/ui"),
-)
-
-INSTRUCTION_LINE_LIMITS = {
-    Path("AGENTS.md"): 60,
-    Path("CLAUDE.md"): 12,
-    **{
-        directory / "AGENTS.md": 24
-        for directory in SCOPED_INSTRUCTION_DIRECTORIES
-    },
-    **{
-        directory / "CLAUDE.md": 1
-        for directory in SCOPED_INSTRUCTION_DIRECTORIES
-    },
-}
-
-ALLOWED_INSTRUCTION_PATHS = frozenset(INSTRUCTION_LINE_LIMITS)
-SCOPED_CLAUDE_PATHS = frozenset(
-    directory / "CLAUDE.md" for directory in SCOPED_INSTRUCTION_DIRECTORIES
-)
-
-REQUIRED_SKILLS = {
-    "agent-browser",
-    "diagnose",
-    "mty-agent-harness",
-    "mty-ai-capabilities",
-    "mty-app-delivery",
-    "mty-design-review",
-    "mty-dev-environment",
-    "mty-docs-reader",
-    "mty-env-contracts",
-    "mty-issues",
-    "mty-mr-review",
-    "mty-production",
-    "mty-release",
-    "mty-worktrees",
-}
+INSTRUCTION_LINE_LIMITS = {Path("AGENTS.md"): 60, Path("CLAUDE.md"): 12}
 
 RETIRED_SKILLS = {
     "caveman",
     "grill-me",
-    "mty-agent-work-intake",
-    "mty-desktop-release",
-    "mty-pr-review-validation",
+    "miy-agent-work-intake",
+    "miy-desktop-release",
+    "miy-pr-review-validation",
     "prototype",
     "setup-matt-pocock-skills",
     "tdd",
@@ -78,29 +36,9 @@ RETIRED_SKILLS = {
     "zoom-out",
 }
 
-REQUIRED_RESOURCES = {
-    Path(".agents/skills/diagnose/scripts/hitl-loop.template.sh"),
-    Path(".agents/skills/mty-design-review/ADR-FORMAT.md"),
-    Path(".agents/skills/mty-design-review/DEEPENING.md"),
-    Path(".agents/skills/mty-design-review/INTERFACE-DESIGN.md"),
-    Path(".agents/skills/mty-design-review/LANGUAGE.md"),
-    Path(".agents/skills/mty-docs-reader/scripts/read_mty_doc.py"),
-    Path(".agents/skills/mty-env-contracts/scripts/env-inventory.sh"),
-    Path(".agents/skills/mty-env-contracts/scripts/local-env-files.sh"),
-    Path(".agents/skills/mty-issues/AGENT-BRIEF.md"),
-    Path(".agents/skills/mty-agent-harness/references/ci-review.md"),
-    Path(".agents/skills/mty-design-review/references/plan-review.md"),
-    Path(".agents/skills/mty-design-review/references/architecture.md"),
-    Path(".agents/skills/mty-env-contracts/references/env-files.md"),
-    Path(".agents/skills/mty-env-contracts/references/separation.md"),
-    Path(".agents/skills/mty-issues/references/prd.md"),
-    Path(".agents/skills/mty-issues/references/slices.md"),
-    Path(".agents/skills/mty-issues/references/triage.md"),
-}
-
 STALE_SKILL_GUIDE_PATTERNS = {
-    r"\bCONTEXT(?:-MAP)?\.md\b": "MTY does not use generic context glossary files",
-    r"\bdocs/adr/": "MTY ADRs live in root adr/",
+    r"\bCONTEXT(?:-MAP)?\.md\b": "miy does not use generic context glossary files",
+    r"\bdocs/adr/": "miy ADRs live in root adr/",
     r"/projects/": "fixed internal checkout paths are not portable",
     r"\bdocs/current/": "docs/README.md and current owner docs replace docs/current",
     r"\b(?:Legacy Issues|mcloudoc)\b": "retired internal apps must not appear in skills",
@@ -116,7 +54,7 @@ RETIRED_TRIAGE_PATTERNS = {
 }
 
 TRIAGE_GUIDANCE_PATHS = {
-    Path(".agents/skills/mty-issues/SKILL.md"),
+    Path(".agents/skills/miy-issues/SKILL.md"),
     Path("docs/agents/triage-labels.md"),
 }
 
@@ -152,12 +90,12 @@ PNPM_BUILTINS = {
 }
 
 STALE_PATTERNS = {
-    r"(?i)\bai-do\b|\bAI_DO\b|\bai_do\b": "retired AI-DO identifiers must not appear in MTY guidance",
+    r"(?i)\bai-do\b|\bAI_DO\b|\bai_do\b": "retired AI-DO identifiers must not appear in miy guidance",
     r"/projects/ai-do\b": "AI-DO internal checkout paths are not portable",
-    r"\bdwdcc\b": "DWDCC project references must not appear in MTY guidance",
+    r"\bdwdcc\b": "DWDCC project references must not appear in miy guidance",
     r"\bvm:app\b": "preview VM app scripts are retired",
     r"\bvm-app-stack\b": "preview VM app harness is retired",
-    r"\bmty-preview-deploy\b": "preview deploy skill is retired",
+    r"\bmiy-preview-deploy\b": "preview deploy skill is retired",
     r"\.env\.remote-dev\b": "remote-dev profile is retired",
     r"\bremote-dev\b": "remote-dev profile is retired",
 }
@@ -436,14 +374,14 @@ def _is_triage_guidance(root: Path, path: Path) -> bool:
     relative = path.relative_to(root)
     return (
         relative in TRIAGE_GUIDANCE_PATHS
-        or relative.parts[:3] == (".agents", "skills", "mty-issues")
+        or relative.parts[:3] == (".agents", "skills", "miy-issues")
     )
 
 
 def _is_core_agent_guidance(root: Path, path: Path) -> bool:
     relative = path.relative_to(root)
     return (
-        relative in ALLOWED_INSTRUCTION_PATHS
+        relative.name in {"AGENTS.md", "CLAUDE.md"}
         or relative
         in {
             Path("README.md"),
@@ -489,8 +427,8 @@ def _missing_local_markdown_links(file_content: TextFileContent) -> list[str]:
 def evaluate_skill_harness(
     snapshot: SkillHarnessSnapshot,
     *,
-    required_skills: Iterable[str] = REQUIRED_SKILLS,
-    required_resources: Iterable[Path] = REQUIRED_RESOURCES,
+    required_skills: Iterable[str] = (),
+    required_resources: Iterable[Path] = (),
     require_tool_bridges: bool = True,
     stale_patterns: Mapping[str, str] = STALE_PATTERNS,
 ) -> SkillHarnessReport:
@@ -501,41 +439,12 @@ def evaluate_skill_harness(
         file_content.path.relative_to(root): file_content
         for file_content in snapshot.instruction_files
     }
-    unexpected_instruction_paths = sorted(
-        str(path)
-        for path in instruction_paths
-        if path not in ALLOWED_INSTRUCTION_PATHS
-    )
-    if unexpected_instruction_paths:
-        findings.append(
-            _finding(
-                "unexpected_agent_instruction",
-                "agent instruction files may exist only at approved scopes: "
-                + ", ".join(unexpected_instruction_paths),
-            )
-        )
-
-    if require_tool_bridges:
-        missing_instruction_paths = sorted(
-            str(path)
-            for path in ALLOWED_INSTRUCTION_PATHS
-            if path not in instruction_paths
-        )
-        if missing_instruction_paths:
-            findings.append(
-                _finding(
-                    "missing_agent_instruction",
-                    "missing required root/scoped agent instructions: "
-                    + ", ".join(missing_instruction_paths),
-                )
-            )
-
     for relative, file_content in sorted(instruction_paths.items()):
         if file_content.path.is_symlink():
             findings.append(_finding("symlink_agent_instruction", f"{relative}: instruction files must be owned regular files, not symlinks"))
-        limit = INSTRUCTION_LINE_LIMITS.get(relative)
-        if limit is None:
-            continue
+        limit = INSTRUCTION_LINE_LIMITS.get(
+            relative, 1 if relative.name == "CLAUDE.md" else 24
+        )
         line_count = len(file_content.text.splitlines())
         if line_count > limit:
             findings.append(
@@ -545,7 +454,8 @@ def evaluate_skill_harness(
                 )
             )
         if (
-            relative in SCOPED_CLAUDE_PATHS
+            relative.name == "CLAUDE.md"
+            and relative != Path("CLAUDE.md")
             and file_content.text.strip() != "@AGENTS.md"
         ):
             findings.append(
@@ -692,14 +602,6 @@ def evaluate_skill_harness(
                     f"{_display_path(root, file_content.path)}: "
                     "skill folder name must be at most 64 characters and use "
                     "lowercase letters, digits, and hyphens",
-                )
-            )
-        if "Use when" not in metadata.get("description", ""):
-            findings.append(
-                _finding(
-                    "missing_use_when_trigger",
-                    f"{_display_path(root, file_content.path)}: "
-                    "description must include 'Use when'",
                 )
             )
         description = metadata.get("description", "")

@@ -10,28 +10,28 @@ from pydantic import ValidationError
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 
-from mty_api.core.db import get_session_factory
-from mty_api.domains.auth.models import User
-from mty_api.domains.auth.security import new_id
-from mty_api.domains.community import service
-from mty_api.domains.community.models import (
+from miy_api.core.db import get_session_factory
+from miy_api.domains.auth.models import User
+from miy_api.domains.auth.security import new_id
+from miy_api.domains.community import service
+from miy_api.domains.community.models import (
     CommunityChannel,
     CommunityComment,
     CommunityPost,
     CommunityPostRead,
 )
-from mty_api.domains.dm.models import (
+from miy_api.domains.dm.models import (
     DmConversation,
     DmConversationParticipant,
     DmMessage,
     DmMessageAttachment,
 )
-from mty_api.domains.community.router import _require_author_or_admin
-from mty_api.domains.community.schemas import CommunityChannelCreateRequest
-from mty_api.domains.content_access.grants import ContentGrantIssuer
-from mty_api.domains.media import content_access as media_content_access
-from mty_api.domains.media.models import MediaFile
-from mty_api.domains.pms.models import Notification
+from miy_api.domains.community.router import _require_author_or_admin
+from miy_api.domains.community.schemas import CommunityChannelCreateRequest
+from miy_api.domains.content_access.grants import ContentGrantIssuer
+from miy_api.domains.media import content_access as media_content_access
+from miy_api.domains.media.models import MediaFile
+from miy_api.domains.pms.models import Notification
 from dev_accounts import auth_headers, dev_login
 
 
@@ -60,7 +60,7 @@ def _make_user(db: Session, name: str) -> User:
     user = User(
         id=new_id(),
         login_id=name,
-        email=f"{name}@mty.local",
+        email=f"{name}@miy.local",
         full_name=name,
         display_name=name,
         password_hash="x",
@@ -331,7 +331,7 @@ def test_comment_on_my_community_post_creates_source_owned_notification_only(
     )
     assert conversations_response.status_code == 200, conversations_response.text
     assert all(
-        item["display_name"] != "MTY Bot"
+        item["display_name"] != "miy Bot"
         for item in conversations_response.json()["items"]
     )
 

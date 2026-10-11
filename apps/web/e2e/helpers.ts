@@ -1,12 +1,12 @@
-import type { Page, Route } from '@playwright/test';
-import { APP_CONTRACTS } from '@mty/contracts/app-contracts';
+import type { BrowserContext, Page, Route } from '@playwright/test';
+import { APP_CONTRACTS } from '@miy/contracts/app-contracts';
 import {
   REALTIME_CLIENT_EVENT_TYPES,
   REALTIME_SERVER_EVENT_TYPES,
-} from '@mty/contracts/realtime';
+} from '@miy/contracts/realtime';
 
 const FAKE_TOKEN = 'e2e-test-token';
-const AUTH_TOKEN_STORAGE_KEY = 'mty.auth.token';
+const AUTH_TOKEN_STORAGE_KEY = 'miy.auth.token';
 
 type E2EUser = {
   id: string;
@@ -65,7 +65,7 @@ type AppBootstrapKeywordSearchEntityTypeFixture = {
 // provider treats the seeded token as a live session.
 export const FAKE_COMPANY_USER: E2EUser = {
   id: 'user-e2e',
-  email: 'e2e@mty.local',
+  email: 'e2e@miy.local',
   full_name: 'E2E Tester',
   display_name: 'E2E Tester',
   status: 'active',
@@ -82,7 +82,7 @@ export const FAKE_COMPANY_USER: E2EUser = {
 
 export const FAKE_PLATFORM_ADMIN_USER: E2EUser = {
   ...FAKE_COMPANY_USER,
-  email: 'platform-admin@mty.local',
+  email: 'platform-admin@miy.local',
   full_name: 'Platform Admin',
   display_name: 'Platform Admin',
   system_roles: ['platform_admin'],
@@ -269,9 +269,9 @@ const APP_BAR_CATEGORIES: AppBootstrapAppBarCategoryFixture[] = [
         icon_key: 'message-square',
       }),
       categoryItem({
-        app_id: 'web-search',
-        title: '웹 검색 봇',
-        route_base: '/apps/web-search',
+        app_id: 'recording',
+        title: '녹음 봇',
+        route_base: '/apps/recording',
         icon_key: 'globe-2',
       }),
     ],
@@ -545,6 +545,7 @@ export async function stubAppDataBackend(page: Page): Promise<void> {
 interface ShellBackendOptions {
   enabledAppIds?: readonly string[];
   user?: E2EUser;
+  onRealtimeConnection?: () => void;
   onUpdatePreferences?: (
     payload: Record<string, unknown>,
     user: E2EUser,
@@ -572,7 +573,7 @@ const LLM_HEALTH = {
  * first page.goto().
  */
 export async function stubShellBackend(
-  page: Page,
+  page: Page | BrowserContext,
   options: ShellBackendOptions = {},
 ): Promise<void> {
   let user: E2EUser = {
@@ -587,6 +588,7 @@ export async function stubShellBackend(
   const appsBootstrap = buildAppsBootstrap(enabledAppIds, user);
 
   await page.routeWebSocket('**/api/v1/realtime/ws', (webSocket) => {
+    options.onRealtimeConnection?.();
     webSocket.onMessage((message) => {
       if (typeof message !== 'string') {
         return;
@@ -632,6 +634,17 @@ export async function stubShellBackend(
   await page.route('**/api/v1/apps/bootstrap', (route: Route) =>
     route.fulfill({ json: appsBootstrap }),
   );
+  await page.route('**/api/v1/independent-apps/catalog**', (route: Route) =>
+    route.fulfill({
+      json: {
+        items: [],
+        total: 0,
+        page: 1,
+        page_size: 200,
+        catalog_revision: 'empty',
+      },
+    }),
+  );
 
   // Chatbot health: drives the ChatTopBar model pill and shield icon. The frontend
   await page.route('**/chatbot/health', (route: Route) =>
@@ -676,14 +689,21 @@ export async function stubShellBackend(
 
   // Seed the auth token so AuthProvider hydrates without a login redirect.
   await page.addInitScript(
-    ({ token, key }) => {
+    ({ token, key, origin }) => {
+      if (window.location.origin !== origin) return;
       try {
         window.localStorage.setItem(key, token);
       } catch {
         // Private browsing or quota issues — test will surface the failure.
       }
     },
-    { token: FAKE_TOKEN, key: AUTH_TOKEN_STORAGE_KEY },
+    {
+      token: FAKE_TOKEN,
+      key: AUTH_TOKEN_STORAGE_KEY,
+      origin: new URL(
+        process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4200',
+      ).origin,
+    },
   );
 }
 
@@ -762,6 +782,30 @@ export async function stubConversationsApi(
 ): Promise<void> {
   const list = stubs.list ?? [];
   const detail = stubs.detail ?? {};
+  // The Hermes sidebar loads sessions; keep shell smoke tests independent
+  // of the live API while retaining the conversation fixtures below.
+  await page.route(/\/api\/v1\/agent\/sessions(?:\?.*)?$/, (route: Route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const query = new URL(route.request().url()).searchParams;
+    const limit = Number(query.get('limit') ?? 50);
+    const offset = Number(query.get('offset') ?? 0);
+    return route.fulfill({
+      json: {
+        data: list.slice(offset, offset + limit).map((item) => ({
+          id: item.id,
+          title: item.title,
+          created_at: item.createdAt,
+          updated_at: item.updatedAt,
+          message_count: 0,
+          pinned: false,
+          archived: false,
+        })),
+        limit,
+        offset,
+        has_more: offset + limit < list.length,
+      },
+    });
+  });
   const createResponse = stubs.createResponse ?? {
     id: 'new-conversation',
     title: '',

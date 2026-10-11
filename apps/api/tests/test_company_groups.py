@@ -1,9 +1,9 @@
 from fastapi.testclient import TestClient
 import pytest
 
-from mty_api.core.db import get_session_factory
-from mty_api.domains.auth.app_access import can_use_app
-from mty_api.domains.groups.service import current_group_ids
+from miy_api.core.db import get_session_factory
+from miy_api.domains.auth.app_access import can_use_app
+from miy_api.domains.groups.service import current_group_ids
 
 
 def test_individual_assignment_preserves_other_members_and_stored_inactive_groups(client):
@@ -103,7 +103,7 @@ def test_organization_events_only_refresh_changed_member_or_head_projections(
     headers, admin_id = _setup(client)
     recipients: set[str] = set()
     monkeypatch.setattr(
-        "mty_api.domains.groups.admin_router.publish_principal_access_changed",
+        "miy_api.domains.groups.admin_router.publish_principal_access_changed",
         lambda _hub, user_ids: recipients.update(user_ids),
     )
     parent = _organization(client, headers, "Parent")
@@ -150,7 +150,7 @@ def test_group_access_events_only_reach_users_whose_permissions_change(
     user_id = _person(client, headers, organization["id"])
     recipients: set[str] = set()
     monkeypatch.setattr(
-        "mty_api.domains.groups.admin_router.publish_app_availability_access_changed",
+        "miy_api.domains.groups.admin_router.publish_app_availability_access_changed",
         lambda _hub, user_ids: recipients.update(user_ids),
     )
     response = client.post("/api/v1/admin/groups", headers=headers, json={"name": "Support TF"})

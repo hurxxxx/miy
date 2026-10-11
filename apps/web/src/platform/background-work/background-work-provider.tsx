@@ -1,4 +1,4 @@
-import { useFeedback } from '@mty/ui';
+import { useFeedback } from '@miy/ui';
 import type { TFunction } from 'i18next';
 import { ExternalLink, Loader2, Square } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';

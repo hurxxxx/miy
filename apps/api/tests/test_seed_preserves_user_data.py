@@ -7,14 +7,38 @@ import pytest
 from sqlalchemy import delete, select
 
 
+def test_dev_seed_keeps_existing_identity_after_brand_email_changes(client):
+    from miy_api.core.db import get_session_factory
+    from miy_api.domains.auth.access import (
+        DEV_LOGIN_ACCOUNTS, are_dev_login_accounts_seeded, ensure_dev_login_seed_data,
+        get_dev_login_user, list_dev_login_accounts,
+    )
+    from miy_api.domains.auth.models import User
+
+    definition = DEV_LOGIN_ACCOUNTS[0]
+    with get_session_factory()() as db:
+        ensure_dev_login_seed_data(db)
+        user = get_dev_login_user(db, definition["key"])
+        original_id, original_password = user.id, user.password_hash
+        user.email = "admin@previous-brand.local"
+        db.commit()
+        ensure_dev_login_seed_data(db)
+        assert are_dev_login_accounts_seeded(db)
+        assert get_dev_login_user(db, definition["key"]).id == original_id
+        assert db.get(User, original_id).password_hash == original_password
+        assert db.get(User, original_id).email == "admin@previous-brand.local"
+        assert list_dev_login_accounts(db)[0]["email"] == "admin@previous-brand.local"
+        assert len(db.scalars(select(User).where(User.login_id == definition["key"])).all()) == 1
+
+
 def _auth_headers(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
 def _seed_dev_accounts() -> None:
     from dev_accounts import configure_company_app_access
-    from mty_api.core.db import get_session_factory
-    from mty_api.domains.auth.access import ensure_dev_login_seed_data
+    from miy_api.core.db import get_session_factory
+    from miy_api.domains.auth.access import ensure_dev_login_seed_data
 
     with get_session_factory()() as db:
         ensure_dev_login_seed_data(db)
@@ -24,10 +48,10 @@ def _seed_dev_accounts() -> None:
 def test_seeded_dev_account_supports_configured_password_login(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from mty_api.core.settings import get_settings
+    from miy_api.core.settings import get_settings
 
     password = "test-seeded-account-password"
-    monkeypatch.setenv("MTY_API_DEV_LOGIN_PASSWORD", password)
+    monkeypatch.setenv("MIY_API_DEV_LOGIN_PASSWORD", password)
     get_settings.cache_clear()
     _seed_dev_accounts()
 
@@ -42,7 +66,7 @@ def test_seeded_dev_account_supports_configured_password_login(
     assert response.status_code == 200, response.text
     payload = response.json()
     assert payload["user"]["login_id"] == "administrator"
-    assert payload["user"]["email"] == "admin@mty.local"
+    assert payload["user"]["email"] == "admin@miy.local"
     assert "platform_admin" in payload["user"]["system_roles"]
     assert payload["token"]
     me = client.get("/api/v1/auth/me", headers=_auth_headers(payload["token"]))
@@ -55,10 +79,53 @@ def test_seeded_dev_account_supports_configured_password_login(
     assert rejected.json()["code"] == "auth.invalid_credentials"
 
 
+@pytest.mark.parametrize("status", ["active", "inactive"])
+def test_dev_seed_preserves_account_identity_after_email_change(
+    client: TestClient, status: str
+) -> None:
+    from miy_api.core.db import get_session_factory
+    from miy_api.domains.auth.access import (
+        are_dev_login_accounts_seeded,
+        ensure_dev_login_seed_data,
+        get_dev_login_user,
+        list_dev_login_accounts,
+        resolve_system_roles,
+    )
+    from miy_api.domains.auth.models import User
+
+    _seed_dev_accounts()
+    with get_session_factory()() as db:
+        user = get_dev_login_user(db, "administrator")
+        assert user is not None
+        user.email = "owner@previous-installation.example"
+        user.full_name = "Retained owner"
+        user.status = status
+        db.commit()
+        before = (user.id, user.password_hash, resolve_system_roles(db, user))
+        assert are_dev_login_accounts_seeded(db)
+
+        ensure_dev_login_seed_data(db)
+        ensure_dev_login_seed_data(db)
+        db.refresh(user)
+        assert (user.id, user.password_hash, resolve_system_roles(db, user)) == before
+        assert (user.email, user.full_name, user.status) == (
+            "owner@previous-installation.example", "Retained owner", status
+        )
+        assert len(db.scalars(select(User)).all()) == 1
+        listed = list_dev_login_accounts(db)
+        resolved = get_dev_login_user(db, "administrator")
+        if status == "active":
+            assert resolved is not None and resolved.id == user.id
+            assert [item["email"] for item in listed] == [user.email]
+        else:
+            assert resolved is None
+            assert listed == []
+
+
 def test_seed_preserves_user_created_space_membership(client: TestClient) -> None:
-    from mty_api.core.db import get_session_factory
-    from mty_api.domains.auth.access import ensure_seed_data
-    from mty_api.domains.pms.space_models import TeamMember
+    from miy_api.core.db import get_session_factory
+    from miy_api.domains.auth.access import ensure_seed_data
+    from miy_api.domains.pms.space_models import TeamMember
 
     _seed_dev_accounts()
 
@@ -131,8 +198,8 @@ def test_dev_login_is_idempotent_and_preserves_user_spaces(
     Before the guard landed, each of those requests walked every seed user's
     TeamMember rows and wiped out anything outside the default PMS space,
     destroying user-created spaces on every login."""
-    from mty_api.core.db import get_session_factory
-    from mty_api.domains.pms.space_models import TeamMember
+    from miy_api.core.db import get_session_factory
+    from miy_api.domains.pms.space_models import TeamMember
     from sqlalchemy import select
 
     _seed_dev_accounts()
@@ -196,25 +263,25 @@ def test_dev_login_is_idempotent_and_preserves_user_spaces(
 
 
 def test_seed_recreates_missing_app_as_disabled_without_granting_access(client: TestClient) -> None:
-    from mty_api.core.db import get_session_factory
-    from mty_api.domains.auth.access import ensure_dev_login_seed_data
-    from mty_api.domains.auth.models import CompanyAppControl
-    from mty_api.domains.auth.app_access_models import AppAccessPolicy
+    from miy_api.core.db import get_session_factory
+    from miy_api.domains.auth.access import ensure_dev_login_seed_data
+    from miy_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.auth.app_access_models import AppAccessPolicy
 
     _seed_dev_accounts()
     with get_session_factory()() as db:
-        db.delete(db.get(CompanyAppControl, "web-search"))
+        db.delete(db.get(CompanyAppControl, "recording"))
         db.commit()
         ensure_dev_login_seed_data(db)
-        assert db.get(CompanyAppControl, "web-search").enabled is False
-        assert db.get(AppAccessPolicy, "web-search").audience == "selected"
+        assert db.get(CompanyAppControl, "recording").enabled is False
+        assert db.get(AppAccessPolicy, "recording").audience == "selected"
 
 
 def test_seed_preserves_existing_master_and_audience_policy(client: TestClient) -> None:
-    from mty_api.core.db import get_session_factory
-    from mty_api.domains.auth.access import ensure_dev_login_seed_data, ensure_seed_data
-    from mty_api.domains.auth.models import CompanyAppControl
-    from mty_api.domains.auth.app_access_models import AppAccessPolicy
+    from miy_api.core.db import get_session_factory
+    from miy_api.domains.auth.access import ensure_dev_login_seed_data, ensure_seed_data
+    from miy_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.auth.app_access_models import AppAccessPolicy
 
     _seed_dev_accounts()
     with get_session_factory()() as db:
@@ -228,8 +295,8 @@ def test_seed_preserves_existing_master_and_audience_policy(client: TestClient) 
 
 
 def test_core_seed_does_not_create_implicit_business_spaces(client: TestClient) -> None:
-    from mty_api.core.db import get_session_factory
-    from mty_api.domains.pms.space_models import Team, TeamMember
+    from miy_api.core.db import get_session_factory
+    from miy_api.domains.pms.space_models import Team, TeamMember
 
     _seed_dev_accounts()
     with get_session_factory()() as db:
@@ -240,11 +307,11 @@ def test_core_seed_does_not_create_implicit_business_spaces(client: TestClient) 
 def test_initial_dev_seed_enables_apps_but_repeated_seed_keeps_admin_choices(
     client: TestClient,
 ) -> None:
-    from mty_api.core.db import get_session_factory
-    from mty_api.domains.auth.access import ensure_dev_login_seed_data
-    from mty_api.domains.auth.models import CompanyAppControl
-    from mty_api.domains.auth.app_access_models import AppAccessPolicy
-    from mty_api.domains.auth.app_catalog import iter_app_catalog
+    from miy_api.core.db import get_session_factory
+    from miy_api.domains.auth.access import ensure_dev_login_seed_data
+    from miy_api.domains.auth.models import CompanyAppControl
+    from miy_api.domains.auth.app_access_models import AppAccessPolicy
+    from miy_api.domains.auth.app_catalog import iter_app_catalog
 
     with get_session_factory()() as db:
         db.execute(delete(CompanyAppControl))

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from mty_api.domains.retrieval.projection_identity import (
+from miy_api.domains.retrieval.projection_identity import (
     RetrievalProjectionIdentityError,
     canonical_resource_key,
     canonical_search_document_id,

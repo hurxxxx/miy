@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, type MouseEventHandler } from 'react';
 
-export const NOTIFICATION_PANEL_ID = 'mty-notification-panel';
+export const NOTIFICATION_PANEL_ID = 'miy-notification-panel';
 
 export function useNotificationPanelFocus(open: boolean, toggle: () => void) {
   const triggerRef = useRef<HTMLButtonElement | null>(null);

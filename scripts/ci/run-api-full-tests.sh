@@ -4,6 +4,10 @@ set -u
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 STATUS=0
 
+# API integration tests exercise real worker tasks from this same source tree.
+# Keep the product dependency environments separate; expose only the test source.
+export PYTHONPATH="$ROOT_DIR/apps/worker/src${PYTHONPATH:+:$PYTHONPATH}"
+
 run_segment() {
   local name="${1:?segment name is required}"
   shift
@@ -19,17 +23,17 @@ run_segment() {
 }
 
 default_external_integration_env() {
-  export MTY_TEST_REDIS_URL="${MTY_TEST_REDIS_URL:-${MTY_API_COLLAB_REDIS_URL:-}}"
-  export MTY_TEST_MINIO_ENDPOINT="${MTY_TEST_MINIO_ENDPOINT:-${MTY_MINIO_ENDPOINT:-}}"
-  export MTY_TEST_MINIO_ACCESS_KEY="${MTY_TEST_MINIO_ACCESS_KEY:-${MTY_MINIO_ACCESS_KEY:-}}"
-  export MTY_TEST_MINIO_SECRET_KEY="${MTY_TEST_MINIO_SECRET_KEY:-${MTY_MINIO_SECRET_KEY:-}}"
-  export MTY_TEST_OPENSEARCH_URL="${MTY_TEST_OPENSEARCH_URL:-${MTY_OPENSEARCH_URL:-}}"
+  export MIY_TEST_REDIS_URL="${MIY_TEST_REDIS_URL:-${MIY_API_COLLAB_REDIS_URL:-}}"
+  export MIY_TEST_MINIO_ENDPOINT="${MIY_TEST_MINIO_ENDPOINT:-${MIY_MINIO_ENDPOINT:-}}"
+  export MIY_TEST_MINIO_ACCESS_KEY="${MIY_TEST_MINIO_ACCESS_KEY:-${MIY_MINIO_ACCESS_KEY:-}}"
+  export MIY_TEST_MINIO_SECRET_KEY="${MIY_TEST_MINIO_SECRET_KEY:-${MIY_MINIO_SECRET_KEY:-}}"
+  export MIY_TEST_OPENSEARCH_URL="${MIY_TEST_OPENSEARCH_URL:-${MIY_OPENSEARCH_URL:-}}"
 }
 
 run_segment \
   fast \
   uv run --python 3.12 --group dev python -m pytest \
-  -n "${MTY_API_PYTEST_WORKERS:-8}" \
+  -n "${MIY_API_PYTEST_WORKERS:-8}" \
   --dist=worksteal \
   -m "not slow and not external_integration and not migration"
 

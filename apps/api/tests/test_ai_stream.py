@@ -19,22 +19,23 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 import uvicorn
 
-from mty_api.core import llm as llm_core
-from mty_api.core.db import get_engine, get_session_factory
-from mty_api.core.llm_adapters import StreamChunk
-from mty_api.core.settings import get_settings
-from mty_api.domains.ai.model_credentials import encrypt_api_key
-from mty_api.domains.ai.model_settings_models import (
+from miy_api.core import llm as llm_core
+from miy_api.core.db import get_engine, get_session_factory
+from miy_api.core.llm_adapters import StreamChunk
+from miy_api.core.settings import get_settings
+from miy_api.domains.ai.model_credentials import encrypt_api_key
+from miy_api.domains.ai.model_settings_models import (
     AiModelCatalogEntry,
     AiModelProviderConfig,
+    AiModelPolicyDefault,
 )
-from mty_api.domains.ai.registry import get_ai_capability_registry
-from mty_api.domains.ai import agent as ai_agent
-from mty_api.domains.ai import approvals as ai_approvals
-from mty_api.domains.ai import router as ai_router
-from mty_api.domains.auth.models import AuditLog, User
+from miy_api.domains.ai.registry import get_ai_capability_registry
+from miy_api.domains.ai import agent as ai_agent
+from miy_api.domains.ai import approvals as ai_approvals
+from miy_api.domains.ai import router as ai_router
+from miy_api.domains.auth.models import AuditLog, User
 from hermes_route_stub import hermes_route_stub  # noqa: F401
-from mty_api.domains.conversations.scope_registry import (
+from miy_api.domains.conversations.scope_registry import (
     ConversationScopeArtifact,
     ConversationScopeTurnContext,
 )
@@ -333,8 +334,9 @@ def _configure_database_local_provider() -> None:
             )
             db.add(model)
         provider.enabled = True
-        provider.endpoint_url = get_settings().llm_local_base_url
+        provider.endpoint_url = "http://127.0.0.1:12434/engines/v1"
         provider.default_model_id = model.id
+        db.merge(AiModelPolicyDefault(model_family="generation", app_id="", route_mode=provider.route_mode, provider_id=provider.provider_id, version=1))
         db.commit()
 
 
@@ -376,6 +378,7 @@ def _configure_database_external_provider(
         provider.endpoint_url = endpoint_url
         provider.api_key_ciphertext = encrypt_api_key(f"test-{provider_id}-key")
         provider.default_model_id = model.id
+        db.merge(AiModelPolicyDefault(model_family="generation", app_id="", route_mode=provider.route_mode, provider_id=provider.provider_id, version=1))
         db.commit()
 
 
@@ -433,15 +436,15 @@ def _chat_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [event for event in events if event.get("type") != "conversation_attached"]
 
 
-def _assert_mty_identity_system_message(messages: list[dict[str, Any]]) -> None:
+def _assert_miy_identity_system_message(messages: list[dict[str, Any]]) -> None:
     assert messages[0]["role"] == "system"
     system_prompt = messages[0]["content"]
     assert ai_agent.AGENT_SYSTEM_PROMPT in system_prompt
-    assert "저는 MTY의 업무용 AI 어시스턴트입니다." in system_prompt
+    assert "저는 miy의 업무용 AI 어시스턴트입니다." in system_prompt
     assert "Qwen, Tongyi, OpenAI" in system_prompt
 
 
-def test_chat_sync_injects_mty_identity_prompt_for_plain_business_chat(
+def test_chat_sync_injects_miy_identity_prompt_for_plain_business_chat(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     auth = _seeded_dev_login(client, "administrator")
@@ -457,7 +460,7 @@ def test_chat_sync_injects_mty_identity_prompt_for_plain_business_chat(
         class _Msg:
             role = "assistant"
             reasoning_content = None
-            content = "저는 MTY의 업무용 챗봇 AI 어시스턴트(MTY)입니다."
+            content = "저는 miy의 업무용 챗봇 AI 어시스턴트(miy)입니다."
 
         class _Choice:
             finish_reason = "stop"
@@ -498,10 +501,10 @@ def test_chat_sync_injects_mty_identity_prompt_for_plain_business_chat(
     )
 
     assert response.status_code == 200
-    _assert_mty_identity_system_message(captured_messages)
+    _assert_miy_identity_system_message(captured_messages)
 
 
-def test_chat_stream_injects_mty_identity_prompt_for_plain_business_chat(
+def test_chat_stream_injects_miy_identity_prompt_for_plain_business_chat(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     auth = _seeded_dev_login(client, "administrator")
@@ -531,7 +534,7 @@ def test_chat_stream_injects_mty_identity_prompt_for_plain_business_chat(
 
     assert status_code == 200
     assert any(event["type"] == "done" for event in _chat_events(events))
-    _assert_mty_identity_system_message(captured_messages)
+    _assert_miy_identity_system_message(captured_messages)
 
 
 def _find_free_port() -> int:
@@ -785,12 +788,19 @@ def test_chat_stream_caller_provider_does_not_override_external_workload_provide
         [_delta(content="external response"), _delta(finish_reason="stop")]
     )
     selected_providers: list[str | None] = []
+    planning_providers: list[str | None] = []
+    original_attach = ai_router._attach_external_egress_trace_metadata
+
+    def attach_external_metadata(routing, **kwargs):
+        planning_providers.append(kwargs.get("planning_provider"))
+        return original_attach(routing, **kwargs)
 
     def get_client(config):  # type: ignore[no-untyped-def]
         selected_providers.append(config.provider)
         return pool_client
 
     monkeypatch.setattr(llm_core, "_new_async_pool_client", get_client)
+    monkeypatch.setattr(ai_router, "_attach_external_egress_trace_metadata", attach_external_metadata)
 
     status_code, events = _stream_post(
         client,
@@ -807,6 +817,7 @@ def test_chat_stream_caller_provider_does_not_override_external_workload_provide
     done = next(event for event in _chat_events(events) if event["type"] == "done")
     assert done["data"]["meta"]["chosen_pool"] == "external"
     assert selected_providers == ["openai"]
+    assert planning_providers == ["openai"]
 
 
 def test_chat_stream_external_tool_incompatibility_blocks_without_local_fallback(
@@ -865,7 +876,7 @@ def test_chat_stream_requires_current_app_admission(client: TestClient) -> None:
     outsider = _create_company_user(
         client,
         admin["token"],
-        email="stream-outsider@mty.local",
+        email="stream-outsider@miy.local",
         full_name="Stream Outsider",
     )
     outsider_token = _login(
@@ -874,7 +885,7 @@ def test_chat_stream_requires_current_app_admission(client: TestClient) -> None:
         outsider["temporary_password"],
     )
 
-    from mty_api.domains.auth.app_access_models import AppAccessPolicy
+    from miy_api.domains.auth.app_access_models import AppAccessPolicy
 
     with get_session_factory()() as db:
         db.get(AppAccessPolicy, "chatbot").audience = "selected"
@@ -2945,4 +2956,4 @@ def test_chat_stream_business_context_question_reaches_llm_call(
     assert pool_client.chat.completions.calls
     messages = _messages_in_first_call(pool_client)
     assert [message["role"] for message in messages] == ["system", "user"]
-    _assert_mty_identity_system_message(messages)
+    _assert_miy_identity_system_message(messages)

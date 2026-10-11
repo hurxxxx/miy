@@ -4,8 +4,8 @@ from collections.abc import Sequence
 
 import pytest
 
-from mty_api.domains.rag.contracts import RagVectorSearchHit
-from mty_api.domains.retrieval.candidate_ranking import (
+from miy_api.domains.rag.contracts import RagVectorSearchHit
+from miy_api.domains.retrieval.candidate_ranking import (
     MAX_CANDIDATES,
     MAX_CANDIDATE_TEXT_CHARS,
     MAX_QUERY_CHARS,

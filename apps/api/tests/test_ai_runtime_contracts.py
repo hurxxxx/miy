@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from mty_api.domains.ai.runtime import (
+from miy_api.domains.ai.runtime import (
     AgentDefinitionResolver,
     AgentInvocationSpec,
     ExecutionGraph,

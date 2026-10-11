@@ -1,1 +1,1 @@
-export const DEFAULT_COMMUNITY_CHANNEL_KEY = 'suggestions';
+export * from '@miy/official-suite-web/community/community-constants';

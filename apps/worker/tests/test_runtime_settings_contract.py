@@ -10,15 +10,14 @@ API_SRC = WORKSPACE_ROOT / "apps" / "api" / "src"
 if str(API_SRC) not in sys.path:
     sys.path.insert(0, str(API_SRC))
 
-from mty_api.core.settings import Settings as ApiSettings  # noqa: E402
-from mty_worker.settings import Settings as WorkerSettings  # noqa: E402
+from miy_api.core.settings import Settings as ApiSettings  # noqa: E402
+from miy_worker.settings import Settings as WorkerSettings  # noqa: E402
 
 
 SHARED_RUNTIME_SETTING_FIELDS = (
     "asr_backend",
     "llm_external_allowed_providers",
     "ai_allowed_external_providers",
-    "ai_default_external_llm_provider",
     "ai_default_external_search_provider",
     "ai_external_llm_enabled",
     "ai_external_planner_execution_adapter",

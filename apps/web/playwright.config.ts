@@ -3,7 +3,9 @@ import { delimiter, join } from 'node:path';
 import { chromium, defineConfig, devices } from '@playwright/test';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4200';
-const webServerCommand = process.env.PLAYWRIGHT_WEB_SERVER_COMMAND ?? 'pnpm nx dev web';
+const webServerCommand =
+  process.env.PLAYWRIGHT_WEB_SERVER_COMMAND ??
+  'pnpm nx run-many -t dev -p web official-suite --parallel=2';
 const isCi = Boolean(process.env.CI);
 const workers = process.env.PLAYWRIGHT_WORKERS
   ? Number(process.env.PLAYWRIGHT_WORKERS)
@@ -30,7 +32,9 @@ function isExecutable(filePath: string | undefined): filePath is string {
   }
 }
 
-function resolveExecutableFromPath(commands: readonly string[]): string | undefined {
+function resolveExecutableFromPath(
+  commands: readonly string[],
+): string | undefined {
   const pathEntries = (process.env.PATH ?? '').split(delimiter).filter(Boolean);
 
   for (const command of commands) {
@@ -46,7 +50,8 @@ function resolveExecutableFromPath(commands: readonly string[]): string | undefi
 }
 
 function resolveChromiumExecutablePath(): string | undefined {
-  const configuredExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+  const configuredExecutablePath =
+    process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
   if (configuredExecutablePath) {
     return configuredExecutablePath;
   }
@@ -82,7 +87,9 @@ export default defineConfig({
     baseURL,
     trace: 'retain-on-failure',
     video: videoMode,
-    ...(chromiumExecutablePath ? { launchOptions: { executablePath: chromiumExecutablePath } } : {}),
+    ...(chromiumExecutablePath
+      ? { launchOptions: { executablePath: chromiumExecutablePath } }
+      : {}),
   },
   projects: [
     {
@@ -91,10 +98,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    // Boot the vite dev server only if nothing is already listening on 4200.
+    // Both UI owners must be ready behind the same browser origin.
     // Locally this lets you keep `./dev.sh` running in another terminal.
     command: webServerCommand,
-    url: baseURL,
+    url: `${baseURL.replace(/\/$/, '')}/official-suite/widgets`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     stdout: 'pipe',

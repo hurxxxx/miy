@@ -56,7 +56,7 @@ test('docs/instructions use focused guidance checks without app suites', () => {
 });
 
 for (const file of [
-  '.agents/skills/mty-release/SKILL.md',
+  '.agents/skills/miy-release/SKILL.md',
   '.codex/hooks.json',
   'scripts/setup-claude-skills.mjs',
   'scripts/codex-review-ci.sh',
@@ -67,21 +67,31 @@ for (const file of [
 }
 
 for (const file of [
-  'apps/api/src/app.py',
-  'apps/web/src/app.tsx',
   'apps/worker/src/task.py',
+  'apps/api/src/app.py',
   'apps/api/alembic/versions/new.py',
   'apps/api/tests/test_api.py',
   'packages/contracts/README.ts',
   'package.json',
   'pnpm-lock.yaml',
   'apps/api/pyproject.toml',
+  'apps/api/src/miy_api/core/settings.py',
+  'apps/api/src/miy_api/core/runtime_config.py',
+  'apps/api/src/miy_api/core/app_contracts_generated.py',
+  'apps/api/src/miy_api/domains/auth/realtime_contract_generated.py',
+  'apps/web/package.json',
+  'apps/codex-console-api/pyproject.toml',
+  'apps/codex-console-api/src/codex_console/config.py',
+  'apps/codex-console-api/src/codex_console/runtime.py',
+  'apps/codex-console-api/migrations/versions/new.py',
   'apps/worker/uv.lock',
   'dev.sh',
-  'ops/compose/mty-prod.app.yml',
+  'ops/compose/miy-prod.app.yml',
   'ops/app/Dockerfile',
   '.env.example',
   'scripts/prod-app.sh',
+  'scripts/prod-app-release.mjs',
+  'scripts/prod-app-release.test.mjs',
   'scripts/ci/prepare-validation-runtime.sh',
   'ops/ci/validation-runner/Dockerfile',
   '.gitlab-ci.yml',
@@ -99,6 +109,116 @@ for (const file of [
     assert.deepEqual(plan.skipped, []);
   });
 }
+
+test('bounded app-local changes select only their affected suites', () => {
+  assert.deepEqual(planFor([change('apps/web/src/app.tsx')]).checks, [
+    'ci:web',
+  ]);
+  assert.deepEqual(planFor([change('apps/web/e2e/shell.spec.ts')]).checks, [
+    'ci:web',
+  ]);
+  assert.deepEqual(planFor([change('packages/ui/src/button.tsx')]).checks, [
+    'ci:web',
+    'ci:codex-console',
+  ]);
+  assert.deepEqual(
+    planFor([change('packages/core-web/src/app-registry.ts')]).checks,
+    ['ci:web'],
+  );
+  assert.deepEqual(
+    planFor([
+      change('apps/codex-console-api/src/codex_console/app.py'),
+      change('apps/codex-console-web/src/App.tsx'),
+    ]).checks,
+    ['ci:codex-console'],
+  );
+});
+
+test('relocated web owner source selects the required web gate', () => {
+  for (const file of [
+    'packages/platform-web/src/chatbot/views/ChatbotView.tsx',
+    'packages/official-suite-web/src/files/views/FilesView.spec.tsx',
+    'apps/official-suite/src/OfficialSuiteRoot.tsx',
+  ]) {
+    const plan = planFor([change(file)]);
+    assert.equal(plan.mode, 'fast');
+    assert.deepEqual(plan.checks, ['ci:web']);
+  }
+});
+
+test('required web CI executes typed owner tests and both application builds', () => {
+  const manifest = JSON.parse(
+    fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+  );
+  const commands = [];
+  const visited = new Set();
+  function visit(name) {
+    if (visited.has(name)) return;
+    visited.add(name);
+    assert.equal(typeof manifest.scripts[name], 'string', `missing ${name}`);
+    for (const command of manifest.scripts[name].split('&&')) {
+      const nested = /^\s*pnpm\s+(ci:[\w:-]+)\s*$/.exec(command);
+      if (nested) visit(nested[1]);
+      else commands.push(command.trim());
+    }
+  }
+  visit('ci:all');
+  assert.ok(visited.has('ci:web'));
+  for (const [project, directory] of [
+    ['platform-web', 'packages/platform-web'],
+    ['official-suite-web', 'packages/official-suite-web'],
+    ['official-suite', 'apps/official-suite'],
+  ]) {
+    const config = JSON.parse(
+      fs.readFileSync(
+        new URL(`../${directory}/project.json`, import.meta.url),
+        'utf8',
+      ),
+    );
+    for (const target of ['typecheck', 'test']) {
+      assert.ok(config.targets[target], `${project}:${target} target missing`);
+      assert.ok(
+        commands.some((command) => command === `pnpm nx ${target} ${project}`),
+        `required CI does not execute ${project}:${target}`,
+      );
+    }
+  }
+  for (const project of ['web', 'official-suite']) {
+    assert.ok(commands.includes(`pnpm nx build ${project}`));
+  }
+  assert.ok(commands.includes('pnpm nx ownership official-suite'));
+  const contractCommand = manifest.scripts['ci:app-web-contracts'];
+  const projects = / -p ([\w,-]+) /.exec(contractCommand)?.[1].split(',');
+  const targets = / -t ([\w,-]+) /.exec(contractCommand)?.[1].split(',');
+  for (const project of [
+    'web',
+    'platform-web',
+    'official-suite-web',
+    'official-suite',
+  ]) {
+    assert.ok(projects?.includes(project), `contract CI omits ${project}`);
+  }
+  for (const target of ['typecheck', 'test', 'ownership']) {
+    assert.ok(targets?.includes(target), `contract CI omits ${target}`);
+  }
+});
+
+test('mixed focused surfaces run the stable union without unrelated suites', () => {
+  const plan = planFor([
+    change('docs/apps/web.md'),
+    change('packages/ui/src/button.tsx'),
+    change('apps/web/src/app.tsx'),
+  ]);
+  assert.equal(plan.mode, 'fast');
+  assert.deepEqual(plan.checks, [
+    'check:skills',
+    'test:skill-harness',
+    'test:claude-skills',
+    'ci:web',
+    'ci:codex-console',
+  ]);
+  assert.ok(plan.skipped.includes('ci:api:full'));
+});
 
 test('binary, symlink, submodule, mode and unsafe path changes fail closed', () => {
   for (const item of [
@@ -225,7 +345,7 @@ test('failed checks or changed source/target never yield passing evidence', () =
 
 function fixture(t) {
   const root = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'mty-release-validation-'),
+    path.join(os.tmpdir(), 'miy-release-validation-'),
   );
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const git = (args) =>

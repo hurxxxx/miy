@@ -15,7 +15,7 @@ describe('shell ui model', () => {
   });
 
   it('builds compact initials with a fallback', () => {
-    expect(getInitials('MTY HQ', 'WS')).toBe('MH');
+    expect(getInitials('miy HQ', 'WS')).toBe('MH');
     expect(getInitials('Delivery', 'WS')).toBe('D');
     expect(getInitials('   ', 'WS')).toBe('WS');
   });

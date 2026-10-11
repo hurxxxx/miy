@@ -6,13 +6,13 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from mty_api.core.db import get_session_factory
-from mty_api.domains.auth.models import User
-from mty_api.domains.whiteboard.access import (
+from miy_api.core.db import get_session_factory
+from miy_api.domains.auth.models import User
+from miy_api.domains.whiteboard.access import (
     load_whiteboard_for_share_token_or_404,
     load_whiteboard_for_user_or_404,
 )
-from mty_api.domains.whiteboard.item_mutations import (
+from miy_api.domains.whiteboard.item_mutations import (
     WhiteboardItemUpdateCommand,
     update_whiteboard_item,
 )
