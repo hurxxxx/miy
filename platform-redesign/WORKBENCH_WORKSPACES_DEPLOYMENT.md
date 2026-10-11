@@ -450,6 +450,26 @@ job493은 통과했다. 플랫폼 job492에서 API 네 구간은 6,760통과·7s
 Python/JS/YAML/shell 형식·정적 검사를 통과했다. 필수 리뷰와 다음 전체 CI는
 별도로 통과해야 하며 운영 배포·GitHub PR106/107 병합은 아직 완료되지 않았다.
 
+### ASR 동시성 테스트의 조기 실패 관측 (2026-10-11 UTC)
+
+[MR126](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/126)은 필수 리뷰
+job494를 통과해 dev `c3eab23bb0cf43cf9dfe9105f0cdc5ce550e48d8`로 정상 병합했다.
+[Pipeline317](https://gitlab.1punicorn.com/lumejs/mty/-/pipelines/317)은 개인 앱
+job496 성공, 플랫폼 job495 실패다. API fast는6,691통과·1실패·7skip이고,
+slow16·migration37·external15건은 모두 통과했다. 네 JUnit artifact가 보존됐다.
+뒤의 web/Workbench 검사는 실행되지 않았으며 전체 성공으로 계산하지 않는다.
+
+유일 실패는 녹음 ASR의 실제 writer 잠금·drain 경합 테스트에서 HTTP 진입을
+8초 안에 관측하지 못한 것이다. 동일 파일47건은 로컬 실제 PostgreSQL에서
+모두 통과했다(64.0초, 실패/오류/skip0). 지연과 작업의 조기 실패를 구분하지
+않던 테스트를 보완해, HTTP 진입 또는 worker Future 종료를 같은8초 안에
+관측하고 조기 종료라면 실제 예외를 드러낸다. 제품 코드·제한 시간·실제 PID와
+잠금 대기·callback 이후 거절·결과 미발행·정리 검증은 변경하지 않는다.
+변경된 경합 사례는 실제 DB에서 통과했고, 별도 오류 주입에서는 의도한
+worker 오류가 대기 실패로 가려지지 않는 것을 확인했다. 독립 읽기 리뷰와
+Ruff·형식·diff 검사도 통과했다. 이 결과는 최초 CI 실패의 원인 확정이나
+전체 릴리스 통과를 뜻하지 않으며, 새 전체 검증 결과가 필요하다.
+
 현재 배포·동기화 완료 후에는 사용자가 요청한 API 검사 약1/10 축소를 별도
 작업으로 진행한다. 기본 실행 목록만 줄이는 방식에 그치지 않고 중복 테스트를
 통합·삭제하며, 실제 소요 시간과 필수 권한·데이터 보존·migration 검증을 확인한다.

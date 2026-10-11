@@ -225,11 +225,13 @@ def test_every_progress_handoff_preserves_original_source_claim(
 def test_live_http_holds_source_until_callback_handoff(recording_phase):
     c = recording_phase
     entered, finish, draining = Event(), Event(), Event()
+    ready = Event()
     pids = {}
 
     def remote():
         pids["worker"] = c.sessions[0].scalar(text("SELECT pg_backend_pid()"))
         entered.set()
+        ready.set()
         assert finish.wait(20)
 
     c.on_post = remote
@@ -242,8 +244,12 @@ def test_live_http_holds_source_until_callback_handoff(recording_phase):
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         result = pool.submit(run, c)
+        result.add_done_callback(lambda _: ready.set())
         try:
-            assert entered.wait(8)
+            assert ready.wait(8)
+            if not entered.is_set():
+                result.result()
+                pytest.fail("ASR worker completed before entering synthetic HTTP")
             controller = pool.submit(drain)
             assert draining.wait(8)
             wait_for_blockers(c.factory, pids["controller"], {pids["worker"]})
