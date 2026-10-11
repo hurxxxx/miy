@@ -562,6 +562,10 @@ Stable development data and shared container images are retained.
 관리 workspace의 설치 설정·owner preview·앱 입장은 DB의 현재 작업 상태가
 `ready`일 때만 허용됩니다. `cleanup_pending` 승인 이후에는 stop/resume으로
 정리 상태를 되돌릴 수 없으며, 정리 영수증을 저장하는 트랜잭션 사이에도 입장은 닫혀 있습니다.
+중지 전환은 잠기지 않은 `queued`·미예약 요청만 취소합니다. 소비자가 잠근
+요청은 기다리거나 덮어쓰지 않으며, 현재 입장 검증과 기존 요청의 조정 절차를
+따릅니다. 미해결 `queued/running/unknown/cleanup` 요청이 남아 있으면
+유지보수는 런타임 중지·자원 정리를 보류합니다.
 
 Search is separately opt-in through `MIY_INDEPENDENT_APP_SEARCH_ENABLED=true`, after
 private OpenSearch/Qdrant and the registered Core embedding gateway are ready.
