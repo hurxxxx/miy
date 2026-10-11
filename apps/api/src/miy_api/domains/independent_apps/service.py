@@ -44,6 +44,7 @@ from miy_api.domains.independent_apps.models import (
     AppLaunchCode,
     AppReleaseRecord,
     AppSession,
+    load_installation_authority,
 )
 from miy_api.domains.independent_apps.verification import trusted_release
 
@@ -529,7 +530,7 @@ def verified_app_session(
     refreshes current session/installation/source authority, including after I/O.
     """
     session = db.get(AppSession, token_hash, populate_existing=True)
-    installation = db.get(AppInstallationRecord, installation_id, populate_existing=True)
+    installation = load_installation_authority(db, installation_id)
     if (
         session is None
         or installation is None

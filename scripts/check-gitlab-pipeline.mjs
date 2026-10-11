@@ -151,6 +151,14 @@ export function expectedGitlabPipelineConfig() {
         expire_in: '14 days',
         access: 'maintainer',
         paths: ['release-validation-context.md', 'test-results/'],
+        reports: {
+          junit: [
+            'test-results/api/fast.xml',
+            'test-results/api/slow.xml',
+            'test-results/api/migration.xml',
+            'test-results/api/external.xml',
+          ],
+        },
       },
     },
     personal_app_validation: {

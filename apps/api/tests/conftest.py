@@ -39,6 +39,9 @@ TEST_SETTINGS_ENV = {
     "MIY_PLATFORM_API_KEY_ENCRYPTION_KEY": "test-platform-api-key-encryption-key",
     "MIY_WORKER_BROKER_URL": "memory://",
     "MIY_WORKER_RESULT_BACKEND": "cache+memory://",
+    "MIY_INDEPENDENT_APP_DELIVERY_TARGETS": "[]",
+    "MIY_INDEPENDENT_APP_WORKSPACE_PROFILES": "[]",
+    "MIY_INDEPENDENT_APP_SEARCH_ENABLED": "false",
 }
 
 

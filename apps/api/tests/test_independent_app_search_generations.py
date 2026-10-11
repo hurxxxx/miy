@@ -109,6 +109,7 @@ def search_delivery(client, delivery_app, monkeypatch):
     monkeypatch.setattr(search_consumer, "configured_store", lambda _: Data())
     monkeypatch.setattr(data_store, "configured_store", lambda _: Data())
     monkeypatch.setattr(local_runtime, "DockerRuntime", Runtime)
+    monkeypatch.chdir(WORKSPACE_ROOT)
     spec = importlib.util.spec_from_file_location(
         "search_generation_delivery_cli", WORKSPACE_ROOT / "scripts/independent-app-delivery.py"
     )

@@ -21,10 +21,12 @@ from miy_api.domains.auth.security import hash_token
 from miy_api.domains.groups.models import Group, GroupMember
 from miy_api.domains.independent_apps.delivery_models import AppBuildVerification
 from miy_api.domains.independent_apps.models import (
+    INSTALLATION_AUTHORITY_COLUMNS,
     AppInstallationRecord,
     AppReleaseRecord,
     AppSession,
 )
+from miy_api.domains.independent_apps.workspace_models import AppWorkspaceRecord
 from miy_api.domains.independent_apps.service import fail
 from miy_api.domains.official_apps.auth import resolve_official_auth_context
 from miy_api.domains.official_apps.models import OfficialAppBinding
@@ -64,21 +66,8 @@ AUTHORITY_READ_COLUMNS = {
         "expires_at",
         "revoked_at",
     ),
-    "independent_app_installations": (
-        "id",
-        "app_id",
-        "environment",
-        "origin",
-        "enabled",
-        "audience",
-        "user_ids",
-        "group_ids",
-        "granted_permissions",
-        "release_id",
-        "state",
-        "generation",
-        "runtime_ref",
-    ),
+    "independent_app_installations": INSTALLATION_AUTHORITY_COLUMNS,
+    "independent_app_workspaces": ("installation_id", "state"),
     "independent_app_releases": (
         "id",
         "app_id",
@@ -132,6 +121,7 @@ _MODELS = (
     GroupMember,
     AppSession,
     AppInstallationRecord,
+    AppWorkspaceRecord,
     AppReleaseRecord,
     AppBuildVerification,
     OfficialAppBinding,

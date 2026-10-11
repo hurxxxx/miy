@@ -15,7 +15,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, Session, load_only, mapped_column
 
 from miy_api.core.db import Base
 from miy_api.domains.auth.models import utcnow_naive
@@ -89,6 +89,38 @@ class AppInstallationRecord(Base):
     state: Mapped[str] = mapped_column(String(16), default="configured")
     generation: Mapped[int] = mapped_column(Integer, default=1)
     runtime_ref: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+
+INSTALLATION_AUTHORITY_COLUMNS = (
+    "id",
+    "app_id",
+    "environment",
+    "origin",
+    "enabled",
+    "audience",
+    "user_ids",
+    "group_ids",
+    "granted_permissions",
+    "release_id",
+    "state",
+    "generation",
+    "runtime_ref",
+)
+
+
+def load_installation_authority(db: Session, installation_id: str) -> AppInstallationRecord | None:
+    """Refresh admission columns without reading historical or future metadata."""
+    return db.get(
+        AppInstallationRecord,
+        installation_id,
+        options=[
+            load_only(
+                *(getattr(AppInstallationRecord, name) for name in INSTALLATION_AUTHORITY_COLUMNS),
+                raiseload=True,
+            )
+        ],
+        populate_existing=True,
+    )
 
 
 class AppLaunchCode(Base):

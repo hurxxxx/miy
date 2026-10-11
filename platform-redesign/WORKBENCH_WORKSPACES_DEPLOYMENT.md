@@ -334,6 +334,63 @@ r19의 두 Workbench 서비스 종료도15초 timeout 뒤 PID/ControlPID0·cgrou
 
 이번 **운영자 지원 단일 소유자 대표 흐름**의 필수 인수 잔여는0이다. 앱 업무 코드는 Workbench native AI가 작성·수정했고 관찰자는 플랫폼 실행·회복 경계를 보완했다. 이전 별도 소스 시범은 private archive·복구 bundle 및 기존 데이터를 보존하며 비활성화했고, 새 앱은 같은 MIY 저장소의 dev로부터 기능 branch/worktree에서 작성되어 `personal-apps/app-8565f140`에 병합됐다. 임시 환경 데이터는 안정 개발 데이터와 분리됐고 정리 후 안정 데이터가 유지됐다.
 
-일반 직원 신원·완전 자가 온보딩, embedding이 필요한 의미 검색, 다중 사용자, 전사 공유 업무/세부 앱 기능은 완료로 표시하지 않는다. [후속 개선 기록](workbench-equipment-pilot/IMPROVEMENTS.md)의 DEF 항목은 별도 요청 때 수행한다. 이번 Git 게시·병합 대상은 GitLab origin/dev이며 Core production/GitHub upstream 반영은 이번 새 인수의 결과가 아니다.
+일반 직원 신원·완전 자가 온보딩, embedding이 필요한 의미 검색, 다중 사용자, 전사 공유 업무/세부 앱 기능은 완료로 표시하지 않는다. [후속 개선 기록](workbench-equipment-pilot/IMPROVEMENTS.md)의 DEF 항목은 별도 요청 때 수행한다. 이 인수 시점의 Git 게시·병합 대상은 GitLab origin/dev이며 Core production/GitHub upstream 반영은 아래 후속 릴리스에서 별도로 확인한다.
+
+### 개발 인수 이후 운영·GitHub 전달 (2026-10-11 UTC, 진행 중)
+
+사용자의 후속 승인으로 GitLab dev → main 릴리스, Core/공식 앱 운영 배포,
+GitHub main/dev의 정상 PR 동기화와 소유 작업 브랜치 정리를 진행한다.
+Workbench r21과 장비 앱의 안정 개발 배포는 앞선 실제 인수 근거를 유지한다.
+플랫폼 소스의 운영 배포를 장비 앱의 운영 설치나 Workbench 재배포로 표시하지 않는다.
+
+- [릴리스 MR123](https://gitlab.1punicorn.com/lumejs/mty/-/merge_requests/123)의
+  최초 source는 `2e865ef28e450f06edea69c75ace2d357814f275`다.
+  변경에 schema/runtime/공유 계약이 포함되어 전체 릴리스 CI를 선택했다.
+  [Pipeline311](https://gitlab.1punicorn.com/lumejs/mty/-/pipelines/311)의
+  개인 앱 검사 job487은 통과했지만 플랫폼 job486은 실패했다(3,467초).
+  API 준비 단계 오류가 반복되어 4MiB 로그 제한 전에 최종 요약이 남지
+  않았고, 기존 artifact에는 전체 검사 실패 상태만 있었다. 실패를 통과로
+  취급하지 않고 원인을 보완한 동일 소스의 전체 gate를 다시 요구한다.
+- 실제 운영의 기존 six-role 상태·smoke와 새 소스의 운영 설정 해석은 통과했다.
+  운영에는 개발 workspace profile을 전달하지 않는다. 최신 릴리스 gate,
+  fresh DB/env 백업, 세 immutable artifact 준비·교체와 공개 인수는 남아 있다.
+- 검증 중 새 두 Alembic revision이 기존 chain 기대 목록에 빠진 것을 확인했다.
+  검색 세대 테스트 두 건도 `apps/api`에서 Core CLI를 호출하면 실행 위치
+  검증에 거절되는 것을 좁힌 재현으로 확인했다. 기대 목록과 테스트의 명시적
+  checkout cwd를 보완하며 제품의 실행 위치 제한은 유지한다.
+  이 두 검색 사례를 포함한 검색 세대4건과 revision 목록1건은 보완 후
+  통과했다. 실제 PostgreSQL18의 별도 임시 클러스터에서 전사 앱 권한
+  초기화의 `InsufficientPrivilege`도 재현했다. 추가된 보관용 origin 열을
+  전체 ORM 조회하면서 제한된 인증 role의 열 권한을 벗어난 문제다.
+  설치 인증은 공통13열 조회로 고정하고 제한 reader에는 workspace의
+  installation ID·state 두 열만 추가했다(현재15테이블/89열). 보관용 origin,
+  workspace 자원과 쓰기 권한은 허용하지 않는다. 실제 현재 schema에서 인증을
+  캡처한 뒤 과거 actor/ACL/checked schema로 내려가는 테스트 준비만 보완했으며,
+  과거 migration body·SQL guard·현재 작업공간 차단은 유지한다.
+  제한 reader 전체, 세 역사 migration 묶음, actor/ACL/checked 실제 양성 흐름,
+  workspace 격리의 집중78건이 PostgreSQL18 별도 클러스터에서129초에 통과했다
+  (실패/오류/skip0). 독립 읽기 검토 추가 P1/P2 없음. 현재 first-party 운영은
+  prepared reader를 활성화하지 않으므로 운영 DB role grant를 변경하지 않는다.
+- 로컬 재현에서는 실제 개발 delivery target이 테스트용 플랫폼 origin과
+  충돌해 준비 단계가 거절됐다. 공통 테스트 설정에 delivery targets와
+  workspace profiles의 빈 목록, 검색 비활성 기본값을 추가해 collection과
+  개별 테스트에서 운영자 설정 유입을 막는다. 긍정 사례의 명시적 설정은
+  유지하며 실제 `.env`와 제품의 origin 검증은 변경하지 않는다.
+- API 전체 runner는 네 구간의 native JUnit을 기존 maintainer 전용 artifact에
+  보존하고 짧은 traceback을 사용한다. 검사 선택·네 구간 실행·실패 gate는
+  유지하며 raw captured output을 추가 보관하지 않는다. 직접 CI 회귀3건과
+  shell/형식/변경 Python13파일 Ruff 검사를 통과했다. 이 집중 검증은 다음
+  실제 전체 릴리스 CI를 대체하지 않는다.
+- GitHub dev의 독립 여섯 커밋을 조사했다. 기존 기능은 GitLab에서 보존되며
+  옛 MTY 명명은 후속 MIY 전환으로 대체된 근거를 확인했다. 각 GitHub
+  대상 브랜치의 현재 이력을 부모로 보존하는 snapshot PR을 사용하고,
+  최종 GitLab branch별 tree와 일치하는지 정상 병합 전후에 확인한다.
+  직접 upstream push 차단과 영속 dev/main은 유지한다.
+  [GitHub PR106](https://github.com/hurxxxx/miy/pull/106)(main)과
+  [PR107](https://github.com/hurxxxx/miy/pull/107)(dev)은 최초 source의 동일
+  tree를 전달한 draft이며, 테스트 보완 후 최종 소스로 갱신할 예정이다.
+
+배포·동기화 완료는 실제 성공한 pipeline/MR/PR와 runtime revision을 확인한
+후 이 문서와 게시 체크포인트에 갱신한다. 진행 중 기록은 완료 근거가 아니다.
 
 최종 공개 문서는 이 파일과 [개선 기록](workbench-equipment-pilot/IMPROVEMENTS.md)이며, 세부 실행 영수증·스크린샷·서비스/SQLite 백업은 비공개 `.runtime/workbench-workspaces-20261011/deployment/`와 전용 backup 경로에 보존한다. private evidence나 설정 파일을 Git에 추가하지 않는다.

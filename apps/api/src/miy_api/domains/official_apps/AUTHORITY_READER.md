@@ -537,9 +537,13 @@ return is not frozen by this reader.
 
 ## Restricted login profile
 
-`AUTHORITY_READ_COLUMNS` in the module owns the exact 14-table column manifest,
-including all columns currently read by reused installation/release/binding/
-verification ORM queries. Only the app-session hash used for lookup is included;
+`AUTHORITY_READ_COLUMNS` in the module owns the current exact 15-table/89-column
+manifest. Installation authority uses an explicit shared 13-column projection;
+historical `archived_origin` and future ORM metadata are not read. The workspace
+fence adds only `independent_app_workspaces.installation_id` and `state`; absent
+or ready workspaces may pass, while stopping, stopped, cleanup-pending and cleaned
+workspaces refuse admission. Release/binding/verification reads keep their existing
+columns. Only the app-session hash used for lookup is included;
 the source login hash is excluded. Do not widen this profile to run a full user
 graph or business handler.
 
@@ -562,6 +566,19 @@ preparation, credential distribution and a matched independent service artifact
 require separate approved delivery work. This auth-only profile cannot be
 assigned as the business Source writer profile.
 
+The earlier 14-table/87-column references elsewhere describe the historical auth
+profile used by those owner revisions. A current restricted service requires the
+workspace migration and an explicitly prepared exact current profile; it never
+falls back to a broader role or accepts a missing fence. Historical actor migration
+tests capture actual current-profile authority before downgrading their disposable
+schema, then reuse only that original detached execution while checking the pinned
+actor SQL, migration bodies and ownership guards.
+This prepared factory remains an explicit inactive extension; the current
+first-party shared-authority runtime is not activated through this profile. Future
+prepared activation must pair its reviewed service artifact with a newly verified
+exact role and preserve the previous artifact/role pair for rollback. No automatic
+grant expansion or operational role mutation accompanies this change.
+
 ## Remaining cutover
 
 Operational HTTP/WS activation and complete Source/hub privilege profiles, non-launcher identity scopes, source-access/search/AI approval/
@@ -577,7 +594,7 @@ restricted auth-role admission, real current Source ACL and cancellation boundar
 
 `whiteboard_actor_writer.py` captures the original delegated token digest and
 user/source-session/installation/generation/binding/release/verification/artifact/
-origin/environment through a separate fresh auth14/87 Session. It reuses the
+origin/environment through a separate fresh current-profile auth Session. It reuses the
 current official bridge and its `identity:read` intersection; it adds no token,
 permission or login protocol. The frozen server-only descriptor has no logging or
 serialization API. A nonsecret database name/OID/server address/port locator

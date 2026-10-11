@@ -116,7 +116,7 @@ def capture_whiteboard_write_execution(
     original_user_id: str,
     original_source_session_id: str,
 ) -> CapturedWhiteboardWriteExecution:
-    """Capture through the unchanged auth14/87 role, never a Source Session.
+    """Capture through the current restricted auth role, never a Source Session.
 
     Core current predicates are reused; the extra projection uses existing read
     columns. No credential/descriptor serialization or logging API is supplied.

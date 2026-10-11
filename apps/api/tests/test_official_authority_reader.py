@@ -29,6 +29,7 @@ from miy_api.domains.auth.models import (
 from miy_api.domains.groups.models import GroupMember
 from miy_api.domains.independent_apps.delivery_models import AppBuildVerification
 from miy_api.domains.independent_apps.models import AppInstallationRecord, AppSession
+from miy_api.domains.independent_apps.workspace_models import AppWorkspaceRecord
 from miy_api.domains.official_apps import authority_reader as reader
 from miy_api.domains.official_apps.models import OfficialAppBinding
 from conftest import _build_client, _teardown_client_state
@@ -290,6 +291,9 @@ def test_restricted_reader_preserves_principal_without_graph_credentials_or_writ
         "SELECT password_hash FROM public.users",
         "SELECT token_hash FROM public.auth_sessions",
         "SELECT id FROM public.audit_logs",
+        "SELECT archived_origin FROM public.independent_app_installations",
+        "SELECT resources FROM public.independent_app_workspaces",
+        "UPDATE public.independent_app_workspaces SET state='ready'",
         "UPDATE public.users SET status='inactive'",
         "DELETE FROM public.official_app_bindings",
     ],
@@ -299,6 +303,47 @@ def test_actual_role_cannot_read_credentials_other_core_data_or_write(authority,
         with pytest.raises(DBAPIError) as caught:
             db.execute(text(statement))
         assert caught.value.orig.sqlstate == "42501"
+
+
+def test_current_reader_uses_only_admission_columns_and_current_workspace_fence(authority):
+    world, state = authority, authority.state
+    from miy_api.domains.independent_apps.models import load_installation_authority
+
+    with world.factory() as db:
+        installation = load_installation_authority(db, state["installation"]["id"])
+        assert installation.id == state["installation"]["id"]
+        app_id = installation.app_id
+        with pytest.raises(InvalidRequestError):
+            _ = installation.archived_origin
+    assert resolve(world).user.id == state["member_id"]
+    with world.core() as db:
+        db.add(
+            AppWorkspaceRecord(
+                id=new_id(),
+                app_id=app_id,
+                owner_user_id=state["member_id"],
+                parent_installation_id=state["installation"]["id"],
+                installation_id=state["installation"]["id"],
+                profile_id="synthetic-current-auth",
+                profile_digest="a" * 64,
+                creation_digest="b" * 64,
+                state="ready",
+            )
+        )
+        db.commit()
+    assert resolve(world).user.id == state["member_id"]
+    for closing_state in ("stopping", "stopped", "cleanup_pending", "cleaned"):
+        with world.core() as db:
+            workspace = db.scalar(
+                select(AppWorkspaceRecord).where(
+                    AppWorkspaceRecord.installation_id == state["installation"]["id"]
+                )
+            )
+            workspace.state = closing_state
+            db.commit()
+        with pytest.raises(HTTPException) as caught:
+            resolve(world)
+        assert caught.value.status_code == 401
 
 
 @pytest.mark.parametrize(
