@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "repository_root": "/home/operator/projects/miy/dev",
+  "worktree_root": "/home/operator/.local/share/miy-codex-console/worktrees/managed",
+  "state_root": "/home/operator/.local/share/miy-codex-console/managed-environments",
+  "vendor_root": "/opt/miy/codex-0.160.1/vendor/x86_64-unknown-linux-musl",
+  "sdk_root": "/opt/miy/miy-native-sdk-20261011-v3",
+  "executor_uid": 1000,
+  "executor_gid": 1000,
+  "host_ports": [22100, 22101, 22102, 22103],
+  "private_port": 19622,
+  "unit_root": "/home/operator/.config/systemd/user",
+  "systemctl_path": "/usr/bin/systemctl",
+  "socket_proxyd_path": "/usr/lib/systemd/systemd-socket-proxyd"
+}

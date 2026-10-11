@@ -1,4 +1,78 @@
 export const korean = {
+  'The source has changed. Start a new action to use the current version.':
+    '소스가 변경되었습니다. 새 작업으로 현재 버전을 반영하세요.',
+  'Development environments': '개발 작업 환경',
+  'Describe the work, open the app in a new tab, then apply it to development.':
+    '업무를 설명하고 새 탭에서 앱을 확인한 뒤 개발에 반영하세요.',
+  'New development environment': '새 개발 작업 환경',
+  'Environment name': '작업 환경 이름',
+  'Prepare environment': '환경 준비',
+  'Loading development environments': '개발 작업 환경을 불러오는 중',
+  'No development environments yet.': '아직 개발 작업 환경이 없습니다.',
+  'An administrator must connect the MIY development environment before starting this work.':
+    '관리자가 MIY 개발 환경을 연결해야 이 작업을 시작할 수 있습니다.',
+  'Choose a development environment': '개발 작업 환경 선택',
+  'Start a development session': '개발 세션 시작',
+  'The same environment is shared by this work’s sessions.':
+    '이 작업의 여러 세션은 같은 환경을 이어 사용합니다.',
+  'Open app in new tab': '새 탭에서 앱 열기',
+  'Refresh app build': '앱 빌드 갱신',
+  'Stop environment': '환경 중지',
+  'Resume environment': '환경 재개',
+  'Apply to development': '개발에 반영',
+  'Clean up environment': '환경 정리',
+  'Check operation state': '작업 상태 확인',
+  'Continue operation': '계속 확인·반영',
+  'The response was lost. Check the existing operation before requesting another action.':
+    '응답을 확인하지 못했습니다. 다른 행동을 요청하기 전에 기존 작업 상태를 확인하세요.',
+  'Saved source': '저장한 소스',
+  'Running app source': '실행 중인 앱 소스',
+  'Development app source': '개발 포털 앱 소스',
+  'Saved changes are not running yet. Refresh the app build after finishing your changes.':
+    '저장한 변경이 아직 실행되지 않았습니다. 수정을 마친 뒤 앱 빌드를 갱신하세요.',
+  'The app link is available after its runtime is verified.':
+    '앱 실행 확인이 끝나면 새 탭 링크를 사용할 수 있습니다.',
+  'Environment preparing': '환경 준비 중',
+  'Environment ready': '환경 사용 가능',
+  'Environment stopped': '환경 중지됨',
+  'Environment stopping': '환경 중지 중',
+  'Environment cleanup pending': '환경 정리 필요',
+  'Environment cleaned': '환경 정리 완료',
+  'Environment needs attention': '환경 확인 필요',
+  'App build pending': '앱 빌드 대기',
+  'App build running': '앱 빌드 중',
+  'App runtime ready': '앱 실행 확인됨',
+  'App runtime stopped': '앱 실행 중지됨',
+  'App refresh failed': '앱 갱신 실패',
+  'App runtime not configured': '앱 실행 연결 미설정',
+  'Development integration not requested': '개발 반영 전',
+  'Development review in progress': '개발 반영 검토 중',
+  'Development integration blocked': '개발 반영 확인 필요',
+  'Merged; development app update pending': '병합 완료 · 개발 앱 갱신 대기',
+  'Development app verified': '개발 포털 앱 실행 확인됨',
+  'Development applied; cleanup pending': '개발 반영 완료 · 환경 정리 필요',
+  'Development applied and environment cleaned': '개발 반영과 환경 정리 완료',
+  'Integration state unknown': '개발 반영 상태 확인 필요',
+  'Cleanup not requested': '환경 정리 전',
+  'Cleanup in progress': '환경 정리 중',
+  'Cleanup needs attention': '환경 정리 확인 필요',
+  'Workspace details': '작업 환경 상세',
+  'Operation history': '환경 작업 기록',
+  'Review merge request': '병합 요청 확인',
+  'Apply this work to development?': '이 작업을 개발에 반영할까요?',
+  'Review and checks precede the dev merge, development app update and owned environment cleanup. Production delivery is separate.':
+    '검토와 검사를 거쳐 dev에 병합한 뒤 개발 포털 앱을 갱신하고 이 작업의 환경을 정리합니다. 운영 배포는 별도입니다.',
+  'Clean up this development environment?': '이 개발 작업 환경을 정리할까요?',
+  'The server checks merge evidence and active sessions before cleaning up this work’s temporary resources.':
+    '서버가 병합 근거와 실행 중인 세션을 확인한 뒤 이 작업의 임시 자원을 정리합니다.',
+  'Continue preparing': '준비 다시 요청',
+  'Confirm development action': '개발 작업 확인',
+  'Current environment state could not be verified. Refresh before continuing.':
+    '현재 환경 상태를 확인하지 못했습니다. 새로 확인한 뒤 계속하세요.',
+  'The environment changed. Refresh its state before continuing.':
+    '환경이 변경되었습니다. 현재 상태를 새로 확인한 뒤 계속하세요.',
+  'Another session or operation is using this environment. Wait for it to finish.':
+    '다른 세션이나 작업이 이 환경을 사용 중입니다. 완료 후 계속하세요.',
   'Checked at': '확인 시각',
   'Execution environment connection confirmed.':
     '실행 환경 연결을 확인했습니다.',
@@ -139,6 +213,8 @@ export const korean = {
     '이 앱 실행 환경에는 검증된 Codex 버전이 필요합니다.',
   'Independent app tasks require their isolated executor.':
     '독립 앱 작업은 연결된 격리 실행 환경에서 실행해야 합니다.',
+  'Host skills cannot run in an independent app task. Continue without host skills.':
+    '개인 앱 작업에서는 서버의 스킬을 실행할 수 없습니다. 서버 스킬을 선택하지 않고 진행해 주세요.',
   'Configure a development installation delegation on the Workbench server.':
     'Workbench 서버에 개발 설치 환경의 위임 권한을 연결하세요.',
   'This installation no longer permits the requested action.':
@@ -171,6 +247,8 @@ export const korean = {
     '이 격리 앱 실행 환경은 아직 첨부파일을 지원하지 않습니다.',
   'Inspect installation': '설치 상태 점검',
   'Plan preview deployment': '미리보기 배포 계획',
+  "Deployment connection is pending. Enable use in the registration task's My development preview settings, then ask the Workbench administrator to connect delivery.":
+    '배포 연결을 기다리고 있습니다. 등록 작업의 내 개발 미리보기 설정에서 사용을 허용한 뒤 워크벤치 관리자에게 연결을 요청해 주세요.',
   'Plan app recovery': '앱 복구 계획',
   'App delivery purpose': '앱 운영 작업',
   'General task': '일반 작업',
@@ -295,6 +373,21 @@ export const korean = {
   'Track app releases, maintenance and development and runtime usage.':
     '앱 릴리스·유지보수와 개발·운영 사용량을 관리합니다.',
   'New app project': '새 앱 프로젝트',
+  'Name the app and describe the work you want it to help with. Other project settings are suggested automatically.':
+    '앱 이름과 도움받고 싶은 업무를 적어 주세요. 나머지 프로젝트 설정은 자동으로 제안합니다.',
+  'Advanced project settings': '고급 프로젝트 설정',
+  'New app requested. Compare existing apps before implementation.':
+    '새 앱 개발을 요청합니다. 구현 전에 기존 앱과 기능 중복 및 재사용 가능성을 검토합니다.',
+  'Existing app selected. Review its source before extending it.':
+    '기존 앱 확장을 요청합니다. 구현 전에 연결된 소스와 변경 범위를 검토합니다.',
+  'You can change the suggested app identifier and reuse notes. Registration and development permissions are checked separately.':
+    '제안된 앱 식별자와 재사용 근거를 변경할 수 있습니다. 등록과 개발 권한은 별도로 확인합니다.',
+  'The administrator prepared a folder for this app.':
+    '관리자가 준비한 앱 폴더를 사용합니다.',
+  'Advanced source settings': '고급 소스 설정',
+  'Choose an app creation folder': '앱 생성 폴더 선택',
+  'This prepares your app on this server. No remote repository is created. You can connect an existing HTTPS repository in advanced settings.':
+    '앱 소스를 이 서버에서 준비합니다. 원격 저장소는 만들지 않습니다. 기존 HTTPS 저장소는 고급 설정에서 연결할 수 있습니다.',
   'Loading app catalog': '앱 목록을 불러오는 중',
   'Development revision': '개발 리비전',
   'Uncommitted changes': '미커밋 변경 있음',
@@ -1057,6 +1150,22 @@ export const translate = (locale: Locale): Translate =>
   });
 
 const errors: Record<string, Copy> = {
+  workspace_unconfigured:
+    'An administrator must connect the MIY development environment before starting this work.',
+  workspace_busy:
+    'Another session or operation is using this environment. Wait for it to finish.',
+  workspace_source_changed:
+    'The environment changed. Refresh its state before continuing.',
+  workspace_integration_changed:
+    'The environment changed. Refresh its state before continuing.',
+  workspace_remote_branch_changed:
+    'The environment changed. Refresh its state before continuing.',
+  workspace_operation_unknown:
+    'The response was lost. Check the existing operation before requesting another action.',
+  workspace_stopped: 'Environment stopped',
+  workspace_cleaned: 'Environment cleaned',
+  workspace_environment_unavailable:
+    'Current environment state could not be verified. Refresh before continuing.',
   registration_unconfigured:
     'Registration delegation is not configured. Use the JSON export or ask the administrator to enable it.',
   registration_unsupported:
@@ -1118,6 +1227,8 @@ const errors: Record<string, Copy> = {
     'This app executor needs the verified Codex version.',
   app_executor_required:
     'Independent app tasks require their isolated executor.',
+  app_host_skills_unavailable:
+    'Host skills cannot run in an independent app task. Continue without host skills.',
   app_executor_attachments_unsupported:
     'Attachments are not yet supported by this isolated app executor.',
   app_source_planning_only:
@@ -1221,7 +1332,6 @@ const errors: Record<string, Copy> = {
   stale_plan: 'The saved plan changed. Review the latest version.',
   stale_document:
     'The document changed in another tab. Reload the latest version.',
-  workspace_busy: 'Another task is running. Finish or recover it first.',
   task_busy: 'This task is already running or needs recovery.',
   turn_settings_mismatch:
     'Finish or stop the current turn before changing its mode, model, reasoning effort, or permissions.',

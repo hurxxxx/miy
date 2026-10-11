@@ -65,6 +65,9 @@ for key in value['templates']:
               repository='https://example.test/independent.git',
               expected_digest=value['bundle_digest'])
  assert 'app.manifest.json' in files and 'vendor/miy-app-sdk/src/index.mjs' in files
+ assert 'PLATFORM_CAPABILITIES.md' in files
+ assert '(PLATFORM_CAPABILITIES.md)' in files['README.md'].decode()
+ assert 'web-api-postgres-v1' in files['PLATFORM_CAPABILITIES.md'].decode()
 print('Both packaged starters available without platform source')
 """
     result = subprocess.run(

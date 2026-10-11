@@ -275,7 +275,7 @@ it('rejects a different operation in a successful receipt lookup', async () => {
   expect(screen.queryByRole('region', { name: label('receipt') })).toBeNull();
 });
 
-it('accepts a four-permission draft and gives selected-file access its own unchecked consent label', async () => {
+it('accepts all five permissions with distinct unchecked selected-file and search consent', async () => {
   const extended = {
     ...draft,
     definition: {
@@ -285,13 +285,17 @@ it('accepts a four-permission draft and gives selected-file access its own unche
         'data:read',
         'data:write',
         'files:read-selected',
+        'search:read',
       ],
+      search: {
+        collections: { notes: { text_fields: ['title'], modes: ['keyword'] } },
+      },
     },
   };
   expect(
     parseRegistrationDraft(JSON.stringify(extended)).definition
       .requested_permissions,
-  ).toHaveLength(4);
+  ).toHaveLength(5);
   render(view());
   const file = new File(['fixture'], 'registration.json', {
     type: 'application/json',
@@ -305,6 +309,9 @@ it('accepts a four-permission draft and gives selected-file access its own unche
   const selected = await screen.findByLabelText(label('selectedFileRead'));
   expect((selected as HTMLInputElement).checked).toBe(false);
   expect(
+    (screen.getByLabelText(label('searchRead')) as HTMLInputElement).checked,
+  ).toBe(false);
+  expect(
     (screen.getByLabelText(label('dataWrite')) as HTMLInputElement).checked,
   ).toBe(false);
   expect(apiFetchJson).not.toHaveBeenCalled();
@@ -315,6 +322,17 @@ it('accepts a four-permission draft and gives selected-file access its own unche
         definition: {
           ...extended.definition,
           requested_permissions: ['files:read-selected', 'files:read-selected'],
+        },
+      }),
+    ),
+  ).toThrow();
+  expect(() =>
+    parseRegistrationDraft(
+      JSON.stringify({
+        ...extended,
+        definition: {
+          ...extended.definition,
+          requested_permissions: ['search:write'],
         },
       }),
     ),

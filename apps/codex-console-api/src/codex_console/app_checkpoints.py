@@ -111,9 +111,10 @@ def _ack(process, expected):
         raise ConsoleError("git_timeout")
 
 
-def _update_head(root, branch, commit, head, head_file):
+def _update_head(root, branch, commit, head, head_file, metadata=None):
     # Public Git 2.43 transaction API owns the branch and implicit HEAD locks.
     # Verify the symbolic target while prepared, before allowing its CAS commit.
+    metadata = metadata or root / ".git"
     argv, env = _configuration(root, ("update-ref", "-m", "MIY application checkpoint", "--stdin"))
     with subprocess.Popen(
         argv,
@@ -129,8 +130,8 @@ def _update_head(root, branch, commit, head, head_file):
             )
             _ack(process, b"start: ok\nprepare: ok\n")
             if (
-                not (root / ".git/HEAD.lock").is_file()
-                or git.read_worktree_file(root / ".git", "HEAD", missing_ok=False) != head_file
+                not (metadata / "HEAD.lock").is_file()
+                or git.read_worktree_file(metadata, "HEAD", missing_ok=False) != head_file
             ):
                 raise ConsoleError("app_checkpoint_conflict", 409)
             process.stdin.write(b"commit\n")
@@ -297,7 +298,9 @@ def _snapshot(root, baseline):
     return result
 
 
-def checkpoint(settings, task):
+def checkpoint(settings, task, *, check=None):
+    if check:
+        check()
     source = (task.context or {}).get("source_binding")
     if not source:
         raise ConsoleError("app_checkpoint_source_required", 403)
@@ -369,6 +372,8 @@ def checkpoint(settings, task):
             ):
                 raise ConsoleError("app_checkpoint_conflict", 409)
             if tree == _git(root, "rev-parse", "HEAD^{tree}").strip():
+                if check:
+                    check()
                 return {"source_revision": head.decode(), "created": False}
             content = git.read_worktree_file(Path(temporary), "index", missing_ok=False)
             with os.fdopen(os.dup(index_fd), "wb") as target:
@@ -385,6 +390,8 @@ def checkpoint(settings, task):
             ).strip()
             if not _OID.fullmatch(commit):
                 raise ConsoleError("app_checkpoint_conflict", 409)
+            if check:
+                check()
             _update_head(root, branch, commit, head, head_file)
             # As in Git commit, ref and index are individually atomic. A process
             # loss between them leaves visible staged differences, never a replay.

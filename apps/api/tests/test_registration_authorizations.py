@@ -559,6 +559,63 @@ def test_typed_settings_and_wire_reject_ambiguous_policy():
             RegistrationAuthorizationInput.model_validate(changed)
 
 
+def test_search_permissions_roundtrip_registration_bootstrap_and_owner_preview_contracts():
+    from miy_api.domains.independent_apps.contracts import AppDefinition
+    from miy_api.domains.independent_apps.owner_preview_contracts import OwnerPreviewPatch
+
+    permissions = AppDefinition.model_json_schema()["properties"]["requested_permissions"]["items"][
+        "enum"
+    ]
+    assert "search:read" in permissions and len(permissions) == 5
+    definition = {
+        **manifest("search-bootstrap"),
+        "runtime_profile": "web-api-postgres-v1",
+        "requested_permissions": permissions,
+        "search": {"collections": {"equipment": {"text_fields": ["name"], "modes": ["keyword"]}}},
+    }
+    value = payload(definition=definition, granted_permissions=permissions)
+    bootstrap = BootstrapInput.model_validate(value)
+    authorization = RegistrationAuthorizationInput.model_validate(consent(value))
+    preview_value = {
+        "expected_generation": 1,
+        "expected_definition_digest": bootstrap.definition.content_digest(),
+        "expected_source_revision": value["source_revision"],
+        "enabled": True,
+        "granted_permissions": permissions,
+    }
+    preview = OwnerPreviewPatch.model_validate(preview_value)
+    assert BootstrapInput.model_validate_json(bootstrap.model_dump_json()) == bootstrap
+    assert (
+        RegistrationAuthorizationInput.model_validate_json(authorization.model_dump_json())
+        == authorization
+    )
+    assert OwnerPreviewPatch.model_validate_json(preview.model_dump_json()) == preview
+    assert (
+        bootstrap.granted_permissions
+        == authorization.policy.requested_permissions
+        == preview.granted_permissions
+        == sorted(permissions)
+    )
+    for invalid in (
+        ["search:write"],
+        ["search:*"],
+        ["search:read", "search:read"],
+        [*permissions, "identity:read"],
+    ):
+        with pytest.raises(ValidationError):
+            BootstrapInput.model_validate(value | {"granted_permissions": invalid})
+        with pytest.raises(ValidationError):
+            RegistrationAuthorizationInput.model_validate(
+                consent(value)
+                | {
+                    "policy": authorization.policy.model_dump(mode="json")
+                    | {"requested_permissions": invalid}
+                }
+            )
+        with pytest.raises(ValidationError):
+            OwnerPreviewPatch.model_validate(preview_value | {"granted_permissions": invalid})
+
+
 def test_code_and_grant_deadlines_are_capped_by_the_original_session(client, enabled):
     with get_session_factory()() as db:
         actor = context(db, enabled)

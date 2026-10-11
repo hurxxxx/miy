@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -55,6 +56,12 @@ class AppInstallationRecord(Base):
     __table_args__ = (
         UniqueConstraint("app_id", "environment", "origin", name="uq_independent_app_installation"),
         UniqueConstraint("origin", name="uq_independent_app_origin"),
+        CheckConstraint(
+            "(state = 'archived' AND environment = 'development' AND NOT enabled "
+            "AND origin IS NULL AND archived_origin IS NOT NULL) OR "
+            "(state <> 'archived' AND origin IS NOT NULL AND archived_origin IS NULL)",
+            name="ck_independent_app_origin_lifecycle",
+        ),
         Index(
             "uq_independent_app_production",
             "app_id",
@@ -69,7 +76,8 @@ class AppInstallationRecord(Base):
         ForeignKey("independent_app_definitions.app_id"), index=True
     )
     environment: Mapped[str] = mapped_column(String(16))
-    origin: Mapped[str] = mapped_column(String(300))
+    origin: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    archived_origin: Mapped[str | None] = mapped_column(String(300), nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     audience: Mapped[str] = mapped_column(String(16), default="selected")
     user_ids: Mapped[list[str]] = mapped_column(JSON, default=list)

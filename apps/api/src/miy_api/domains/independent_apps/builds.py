@@ -215,10 +215,14 @@ def _unpack(raw, destination):
                 if total > MAX_ARCHIVE:
                     raise BuildFailure("build_archive_limit")
                 target = destination.joinpath(*parts)
-                if member.isdir():
-                    target.mkdir(parents=True, exist_ok=True)
-                else:
-                    target.parent.mkdir(parents=True, exist_ok=True)
+                # COPY preserves these public artifact modes while the runtime
+                # runs as a different UID. Keep the private extraction root as-is.
+                directory = destination
+                for part in parts if member.isdir() else parts[:-1]:
+                    directory = directory / part
+                    directory.mkdir(exist_ok=True)
+                    directory.chmod(0o755)
+                if member.isreg():
                     with target.open("xb") as output:
                         shutil.copyfileobj(archive.extractfile(member), output)
                     target.chmod(0o755 if member.mode & 0o100 else 0o644)
@@ -226,7 +230,7 @@ def _unpack(raw, destination):
         raise BuildFailure("build_archive_unsafe") from None
 
 
-def _verified_source_archive(git, revision):
+def _verified_source_archive(git, revision, directory="."):
     """Export only bytes whose object hashes descend from the requested commit.
 
     Git's object lookup and archive trust object filenames and replacement refs.
@@ -253,10 +257,56 @@ def _verified_source_archive(git, revision):
             raise BuildFailure("build_source_object_invalid")
         return content
 
+    def tree_entries(oid):
+        content = object_bytes("tree", oid)
+        offset, seen = 0, set()
+        while offset < len(content):
+            end = content.find(b"\0", offset)
+            if end == -1 or end + 21 > len(content):
+                raise BuildFailure("build_source_object_invalid")
+            try:
+                mode, name = content[offset:end].split(b" ", 1)
+                name = name.decode("utf-8")
+            except (ValueError, UnicodeError):
+                raise BuildFailure("build_source_object_invalid") from None
+            if not name or name in seen or name in {".", ".."} or "/" in name or "\\" in name:
+                raise BuildFailure("build_archive_unsafe")
+            seen.add(name)
+            child = content[end + 1 : end + 21].hex()
+            offset = end + 21
+            yield mode, name, child
+
     commit = object_bytes("commit", revision)
     tree_header = re.fullmatch(rb"tree ([a-f0-9]{40})", commit.split(b"\n", 1)[0])
     if tree_header is None:
         raise BuildFailure("build_source_object_invalid")
+    selected_tree = tree_header.group(1).decode()
+    # Resolve the selected subtree through verified tree objects. Exporting the
+    # whole monorepo first both leaks unrelated source and applies app limits to
+    # unrelated projects. No attributes, checkout scripts or repository config
+    # participate in this selection.
+    legacy_manifest = None
+    if directory != ".":
+        parts = PurePosixPath(directory).parts
+        if not parts or directory.startswith("/") or any(p in {".", ".."} for p in parts):
+            raise BuildFailure("build_source_denied")
+        root_entries = list(tree_entries(selected_tree))
+        root_manifest = next((e for e in root_entries if e[1] == "app.manifest.json"), None)
+        entries = root_entries
+        for part in parts:
+            selected = next((e for e in entries if e[1] == part), None)
+            if selected is None:
+                raise BuildFailure("build_source_mismatch")
+            if selected[0] != b"40000":
+                raise BuildFailure("build_source_denied")
+            selected_tree = selected[2]
+            entries = list(tree_entries(selected_tree))
+        if root_manifest is not None:
+            if any(name == "app.manifest.json" for _, name, _ in entries):
+                raise BuildFailure("build_definition_mismatch")
+            if root_manifest[0] not in {b"100644", b"100755"}:
+                raise BuildFailure("build_archive_unsafe")
+            legacy_manifest = (root_manifest[0], object_bytes("blob", root_manifest[2]))
     output = io.BytesIO()
     count = total = 0
     with tarfile.open(fileobj=output, mode="w", format=tarfile.PAX_FORMAT) as archive:
@@ -265,22 +315,7 @@ def _verified_source_archive(git, revision):
             nonlocal count, total
             if depth > MAX_SOURCE_DEPTH:
                 raise BuildFailure("build_archive_limit")
-            content = object_bytes("tree", oid)
-            offset, seen = 0, set()
-            while offset < len(content):
-                end = content.find(b"\0", offset)
-                if end == -1 or end + 21 > len(content):
-                    raise BuildFailure("build_source_object_invalid")
-                try:
-                    mode, name = content[offset:end].split(b" ", 1)
-                    name = name.decode("utf-8")
-                except (ValueError, UnicodeError):
-                    raise BuildFailure("build_source_object_invalid") from None
-                if not name or name in (".", "..") or "/" in name or "\\" in name or name in seen:
-                    raise BuildFailure("build_archive_unsafe")
-                seen.add(name)
-                child = content[end + 1 : end + 21].hex()
-                offset = end + 21
+            for mode, name, child in tree_entries(oid):
                 count += 1
                 if count > MAX_FILES:
                     raise BuildFailure("build_archive_limit")
@@ -302,7 +337,15 @@ def _verified_source_archive(git, revision):
                 if output.tell() > MAX_ARCHIVE:
                     raise BuildFailure("build_archive_limit")
 
-        visit(tree_header.group(1).decode(), "", 0)
+        if legacy_manifest is not None:
+            mode, blob = legacy_manifest
+            count, total = 1, len(blob)
+            if count > MAX_FILES or total > MAX_ARCHIVE:
+                raise BuildFailure("build_archive_limit")
+            info = tarfile.TarInfo("app.manifest.json")
+            info.size, info.mode = len(blob), 0o755 if mode == b"100755" else 0o644
+            archive.addfile(info, io.BytesIO(blob))
+        visit(selected_tree, "", 0)
     if output.tell() > MAX_ARCHIVE:
         raise BuildFailure("build_archive_limit")
     return output.getvalue()
@@ -361,7 +404,7 @@ def _snapshot(source, revision, expected, destination):
         raise BuildFailure("build_source_git_policy")
     if git("rev-parse", "--verify", revision + "^{commit}").decode().strip() != revision:
         raise BuildFailure("build_revision_required")
-    raw = _verified_source_archive(git, revision)
+    raw = _verified_source_archive(git, revision, expected.source.directory)
     _unpack(raw, destination)
     try:
         path = destination / "app.manifest.json"
@@ -420,11 +463,10 @@ def build_app(
         checkout.mkdir()
         context.mkdir()
         archive_digest = _snapshot(source, revision, definition, checkout)
-        app_source = checkout / definition.source.directory
-        if not app_source.is_dir():
-            raise BuildFailure("build_source_mismatch")
-        if definition.source.directory != ".":
-            shutil.copyfile(checkout / "app.manifest.json", app_source / "app.manifest.json")
+        # Only verified public source is mounted into the different-UID builder.
+        # The enclosing temporary root and Docker configuration remain private.
+        checkout.chmod(0o755)
+        app_source = checkout
         (root / "docker-config").mkdir()
         docker_env = {"PATH": os.defpath, "DOCKER_CONFIG": str(root / "docker-config")}
 

@@ -49,6 +49,7 @@ SOURCE_INPUTS = frozenset(
     }
 )
 SDK_V2 = "miy-native-sdk-20261009-v2"
+SDK_V3 = "miy-native-sdk-20261011-v3"
 VITE_SCRATCH = {
     "path": "node_modules/.vite-temp",
     "bytes": 16777216,
@@ -104,9 +105,10 @@ def regular_bytes(path: Path, maximum: int) -> bytes:
     return value
 
 
-def load_pin(path: Path = PIN) -> dict:
+def parse_pin_metadata(raw: bytes) -> dict:
+    """Validate a snapshot's structure; this does not attest current source inputs."""
     try:
-        pin = json.loads(regular_bytes(path, 2 * 1024 * 1024))
+        pin = json.loads(raw)
     except (UnicodeError, json.JSONDecodeError):
         refuse("invalid_pin_json")
     if not isinstance(pin, dict) or pin.get("schema_version") != 1:
@@ -122,7 +124,10 @@ def load_pin(path: Path = PIN) -> dict:
         "pnpm": "10.34.5",
     }:
         refuse("unsupported_versions")
-    if pin.get("toolchain_id") == SDK_V2 and pin.get("runtime_scratch") != VITE_SCRATCH:
+    if (
+        pin.get("toolchain_id") in {SDK_V2, SDK_V3}
+        and pin.get("runtime_scratch") != VITE_SCRATCH
+    ):
         refuse("unsupported_runtime_scratch")
     if (
         not isinstance(pin.get("components"), dict)
@@ -153,10 +158,18 @@ def load_pin(path: Path = PIN) -> dict:
     inputs = pin.get("source_inputs")
     if not isinstance(inputs, dict) or set(inputs) != SOURCE_INPUTS:
         refuse("incomplete_owned_source_inputs")
-    for name, expected in inputs.items():
+    for expected in inputs.values():
+        if not is_digest(expected):
+            refuse("owned_source_input_mismatch")
+    return pin
+
+
+def load_pin(path: Path = PIN) -> dict:
+    """Runtime verification always requires the exact current owned inputs."""
+    pin = parse_pin_metadata(regular_bytes(path, 2 * 1024 * 1024))
+    for name, expected in pin["source_inputs"].items():
         if (
-            not is_digest(expected)
-            or hashlib.sha256(regular_bytes(ROOT / name, 2 * 1024 * 1024)).hexdigest()
+            hashlib.sha256(regular_bytes(ROOT / name, 2 * 1024 * 1024)).hexdigest()
             != expected
         ):
             refuse("owned_source_input_mismatch")
@@ -264,7 +277,7 @@ def verify_inventory(records: list[dict], pin: dict):
         selected = [r for r in records if r["path"].split("/")[0] == name]
         if summary(selected) != pin["components"][name]:
             refuse("component_inventory_mismatch")
-    if pin.get("toolchain_id") == SDK_V2:
+    if pin.get("toolchain_id") in {SDK_V2, SDK_V3}:
         if pin.get("runtime_scratch") != VITE_SCRATCH:
             refuse("unsupported_runtime_scratch")
         target = VITE_SCRATCH["path"]
@@ -274,7 +287,7 @@ def verify_inventory(records: list[dict], pin: dict):
             refuse("vite_scratch_not_empty_directory")
 
 
-def verify_source_mounts(source: Path, pin: dict):
+def verify_source_mounts(source: Path, pin: dict, *, managed: bool = False):
     """Check reserved targets, four functional SDK files and an optional pinned README."""
     if not source.is_absolute() or source.resolve() != source:
         refuse("noncanonical_source_root")
@@ -297,9 +310,48 @@ def verify_source_mounts(source: Path, pin: dict):
             raise
 
     try:
-        if os.fstat(rootfd).st_mode & 0o022:
+        root_info = os.fstat(rootfd)
+        if root_info.st_mode & 0o022:
             refuse("source_mount_target_mutable_by_other_users")
-        for parts in [(".git",), ("node_modules",)]:
+        if managed:
+
+            def walk_failed(_error):
+                refuse("managed_source_git_metadata_present")
+
+            seen = 0
+            for parent, directories, files, parentfd in os.fwalk(
+                ".", dir_fd=rootfd, follow_symlinks=False, onerror=walk_failed
+            ):
+                seen += len(directories) + len(files)
+                if seen > MAX_FILES:
+                    refuse("managed_source_git_metadata_present")
+                if ".git" not in (*directories, *files):
+                    continue
+                if parent != "." or ".git" not in directories:
+                    refuse("managed_source_git_metadata_present")
+                # Native bwrap can leave an empty synthetic protected target.
+                # It is neither source nor a grant to expose Git metadata.
+                try:
+                    gitfd = os.open(
+                        ".git",
+                        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                        dir_fd=parentfd,
+                    )
+                except OSError:
+                    refuse("managed_source_git_metadata_present")
+                try:
+                    info = os.fstat(gitfd)
+                    if (
+                        not stat.S_ISDIR(info.st_mode)
+                        or info.st_uid != root_info.st_uid
+                        or info.st_mode & 0o022
+                        or os.listdir(gitfd)
+                    ):
+                        refuse("managed_source_git_metadata_present")
+                finally:
+                    os.close(gitfd)
+                directories.remove(".git")
+        for parts in [("node_modules",)] if managed else [(".git",), ("node_modules",)]:
             fd = open_directory(parts)
             try:
                 if parts == ("node_modules",) and os.listdir(fd):
@@ -664,9 +716,16 @@ def main():
         type=Path,
         help="preflight dedicated source mount targets; no app manifest reads",
     )
+    parser.add_argument(
+        "--managed-source",
+        action="store_true",
+        help="explicit app-subtree mount without Git metadata; requires --source-root",
+    )
     args = parser.parse_args()
     try:
         pin = load_pin()
+        if args.managed_source and not args.source_root:
+            refuse("managed_source_requires_root")
         if args.stage_new and not args.archive:
             refuse("stage_requires_archive")
         if args.archive:
@@ -695,7 +754,7 @@ def main():
             verify_inventory(records, pin)
             verify_elf(elf, pin)
         if args.source_root:
-            verify_source_mounts(args.source_root, pin)
+            verify_source_mounts(args.source_root, pin, managed=args.managed_source)
     except (
         ToolchainRefused,
         OSError,

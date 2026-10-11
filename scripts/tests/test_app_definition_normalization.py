@@ -31,6 +31,10 @@ def contracts(monkeypatch):
 
 @pytest.mark.parametrize("changes", [
     {},
+    {"search": None},
+    {"runtime_profile": "web-api-postgres-v1",
+     "requested_permissions": ["data:read", "search:read"],
+     "search": {"collections": {"notes": {"text_fields": ["text"], "modes": ["keyword", "semantic"]}}}},
     {"schema_version": 1},
     {"schema_version": 1.0},
     {"sdk_version": 1.0},

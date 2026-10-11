@@ -18,6 +18,21 @@ def require_binding(db, task):
     if not task or (task.context or {}).get("purpose") != "registration":
         raise ConsoleError("registration_denied", 403)
     source = task.context.get("source_binding") or {}
+    if task.workspace_id:
+        from .workspaces import require
+
+        workspace = require(db, task.workspace_id)
+        if (
+            source.get("workspace_id") != workspace.id
+            or source.get("repository_root") != workspace.worktree_root
+            or source.get("directory") != workspace.source_directory
+            or source.get("repository") != workspace.repository
+            or task.context.get("project_id") != workspace.project_id
+            or task.context.get("app_id") != workspace.app_id
+            or task.worktree_owned
+        ):
+            raise ConsoleError("workspace_source_changed", 409)
+        return task.root, False, dict(source), workspace.project_id
     project = db.get(WorkbenchProject, task.context.get("project_id"))
     binding = db.get(AppSourceBinding, source.get("app_id"))
     if (
@@ -47,6 +62,9 @@ def snapshot(settings, factory, task_id):
     root = app_sources.task_workspace(settings, task)
     source = selected[2]
     app_directory = app_sources.directory(root, source["directory"])
+    manifest_path = (
+        source["directory"] + "/app.manifest.json" if task.workspace_id else "app.manifest.json"
+    )
 
     def identity():
         try:
@@ -68,7 +86,7 @@ def snapshot(settings, factory, task_id):
 
     def read():
         try:
-            raw = git.read_worktree_file(root, "app.manifest.json", missing_ok=False)
+            raw = git.read_worktree_file(root, manifest_path, missing_ok=False)
             if len(raw) > 65536:
                 raise ValueError()
             manifest = json.loads(raw)
@@ -92,7 +110,7 @@ def snapshot(settings, factory, task_id):
     definition = normalize_manifest(manifest)
     try:
         committed = json.loads(
-            git.git(root, "cat-file", "blob", before["head"] + ":app.manifest.json", limit=65536)
+            git.git(root, "cat-file", "blob", before["head"] + ":" + manifest_path, limit=65536)
         )
         app_sources.validator().validate(committed)
         if normalize_manifest(committed) != definition:

@@ -1,0 +1,18 @@
+[
+  {
+    "id": "app",
+    "repository_root": "/home/operator/projects/miy/dev",
+    "repository": "https://gitlab.example.com/team/miy",
+    "worktree_root": "/home/operator/.local/share/miy-codex-console/worktrees/managed",
+    "work_root": "/var/lib/miy-app-workspaces/builds",
+    "state_root": "/var/lib/miy-app-workspaces/runtime",
+    "toolchain_image": "sha256:REPLACE_WITH_APPROVED_LOCAL_IMAGE_ID",
+    "ingress_image": "sha256:REPLACE_WITH_APPROVED_LOCAL_IMAGE_ID",
+    "platform_origin": "https://dev.example.com",
+    "platform_api_origin": "http://127.0.0.1:8001",
+    "origins": [
+      { "origin": "https://app-work-1.example.com", "port": 19520 },
+      { "origin": "https://app-work-2.example.com", "port": 19521 }
+    ]
+  }
+]

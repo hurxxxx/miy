@@ -14,7 +14,7 @@ from .auth import digest
 from .errors import ConsoleError
 from .models import Agent, DevelopmentUsage, Item, Operation, PendingRequest, Task
 from .rpc import CONTRACT, CodexRPC
-from .toolchain_profiles import SDK_PROFILE, selected_profile
+from .toolchain_profiles import is_sdk_profile
 
 APPROVALS = {
     "item/commandExecution/requestApproval": "CommandExecutionRequestApprovalResponse",
@@ -36,6 +36,20 @@ Only explicitly selected attachments are reference material for the current mess
 Report actual checks, failures, skipped checks and cleanup accurately. Do not delete the active
 working directory during a turn; finish the work first and perform cleanup from a valid checkout.
 """
+APP_WORKFLOW = (
+    WORKFLOW
+    + """This is an independent app Task. Its selected Task metadata and
+current public platform contracts own its app boundary. Do not load or follow legacy host skills
+or platform harness procedures. Use native questions/plans and the available typed app tools.
+An unbound app planning Task discusses the app; it cannot implement in the host/platform workspace.
+When miy_app_source is available, read its context first. Reuse a prior plan's settled business
+decisions instead of repeating those questions, while checking its fit with the current app source.
+Prior plans are reference only; this Task still needs its own explicit implementation approval.
+Batch relevant checks after meaningful changes. Reuse observed results for the exact unchanged
+source revision instead of repeating them at each Task stage. Required platform verification
+gates still run; distinguish prior results from checks executed in this Task.
+"""
+)
 
 
 class Runtime:
@@ -61,6 +75,7 @@ class Runtime:
         self.remote_task_id = remote_task_id
         self.control_runtime = control_runtime
         self.app_runtimes = {}
+        self.workspace_refresh_tasks = set()
 
     def owns(self, task):
         if task is None:
@@ -84,15 +99,24 @@ class Runtime:
     def observation_current(self, rpc, generation):
         return self.rpc is rpc and rpc.connected and rpc.generation == generation
 
-    def for_task(self, task_id):
+    def for_task(self, task_id, *, control_only=False):
         if self.remote_task_id is not None:
             if str(task_id) != self.remote_task_id:
                 raise ConsoleError("executor_mismatch", 409)
+            if control_only:
+                with self.factory() as db:
+                    self.restrictive_rpc(self.require_task(db, str(task_id)))
             return self
         with self.factory() as db:
             task = self.require_task(db, str(task_id))
             if not (task.context or {}).get("source_binding"):
                 return self
+            if control_only:
+                runtime = self.app_runtimes.get(str(task_id))
+                if runtime is None or runtime.remote_task_id != str(task_id):
+                    raise ConsoleError("app_executor_unavailable", 503)
+                runtime.restrictive_rpc(task)
+                return runtime
             remote_environments.for_task(self.settings, task)
         if str(task_id) not in self.app_runtimes:
             self.app_runtimes[str(task_id)] = Runtime(
@@ -152,6 +176,34 @@ class Runtime:
             self.settings.worktree_root,
         )
 
+    def restrictive_rpc(self, task):
+        """The original live transport may only reduce an existing turn's authority."""
+        if task.executor != self.executor or not self.owns(task):
+            raise ConsoleError("executor_mismatch", 409)
+        rpc = self.rpc
+        if (
+            self.remote_task_id is None
+            or rpc is None
+            or not rpc.connected
+            or getattr(rpc, "closing", False)
+            or not task.runtime_generation
+            or task.runtime_generation != rpc.generation
+            or not task.thread_id
+        ):
+            raise ConsoleError("app_executor_unavailable", 503)
+        app_sources.require_task_source(self.settings, task)
+        remote_environments.for_restrictive_task(
+            self.settings, task, getattr(rpc, "remote_environment", None)
+        )
+        self.settings.require_allowed_paths(
+            task.root,
+            task.last_execution_root,
+            task.previous_execution_root,
+            self.settings.workspace,
+            self.settings.worktree_root,
+        )
+        return rpc
+
     async def connect(self):
         async with self.connect_gate:
             if self.rpc and self.rpc.connected:
@@ -184,7 +236,7 @@ class Runtime:
             if environment is not None:
                 rpc.remote_environment = environment
                 rpc.startup_overrides = overrides
-                if selected_profile(environment) == SDK_PROFILE:
+                if is_sdk_profile(environment):
                     # Own the original controller before startup can fail or be
                     # cancelled with its termination still unknown. Reconnect
                     # must close this same RPC before creating a replacement.
@@ -323,6 +375,19 @@ class Runtime:
             if task.previous_permissions and task.previous_execution_root:
                 granted.append((task.previous_permissions, task.previous_execution_root))
         config = await self.configuration(rpc, root)
+        app_task = bool(
+            (task.context or {}).get("app_id") or (task.context or {}).get("project_id")
+        )
+        if app_task and self.remote_task_id is None:
+            config.update(
+                {
+                    "features.skip_host_skill_discovery": True,
+                    "features.hooks": False,
+                    "features.skill_mcp_dependency_install": False,
+                    "features.shell_snapshot": False,
+                    "features.shell_snapshot_v2": False,
+                }
+            )
         await asyncio.to_thread(attachments.prepare, self.factory, self.settings, task_id)
         if revalidate:
             with self.factory() as db:
@@ -332,7 +397,7 @@ class Runtime:
             "sandbox": "read-only",
             "approvalPolicy": "never",
             "approvalsReviewer": "user",
-            "developerInstructions": WORKFLOW,
+            "developerInstructions": APP_WORKFLOW if app_task else WORKFLOW,
             "config": config,
         }
         if thread_id:
@@ -341,9 +406,13 @@ class Runtime:
             params["runtimeWorkspaceRoots"] = [root]
         if self.remote_task_id is not None and not thread_id:
             params["environments"] = remote_environments.selectors(task)
-            from . import delivery_tools, registration_tools
+            from . import delivery_tools, registration_tools, source_tools
 
-            params["dynamicTools"] = delivery_tools.specs(task) + registration_tools.specs(task)
+            params["dynamicTools"] = (
+                source_tools.specs(task)
+                + delivery_tools.specs(task)
+                + registration_tools.specs(task)
+            )
         result = await rpc.call("thread/resume" if thread_id else "thread/start", params)
         if self.remote_task_id is not None:
             environments = result.get("thread", {}).get("environments")
@@ -750,6 +819,10 @@ class Runtime:
                 }
                 if self.remote_task_id is not None:
                     params["environments"] = remote_environments.selectors(task)
+                if skill_names and (
+                    (task.context or {}).get("app_id") or (task.context or {}).get("project_id")
+                ):
+                    raise ConsoleError("app_host_skills_unavailable", 422)
                 selected_skills = await self.skill_inputs(rpc, root, skill_names)
                 params["input"].extend(selected_skills)
                 reference_hashes = None
@@ -951,7 +1024,11 @@ class Runtime:
 
     async def interrupt(self, task_id):
         async with self.task_gate(task_id):
-            rpc = await self.authenticated_rpc()
+            if self.remote_task_id is not None:
+                with self.factory() as db:
+                    rpc = self.restrictive_rpc(self.require_task(db, task_id))
+            else:
+                rpc = await self.authenticated_rpc()
             with self.factory() as db:
                 task = self.require_task(db, task_id)
                 uncertain = task.status == "uncertain"
@@ -1233,13 +1310,25 @@ class Runtime:
 
     async def answer(self, task_id, request_id, answer, *, registration_session_hash=None):
         async with self.task_gate(task_id):
-            rpc = await self.connect()
+            restrictive = self.remote_task_id is not None and answer.decision in {
+                "decline",
+                "cancel",
+            }
+            if restrictive:
+                with self.factory() as db:
+                    rpc = self.restrictive_rpc(self.require_task(db, task_id))
+            else:
+                rpc = await self.connect()
             with self.factory.begin() as db:
                 task = self.require_task(db, task_id, locked=True)
                 from .registration import turn_owner
 
                 turn_owner(db, task, registration_session_hash)
-                self.require_allowed_task(task)
+                if restrictive:
+                    if self.restrictive_rpc(task) is not rpc:
+                        raise ConsoleError("app_executor_changed", 409)
+                else:
+                    self.require_allowed_task(task)
                 request = db.get(PendingRequest, request_id)
                 if (
                     not request
@@ -1481,6 +1570,10 @@ class Runtime:
                         )
                         store.project_plan(db, task, turn["id"], [r.payload for r in rows])
                     if task.stage == "implement":
+                        if status == "completed" and task.workspace_id:
+                            from .workspaces import queue_refresh
+
+                            queue_refresh(db, task, turn["id"])
                         task.fingerprint, task.stage = None, "review"
                     store.invalidate_pending(db, task.id, thread_id=task.thread_id)
                     if task.status != "uncertain":
@@ -1488,14 +1581,18 @@ class Runtime:
                 else:
                     return
                 store.changed(db, task, method)
+            if method == "turn/completed":
+                self.schedule_workspace_refresh(task_id)
 
     async def server_request(self, message, *, generation=None):
         method, params, request_id = message["method"], message.get("params", {}), message["id"]
         if generation and (not self.rpc or generation != self.rpc.generation):
             return
         if self.remote_task_id is not None and method == "item/tool/call":
-            from . import delivery_tools, registration_tools
+            from . import delivery_tools, registration_tools, source_tools
 
+            if await source_tools.handle(self, message, generation=generation):
+                return
             if await registration_tools.handle(self, message, generation=generation):
                 return
             if await delivery_tools.handle(self, message, generation=generation):
@@ -1582,6 +1679,18 @@ class Runtime:
             current.fingerprint = None
             store.release(db, task_id)
             store.changed(db, current, "agents.settled")
+        self.schedule_workspace_refresh(task_id)
+
+    def schedule_workspace_refresh(self, task_id):
+        from .workspaces import finish_refresh
+
+        with self.factory() as db:
+            task = db.get(Task, task_id)
+            workspace_id = task.workspace_id if task else None
+        if workspace_id:
+            job = asyncio.create_task(finish_refresh(self.settings, self.factory, workspace_id))
+            self.workspace_refresh_tasks.add(job)
+            job.add_done_callback(self.workspace_refresh_tasks.discard)
 
     async def register_thread(self, thread, *, generation=None):
         with self.factory() as db:
@@ -1848,6 +1957,9 @@ class Runtime:
                     continue
 
     async def close(self):
+        if self.workspace_refresh_tasks:
+            await asyncio.gather(*self.workspace_refresh_tasks, return_exceptions=True)
+
         async def stop_observer():
             if self.observer:
                 self.observer.cancel()

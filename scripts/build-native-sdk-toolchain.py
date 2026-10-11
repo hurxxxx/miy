@@ -30,7 +30,9 @@ from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
 PIN_PATH = ROOT / "ops/codex-console/executor/sdk-toolchain-pin.json"
-PIN_SHA256 = "1e174a1e831f831029d92ecc7ca1cf87d8d3a969d26efc4719874f23df4fa76b"
+PIN_SHA256 = "6e3bb8750526715fa9e5ddb2e0252f2e2e89a53762302eb300dbee81692d630f"
+LEGACY_PIN_PATH = ROOT / "ops/codex-console/executor/sdk-toolchain-v2-pin.json"
+LEGACY_PIN_SHA256 = "1e174a1e831f831029d92ecc7ca1cf87d8d3a969d26efc4719874f23df4fa76b"
 MAX_ARCHIVE_MEMBERS = 100_000
 MAX_EXPANDED_BYTES = 2 * 1024**3
 MAX_OUTPUT = 65536
@@ -756,6 +758,129 @@ def canonical_archive(root, destination, records):
                 archive.addfile(info)
 
 
+def reissue_source_inputs(previous):
+    """Only SDK public files may change in this finite reissue operation."""
+    checking = verifier()
+    inputs = {}
+    for name, expected in previous["source_inputs"].items():
+        raw = checking.regular_bytes(ROOT / name, 2 * 1024 * 1024)
+        current = hashlib.sha256(raw).hexdigest()
+        if current != expected and name not in {
+            "packages/app-sdk/" + item for item in SDK_FILES
+        }:
+            refuse("reissue_non_sdk_source_changed")
+        inputs[name] = current
+    return inputs
+
+
+def verify_reissue_inventory(previous, current, previous_elf, current_elf):
+    def unchanged(inventory):
+        return [row for row in inventory if row["path"].split("/")[0] != "sdk"]
+
+    if unchanged(current) != unchanged(previous) or current_elf != previous_elf:
+        refuse("reissue_non_sdk_inventory_changed")
+
+
+def reissue_sdk(cache_root, work_root):
+    """Finite SDK-only reissue from an attested historical immutable cache.
+
+    No historical source is claimed to be current. The complete old cache is
+    checked against its fixed public pin before reusing unchanged components.
+    """
+    checking = verifier()
+    legacy_raw = snapshot(LEGACY_PIN_PATH, LEGACY_PIN_SHA256, maximum=128 * 1024)
+    previous = checking.parse_pin_metadata(legacy_raw)
+    if previous["toolchain_id"] != checking.SDK_V2:
+        refuse("unsupported_reissue_source")
+    checking.install_path(cache_root)
+    original, elf = checking.scan_tree(cache_root, owner=0)
+    checking.verify_inventory(original, previous)
+    checking.verify_elf(elf, previous)
+    inputs = reissue_source_inputs(previous)
+    if work_root.exists() or work_root.is_symlink() or work_root.resolve() != work_root:
+        refuse("reissue_work_root_not_new")
+    work_root.mkdir(mode=0o700)
+    bundle = work_root / "bundle"
+    shutil.copytree(cache_root, bundle, symlinks=True)
+    sdk = bundle / "sdk"
+    for path in (sdk, sdk / "src"):
+        path.chmod(0o700)
+    for name in SDK_FILES:
+        destination = sdk / name
+        if destination.is_symlink() or not destination.is_file():
+            refuse("reissue_sdk_layout_changed")
+        destination.unlink()
+        shutil.copyfile(ROOT / "packages/app-sdk" / name, destination)
+        destination.chmod(0o444)
+    for path in (sdk / "src", sdk):
+        path.chmod(0o555)
+    records, current_elf = checking.scan_tree(bundle)
+    # Every non-SDK byte, mode, link and ELF provider must remain identical.
+    verify_reissue_inventory(original, records, elf, current_elf)
+    pin = json.loads(legacy_raw)
+    pin["toolchain_id"] = checking.SDK_V3
+    pin["source_inputs"] = inputs
+    pin["components"]["sdk"] = checking.summary(
+        [row for row in records if row["path"].split("/")[0] == "sdk"]
+    )
+    filename = checking.SDK_V3 + ".tar.xz"
+    archive = work_root / filename
+    canonical_archive(bundle, archive, records)
+    pin["bundle"].update(checking.summary(records))
+    pin["bundle"].update(
+        {
+            "filename": filename,
+            "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+            "bytes": archive.stat().st_size,
+        }
+    )
+    checking.verify_inventory(records, pin)
+    checking.verify_elf(current_elf, pin)
+    checking.inspect_archive(archive, pin)
+    output = work_root / "sdk-toolchain-pin.json"
+    output.write_text(json.dumps(pin, ensure_ascii=False, indent=2) + "\n")
+    # Reopen the output through the unchanged current-source validator.
+    if checking.load_pin(output) != pin:
+        refuse("reissue_pin_changed")
+    return {
+        "toolchain_id": checking.SDK_V3,
+        "archive": str(archive),
+        "sha256": pin["bundle"]["sha256"],
+        "pin": str(output),
+        "pin_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+        "unchanged_non_sdk_components": True,
+        "service_activated": False,
+    }
+
+
+def reissue_main():
+    parser = argparse.ArgumentParser(
+        description="Explicit offline SDK-only v3 issuance; no service activation"
+    )
+    parser.add_argument("--cache-root", type=Path, required=True)
+    parser.add_argument("--work-root", type=Path, required=True)
+    args = parser.parse_args(sys.argv[2:])
+    try:
+        if not args.work_root.is_absolute() or not args.work_root.is_relative_to(
+            ROOT / ".runtime"
+        ):
+            refuse("reissue_work_root_outside_repository_runtime")
+        result = reissue_sdk(args.cache_root, args.work_root)
+    except (
+        ProducerRefused,
+        verifier().ToolchainRefused,
+        OSError,
+        ValueError,
+        KeyError,
+        TypeError,
+        tarfile.TarError,
+    ):
+        print(json.dumps({"error": "sdk_reissue_refused"}))
+        return 1
+    print(json.dumps(result, sort_keys=True))
+    return 0
+
+
 def assemble(
     pin, inputs, artifact_root, work, *, prepare_public_store=False, offline_store=None
 ):
@@ -1005,4 +1130,4 @@ def main():
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(reissue_main() if sys.argv[1:2] == ["reissue-sdk"] else main())

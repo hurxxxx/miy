@@ -17,7 +17,6 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy import select
 
-
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps/api/src"))
 
@@ -43,7 +42,6 @@ def run(args) -> dict:
     )
     from miy_api.domains.independent_apps.local_runtime import DockerRuntime
     from miy_api.domains.independent_apps.models import (
-        AppDefinitionRecord,
         AppInstallationRecord,
         AppReleaseRecord,
     )
@@ -80,8 +78,20 @@ def run(args) -> dict:
                     .where(AppBuildJob.id == job.id)
                     .with_for_update()
                 )
-                definition = db.get(AppDefinitionRecord, args.app_id)
+                from miy_api.domains.independent_apps.workspaces import (
+                    definition_for_installation,
+                )
+
                 try:
+                    definition = definition_for_installation(
+                        db, args.app_id, job.installation_id
+                    )
+                    if (
+                        definition is None
+                        or definition.source_revision != job.source_revision
+                        or definition.definition_digest != job.definition_digest
+                    ):
+                        raise BuildFailure("source_changed")
                     evidence = build_app(
                         source=args.source,
                         revision=args.revision,
@@ -149,7 +159,7 @@ def run(args) -> dict:
         target = (
             delivery_target(installation)
             if installation.environment == "production"
-            else runtime_target(installation)
+            else runtime_target(installation, db=db)
         )
         if target is not None:
             if (
@@ -167,6 +177,31 @@ def run(args) -> dict:
                 "operator_binding_digest": binding_digest(target),
                 "environment": target.environment,
             }
+
+        def prepare_search(spec):
+            from miy_api.domains.independent_apps.data_store import DataStoreError
+            from miy_api.domains.independent_apps.delivery import RuntimeFailure
+            from miy_api.domains.independent_apps.search_backends import SearchFailure
+            from miy_api.domains.independent_apps.search_consumer import prepare_binding
+            from miy_api.domains.independent_apps.workspaces import for_installation
+
+            release = db.get(AppReleaseRecord, request.release_id)
+            if not release.definition_snapshot.get("search"):
+                return
+            workspace = for_installation(db, installation.id)
+            try:
+                prepare_binding(
+                    get_session_factory(),
+                    installation_id=installation.id,
+                    workspace_id=workspace.id if workspace else installation.id,
+                    release_id=release.id,
+                    settings=settings,
+                )
+            except SearchFailure as exc:
+                raise RuntimeFailure(exc.code, uncertain=exc.uncertain) from exc
+            except DataStoreError as exc:
+                raise RuntimeFailure(exc.code, uncertain=True) from exc
+
         runtime = DockerRuntime(
             state_root=args.state_root,
             ingress_image=args.ingress_image,
@@ -180,6 +215,7 @@ def run(args) -> dict:
                 == "web-api-postgres-v1"
                 else None
             ),
+            prepare_search=prepare_search,
             **ingress_binding,
         )
         operation = (
@@ -239,8 +275,8 @@ def main() -> int:
         result = safe_run(args)
         print(json.dumps(result, sort_keys=True))
         return 0 if result["state"] in {"succeeded", "idle"} else 2
-    from miy_api.domains.independent_apps.executor import serve
     from miy_api.core.settings import get_settings
+    from miy_api.domains.independent_apps.executor import serve
 
     stop = Event()
     previous = {
@@ -251,7 +287,10 @@ def main() -> int:
         if (
             Path.cwd().resolve() != ROOT
             or not 1 <= args.poll_seconds <= 60
-            or not get_settings().independent_app_delivery_targets
+            or not (
+                get_settings().independent_app_delivery_targets
+                or get_settings().independent_app_workspace_profiles
+            )
         ):
             raise ValueError("The consumer requires valid core settings and checkout")
         serve(

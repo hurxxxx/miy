@@ -134,6 +134,36 @@ def test_historical_sdk_profile_cannot_select_the_new_cache():
         )
 
 
+def test_existing_v2_profile_keeps_its_exact_old_pin_cache_and_sdk_policy(tmp_path):
+    from codex_console import remote_environments
+
+    environment = SimpleNamespace(toolchain_profile=profiles.LEGACY_SDK_PROFILE)
+    assert profiles.is_sdk_profile(environment)
+    old_root = "/opt/miy/" + profiles.LEGACY_SDK_PROFILE
+    assert profiles.command_environment(environment)["PYTHONPATH"] == old_root + "/python-packages"
+    binding = profiles.binding_identity(environment)
+    assert binding["id"] == profiles.LEGACY_SDK_PROFILE
+    assert binding["pin_sha256"] == profiles.LEGACY_SDK_PIN_SHA256
+    assert binding["archive_sha256"] == profiles.LEGACY_SDK_ARCHIVE_SHA256
+    assert binding["root"] == old_root
+    assert binding["root"] != profiles.SDK_ROOT
+    overrides = remote_environments.overrides({}, environment)
+    assert overrides["sandbox_mode"] == "read-only"
+    assert overrides["approval_policy"] == "never"
+    with pytest.raises(ConsoleError, match="app_executor_configuration"):
+        remote_environments.overrides(
+            {"shell_environment_policy": {"include_only": ["PATH"]}}, environment
+        )
+
+
+def test_v2_pin_tampering_never_falls_back_to_current_v3(tmp_path, monkeypatch):
+    pin = tmp_path / "legacy.json"
+    pin.write_bytes(profiles.LEGACY_SDK_PIN.read_bytes() + b"\n")
+    monkeypatch.setattr(profiles, "LEGACY_SDK_PIN", pin)
+    with pytest.raises(ConsoleError, match="app_executor_toolchain_unavailable"):
+        profiles.command_environment(SimpleNamespace(toolchain_profile=profiles.LEGACY_SDK_PROFILE))
+
+
 def test_release_layout_uses_canonical_pin_and_refuses_missing_or_tampered_resource(
     tmp_path,
 ):

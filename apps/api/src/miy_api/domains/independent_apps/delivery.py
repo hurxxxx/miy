@@ -27,7 +27,6 @@ from miy_api.domains.independent_apps.delivery_models import (
     AppDeliveryDelegation,
 )
 from miy_api.domains.independent_apps.models import (
-    AppDefinitionRecord,
     AppInstallationRecord,
     AppReleaseRecord,
 )
@@ -46,6 +45,8 @@ class RuntimeSpec:
     runtime_profile: str = "web-api-v1"
     loopback_port: int | None = None
     operator_binding_digest: str | None = None
+    # None is reserved for persisted receipts predating UI admission checks.
+    ui_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -153,6 +154,10 @@ def request_deployment(
     installation = db.get(AppInstallationRecord, str(data.installation_id))
     if installation is None or installation.app_id != app_id:
         service.fail("not_found", 404)
+    from miy_api.domains.independent_apps.workspaces import definition_for_installation
+    definition = definition_for_installation(db, app_id, installation.id)
+    if definition is None:
+        service.fail("conflict", 409)
     if production_promotion:
         from miy_api.domains.independent_apps.production import require_authority
 
@@ -201,10 +206,10 @@ def request_deployment(
     )
     from miy_api.domains.independent_apps.production import runtime_target
 
-    if production_promotion or runtime_target(installation) is not None:
+    if production_promotion or runtime_target(installation, db) is not None:
         # Freeze a configured external ingress binding when approval is recorded,
         # before an operator can consume this intent using changed settings.
-        record.runtime_config = asdict(_runtime_spec(record, installation, release))
+        record.runtime_config = asdict(_runtime_spec(record, installation, release, db))
     db.add(record)
     service._audit(
         db, context, "promotion.request" if production_promotion else "deployment.request", app_id
@@ -283,6 +288,10 @@ def _current_authority(
         service.fail("forbidden")
     context = AuthContext(user=user, session=source_session, system_roles=roles)
     definition = service.owned_definition(db, installation.app_id, context)
+    from miy_api.domains.independent_apps.workspaces import definition_for_installation
+    definition = definition_for_installation(db, installation.app_id, installation.id)
+    if definition is None:
+        service.fail("conflict", 409)
     if record.delegation_id:
         from miy_api.domains.independent_apps.delegation import validate
 
@@ -307,7 +316,7 @@ def _current_authority(
     ):
         from miy_api.domains.independent_apps.production import binding_digest, runtime_target
 
-        target = runtime_target(installation)
+        target = runtime_target(installation, db)
         if target is None or record.runtime_config["operator_binding_digest"] != binding_digest(
             target
         ):
@@ -375,7 +384,8 @@ def _complete_cleanup(
 
 
 def _runtime_spec(
-    record: AppDeploymentRequest, installation: AppInstallationRecord, release: AppReleaseRecord
+    record: AppDeploymentRequest, installation: AppInstallationRecord, release: AppReleaseRecord,
+    db: Session | None = None,
 ) -> RuntimeSpec:
     from miy_api.domains.independent_apps.production import (
         binding_digest,
@@ -386,7 +396,7 @@ def _runtime_spec(
     target = (
         delivery_target(installation)
         if installation.environment == "production"
-        else runtime_target(installation)
+        else runtime_target(installation, db) if db is not None else runtime_target(installation)
     )
     return RuntimeSpec(
         record.id,
@@ -399,6 +409,7 @@ def _runtime_spec(
         release.definition_snapshot["runtime_profile"],
         target.loopback_port if target is not None else None,
         binding_digest(target) if target is not None else None,
+        ui_path=release.definition_snapshot["entrypoints"]["ui"],
     )
 
 
@@ -418,7 +429,7 @@ def execute_deployment(db: Session, request_id: str, runtime: AppRuntime) -> Dep
         return _finish(db, record, "failed", "authority_changed")
     if not _reserve_preview(db, installation.id):
         return _finish(db, record, "queued", "preview_capacity")
-    spec = _runtime_spec(record, installation, release)
+    spec = _runtime_spec(record, installation, release, db)
     record.runtime_config = asdict(spec)
     record.state = "running"
     record.active_slot = 1
@@ -524,7 +535,8 @@ def start_build_job(
         if job.state != "queued":
             db.rollback()
             return job, False
-    definition = db.get(AppDefinitionRecord, app_id, populate_existing=True)
+    from miy_api.domains.independent_apps.workspaces import definition_for_installation
+    definition = definition_for_installation(db, app_id, job.installation_id if job else None)
     if (
         definition is None
         or definition.source_revision != revision
@@ -592,7 +604,8 @@ def persist_verified_build(db: Session, job: AppBuildJob, evidence) -> AppReleas
         evidence.definition_digest,
     ):
         service.fail("verification_required", 409)
-    definition = db.get(AppDefinitionRecord, job.app_id)
+    from miy_api.domains.independent_apps.workspaces import definition_for_installation
+    definition = definition_for_installation(db, job.app_id, job.installation_id)
     if definition is None or (definition.source_revision, definition.definition_digest) != (
         job.source_revision,
         job.definition_digest,

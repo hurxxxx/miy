@@ -110,8 +110,9 @@ Git hook/filter/서명·외부 설정·네트워크를 실행하지 않으며 �
 commit을 만들고 HEAD CAS와 Git의 prepare/commit ref transaction으로 게시한다.
 파일이 바뀌지 않았다면 기존 리비전을 반환한다. 동시 파일/HEAD 변경은 conflict로 드러나며,
 강제 종료가 ref와 index 갱신 사이에 발생하면 남은 staged 차이를 숨기거나 자동 복구하지 않는다.
-이 기능은 사용자가 승인한 앱 배포 실행 안의 로컬 commit이며 플랫폼 소스 commit이나 Git push를
-허용하지 않는다. 실제 빌드와 배포는 별도의
+배포 Task의 `checkpoint`는 사용자가 승인한 배포 실행 안에서 수행한다. 아래 개발 전용 로컬 저장은
+외부 배포 위임과 분리하지만 같은 안전 broker를 사용한다. 어느 경로도 플랫폼 소스 commit이나
+Git push를 허용하지 않는다. 실제 빌드와 배포는 별도의
 [opt-in 코어 consumer](../../../apps/api/src/miy_api/domains/independent_apps/README.md#optional-core-queue-consumer)가
 설정된 설치 환경의 durable intent를 소비해야 진행된다. Workbench가 그 서비스를 설치·시작하지 않는다.
 소비자는 중단된 배포를 같은 요청 ID로 관측해 확인된 결과와 정리를 이어간다. 새 배포를
@@ -152,6 +153,32 @@ Workbench 목록은 기본 체크아웃 등록, MIY 운영 카탈로그 전체, 
 전환 전 online backup을 만들고 모든 역할 서비스를 정지한 상태에서 migrate한다. 이전 실행기는 schema가 일치하지
 않는 DB로 시작할 수 없으므로 복구 시 이전 릴리스와 전환 전 DB 백업을 함께 복원한다.
 
+#### 개발 작업의 로컬 저장과 계획 연결
+
+소스와 executor가 연결된 **새 개발 Task**의 native thread에는 `miy_app_source` 도구를 제공한다.
+입력은 `context` 또는 `checkpoint` action뿐이며 경로·명령·자격 증명을 모델이 지정하지 않는다.
+`context`는 현재 앱의 HEAD와 수정 여부를 읽는다. 사용자가 해당 Task의 구현을 명시적으로 승인하면
+자연어로 요청한 작업 저장을 `checkpoint`로 수행할 수 있다. 서버는 현재 소유자·Task/thread/turn·
+executor·소스 연결 버전과 프로젝트의 정확한 앱을 다시 확인하고, HEAD 갱신 직전에도 승인과 연결을
+재검사한다. 이름 있는 브랜치의 일반 checkout과 위의 파일·Git 안전 한계를 그대로 사용하며 앱
+명령의 `.git` mount는 계속 읽기 전용이다. 외부 등록·배포 grant는 이 로컬 저장에 필요하지 않다.
+
+저장할 변경이 없으면 기존 HEAD를 반환한다. 결과가 불확실하면 `context`로 먼저 확인하고 쓰기를
+자동 반복하지 않는다. 로컬 commit은 앱 등록·게시·배포·권한 부여가 아니다. 등록 초안에는 깨끗한
+HEAD가 필요하며 이후 별도 등록 Task에서 현재 MIY 동의를 받는다. 등록 위임의 300초 만료·정체성·
+권한 검사와 배포 gate는 그대로 유지한다. 기존 thread에 새 도구를 소급 추가하지 않는다.
+
+앱 하네스는 의미 있는 변경 이후 필요한 검사를 모아서 수행하고, 정확히 같은 소스 리비전의
+관측된 검사 결과를 다음 단계에서 재사용한다. 이전 결과와 이번 Task에서 실행한 검사를 구분해
+보고하며, 플랫폼의 필수 빌드·배포 검증은 계속 수행한다.
+
+같은 `context`는 동일 앱·프로젝트의 이전 Task에서 생성된 최신 native 최종 계획을 `prior_plan`으로
+읽는다. 현재 Task·더 나중에 만든 Task·다른 앱/프로젝트·일반 코어 Task의 계획은 제외한다.
+참조에는 계획 Task/버전과 최대 16 KiB 본문, 잘림 여부를 포함하며 없으면 `null`이다. 원문 대화나
+질문 답변 전체를 복사하지 않는다. 앱 작업 지침은 개발을 시작할 때 이 context를 먼저 읽고 확정된
+업무 결정을 재사용하되 현재 소스에 맞는지 확인하도록 한다. 계획 참조는 실행 승인이 아니며 새
+개발 Task에서도 별도의 명시적 구현 승인이 필요하다.
+
 #### 프로젝트에서 새 앱 소스 준비
 
 새 프로젝트의 `앱 소스 준비`는 소유자가 명시적으로 요청한 초기 소스만 만든다. 운영자는
@@ -160,8 +187,12 @@ Workbench 목록은 기본 체크아웃 등록, MIY 운영 카탈로그 전체, 
 심볼릭 링크 경로, 코어 checkout·운영·워크트리·SQLite·인증 저장 경로와의 겹침은 거부한다.
 기존 읽기/연결 허용만으로 새 디렉터리 생성 권한을 부여하지 않는다.
 
-화면에서 제공된 root와 `basic` 또는 `private-notes` 템플릿을 선택하고 자격 증명 없는 HTTPS
-저장소 식별자를 입력한다. 서버는 `${root}/${app_id}`만 목적지로 사용하며 사용자가 임의 경로나
+새 프로젝트는 업무명과 요구사항으로 앱 식별자와 구현 전 재사용 검토 근거를 제안한다.
+식별자·검토 근거·기존 앱 확장은 고급 프로젝트 설정에서 변경할 수 있으며 서버 검사는 유지한다.
+소스 준비는 `basic` 또는 `private-notes` 템플릿을 선택한다. 허용 root가 하나면 자동 선택하고
+여러 개면 직접 선택한다. 기본 HTTPS 저장소 식별자 `https://miy-apps.invalid/local/<app_id>.git`는
+이 서버의 로컬 소스를 식별하며 원격 저장소의 존재나 백업을 뜻하지 않는다. 실제 저장소를 사용할
+때만 고급 소스 설정에서 자격 증명 없는 HTTPS 주소로 바꾼다. 서버는 `${root}/${app_id}`만 목적지로 사용하며 사용자가 임의 경로나
 명령을 보낼 수 없다. 새 앱 ID는 공통 독립 앱 계약을 따른다. 기존 프로젝트의 이전 ID는 조회를
 유지하되 새 소스 준비에서는 유효한 ID가 필요하다. 저장소 식별자는 로컬 `origin`에 기록할 뿐
 원격 저장소를 만들거나 clone/fetch/push하지 않는다. 의존성 설치나 앱 명령도 실행하지 않는다.
@@ -274,8 +305,9 @@ Core의 등록 수락을 보장하지 않는다.
    안전 checkpoint broker는 이름 있는 브랜치의 일반 checkout만 지원하므로 연결 worktree의
    checkpoint는 명시적으로 거부한다. 원본 checkout으로 fallback하지 않는다.
 
-등록 정책은 기존 `identity:read`, `data:read`, `data:write`와 선택적인 `files:read-selected`까지
-최대 네 권한을 표현한다. 새 파일 권한은 manifest에서 명시해야 하며, 기존 앱·기본 템플릿·메모
+등록 정책은 기존 `identity:read`, `data:read`, `data:write`와 선택적인 `files:read-selected`, `search:read`까지
+최대 다섯 권한을 표현한다. `search:read`는 `data:read`와 manifest의 검색 선언을 함께 요구한다.
+새 파일 권한은 manifest에서 명시해야 하며, 기존 앱·기본 템플릿·메모
 템플릿에 자동 추가하지 않는다. 등록 위임의 초기 허용 권한은 여전히 빈 목록이다. 이 권한은 사용자가
 포털에서 선택한 파일 한 개의 제한된 읽기에만 쓰이며, Workbench 등록이나 소스 생성이 파일 목록 조회·
 파일 선택 승인·앱 실행 권한을 대신하지 않는다.
@@ -359,6 +391,12 @@ Studio의 독립 앱 프로젝트는 **계속 개발** 또는 **새 등록 작�
 native 연결을 사용하며 코어 Task의 host 실행과 분리한다. 환경 연결이 없거나 달라지면 실행을
 거부하며 host 실행으로 대체하지 않는다. 프로젝트의 소스 연결 전에 만든 계획 전용 Task는
 나중에 소스를 연결해도 실행 권한을 승계하지 않는다. 연결 후 새 개발 Task를 만든다.
+
+앱 Task는 현재 선택된 메타데이터·공개 플랫폼 계약·native 질문/계획·typed 앱 도구를 사용한다.
+소스 연결 전 앱 계획 Task에서도 host skills 자동 발견·hooks·skill MCP 의존성 설치·shell snapshot을
+끄고 기존 host 스킬이나 플랫폼 하네스 절차를 불러오지 않도록 앱 전용 지침을 적용한다. 명시적인
+host 스킬 입력도 `app_host_skills_unavailable`로 거부한다. 일반 코어 Task의 지침·스킬 기능과
+소유자의 원본 Codex 설정은 바꾸지 않는다. 연결된 SDK 앱 Task에는 아래의 더 좁은 격리 계약이 적용된다.
 
 이 경로는 **Codex 0.160.1 정확 버전**의 실험적 native 환경 RPC를 사용한다. 코어/템플릿의
 기존 0.159.2 소비 계약과 별도인 `remote_protocol.generated.json`으로 환경·동적 도구의
@@ -668,8 +706,15 @@ Pilot 원본과 고정 pin은 그대로 보존한다. 예제를 만들거나 저
 세 파일과 의존성을 렌더한다. SDK mount·private network·non-root UID/GID·cap0/NNP·읽기 전용
 root 및 `.git`·64MiB 임시 공간·16MiB Vite 임시 공간은 pilot과 같다. CPUQuota100%,
 MemoryMax1GiB, MemorySwapMax0, TasksMax64, TimeoutStopSec3, KillMode=control-group,
-Restart=no도 그대로다. **RuntimeMaxSec만 infinity**여서 오래 실행한 정상 작업을 시간 때문에
+Restart=no도 그대로다. **backend RuntimeMaxSec는 infinity**여서 오래 실행한 정상 작업을 시간 때문에
 종료하지 않는다. 임시 저장 공간이나 자원이 부족하면 실패하며 한도를 자동으로 늘리지 않는다.
+
+지속 SDK backend의 `ProtectHome=tmpfs`는 `/home`·`/root`·`/run/user`를 읽기 전용 빈 tmpfs로 숨긴다.
+그 위에 운영자가 검증한 정확한 `@SOURCE_ROOT@`만 `BindPaths`로 연결하고 vendor·SDK cache만
+`BindReadOnlyPaths`로 제공하므로 `/home` 아래의 전용 checkout도 사용할 수 있다. 전체 사용자 home이나
+인증 경로를 노출하지 않는다. 안쪽 bubblewrap은 같은 checkout 하나와 read-only `.git`·cache 경계를
+유지한다. Proxy의 `ProtectHome=yes`는 그대로다. 경로·mount와 실제 native 정책은 새 설치에서 확인하며
+예제를 저장한 사실을 실제 연결의 증거로 보지 않는다.
 
 Backend는 Core 운영자의 명시적인 종료까지 한 checkout의 native exec-server를 유지한다.
 Proxy는 활성 연결에 시간 제한을 두지 않고, 연결이 없는 10초 뒤 정상 종료한 다음 새 연결에
@@ -1463,8 +1508,8 @@ systemctl --user stop codex-console
 개발 서버의 `./dev.sh`와 콘솔은 서로 제어하지 않는다. 일반 UI/session 업데이트는 검증한
 새 릴리스로 `current`만 전환한다. `template-current`와 그 CLI 설치 경로는 유지한다.
 템플릿 실행기 업데이트는 그 실행기의 모든 root/하위 작업이 끝난 뒤 별도로 검증·전환한다.
-현재 SQLite 스키마는 `console_sqlite_0008`이다. `0007`의 agent nullable 관측 JSON과
-`0008`의 앱 등록 intent를 포함하며 기존 작업·실행 결과·소스 준비 기록을 보존한다.
+현재 SQLite 스키마는 `console_sqlite_0009`이다. `0007`의 agent nullable 관측 JSON과
+`0008`의 앱 등록 intent, `0009`의 관리형 작업 환경을 포함하며 기존 작업·실행 결과·소스 준비 기록을 보존한다.
 이전 row의 현재 native 상태를 추정해 채우지 않는다. 스키마 변경이 필요한 배포는 세 역할의
 작업을 모두 종료하고 백업·세 서비스 중지·migration을 수행한다. 이때 `current`와
 `template-current` 모두 새 스키마를 지원하는 검증된 릴리스로 전환하며, 템플릿용 고정 CLI는
@@ -1728,3 +1773,151 @@ E2E 대역 통과는 실제 구독 실행
 실행기 자체가 사용할 수 없을 때에만 접힌 수동 복구 안내의 프롬프트를 서버 Codex에 입력한다.
 배포가 끝나면 페이지를 새로고침해 모델 목록과 실행 결과를 확인한다.
 사용량 제한에는 API fallback을 두지 않는다. 비밀번호 분실은 서버의 `set-password`로 복구한다.
+
+## 작업별 개발 환경
+
+이 계약은 opt-in `MIY_CODEX_CONSOLE_MANAGED_WORKSPACES_ENABLED=true` 경로를 소유한다.
+기존 독립 체크아웃·일반 세션은 보존한다. 새 작업은 설정된 MIY 저장소의 확인된
+`origin/dev`에서 기능 브랜치와 worktree를 만들고 `personal-apps/<app-id>/`만 편집한다.
+영속 `dev` 체크아웃을 전환하거나 전체 플랫폼 `.env`를 복사하지 않는다.
+고정된 원격 Git 작업만 운영자 소유의 안전한 native 전역 Git 설정으로 인증하며,
+앱 소스 조회·checkpoint에는 전역/system 설정을 적용하지 않는다.
+worktree 생성 전에 확인된 준비 실패는 같은 환경의 **재개**로 다시 준비할 수 있지만,
+이미 존재하는 브랜치·worktree를 채택하거나 원 실패 operation을 성공으로 바꾸지 않는다.
+
+SQLite `console_sqlite_0009`는 Project → Workspace → Task와 Task 삭제에 영향받지 않는
+workspace operation을 저장한다. 동일 workspace에는 읽기 세션 여러 개 또는 구현 세션 한 개를
+허용한다. root와 하위 에이전트가 종료됐다는 확인 전에는 중지·반영·정리를 완료하지 않는다.
+
+준비된 Linux 실행 호스트에서 다음을 코어 운영자가 설정한다.
+
+- Workbench의 고정 저장소/작업 경로, private SQLite·상태 경로와 GitLab `origin` 인증.
+- `MIY_CODEX_CONSOLE_MANAGED_ENVIRONMENT_COMMAND`: 설치된 Python과
+  `scripts/manage-workbench-environment.py`, `--config`, 보호된 설정 파일의 **고정 argv 배열**.
+  앱이나 대화가 명령·포트·이미지·자격증명을 지정하지 않는다.
+- [managed 설정 예제](../../../ops/codex-console/executor/miy-app-sdk-managed.config.json.example)의
+  정확한 경로/현재 실행 UID·GID/포트 풀, 검증된 native Codex 및 SDK bundle.
+  worktree root는 Workbench의 `worktree_root/managed`, 상태 root는 SQLite 부모의
+  `managed-environments`와 일치해야 한다.
+- namespace/bwrap sandbox 및 backend와 proxy의 **실제 동일 private network**가 지원되는 호스트.
+  user systemd의 `JoinsNamespaceOf`가 작동하지 않는 호스트는 아래 고정 system-unit broker를
+  사용한다. 설정 선언만으로 네트워크 격리나 연결 성공을 판정하지 않는다.
+  설치된 세 unit 예제는 앱 subtree만 mount한다. Git common metadata, 플랫폼 env,
+  Docker·검색 엔진·DB 자격증명은 executor에 제공하지 않는다.
+  native가 만든 app-root 바로 아래의 `.git`은 실행 UID 소유의 일반 디렉터리이고
+  group/world write가 없으며 anchored FD 검사로 비어 있을 때만 허용한다.
+  실제 Git 파일·심볼릭 링크·하위 `.git`·내용이 있는 디렉터리는 계속 거절한다.
+  SDK 원본과 플랫폼 `.git`은 mount하지 않는다.
+- Core의 workspace profile·슬롯 HTTPS 프록시·개발 설치별 명시적 위임.
+  기존 5-action 위임에 `workspace` 권한이 자동 추가되지 않는다. 신규 앱은 기존 등록 승인
+  흐름을 먼저 거치며, 등록/위임이 없으면 SDK 편집은 가능해도 앱 실행 연결은 미구성이다.
+
+### 고정 system-unit broker
+
+일부 user manager에서는 `PrivateNetwork=yes`와 `JoinsNamespaceOf`를 선언해도 proxy가
+backend 네트워크에 들어가지 않는다([systemd upstream 보고](https://github.com/systemd/systemd/issues/29429)).
+이 경우 운영자는 [system helper 설정](../../../ops/codex-console/executor/miy-app-sdk-managed-system.config.json.example)을
+사용하고 `scripts/workbench-environment-broker.py`의 확인한 bytes를
+`/usr/local/libexec/miy-workbench-environment`에 root 소유·0555로 설치한다. 이 stdlib 실행 파일은
+`/usr/bin/python3 -I`로 시작하며 user release·앱·Python 의존성을 root로 import하지 않는다.
+root 설정은 [broker 설정 예제](../../../ops/codex-console/executor/miy-app-sdk-managed-broker.config.json.example)를
+`/etc/miy/workbench-executors.json`에 root 소유·0600으로 설치한다. 예제의 0으로 채운 SHA는
+현재 검증한 native binary, bwrap, 세 managed unit 템플릿의 실제 SHA256으로 바꾼다.
+동일한 세 템플릿의 bytes를 root 소유·0644로 설정의 `template_root`에 설치하고,
+`state_root`는 root 소유·0700, 그 안의 빈 `.lock`은 root 소유·0600으로 준비한다.
+기존 파일이나 다른 UUID의 서비스는 덮어쓰지 않는다.
+
+운영자가 `visudo`로 확인할 sudoers 권한은 Workbench 실행 계정에 고정 entrypoint의
+**인자 없는 호출만** 허용한다. 예: `operator ALL=(root) NOPASSWD:
+/usr/local/libexec/miy-workbench-environment ""`. 일반 `systemctl`·Python·shell 명령을
+Workbench에 위임하지 않는다. stdin은 public workspace snapshot, 고정 action과 토큰 SHA만
+받으며 원 토큰은 user 소유·0600 descriptor에 남는다. root는 UUID에서 파생한 정확한 세
+unit과 허용된 app subtree·포트만 처리하고, 자체 템플릿·소유 파일 SHA를 재검증한다.
+실제 실행은 원 Workbench UID/GID이며 NNP, cap0, private network와 기존 SDK sandbox를 유지한다.
+
+관리형 SDK backend는 `TasksMax=256`을 사용하고 proxy는 64를 유지한다. CPUQuota100%,
+MemoryMax1GiB·swap0와 나머지 격리 계약은 바꾸지 않는다. 새 준비는 현재 256 템플릿과
+root 설정의 정확한 SHA로만 수행한다. 기존 64 환경은 원 unit/descriptor SHA로 관측·중지·정리할
+수 있지만 일반 준비·재개나 broker의 start로 다시 실행하지 않는다.
+
+기존 workspace를 보존하여 다시 사용하려면 운영자가 원 Task를 정상 종료하고 SDK를 정상 중지한 뒤
+같은 실행 계정에서 고정 helper의 **`upgrade-budget`** action을 명시적으로 호출한다.
+입력은 기존의 정확한 public workspace snapshot이며 앱이나 모델이 한도를 지정하지 않는다.
+검토된 helper·broker와 256 템플릿/설정 SHA를 먼저 설치해야 한다. 업그레이드는 원 64 렌더링,
+source/cache pin, descriptor의 동일 토큰·포트, 세 unit의 native inactive/PID0·ControlPID0을 확인하고
+from/to SHA intent를 파일과 부모 디렉터리에 fsync한 뒤 backend 한 파일만 원자적으로 교체한다.
+소스·workspace ID·토큰·포트와 stopped 상태는 보존하며 start를 실행하지 않는다.
+중간 응답 유실은 upgrading/HOLD로 남고 관측이나 일반 재개가 이를 완료하지 않는다.
+같은 명시적 action만 원 intent와 정확한 기존/후보 bytes를 재검증하여 계속할 수 있다.
+완료된 stopped 환경은 기존 UI의 **재개**로 실행한다. 저널 재서명이나 실행 중 한도 변경,
+모든 과거 환경의 자동 업그레이드는 허용하지 않는다.
+
+설치 완료는 실제 native 초기 연결, backend/proxy 동일 네트워크와 host 네트워크 분리,
+정상 stop의 PID/cgroup 종료, resume의 동일 capability, cleanup의 소유 unit·descriptor 제거로
+확인한다. 불확실한 기존 실행을 재시작하거나 채택하지 않으며 실패 receipt를 보존한다.
+이 확인은 환경 수명주기 인수이며 앱 업무 기능이나 모델 턴의 인수와 별개다.
+
+새 SDK profile `miy-native-sdk-20261011-v3`는 검색 helper를 포함한 고정 공개 SDK bytes를
+사용한다. 과거 v2는 원래 pin/bundle로만 계속 확인한다. 새 bundle 발급은 기존 immutable
+cache 전체를 확인하고 SDK 공개 파일만 교체하는 오프라인 producer 경로이며 runtime/dependency
+변경은 재발급 예외로 허용하지 않는다. bundle 제작과 실행 호스트 설치·서비스 전환은 별개다.
+
+기존 앱을 관리형 작업환경으로 가져올 때 원래 v2 pin에 정확히 일치하는 공개 SDK만
+새 작업환경 사본에서 현재 v3로 전환한다. 원본 저장소와 앱 업무 코드·권한·의존성 선언은
+보존한다. 전환한 SDK 파일과 두 pin의 식별자를 `SDK_IMPORT.md`에 기록하고 최초 checkpoint에
+포함하며, 원래 같은 이름의 기록이 있거나 SDK가 혼합·수정됐으면 덮어쓰지 않고 거절한다.
+현재 v3 SDK는 그대로 가져온다. 가져온 소스는 기존 source-mount 검증을 통과해야 하므로
+개발의 readonly SDK mount와 실제 앱 빌드가 동일한 공개 SDK bytes를 사용한다.
+
+사용자는 **새 작업 → 업무 설명/수정 → 앱 열기 → 개발에 반영**을 사용한다.
+Workbench 안에는 앱 iframe을 만들지 않고 Core가 만든 설치별 포털 URL을 새 탭으로 연다.
+성공한 구현 턴에 소스 변경이 있을 때만 checkpoint와 빌드/갱신을 요청한다. 실패한 새 빌드는
+이전 실행 버전의 성공을 덮어쓰지 않는다. 브랜치·소스 버전·실행 버전을 구분해서 표시한다.
+
+`개발에 반영`은 exact source의 GitLab MR, 최신 native 리뷰·필수 CI, dev 병합,
+Core 영속 소스 인계 및 **안정된 개발 설치의 실제 실행 관측**까지 포함한다.
+`personal_app_validation` runner 준비가 없으면 앱 MR은 필수 검사를 통과할 수 없다.
+GitLab merge API에는 target SHA 원자적 CAS가 없으므로 merge 전 target 재확인과
+merge 후 결과 검증을 함께 수행한다. 경합·충돌·불확실한 결과는 HOLD로 남긴다.
+지원 설정은 `merge_method=merge`·`squash=false`이며, 실제 merge의 두 부모가 검토한
+target/source이고 tree가 native Git 합성 결과와 일치할 때만 Core 개발 반영을 진행한다.
+운영 승격·GitHub upstream 반영은 이 버튼의 권한에 포함되지 않는다.
+
+작업 UUID·operation UUID·요청 당시 source/version을 보존한다. 읽기 상태 조회는 외부
+mutation을 재실행하지 않는다. 알려진 대기 상태에서 **계속 확인/반영**은 같은 operation으로
+다음 단계를 진행한다. 응답 유실은 새 MR·배포 요청을 만들지 않고 원 요청의 증거를 확인한다.
+
+병합·개발 실행 증거가 확인된 뒤 Core는 임시 설치 admission을 닫고 소유 런타임과 검색/DB
+자원을 확인해 정리한다. 이후 Workbench가 owned SDK units·worktree·기능 브랜치와 원격
+브랜치를 정리한다. 새 변경·다른 소유자·불명확한 부수효과는 보존한다. `dev`·안정된 개발
+설치 데이터·과거 독립 저장소를 삭제하거나 임시 앱 데이터를 개발 DB에 합치지 않는다.
+
+준비/중지/정리 helper의 `status`는 공개 상태만, `describe`는 서버 내부의 비공개 executor
+descriptor만 반환한다. 후자는 브라우저·Task context·모델 prompt에 넣지 않는다.
+화면 조회와 turn 제출이 겹치는 `describe`는 기존 exclusive lock 취득을 최대3초 기다리고
+검증을 한 번만 실행한다. 전체 호출의10초 제한과 다른 lifecycle/status의 즉시 HOLD는
+유지한다. 대기 한도를 넘긴 `workspace_busy`는409로 전달하며 명령을 자동 재실행하지 않는다.
+readiness가 실패해도 원 live controller의 식별자·세대가 일치하면 기존 요청의 거절·취소와
+진행 중 턴의 중단만 허용하며, 승인이나 새 실행에는 준비 확인이 계속 필요하다.
+재연결한 controller로 과거 pending 요청을 승계하지 않는다.
+응답 유실 뒤 조회는 같은 소유권과 실제 중지/정리 증거로 기존 journal을 정합화할 수 있으나
+start·stop·unit 삭제·daemon-reload를 재전송하지 않는다. 정리는 삭제 전 영속 intent,
+정확한 세 unit 파일 부재와 native 실행 부재가 함께 확인될 때만 관측 완료로 처리한다.
+부분 삭제·변형 파일·다른 binding·불명확한 상태는 보존한다. 남은 private descriptor와
+Git 자원은 조회로 삭제하지 않고 기존 작업의 명시적인 **계속 확인/반영**에서 처리한다.
+
+영속 소스 인계 완료 뒤 정리 시작 전의 거절로 원 operation이 `unknown`에 남은 경우도
+자동으로 재실행하지 않는다. 서버는 cleanup_pending/admission closed, 기존 Task·agent·요청·
+lease의 실행 부재와 다른 진행 중 operation의 부재를 먼저 확인한다. 원 receipt의 검토된
+source/merge SHA, 승인된 `/complete` 응답, 같은 intent의 개발 deployment ID를 현재 Core의
+workspace·app·profile·임시 installation·source·integration revision 및 인계 완료와 대조한다.
+Core가 ready/stopped이고 SDK의 정확한 기존 ready 실행 또는 stopped 상태까지 확인돼야,
+기존 관측 CAS로 같은 `unknown`을 `waiting`으로만 바꾼다. Source·receipt·닫힌 admission을
+보존하고 GET은 stop/cleanup/Git 삭제를 실행하지 않는다. 사용자의 명시적인 **계속 확인/반영**이
+같은 intent의 남은 정리를 수행한다. 미확정 stop/cleanup·원격 정리 제출, 불일치·미승인 응답·
+남은 실행·unknown SDK는 HOLD를 유지하며 안정 개발 설치 데이터는 정리 대상이 아니다.
+
+system-unit broker 소스가 바뀐 릴리스는 검토된 root entrypoint도 별도 갱신해야 하며,
+설치된 bytes와 설정·template·SDK pin의 유지 여부를 각각 기록한다.
+실제 배포 인수에는 새 작업부터 네이티브 편집·포털 실행·MR·병합·정리까지 한 번의 대표
+브라우저 흐름이 필요하다. 로컬 fixture 검사를 이 운영 인수로 대신 표시하지 않는다.

@@ -87,9 +87,9 @@ class DeliveryContext(BaseModel):
     installation: Installation
     releases: list[VerifiedRelease] = Field(max_length=50)
     pending_deployment: PendingDeployment | None = None
-    allowed_actions: list[Literal["read", "sync", "build", "deploy", "rollback"]] = Field(
-        max_length=5
-    )
+    allowed_actions: list[
+        Literal["read", "sync", "build", "deploy", "rollback", "workspace"]
+    ] = Field(max_length=6)
 
 
 class BuildRecord(BaseModel):
@@ -149,6 +149,7 @@ def specs(task):
         return []
     return [
         {
+            "type": "function",
             "name": TOOL_NAME,
             "description": (
                 "Inspect or deliver this task's selected development app installation. "
@@ -259,6 +260,8 @@ def normalize_manifest(manifest):
                     and type(definition.get("const")) is int
                 ):
                     instance[name] = definition["const"]
+                if definition.get("x-miy-omit-null") is True and instance.get(name) is None:
+                    instance.pop(name, None)
 
     validator = validators.extend(Draft202012Validator, {"properties": properties})
     validator(app_sources.validator().schema).validate(result)

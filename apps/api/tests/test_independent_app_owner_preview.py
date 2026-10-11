@@ -176,6 +176,39 @@ def test_current_snapshot_enable_lost_response_noop_and_original_receipt_preserv
     assert catalog["items"][0]["installations"][0]["launchable"]
 
 
+def test_archived_installation_is_not_an_owner_preview_configuration(client, preview):
+    _, _, receipt, _ = preview
+    current = read(client, preview)
+    assert current.status_code == 200, current.text
+    data = patch_data(current.json())
+    with get_session_factory()() as db:
+        installation = db.get(AppInstallationRecord, receipt["installation_id"])
+        installation.archived_origin = installation.origin
+        installation.origin = None
+        installation.state = "archived"
+        installation.generation += 1
+        expected = (
+            installation.archived_origin,
+            installation.generation,
+            installation.enabled,
+            list(installation.granted_permissions),
+        )
+        db.commit()
+    assert read(client, preview).status_code == 404
+    assert patch(client, preview, data).status_code == 404
+    with get_session_factory()() as db:
+        installation = db.get(AppInstallationRecord, receipt["installation_id"])
+        assert installation.state == "archived" and installation.origin is None
+        assert (
+            installation.archived_origin,
+            installation.generation,
+            installation.enabled,
+            installation.granted_permissions,
+        ) == expected
+        assert service.installation_out(installation).origin == expected[0]
+        assert audit_count(db) == 0
+
+
 @pytest.mark.parametrize(
     "actor", ["admin", "no_auth", "metadata", "registration", "app", "delivery"]
 )

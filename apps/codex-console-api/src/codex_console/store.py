@@ -184,6 +184,11 @@ def lease(db, task_id, *, workspace, stage="implement", limit=3):
     if row is None:
         raise ConsoleError("workspace_busy")
     task = require_task(db, task_id)
+    if task.workspace_id:
+        from .workspaces import admission
+
+        admission(db, task)
+        workspace = task.workspace_id
     leases = list(db.scalars(select(ResourceLease).where(ResourceLease.task_id != task_id)))
     if len({item.task_id for item in leases}) >= limit:
         raise ConsoleError("capacity_busy")
@@ -252,6 +257,7 @@ def implementation_authorized(db, task):
 def task_out(task, db=None):
     return {
         "id": task.id,
+        "workspace_id": task.workspace_id,
         "title": task.title,
         "executor": task.executor,
         "template_snapshot": task.template_snapshot,

@@ -76,7 +76,7 @@ export function checkedRegistrationStatus(
         String(p.runtime_profile),
       ) ||
       !Array.isArray(p.requested_permissions) ||
-      p.requested_permissions.length > 4 ||
+      p.requested_permissions.length > 5 ||
       p.requested_permissions.some(
         (permission) =>
           ![
@@ -84,6 +84,7 @@ export function checkedRegistrationStatus(
             'data:read',
             'data:write',
             'files:read-selected',
+            'search:read',
           ].includes(permission),
       ) ||
       new Set(p.requested_permissions).size !== p.requested_permissions.length

@@ -54,6 +54,7 @@ def _boundary(definition, installation, owner_id: str) -> None:
         or definition.owner_user_id != owner_id
         or definition.manifest["ownership"] != "personal"
         or installation.app_id != definition.app_id
+        or installation.state == "archived"
         or installation.environment != "development"
         or installation.audience != "selected"
         or installation.user_ids != [owner_id]
@@ -73,6 +74,7 @@ def _reason(
         installation.release_id is not None
         or installation.runtime_ref is not None
         or installation.state not in {"configured", "disabled"}
+        or not service.workspace_admission_open(db, installation)
     ):
         return "already_deployed"
     if db.scalar(

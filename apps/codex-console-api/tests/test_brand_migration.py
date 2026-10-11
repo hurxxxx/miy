@@ -19,8 +19,9 @@ def test_renamed_skills_preserve_templates_and_execution_history(tmp_path):
     snapshot = {"id": ident, "version": 7, "skills": ["mty-mr-review"]}
     try:
         with factory.begin() as db:
-            db.add(
-                Task(
+            # An old Task has no workspace column; omit later nullable columns from its seed.
+            db.execute(
+                Task.__table__.insert().values(
                     id="existing-task",
                     title="Previous run",
                     root=str(tmp_path),
@@ -52,6 +53,7 @@ def test_renamed_skills_preserve_templates_and_execution_history(tmp_path):
             task = db.get(Task, "existing-task")
             assert task.template_snapshot == snapshot
             assert task.title == "Previous run" and task.status == "completed"
+            assert task.workspace_id is None
             assert row.definition["skills"] == ["miy-mr-review", "custom-skill"]
             assert row.definition["references"] == [
                 "AGENTS.md",
@@ -88,8 +90,9 @@ def test_retired_skill_migration_only_updates_unchanged_seed(tmp_path, customize
         with factory.begin() as db:
             db.add(TaskTemplate(id=ident, definition=previous, version=7))
             db.add(TaskTemplate(id=copied_id, definition=previous, version=2))
-            db.add(
-                Task(
+            # An old Task has no workspace column; omit later nullable columns from its seed.
+            db.execute(
+                Task.__table__.insert().values(
                     id="historical",
                     title="Review",
                     root=str(tmp_path),
@@ -109,6 +112,7 @@ def test_retired_skill_migration_only_updates_unchanged_seed(tmp_path, customize
             assert db.get(TaskTemplate, copied_id).definition == previous
             assert db.get(TaskTemplate, copied_id).version == 2
             assert db.get(Task, "historical").template_snapshot == historical
+            assert db.get(Task, "historical").workspace_id is None
             seeded_review = db.get(
                 TaskTemplate, str(uuid5(NAMESPACE_URL, "mty-codex-template:코드 검토"))
             )

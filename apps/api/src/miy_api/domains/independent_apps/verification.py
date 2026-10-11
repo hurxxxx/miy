@@ -111,6 +111,9 @@ def trusted_release(
         "environment": "production",
         "runtime_profile": release.definition_snapshot["runtime_profile"],
     }
+    # Older immutable receipts retain their historical health-only contract.
+    if receipt.runtime_config.get("ui_path") is not None:
+        expected["ui_path"] = release.definition_snapshot["entrypoints"]["ui"]
     if (
         any(receipt.runtime_config.get(key) != value for key, value in expected.items())
         or type(receipt.runtime_config.get("loopback_port")) is not int

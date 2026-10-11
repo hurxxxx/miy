@@ -446,6 +446,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workbench/projects/{project_id}/workspaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Listing */
+        get: operations["listing_api_workbench_projects__project_id__workspaces_get"];
+        put?: never;
+        /** New Workspace */
+        post: operations["new_workspace_api_workbench_projects__project_id__workspaces_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workbench/workspaces/{workspace_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detail */
+        get: operations["detail_api_workbench_workspaces__workspace_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workbench/workspaces/{workspace_id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Workspace Stop */
+        post: operations["workspace_stop_api_workbench_workspaces__workspace_id__stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workbench/workspaces/{workspace_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Workspace Resume */
+        post: operations["workspace_resume_api_workbench_workspaces__workspace_id__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workbench/workspaces/{workspace_id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Workspace Refresh */
+        post: operations["workspace_refresh_api_workbench_workspaces__workspace_id__refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workbench/workspaces/{workspace_id}/integrate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Workspace Integrate */
+        post: operations["workspace_integrate_api_workbench_workspaces__workspace_id__integrate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workbench/workspaces/{workspace_id}/cleanup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Workspace Cleanup */
+        post: operations["workspace_cleanup_api_workbench_workspaces__workspace_id__cleanup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/monitor/host": {
         parameters: {
             query?: never;
@@ -1176,6 +1296,11 @@ export interface components {
         /** CatalogOut */
         CatalogOut: {
             /**
+             * Workspaces Available
+             * @default false
+             */
+            workspaces_available: boolean;
+            /**
              * Registration Authorization Available
              * @default false
              */
@@ -1798,7 +1923,7 @@ export interface components {
              */
             runtime_profile: "web-api-v1" | "web-api-postgres-v1";
             /** Requested Permissions */
-            requested_permissions: ("identity:read" | "data:read" | "data:write" | "files:read-selected")[];
+            requested_permissions: ("identity:read" | "data:read" | "data:write" | "files:read-selected" | "search:read")[];
         };
         /**
          * ProjectExecutionReadinessOut
@@ -2285,6 +2410,8 @@ export interface components {
             app_id?: string | null;
             /** Project Id */
             project_id?: string | null;
+            /** Workspace Id */
+            workspace_id?: string | null;
             /** Maintenance Id */
             maintenance_id?: string | null;
             /** Installation Id */
@@ -2296,6 +2423,8 @@ export interface components {
         TaskDetail: {
             /** Id */
             id: string;
+            /** Workspace Id */
+            workspace_id?: string | null;
             /** Title */
             title: string;
             /** Stage */
@@ -2389,6 +2518,8 @@ export interface components {
         TaskOut: {
             /** Id */
             id: string;
+            /** Workspace Id */
+            workspace_id?: string | null;
             /** Title */
             title: string;
             /** Stage */
@@ -2642,6 +2773,174 @@ export interface components {
         VerifyMaintenance: {
             /** Version */
             version: number;
+        };
+        /** WorkspaceAction */
+        WorkspaceAction: {
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /** Expected Version */
+            expected_version: number;
+        };
+        /** WorkspaceCleanupOut */
+        WorkspaceCleanupOut: {
+            /**
+             * State
+             * @default not_requested
+             */
+            state: string;
+            /** Failure Code */
+            failure_code?: string | null;
+        };
+        /** WorkspaceCreate */
+        WorkspaceCreate: {
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * Profile
+             * @default app
+             * @constant
+             */
+            profile: "app";
+            /**
+             * Auto Refresh
+             * @default true
+             */
+            auto_refresh: boolean;
+        };
+        /** WorkspaceIntegrationOut */
+        WorkspaceIntegrationOut: {
+            /**
+             * State
+             * @default not_requested
+             */
+            state: string;
+            /** Mr Url */
+            mr_url?: string | null;
+            /** Mr Id */
+            mr_id?: number | null;
+            /** Source Revision */
+            source_revision?: string | null;
+            /** Merged Revision */
+            merged_revision?: string | null;
+            /** Dev Runtime Revision */
+            dev_runtime_revision?: string | null;
+            /** Failure Code */
+            failure_code?: string | null;
+        };
+        /** WorkspaceList */
+        WorkspaceList: {
+            /** Available */
+            available: boolean;
+            /** Items */
+            items: components["schemas"]["WorkspaceOut"][];
+        };
+        /** WorkspaceOperationOut */
+        WorkspaceOperationOut: {
+            /** Operation Id */
+            operation_id: string;
+            /** Kind */
+            kind: string;
+            /** State */
+            state: string;
+            /** Source Revision */
+            source_revision?: string | null;
+            /** Failure Code */
+            failure_code?: string | null;
+            /**
+             * Retryable
+             * @default false
+             */
+            retryable: boolean;
+            /**
+             * Unknown
+             * @default false
+             */
+            unknown: boolean;
+            /**
+             * Continuable
+             * @default false
+             */
+            continuable: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** WorkspaceOut */
+        WorkspaceOut: {
+            /** Id */
+            id: string;
+            /** Project Id */
+            project_id: string;
+            /** App Id */
+            app_id: string;
+            /** Title */
+            title: string;
+            /** Profile */
+            profile: string;
+            /** State */
+            state: string;
+            /** Version */
+            version: number;
+            /** Admission Open */
+            admission_open: boolean;
+            /** Auto Refresh */
+            auto_refresh: boolean;
+            /** Branch */
+            branch: string;
+            /** Base Revision */
+            base_revision: string | null;
+            /** Source Revision */
+            source_revision: string | null;
+            preview: components["schemas"]["WorkspacePreviewOut"];
+            integration: components["schemas"]["WorkspaceIntegrationOut"];
+            cleanup: components["schemas"]["WorkspaceCleanupOut"];
+            /** Failure Code */
+            failure_code: string | null;
+            /** Operations */
+            operations: components["schemas"]["WorkspaceOperationOut"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** WorkspacePreviewOut */
+        WorkspacePreviewOut: {
+            /**
+             * State
+             * @default unconfigured
+             */
+            state: string;
+            /** Portal Url */
+            portal_url?: string | null;
+            /** Installation Id */
+            installation_id?: string | null;
+            /** Source Revision */
+            source_revision?: string | null;
+            /** Runtime Revision */
+            runtime_revision?: string | null;
+            /** Failure Code */
+            failure_code?: string | null;
         };
     };
     responses: never;
@@ -3601,6 +3900,278 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlatformOut"];
+                };
+            };
+        };
+    };
+    listing_api_workbench_projects__project_id__workspaces_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    new_workspace_api_workbench_projects__project_id__workspaces_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    detail_api_workbench_workspaces__workspace_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workspace_stop_api_workbench_workspaces__workspace_id__stop_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceAction"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workspace_resume_api_workbench_workspaces__workspace_id__resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceAction"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workspace_refresh_api_workbench_workspaces__workspace_id__refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceAction"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workspace_integrate_api_workbench_workspaces__workspace_id__integrate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceAction"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workspace_cleanup_api_workbench_workspaces__workspace_id__cleanup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceAction"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

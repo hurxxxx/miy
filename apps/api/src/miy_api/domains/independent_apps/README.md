@@ -14,6 +14,16 @@ The implemented profiles are `web-api-v1` and `web-api-postgres-v1`, with SDK ve
 
 ## Registration, admission and sessions
 
+관리 작업의 임시 설치는 정확한 실행기·검색·데이터 정리가 완료된 뒤에만
+`archived`로 보관된다. 원래 origin은 `archived_origin`과 작업 정리 receipt에
+남기고, 실제 origin 점유와 작업 슬롯을 같은 트랜잭션에서 해제한다. 기존
+installation ID와 FK로 연결된 배포·세션 이력은 삭제하지 않는다. 보관된
+설치는 재활성화·실행할 수 없으며 공개 조회의 origin은 과거 주소임을 뜻한다.
+기존 UNIQUE와 lifecycle CHECK가 살아 있는 origin 중복·이력의 실행을 차단한다.
+`independent_archive_20261011`의 downgrade는 보관 이력이 있으면 거부한다.
+코드 롤백에 schema downgrade는 필요하지 않으며, 이전 schema 복구가 필요하면
+소유자가 검증한 백업 복원 절차를 사용한다.
+
 All definition/release/installation mutations require the existing MIY bearer login. Owners can configure individual development previews for themselves. Platform admins control broader audiences and the company-wide switch. One production installation per app is enforced by a PostgreSQL partial unique index; separate development worktrees may have separate installations and origins. Origins are globally unique between installations so one app origin cannot also be another app's security principal.
 
 `CompanyAppControl.enabled` is the existing global company gate. `AppInstallation` owns environment-specific enablement, audience, individual/group grants and granted capabilities. Every launch and protected app request checks the current company gate, account state, parent login expiry/revocation, installation state and audience. Installation policy changes increment a generation, invalidating pending codes and existing sessions. Impersonated portal sessions are explicitly unsupported for independent apps in protocol 1. App sessions never authenticate ordinary MIY product endpoints or bypass resource ACLs.
@@ -26,7 +36,7 @@ All definition/release/installation mutations require the existing MIY bearer lo
 | `POST /independent-apps/{app_id}/installations`           | Owner's private development preview or admin configuration                                                                                             |
 | `PUT /independent-apps/{app_id}/installations/{id}`       | Same authority; invalidates previous app sessions                                                                                                      |
 | `POST /independent-apps/{app_id}/deployments`             | Owner login; idempotent development deploy/rollback intent, current generation and previous release fence                                              |
-| `POST /independent-apps/{app_id}/promotions`              | Current Core admin; same-host promotion/rollback of an observed development artifact to an explicitly configured production installation                 |
+| `POST /independent-apps/{app_id}/promotions`              | Current Core admin; same-host promotion/rollback of an observed development artifact to an explicitly configured production installation               |
 | `GET /independent-apps/{app_id}/deployments/{request_id}` | Owner login; durable intent/status, never daemon credentials                                                                                           |
 | `PUT /independent-apps/{app_id}/company-control`          | Platform admin; company-wide kill switch                                                                                                               |
 | `POST /independent-apps/launch`                           | MIY login and live admission; code bound to installation, source login, generation and S256 challenge; at most 60 seconds                              |
@@ -311,7 +321,7 @@ The core-owned [delivery CLI](../../../../../../scripts/independent-app-delivery
 2. The operator's `build` command snapshots that exact commit, checks its registered definition/repository identity, and runs core-selected tests/builds in the constrained container. A UUID identifies the durable build. The builder rejects links, special files, committed credentials, redirected Git metadata and oversized archives; it never executes an app Dockerfile or app commands on the host.
 3. Successful core checks create immutable local-image evidence and an `AppRelease`. API callers cannot set `verified_at`, supply a verification boolean or turn their release candidate into a trusted result.
 4. The owner submits `POST /independent-apps/{app_id}/deployments` with `request_id`, `installation_id`, `release_id`, `action` (`deploy` or `rollback`), `expected_generation` and `expected_release_id`. Reusing the same ID/payload reads the same intent; another payload conflicts. Rollback can select only an earlier successful release of that installation.
-5. The operator's `execute` consumes a queued request. It persists intent before daemon work, holds a database fence against competing recovery, verifies current authority/source/evidence again before switching, and health-checks the candidate before changing ingress. The PostgreSQL profile additionally applies its core-owned, forward-only schema preparation before starting the candidate; missing storage configuration fails closed. Failed candidate health retains the previous release.
+5. The operator's `execute` consumes a queued request. It persists intent before daemon work, holds a database fence against competing recovery, verifies current authority/source/evidence again before switching, and checks the candidate's health and declared UI before changing ingress. Both web profiles require the immutable manifest's UI path to return HTTP 200, `text/html` and a nonempty bounded prefix without redirects; observation repeats this check within its existing total deadline. This checks initial HTML availability, not full HTML contents, JavaScript execution or app features. Historical receipts without `ui_path` retain their original health-only identity and reconciliation contract; fresh deployment specifications always include the manifest UI path. The PostgreSQL profile additionally applies its core-owned, forward-only schema preparation before starting the candidate; missing storage configuration fails closed. Failed candidate health or UI retains the previous release.
 6. Loaded core ingress metadata and the actual immutable container image confirm activation. Database cutover increments installation generation and enters `cleanup`; the previous stateless container is removed before success releases the executor slot. Previous artifacts/history remain available for code rollback. A code rollback never downgrades a database schema.
 
 Example command shapes (replace every placeholder with explicitly selected local values):
@@ -336,6 +346,8 @@ The app uses public `MIY_APP_PLATFORM_ORIGIN` for browser messaging and the core
 The offline builder currently supports an ordinary app Git checkout, React/react-dom/Vite versions already present in the explicitly approved core validation image, vendored SDK and the exact FastAPI/uvicorn/httpx/pydantic-settings profile. It does not resolve/install arbitrary dependencies or attest production images. It packages only the bounded approved source and generated UI output through a core recipe. Source edits remain a distinct sandbox concern; no containerized Codex editing claim follows from a successful build.
 
 The source snapshot verifies the requested SHA-1 commit, every referenced tree and each file against the actual bytes returned by Git, then constructs a deterministic archive from those same verified bytes. Git replacement refs are disabled. A changed object filename or a concurrent object replacement cannot substitute different source after verification; loose and packed objects follow the same check. The snapshot contains literal committed files: `.gitattributes` export-ignore/export-subst and `.git/info/attributes` do not omit or rewrite them. Committed credentials therefore remain rejected even if export-ignore would have hidden them. File executable modes and nested UTF-8 names are retained; links and submodules remain unsupported. Bounds are 1 MiB per commit/tree object, 8 MiB per file, 64 MiB per archive, 4,096 entries, 20 nested directories, and one 60-second object-read budget. The existing final archive safety checks still apply. `source_archive_sha256` records this deterministic snapshot, and the builder source hash changes the build profile; existing evidence is not rewritten or upgraded implicitly. The app-workspace preparation CLI reuses this snapshot boundary.
+
+하위 디렉터리 앱은 선언된 `source.directory`의 파일만 추출합니다. 기존 저장소 루트 `app.manifest.json` 형식은 같은 commit에서 검증한 manifest bytes 한 개를 추출된 앱 루트에 함께 넣으며, 새 managed 형식은 앱 디렉터리 내부의 manifest를 사용합니다. 두 위치에 manifest가 함께 있으면 동일 내용이어도 모호한 소스로 거절합니다. 양쪽 형식 모두 등록된 definition digest와 비교하고, 다른 루트 파일·설정·credential은 빌드 context에 포함하지 않습니다.
 
 ## Core-admin production promotion
 
@@ -457,6 +469,8 @@ apps/api/.venv/bin/python scripts/independent-app-delivery.py serve --poll-secon
 
 Run these commands from the platform checkout with the same protected settings as the core API. `poll-once` chooses at most one eligible development intent, oldest by its last attempt, then calls the existing `build-request`, `execute` or `reconcile` consumer. Selection is not a claim: PostgreSQL claims, capacity slots and the existing fence remain authoritative when two consumers race. Configuration is revalidated before each poll. Only delegated build intents with matching app/installation bindings are eligible; build paths and image IDs always come from the core binding. A pending heavy-build reservation skips the build queue while independently eligible deployment requests can continue.
 
+설정된 소비자의 각 poll은 배포 후보와 별개로 workspace 유지보수에 한 번, 검색 기능이 명시적으로 활성화된 경우 검색 설치 하나에 처리 기회를 줍니다. 유지보수는 최대 16개의 중지·정리 대기 workspace를 확인하며, 보류·예외·다른 소비자의 잠금이 있는 항목을 건너뛰고 최대 하나의 중지 또는 정리를 완료합니다. 보류 항목의 상태·버전·기존 시각이 그대로일 때만 시도 시각을 갱신하므로 동시 전환과 소유권 영수증을 덮어쓰지 않습니다. 배포의 `unknown` 상태·동일 요청 ID·예약·runtime 증거는 유지되며, 이 순환 처리가 불확실한 배포를 다시 실행할 권한을 부여하지 않습니다.
+
 An interrupted deployment in `running`, `unknown` or `cleanup` with a saved runtime specification is observed through the existing `reconcile` operation under the same request ID. Selection skips rows locked by a live executor. Execute and reconcile also share a request-specific transaction advisory guard on a separate database connection, covering the durable intent and cleanup commit/reacquire windows. A concurrent caller returns current state without daemon work; closing the guard transaction releases ownership. The consumer needs two available PostgreSQL connections for its single active deployment. The reconciler takes its authoritative row lock again, revalidates authority before recording a cutover and finishes only the original request’s cleanup. It never prepares or activates another runtime. Unconfirmed observations retain `unknown` and the reservation. Interrupted builds or deployments without a runtime specification still require operator inspection; their evidence is insufficient for automatic adoption. A confirmed terminal failure also remains terminal; only a new explicitly authorized request can retry it. Deployment capacity deferral remains queued and advances its attempt timestamp, so another queued request can be selected. `idle` and `succeeded` return CLI exit code 0; disabled, queued, failed, rejected and unknown return 2. `serve` validates its checkout and settings before entering the loop, polls every 1–60 seconds, emits bounded status without app output or credentials, and stops after an in-flight operation finishes when it receives SIGINT/SIGTERM. Forced process loss preserves durable running state for inspection. A pre-claim configuration/database error reports `operator_check_required`; a subsequent poll may inspect that still-unexecuted request, but cannot replay one already claimed.
 
 When the selected consumer returns `unknown` with the explicit `operator_check_required` code, the poller records only the attempt timestamp so an unavailable target cannot continually take precedence over another eligible build. It updates the selected request only if its original timestamp, state and slot still match and its row is unlocked. Concurrent claims, terminal states, other consumer results and locked rows remain untouched. This bookkeeping does not change status, reservations, authority or runtime evidence. Failures before a request is selected have no request to update.
@@ -505,3 +519,56 @@ pnpm check:api-architecture
 Native PostgreSQL tests cover one-use exchange races, session/policy revocation, source CAS, verification evidence, request idempotency, failed-health preservation, rollback, capacity, uncertain responses and concurrent recovery fencing. `test_independent_app_delegation.py` checks the live owner grant and core build consumer; `test_independent_app_executor.py` checks typed target boundaries and queue selection without inventing another claim protocol. The Docker runtime tests are explicitly opt-in with `MIY_TEST_INDEPENDENT_DOCKER=1` and locally approved image IDs; their synthetic apps and owned resources are disposable. The combined delivery test builds two actual Git revisions into distinct immutable images, including an owner-delegated build consumed by the real CLI, deploys through the PostgreSQL intent, loses the response after real ingress activation, verifies `unknown` status and no repeated side effect, reconciles the observed image, and rolls back to the earlier artifact with the expected HTTP content. The separate [capacity probe](../../../../../../scripts/smoke-independent-app.py) records actual cgroup limits for four previews and one bounded build. These checks do not establish another server's capacity or production readiness.
 
 The 2026-10-06 snapshot integrity review reproduced two accepted source substitutions in disposable repositories: a changed loose blob under the original object name and a replacement commit selected by `refs/replace`. After the verified-byte snapshot fix, `test_independent_app_builds.py` plus `test_independent_app_workspace.py` passed 42 tests, including replacement before/after the actual read, malformed/hash-invalid objects, size/entry/depth limits, packed objects, deterministic attributes handling, and failed-workspace cleanup. With `MIY_TEST_INDEPENDENT_DOCKER=1`, `test_independent_app_runtime.py` passed 6 tests in 9.02 seconds and the subsequent `test_independent_app_data_docker.py` passed in 18.90 seconds. These actual container checks built two immutable revisions, exercised UI activation/HTTP/retirement/rollback and the data profile's proxy/session/PG note retention across code rollback. The final `test_independent_app_delivery_docker.py` also passed in 22.18 seconds, covering delegated CLI build, durable deployment, actual activation response loss, same-ID reconciliation and rollback HTTP proof. Their owned cleanup passed. API import contracts, i18n, Ruff and formatting checks also passed. No existing service, production database or deployment was changed.
+
+## Managed development workspaces
+
+Opt-in `MIY_INDEPENDENT_APP_WORKSPACE_PROFILES` is an operator-owned list of
+`IndependentWorkspaceProfile` values. It is development-only and defaults to `[]`.
+Each profile fixes the ordinary MIY repository path/HTTPS identity, disjoint
+worktree/build/state roots, immutable toolchain/ingress images, platform origin and
+one to four preconfigured `{origin: HTTPS, port: loopback-listener}` slots. A
+profile identity change holds existing work; it does not adopt earlier resources.
+
+`/delegated/{app}/installations/{stable}/workspaces/{workspace}` requires an explicit
+`workspace` action in the existing owner-bound delegation. The prepare/context/sync,
+child builds/deployments, stop/resume, integrate/complete/cleanup endpoints preserve
+that parent authority. Child candidate manifests and installations are separate from
+canonical definitions and the stable development installation. `sync` uses workspace
+version CAS; it cannot change the approved source/permissions/runtime/search policy.
+
+The builder verifies Git object hashes and extracts only the declared app subtree.
+It does not load repository configs, run host package scripts or export other MIY
+sources. Native executor Git metadata stays with the trusted Workbench broker.
+Prepared profiles require a canonical `personal-apps/<app-id>/` source directory.
+
+Integration requires the merged commit on trusted `origin/dev`, the same current app
+subtree, and canonical definition CAS. The persistent workspace receipt selects the
+MIY repository as future immutable build source for the stable operator target,
+even after its temporary worktree is removed. Existing stable runtime origin,
+installation/data identity and runtime state root remain unchanged. `complete`
+requires its actual successful deployment receipt, observed image and current release.
+Only then may temporary cleanup start. New apps need their stable operator target
+prepared before completing integration; missing configuration is not completion.
+
+The existing delivery `serve` consumer also handles pending workspace maintenance
+and, on idle delivery ticks, one active app search outbox batch with fair rotation.
+Only verified owned containers/networks/configs are removed. Running/unknown build
+or deployment intents retain their slot until reconciled. Search `preparing/unknown`
+resources also require explicit reconciliation; ordinary `ready` resources become
+`stopped` only after verified writer/runtime shutdown. Database removal uses durable
+OID/schema/role receipts and never terminates sessions or performs prefix pruning.
+Stable development data and shared container images are retained.
+
+관리 workspace의 설치 설정·owner preview·앱 입장은 DB의 현재 작업 상태가
+`ready`일 때만 허용됩니다. `cleanup_pending` 승인 이후에는 stop/resume으로
+정리 상태를 되돌릴 수 없으며, 정리 영수증을 저장하는 트랜잭션 사이에도 입장은 닫혀 있습니다.
+
+Search is separately opt-in through `MIY_INDEPENDENT_APP_SEARCH_ENABLED=true`, after
+private OpenSearch/Qdrant and the registered Core embedding gateway are ready.
+The development Compose publishes their ports only on loopback; apply that service
+change through the normal deployment procedure. App containers have internal-only
+networks and reach only the fixed Core gateway. Namespace prefixes alone do not
+provide isolation. The [data contract](DATA.md) owns the manifest, API, outbox and
+record authorization. This iteration implements search for development installations;
+search-enabled production promotion is not an accepted path yet. Existing apps with
+no search declaration retain their old manifest digest and delivery behavior.

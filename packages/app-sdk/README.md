@@ -68,7 +68,9 @@ const session = await connectApp({
   installationId: config.installation_id,
   hostWindow,
   signal: controller.signal,
-  onNavigationReady: (offer) => { offerApp = offer; },
+  onNavigationReady: (offer) => {
+    offerApp = offer;
+  },
 });
 // In an app-owned action, when the callback was provided:
 const result = await offerApp({ appId: 'planner' });
@@ -97,7 +99,9 @@ const session = await connectApp({
   installationId: config.installation_id,
   hostWindow,
   signal: controller.signal,
-  onFilePickerReady: (files) => { selectFile = files.selectFile; },
+  onFilePickerReady: (files) => {
+    selectFile = files.selectFile;
+  },
 });
 // Explicit app-owned action; the portal owns the picker and confirmation.
 const result = await selectFile();
@@ -116,3 +120,21 @@ For every selection, the SDK sends a fresh UUID and `{schema_version: 1, selecti
 Ready/launch advertise `file_picker_version: 1`. Requests use `{type: 'miy.app.file-picker.request', version: 1, file_picker_version: 1, installation_id, request_id, selection: <Core proof DTO>}`. Results use the same pinning fields with `type: 'miy.app.file-picker.result', selection_id, result: {status: 'selected', selection: <Core selected DTO>}` or a fixed status-only result. Cancellation uses `miy.app.file-picker.cancel` and the exact selection ID. SDK and host each allow one pending picker and at most six requests per minute. Proof fetch has a five-second deadline; picker lifetime is bounded by proof/session/channel expiry and sixty seconds. Abort, document exit, popup closure or disposal invalidates pending work and SDK callbacks. A new host nonce closes the previous host picker/request; before reconnecting, the app must also abort its previous controller to invalidate already returned SDK read closures. An already delivered opaque grant is not revoked merely by closing a picker or issuing another nonce: its server-enforced expiry and current authority checks still apply. A timed-out selection does not automatically open another picker. Background timers may be delayed; current-time/window checks also run synchronously before accepting results.
 
 `read({signal?})` fetches only same-origin `/api/platform-files/content`, using the original app bearer and `X-MIY-Selected-File` header. The SDK accepts only a complete `application/octet-stream` response matching selected size, with a fixed 10 MiB cap, a twenty-second deadline covering response-body completion, no redirects, no cookies and no automatic retries. It permits one concurrent read per connection and releases a canceled or invalid body. A read after grant expiry, connection disposal or popup closure rejects with a fixed local error. Each actual server read independently rechecks current app/source sessions, installation permission/generation, Files admission/ACL and the selected object/version; the SDK's checks do not replace those server checks. This feature does not expose upload, deletion, ranges, archive extraction, arbitrary URLs or general platform APIs.
+
+## Declared record search
+
+`searchRecords({ session, collection, query, mode: 'keyword' | 'semantic', limit: 20,
+ signal?, timeoutMs?: 5000 })` calls only the app's same-origin
+`POST /api/search/{collection}`. Use the validated in-memory session from `connectApp`;
+its permissions must include `data:read` and `search:read`. The server independently
+checks the active release's declared collection/mode and current grant. The helper
+accepts no engine URL, DSL, model, owner identity or platform credential. It omits
+browser credentials, rejects redirects, bounds query/result bytes and applies one
+global deadline to response reading, with no automatic retry. Cancel the caller
+signal when the app/session is disposed.
+
+The result is `{items: [{record, score}], indexing_pending}`. Records are hydrated by
+Core from current owner-scoped PostgreSQL rows; stale/deleted engine hits are filtered.
+`indexing_pending` includes held indexing and does not promise immediate search
+visibility after a successful record write. Existing vendored SDKs require an explicit
+canonical SDK/starter update; this source change alone does not update deployed apps.

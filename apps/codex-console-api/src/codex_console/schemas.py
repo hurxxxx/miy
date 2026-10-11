@@ -31,6 +31,7 @@ class TaskContext(Input):
     area: Literal["studio", "apps", "platform"] | None = None
     app_id: str | None = Field(default=None, pattern=APP_ID_PATTERN, max_length=80)
     project_id: UUID | None = None
+    workspace_id: UUID | None = None
     maintenance_id: UUID | None = None
     installation_id: UUID | None = None
     release_unit: str | None = Field(default=None, max_length=120)
@@ -179,6 +180,7 @@ class RevisionOut(BaseModel):
 
 class TaskOut(BaseModel):
     id: str
+    workspace_id: str | None = None
     title: str
     stage: str
     status: str

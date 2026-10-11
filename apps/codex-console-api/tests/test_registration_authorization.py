@@ -4,6 +4,8 @@ import hashlib
 import json
 import os
 from datetime import timedelta
+from pathlib import Path
+from types import SimpleNamespace
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
@@ -46,6 +48,71 @@ def test_registration_policy_supports_explicit_selected_file_permission_without_
         reg.Policy(**policy, requested_permissions=["files:read-all"])
     with pytest.raises(ValidationError):
         reg.Policy(**policy, requested_permissions=[*all_permissions, "identity:read"])
+
+
+def test_registration_search_permission_roundtrips_actual_policy_exchange_and_status():
+    from pydantic import ValidationError
+
+    schema = json.loads(
+        (
+            Path(__file__).resolve().parents[1]
+            / "src/codex_console/independent_app_schema.generated.json"
+        ).read_text()
+    )
+    permissions = schema["properties"]["requested_permissions"]["items"]["enum"]
+    assert "search:read" in permissions and len(permissions) == 5
+    assert set(
+        reg.Policy.model_json_schema()["properties"]["requested_permissions"]["items"]["enum"]
+    ) == set(permissions)
+    draft = SimpleNamespace(
+        app_id="search-app",
+        definition={
+            "ownership": "personal",
+            "runtime_profile": "web-api-postgres-v1",
+            "requested_permissions": permissions,
+        },
+    )
+    policy = reg.policy_for(draft, ORIGIN)
+    assert policy.requested_permissions == sorted(permissions)
+    request, operation, actor, task = (uuid4() for _ in range(4))
+    exchange = reg.Exchange.model_validate(
+        {
+            "schema_version": 1,
+            "id": uuid4(),
+            "request_id": request,
+            "operation_id": operation,
+            "actor_user_id": actor,
+            "audience": "https://workbench.example.test",
+            "policy": policy.model_dump(mode="json"),
+            "expires_at": now() + timedelta(seconds=250),
+            "token": TOKEN,
+        }
+    )
+    recovered = reg.Exchange.model_validate_json(exchange.model_dump_json())
+    status = reg.Status(
+        task_id=task,
+        operation_id=operation,
+        enabled=True,
+        authorization_origin="https://platform.example.test",
+        authorization_state="ready",
+        state="unsubmitted",
+        expires_at=recovered.expires_at,
+        policy=recovered.policy,
+        receipt=None,
+        failure_code=None,
+        source_revision=None,
+    )
+    assert reg.Status.model_validate_json(status.model_dump_json()).policy == policy
+    base = policy.model_dump(mode="json")
+    assert reg.Policy(**{**base, "requested_permissions": []}).requested_permissions == []
+    for invalid in (
+        ["search:write"],
+        ["search:*"],
+        ["search:read", "search:read"],
+        [*permissions, "identity:read"],
+    ):
+        with pytest.raises(ValidationError):
+            reg.Policy(**{**base, "requested_permissions": invalid})
 
 
 @pytest.fixture
@@ -738,17 +805,22 @@ def test_sqlite_0007_upgrade_preserves_sessions_and_tasks_without_inheriting_gra
     engine, factory = database(url)
     try:
         with factory.begin() as db:
-            task = Task(
-                title="Existing task", root=str(tmp_path), context={"purpose": "development"}
+            task_id = str(uuid4())
+            # An old Task has no workspace column; omit later nullable columns from its seed.
+            db.execute(
+                Task.__table__.insert().values(
+                    id=task_id,
+                    title="Existing task",
+                    root=str(tmp_path),
+                    context={"purpose": "development"},
+                )
             )
-            db.add(task)
             db.add(
                 WebSession(
                     token_hash="a" * 64, csrf_hash="b" * 64, expires_at=now() + timedelta(hours=1)
                 )
             )
             db.flush()
-            task_id = task.id
     finally:
         engine.dispose()
     migrate(url)
@@ -757,6 +829,7 @@ def test_sqlite_0007_upgrade_preserves_sessions_and_tasks_without_inheriting_gra
         assert "console_registration_intents" in inspect(engine).get_table_names()
         with factory() as db:
             assert db.get(Task, task_id).title == "Existing task"
+            assert db.get(Task, task_id).workspace_id is None
             assert db.get(WebSession, "a" * 64)
             assert db.get(RegistrationIntent, task_id) is None
     finally:

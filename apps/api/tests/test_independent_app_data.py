@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
 import json
 import os
+import re
 import subprocess
 import time
+from threading import Barrier
 from uuid import uuid4
 
 import psycopg
@@ -27,20 +30,35 @@ def docker(*args):
 @pytest.fixture(scope="module")
 def isolated_data_cluster():
     # No connections or grant changes to the checkout's development/core cluster.
-    major = postgres_major()
-    directory = native_bin_dir(major)
-    if directory is not None:
-        with native_cluster(directory, major) as dsn:
-            yield dsn
-        return
-    if os.getenv("CI") == "true":
-        pytest.fail("CI requires same-major disposable PostgreSQL server binaries")
+    selected = os.getenv("MIY_TEST_APP_DATA_POSTGRES_IMAGE")
+    selected_major = os.getenv("MIY_TEST_APP_DATA_POSTGRES_MAJOR")
+    if bool(selected) != bool(selected_major):
+        pytest.fail("An explicit disposable PostgreSQL image requires its server major")
+    if selected:
+        if not re.fullmatch(r"sha256:[a-f0-9]{64}", selected) or selected_major not in ("17", "18"):
+            pytest.fail("Select an immutable local PostgreSQL image and supported server major")
+        major = int(selected_major)
+        target = selected
+    else:
+        major = postgres_major()
+        directory = native_bin_dir(major)
+        if directory is not None:
+            with native_cluster(directory, major) as dsn:
+                yield dsn
+            return
+        if os.getenv("CI") == "true":
+            pytest.fail("CI requires same-major disposable PostgreSQL server binaries")
+        target = f"postgres:{major}-alpine"
     try:
-        image = docker("image", "inspect", f"postgres:{major}-alpine", "--format", "{{.Id}}")
+        image = docker("image", "inspect", target, "--format", "{{.Id}}")
     except (OSError, RuntimeError):
+        if selected:
+            pytest.fail("The selected immutable disposable PostgreSQL image is not local")
         pytest.skip(
             "Disposable data tests need same-major native server or local Docker image; no pull"
         )
+    if selected and image != selected:
+        pytest.fail("The disposable PostgreSQL image identity changed")
     name = "miy-app-data-test-" + uuid4().hex
     # Official images moved their VOLUME root in PostgreSQL 18.
     data_path = "/var/lib/postgresql" if major >= 18 else "/var/lib/postgresql/data"
@@ -161,6 +179,71 @@ def test_native_user_app_environment_isolation_and_cas(data_store):
     assert data_store.list_records(owner, "notes") == []
 
 
+def test_keyed_create_is_atomic_and_lookup_recovers_the_original_row(data_store):
+    owner = actor()
+    prepare(data_store, owner)
+    barrier = Barrier(2)
+
+    def create(value):
+        barrier.wait(timeout=10)
+        try:
+            return data_store.write(owner, "items", {"value": value}, record_key="same-key")
+        except DataStoreError as error:
+            return error.code
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(create, ["first", "second"]))
+    created = [result for result in results if isinstance(result, dict)]
+    assert len(created) == 1
+    assert results.count("data_record_conflict") == 1
+    assert data_store.read_by_key(owner, "items", "same-key") == created[0]
+    assert data_store.list_records(owner, "items") == created
+    # Conflicting input never replaces the original payload or version.
+    with pytest.raises(DataStoreError, match="data_record_conflict"):
+        data_store.write(owner, "items", {"value": "replacement"}, record_key="same-key")
+    assert data_store.read_by_key(owner, "items", "same-key")["version"] == 1
+
+
+def test_record_key_is_exact_and_scoped_to_current_owner_installation_collection(data_store):
+    owner = actor()
+    prepare(data_store, owner)
+    first = data_store.write(owner, "items", {"value": 1}, record_key="key")
+    other_user = owner.model_copy(update={"user_id": "user-b"})
+    with pytest.raises(DataStoreError, match="data_record_not_found"):
+        data_store.read_by_key(other_user, "items", "key")
+    with pytest.raises(DataStoreError, match="data_record_not_found"):
+        data_store.read(other_user, "items", str(first["id"]))
+    others = [
+        data_store.write(other_user, "items", {"value": 2}, record_key="key"),
+        data_store.write(owner, "other_items", {"value": 3}, record_key="key"),
+        data_store.write(owner, "items", {"value": 4}, record_key="Key"),
+        data_store.write(owner, "items", {"value": 5}, record_key=" key "),
+        data_store.write(owner, "items", {"value": 6}, record_key="한글키"),
+    ]
+    other_installation = actor()
+    prepare(data_store, other_installation)
+    others.append(data_store.write(other_installation, "items", {"value": 7}, record_key="key"))
+    assert len({row["id"] for row in [first, *others]}) == 7
+    assert data_store.read_by_key(owner, "items", "key") == first
+    for key in ("", "   ", "key\n", "\ud800", "x" * 257, "한" * 86, 7):
+        with pytest.raises(DataStoreError, match="data_payload_invalid"):
+            data_store.write(owner, "items", {"value": 8}, record_key=key)
+    with pytest.raises(DataStoreError, match="data_payload_invalid"):
+        data_store.write(
+            owner,
+            "items",
+            {"value": 9},
+            record_id=str(first["id"]),
+            expected_version=1,
+            record_key="key",
+        )
+    data_store.delete(owner, "items", str(first["id"]), 1)
+    with pytest.raises(DataStoreError, match="data_record_not_found"):
+        data_store.read_by_key(owner, "items", "key")
+    replacement = data_store.write(owner, "items", {"value": 10}, record_key="key")
+    assert replacement["id"] == first["id"] and replacement["version"] == 1
+
+
 def test_migration_journal_retry_artifact_conflict_and_code_rollback_retains_data(data_store):
     identity = actor()
     request = str(uuid4())
@@ -231,6 +314,57 @@ def test_request_bounds_and_rls_without_actor(data_store):
     assert data_store.read(identity, "items", str(row["id"]))["payload"] == {"x": 1}
 
 
+def test_key_gateway_schema_permission_and_routing_with_explicit_identity_override(data_store):
+    # This proves routing, input and permission behavior, not native login/exchange.
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from starlette.exceptions import HTTPException as StarletteHTTPException
+    from miy_api.app import localized_http_exception_handler
+    from miy_api.domains.independent_apps import data_api
+
+    owner = actor()
+    prepare(data_store, owner)
+    app = FastAPI()
+    app.add_exception_handler(StarletteHTTPException, localized_http_exception_handler)
+    app.include_router(data_api.router)
+    app.dependency_overrides[data_api.identity] = lambda: owner
+    app.dependency_overrides[data_api.get_store] = lambda: data_store
+    with TestClient(app) as gateway:
+        path = "/_data/items"
+        lookup = path + "/by-key"
+        created = gateway.post(path, json={"payload": {"value": 1}, "record_key": "key"})
+        assert created.status_code == 201
+        assert gateway.get(lookup, params={"record_key": "key"}).json() == created.json()
+        assert (
+            gateway.post(path, json={"payload": {"value": 2}, "record_key": "key"}).status_code
+            == 409
+        )
+        assert gateway.get(lookup, params={"record_key": "absent"}).status_code == 404
+        assert gateway.post(lookup, params={"record_key": "key"}, json={}).status_code == 405
+        assert gateway.get(lookup + "/extra", params={"record_key": "key"}).status_code == 404
+        for key in ("", "key\n", "x" * 257, "한" * 86, 7):
+            assert gateway.post(path, json={"payload": {}, "record_key": key}).status_code == 422
+        for key in ("", "key\n", "x" * 257, "한" * 86):
+            assert gateway.get(lookup, params={"record_key": key}).status_code == 422
+        assert (
+            gateway.put(
+                f"{path}/{created.json()['id']}",
+                json={"payload": {}, "expected_version": 1, "record_key": "changed"},
+            ).status_code
+            == 422
+        )
+        app.dependency_overrides[data_api.identity] = lambda: owner.model_copy(
+            update={"permissions": ["data:write"]}
+        )
+        assert gateway.get(lookup, params={"record_key": "key"}).status_code == 403
+        assert gateway.post(path, json={"payload": {}, "record_key": "key"}).status_code == 409
+        app.dependency_overrides[data_api.identity] = lambda: owner.model_copy(
+            update={"permissions": ["data:read"]}
+        )
+        assert gateway.post(path, json={"payload": {}, "record_key": "other"}).status_code == 403
+        assert gateway.get(lookup, params={"record_key": "key"}).json() == created.json()
+
+
 def test_gateway_introspects_every_request_and_never_accepts_caller_owner(
     client, monkeypatch, data_store
 ):
@@ -287,6 +421,9 @@ def test_gateway_introspects_every_request_and_never_accepts_caller_owner(
     path = "/api/v1/independent-apps/_data/notes"
     try:
         assert client.get(path, params=params, headers=headers).status_code == 401
+        key_path = path + "/by-key"
+        key_params = params | {"record_key": "same-key"}
+        assert client.get(key_path, params=key_params, headers=headers).status_code == 401
         created = client.post(
             path, params=params, headers=bearer, json={"payload": {"text": "private"}}
         )
@@ -294,6 +431,49 @@ def test_gateway_introspects_every_request_and_never_accepts_caller_owner(
         assert (
             client.get(path, params=params, headers=bearer).json()["items"][0]["id"]
             == created.json()["id"]
+        )
+        keyed = client.post(
+            path,
+            params=params,
+            headers=bearer,
+            json={"payload": {"text": "original"}, "record_key": "same-key"},
+        )
+        assert keyed.status_code == 201
+        observed = client.get(key_path, params=key_params, headers=bearer)
+        assert observed.status_code == 200 and observed.json() == keyed.json()
+        duplicate = client.post(
+            path,
+            params=params,
+            headers=bearer,
+            json={"payload": {"text": "changed"}, "record_key": "same-key"},
+        )
+        assert duplicate.status_code == 409
+        assert client.get(key_path, params=key_params, headers=bearer).json() == keyed.json()
+        assert (
+            client.get(
+                key_path, params=params | {"record_key": "absent"}, headers=bearer
+            ).status_code
+            == 404
+        )
+        assert client.post(key_path, params=key_params, headers=bearer, json={}).status_code == 405
+        for key in ("", "key\n", "x" * 257, "한" * 86, 7):
+            assert (
+                client.post(
+                    path,
+                    params=params,
+                    headers=bearer,
+                    json={"payload": {}, "record_key": key},
+                ).status_code
+                == 422
+            )
+        assert (
+            client.put(
+                f"{path}/{keyed.json()['id']}",
+                params=params,
+                headers=bearer,
+                json={"payload": {}, "expected_version": 1, "record_key": "changed-key"},
+            ).status_code
+            == 422
         )
         assert (
             client.post(
@@ -338,12 +518,29 @@ def test_gateway_introspects_every_request_and_never_accepts_caller_owner(
         )
         assert client.get(path, params=params, headers=bearer).status_code == 200
         with get_session_factory()() as db:
+            db.get(AppInstallationRecord, installation["id"]).granted_permissions = [
+                "identity:read",
+                "data:write",
+            ]
+            db.commit()
+        assert client.get(key_path, params=key_params, headers=bearer).status_code == 403
+        assert (
+            client.post(
+                path,
+                params=params,
+                headers=bearer,
+                json={"payload": {"text": "no read access"}, "record_key": "same-key"},
+            ).status_code
+            == 409
+        )
+        with get_session_factory()() as db:
             for source in db.scalars(
                 select(AuthSession).where(AuthSession.user_id == admin["user"]["id"])
             ):
                 source.revoked_at = datetime.now(UTC).replace(tzinfo=None)
             db.commit()
         assert client.get(path, params=params, headers=bearer).status_code == 401
+        assert client.get(key_path, params=key_params, headers=bearer).status_code == 401
     finally:
         client.app.dependency_overrides.pop(get_store, None)
         get_settings.cache_clear()

@@ -11,6 +11,12 @@ import { SourcePrepare } from './source-prepare';
 import { SourceRegistrationExport } from './source-registration-export';
 import { SourceRegistrationStatus } from './source-registration-status';
 import { ProjectTaskActions } from './project-task-actions';
+import { suggestAppId } from './project-defaults';
+import {
+  createWorkspace,
+  ProjectWorkspaces,
+  workspaceQuery,
+} from './workspaces';
 
 type S = components['schemas'];
 type App = S['AppDescriptor'];
@@ -150,6 +156,9 @@ export function WorkbenchApps({
   const [preparingSource, setPreparingSource] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [projectToDevelop, setProjectToDevelop] = useState<string | null>(null);
+  const projectElements = useRef(new Map<string, HTMLDivElement>());
+  const managed = record(data).workspaces_available === true;
   const app = data?.items.find((item) => item.app_id === selected);
   const executorMissing =
     app?.discovery === 'source' &&
@@ -161,6 +170,48 @@ export function WorkbenchApps({
     detailRef.current?.focus({ preventScroll: true });
     detailRef.current?.scrollIntoView({ block: 'start' });
   }, [app?.app_id]);
+  useEffect(() => {
+    if (!projectToDevelop) return;
+    projectElements.current
+      .get(projectToDevelop)
+      ?.scrollIntoView({ block: 'start' });
+  }, [projectToDevelop, data?.projects]);
+  const beginManaged = async (project: S['ProjectOut'], prompt: string) => {
+    setProjectToDevelop(project.id);
+    const environments = await api<S['WorkspaceList']>(
+      `/workbench/projects/${encodeURIComponent(project.id)}/workspaces`,
+    );
+    if (!environments.available) throw new ApiError('workspace_unconfigured');
+    // Multiple environments require an explicit choice; sessions do not make
+    // another environment merely because the user starts a new conversation.
+    if (environments.items.length > 1) return;
+    let workspace = environments.items[0];
+    if (!workspace) {
+      try {
+        workspace = await createWorkspace(project.id, project.title);
+      } finally {
+        setRefresh((value) => value + 1);
+      }
+    }
+    if (
+      workspace.project_id !== project.id ||
+      workspace.app_id !== project.app_id
+    )
+      throw new ApiError('workspace_changed');
+    workspaceQuery(workspace.id);
+    if (workspace.state !== 'ready' || !workspace.admission_open) return;
+    await startTask(
+      {
+        area: 'studio',
+        purpose: 'development',
+        project_id: project.id,
+        app_id: project.app_id,
+        workspace_id: workspace.id,
+      },
+      project.title,
+      prompt,
+    );
+  };
   const run = async (action: () => Promise<void>) => {
     if (busy) return;
     setBusy(true);
@@ -213,6 +264,13 @@ export function WorkbenchApps({
         </>
       }
     >
+      {area === 'studio' && managed && (
+        <p className="muted">
+          {t(
+            'Describe the work, open the app in a new tab, then apply it to development.',
+          )}
+        </p>
+      )}
       {error && <ReadError code={error} t={t} />}
       {runtime.error && <ReadError code={runtime.error} t={t} />}
       {actionError && <ReadError code={actionError} t={t} />}
@@ -248,6 +306,13 @@ export function WorkbenchApps({
                   );
                   setNewProject(false);
                   setRefresh((v) => v + 1);
+                  if (managed) {
+                    await beginManaged(
+                      project,
+                      `${project.summary}\nCompare existing app capabilities for reuse, then inspect this managed app source and its public platform contracts and prepare a plan. Keep implementation within this app's approved source. The server owns local checkpoints and runtime refresh.`,
+                    );
+                    return;
+                  }
                   await startTask(
                     {
                       area: 'studio',
@@ -346,23 +411,49 @@ export function WorkbenchApps({
                   <div className="actions">
                     <Button
                       variant="primary"
-                      disabled={busy || executorMissing}
+                      disabled={busy || (!managed && executorMissing)}
                       onClick={() =>
                         void run(() =>
-                          startTask(
-                            {
-                              area,
-                              purpose:
+                          managed && area === 'studio'
+                            ? (async () => {
+                                const project =
+                                  data.projects.find(
+                                    (item) => item.app_id === app.app_id,
+                                  ) ??
+                                  (await api<S['ProjectOut']>(
+                                    '/workbench/projects',
+                                    {
+                                      app_id: app.app_id,
+                                      title: appTitle(app, t),
+                                      summary: t(
+                                        'Existing app selected. Review its source before extending it.',
+                                      ),
+                                      reuse_decision: 'extend',
+                                      reuse_notes: t(
+                                        'Existing app selected. Review its source before extending it.',
+                                      ),
+                                    },
+                                  ));
+                                setRefresh((value) => value + 1);
+                                await beginManaged(
+                                  project,
+                                  `Inspect the ${app.app_id} app in this managed development environment. Ask for the requested change and acceptance criteria, then prepare a plan. Use the current source and public platform contracts.`,
+                                );
+                              })()
+                            : startTask(
+                                {
+                                  area,
+                                  purpose:
+                                    app.source_status === 'ready'
+                                      ? 'development'
+                                      : 'inspection',
+                                  app_id: app.app_id,
+                                },
+                                `${appTitle(app, t)}: ${t(app.source_status === 'ready' ? 'Develop app' : 'Inspect app registration')}`,
                                 app.source_status === 'ready'
-                                  ? 'development'
-                                  : 'inspection',
-                              app_id: app.app_id,
-                            },
-                            `${appTitle(app, t)}: ${t(app.source_status === 'ready' ? 'Develop app' : 'Inspect app registration')}`,
-                            app.source_status === 'ready'
-                              ? `Inspect the ${app.app_id} app and its repository instructions. Ask for the requested change and acceptance criteria, then prepare a plan.`
-                              : `Inspect registration of ${app.app_id}. Its development source is unavailable. Find authoritative source and release configuration; do not guess paths or deployment targets. Report the evidence and propose the missing configuration. This is a read-only planning task.`,
-                          ),
+                                  ? `Inspect the ${app.app_id} app and its repository instructions. Ask for the requested change and acceptance criteria, then prepare a plan.`
+                                  : `Inspect registration of ${app.app_id}. Its development source is unavailable. Find authoritative source and release configuration; do not guess paths or deployment targets. Report the evidence and propose the missing configuration. This is a read-only planning task.`,
+                              ),
                         )
                       }
                     >
@@ -497,14 +588,22 @@ export function WorkbenchApps({
                   projectApp.source_status === 'ready' &&
                   projectApp.execution_status !== 'configured';
                 return (
-                  <div className="stack" key={project.id}>
+                  <div
+                    className="stack"
+                    key={project.id}
+                    ref={(element) => {
+                      if (element)
+                        projectElements.current.set(project.id, element);
+                      else projectElements.current.delete(project.id);
+                    }}
+                  >
                     <div className="wb-heading">
                       <div>
                         <strong>{project.title}</strong>
                         <p className="muted">{project.summary}</p>
                       </div>
                       <div className="actions">
-                        {project.reuse_decision === 'new' && (
+                        {!managed && project.reuse_decision === 'new' && (
                           <Button
                             aria-expanded={preparingSource === project.id}
                             onClick={() =>
@@ -516,50 +615,63 @@ export function WorkbenchApps({
                             {t('Prepare app source')}
                           </Button>
                         )}
-                        <ProjectTaskActions
-                          project={project}
-                          source={projectApp}
-                          busy={busy}
-                          scope={selected ?? ''}
-                          registrationAvailable={
-                            data.registration_authorization_available
-                          }
-                          t={t}
-                          onStart={(purpose) =>
-                            run(() =>
-                              startTask(
-                                {
-                                  area: 'studio',
-                                  purpose,
-                                  project_id: project.id,
-                                  app_id: project.app_id,
-                                },
-                                project.title,
-                                purpose === 'registration'
-                                  ? "Inspect this registration Task's committed app source. Explain the personal, inactive development registration and plan the next step. Use miy_app_registration context; registration requires the owner's MIY authorization and explicit implementation approval. Never treat a receipt as execution readiness or deployment."
-                                  : `${project.summary}\nReview existing work and propose the next development step using this task's source binding. If no isolated app source is connected, plan the setup before implementation.`,
-                              ),
-                            )
-                          }
-                        />
+                        {!managed && (
+                          <ProjectTaskActions
+                            project={project}
+                            source={projectApp}
+                            busy={busy}
+                            scope={selected ?? ''}
+                            registrationAvailable={
+                              data.registration_authorization_available
+                            }
+                            t={t}
+                            onStart={(purpose) =>
+                              run(() =>
+                                startTask(
+                                  {
+                                    area: 'studio',
+                                    purpose,
+                                    project_id: project.id,
+                                    app_id: project.app_id,
+                                  },
+                                  project.title,
+                                  purpose === 'registration'
+                                    ? "Inspect this registration Task's committed app source. Explain the personal, inactive development registration and plan the next step. Use miy_app_registration context; registration requires the owner's MIY authorization and explicit implementation approval. Never treat a receipt as execution readiness or deployment."
+                                    : `${project.summary}\nReview existing work and propose the next development step using this task's source binding. If no isolated app source is connected, plan the setup before implementation.`,
+                                ),
+                              )
+                            }
+                          />
+                        )}
                       </div>
                     </div>
-                    {needsExecutor && (
+                    {managed && (
+                      <ProjectWorkspaces
+                        project={project}
+                        t={t}
+                        tasks={tasks}
+                        openTask={openTask}
+                        startTask={startTask}
+                      />
+                    )}
+                    {!managed && needsExecutor && (
                       <p className="muted">
                         {t(
                           'Configure an isolated execution environment for this app.',
                         )}
                       </p>
                     )}
-                    {preparingSource === project.id && (
+                    {!managed && preparingSource === project.id && (
                       <SourcePrepare
                         key={project.id}
                         projectId={project.id}
+                        appId={project.app_id}
                         t={t}
                         onPrepared={() => setRefresh((value) => value + 1)}
                       />
                     )}
-                    {projectApp?.discovery === 'source' &&
+                    {!managed &&
+                      projectApp?.discovery === 'source' &&
                       projectApp.source_status === 'ready' && (
                         <SourceRegistrationExport
                           key={project.id}
@@ -567,7 +679,8 @@ export function WorkbenchApps({
                           t={t}
                         />
                       )}
-                    {projectApp?.discovery === 'source' &&
+                    {!managed &&
+                      projectApp?.discovery === 'source' &&
                       projectApp.source_version > 0 && (
                         <SourceRegistrationStatus
                           projectId={project.id}
@@ -683,6 +796,22 @@ export function AppInstallations({
           </small>
           {startTask &&
             item.environment === 'development' &&
+            item.delivery_configured === false && (
+              <div className="stack">
+                {!error && data.state === 'ready' && !data.stale && (
+                  <p className="muted">
+                    {t(
+                      "Deployment connection is pending. Enable use in the registration task's My development preview settings, then ask the Workbench administrator to connect delivery.",
+                    )}
+                  </p>
+                )}
+                <div className="wb-actions">
+                  <Button disabled>{t('Plan preview deployment')}</Button>
+                </div>
+              </div>
+            )}
+          {startTask &&
+            item.environment === 'development' &&
             item.delivery_configured && (
               <div className="wb-actions">
                 <Button
@@ -768,6 +897,18 @@ function ProjectForm({
   const [summary, setSummary] = useState('');
   const [notes, setNotes] = useState('');
   const [decision, setDecision] = useState<'new' | 'extend'>('new');
+  const suggested = suggestAppId(title, [
+    ...catalog.items.map((item) => item.app_id),
+    ...catalog.projects.map((project) => project.app_id),
+  ]);
+  const chosenAppId = decision === 'new' ? appId || suggested : appId;
+  const reuseNotes =
+    notes ||
+    t(
+      decision === 'new'
+        ? 'New app requested. Compare existing apps before implementation.'
+        : 'Existing app selected. Review its source before extending it.',
+    );
   return (
     <form
       className="wb-panel stack"
@@ -775,14 +916,19 @@ function ProjectForm({
         e.preventDefault();
         onCreate({
           title,
-          app_id: appId,
+          app_id: chosenAppId,
           summary,
           reuse_decision: decision,
-          reuse_notes: notes,
+          reuse_notes: reuseNotes,
         });
       }}
     >
       <h2>{t('New app project')}</h2>
+      <p className="muted">
+        {t(
+          'Name the app and describe the work you want it to help with. Other project settings are suggested automatically.',
+        )}
+      </p>
       <label>
         {t('Project title')}
         <Input
@@ -801,54 +947,62 @@ function ProjectForm({
           onChange={(e) => setSummary(e.target.value)}
         />
       </label>
-      <label>
-        {t('Reuse decision')}
-        <select
-          value={decision}
-          onChange={(e) => {
-            setDecision(e.target.value as 'new' | 'extend');
-            setAppId('');
-          }}
-        >
-          <option value="new">{t('Create a new app')}</option>
-          <option value="extend">{t('Extend an existing app')}</option>
-        </select>
-      </label>
-      <label>
-        {t('App identifier')}
-        {decision === 'extend' ? (
+      <details>
+        <summary>{t('Advanced project settings')}</summary>
+        <label>
+          {t('Reuse decision')}
           <select
-            required
-            value={appId}
-            onChange={(e) => setAppId(e.target.value)}
+            value={decision}
+            onChange={(e) => {
+              setDecision(e.target.value as 'new' | 'extend');
+              setAppId('');
+            }}
           >
-            <option value="">{t('Choose an app')}</option>
-            {catalog.items.map((app) => (
-              <option key={app.app_id} value={app.app_id}>
-                {appTitle(app, t)}
-              </option>
-            ))}
+            <option value="new">{t('Create a new app')}</option>
+            <option value="extend">{t('Extend an existing app')}</option>
           </select>
-        ) : (
-          <Input
-            value={appId}
-            maxLength={64}
-            minLength={2}
-            pattern="[a-z](?:[a-z0-9]|-){1,63}"
+        </label>
+        <label>
+          {t('App identifier')}
+          {decision === 'extend' ? (
+            <select
+              required
+              value={chosenAppId}
+              onChange={(e) => setAppId(e.target.value)}
+            >
+              <option value="">{t('Choose an app')}</option>
+              {catalog.items.map((app) => (
+                <option key={app.app_id} value={app.app_id}>
+                  {appTitle(app, t)}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <Input
+              value={chosenAppId}
+              maxLength={64}
+              minLength={2}
+              pattern="[a-z](?:[a-z0-9]|-){1,63}"
+              required
+              onChange={(e) => setAppId(e.target.value)}
+            />
+          )}
+        </label>
+        <label>
+          {t('Existing apps reviewed and decision rationale')}
+          <textarea
+            value={reuseNotes}
+            maxLength={4000}
             required
-            onChange={(e) => setAppId(e.target.value)}
+            onChange={(e) => setNotes(e.target.value)}
           />
-        )}
-      </label>
-      <label>
-        {t('Existing apps reviewed and decision rationale')}
-        <textarea
-          value={notes}
-          maxLength={4000}
-          required
-          onChange={(e) => setNotes(e.target.value)}
-        />
-      </label>
+        </label>
+        <p className="muted">
+          {t(
+            'You can change the suggested app identifier and reuse notes. Registration and development permissions are checked separately.',
+          )}
+        </p>
+      </details>
       <Button variant="primary" disabled={busy} type="submit">
         {t('Create project and plan')}
       </Button>

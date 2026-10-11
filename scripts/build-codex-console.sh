@@ -30,6 +30,35 @@ cp "$ROOT_DIR/ops/codex-console/executor/sdk-toolchain-pin.json" \
   "$RELEASE_DIR/ops/codex-console/executor/sdk-toolchain-pin.json"
 cp "$ROOT_DIR/ops/codex-console/executor/native-pin.json" \
   "$RELEASE_DIR/ops/codex-console/executor/native-pin.json"
+cp "$ROOT_DIR/ops/codex-console/executor/sdk-toolchain-v2-pin.json" \
+  "$RELEASE_DIR/ops/codex-console/executor/sdk-toolchain-v2-pin.json"
+mkdir -p "$RELEASE_DIR/scripts"
+cp "$ROOT_DIR/scripts/manage-workbench-environment.py" \
+  "$ROOT_DIR/scripts/verify-native-sdk-toolchain.py" "$RELEASE_DIR/scripts/"
+cp "$ROOT_DIR"/ops/codex-console/executor/miy-app-sdk-managed*.example \
+  "$RELEASE_DIR/ops/codex-console/executor/"
+# The installed verifier retains its current-source input checks. Ship only its
+# pinned public inputs; no repository metadata, environment or operator config.
+"$PYTHON_BIN" - "$ROOT_DIR" "$RELEASE_DIR" <<'PY'
+import importlib.util
+from pathlib import Path
+import shutil
+import sys
+
+source, release = map(Path, sys.argv[1:])
+spec = importlib.util.spec_from_file_location('sdk_release_verifier', source / 'scripts/verify-native-sdk-toolchain.py')
+verifier = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(verifier)
+pin = verifier.load_pin()
+for relative in sorted(pin['source_inputs']):
+    target = release / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source / relative, target)
+spec = importlib.util.spec_from_file_location('sdk_installed_verifier', release / 'scripts/verify-native-sdk-toolchain.py')
+installed = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(installed)
+assert installed.load_pin() == pin, 'Installed SDK inputs changed during packaging'
+PY
 "$PYTHON_BIN" - "$ROOT_DIR" "$RELEASE_DIR" <<'PY'
 import hashlib
 import json

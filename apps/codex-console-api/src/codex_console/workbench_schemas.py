@@ -163,6 +163,7 @@ class ProjectOut(ProjectFields):
 
 
 class CatalogOut(BaseModel):
+    workspaces_available: bool = False
     registration_authorization_available: bool = False
     items: list[AppDescriptor]
     projects: list[ProjectOut]

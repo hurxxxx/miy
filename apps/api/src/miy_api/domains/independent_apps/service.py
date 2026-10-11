@@ -209,7 +209,30 @@ def release_out(record: AppReleaseRecord) -> ReleaseOut:
 
 
 def installation_out(record: AppInstallationRecord) -> InstallationOut:
-    return InstallationOut.model_validate(record, from_attributes=True)
+    data = {field: getattr(record, field) for field in InstallationOut.model_fields}
+    data["origin"] = installation_origin(record)
+    return InstallationOut.model_validate(data)
+
+
+def installation_origin(record: AppInstallationRecord) -> str:
+    """Historical origins are metadata, never a live audience or runtime binding."""
+    if record.origin is not None:
+        return record.origin
+    if record.state == "archived" and record.archived_origin is not None:
+        return record.archived_origin
+    raise ValueError("Installation origin identity is unavailable")
+
+
+def workspace_admission_open(db: Session, installation: AppInstallationRecord) -> bool:
+    """Read the durable managed-workspace fence without reversing its lock order."""
+    from miy_api.domains.independent_apps.workspace_models import AppWorkspaceRecord
+
+    state = db.scalar(
+        select(AppWorkspaceRecord.state).where(
+            AppWorkspaceRecord.installation_id == installation.id
+        )
+    )
+    return state is None or state == "ready"
 
 
 def stage_installation(
@@ -254,10 +277,13 @@ def stage_installation(
                 AppInstallationRecord.app_id == app_id,
             )
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
         if installation is None:
             fail("not_found", 404)
         if installation.environment != data.environment or installation.origin != data.origin:
+            fail("conflict", 409)
+        if not workspace_admission_open(db, installation):
             fail("conflict", 409)
         installation.generation += 1  # Immediately invalidates old launch codes and sessions.
         for key, value in data.model_dump().items():
@@ -314,7 +340,9 @@ def admitted(
         or user.login_blocked
         or user.must_change_password
         or not installation.enabled
-        or installation.state == "disabled"
+        or installation.origin is None
+        or installation.state not in {"configured", "ready"}
+        or not workspace_admission_open(db, installation)
     ):
         return False
     if installation.environment == "production" and (
@@ -340,7 +368,9 @@ def installation_summary(
     # Source registration can advance independently of an installed release.
     # The installed image owns its UI route, including after code rollback.
     entrypoint = None
-    if installation.release_id:
+    if installation.state == "archived":
+        pass  # An archived origin is historical metadata, with no executable UI.
+    elif installation.release_id:
         release = trusted_release(db, installation, installation.release_id)
         if release is not None:
             entrypoint = release.definition_snapshot["entrypoints"]["ui"]
@@ -351,7 +381,7 @@ def installation_summary(
         id=installation.id,
         app_id=installation.app_id,
         environment=installation.environment,
-        origin=installation.origin,
+        origin=installation_origin(installation),
         enabled=installation.enabled,
         release_id=installation.release_id,
         state=installation.state,

@@ -70,6 +70,81 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
+it('prepares local source with the single approved folder and no repository input', async () => {
+  vi.mocked(api).mockImplementation(async (url, body, method) => {
+    if (method === 'POST')
+      return { ...completed, ...(body as object) } as never;
+    return (url.endsWith('/options') ? options : { setup: null }) as never;
+  });
+  const ready = vi.fn();
+  render(
+    <SourcePrepare
+      appId="new-app"
+      projectId="project-one"
+      t={t}
+      onPrepared={ready}
+    />,
+  );
+  await screen.findByText('The administrator prepared a folder for this app.');
+  const repository = screen.getByLabelText(
+    'App repository URL',
+  ) as HTMLInputElement;
+  expect(repository.value).toBe('https://miy-apps.invalid/local/new-app.git');
+  expect(repository.closest('details')?.open).toBe(false);
+  expect(
+    screen.getByText(
+      'This prepares your app on this server. No remote repository is created. You can connect an existing HTTPS repository in advanced settings.',
+    ),
+  ).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Prepare app source' }));
+  await screen.findByText('App source prepared');
+  const requests = vi
+    .mocked(api)
+    .mock.calls.filter((call) => call[2] === 'POST');
+  expect(requests).toHaveLength(1);
+  expect(requests[0][1]).toMatchObject({
+    root_id: 'approved-root',
+    repository: 'https://miy-apps.invalid/local/new-app.git',
+    expected_bundle_digest: bundle,
+  });
+  expect(ready).toHaveBeenCalledTimes(1);
+});
+
+it('requires choosing a folder when more than one creation root is available', async () => {
+  vi.mocked(api).mockImplementation(
+    async (url) =>
+      (url.endsWith('/options')
+        ? {
+            ...options,
+            roots: [
+              ...options.roots,
+              { id: 'other-root', label: 'Other apps' },
+            ],
+          }
+        : { setup: null }) as never,
+  );
+  render(
+    <SourcePrepare
+      appId="new-app"
+      projectId="project-one"
+      t={t}
+      onPrepared={vi.fn()}
+    />,
+  );
+  const root = await screen.findByLabelText('App creation folder');
+  await waitFor(() => expect((root as HTMLSelectElement).value).toBe(''));
+  const submit = screen.getByRole('button', {
+    name: 'Prepare app source',
+  }) as HTMLButtonElement;
+  expect(submit.disabled).toBe(true);
+  expect(root.closest('details')?.open).toBe(true);
+  fireEvent.change(root, { target: { value: 'other-root' } });
+  expect(submit.disabled).toBe(false);
+  expect(vi.mocked(api).mock.calls.every((call) => call[2] === 'GET')).toBe(
+    true,
+  );
+});
+
 it('requires explicit creation roots and does not create source while loading or displaying options', async () => {
   vi.mocked(api).mockImplementation(
     async (url) =>
@@ -77,7 +152,14 @@ it('requires explicit creation roots and does not create source while loading or
         ? { ...options, roots: [] }
         : { setup: null }) as never,
   );
-  render(<SourcePrepare projectId="project-one" t={t} onPrepared={vi.fn()} />);
+  render(
+    <SourcePrepare
+      appId="new-app"
+      projectId="project-one"
+      t={t}
+      onPrepared={vi.fn()}
+    />,
+  );
   await screen.findByText(
     'An administrator must configure a folder for creating apps before source preparation is available.',
   );
@@ -99,7 +181,14 @@ it('prepares the chosen fixed template once and reports source readiness without
     return (url.endsWith('/options') ? options : { setup: null }) as never;
   });
   const ready = vi.fn();
-  render(<SourcePrepare projectId="project-one" t={t} onPrepared={ready} />);
+  render(
+    <SourcePrepare
+      appId="new-app"
+      projectId="project-one"
+      t={t}
+      onPrepared={ready}
+    />,
+  );
   fireEvent.change(await screen.findByLabelText('App repository URL'), {
     target: { value: saved.repository },
   });
@@ -165,7 +254,14 @@ it('reads the saved request after a lost response and resumes the same immutable
           : { ...saved, operation_id: postBody?.operation_id, state: 'failed' },
     } as never;
   });
-  render(<SourcePrepare projectId="project-one" t={t} onPrepared={vi.fn()} />);
+  render(
+    <SourcePrepare
+      appId="new-app"
+      projectId="project-one"
+      t={t}
+      onPrepared={vi.fn()}
+    />,
+  );
   fireEvent.change(await screen.findByLabelText('App repository URL'), {
     target: { value: saved.repository },
   });
@@ -203,7 +299,14 @@ it('reloads an existing conflict as read-only and never overwrites the source', 
         ? options
         : { setup: { ...saved, state: 'conflict' } }) as never,
   );
-  render(<SourcePrepare projectId="project-one" t={t} onPrepared={vi.fn()} />);
+  render(
+    <SourcePrepare
+      appId="new-app"
+      projectId="project-one"
+      t={t}
+      onPrepared={vi.fn()}
+    />,
+  );
   await screen.findByText(
     'The source folder needs review. Existing files have been preserved.',
   );
@@ -238,7 +341,12 @@ it('cancels a departed project request and ignores its late completion', async (
   );
   const ready = vi.fn();
   const view = render(
-    <SourcePrepare projectId="project-one" t={t} onPrepared={ready} />,
+    <SourcePrepare
+      appId="new-app"
+      projectId="project-one"
+      t={t}
+      onPrepared={ready}
+    />,
   );
   fireEvent.change(await screen.findByLabelText('App repository URL'), {
     target: { value: saved.repository },
@@ -262,7 +370,14 @@ it('bounds an unanswered preparation request and requires status lookup after th
       })) as never;
     return (url.endsWith('/options') ? options : { setup: null }) as never;
   });
-  render(<SourcePrepare projectId="project-one" t={t} onPrepared={vi.fn()} />);
+  render(
+    <SourcePrepare
+      appId="new-app"
+      projectId="project-one"
+      t={t}
+      onPrepared={vi.fn()}
+    />,
+  );
   fireEvent.change(await screen.findByLabelText('App repository URL'), {
     target: { value: saved.repository },
   });
@@ -299,7 +414,14 @@ it('refreshes the app catalog when a lost successful response is recovered by re
     return { setup: accepted ? completed : null } as never;
   });
   const ready = vi.fn();
-  render(<SourcePrepare projectId="project-one" t={t} onPrepared={ready} />);
+  render(
+    <SourcePrepare
+      appId="new-app"
+      projectId="project-one"
+      t={t}
+      onPrepared={ready}
+    />,
+  );
   fireEvent.change(await screen.findByLabelText('App repository URL'), {
     target: { value: saved.repository },
   });
@@ -329,7 +451,12 @@ it.each([
       return { setup: null } as never;
     });
     render(
-      <SourcePrepare projectId="project-one" t={t} onPrepared={vi.fn()} />,
+      <SourcePrepare
+        appId="new-app"
+        projectId="project-one"
+        t={t}
+        onPrepared={vi.fn()}
+      />,
     );
     fireEvent.change(await screen.findByLabelText('App repository URL'), {
       target: { value: 'http://git.example/app' },
@@ -361,7 +488,14 @@ it('does not authorize preparation when current saved state cannot be read', asy
     if (url.endsWith('/options')) return options as never;
     throw new Error('offline');
   });
-  render(<SourcePrepare projectId="project-one" t={t} onPrepared={vi.fn()} />);
+  render(
+    <SourcePrepare
+      appId="new-app"
+      projectId="project-one"
+      t={t}
+      onPrepared={vi.fn()}
+    />,
+  );
   await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
   expect(
     screen.queryByRole('button', { name: 'Prepare app source' }),

@@ -214,6 +214,10 @@ def validate_context(settings, db, context):
     if not context:
         return context
     context = dict(context)
+    if context.get("workspace_id"):
+        from .workspaces import context as workspace_context
+
+        return workspace_context(settings, db, context)
     project_id = context.get("project_id")
     if project_id:
         project = db.get(WorkbenchProject, project_id)
@@ -320,6 +324,8 @@ def bind_source_record(cfg, db, app_id, body, *, manifest, digest):
 
 
 def link_task(db, task):
+    if task.workspace_id and task.executor != "session":
+        raise ConsoleError("workspace_task_denied", 403)
     ref = (task.context or {}).get("maintenance_id")
     if ref:
         row = db.get(Maintenance, ref)
@@ -368,6 +374,7 @@ def install(app, secured):
             status = git.status(cfg.workspace)
             with factory() as db:
                 return CatalogOut(
+                    workspaces_available=cfg.managed_workspaces_enabled,
                     registration_authorization_available=bool(
                         cfg.registration_authorization_enabled
                         and cfg.miy_api_origin in cfg.sso_subjects

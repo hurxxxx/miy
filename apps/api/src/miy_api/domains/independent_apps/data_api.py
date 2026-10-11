@@ -32,6 +32,10 @@ class RecordBody(Contract):
     expected_version: int | None = Field(default=None, ge=1)
 
 
+class CreateRecordBody(RecordBody):
+    record_key: str | None = Field(default=None, min_length=1, max_length=256, strict=True)
+
+
 class RecordOut(Contract):
     id: UUID
     payload: dict[str, Any]
@@ -49,6 +53,12 @@ _BODY = {
     "requestBody": {
         "required": True,
         "content": {"application/json": {"schema": RecordBody.model_json_schema()}},
+    }
+}
+_CREATE_BODY = {
+    "requestBody": {
+        "required": True,
+        "content": {"application/json": {"schema": CreateRecordBody.model_json_schema()}},
     }
 }
 
@@ -82,16 +92,24 @@ def identity(
     return actor
 
 
-async def bounded_body(request: Request) -> RecordBody:
+async def _bounded_body(request: Request, model):
     raw = bytearray()
     async for chunk in request.stream():
         raw.extend(chunk)
         if len(raw) > 20 * 1024:
             service.fail("data_payload_invalid", 413)
     try:
-        return RecordBody.model_validate(json.loads(raw))
+        return model.model_validate(json.loads(raw))
     except (ValueError, ValidationError, RecursionError):
         service.fail("data_payload_invalid", 422)
+
+
+async def bounded_body(request: Request) -> RecordBody:
+    return await _bounded_body(request, RecordBody)
+
+
+async def bounded_create_body(request: Request) -> CreateRecordBody:
+    return await _bounded_body(request, CreateRecordBody)
 
 
 def _call(actor: AppIdentityOut, permission: str, callback):
@@ -127,6 +145,16 @@ def list_records(
     return RecordList(items=rows, next_cursor=rows[-1]["id"] if len(rows) == limit else None)
 
 
+@router.get("/{collection}/by-key", response_model=RecordOut)
+def read_record_by_key(
+    collection: Collection,
+    record_key: str = Query(min_length=1, max_length=256),
+    actor: AppIdentityOut = Depends(identity),
+    store: PostgresAppData = Depends(get_store),
+):
+    return _call(actor, "data:read", lambda: store.read_by_key(actor, collection, record_key))
+
+
 @router.get("/{collection}/{record_id}", response_model=RecordOut)
 def read_record(
     collection: Collection,
@@ -137,16 +165,20 @@ def read_record(
     return _call(actor, "data:read", lambda: store.read(actor, collection, str(record_id)))
 
 
-@router.post("/{collection}", response_model=RecordOut, status_code=201, openapi_extra=_BODY)
+@router.post("/{collection}", response_model=RecordOut, status_code=201, openapi_extra=_CREATE_BODY)
 def create_record(
     collection: Collection,
-    body: RecordBody = Depends(bounded_body),
+    body: CreateRecordBody = Depends(bounded_create_body),
     actor: AppIdentityOut = Depends(identity),
     store: PostgresAppData = Depends(get_store),
 ):
     if body.expected_version is not None:
         service.fail("data_payload_invalid", 422)
-    return _call(actor, "data:write", lambda: store.write(actor, collection, body.payload))
+    return _call(
+        actor,
+        "data:write",
+        lambda: store.write(actor, collection, body.payload, record_key=body.record_key),
+    )
 
 
 @router.put("/{collection}/{record_id}", response_model=RecordOut, openapi_extra=_BODY)

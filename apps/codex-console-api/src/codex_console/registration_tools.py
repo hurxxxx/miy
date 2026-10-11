@@ -26,6 +26,7 @@ def specs(task):
         return []
     return [
         {
+            "type": "function",
             "name": TOOL_NAME,
             "description": (
                 "First registration for this selected personal app Task. Read context first. "
@@ -145,7 +146,12 @@ async def execute(settings, factory, task_id, action, *, check):
                 raise ConsoleError("app_checkpoint_worktree_unsupported", 422)
             db.expunge(task)
         current()
-        result = await asyncio.to_thread(app_checkpoints.checkpoint, settings, task)
+        if task.workspace_id:
+            from .workspaces import task_checkpoint
+
+            result = await asyncio.to_thread(task_checkpoint, settings, factory, task, current)
+        else:
+            result = await asyncio.to_thread(app_checkpoints.checkpoint, settings, task)
         current()
         return result
     # Both reads and writes use the fixed operation. A missing receipt is not permission

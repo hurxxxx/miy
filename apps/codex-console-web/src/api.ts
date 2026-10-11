@@ -22,7 +22,10 @@ export const apiBasePath = new URL(
 ).pathname.replace(/\/$/, '');
 
 export class ApiError extends Error {
-  constructor(public code: string) {
+  constructor(
+    public code: string,
+    public status?: number,
+  ) {
     super(code);
   }
 }
@@ -41,7 +44,12 @@ export function consumeMIYSessionHandoff(): MIYSessionHandoff | null {
     '',
     `${window.location.pathname}${window.location.search}`,
   );
-  if ((current && legacy) || !issuer || !code || !/^cc1_[A-Za-z0-9_-]{20,252}$/.test(code))
+  if (
+    (current && legacy) ||
+    !issuer ||
+    !code ||
+    !/^cc1_[A-Za-z0-9_-]{20,252}$/.test(code)
+  )
     return null;
   return { issuer, code };
 }
@@ -123,7 +131,7 @@ export async function api<T>(
     const result = (await response.json().catch(() => ({}))) as {
       code?: string;
     };
-    throw new ApiError(result.code ?? 'request_failed');
+    throw new ApiError(result.code ?? 'request_failed', response.status);
   }
   return response.json() as Promise<T>;
 }

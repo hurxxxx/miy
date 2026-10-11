@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import hashlib
 import json
+import os
 import subprocess
 import tarfile
 import zlib
@@ -101,6 +102,42 @@ def test_archive_rejects_duplicate_and_large_files(tmp_path, monkeypatch):
     monkeypatch.setattr(builds, "MAX_FILE", 2)
     with pytest.raises(builds.BuildFailure):
         builds._unpack(archive([("large", b"abc")]), tmp_path)
+
+
+@pytest.mark.parametrize("directory_entries", ["explicit", "implicit", "after_files"])
+def test_archive_directories_are_runtime_readable_under_private_umask(tmp_path, directory_entries):
+    private = tmp_path / "private"
+    destination = private / "payload"
+    directories = [
+        ("dist", (tarfile.DIRTYPE, "")),
+        ("dist/assets", (tarfile.DIRTYPE, "")),
+        ("src", (tarfile.DIRTYPE, "")),
+        ("src/package", (tarfile.DIRTYPE, "")),
+    ]
+    files = [
+        ("dist/index.html", b"<html>app</html>"),
+        ("dist/assets/app.js", b"export {};"),
+        ("src/package/module.py", b"value = 1\n"),
+    ]
+    entries = {
+        "explicit": directories + files,
+        "implicit": files,
+        "after_files": files + directories,
+    }[directory_entries]
+    previous_umask = os.umask(0o077)
+    try:
+        destination.mkdir(parents=True, mode=0o700)
+        builds._unpack(archive(entries), destination)
+    finally:
+        os.umask(previous_umask)
+
+    assert private.stat().st_mode & 0o777 == 0o700
+    assert destination.stat().st_mode & 0o777 == 0o700
+    for relative, _ in directories:
+        assert (destination / relative).stat().st_mode & 0o777 == 0o755
+    for relative, content in files:
+        assert (destination / relative).stat().st_mode & 0o777 == 0o644
+        assert (destination / relative).read_bytes() == content
 
 
 def test_snapshot_uses_approved_commit_and_checks_manifest(tmp_path):
@@ -382,6 +419,139 @@ def fake_docker(monkeypatch, *, fail_test=False, malicious_output=False):
     return calls
 
 
+def nested_repo(tmp_path, layout):
+    source, _, definition, git = repo(tmp_path)
+    directory = "app" if layout == "legacy" else "personal-apps/build-app"
+    definition = definition.model_copy(
+        update={"source": definition.source.model_copy(update={"directory": directory})}
+    )
+    app = source / directory
+    app.mkdir(parents=True)
+    (source / "api.py").rename(app / "api.py")
+    root_manifest = source / "app.manifest.json"
+    manifest = root_manifest if layout == "legacy" else app / "app.manifest.json"
+    if layout != "legacy":
+        root_manifest.unlink()
+    manifest.write_text(definition.model_dump_json(indent=2) + "\n")
+    # Unrelated root bytes must not reach the app's build context.
+    (source / ".env").write_text("FIXTURE_ONLY=unrelated\n")
+    (source / "unrelated-api.py").write_text("not_app_source = True\n")
+    git("add", ".")
+    git("commit", "-m", "Nested app layout fixture")
+    return source, git("rev-parse", "HEAD"), definition, git, app, manifest
+
+
+@pytest.mark.parametrize("layout", ["legacy", "managed"])
+def test_builder_preserves_nested_app_manifest_layouts(tmp_path, monkeypatch, layout):
+    source, revision, definition, _, _, manifest = nested_repo(tmp_path, layout)
+    manifest_bytes = manifest.read_bytes()
+    fake_docker(monkeypatch)
+    command = builds._command
+    captured = []
+
+    def observe(argv, **kwargs):
+        if argv[0] != "git" and argv[1] == "create":
+            mount = argv[argv.index("--mount") + 1]
+            extracted = Path(mount.removeprefix("type=bind,src=").split(",dst=", 1)[0])
+            assert set(p.name for p in extracted.iterdir()) == {"api.py", "app.manifest.json"}
+            assert (extracted / "api.py").read_bytes() == b"value = 1\n"
+            assert (extracted / "app.manifest.json").read_bytes() == manifest_bytes
+            captured.append("source")
+        if argv[0] != "git" and argv[1] == "build":
+            payload = Path(argv[-1]) / "payload"
+            assert set(p.name for p in payload.iterdir()) == {"api.py", "app.manifest.json", "dist"}
+            assert (payload / "app.manifest.json").read_bytes() == manifest_bytes
+            assert (payload / "dist/index.html").read_bytes() == b"<html>ok</html>"
+            captured.append("package")
+        return command(argv, **kwargs)
+
+    monkeypatch.setattr(builds, "_command", observe)
+    result = builds.build_app(
+        source=source,
+        revision=revision,
+        expected_definition=definition.model_dump(),
+        toolchain_image=IMAGE,
+        work_root=tmp_path,
+    )
+    assert result.definition_digest == definition.content_digest()
+    assert result.artifact_digest == ARTIFACT and result.checks["package"] == 0
+    assert captured == ["source", "package"]
+
+
+@pytest.mark.parametrize("different", [False, True])
+def test_nested_snapshot_rejects_ambiguous_manifests(tmp_path, different):
+    source, _, definition, git, app, _ = nested_repo(tmp_path, "legacy")
+    inner = (
+        definition.model_copy(
+            update={"display": definition.display.model_copy(update={"name": "Another app"})}
+        )
+        if different
+        else definition
+    )
+    (app / "app.manifest.json").write_text(inner.model_dump_json())
+    git("add", ".")
+    git("commit", "-m", "Ambiguous manifests fixture")
+    destination = tmp_path / "out"
+    destination.mkdir()
+    with pytest.raises(builds.BuildFailure, match="build_definition_mismatch"):
+        builds._snapshot(source, git("rev-parse", "HEAD"), definition, destination)
+    assert not list(destination.iterdir())
+
+
+@pytest.mark.parametrize("when", ["before_read", "after_read"])
+def test_nested_snapshot_exports_the_verified_root_manifest_bytes(tmp_path, monkeypatch, when):
+    source, revision, definition, git, _, manifest = nested_repo(tmp_path, "legacy")
+    expected_bytes = manifest.read_bytes()
+    oid = git("rev-parse", "HEAD:app.manifest.json")
+    command = builds._command
+    observed = []
+
+    def replace(argv, **kwargs):
+        targeted = argv[-3:] == ["cat-file", "blob", oid]
+        if targeted and when == "before_read":
+            replace_loose_object(source, oid, "blob", b"{}")
+        result = command(argv, **kwargs)
+        if targeted:
+            observed.append(True)
+            if when == "after_read":
+                replace_loose_object(source, oid, "blob", b"{}")
+        return result
+
+    monkeypatch.setattr(builds, "_command", replace)
+    destination = tmp_path / "out"
+    destination.mkdir()
+    if when == "before_read":
+        with pytest.raises(builds.BuildFailure, match="build_source_object_invalid"):
+            builds._snapshot(source, revision, definition, destination)
+        assert not list(destination.iterdir())
+    else:
+        builds._snapshot(source, revision, definition, destination)
+        assert (destination / "app.manifest.json").read_bytes() == expected_bytes
+    assert observed == [True]
+
+
+@pytest.mark.parametrize("invalid", ["mismatch", "symlink", "missing"])
+def test_nested_snapshot_rejects_invalid_root_manifest(tmp_path, invalid):
+    source, _, definition, git, _, manifest = nested_repo(tmp_path, "legacy")
+    if invalid == "mismatch":
+        manifest.write_text(
+            definition.model_copy(
+                update={"display": definition.display.model_copy(update={"name": "Unregistered"})}
+            ).model_dump_json()
+        )
+    else:
+        manifest.unlink()
+        if invalid == "symlink":
+            manifest.symlink_to("/outside-fixture")
+    git("add", ".")
+    git("commit", "-m", "Invalid root manifest fixture")
+    destination = tmp_path / "out"
+    destination.mkdir()
+    failure = "build_archive_unsafe" if invalid == "symlink" else "build_definition_mismatch"
+    with pytest.raises(builds.BuildFailure, match=failure):
+        builds._snapshot(source, git("rev-parse", "HEAD"), definition, destination)
+
+
 def test_builder_observes_exit_codes_and_never_mounts_checkout_or_credentials(
     tmp_path, monkeypatch
 ):
@@ -414,6 +584,109 @@ def test_builder_observes_exit_codes_and_never_mounts_checkout_or_credentials(
     assert all(set(kwargs["env"]) == {"PATH", "DOCKER_CONFIG"} for _, kwargs in calls)
     assert any(argv[1:3] == ["rm", "--force"] for argv, _ in calls)
     assert list(tmp_path.iterdir()) == [source]
+
+
+@pytest.mark.parametrize("actual_docker", [False, True])
+def test_builder_snapshot_bind_root_is_readable_by_another_uid_under_private_umask(
+    tmp_path, monkeypatch, actual_docker
+):
+    if actual_docker and os.getenv("MIY_TEST_INDEPENDENT_DOCKER") != "1":
+        pytest.skip("Opt-in synthetic local Docker permission proof")
+    source, revision, definition, _ = repo(tmp_path)
+    work_root = tmp_path / "private-builds"
+    work_root.mkdir(mode=0o700)
+    fake_docker(monkeypatch)
+    original = builds._command
+    probes = []
+
+    def observe(argv, **kwargs):
+        if argv[0] != "git" and argv[1] == "create":
+            mount = argv[argv.index("--mount") + 1]
+            snapshot = Path(mount.removeprefix("type=bind,src=").split(",dst=", 1)[0])
+            assert snapshot.stat().st_mode & 0o777 == 0o755
+            for private in (
+                work_root,
+                snapshot.parent,
+                *(snapshot.parent / name for name in ("context", "docker-config")),
+            ):
+                assert private.stat().st_mode & 0o777 == 0o700
+            assert (snapshot / "app.manifest.json").stat().st_mode & 0o777 == 0o644
+            assert argv[argv.index("--user") + 1] == "1000:1000"
+            assert mount.endswith(",dst=/source,readonly")
+            if actual_docker:
+                from test_independent_app_runtime import TOOLCHAIN
+
+                # A UID1000 host needs a different nonroot probe UID to test the
+                # same non-owner bind permission as Runner993→container1000.
+                uid = 1000 if os.getuid() != 1000 else 1001
+                inspected = subprocess.run(
+                    ["docker", "image", "inspect", TOOLCHAIN, "--format", "{{.Id}}"],
+                    env=kwargs["env"],
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    timeout=10,
+                    check=False,
+                )
+                assert inspected.returncode == 0 and inspected.stdout.decode().strip() == TOOLCHAIN
+                probe = subprocess.run(
+                    [
+                        "docker",
+                        "run",
+                        "--rm",
+                        "--pull=never",
+                        "--network=none",
+                        "--read-only",
+                        "--cap-drop=ALL",
+                        "--security-opt",
+                        "no-new-privileges",
+                        "--pids-limit",
+                        "32",
+                        "--memory",
+                        "128m",
+                        "--cpus",
+                        "1",
+                        "--user",
+                        f"{uid}:{uid}",
+                        "--mount",
+                        mount,
+                        "--entrypoint",
+                        builds.PYTHON,
+                        TOOLCHAIN,
+                        "-I",
+                        "-c",
+                        "import json,os,pathlib; root=pathlib.Path('/source'); "
+                        "assert os.geteuid()!=root.stat().st_uid; "
+                        "assert sorted(p.name for p in root.iterdir())==['api.py','app.manifest.json']; "
+                        "assert json.loads((root/'app.manifest.json').read_text())['app_id']=='build-app'; "
+                        "assert (root/'api.py').read_text()=='value = 1\\n'",
+                    ],
+                    env=kwargs["env"],
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=20,
+                    check=False,
+                )
+                assert probe.returncode == 0, "Synthetic non-owner snapshot read failed"
+                probes.append("non-owner-read")
+        return original(argv, **kwargs)
+
+    monkeypatch.setattr(builds, "_command", observe)
+    previous_umask = os.umask(0o077)
+    try:
+        result = builds.build_app(
+            source=source,
+            revision=revision,
+            expected_definition=definition.model_dump(),
+            toolchain_image=IMAGE,
+            work_root=work_root,
+        )
+    finally:
+        os.umask(previous_umask)
+    assert result.artifact_digest == ARTIFACT
+    assert list(work_root.iterdir()) == []
+    assert probes == (["non-owner-read"] if actual_docker else [])
 
 
 @pytest.mark.parametrize("kind", ["test", "output"])
@@ -489,3 +762,36 @@ def test_lost_create_response_reconciles_owned_identity_without_removing_foreign
             work_root=tmp_path,
         )
     assert any(argv[1:3] == ["rm", "--force"] for argv, _ in calls) is not foreign
+
+
+def test_monorepo_export_reads_only_verified_app_subtree(tmp_path, monkeypatch):
+    source, _, definition, git = repo(tmp_path)
+    app = source / "personal-apps" / definition.app_id
+    app.mkdir(parents=True)
+    definition = definition.model_copy(
+        update={
+            "source": definition.source.model_copy(
+                update={"directory": f"personal-apps/{definition.app_id}"}
+            )
+        }
+    )
+    (source / "app.manifest.json").unlink()
+    (source / "api.py").rename(app / "api.py")
+    (app / "app.manifest.json").write_text(definition.model_dump_json())
+    (source / ".env").write_text("FIXTURE_ONLY=unrelated\n")
+    (source / "large-unrelated").write_bytes(b"x" * 8192)
+    (source / "unrelated-link").symlink_to("/outside-fixture")
+    git("add", ".")
+    git("commit", "-m", "App subtree fixture")
+    revision = git("rev-parse", "HEAD")
+    monkeypatch.setattr(builds, "MAX_FILE", 4096)
+    destination = tmp_path / "export"
+    destination.mkdir()
+    builds._snapshot(source, revision, definition, destination)
+    assert set(p.name for p in destination.iterdir()) == {"api.py", "app.manifest.json"}
+    # A dangerous object within the selected subtree remains rejected.
+    (app / "owned-link").symlink_to("/outside-fixture")
+    git("add", ".")
+    git("commit", "-m", "Rejected app link")
+    with pytest.raises(builds.BuildFailure, match="build_archive_unsafe"):
+        builds._snapshot(source, git("rev-parse", "HEAD"), definition, tmp_path / "bad-export")

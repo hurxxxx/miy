@@ -347,8 +347,12 @@ def test_schema_seven_preserves_prior_agents_and_does_not_infer_observations(tmp
         legacy = MetaData()
         legacy.reflect(engine)
         with factory.begin() as db:
-            db.add(Task(id="saved-task", title="Saved", root=str(tmp_path), status="idle"))
-            db.flush()
+            # An old Task has no workspace column; omit later nullable columns from its seed.
+            db.execute(
+                Task.__table__.insert().values(
+                    id="saved-task", title="Saved", root=str(tmp_path), status="idle"
+                )
+            )
             db.execute(
                 legacy.tables["console_agents"]
                 .insert()
@@ -368,8 +372,81 @@ def test_schema_seven_preserves_prior_agents_and_does_not_infer_observations(tmp
             row = db.get(Agent, "saved-thread")
             assert row.status == "completed" and row.turn_id == "saved-turn"
             assert row.observation is None
+            assert db.get(Task, "saved-task").workspace_id is None
             assert db.scalar(text("PRAGMA integrity_check")) == "ok"
             assert db.execute(text("PRAGMA foreign_key_check")).all() == []
+    finally:
+        engine.dispose()
+
+
+def test_workspace_column_migration_preserves_task_history_in_both_directions(tmp_path):
+    from alembic import command
+    from alembic.config import Config
+    from sqlalchemy import inspect
+    from sqlalchemy.exc import IntegrityError
+
+    from codex_console.cli import ROOT
+    from codex_console.models import DevelopmentUsage, RegistrationIntent, Revision
+    from codex_console.storage import process_guard
+
+    url = "sqlite+pysqlite:///" + str(tmp_path / "history.sqlite3")
+    migrate(url, revision="console_sqlite_0008")
+    engine, factory = database(url)
+    try:
+        with factory.begin() as db:
+            db.execute(
+                Task.__table__.insert().values(id="history-task", title="Keep", root=str(tmp_path))
+            )
+            db.add_all(
+                [
+                    Agent(thread_id="history-thread", task_id="history-task", status="completed"),
+                    Revision(task_id="history-task", kind="plan", version=1, body="Keep plan"),
+                    RegistrationIntent(
+                        task_id="history-task",
+                        operation_id="registration-op",
+                        web_session_hash="a" * 64,
+                    ),
+                    # Existing non-cascading dependents must also remain valid.
+                    DevelopmentUsage(
+                        task_id="history-task", thread_id="history-thread", total_tokens=12
+                    ),
+                ]
+            )
+
+        def preserved():
+            with factory() as db:
+                assert db.scalar(select(Task.title).where(Task.id == "history-task")) == "Keep"
+                assert db.get(Agent, "history-thread").status == "completed"
+                assert db.scalar(select(Revision.body)) == "Keep plan"
+                assert db.get(RegistrationIntent, "history-task").operation_id == "registration-op"
+                assert db.get(DevelopmentUsage, "history-thread").total_tokens == 12
+                assert db.scalar(text("PRAGMA integrity_check")) == "ok"
+                assert db.execute(text("PRAGMA foreign_key_check")).all() == []
+
+        migrate(url)
+        preserved()
+        with factory() as db:
+            assert db.get(Task, "history-task").workspace_id is None
+        with pytest.raises(IntegrityError), factory.begin() as db:
+            db.execute(
+                Task.__table__.insert().values(
+                    id="invalid-workspace",
+                    title="Refused",
+                    root=str(tmp_path),
+                    workspace_id="missing",
+                )
+            )
+        config = Config(str(ROOT / "alembic.ini"))
+        config.set_main_option("script_location", str(ROOT / "sqlite_migrations"))
+        config.attributes["database_url"] = url
+        with process_guard(url):
+            command.downgrade(config, "console_sqlite_0008")
+        assert "workspace_id" not in {
+            column["name"] for column in inspect(engine).get_columns("console_tasks")
+        }
+        preserved()
+        migrate(url)
+        preserved()
     finally:
         engine.dispose()
 

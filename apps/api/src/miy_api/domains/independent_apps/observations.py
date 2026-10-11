@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from .delivery_models import AppDeploymentRequest
 from .models import AppDefinitionRecord, AppInstallationRecord, AppReleaseRecord
+from .service import installation_origin
 
 
 def installation_observations(db: Session, app_id: str) -> list[dict] | None:
@@ -46,7 +47,7 @@ def installation_observations(db: Session, app_id: str) -> list[dict] | None:
         {
             "id": item.id,
             "environment": item.environment,
-            "origin": item.origin,
+            "origin": installation_origin(item),
             "enabled": item.enabled,
             "state": item.state,
             "generation": item.generation,

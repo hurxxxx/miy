@@ -1,5 +1,13 @@
 # 검증 계획과 수행 근거
 
+## 2026-10-11 Workbench 작업별 환경 로컬 검사
+
+새 Workspace/Core 후보 설치·소스 인계·검색·격리 helper·UI·CI 검사의 결과와 최초 실패/수정은 [구현 검사표](WORKBENCH_WORKSPACES_IMPLEMENTATION.md#검사-기록)에 기록했다. 실제 격리 PostgreSQL을 포함하나 기존 서비스나 외부 검색·GitLab·새 브라우저 전체 흐름은 실행하지 않았다. `pnpm check:env-contract`는 실제 개발 환경 파일의 새 키 2개 누락으로 실패했다. 이전 2026-10-10 배포/브라우저 PASS를 이 새 흐름에 적용하지 않는다.
+
+## 2026-10-10 실제 공개 사이트 브라우저 추가 확인
+
+사용자 요청에 따라 실제 Chromium으로 개발 포털·공식 Docs/PMS/Files 조회·Workbench 연결/계정/목록/기존 세션·에이전트·대표 모바일 표시·운영 공개 로그인 화면을 확인했다. 개발의 stale Vite config로 인한 공식 API500은 native 설정 재읽기로 해소했다. 최초와 후속 검사 코드 실패는 보존하며 새 앱 E2E 통과로 확대하지 않는다. 결과·근거·허용 생성 폴더0·카탈로그의 실행 환경 configured 항목0 및 개발/운영 대상 차이의 제한은 [BROWSER_ACCEPTANCE.md](BROWSER_ACCEPTANCE.md)가 소유한다. 제품 코드·DB·운영 서비스 변경, full CI/이미지 빌드 재실행은 없었다.
+
 ## 2026-10-10 최신 전체 CI와 실제 플랫폼·Workbench 전달 인수
 
 아래는 Root가 수행한 최신 정상 전달과 실제 인수 결과다. 이전 절의 FAILED·HOLD는 당시 기록으로 보존하며 현재 결과로 덮어쓰지 않는다. 이 갱신에서는 공개 소스와 Root가 전달한 결과만 사용했고 새 검사·빌드·API/auth 조회·서비스/DB 변경은 하지 않았다.

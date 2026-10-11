@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -125,6 +126,81 @@ class FakeRuntime:
 def execute(request, runtime):
     with get_session_factory()() as db:
         return execute_deployment(db, request["request_id"], runtime)
+
+
+@pytest.mark.parametrize("profile", ["web-api-v1", "web-api-postgres-v1"])
+def test_runtime_spec_binds_ui_to_immutable_release_manifest(monkeypatch, profile):
+    from miy_api.domains.independent_apps import delivery, production
+
+    monkeypatch.setattr(production, "runtime_target", lambda installation: None)
+    record = SimpleNamespace(id=str(uuid4()))
+    installation = SimpleNamespace(
+        id=str(uuid4()),
+        app_id="ui-fixture",
+        origin="http://127.0.0.1:19391",
+        environment="development",
+    )
+    release = SimpleNamespace(
+        artifact="sha256:" + "a" * 64,
+        definition_snapshot={
+            "entrypoints": {"health": "/healthz", "ui": "/declared.html"},
+            "runtime_profile": profile,
+        },
+    )
+    selected = delivery._runtime_spec(record, installation, release)
+    assert selected.ui_path == "/declared.html"
+    assert selected.health_path == "/healthz"
+    assert selected.runtime_profile == profile
+
+
+@pytest.mark.parametrize("ui_path", ["/declared.html", "/different.html", None])
+def test_promoted_receipt_cannot_substitute_recorded_ui_path(monkeypatch, ui_path):
+    from miy_api.domains.independent_apps import verification
+
+    release = SimpleNamespace(
+        id=str(uuid4()),
+        artifact="sha256:" + "a" * 64,
+        definition_snapshot={
+            "entrypoints": {"health": "/healthz", "ui": "/declared.html"},
+            "runtime_profile": "web-api-v1",
+        },
+    )
+    installation = SimpleNamespace(
+        id=str(uuid4()),
+        app_id="ui-fixture",
+        environment="production",
+        origin="https://app.example.test",
+        runtime_ref=str(uuid4()),
+        state="ready",
+        release_id=release.id,
+    )
+    receipt = SimpleNamespace(
+        id=installation.runtime_ref,
+        delegation_id=None,
+        installation_id=installation.id,
+        release_id=release.id,
+        state="succeeded",
+        observed_image_id=release.artifact,
+        runtime_config={
+            "request_id": installation.runtime_ref,
+            "installation_id": installation.id,
+            "app_id": installation.app_id,
+            "image_id": release.artifact,
+            "origin": installation.origin,
+            "health_path": "/healthz",
+            "environment": "production",
+            "runtime_profile": "web-api-v1",
+            "loopback_port": 19391,
+            "operator_binding_digest": "b" * 64,
+        },
+    )
+    if ui_path is not None:
+        receipt.runtime_config["ui_path"] = ui_path
+    monkeypatch.setattr(verification, "verified_artifact", lambda *args, **kwargs: None)
+    monkeypatch.setattr(verification, "promotable_release", lambda *args, **kwargs: release)
+    db = SimpleNamespace(get=lambda *args, **kwargs: receipt)
+    result = verification.trusted_release(db, installation, release.id)
+    assert (result is release) == (ui_path in {"/declared.html", None})
 
 
 def test_actual_verification_required_and_no_caller_boolean(client, delivery_app):

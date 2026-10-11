@@ -194,6 +194,7 @@ function PreviewForm({
     'data:read': 'dataRead',
     'data:write': 'dataWrite',
     'files:read-selected': 'selectedFileRead',
+    'search:read': 'searchRead',
   } as const satisfies Record<
     OwnerPreview['requested_permissions'][number],
     string

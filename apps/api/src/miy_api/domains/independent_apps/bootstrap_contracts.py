@@ -21,7 +21,7 @@ class BootstrapInput(Contract):
     definition: AppDefinition
     source_revision: Revision
     origin: str = Field(max_length=300)
-    granted_permissions: list[Permission] = Field(default_factory=list, max_length=4)
+    granted_permissions: list[Permission] = Field(default_factory=list, max_length=5)
 
     _origin = field_validator("origin")(exact_origin)
 

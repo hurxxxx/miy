@@ -12,7 +12,8 @@ NoNewPrivileges=yes
 CapabilityBoundingSet=
 PrivateNetwork=yes
 ProtectSystem=strict
-ProtectHome=yes
+# Hide home contents while permitting only the exact checkout bind under /home.
+ProtectHome=tmpfs
 PrivateTmp=yes
 BindReadOnlyPaths=@VENDOR_ROOT@ @SDK_ROOT@
 BindPaths=@SOURCE_ROOT@

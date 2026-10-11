@@ -101,6 +101,25 @@ class Settings(BaseSettings):
     origin: str = Field(validation_alias="MIY_CODEX_CONSOLE_ORIGIN")
     base_path: str = Field(default="", validation_alias="MIY_CODEX_CONSOLE_BASE_PATH")
     workspace: Path = Field(validation_alias="MIY_CODEX_CONSOLE_WORKSPACE")
+    managed_workspaces_enabled: bool = Field(
+        default=False, validation_alias="MIY_CODEX_CONSOLE_MANAGED_WORKSPACES_ENABLED"
+    )
+    managed_environment_command: list[str] = Field(
+        default_factory=list,
+        max_length=16,
+        validation_alias="MIY_CODEX_CONSOLE_MANAGED_ENVIRONMENT_COMMAND",
+    )
+
+    @field_validator("managed_environment_command")
+    @classmethod
+    def trusted_managed_environment_command(cls, value):
+        if value and (
+            not Path(value[0]).is_absolute()
+            or any(not arg or len(arg) > 4096 or "\0" in arg for arg in value)
+        ):
+            raise ValueError("Use a fixed absolute operator-owned environment helper command")
+        return value
+
     worktree_base_ref: str = Field(
         default="HEAD",
         min_length=1,
