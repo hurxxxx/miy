@@ -376,7 +376,7 @@ test('edits official documents, keeps drafts, detects conflicts, and asks Codex 
   expect(payload.text).toContain('Propose clearer scoped instructions.');
   await expect(page).toHaveURL(/task=[0-9a-f-]+/);
   await expect(requestDialog).not.toBeVisible();
-  await expect(page.getByLabel('현재 실행 상태')).toContainText('준비됨');
+  await expect(page.getByLabel('현재 실행 상태')).toContainText('결과 확인 가능');
   await nav.getByRole('button', { name: '지침·스킬', exact: true }).click();
   await page.getByRole('button', { name: 'Codex에 수정 요청' }).click();
   await requestDialog

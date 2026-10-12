@@ -178,6 +178,36 @@ class RevisionOut(BaseModel):
     created_at: str
 
 
+class ResultReference(BaseModel):
+    item_id: str
+    turn_id: str
+    excerpt: str
+    completed_at: str | None = None
+
+
+class PlanReference(BaseModel):
+    id: int
+    version: int
+    created_at: str
+
+
+class TaskSummary(BaseModel):
+    project_title: str | None = None
+    latest_plan: PlanReference | None = None
+    latest_result: ResultReference | None = None
+    pending_kinds: list[Literal["question", "approval", "other"]] = []
+
+
+class TaskResult(BaseModel):
+    item_id: str
+    turn_id: str
+    text: str
+    completed_at: str | None = None
+    commands: list[dict[str, Any]] = []
+    changed_files: list[str] = []
+    evidence_truncated: bool = False
+
+
 class TaskOut(BaseModel):
     id: str
     workspace_id: str | None = None
@@ -201,6 +231,7 @@ class TaskOut(BaseModel):
     pending_count: int = 0
     executor: Literal["session", "templates"] = "session"
     template_snapshot: dict[str, Any] | None = None
+    summary: TaskSummary | None = None
 
 
 class ModelOut(BaseModel):
@@ -227,6 +258,7 @@ class TaskDetail(TaskOut):
     event_id: int
     attachments: list["AttachmentOut"]
     attachment_limits: "AttachmentLimits"
+    results: list[TaskResult] = []
 
 
 class AttachmentOut(BaseModel):

@@ -1,4 +1,24 @@
+import { uxKorean } from './ux-copy';
+
 export const korean = {
+  ...uxKorean,
+  'App and project library': '앱과 프로젝트 목록',
+  'Browse Studio': 'Studio 탐색',
+  'Project list': '프로젝트 목록',
+  'Find a project': '프로젝트 찾기',
+  'No matching projects': '표시할 프로젝트가 없습니다',
+  'Clear search': '검색 지우기',
+  'Back to list': '목록으로 돌아가기',
+  'Selected project': '선택한 프로젝트',
+  'Select a project': '프로젝트를 선택하세요',
+  'Select an app': '앱을 선택하세요',
+  'Choose a project from the list to view its development environments and work.':
+    '목록에서 프로젝트를 선택하면 개발 작업 환경과 관련 작업을 확인할 수 있습니다.',
+  'Choose an app from the list to view its connections and related work.':
+    '목록에서 앱을 선택하면 연결 정보와 관련 작업을 확인할 수 있습니다.',
+  'Source and connections': '소스와 연결 정보',
+  'Installation and release': '설치와 릴리스',
+  'No related work yet.': '아직 관련 작업이 없습니다.',
   'The source has changed. Start a new action to use the current version.':
     '소스가 변경되었습니다. 새 작업으로 현재 버전을 반영하세요.',
   'Development environments': '개발 작업 환경',

@@ -22,7 +22,14 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import {
   active,
   api,
@@ -43,19 +50,12 @@ import {
   type Thread,
   type ThreadPage,
 } from './api';
-import {
-  errorCopy,
-  statusCopy,
-  translate,
-  type Copy,
-  type Locale,
-} from './i18n';
+import { errorCopy, translate, type Copy, type Locale } from './i18n';
 import {
   Command,
   Confirm,
   Documents,
   MessageItem,
-  RequestForm,
   type DocumentDraft,
 } from './views';
 import { AttachmentBadges, FileLibrary } from './attachments';
@@ -68,8 +68,11 @@ import {
 } from './workbench';
 import { Instructions } from './instructions';
 import { WorkspacePanel } from './workspaces';
+import { TaskResults } from './task-results';
+import { TaskDecisions } from './task-decisions';
+import { WorkspaceDivider } from './workspace-divider';
 import { AgentActivity } from './agent-activity';
-import { needsAttention, executing, running } from './agent-state';
+import { needsAttention, executing, running, taskStatus } from './agent-state';
 import { GitWorkspace, GitSummary, useGitState } from './git';
 import {
   ExecutionSettings,
@@ -79,12 +82,12 @@ import {
   type Execution,
 } from './execution';
 
-type Tab = 'plan' | 'branch' | 'checks' | 'files';
+type Tab = 'result' | 'plan' | 'branch' | 'checks';
 const tabs: { id: Tab; label: Copy }[] = [
+  { id: 'result', label: 'Results' },
   { id: 'plan', label: 'Plan' },
-  { id: 'branch', label: 'Branch' },
-  { id: 'checks', label: 'Execution results' },
-  { id: 'files', label: 'Files' },
+  { id: 'branch', label: 'Changes' },
+  { id: 'checks', label: 'Execution records' },
 ];
 
 type SessionTab = 'sessions' | 'codex' | null;
@@ -175,7 +178,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
-  const [tab, setTab] = useState<Tab>('plan');
+  const [tab, setTab] = useState<Tab>('result');
   const [mobileView, setMobileView] = useState<'conversation' | 'results'>(
     'conversation',
   );
@@ -198,6 +201,10 @@ export function App() {
   const [importThread, setImportThread] = useState<Thread | null>(null);
   const [confirmInactive, setConfirmInactive] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
+  const [newProjectRequest, setNewProjectRequest] = useState(0);
+  const [conversationWidth, setConversationWidth] = useState(40);
+  const [extraInstruction, setExtraInstruction] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [skillCatalog, setSkillCatalog] = useState<{
@@ -637,6 +644,8 @@ export function App() {
   }, [authenticated, selected, refreshModels]);
   useEffect(() => {
     initializedTask.current = null;
+    setTab('result');
+    setExtraInstruction(false);
     setTask(null);
     setMessage(selected ? (drafts.current.get(selected) ?? '') : '');
     setSkillCatalog(null);
@@ -705,6 +714,7 @@ export function App() {
   useEffect(() => {
     if (!task || initializedTask.current === task.id) return;
     initializedTask.current = task.id;
+
     setStage(
       task.stage === 'review' || task.stage === 'implement'
         ? 'implement'
@@ -1041,11 +1051,14 @@ export function App() {
         <Button
           variant="primary"
           size="comfortable"
-          onClick={() => setNewOpen(true)}
           fullWidth
+          onClick={() => {
+            navigate('studio');
+            setNewProjectRequest((value) => value + 1);
+          }}
         >
           <Plus size={16} />
-          {t('New task')}
+          {t('Build an app')}
         </Button>
         <nav
           className="console-navigation"
@@ -1055,25 +1068,11 @@ export function App() {
             [
               ['studio', 'MIY Studio', Code2],
               ['apps', 'App management center', Boxes],
-              ['platform', 'Platform management', Activity],
-              ['sessions', 'Sessions', MessagesSquare],
-              ['templates', 'Task templates', ListTodo],
-              ['instructions', 'Instructions and skills', BookOpen],
-              ['monitoring', 'Monitoring', Activity],
+              ['sessions', 'Work history', MessagesSquare],
             ] as const
           ).map(([id, label, Icon]) => (
             <button
               key={id}
-              className={
-                [
-                  'sessions',
-                  'templates',
-                  'instructions',
-                  'monitoring',
-                ].includes(id)
-                  ? 'nav-secondary'
-                  : undefined
-              }
               aria-current={
                 page === id || (id === 'sessions' && page === 'workspace')
                   ? 'page'
@@ -1090,6 +1089,35 @@ export function App() {
               )}
             </button>
           ))}
+          <details
+            className="navigation-tools"
+            open={
+              toolsOpen ||
+              ['platform', 'templates', 'instructions', 'monitoring'].includes(
+                page,
+              )
+            }
+            onToggle={(event) => setToolsOpen(event.currentTarget.open)}
+          >
+            <summary>{t('Tools')}</summary>
+            {(
+              [
+                ['platform', 'Platform management', Activity],
+                ['templates', 'Task templates', ListTodo],
+                ['instructions', 'Instructions and skills', BookOpen],
+                ['monitoring', 'Monitoring', Activity],
+              ] as const
+            ).map(([id, label, Icon]) => (
+              <button
+                key={id}
+                aria-current={page === id ? 'page' : undefined}
+                onClick={() => navigate(id)}
+              >
+                <Icon size={17} />
+                <span>{t(label)}</span>
+              </button>
+            ))}
+          </details>
         </nav>
         <div className="sidebar-summary">
           <small>
@@ -1147,6 +1175,9 @@ export function App() {
         <WorkbenchApps
           key={page}
           area={page}
+          newProjectRequest={page === 'studio' ? newProjectRequest : 0}
+          onNewProjectOpened={() => setNewProjectRequest(0)}
+          activityFailed={overviewFailed}
           newTask={() => setNewOpen(true)}
           t={t}
           tasks={tasks}
@@ -1273,22 +1304,55 @@ export function App() {
           </Button>
         </main>
       ) : (
-        <main className="workspace">
+        <main
+          className="workspace"
+          style={
+            { '--conversation-width': `${conversationWidth}%` } as CSSProperties
+          }
+        >
           <div className="task-header">
             <div>
               <Button
                 className="workspace-back"
                 variant="ghost"
-                onClick={() => navigate('sessions')}
+                onClick={() => {
+                  const projectId = task.context?.project_id;
+                  if (typeof projectId !== 'string') {
+                    navigate('sessions');
+                    return;
+                  }
+                  navigate('studio');
+                  window.history.replaceState(
+                    null,
+                    '',
+                    `?view=studio&project=${encodeURIComponent(projectId)}`,
+                  );
+                }}
               >
                 <ArrowLeft size={14} aria-hidden="true" />
-                {t('Back to sessions')}
+                {t(
+                  typeof task.context?.project_id === 'string'
+                    ? 'Back to project'
+                    : 'Back to sessions',
+                )}
               </Button>
+              <p className="workspace-context">
+                {task.summary?.project_title ||
+                  (typeof task.context?.app_id === 'string'
+                    ? task.context.app_id
+                    : t('General work'))}{' '}
+                ·{' '}
+                {t(
+                  task.context?.purpose === 'deployment'
+                    ? 'Deployment work'
+                    : 'Development work',
+                )}
+              </p>
               <h1 ref={workspaceHeading} tabIndex={-1}>
                 {task.title}
               </h1>
               <div className="task-meta">
-                <span>{t(statusCopy(task.status))}</span>
+                <span>{t(taskStatus(task))}</span>
                 <span>·</span>
                 <span title={task.root}>
                   {task.root.split('/').at(-1)}
@@ -1296,12 +1360,18 @@ export function App() {
                 </span>
                 <span className="connection">
                   <span className={`dot ${connected ? 'online' : ''}`} />
-                  {t(connected ? 'Connected' : 'Reconnecting')}
+                  {t(
+                    connected
+                      ? 'Live updates connected'
+                      : 'Live updates reconnecting',
+                  )}
                 </span>
               </div>
-              <div className="task-git-summary">
+              <details className="task-git-summary">
+                <summary>{t('Technical details')}</summary>
                 <GitSummary state={git.state} t={t} />
-              </div>
+                <code>{task.root}</code>
+              </details>
             </div>
             {(task.error_code || task.status === 'uncertain') && (
               <div className="runtime-notice" role="status">
@@ -1344,16 +1414,26 @@ export function App() {
           </div>
           <section className="conversation" aria-label={t('Conversation')}>
             <ExecutionStatus task={task} connected={connected} t={t} />
+            <TaskDecisions
+              key={task.id}
+              task={task}
+              t={t}
+              busy={busy}
+              onAnswer={(id, response) => mutate(`requests/${id}`, response)}
+            />
             {typeof task.context?.workspace_id === 'string' && (
-              <WorkspacePanel
-                key={task.context.workspace_id}
-                id={task.context.workspace_id}
-                t={t}
-                tasks={tasks}
-                openTask={choose}
-                startTask={startWorkbenchTask}
-                compact
-              />
+              <details className="workspace-tools">
+                <summary>{t('Development environment management')}</summary>
+                <WorkspacePanel
+                  key={task.context.workspace_id}
+                  id={task.context.workspace_id}
+                  t={t}
+                  tasks={tasks}
+                  openTask={choose}
+                  startTask={startWorkbenchTask}
+                  compact
+                />
+              </details>
             )}
             <details className="task-agents">
               <summary>
@@ -1396,27 +1476,19 @@ export function App() {
                   taskId={task.id}
                 />
               ))}
-              {task.requests.map((request) => (
-                <div key={request.id}>
-                  <p className="muted">
-                    {t('Source agent')}:{' '}
-                    {task.agents.find(
-                      (a) => a.thread_id === request.payload.threadId,
-                    )?.name ?? 'Codex'}
-                  </p>
-                  <RequestForm
-                    key={request.id}
-                    request={request}
-                    t={t}
-                    disabled={busy}
-                    onAnswer={(id, response) =>
-                      void mutate(`requests/${id}`, response)
-                    }
-                  />
-                </div>
-              ))}
             </div>
+            {task.requests.length > 0 && (
+              <Button
+                className="extra-instruction-toggle"
+                variant="ghost"
+                aria-expanded={extraInstruction}
+                onClick={() => setExtraInstruction((value) => !value)}
+              >
+                {t('Additional instruction')}
+              </Button>
+            )}
             <form
+              hidden={task.requests.length > 0 && !extraInstruction}
               className="composer"
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
@@ -1649,6 +1721,11 @@ export function App() {
               </p>
             </form>
           </section>
+          <WorkspaceDivider
+            value={conversationWidth}
+            onChange={setConversationWidth}
+            t={t}
+          />
           <aside className="results" aria-label={t('Results')}>
             <nav className="result-tabs" aria-label={t('Results')}>
               {tabs.map((entry) => (
@@ -1661,6 +1738,16 @@ export function App() {
                 </button>
               ))}
             </nav>
+            {tab === 'result' && (
+              <TaskResults
+                key={task.id}
+                task={task}
+                t={t}
+                openPlan={() => setTab('plan')}
+                openChanges={() => setTab('branch')}
+                openChecks={() => setTab('checks')}
+              />
+            )}
             {tab === 'plan' && (
               <Documents
                 key={`${task.id}-${tab}`}
@@ -1683,22 +1770,6 @@ export function App() {
                 busy={busy}
                 onSave={(body) => mutate('documents', body, 'PUT')}
                 onImplement={approveImplementation}
-              />
-            )}
-            {tab === 'files' && uploadStatus}
-            {tab === 'files' && (
-              <FileLibrary
-                task={task}
-                selectedIds={attachmentIds}
-                t={t}
-                busy={busy}
-                onToggle={toggleAttachment}
-                onUpload={(files, select) => void uploadFiles(files, select)}
-                onDelete={(id) =>
-                  setFileToDelete(
-                    task.attachments.find((file) => file.id === id) ?? null,
-                  )
-                }
               />
             )}
             {tab === 'branch' && (
@@ -1763,7 +1834,6 @@ export function App() {
             onChange={(event) => setTitle(event.target.value)}
             required
             maxLength={200}
-            autoFocus
           />
           <label>
             <input
@@ -1820,7 +1890,7 @@ export function App() {
               setMessage((current) =>
                 current === approvalText ? '' : current,
               );
-              setTab('branch');
+              setTab('result');
             }
           });
         }}
@@ -1859,7 +1929,7 @@ export function App() {
       <Dialog
         open={attachmentPicker && !!task}
         onOpenChange={setAttachmentPicker}
-        title={t('Attach files')}
+        title={t('Input materials')}
         description={t('Only selected files are attached to this message.')}
         closeLabel={t('Close')}
       >
@@ -1951,7 +2021,11 @@ export function App() {
       <Dialog
         open={usageOpen}
         onOpenChange={setUsageOpen}
-        title={t('Usage')}
+        title={t(
+          account?.auth_type === 'chatgpt'
+            ? 'Usage'
+            : 'Subscription connection',
+        )}
         closeLabel={t('Close')}
       >
         <div className="stack">

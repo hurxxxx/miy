@@ -9,7 +9,7 @@ test('preserves each conversation reading position and follows new items only fr
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await expect(
-    page.getByRole('heading', { name: '세션', exact: true }),
+    page.getByRole('heading', { name: '작업 기록', exact: true }),
   ).toBeVisible();
   const cookies = await page.context().cookies();
   const csrf = cookies.find(
@@ -106,7 +106,7 @@ test('preserves each conversation reading position and follows new items only fr
   await scroll(640);
   await page.goBack();
   await expect(
-    page.getByRole('heading', { name: '세션', exact: true }),
+    page.getByRole('heading', { name: '작업 기록', exact: true }),
   ).toBeVisible();
   await page.goBack();
   await expect(

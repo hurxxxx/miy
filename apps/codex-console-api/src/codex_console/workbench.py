@@ -8,7 +8,7 @@ from fastapi import Request
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from . import app_sources, git, store
+from . import app_sources, git, store, task_activity
 from . import workbench_sources as sources
 from .build_identity import RELEASE_IDENTITY
 from .errors import ConsoleError
@@ -373,19 +373,24 @@ def install(app, secured):
         def read():
             status = git.status(cfg.workspace)
             with factory() as db:
+                apps = catalog(cfg, db)
+                projects = [
+                    ProjectOut(**{k: getattr(r, k) for k in ProjectOut.model_fields})
+                    for r in db.scalars(
+                        select(WorkbenchProject).order_by(WorkbenchProject.created_at.desc())
+                    )
+                ]
                 return CatalogOut(
                     workspaces_available=cfg.managed_workspaces_enabled,
                     registration_authorization_available=bool(
                         cfg.registration_authorization_enabled
                         and cfg.miy_api_origin in cfg.sso_subjects
                     ),
-                    items=catalog(cfg, db),
-                    projects=[
-                        ProjectOut(**{k: getattr(r, k) for k in ProjectOut.model_fields})
-                        for r in db.scalars(
-                            select(WorkbenchProject).order_by(WorkbenchProject.created_at.desc())
-                        )
-                    ],
+                    items=apps,
+                    projects=projects,
+                    activity=task_activity.catalog_activity(
+                        db, [p.id for p in projects], [a.app_id for a in apps]
+                    ),
                     source_revision=status["head"],
                     source_dirty=bool(status["changed"]),
                     checked_at=now(),

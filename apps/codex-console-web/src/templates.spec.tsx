@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { api } from './api';
 import type { components } from './api.generated';
@@ -33,6 +33,45 @@ const archived: Template = {
     effort: null,
   },
 };
+
+it('shows execution scope even without required inputs and only runs after confirmation', async () => {
+  const row: Template = {
+    ...archived,
+    archived: false,
+    definition: {
+      ...archived.definition,
+      name: 'Review project',
+      stage: 'implement',
+      permissions: 'yolo',
+    },
+  };
+  vi.mocked(api)
+    .mockReset()
+    .mockImplementation(async (path) =>
+      path.endsWith('/run') ? { id: 'new-run' } : [row],
+    );
+  const openTask = vi.fn();
+  render(
+    <Templates
+      t={translate('en-US')}
+      openTask={openTask}
+      openHistory={vi.fn()}
+      onError={vi.fn()}
+    />,
+  );
+  fireEvent.click(await screen.findByRole('button', { name: 'Run template' }));
+  const dialog = screen.getByRole('dialog');
+  expect(within(dialog).getByText('Run summary')).toBeTruthy();
+  expect(within(dialog).getByText('YOLO · Full access')).toBeTruthy();
+  expect(
+    vi.mocked(api).mock.calls.some(([path]) => path.endsWith('/run')),
+  ).toBe(false);
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Run template' }));
+  await vi.waitFor(() => expect(openTask).toHaveBeenCalledWith('new-run'));
+  expect(
+    vi.mocked(api).mock.calls.filter(([path]) => path.endsWith('/run')),
+  ).toHaveLength(1);
+});
 
 it.each([false, true])(
   'keeps the current archived filter when an older list settles (reject=%s)',

@@ -69,6 +69,7 @@ beforeEach(() => {
       files: 200,
       selection: 20,
     },
+    results: [],
     items: [],
     history_truncated: false,
     requests: [],
@@ -208,13 +209,11 @@ async function openComposerSelection() {
   fireEvent.change(await screen.findByLabelText('작업 절차 사용'), {
     target: { value: 'review-change' },
   });
-  fireEvent.click(
-    within(screen.getByRole('navigation', { name: '결과물' })).getByRole(
-      'button',
-      { name: '파일' },
-    ),
-  );
+  fireEvent.click(screen.getByRole('button', { name: '파일 첨부' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Reference A.txt/ }));
+  fireEvent.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: '닫기' }),
+  );
   return { other, availableSkills };
 }
 
@@ -314,7 +313,7 @@ it('clears saved composer selections and text when the owner signs out', async (
     target: { value: 'test-password-only' },
   });
   fireEvent.click(screen.getByRole('button', { name: '로그인' }));
-  fireEvent.click(await screen.findByRole('button', { name: '세션' }));
+  fireEvent.click(await screen.findByRole('button', { name: '작업 기록' }));
   fireEvent.click(
     within(await screen.findByRole('list', { name: '세션' })).getByRole(
       'button',
@@ -682,21 +681,27 @@ it('preserves the plan draft across result tabs and tasks and warns before leavi
     return original(path, ...args);
   });
   await openAndCompose();
+  fireEvent.click(
+    within(screen.getByRole('navigation', { name: '결과물' })).getByRole(
+      'button',
+      { name: '계획' },
+    ),
+  );
   fireEvent.click(screen.getByRole('button', { name: '문서 편집' }));
   fireEvent.change(screen.getByRole('textbox', { name: '문서 편집' }), {
     target: { value: 'Plan draft' },
   });
   const results = within(screen.getByRole('navigation', { name: '결과물' }));
-  fireEvent.click(results.getByRole('button', { name: '파일' }));
+  fireEvent.click(results.getByRole('button', { name: '결과물' }));
   fireEvent.click(results.getByRole('button', { name: '계획' }));
   expect(screen.getByText('Plan draft')).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: '세션' }));
+  fireEvent.click(screen.getByRole('button', { name: '작업 기록' }));
   fireEvent.click(await screen.findByRole('button', { name: /Another task/ }));
   await screen.findByRole('heading', { name: 'Another task' });
   expect(screen.queryByText('Plan draft')).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: '세션' }));
+  fireEvent.click(screen.getByRole('button', { name: '작업 기록' }));
   fireEvent.click(screen.getByRole('button', { name: /Test task/ }));
-  await screen.findByText('Plan draft');
+  await screen.findByRole('heading', { name: 'Test task' });
   fireEvent.click(
     within(screen.getByRole('navigation', { name: '결과물' })).getByRole(
       'button',
@@ -718,7 +723,7 @@ it('searches all tasks on the server without clearing the open draft or acceptin
         })
       : [{ ...detail, id: 'other', title: 'New search result' }];
   await openAndCompose();
-  fireEvent.click(screen.getByRole('button', { name: '세션' }));
+  fireEvent.click(screen.getByRole('button', { name: '작업 기록' }));
   fireEvent.change(screen.getByLabelText('세션 검색'), {
     target: { value: 'old' },
   });
@@ -731,7 +736,7 @@ it('searches all tasks on the server without clearing the open draft or acceptin
     resolveOld([{ ...detail, id: 'old', title: 'Old result' }]),
   );
   expect(screen.queryByRole('button', { name: /Old result/ })).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: '세션' }));
+  fireEvent.click(screen.getByRole('button', { name: '작업 기록' }));
   fireEvent.change(screen.getByLabelText('세션 검색'), {
     target: { value: '' },
   });
@@ -1212,7 +1217,7 @@ it('shows native progress and keeps execution settings fixed while steering', as
   );
   await openAndCompose();
   expect(screen.getByText('Inspect source')).toBeTruthy();
-  expect(screen.getByText('Check gameplay')).toBeTruthy();
+  expect(screen.getAllByText('Check gameplay').length).toBeGreaterThan(0);
   const progress = screen
     .getByText('Inspect source')
     .closest('details') as HTMLDetailsElement | null;
@@ -1279,8 +1284,8 @@ it('shows the actual branch and changes in a read-only branch tab without merge 
   await openAndCompose();
   await screen.findByText('브랜치 없음 (detached HEAD)');
   expect(screen.queryByRole('button', { name: '병합 요청' })).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: '브랜치' }));
-  await screen.findByText('/repo/dev');
+  fireEvent.click(screen.getByRole('button', { name: '변경사항' }));
+  await screen.findAllByText('/repo/dev');
   expect(screen.queryByLabelText('대상 브랜치')).toBeNull();
   expect(
     (screen.getByLabelText('요청 내용 입력') as HTMLTextAreaElement).value,
@@ -1421,7 +1426,9 @@ it.each([
   async (route) => {
     window.history.replaceState(null, '', route || '/');
     render(<App />);
-    await screen.findByRole('heading', { name: route ? '세션' : 'MIY Studio' });
+    await screen.findByRole('heading', {
+      name: route ? '작업 기록' : 'MIY Studio',
+    });
     expect(
       within(screen.getByRole('navigation', { name: 'Workbench 메뉴' }))
         .getAllByRole('button')
@@ -1429,8 +1436,8 @@ it.each([
     ).toEqual([
       'MIY Studio',
       '앱 관리 센터',
+      '작업 기록',
       '플랫폼 관리',
-      '세션',
       '작업 템플릿',
       '지침·스킬',
       '모니터링',
@@ -1456,7 +1463,7 @@ it('keeps legacy native-session links under workspace and retains explicit impor
   await screen.findByRole('heading', { name: 'Codex 세션 불러오기' });
   expect(
     within(screen.getByRole('navigation', { name: 'Workbench 메뉴' }))
-      .getByRole('button', { name: '세션' })
+      .getByRole('button', { name: '작업 기록' })
       .getAttribute('aria-current'),
   ).toBe('page');
   fireEvent.click(
@@ -1514,7 +1521,7 @@ it.each(['sessions', 'agents', 'history'])(
         { name: '전체 세션' },
       ),
     );
-    await screen.findByRole('heading', { name: '세션' });
+    await screen.findByRole('heading', { name: '작업 기록' });
     expect(window.location.search).toBe('?view=sessions');
     expect(screen.getByRole('button', { name: 'Test task' })).toBeTruthy();
     expect(

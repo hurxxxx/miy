@@ -8,7 +8,8 @@ import {
 } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { active, record, string, type Detail, type Model } from './api';
-import { errorCopy, statusCopy, type Translate } from './i18n';
+import { errorCopy, type Translate } from './i18n';
+import { currentStep, executing, taskStatus } from './agent-state';
 
 export type Execution = {
   model: string | null;
@@ -267,7 +268,7 @@ export function ExecutionStatus({
       <div className="execution-status-heading" role="status">
         <strong>
           <span className={`dot ${active(task) ? 'online pulse' : ''}`} />{' '}
-          {t(statusCopy(task.status))}
+          {t(taskStatus(task))}
         </strong>
         <span>
           {t(
@@ -276,22 +277,35 @@ export function ExecutionStatus({
               : 'Plan',
           )}
         </span>
-        {task.model && (
-          <span>
-            {task.model}
-            {task.effort ? ` · ${task.effort}` : ''}
-          </span>
-        )}
-        <span className={task.permissions === 'yolo' ? 'danger' : ''}>
-          {t(
-            task.permissions === 'yolo'
-              ? 'YOLO · Full access'
-              : task.permissions === 'ask'
-                ? 'Ask when needed'
-                : 'Read-only',
+        <details className="execution-technical">
+          <summary>{t('Execution settings')}</summary>
+          {task.model && (
+            <span>
+              {task.model}
+              {task.effort ? ` · ${task.effort}` : ''}
+            </span>
           )}
-        </span>
+          <span className={task.permissions === 'yolo' ? 'danger' : ''}>
+            {t(
+              task.permissions === 'yolo'
+                ? 'YOLO · Full access'
+                : task.permissions === 'ask'
+                  ? 'Ask when needed'
+                  : 'Read-only',
+            )}
+          </span>
+        </details>
       </div>
+      <p className="execution-current-step">
+        {executing(task) &&
+          currentStep(task, t) !== t('No current step reported') && (
+            <strong>{currentStep(task, t)}</strong>
+          )}
+        <span>
+          {t('Last work update')}:{' '}
+          {new Date(task.updated_at).toLocaleTimeString(t.locale)}
+        </span>
+      </p>
       <p className="muted">
         {t(
           connected
@@ -305,7 +319,8 @@ export function ExecutionStatus({
             <summary>
               <ListTodo size={14} />
               <span>
-                {t('Execution steps')} · {complete}/{steps.length}
+                {t(executing(task) ? 'Execution steps' : 'Last reported steps')}{' '}
+                · {complete}/{steps.length}
               </span>
               {currentCommandText && (
                 <code className="current-command">{currentCommandText}</code>

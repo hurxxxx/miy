@@ -1133,6 +1133,16 @@ export interface components {
             /** Error Code */
             error_code?: string | null;
         };
+        /** ActivitySummary */
+        ActivitySummary: {
+            latest_task?: components["schemas"]["TaskOut"] | null;
+            latest_result_task?: components["schemas"]["TaskOut"] | null;
+            /**
+             * Open Issues
+             * @default 0
+             */
+            open_issues: number;
+        };
         /** AgentOut */
         AgentOut: {
             /** Thread Id */
@@ -1293,6 +1303,23 @@ export interface components {
              */
             version: number;
         };
+        /** CatalogActivity */
+        CatalogActivity: {
+            /**
+             * Projects
+             * @default {}
+             */
+            projects: {
+                [key: string]: components["schemas"]["ActivitySummary"];
+            };
+            /**
+             * Apps
+             * @default {}
+             */
+            apps: {
+                [key: string]: components["schemas"]["ActivitySummary"];
+            };
+        };
         /** CatalogOut */
         CatalogOut: {
             /**
@@ -1318,6 +1345,7 @@ export interface components {
              * Format: date-time
              */
             checked_at: string;
+            activity?: components["schemas"]["CatalogActivity"] | null;
         };
         /** ChangeOut */
         ChangeOut: {
@@ -1901,6 +1929,15 @@ export interface components {
              */
             ok: boolean;
         };
+        /** PlanReference */
+        PlanReference: {
+            /** Id */
+            id: number;
+            /** Version */
+            version: number;
+            /** Created At */
+            created_at: string;
+        };
         /** PlatformOut */
         PlatformOut: {
             git: components["schemas"]["GitStatusOut"] | null;
@@ -2039,6 +2076,17 @@ export interface components {
             payload: {
                 [key: string]: unknown;
             };
+        };
+        /** ResultReference */
+        ResultReference: {
+            /** Item Id */
+            item_id: string;
+            /** Turn Id */
+            turn_id: string;
+            /** Excerpt */
+            excerpt: string;
+            /** Completed At */
+            completed_at?: string | null;
         };
         /** RevisionOut */
         RevisionOut: {
@@ -2488,6 +2536,7 @@ export interface components {
             template_snapshot?: {
                 [key: string]: unknown;
             } | null;
+            summary?: components["schemas"]["TaskSummary"] | null;
             /**
              * Implementation Permissions
              * @default [
@@ -2513,6 +2562,11 @@ export interface components {
             /** Attachments */
             attachments: components["schemas"]["AttachmentOut"][];
             attachment_limits: components["schemas"]["AttachmentLimits"];
+            /**
+             * Results
+             * @default []
+             */
+            results: components["schemas"]["TaskResult"][];
         };
         /** TaskOut */
         TaskOut: {
@@ -2583,11 +2637,52 @@ export interface components {
             template_snapshot?: {
                 [key: string]: unknown;
             } | null;
+            summary?: components["schemas"]["TaskSummary"] | null;
         };
         /** TaskPreferences */
         TaskPreferences: {
             /** Pinned */
             pinned: boolean;
+        };
+        /** TaskResult */
+        TaskResult: {
+            /** Item Id */
+            item_id: string;
+            /** Turn Id */
+            turn_id: string;
+            /** Text */
+            text: string;
+            /** Completed At */
+            completed_at?: string | null;
+            /**
+             * Commands
+             * @default []
+             */
+            commands: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Changed Files
+             * @default []
+             */
+            changed_files: string[];
+            /**
+             * Evidence Truncated
+             * @default false
+             */
+            evidence_truncated: boolean;
+        };
+        /** TaskSummary */
+        TaskSummary: {
+            /** Project Title */
+            project_title?: string | null;
+            latest_plan?: components["schemas"]["PlanReference"] | null;
+            latest_result?: components["schemas"]["ResultReference"] | null;
+            /**
+             * Pending Kinds
+             * @default []
+             */
+            pending_kinds: ("question" | "approval" | "other")[];
         };
         /** TemplateCatalog */
         TemplateCatalog: {
@@ -4549,6 +4644,8 @@ export interface operations {
             query?: {
                 search?: string;
                 template_id?: string | null;
+                project_id?: string | null;
+                app_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -4614,6 +4711,8 @@ export interface operations {
             query?: {
                 search?: string;
                 template_id?: string | null;
+                project_id?: string | null;
+                app_id?: string | null;
             };
             header?: never;
             path?: never;

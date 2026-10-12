@@ -1,6 +1,6 @@
 from sqlalchemy import delete, func, or_, select, update
 
-from . import planning, remote_environments
+from . import planning, remote_environments, task_activity
 from .errors import ConsoleError
 from .models import (
     Agent,
@@ -254,13 +254,16 @@ def implementation_authorized(db, task):
     )
 
 
-def task_out(task, db=None):
+def task_out(task, db=None, *, summary=None):
     return {
         "id": task.id,
         "workspace_id": task.workspace_id,
         "title": task.title,
         "executor": task.executor,
         "template_snapshot": task.template_snapshot,
+        "summary": summary
+        if summary is not None
+        else (task_activity.summaries(db, [task.id])[task.id] if db else None),
         "stage": task.stage,
         "status": task.status,
         "thread_id": task.thread_id,
@@ -388,6 +391,7 @@ def detail(factory, task_id, settings):
                 )
             ],
             "items": items,
+            "results": task_activity.results(db, task_id),
             "attachments": [
                 attachment_out(row)
                 for row in db.scalars(
@@ -404,9 +408,9 @@ def detail(factory, task_id, settings):
             "requests": [
                 {"id": r.id, "method": r.method, "payload": r.payload}
                 for r in db.scalars(
-                    select(PendingRequest).where(
-                        PendingRequest.task_id == task_id, PendingRequest.state == "pending"
-                    )
+                    select(PendingRequest)
+                    .where(PendingRequest.task_id == task_id, PendingRequest.state == "pending")
+                    .order_by(PendingRequest.created_at, PendingRequest.id)
                 )
             ],
             "event_id": db.scalar(select(func.max(Event.id)).where(Event.task_id == task_id)) or 0,
@@ -451,6 +455,8 @@ def upsert_item(db, task, turn_id, payload):
             safe[key] = bounded_item_text(task, safe, key, safe[key])
     row = db.scalar(select(Item).where(Item.task_id == task.id, Item.item_id == item_id))
     if row:
+        if row.payload.get("completed_at"):
+            safe["completed_at"] = row.payload["completed_at"]
         row.payload = safe
     else:
         db.add(Item(task_id=task.id, item_id=item_id, turn_id=turn_id, payload=safe))

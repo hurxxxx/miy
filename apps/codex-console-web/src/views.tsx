@@ -186,6 +186,11 @@ export function RequestForm({
           )}
         </h3>
         <p>{string(params.reason)}</p>
+        <p className="decision-help">
+          {t(
+            'Approval applies only to the displayed request. Declining refuses this action; cancelling interrupts the current turn.',
+          )}
+        </p>
         {params.command != null && <pre>{string(params.command)}</pre>}
         {params.grantRoot != null && <code>{string(params.grantRoot)}</code>}
         {params.networkApprovalContext != null && (
@@ -257,15 +262,18 @@ export function RequestForm({
                 </span>
               </label>
             ))}
-            <Input
-              aria-label={`${string(q.header) || t('Answer')} · ${t('Additional answer')}`}
-              value={answers[id] ?? ''}
-              type={q.isSecret ? 'password' : 'text'}
-              maxLength={8000}
-              onChange={(event) =>
-                setAnswers({ ...answers, [id]: event.target.value })
-              }
-            />
+            <label className="answer-custom">
+              <span>{t('Your own answer')}</span>
+              <Input
+                aria-label={`${string(q.header) || t('Answer')} · ${t('Additional answer')}`}
+                value={answers[id] ?? ''}
+                type={q.isSecret ? 'password' : 'text'}
+                maxLength={8000}
+                onChange={(event) =>
+                  setAnswers({ ...answers, [id]: event.target.value })
+                }
+              />
+            </label>
           </fieldset>
         );
       })}

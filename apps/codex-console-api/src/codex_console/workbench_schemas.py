@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .app_sources import APP_ID_PATTERN
-from .schemas import GitStatusOut, Input
+from .schemas import GitStatusOut, Input, TaskOut
 
 AppIdPattern = APP_ID_PATTERN
 
@@ -162,6 +162,17 @@ class ProjectOut(ProjectFields):
     created_at: datetime
 
 
+class ActivitySummary(BaseModel):
+    latest_task: TaskOut | None = None
+    latest_result_task: TaskOut | None = None
+    open_issues: int = 0
+
+
+class CatalogActivity(BaseModel):
+    projects: dict[str, ActivitySummary] = {}
+    apps: dict[str, ActivitySummary] = {}
+
+
 class CatalogOut(BaseModel):
     workspaces_available: bool = False
     registration_authorization_available: bool = False
@@ -170,6 +181,7 @@ class CatalogOut(BaseModel):
     source_revision: str | None
     source_dirty: bool
     checked_at: datetime
+    activity: CatalogActivity | None = None
 
 
 class RuntimeApp(BaseModel):

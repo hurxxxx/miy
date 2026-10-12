@@ -197,16 +197,8 @@ export function Templates({
     const input = Object.fromEntries(
       (row.definition.variables ?? []).map((v) => [v.name, v.default ?? '']),
     );
-    if (
-      (row.definition.variables ?? []).some(
-        (v) => v.required !== false && !input[v.name]?.trim(),
-      )
-    ) {
-      setValues(input);
-      setRunning(row);
-    } else {
-      void start(row, input);
-    }
+    setValues(input);
+    setRunning(row);
   };
   const archive = async (row: Template) => {
     setBusy(true);
@@ -417,6 +409,52 @@ export function Templates({
           }}
         >
           <p>{running?.definition.description}</p>
+          {running && (
+            <section className="run-summary" aria-label={t('Run summary')}>
+              <h3>{t('Run summary')}</h3>
+              <p>
+                {t('Review the target and execution mode before starting.')}
+              </p>
+              <dl>
+                <div>
+                  <dt>{t('Workspace')}</dt>
+                  <dd>
+                    {running.definition.app_id ??
+                      running.definition.directory ??
+                      '.'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{t('Execution mode')}</dt>
+                  <dd>
+                    {t(
+                      running.definition.stage === 'plan'
+                        ? 'Plan'
+                        : 'Implement',
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{t('Permissions')}</dt>
+                  <dd>
+                    {t(
+                      running.definition.stage === 'plan'
+                        ? 'Read-only'
+                        : running.definition.permissions === 'yolo'
+                          ? 'YOLO · Full access'
+                          : 'Ask when needed',
+                    )}
+                  </dd>
+                </div>
+                {running.definition.installation_id && (
+                  <div>
+                    <dt>{t('App installations')}</dt>
+                    <dd>{running.definition.installation_id}</dd>
+                  </div>
+                )}
+              </dl>
+            </section>
+          )}
           {running?.definition.variables?.map((v) => (
             <label key={v.name}>
               {v.label}

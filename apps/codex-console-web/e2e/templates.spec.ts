@@ -60,7 +60,9 @@ test('edits a template, runs independent sessions, and retains history after edi
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   await expect(page).toHaveURL(/task=[0-9a-f-]+/);
   const first = new URL(page.url()).searchParams.get('task');
-  await expect(page.getByLabel('현재 실행 상태')).toContainText('준비됨');
+  await expect(page.getByLabel('현재 실행 상태')).toContainText(
+    '결과 확인 가능',
+  );
   await page
     .getByRole('navigation', { name: 'Workbench 메뉴' })
     .getByRole('button', { name: '작업 템플릿' })
@@ -83,6 +85,11 @@ test('edits a template, runs independent sessions, and retains history after edi
       new URL(r.url()).pathname.endsWith('/run'),
   );
   await updatedRow.getByRole('button', { name: '실행', exact: true }).click();
+  await expect(
+    editor.getByRole('heading', { name: '실행 전 확인' }),
+  ).toBeVisible();
+  await expect(editor.getByLabel('질문할 내용')).toHaveValue('the project');
+  await editor.getByRole('button', { name: '실행', exact: true }).click();
   expect((await secondLaunch).status()).toBe(200);
   await expect(
     page.getByRole('heading', { name: renamed, exact: true }),
@@ -91,7 +98,15 @@ test('edits a template, runs independent sessions, and retains history after edi
     .poll(() => new URL(page.url()).searchParams.get('task'))
     .not.toBe(first);
   await expect(page).toHaveURL(/task=[0-9a-f-]+/);
-  await expect(page.getByLabel('현재 실행 상태')).toContainText('준비됨');
+  await expect(page.getByLabel('현재 실행 상태')).toContainText(
+    '결과 확인 가능',
+  );
+  if (
+    !(await page
+      .locator('.navigation-tools')
+      .evaluate((e) => e.hasAttribute('open')))
+  )
+    await page.locator('.navigation-tools > summary').click();
   await page
     .getByRole('navigation', { name: 'Workbench 메뉴' })
     .getByRole('button', { name: '작업 템플릿', exact: true })
@@ -123,6 +138,12 @@ test('edits a template, runs independent sessions, and retains history after edi
   await expect(runs).toHaveCount(2);
   await page.getByLabel('세션 검색', { exact: true }).fill(renamed);
   await expect(runs).toHaveCount(1);
+  if (
+    !(await page
+      .locator('.navigation-tools')
+      .evaluate((e) => e.hasAttribute('open')))
+  )
+    await page.locator('.navigation-tools > summary').click();
   await page
     .getByRole('navigation', { name: 'Workbench 메뉴' })
     .getByRole('button', { name: '작업 템플릿', exact: true })
@@ -142,6 +163,12 @@ test('edits a template, runs independent sessions, and retains history after edi
     page.getByRole('heading', { name: '아직 실행 이력이 없습니다' }),
   ).toBeVisible();
   await expect(runs).toHaveCount(0);
+  if (
+    !(await page
+      .locator('.navigation-tools')
+      .evaluate((e) => e.hasAttribute('open')))
+  )
+    await page.locator('.navigation-tools > summary').click();
   await page
     .getByRole('navigation', { name: 'Workbench 메뉴' })
     .getByRole('button', { name: '작업 템플릿', exact: true })
@@ -168,7 +195,7 @@ test('edits a template, runs independent sessions, and retains history after edi
   await page.getByRole('button', { name: '전체 세션', exact: true }).click();
   await expect(page).toHaveURL(/\?view=sessions$/);
   await expect(
-    page.getByRole('heading', { name: '세션', exact: true }),
+    page.getByRole('heading', { name: '작업 기록', exact: true }),
   ).toBeVisible();
 });
 
