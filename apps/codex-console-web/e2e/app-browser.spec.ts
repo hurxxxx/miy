@@ -91,7 +91,11 @@ function workspace(project: (typeof projects)[number]) {
     updated_at: checkedAt,
   };
 }
-async function browse(page: Page, route: string) {
+async function browse(
+  page: Page,
+  route: string,
+  environments = projects.map(workspace),
+) {
   const mutations: string[] = [];
   page.on('request', (request) => {
     if (request.url().includes('/api/workbench/') && request.method() !== 'GET')
@@ -126,11 +130,12 @@ async function browse(page: Page, route: string) {
       };
     else if (path.endsWith('/workspaces')) {
       const project = projects.find((item) => path.includes(item.id))!;
-      body = { available: true, items: [workspace(project)] };
+      body = {
+        available: true,
+        items: environments.filter((item) => item.project_id === project.id),
+      };
     } else if (path.startsWith('/workbench/workspaces/')) {
-      body = workspace(
-        projects.find((item) => path.endsWith(workspace(item).id))!,
-      );
+      body = environments.find((item) => path.endsWith(item.id));
     } else if (path.endsWith('/usage'))
       body = {
         month: '2026-10',
@@ -234,6 +239,41 @@ test('Studio uses one sidebar and a full-width project gallery before opening a 
     detail.getByRole('heading', { name: projects[1].title }),
   ).toBeVisible();
   expect(errors).toEqual([]);
+  expect(mutations).toEqual([]);
+});
+
+test('legacy environment links restore their project and selected environment', async ({
+  page,
+}) => {
+  const second = {
+    ...workspace(projects[0]),
+    id: '44444444-4444-4444-8444-444444444444',
+    title: '선택한 두 번째 개발 환경',
+  };
+  const mutations = await browse(page, `studio&environment=${second.id}`, [
+    ...projects.map(workspace),
+    second,
+  ]);
+  const detail = page.getByRole('region', { name: '선택한 프로젝트' });
+  await expect(
+    detail.getByRole('heading', { name: projects[0].title }),
+  ).toBeVisible();
+  await expect(page.getByLabel('개발 작업 환경 선택')).toHaveValue(second.id);
+  await expect(
+    page
+      .getByRole('region', { name: '작업 환경 상세', exact: true })
+      .getByText(second.title, { exact: true }),
+  ).toBeVisible();
+  const params = new URL(page.url()).searchParams;
+  expect(params.get('project')).toBe(projects[0].id);
+  expect(params.get('environment')).toBe(second.id);
+  await page.reload();
+  await expect(page.getByLabel('개발 작업 환경 선택')).toHaveValue(second.id);
+  await expect(
+    page
+      .getByRole('region', { name: '작업 환경 상세', exact: true })
+      .getByText(second.title, { exact: true }),
+  ).toBeVisible();
   expect(mutations).toEqual([]);
 });
 

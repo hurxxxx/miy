@@ -455,19 +455,24 @@ def upsert_item(db, task, turn_id, payload):
             safe[key] = bounded_item_text(task, safe, key, safe[key])
     row = db.scalar(select(Item).where(Item.task_id == task.id, Item.item_id == item_id))
     if row:
-        if row.payload.get("completed_at"):
+        if row.turn_id == turn_id and row.payload.get("completed_at"):
             safe["completed_at"] = row.payload["completed_at"]
+        row.turn_id = turn_id
         row.payload = safe
     else:
         db.add(Item(task_id=task.id, item_id=item_id, turn_id=turn_id, payload=safe))
+    return item_id
 
 
 def reconcile_history(db, task, turns):
     # The official thread is canonical. The projection is replaceable, never fed back as history.
-    db.execute(delete(Item).where(Item.task_id == task.id))
+    existing = list(db.execute(select(Item.id, Item.item_id).where(Item.task_id == task.id)))
+    retained = set()
     for turn in turns[-100:]:
         for item in turn.get("items", []):
-            upsert_item(db, task, turn["id"], item)
+            item_id = upsert_item(db, task, turn["id"], item)
+            if item_id is not None:
+                retained.add(item_id)
             if item.get("type") == "userMessage" and item.get("clientId"):
                 db.execute(
                     update(Operation)
@@ -477,6 +482,12 @@ def reconcile_history(db, task, turns):
                     )
                     .values(state="accepted")
                 )
+    # Retained native identities keep their insertion order and completion
+    # metadata. Delete only absent records, after inserting new ones, so row ID
+    # reuse cannot make a recovered historical answer appear newer.
+    removed = [row_id for row_id, item_id in existing if item_id not in retained]
+    for start in range(0, len(removed), 200):
+        db.execute(delete(Item).where(Item.id.in_(removed[start : start + 200])))
 
 
 def recover_startup(factory, executor="session"):

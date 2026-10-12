@@ -194,7 +194,47 @@ export function WorkbenchApps({
       ? new URLSearchParams(window.location.search).get('project')
       : null,
   );
+  const environmentId = new URLSearchParams(window.location.search).get(
+    'environment',
+  );
+  const [environmentError, setEnvironmentError] = useState<string | null>(null);
   const initializedBrowser = useRef(false);
+  useEffect(() => {
+    if (area !== 'studio' || selectedProject || !environmentId) return;
+    const controller = new AbortController();
+    setEnvironmentError(null);
+    void api<S['WorkspaceOut']>(
+      `/workbench/workspaces/${encodeURIComponent(environmentId)}`,
+      undefined,
+      'GET',
+      controller.signal,
+    )
+      .then((workspace) => {
+        if (controller.signal.aborted) return;
+        if (workspace.id !== environmentId || !workspace.project_id)
+          throw new ApiError('workspace_changed');
+        const params = new URLSearchParams(window.location.search);
+        if (
+          params.get('environment') !== environmentId ||
+          params.has('project')
+        )
+          return;
+        params.set('project', workspace.project_id);
+        params.delete('app');
+        window.history.replaceState(null, '', `?${params}`);
+        initializedBrowser.current = true;
+        setBrowser('projects');
+        setSelected(null);
+        setSelectedProject(workspace.project_id);
+      })
+      .catch((reason) => {
+        if (!controller.signal.aborted)
+          setEnvironmentError(
+            reason instanceof ApiError ? reason.code : 'request_failed',
+          );
+      });
+    return () => controller.abort();
+  }, [area, selectedProject, environmentId]);
   const libraryRef = useRef<HTMLElement>(null);
   const itemElements = useRef(new Map<string, HTMLButtonElement>());
   const lastItem = useRef<string | null>(null);
@@ -431,6 +471,7 @@ export function WorkbenchApps({
     >
       <div className="wb-status-strip" aria-live="polite">
         {error && <ReadError code={error} t={t} />}
+        {environmentError && <ReadError code={environmentError} t={t} />}
         {area === 'apps' && runtime.error && (
           <ReadError code={runtime.error} t={t} />
         )}

@@ -817,6 +817,63 @@ def test_activity_projects_and_results_are_not_lost_outside_recent_200(client, a
     assert activity["latest_result_task"]["id"] == other["id"]
 
 
+def test_recovering_old_result_preserves_completion_and_latest_project_result(client, app_catalog):
+    from codex_console.models import Item, Task
+
+    project = client.post(
+        "/api/workbench/projects",
+        json={
+            "app_id": "planner",
+            "title": "Planner extension",
+            "summary": "Improve planning",
+            "reuse_decision": "extend",
+            "reuse_notes": "Use the existing planner",
+        },
+    ).json()
+    tasks = []
+    for title in ("Old result", "New result"):
+        task = send_message(client, new_task(client, title)).json()
+        item = {"id": "answer", "type": "agentMessage", "phase": "final_answer", "text": title}
+        notify(client, task, "item/completed", {"item": item})
+        notify(
+            client, task, "turn/completed", {"turn": {"id": task["turn_id"], "status": "completed"}}
+        )
+        with client.app.state.factory.begin() as db:
+            db.get(Task, task["id"]).context = {"project_id": project["id"], "app_id": "planner"}
+        tasks.append((task, item))
+    old, answer = tasks[0]
+    newer = tasks[1][0]
+    before = client.get(f"/api/tasks/{old['id']}").json()["results"][0]
+    assert before["completed_at"]
+    with client.app.state.factory.begin() as db:
+        original_id = db.scalar(
+            select(Item.id).where(Item.task_id == old["id"], Item.item_id == "answer")
+        )
+        db.add(
+            Item(
+                task_id=old["id"], item_id="stale", turn_id=old["turn_id"], payload={"type": "plan"}
+            )
+        )
+    client.app.state.runtime.rpc.threads[old["thread_id"]]["turns"] = [
+        {
+            "id": old["turn_id"],
+            "status": "completed",
+            "items": [{"id": "native-user", "type": "userMessage", "content": []}, answer],
+        }
+    ]
+    for _ in range(2):
+        response = client.post(f"/api/tasks/{old['id']}/recover", json={})
+        assert response.status_code == 200
+        assert response.json()["results"][0] == before
+        with client.app.state.factory() as db:
+            rows = list(db.scalars(select(Item).where(Item.task_id == old["id"])))
+            assert {row.item_id for row in rows} == {"answer", "native-user"}
+            assert next(row.id for row in rows if row.item_id == "answer") == original_id
+        activity = client.get("/api/workbench/catalog").json()["activity"]
+        assert activity["projects"][project["id"]]["latest_result_task"]["id"] == newer["id"]
+        assert activity["apps"]["planner"]["latest_result_task"]["id"] == newer["id"]
+
+
 def test_result_history_keeps_turn_evidence_and_does_not_invent_legacy_completion(client):
     from codex_console.models import Item, Revision, Task
 
