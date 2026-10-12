@@ -242,7 +242,12 @@ class Runtime:
                     "config/read", {"cwd": str(root), "includeLayers": False}
                 )
                 overrides = remote_environments.overrides(configuration["config"], environment)
-            rpc = self.rpc_factory(self.settings.binary, root, receive, disconnected)
+            binary = (
+                str(self.settings.remote_binary)
+                if environment is not None and self.settings.remote_binary is not None
+                else self.settings.binary
+            )
+            rpc = self.rpc_factory(binary, root, receive, disconnected)
             if environment is not None:
                 rpc.remote_environment = environment
                 rpc.startup_overrides = overrides

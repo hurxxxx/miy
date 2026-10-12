@@ -29,6 +29,9 @@ MAX_MESSAGE_BYTES = 4 * 1024 * 1024
 
 CONTRACT = json.loads(Path(__file__).with_name("protocol.json").read_text())
 REMOTE_CONTRACT = json.loads(Path(__file__).with_name("remote_protocol.generated.json").read_text())
+REMOTE_CORE_CONTRACT = json.loads(
+    Path(__file__).with_name("remote_core_protocol.generated.json").read_text()
+)
 METHOD_SCHEMAS = {
     "thread/list": "ThreadListParams",
     "thread/read": "ThreadReadParams",
@@ -73,6 +76,12 @@ class CodexRPC:
     def connected(self):
         return self.process is not None and self.process.returncode is None and not self.closing
 
+    @property
+    def protocol_contract(self):
+        if self.remote_environment or self.sdk_baseline_probe:
+            return REMOTE_CORE_CONTRACT
+        return CONTRACT
+
     async def start(self):
         sdk = self.remote_environment and is_sdk_profile(self.remote_environment)
         environment = {
@@ -100,15 +109,13 @@ class CodexRPC:
             version.kill()
             await version.wait()
             raise ConsoleError("codex_unavailable", 503) from None
-        if version.returncode or not supports_contract_version(
-            output.decode(), CONTRACT["codexVersion"]
-        ):
+        if version.returncode:
             raise ConsoleError("codex_version_mismatch", 503)
-        if (
-            self.remote_environment
-            and output.decode().strip() != f"codex-cli {remote_environments.REMOTE_VERSION}"
-        ):
-            raise ConsoleError("app_executor_version_mismatch", 503)
+        if self.remote_environment or self.sdk_baseline_probe:
+            if output.decode().strip() != f"codex-cli {remote_environments.REMOTE_VERSION}":
+                raise ConsoleError("app_executor_version_mismatch", 503)
+        elif not supports_contract_version(output.decode(), self.protocol_contract["codexVersion"]):
+            raise ConsoleError("codex_version_mismatch", 503)
         with tempfile.TemporaryDirectory(prefix="codex-console-schema-") as directory:
             schema = await asyncio.create_subprocess_exec(
                 self.binary,
@@ -130,7 +137,9 @@ class CodexRPC:
                 schema.kill()
                 await schema.wait()
                 raise ConsoleError("codex_version_mismatch", 503) from None
-            if schema.returncode or not schemas_are_compatible(CONTRACT, Path(directory)):
+            if schema.returncode or not schemas_are_compatible(
+                self.protocol_contract, Path(directory)
+            ):
                 raise ConsoleError("codex_version_mismatch", 503)
             if self.remote_environment and not remote_schemas_are_compatible(
                 REMOTE_CONTRACT, Path(directory)
@@ -333,7 +342,7 @@ class CodexRPC:
                 raise
         schema = METHOD_SCHEMAS.get(method)
         if schema:
-            Draft7Validator(CONTRACT["schemas"][schema]).validate(params)
+            Draft7Validator(self.protocol_contract["schemas"][schema]).validate(params)
         if self.remote_environment and method.startswith("environment/"):
             name = {
                 "environment/add": "EnvironmentAddParams",

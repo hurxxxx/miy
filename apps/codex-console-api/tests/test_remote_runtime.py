@@ -89,6 +89,7 @@ def native_task(client, app_checkout):
     class NativeRPC(FakeRPC):
         def __init__(self, *args):
             super().__init__(*args)
+            self.binary = args[0]
             self.threads = threads
             self.fallback_roots = fallback_roots
             self.loaded = set()
@@ -130,6 +131,22 @@ def native_plan(client, task):
     response = send_message(client, task)
     assert response.status_code == 200
     return complete(client, response.json())
+
+
+@pytest.mark.parametrize("separate_binary", [False, True])
+def test_remote_controller_binary_keeps_the_core_binary_independent(
+    client, native_task, tmp_path, separate_binary
+):
+    task, runtime = native_task
+    configured = tmp_path / "pinned-remote-controller" if separate_binary else None
+    runtime.settings.remote_binary = configured
+    # Reconnect the core as well, so both transports record their selected binary.
+    if runtime.control_runtime.rpc is not None:
+        client.portal.call(runtime.control_runtime.rpc.close)
+    response = send_message(client, task)
+    assert response.status_code == 200
+    assert runtime.rpc.binary == (str(configured) if configured else runtime.settings.binary)
+    assert runtime.control_runtime.rpc.binary == runtime.settings.binary
 
 
 @pytest.mark.parametrize("roots_case", ["legacy-empty", "selected-empty", "compatible-root"])

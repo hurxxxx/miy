@@ -433,9 +433,11 @@ native 연결을 사용하며 코어 Task의 host 실행과 분리한다. 환경
 host 스킬 입력도 `app_host_skills_unavailable`로 거부한다. 일반 코어 Task의 지침·스킬 기능과
 소유자의 원본 Codex 설정은 바꾸지 않는다. 연결된 SDK 앱 Task에는 아래의 더 좁은 격리 계약이 적용된다.
 
-이 경로는 **Codex 0.160.1 정확 버전**의 실험적 native 환경 RPC를 사용한다. 코어/템플릿의
-기존 0.159.2 소비 계약과 별도인 `remote_protocol.generated.json`으로 환경·동적 도구의
-스키마도 검증한다. 생성 계약 검사는 `python3 scripts/generate-codex-remote-contract.py --check`다.
+이 경로는 **Codex 0.160.1 정확 버전**의 실험적 native 환경 RPC를 사용한다. 일반 콘솔의
+0.162.1 소비 계약과 별도로 `remote_core_protocol.generated.json`에서 controller의 기본 RPC를,
+`remote_protocol.generated.json`에서 환경·동적 도구의 스키마를 검증한다. SDK의 원본 관리 정책을
+읽는 baseline controller도 같은 0.160.1 계약을 사용한다. 생성 계약 검사는
+`python3 scripts/generate-codex-remote-contract.py --binary /absolute/pinned/codex-0.160.1 --check`다.
 app-server의 환경 조회 응답은 executor 버전을 노출하지 않으므로 매 연결·재연결 전에 동일한
 capability와 공식 exec-server `initialize`로 원격 0.160.1/cwd를 읽기 전용 확인한다. 이 좁은 검사는
 프로비저닝 검사기의 클라이언트를 재사용하며 10초와 응답 64 KiB 상한을 적용한다. 같은 endpoint에서
@@ -530,9 +532,10 @@ ASCII 문자·숫자·`._/@-`만 허용하고 실제 canonical 경로·소유권
 [native-pin.json](../../../ops/codex-console/executor/native-pin.json)이 소유한다. 설치 전에
 SHA512 dist integrity와 SHA256을 확인하고 **전체 layout**을 root 소유·앱/일반 사용자가 변경할 수
 없는 캐시(예: `/opt/miy/codex-0.160.1`)에 보존한다. npm scripts·자동 다운로드·mutable global CLI를
-사용하지 않는다. host `MIY_CODEX_CONSOLE_BINARY`도 검증된 이 패키지의 실제 vendor binary를
-명시적으로 선택해야 한다. 같은 binary가 코어에도 사용되므로 기존 0.159.2 소비 계약과 별도
-0.160.1 remote 계약을 모두 확인한다. template binary의 기존 선택은 별도로 유지한다.
+사용하지 않는다. host `MIY_CODEX_CONSOLE_REMOTE_BINARY`는 검증된 이 패키지의 실제 vendor binary를
+명시적으로 선택해야 한다. 일반 콘솔의 `MIY_CODEX_CONSOLE_BINARY`와 template binary 선택은
+별도로 유지한다. remote 기본 RPC와 supplemental 계약을 모두 같은 0.160.1 binary에서 확인한다.
+remote binary가 미설정이면 기존 binary 선택을 사용하지만 정확한 0.160.1 검사를 통과해야 한다.
 
 backend는 systemd private network를 상속한 outer bubblewrap에서 user/PID/IPC/UTS를 분리하고
 capability를 제거한다. 필요한 vendor·dash·libc·loader만 read-only, checkout 하나만 writable,
@@ -1019,6 +1022,7 @@ turn ID·상태·시각이며, 현재 실행 중인 turn이라는 뜻은 아니�
 | `MIY_CODEX_CONSOLE_MANAGEMENT_PORT`  | `19367` | 관리 UI/API의 loopback 포트                                                 |
 | `MIY_CODEX_CONSOLE_TEMPLATE_PORT`    | `19368` | 독립 템플릿 실행 API                                                        |
 | `MIY_CODEX_CONSOLE_TEMPLATE_BINARY`  | 미설정  | 버전별 디렉터리에 설치한 호환 CLI의 절대 파일 경로. `templates` 역할에 필수 |
+| `MIY_CODEX_CONSOLE_REMOTE_BINARY` | 미설정 | 원격·SDK controller의 검증된 0.160.1 vendor binary 절대 경로. 일반·템플릿 CLI와 독립적으로 선택 |
 | `MIY_CODEX_CONSOLE_MAX_ACTIVE_TASKS` | `3`     | 동시에 접수할 root 작업 수, 1~16                                            |
 | `MIY_CODEX_CONSOLE_MONITOR_SERVICES` | `[]`    | 소유자가 등록하는 서비스 JSON 배열, 최대 64개                               |
 
@@ -1494,9 +1498,9 @@ install -m 644 ops/codex-console/codex-console.service ops/codex-console/codex-c
 파일을 선택하고, 서비스는 그 Codex에 구독으로 로그인한 동일한 OS 계정으로 실행한다.
 전역 CLI 업데이트와 Workbench의 CLI 전환을 분리하며, 새 버전을 검증한 뒤 설정의 경로를
 명시적으로 바꾼다. 선택된 버전 디렉터리를 전역 CLI 업데이트 대상으로 재사용하지 않는다.
-독립 앱의 원격 실행을 연결하는 host binary는
+독립 앱의 원격 실행을 연결하는 `MIY_CODEX_CONSOLE_REMOTE_BINARY`는
 [표준 executor의 native pin 계약](#단일-checkout의-표준-executor-정의)에 따라 정확한
-고정 버전의 vendor binary를 선택하고, 기존 코어 RPC와 별도 remote 계약을 모두 확인한다.
+고정 버전의 vendor binary를 선택하고, remote 기본 RPC와 supplemental 계약을 모두 확인한다.
 템플릿용 CLI는 검증한 정확한 버전을 별도 디렉터리에 설치한다. 예를 들어
 `npm install --prefix /absolute/private/codex-0.162.1 --no-save @openai/codex@0.162.1`로
 설치한 뒤 `MIY_CODEX_CONSOLE_TEMPLATE_BINARY`를 그 디렉터리의

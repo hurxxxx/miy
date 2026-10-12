@@ -206,12 +206,15 @@ class Settings(BaseSettings):
     template_binary: Path | None = Field(
         default=None, validation_alias="MIY_CODEX_CONSOLE_TEMPLATE_BINARY"
     )
+    remote_binary: Path | None = Field(
+        default=None, validation_alias="MIY_CODEX_CONSOLE_REMOTE_BINARY"
+    )
 
-    @field_validator("template_binary")
+    @field_validator("template_binary", "remote_binary")
     @classmethod
     def immutable_binary(cls, value):
         if value is not None and (not value.is_absolute() or value.resolve() != value):
-            raise ValueError("Template Codex requires an absolute, version-pinned binary")
+            raise ValueError("Codex binary overrides require an absolute, version-pinned binary")
         return value
 
     max_active_tasks: int = Field(

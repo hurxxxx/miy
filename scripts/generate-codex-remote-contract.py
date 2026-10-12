@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate only the supplemental, version-pinned native executor contract."""
+"""Generate the core and supplemental contracts for the pinned native controller."""
 
 import argparse
 import importlib.util
@@ -42,26 +42,25 @@ def main():
                 timeout=30,
                 check=True,
             )
-            rendered = (
-                json.dumps(
-                    module.build_remote_contract(version, Path(directory)),
-                    ensure_ascii=False,
-                    sort_keys=True,
-                    indent=2,
-                )
-                + "\n"
-            )
-        target = package / "remote_protocol.generated.json"
-        if arguments.check:
-            if target.read_text() != rendered:
-                raise ValueError("Remote protocol contract requires regeneration")
-        else:
-            target.write_text(rendered)
+            contracts = {
+                "remote_protocol.generated.json": module.build_remote_contract(
+                    version, Path(directory)
+                ),
+                "remote_core_protocol.generated.json": module.build_contract(version, Path(directory)),
+            }
+        for filename, contract in contracts.items():
+            rendered = json.dumps(contract, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+            target = package / filename
+            if arguments.check:
+                if not target.exists() or target.read_text() != rendered:
+                    raise ValueError("Remote protocol contract requires regeneration")
+            else:
+                target.write_text(rendered)
     except (OSError, subprocess.SubprocessError, ValueError):
         parser.exit(
             1, "Native executor contract generation/check failed. Use the pinned 0.160.1 binary.\n"
         )
-    print("Native executor supplemental contract matches 0.160.1.")
+    print("Native controller core and supplemental contracts match 0.160.1.")
 
 
 if __name__ == "__main__":

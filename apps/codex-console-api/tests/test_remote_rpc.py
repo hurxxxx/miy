@@ -50,7 +50,8 @@ def test_remote_rpc_requires_exact_version_disables_host_and_checks_executor_ide
     names = set(COMPATIBILITY_SCHEMA_NAMES) | set(REMOTE_SCHEMA_NAMES)
     for name in names:
         (baseline / (name + ".json")).write_text(json.dumps(schema))
-    monkeypatch.setattr(module, "CONTRACT", build_contract("0.159.2", baseline))
+    assert module.CONTRACT["codexVersion"] == "0.162.1"
+    monkeypatch.setattr(module, "REMOTE_CORE_CONTRACT", build_contract("0.160.1", baseline))
     monkeypatch.setattr(module, "REMOTE_CONTRACT", build_remote_contract("0.160.1", baseline))
     config = {
         "features": remote_environments.SAFE_FEATURES,

@@ -552,7 +552,9 @@ def test_runtime_owns_failed_sdk_start_without_retrying_unknown_process(
             )
         )
         runtime = Runtime(
-            SimpleNamespace(workspace=environment.source_root, binary=rpc.binary),
+            SimpleNamespace(
+                workspace=environment.source_root, binary=rpc.binary, remote_binary=None
+            ),
             factory,
             Mock(return_value=rpc),
             remote_task_id="synthetic-original-task",
