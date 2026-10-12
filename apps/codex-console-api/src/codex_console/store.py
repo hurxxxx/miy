@@ -328,7 +328,10 @@ def detail(factory, task_id, settings):
         task = require_task(db, task_id)
         recent = list(
             db.scalars(
-                select(Item).where(Item.task_id == task_id).order_by(Item.id.desc()).limit(2001)
+                select(Item)
+                .where(Item.task_id == task_id)
+                .order_by(task_activity.item_order().desc(), Item.id.desc())
+                .limit(2001)
             )
         )
         items = [{**row.payload, "turn_id": row.turn_id} for row in reversed(recent[:2000])]
@@ -455,8 +458,10 @@ def upsert_item(db, task, turn_id, payload):
             safe[key] = bounded_item_text(task, safe, key, safe[key])
     row = db.scalar(select(Item).where(Item.task_id == task.id, Item.item_id == item_id))
     if row:
-        if row.turn_id == turn_id and row.payload.get("completed_at"):
-            safe["completed_at"] = row.payload["completed_at"]
+        if row.turn_id == turn_id:
+            for key in ("completed_at", "history_order"):
+                if key in row.payload:
+                    safe[key] = row.payload[key]
         row.turn_id = turn_id
         row.payload = safe
     else:
@@ -467,12 +472,12 @@ def upsert_item(db, task, turn_id, payload):
 def reconcile_history(db, task, turns):
     # The official thread is canonical. The projection is replaceable, never fed back as history.
     existing = list(db.execute(select(Item.id, Item.item_id).where(Item.task_id == task.id)))
-    retained = set()
+    retained = {}
     for turn in turns[-100:]:
         for item in turn.get("items", []):
             item_id = upsert_item(db, task, turn["id"], item)
             if item_id is not None:
-                retained.add(item_id)
+                retained.setdefault(item_id, len(retained))
             if item.get("type") == "userMessage" and item.get("clientId"):
                 db.execute(
                     update(Operation)
@@ -482,9 +487,14 @@ def reconcile_history(db, task, turns):
                     )
                     .values(state="accepted")
                 )
-    # Retained native identities keep their insertion order and completion
-    # metadata. Delete only absent records, after inserting new ones, so row ID
-    # reuse cannot make a recovered historical answer appear newer.
+    # Keep physical identities and completion metadata while restoring native
+    # order independently: missed older items must precede retained answers.
+    # This metadata is server-owned and excluded from the native input whitelist.
+    db.flush()
+    for row in db.scalars(select(Item).where(Item.task_id == task.id)):
+        if row.item_id in retained:
+            row.payload = {**row.payload, "history_order": retained[row.item_id]}
+    # Insert before deleting so subsequent live IDs exceed the history length.
     removed = [row_id for row_id, item_id in existing if item_id not in retained]
     for start in range(0, len(removed), 200):
         db.execute(delete(Item).where(Item.id.in_(removed[start : start + 200])))

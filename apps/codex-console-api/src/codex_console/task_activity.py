@@ -21,6 +21,26 @@ def final_predicate():
     )
 
 
+def item_order():
+    # Recovered records follow the canonical thread order. Later live items
+    # use their insertion IDs, which exceed the retained history length.
+    return func.coalesce(Item.payload["history_order"].as_integer(), Item.id)
+
+
+def latest_final_ids(partition, *conditions):
+    ranked = (
+        select(
+            Item.id,
+            func.row_number()
+            .over(partition_by=partition, order_by=(item_order().desc(), Item.id.desc()))
+            .label("rank"),
+        )
+        .where(*conditions, *final_predicate())
+        .subquery()
+    )
+    return select(ranked.c.id).where(ranked.c.rank == 1)
+
+
 def summaries(db, task_ids):
     """Fetch summaries in bounded batches rather than reading a transcript per card."""
     ids = list(task_ids)
@@ -44,11 +64,7 @@ def summaries(db, task_ids):
                 "version": row.version,
                 "created_at": row.created_at.isoformat(),
             }
-        latest_results = (
-            select(func.max(Item.id))
-            .where(Item.task_id.in_(batch), *final_predicate())
-            .group_by(Item.task_id)
-        )
+        latest_results = latest_final_ids(Item.task_id, Item.task_id.in_(batch))
         for row in db.scalars(select(Item).where(Item.id.in_(latest_results))):
             output[row.task_id]["latest_result"] = {
                 "item_id": row.item_id,
@@ -76,13 +92,14 @@ def summaries(db, task_ids):
 def results(db, task_id):
     # One result per turn, at most 20. Historical records lacking a timestamp
     # stay undated; task.updated_at is not the completion time of an old result.
-    latest = (
-        select(func.max(Item.id))
-        .where(Item.task_id == task_id, *final_predicate())
-        .group_by(Item.turn_id)
-    )
+    latest = latest_final_ids(Item.turn_id, Item.task_id == task_id)
     rows = list(
-        db.scalars(select(Item).where(Item.id.in_(latest)).order_by(Item.id.desc()).limit(20))
+        db.scalars(
+            select(Item)
+            .where(Item.id.in_(latest))
+            .order_by(item_order().desc(), Item.id.desc())
+            .limit(20)
+        )
     )
     turns = [row.turn_id for row in rows]
     evidence = {
@@ -93,7 +110,7 @@ def results(db, task_id):
         db.scalars(
             select(Item)
             .where(Item.task_id == task_id, Item.turn_id.in_(turns))
-            .order_by(Item.id.desc())
+            .order_by(item_order().desc(), Item.id.desc())
             .limit(2001)
         )
     )
@@ -149,8 +166,10 @@ def catalog_activity(db, project_ids, app_ids):
             key = Task.context[field].as_string()
             for result_only in (False, True):
                 latest_result = (
-                    select(func.max(Item.id))
+                    select(Item.id)
                     .where(Item.task_id == Task.id, *final_predicate())
+                    .order_by(item_order().desc(), Item.id.desc())
+                    .limit(1)
                     .correlate(Task)
                     .scalar_subquery()
                 )

@@ -9,7 +9,17 @@ from pathlib import Path
 from jsonschema import Draft7Validator
 from sqlalchemy import or_, select, update
 
-from . import agents, app_sources, attachments, git, planning, remote_environments, store, workbench
+from . import (
+    agents,
+    app_sources,
+    attachments,
+    git,
+    planning,
+    remote_environments,
+    store,
+    task_activity,
+    workbench,
+)
 from .auth import digest
 from .errors import ConsoleError
 from .models import Agent, DevelopmentUsage, Item, Operation, PendingRequest, Task, now
@@ -1565,7 +1575,7 @@ class Runtime:
                             db.scalars(
                                 select(Item)
                                 .where(Item.task_id == task.id, Item.turn_id == turn["id"])
-                                .order_by(Item.id)
+                                .order_by(task_activity.item_order(), Item.id)
                             )
                         )
                         store.project_plan(db, task, turn["id"], [r.payload for r in rows])

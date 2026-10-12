@@ -856,22 +856,87 @@ def test_recovering_old_result_preserves_completion_and_latest_project_result(cl
         )
     client.app.state.runtime.rpc.threads[old["thread_id"]]["turns"] = [
         {
+            "id": "missed-old-turn",
+            "status": "completed",
+            "items": [
+                {
+                    "id": "missed-old-answer",
+                    "type": "agentMessage",
+                    "phase": "final_answer",
+                    "text": "Unobserved older result",
+                    "history_order": 1000000,
+                }
+            ],
+        },
+        {
             "id": old["turn_id"],
             "status": "completed",
-            "items": [{"id": "native-user", "type": "userMessage", "content": []}, answer],
-        }
+            "items": [
+                {"id": "native-user", "type": "userMessage", "content": []},
+                {
+                    "id": "missed-same-turn",
+                    "type": "agentMessage",
+                    "phase": "final_answer",
+                    "text": "Earlier answer in the same turn",
+                },
+                answer,
+            ],
+        },
     ]
     for _ in range(2):
         response = client.post(f"/api/tasks/{old['id']}/recover", json={})
         assert response.status_code == 200
         assert response.json()["results"][0] == before
+        assert response.json()["results"][1]["text"] == "Unobserved older result"
+        assert response.json()["results"][1]["completed_at"] is None
+        assert [item["id"] for item in response.json()["items"]] == [
+            "missed-old-answer",
+            "native-user",
+            "missed-same-turn",
+            "answer",
+        ]
+        assert response.json()["summary"]["latest_result"]["item_id"] == "answer"
         with client.app.state.factory() as db:
             rows = list(db.scalars(select(Item).where(Item.task_id == old["id"])))
-            assert {row.item_id for row in rows} == {"answer", "native-user"}
+            assert {row.item_id for row in rows} == {
+                "answer",
+                "native-user",
+                "missed-old-answer",
+                "missed-same-turn",
+            }
             assert next(row.id for row in rows if row.item_id == "answer") == original_id
         activity = client.get("/api/workbench/catalog").json()["activity"]
         assert activity["projects"][project["id"]]["latest_result_task"]["id"] == newer["id"]
         assert activity["apps"]["planner"]["latest_result_task"]["id"] == newer["id"]
+
+    # A delayed native replay keeps server-owned ordering, and a new live turn
+    # appends after recovered history and becomes the latest recorded result.
+    from codex_console import store
+
+    with client.app.state.factory.begin() as db:
+        store.upsert_item(db, db.get(Task, old["id"]), old["turn_id"], answer)
+    replayed = client.get(f"/api/tasks/{old['id']}").json()
+    assert replayed["results"][0] == before
+    assert replayed["items"][-1]["id"] == "answer"
+    active = send_message(client, replayed).json()
+    notify(
+        client,
+        active,
+        "item/completed",
+        {"item": {**answer, "id": "live-answer", "text": "New live answer"}},
+    )
+    notify(
+        client, active, "turn/completed", {"turn": {"id": active["turn_id"], "status": "completed"}}
+    )
+    detail = client.get(f"/api/tasks/{old['id']}").json()
+    assert detail["items"][-1]["id"] == "live-answer"
+    assert [row["text"] for row in detail["results"]] == [
+        "New live answer",
+        "Old result",
+        "Unobserved older result",
+    ]
+    activity = client.get("/api/workbench/catalog").json()["activity"]
+    assert activity["projects"][project["id"]]["latest_result_task"]["id"] == old["id"]
 
 
 def test_result_history_keeps_turn_evidence_and_does_not_invent_legacy_completion(client):
