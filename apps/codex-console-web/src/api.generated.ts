@@ -1611,7 +1611,7 @@ export interface components {
             template_cli?: string | null;
             /**
              * Contract Cli
-             * @default 0.159.2
+             * @default 0.162.1
              */
             contract_cli: string;
         };

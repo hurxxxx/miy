@@ -14,14 +14,14 @@ from codex_console.rpc import CodexRPC
 @pytest.mark.parametrize(
     ("version", "drift", "accepted"),
     [
-        ("0.159.2", None, True),
-        ("0.160.0", None, True),
-        ("0.159.1", None, False),
-        ("0.160.0-alpha.1", None, False),
-        ("0.160.0", "nested-permission", False),
-        ("0.160.0", "missing-permission", False),
-        ("0.160.0", "invalid-json", False),
-        ("0.160.0", "generation-failed", False),
+        ("0.162.1", None, True),
+        ("0.163.0", None, True),
+        ("0.162.0", None, False),
+        ("0.162.1-alpha.1", None, False),
+        ("0.163.0", "nested-permission", False),
+        ("0.163.0", "missing-permission", False),
+        ("0.163.0", "invalid-json", False),
+        ("0.163.0", "generation-failed", False),
     ],
 )
 def test_start_requires_stable_version_and_exact_contract_before_handshake(
@@ -38,7 +38,7 @@ def test_start_requires_stable_version_and_exact_contract_before_handshake(
     baseline.mkdir()
     for name in COMPATIBILITY_SCHEMA_NAMES:
         (baseline / f"{name}.json").write_text(json.dumps(schema))
-    monkeypatch.setattr(rpc_module, "CONTRACT", build_contract("0.159.2", baseline))
+    monkeypatch.setattr(rpc_module, "CONTRACT", build_contract("0.162.1", baseline))
 
     async def run():
         calls = []

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from codex_console.protocol_contract import render_contract, supports_contract_version
 
-VERSION = "0.159.2"
+VERSION = "0.162.1"
 TARGET = Path(__file__).resolve().parents[1] / "src/codex_console/protocol.json"
 
 

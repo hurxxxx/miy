@@ -1040,6 +1040,8 @@ Workbench의 CLI 전환을 분리하며, 최소 버전·선택 RPC 스키마와 
 [서비스 실행](docs/apps/codex-console/README.md#서비스로-실행)과 [검증과 복구](docs/apps/codex-console/README.md#검증과-복구)를 따른다.
 시작 시 RPC 스키마 호환성을 검사하며
 기본 개발·복구 기능에는 Platform API 키나 miy AI 공급자 설정을 요구하지 않는다. 운영 앱 집계 연결은 아래 별도 조회 키를 사용한다.
+CLI 업데이트 뒤 `codex_version_mismatch`가 발생하면 [생성 계약 검증과 갱신](docs/apps/codex-console/README.md#검증과-복구)을
+수행하고 콘솔 전용 릴리스를 교체한다. 기존 고정 템플릿 CLI와 `template-current`는 별도 검증·업데이트 범위가 아니면 유지한다.
 
 - [독립 저장소와 백업](docs/apps/codex-console/README.md#독립-저장소와-백업)에 따라 영구 데이터 경로·0600 권한·online backup을 준비한다. Python에 포함된 SQLite의 WAL 수정 버전을 확인한다. 기존 PostgreSQL 설치는 원본을 보존하며 검증된 이전 도구로 복사한다.
 - 콘솔의 `.env`와 웹 비밀번호를 준비하고 migration·정적 UI 빌드·관리/세션/템플릿 세 systemd 서비스의

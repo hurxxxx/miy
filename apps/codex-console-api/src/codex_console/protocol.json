@@ -1,5 +1,5 @@
 {
-  "codexVersion": "0.159.2",
+  "codexVersion": "0.162.1",
   "compatibilityHashes": {
     "AgentMessageDeltaNotification": "edeb843f11c658afcfaa4030f800157b72709f19e91a573aeeed325d920a90c2",
     "CommandExecutionOutputDeltaNotification": "84589759accba5fc0fc8615d0eedd804e566120af9364333339090a6a2755165",
@@ -14,38 +14,38 @@
     "GetAccountResponse": "e0072eea81d454a289e5740e1a093355dc2ff57863a70eec006ff9daf9bc596d",
     "InitializeParams": "e38c4d61719f7c6b0aa3976de697b52748befcb6335dad5386da140c05f9aba2",
     "InitializeResponse": "747401b5d7d395b71e4023d3d13aaaaefb0f6ae044d611675f59838672720c3d",
-    "ItemCompletedNotification": "0106e0ed8d9a771d8db681946f6e627b1bdabff0df14887f78e8ff0d6a9fac59",
-    "ItemStartedNotification": "7072b099a0689ed30f7922fd5691d151fbb8913c68182774354a732f6a41582d",
+    "ItemCompletedNotification": "a7a49ef2e4bec2ef4f6289d1d8f7792c320aea494a2bdb74a3c53666ed42fec4",
+    "ItemStartedNotification": "4634e7e8755de8a812b0b76d34c3dd2849c09108657fc0510c1e523a38892df2",
     "McpServerElicitationRequestParams": "f68dfe5551e48dd9519bc4e6b002051109bcdb2ee6a7befb59e76178b941189e",
     "McpServerElicitationRequestResponse": "628ee89b301b9ad59a83172bdeebb36dcd2b021f63b99bf26a33b77255b90e70",
     "ModelListParams": "87171b174b108d3af36225d70d5ff57ce38522ee34087f78c8a0754c3ba6b276",
-    "ModelListResponse": "b41c8be6cceb533652c86a70c3b611d8c02de3cf461794043c50303313a8bfad",
+    "ModelListResponse": "4bb92314b9eb6adfe7ec03f0da098990292a943584f9135f4f1d737a06b6a035",
     "NullableGetAccountRateLimitsParams": "cf5650e33dbec4078b589bed98ff924a7ee19497ad5f9b9a7f6853aabb48f4fe",
     "PermissionsRequestApprovalParams": "6cf0075b6061d3feb7086d7d59fccaa35001f8abdef68ccf73f7c2e3645c81be",
     "PermissionsRequestApprovalResponse": "08d82c17c27361f25763cb9fb117fe5779b3f38a092f4524afd5a73538d90af1",
     "PlanDeltaNotification": "5d291d7c92830d0d4c01b35abe3edfb96b124ed3c58761c662828786a255eccb",
     "ServerRequestResolvedNotification": "9bab6c9eda658824742162c9eaa3edbfa3b70fcc5348f20f5a190d7a794b3d53",
     "SkillsListParams": "affeac96ae882a1c1c3efc2f86829d6775ece43a1888bb9c8b01359bfe211dc8",
-    "SkillsListResponse": "fe9e51e090b9c6a2ee751055d980b11a5305c7baadc0ddff6294dbd3cc372831",
+    "SkillsListResponse": "b2c623b4620cd298b184eab9332afa3cd37db59ec60349d2d4c59c52ffa1ec85",
     "ThreadListParams": "6a465d79183f856336ec42a9a183433fbde964ca9a94378b5d11501418cd42b6",
-    "ThreadListResponse": "5f63ef2ca27f93bd9cdad7845dfeac443b75bce6758b5881583c4be8b6035d55",
+    "ThreadListResponse": "44c142e50e2008b9d7ee4430135af6cea5308468e9f96f079fb912847b8451e7",
     "ThreadReadParams": "1c154f1db7bd63ad4514aba7ea35bf4723f6814b81e33e763f00aaa7f9f2b149",
-    "ThreadReadResponse": "b0c4edd135609bfbb12da353e59cc6481f0691b36f76bcb4d64600b3e40134cc",
-    "ThreadResumeParams": "3065dfae69296ef81ed893330f19703aa5212726a75ab025e197bb8cf6d67663",
-    "ThreadResumeResponse": "e8e8fb99f592e67514a175ff3e370a9b1079f392d77da2a6cd5294727968ee4c",
+    "ThreadReadResponse": "378a824b03b6f4d607d14d58772ea37d45a30a834777a0e02d4c292051e76594",
+    "ThreadResumeParams": "fa3ed44ab19467cbc767b6f47633d1e2cf5aae3b508e303b3c78cb23001392ab",
+    "ThreadResumeResponse": "60be228ee7cbecd9a163409cd35cc42543adb3d42a964af9e24c0ee1769f1a3a",
     "ThreadStartParams": "44a122637f6208314268b9d58c395b8fe7e9277f05af11f9d199b327db7d71e5",
-    "ThreadStartResponse": "0afc9860d4a1d41f2af9ac36603af033264c33e1660abc2f9790be9900ce326a",
-    "ThreadStartedNotification": "966d49f48336bbdecd812488a9d318eef56f87af27472a563a6e87b9c51ba211",
+    "ThreadStartResponse": "1b1bae97925e32f2f34766d5fceffce5fccde18c6df19d3e8ae999b97ae0cf93",
+    "ThreadStartedNotification": "2692b00b5f70bdddc55f471d46b3fc4d8cf2ebbec4824fef9281da285e563f79",
     "ThreadStatusChangedNotification": "538acb0fee602ec811ae7c7be1d92a6ba47ce1e235ce5c2c9e0d5872f93d8df3",
     "ToolRequestUserInputParams": "b99ace3211269f77083d8d86664393deb7992c3b53ef596582915b1256668682",
     "ToolRequestUserInputResponse": "18735c465696eda1d8da032be0ff06097656ef1d1bf2cedc86b8707164aa105c",
-    "TurnCompletedNotification": "78e6f8b0eff801649f93623eed4ec5551caa7d05dda740d36515d0d34cd82c70",
+    "TurnCompletedNotification": "b3cfb830840bc3d1c6a7424eaa095d6dcceb24688d2fa9a673fcd729394326bf",
     "TurnInterruptParams": "2fbfaacab66db0e15aa2f4870fd531531f2631c9047f90adc28dcb7567ab9bca",
     "TurnInterruptResponse": "9909145e97257ee08258cdbc192c6901d7b8e0ff1dad7b9bbf353199d8f035e0",
     "TurnPlanUpdatedNotification": "faf449e884d5750dec6310ee9a7bda606fc795d1d28258126eefac29d5a78cf0",
-    "TurnStartParams": "cfd7b3291e0e3506612117887884c7debc1e994c0aeee1fc26cc1554c928df0e",
-    "TurnStartResponse": "34265704e3467009384cd020add555cf537a5423a844fc73e68c2294d275177a",
-    "TurnStartedNotification": "47843afca69f2327e89c8f9949385819db4f977a0cf70bf83363ded8899e3093",
+    "TurnStartParams": "8492f34b9fe2d32d23b6b54be077926747add6c72ceb00449e988ba3bac56142",
+    "TurnStartResponse": "f42d949843302fc60feacfd29744ecd85456681c16c3e8f495d21e38194af693",
+    "TurnStartedNotification": "0cc726893e1d22289d70043e218bf725eef8fe860a43fe0709ce807655495763",
     "TurnSteerParams": "2d6e67e4b275594e5ab63f10041cf9c877cd6f8e7bf394b8738c74ad8faf1a34",
     "TurnSteerResponse": "944b951b011ca2829643b0ce703d2e3cc118eef149233a4beeed480e88523591"
   },
@@ -1234,7 +1234,7 @@
           "type": "string"
         },
         "MessagePhase": {
-          "description": "Classifies an assistant message as interim commentary or final answer text.\n\nProviders do not emit this consistently, so callers must treat `None` as \"phase unknown\" and keep compatibility behavior for legacy models.",
+          "description": "Classifies assistant text as commentary, a partial answer, or a terminal answer.\n\nProviders do not emit this consistently, so callers must treat `None` as \"phase unknown\" and keep compatibility behavior for legacy models.",
           "oneOf": [
             {
               "description": "Mid-turn assistant text (for example preamble/progress narration).\n\nAdditional tool calls or assistant output may follow before turn completion.",
@@ -1244,7 +1244,14 @@
               "type": "string"
             },
             {
-              "description": "The assistant's terminal answer text for the current turn.",
+              "description": "Stable answer text that may be followed by more assistant output or tools.",
+              "enum": [
+                "partial_answer"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "The assistant's declared terminal answer text for the current turn.",
               "enum": [
                 "final_answer"
               ],
@@ -1336,6 +1343,37 @@
         },
         "ResponseItem": {
           "oneOf": [
+            {
+              "properties": {
+                "id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "role": {
+                  "type": "string"
+                },
+                "tools": {
+                  "items": true,
+                  "type": "array"
+                },
+                "type": {
+                  "enum": [
+                    "additional_tools"
+                  ],
+                  "title": "AdditionalToolsResponseItemType",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role",
+                "tools",
+                "type"
+              ],
+              "title": "AdditionalToolsResponseItem",
+              "type": "object"
+            },
             {
               "properties": {
                 "content": {
@@ -3103,7 +3141,7 @@
           "type": "object"
         },
         "CyberAccessProgram": {
-          "description": "Requested cyber treatment for a ChatGPT-authenticated Codex turn. Authorization and model-tier restrictions remain server-owned.",
+          "description": "Requested cyber treatment for an OpenAI model turn. Authorization and model-tier restrictions remain server-owned.",
           "enum": [
             "standard",
             "daybreakBlue",
@@ -3794,7 +3832,7 @@
               "type": "null"
             }
           ],
-          "description": "EXPERIMENTAL - Request a workspace-authorized cyber program for this turn. Omission preserves automatic behavior. This does not grant access."
+          "description": "EXPERIMENTAL - Request an authorized cyber program for this turn. Omission preserves automatic behavior. This does not grant access."
         },
         "disabledPluginIds": {
           "description": "Replace this thread's disabled plugin IDs. Omitted/null preserves the list; [] clears it.",
@@ -3854,6 +3892,13 @@
         "outputSchema": {
           "description": "Optional JSON Schema used to constrain the final assistant message for this turn."
         },
+        "parentTurnId": {
+          "description": "ID of the turn that caused this new turn to start.\n\nSet this when starting work on behalf of another turn, such as delegated work in a different thread. Leave unset for work started directly by the user. Ignored when this request adds input to an active turn.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "permissions": {
           "description": "Select a named permissions profile id for this turn and subsequent turns. Cannot be combined with `sandboxPolicy`.",
           "type": [
@@ -3879,6 +3924,13 @@
           "description": "Optional metadata to enrich Codex's ResponsesAPI turn metadata.\n\nEntries are flattened into the JSON string sent as `client_metadata[\"x-codex-turn-metadata\"]` on ResponsesAPI HTTP and websocket requests.\n\nThey are not sent as top-level ResponsesAPI `client_metadata` keys, and reserved keys such as `session_id`, `thread_id`, `turn_id`, and `window_id` cannot be overridden.",
           "type": [
             "object",
+            "null"
+          ]
+        },
+        "rootTurnId": {
+          "description": "ID of the first turn in the chain of work that led to this new turn.\n\nWhen setting `parentTurnId`, set this to the parent turn's `rootTurnId` when known. This keeps descendant work attributed to the original turn. If omitted, the new turn becomes its own root. Ignored when this request adds input to an active turn.",
+          "type": [
+            "string",
             "null"
           ]
         },

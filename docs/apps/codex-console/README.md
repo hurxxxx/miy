@@ -1062,21 +1062,20 @@ health 응답은 16 KiB, supervisor 출력은 4 KiB, 개별 probe는 5초로 제
 
 공식 [App Server](https://learn.chatgpt.com/docs/app-server)와
 [Subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents)의 native
-thread/turn/plan/approval을 사용한다. 0.159.2 생성 계약의 `collabAgentToolCall`,
+thread/turn/plan/approval을 사용한다. 0.162.1 생성 계약의 `collabAgentToolCall`,
 `parentThreadId`, `sessionId`, `thread/list`의 ancestor 필터로 연결을 확인한다.
 하위 thread 관찰은 `thread/read/list`만 사용하고 resume하지 않는다. 누락된 알림은 10초마다
 조회해 보완한다. 에이전트 생성·역할 배정·재시도 스케줄러는 콘솔에서 구현하지 않는다.
 [공식 worktree 기능](https://learn.chatgpt.com/docs/environments/git-worktrees)은 있으나
-0.159.2 App Server ClientRequest에는 worktree 생성 RPC가 없으므로 기존의 좁은 Git 준비
+0.162.1 App Server ClientRequest에는 worktree 생성 RPC가 없으므로 기존의 좁은 Git 준비
 helper만 유지한다. 이 helper는 서비스 운영을 실행하지 않는다.
 
 ## 실행 경계
 
 - 소유자 한 명, 설정한 Git 개발 체크아웃 하나를 대상으로 한다. 공개 가입이나 팀 공유는 없다.
-- 공식 `codex app-server`의 stdio 프로토콜을 사용한다. 기준 계약은 **0.159.2**이며,
+- 공식 `codex app-server`의 stdio 프로토콜을 사용한다. 기준 계약은 **0.162.1**이며,
   그 이상의 안정 CLI는 콘솔이 사용하는 요청·응답·알림 RPC 스키마가 기준 계약과 같을 때
   자동으로 허용한다.
-  **0.160.0**도 사용하는 RPC 스키마가 0.159.2와 동일하므로 이 기준 계약을 유지한다.
   더 오래된 버전·시험판·스키마가 달라진 버전은 실행 전에 차단한다. Codex가 구독 인증,
   토큰 갱신, 원본 대화와 도구 실행을 관리한다. 클라이언트는 인증 파일을 읽거나 복사하지 않는다.
 - 이 도구는 개인 코딩 에이전트 클라이언트다. miy 제품 앱의 생성형 호출, 공용 AI 공급자,
@@ -1228,7 +1227,7 @@ Python 버전만으로 SQLite 버전을 추정하지 말고 `python3 -c 'import 
 기존 서버의 공용 Python을 교체하지 않는다. `uv sync --python /absolute/path/to/python3`와
 릴리스 빌드의 두 번째 인자로 그 인터프리터를 지정한다.
 
-현재 사용자로 `codex login status`가 성공하는 Codex 0.159.2 이상의 안정 버전이 필요하다.
+현재 사용자로 `codex login status`가 성공하는 Codex 0.162.1 이상의 안정 버전이 필요하다.
 서비스는 연결 전에 설치된 CLI가 기준 RPC 계약과 호환되는지 검사한다.
 
 1. 소스·워크트리·릴리스 밖의 로컬 영구 디렉터리를 준비한다. SQLite 파일은 0600,
@@ -1499,7 +1498,7 @@ install -m 644 ops/codex-console/codex-console.service ops/codex-console/codex-c
 [표준 executor의 native pin 계약](#단일-checkout의-표준-executor-정의)에 따라 정확한
 고정 버전의 vendor binary를 선택하고, 기존 코어 RPC와 별도 remote 계약을 모두 확인한다.
 템플릿용 CLI는 검증한 정확한 버전을 별도 디렉터리에 설치한다. 예를 들어
-`npm install --prefix /absolute/private/codex-0.159.2 --no-save @openai/codex@0.159.2`로
+`npm install --prefix /absolute/private/codex-0.162.1 --no-save @openai/codex@0.162.1`로
 설치한 뒤 `MIY_CODEX_CONSOLE_TEMPLATE_BINARY`를 그 디렉터리의
 `node_modules/@openai/codex/bin/codex.js`로 지정한다. 이 버전도 현재 생성 계약과 실제 구독
 smoke를 통과해야 한다. 해당 디렉터리를 일반 CLI 업데이트에 재사용하지 않는다. `.bin/codex`
@@ -1748,17 +1747,16 @@ Codex 업그레이드 계약은 설치된 안정 CLI가 최소 버전 이상이�
 정확한 버전과 remote 스키마 검사도 충족해야 한다.
 
 공식 [App Server 스키마 생성](https://learn.chatgpt.com/docs/app-server#message-schema)은
-실행한 CLI 버전의 계약을 반환한다. 0.160.0의 `--experimental` 생성 결과는 콘솔이 검사하는
-모든 RPC와 그 참조 정의에서 0.159.2 기준과 일치한다. 어댑터와 `protocol.json`은 유지하며,
-버전만으로 허용하지 않는다. 시작 경로 회귀 검사는 두 안정 버전의 초기화와 시험판·최소 버전
+실행한 CLI 버전의 계약을 반환한다. 0.162.1의 `--experimental` 생성 결과로 기준 계약을
+검증하며, 버전만으로 허용하지 않는다. 시작 경로 회귀 검사는 호환 안정 버전의 초기화와 시험판·최소 버전
 미달·중첩 권한 정의 변경·누락·잘못된 JSON·스키마 생성 실패의 연결 전 차단을 확인한다.
-세션 CLI의 검증·릴리스 전환은 별도 고정 0.159.2 템플릿 CLI와 `template-current`를
+세션 CLI의 검증·릴리스 전환은 기존 설치의 별도 고정 템플릿 CLI와 `template-current`를
 교체하거나 재시작하지 않는다.
 
-0.159.2 기준은 공식 CLI의 `--experimental` 스키마로 생성한다. 이전 0.158.0 대비
-`CodexErrorInfo`에 `tooManyDenials`가 추가되고, turn의 오류 설명은 중단된 turn도 포함하도록
-변경됐다. 요청·승인·샌드박스 스키마는 동일하다. 추가 오류 종류는 기존 일반 실패 경로로 처리하고
-중단된 turn은 기존 중단 상태로 표시한다. 호환성 해시는 이 변경도 포함하며 드리프트 차단을 유지한다.
+0.162.1 계약은 메시지의 `partial_answer` phase와 턴의 `parentTurnId`·`rootTurnId` 등
+공식 스키마 변경을 포함한다. 부분 답변은 대화에 표시하지만 최종 계획이나 완료로 판정하지
+않으며, 기존 `final_answer`·`turn/completed` 경계를 유지한다. 승인·샌드박스 요청의 검증과
+전체 호환성 해시의 드리프트 차단도 유지한다.
 검사·재생성에는 서비스의 `MIY_CODEX_CONSOLE_BINARY`와 같은 CLI가 `PATH`에서 선택되는지
 확인한다. 재생성은 `scripts/generate_protocol.py`의 기준 버전과 정확히 같은 CLI에서만 허용한다.
 
@@ -1790,7 +1788,7 @@ management smoke는 두 root 요청의 동시 접수와 두 native subagent의 �
 다중 프로세스 자원 제한은 `test_templates.py`·`test_standalone.py`에서 별도로 검증한다.
 
 ```bash
-MIY_CODEX_CONSOLE_TEMPLATE_BINARY=/absolute/private/codex-0.159.2/node_modules/@openai/codex/bin/codex.js \
+MIY_CODEX_CONSOLE_TEMPLATE_BINARY=/absolute/private/codex-0.162.1/node_modules/@openai/codex/bin/codex.js \
   uv run --frozen --directory apps/codex-console-api python tests/live_template_smoke.py
 ```
 
