@@ -14,13 +14,14 @@ from codex_console.protocol_contract import (
     schemas_are_compatible,
     supports_contract_version,
 )
-from codex_console.rpc import CONTRACT
+from codex_console.rpc import CONTRACT, HISTORY_CONTRACT
 
 
 def test_generated_protocol_schemas_are_valid():
     assert CONTRACT["codexVersion"] == "0.162.1"
     assert supports_contract_version("codex-cli 0.162.1", CONTRACT["codexVersion"])
-    for schema in CONTRACT["schemas"].values():
+    assert HISTORY_CONTRACT["codexVersion"] == CONTRACT["codexVersion"]
+    for schema in (*CONTRACT["schemas"].values(), *HISTORY_CONTRACT["schemas"].values()):
         Draft7Validator.check_schema(schema)
 
 

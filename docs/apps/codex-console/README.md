@@ -1712,6 +1712,15 @@ JSON 중첩·불완전한 응답도 연결을 종료하며 미완료 요청을 �
 `null`인 정상 이벤트는 빈 문자열로 누적하며 연결을 종료하지 않는다. 이전 프로세스 세대의
 늦은 이벤트는 새 연결의 작업 상태에 반영하지 않는다.
 
+일반 호스트의 0.162.1 연결은 `thread/resume`에서 `excludeTurns: true`, 이력 조회에서
+`includeTurns: false`로 메타데이터를 받고 공식 `thread/turns/list`와 `thread/items/list`로
+이력을 읽는다. 한 항목씩 가져와 긴 대화 전체가 단일 4 MiB 메시지 한도를 넘지 않게 하며,
+원본 thread·turn·item·요청 client ID와 순서를 보존한다. 이력 합산은 64 MiB·1,000개 turn·
+20,000개 item·60초로 제한하고 반복 cursor와 다른 turn의 항목을 거부한다. 한도나 조회 실패는
+기존 상태 확인 경로로 처리하며 대화를 지우거나 요청을 자동 재전송하지 않는다.
+페이지 API의 생성 계약도 시작 전에 검사한다.
+원격 0.160.1 실행기와 SDK baseline probe는 기존 고정 계약과 조회 방식을 유지한다.
+
 ```bash
 pnpm check:codex-console-contract
 pnpm --dir apps/codex-console-web test

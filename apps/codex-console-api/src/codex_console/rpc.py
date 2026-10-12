@@ -15,10 +15,11 @@ from pathlib import Path
 from jsonschema import Draft7Validator
 from jsonschema.exceptions import ValidationError
 
-from . import controller_launch, remote_environments
+from . import controller_launch, native_history, remote_environments
 from .errors import ConsoleError
 from .models import uid
 from .protocol_contract import (
+    history_schemas_are_compatible,
     remote_schemas_are_compatible,
     schemas_are_compatible,
     supports_contract_version,
@@ -28,6 +29,9 @@ from .toolchain_profiles import is_sdk_profile
 MAX_MESSAGE_BYTES = 4 * 1024 * 1024
 
 CONTRACT = json.loads(Path(__file__).with_name("protocol.json").read_text())
+HISTORY_CONTRACT = json.loads(
+    Path(__file__).with_name("history_protocol.generated.json").read_text()
+)
 REMOTE_CONTRACT = json.loads(Path(__file__).with_name("remote_protocol.generated.json").read_text())
 REMOTE_CORE_CONTRACT = json.loads(
     Path(__file__).with_name("remote_core_protocol.generated.json").read_text()
@@ -42,6 +46,10 @@ METHOD_SCHEMAS = {
     "turn/steer": "TurnSteerParams",
     "turn/interrupt": "TurnInterruptParams",
     "model/list": "ModelListParams",
+}
+HISTORY_METHOD_SCHEMAS = {
+    "thread/turns/list": "ThreadTurnsListParams",
+    "thread/items/list": "ThreadItemsListParams",
 }
 logger = logging.getLogger(__name__)
 
@@ -139,6 +147,13 @@ class CodexRPC:
                 raise ConsoleError("codex_version_mismatch", 503) from None
             if schema.returncode or not schemas_are_compatible(
                 self.protocol_contract, Path(directory)
+            ):
+                raise ConsoleError("codex_version_mismatch", 503)
+            if not (
+                getattr(self, "remote_environment", None)
+                or getattr(self, "sdk_baseline_probe", False)
+            ) and not (
+                history_schemas_are_compatible(HISTORY_CONTRACT, Path(directory))
             ):
                 raise ConsoleError("codex_version_mismatch", 503)
             if self.remote_environment and not remote_schemas_are_compatible(
@@ -327,6 +342,36 @@ class CodexRPC:
             context.__exit__(None, None, None)
 
     async def call(self, method, params):
+        classic = not (
+            getattr(self, "remote_environment", None) or getattr(self, "sdk_baseline_probe", False)
+        )
+        read_history = classic and (
+            method == "thread/resume" and not params.get("excludeTurns")
+            or method == "thread/read" and params.get("includeTurns")
+        )
+        if not read_history:
+            return await self._call(method, params)
+        # Native history remains authoritative. Avoid a single full-history
+        # response exceeding the same 4 MiB limit used for live event messages.
+        metadata_params = {
+            **params,
+            **({"excludeTurns": True} if method == "thread/resume" else {"includeTurns": False}),
+        }
+        result = await self._call(method, metadata_params)
+        thread = await native_history.hydrate(
+            self._call, result.get("thread"), expected_thread_id=params["threadId"]
+        )
+        return {**result, "thread": thread}
+
+    async def _call(self, method, params):
+        history_schema = HISTORY_METHOD_SCHEMAS.get(method)
+        if history_schema:
+            if (
+                getattr(self, "remote_environment", None)
+                or getattr(self, "sdk_baseline_probe", False)
+            ):
+                raise ConsoleError("codex_request_failed", 503)
+            Draft7Validator(HISTORY_CONTRACT["schemas"][history_schema]).validate(params)
         sdk = self.remote_environment and is_sdk_profile(self.remote_environment)
         if sdk and method in ("thread/start", "thread/resume", "turn/start", "turn/steer"):
             try:
