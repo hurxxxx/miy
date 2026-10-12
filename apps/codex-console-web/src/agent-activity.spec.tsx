@@ -6,6 +6,8 @@ import {
   executionCount,
   hasFinished,
   running,
+  taskStatus,
+  taskAction,
 } from './agent-state';
 import type { Task } from './api';
 import type { Agent } from './agent-state';
@@ -281,4 +283,46 @@ it('a fresh overview reload cannot turn stale native metadata into a current obs
   expect(
     screen.getByRole('region', { name: 'Recently finished' }),
   ).toBeTruthy();
+});
+
+it('prioritizes decisions and active descendants over a saved result', () => {
+  const summary = {
+    pending_kinds: [],
+    latest_result: { item_id: 'answer', turn_id: 'turn', excerpt: 'Done' },
+    latest_plan: { id: 4, version: 2, created_at: '2026-10-12T00:00:00Z' },
+  };
+  expect(taskStatus(task({ summary }))).toBe('Plan review needed');
+  expect(taskAction(task({ summary }))).toBe('Review plan');
+  expect(taskStatus(task({ summary, approved_revision: 4 }))).toBe(
+    'Result ready',
+  );
+  expect(taskStatus(task({ summary, status: 'uncertain' }))).toBe(
+    'Current state unknown',
+  );
+  expect(
+    taskStatus(
+      task({ summary, agents: [agent('completed'), child('active')] }),
+    ),
+  ).toBe('Running');
+  expect(
+    taskStatus(
+      task({ summary, agents: [agent('completed'), child('notLoaded')] }),
+    ),
+  ).toBe('Awaiting confirmation');
+  expect(
+    taskStatus(
+      task({
+        pending_count: 1,
+        summary: { ...summary, pending_kinds: ['question'] },
+      }),
+    ),
+  ).toBe('Waiting for your response');
+  expect(
+    taskStatus(
+      task({
+        pending_count: 1,
+        summary: { ...summary, pending_kinds: ['approval'] },
+      }),
+    ),
+  ).toBe('Approval needed');
 });

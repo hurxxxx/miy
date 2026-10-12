@@ -617,76 +617,81 @@ export function WorkspacePanel({
         >
           {t('Start a development session')}
         </Button>
-        <Button
-          disabled={unavailable || !writable}
-          onClick={() => beginSession('registration')}
-        >
-          {t('New registration task')}
-        </Button>
-        <Button
-          disabled={mutationUnavailable || workspace.state !== 'ready'}
-          onClick={() => void mutate('refresh')}
-        >
-          {t('Refresh app build')}
-        </Button>
-        <Button
-          disabled={
-            lifecycleUnavailable ||
-            ['cleaned', 'stopped', 'preparing'].includes(workspace.state)
-          }
-          onClick={() => void mutate('stop')}
-        >
-          {t('Stop environment')}
-        </Button>
-        <Button
-          disabled={
-            lifecycleUnavailable ||
-            !['stopped', 'error'].includes(workspace.state)
-          }
-          onClick={() => void mutate('resume')}
-        >
-          {t('Resume environment')}
-        </Button>
-        <Button
-          disabled={
-            mutationUnavailable ||
-            !['ready', 'cleanup_pending'].includes(workspace.state)
-          }
-          onClick={() => setConfirmation('integrate')}
-        >
-          {t('Apply to development')}
-        </Button>
-        <Button
-          disabled={
-            mutationUnavailable ||
-            workspace.state === 'cleaned' ||
-            workspace.integration.state !== 'succeeded'
-          }
-          onClick={() => setConfirmation('cleanup')}
-        >
-          {t('Clean up environment')}
-        </Button>
-        <Button
-          variant="ghost"
-          disabled={busy}
-          onClick={() => setRefresh((value) => value + 1)}
-        >
-          {t('Check operation state')}
-        </Button>
-        {waiting &&
-          continuedAction &&
-          record(waiting).continuable === true &&
-          Object.hasOwn(actionLabels, continuedAction) && (
-            <Button
-              disabled={continuationUnavailable}
-              onClick={() =>
-                void mutate(continuedAction as Action, waiting.operation_id)
-              }
-            >
-              {t('Continue operation')}
-            </Button>
-          )}
       </div>
+      <details className="environment-actions">
+        <summary>{t('Development environment management')}</summary>
+        <div className="actions">
+          <Button
+            disabled={unavailable || !writable}
+            onClick={() => beginSession('registration')}
+          >
+            {t('New registration task')}
+          </Button>
+          <Button
+            disabled={mutationUnavailable || workspace.state !== 'ready'}
+            onClick={() => void mutate('refresh')}
+          >
+            {t('Refresh app build')}
+          </Button>
+          <Button
+            disabled={
+              lifecycleUnavailable ||
+              ['cleaned', 'stopped', 'preparing'].includes(workspace.state)
+            }
+            onClick={() => void mutate('stop')}
+          >
+            {t('Stop environment')}
+          </Button>
+          <Button
+            disabled={
+              lifecycleUnavailable ||
+              !['stopped', 'error'].includes(workspace.state)
+            }
+            onClick={() => void mutate('resume')}
+          >
+            {t('Resume environment')}
+          </Button>
+          <Button
+            disabled={
+              mutationUnavailable ||
+              !['ready', 'cleanup_pending'].includes(workspace.state)
+            }
+            onClick={() => setConfirmation('integrate')}
+          >
+            {t('Apply to development')}
+          </Button>
+          <Button
+            disabled={
+              mutationUnavailable ||
+              workspace.state === 'cleaned' ||
+              workspace.integration.state !== 'succeeded'
+            }
+            onClick={() => setConfirmation('cleanup')}
+          >
+            {t('Clean up environment')}
+          </Button>
+          <Button
+            variant="ghost"
+            disabled={busy}
+            onClick={() => setRefresh((value) => value + 1)}
+          >
+            {t('Check operation state')}
+          </Button>
+          {waiting &&
+            continuedAction &&
+            record(waiting).continuable === true &&
+            Object.hasOwn(actionLabels, continuedAction) && (
+              <Button
+                disabled={continuationUnavailable}
+                onClick={() =>
+                  void mutate(continuedAction as Action, waiting.operation_id)
+                }
+              >
+                {t('Continue operation')}
+              </Button>
+            )}
+        </div>
+      </details>
       {confirmation && (
         <section
           className="request-panel"

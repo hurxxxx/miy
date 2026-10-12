@@ -1,6 +1,6 @@
 import { active, record, string, type Task } from './api';
 import type { components } from './api.generated';
-import { statusCopy, type Copy, type Translate } from './i18n';
+import { type Copy, type Translate } from './i18n';
 export type Agent = components['schemas']['AgentOut'];
 export type NativeFreshness = NonNullable<Agent['observation']>['freshness'];
 
@@ -91,6 +91,7 @@ export const executing = (task: Task) =>
 
 export function needsAttention(task: Task) {
   return (
+    planNeedsReview(task) ||
     !!task.pending_count ||
     ['waiting', 'failed', 'uncertain'].includes(task.status) ||
     task.agents?.some(agentAttention)
@@ -167,6 +168,7 @@ export function hasFinished(task: Task) {
   )
     return false;
   return (
+    !!task.summary?.latest_result ||
     ['review', 'interrupted', 'failed'].includes(task.status) ||
     task.agents.some(
       (agent) => !agent.parent_thread_id && terminal.has(agent.status),
@@ -186,6 +188,7 @@ export function activityGroup(task: Task): Group | null {
     return 'waiting';
   if (
     ['review', 'interrupted'].includes(task.status) ||
+    !!task.summary?.latest_result ||
     task.agents.some(
       (agent) => !agent.parent_thread_id && terminal.has(agent.status),
     )
@@ -220,19 +223,67 @@ export function executionCount(task: Task) {
   );
 }
 
-export function rowStatus(task: Task, group: Group): Copy {
-  if (task.pending_count || task.agents.some(agentWaiting))
-    return 'Waiting for your response';
-  if (group === 'attention')
-    return needsAttention(task) &&
-      !['failed', 'uncertain', 'waiting'].includes(task.status)
-      ? 'Needs attention'
-      : statusCopy(task.status);
-  if (group === 'running')
-    return task.status === 'starting' ? 'Starting' : 'Running';
-  if (group === 'waiting') return 'Awaiting confirmation';
+export function planNeedsReview(task: Task): boolean {
+  const revisions =
+    'revisions' in task && Array.isArray(task.revisions) ? task.revisions : [];
+  const latest =
+    task.summary?.latest_plan ??
+    revisions.filter((r) => r.kind === 'plan').at(-1);
+  return (
+    task.stage === 'plan' &&
+    task.status === 'idle' &&
+    !executing(task) &&
+    !!latest &&
+    latest.id !== task.approved_revision
+  );
+}
+
+/** Human-facing status, shared by lists, activity and the open workspace. */
+export function taskStatus(task: Task): Copy {
+  if (task.status === 'uncertain') return 'Current state unknown';
+  const kinds = task.summary?.pending_kinds ?? [];
+  const requests =
+    'requests' in task && Array.isArray(task.requests) ? task.requests : [];
+  if (task.pending_count || task.agents.some(agentWaiting) || requests.length) {
+    if (
+      kinds.includes('question') ||
+      requests.some((r) => r.method === 'item/tool/requestUserInput') ||
+      task.agents.some((a) => a.flags?.includes('waitingOnUserInput'))
+    )
+      return 'Waiting for your response';
+    if (
+      kinds.includes('approval') ||
+      requests.some((r) => r.method.endsWith('requestApproval')) ||
+      task.agents.some((a) => a.flags?.includes('waitingOnApproval'))
+    )
+      return 'Approval needed';
+    return 'Needs attention';
+  }
+  if (
+    task.status === 'failed' ||
+    task.agents.some((agent) => agent.status === 'errored')
+  )
+    return 'Failed';
+  if (task.agents.some(agentAttention)) return 'Current state unknown';
   if (task.status === 'interrupted') return 'Interrupted';
-  if (task.status === 'review') return 'Result ready';
-  const root = task.agents.find((agent) => !agent.parent_thread_id);
-  return root ? agentStatus(root) : 'Completed';
+  if (executing(task))
+    return task.status === 'starting' ? 'Starting' : 'Running';
+  if (running(task)) return 'Awaiting confirmation';
+  if (planNeedsReview(task)) return 'Plan review needed';
+  if (hasFinished(task) || task.stage === 'review') return 'Result ready';
+  if (!task.thread_id && task.status === 'idle') return 'Not started';
+  return 'Awaiting confirmation';
+}
+
+export function taskAction(task: Task): Copy {
+  if (task.pending_count) return 'Review request';
+  if (planNeedsReview(task)) return 'Review plan';
+  if (task.status === 'uncertain' || task.status === 'failed')
+    return 'Check work state';
+  if (executing(task)) return 'View work';
+  return hasFinished(task) ? 'View result' : 'Continue development';
+}
+
+export function rowStatus(task: Task, _group: Group): Copy {
+  return taskStatus(task);
 }

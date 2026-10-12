@@ -9,7 +9,7 @@ async function login(page: Page) {
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await expect(
-    page.getByRole('button', { name: '새 앱 프로젝트', exact: true }),
+    page.getByRole('heading', { name: 'MIY Studio', exact: true }),
   ).toBeVisible();
   const csrf = (await page.context().cookies()).find(
     (c) => c.name === 'codex_console_csrf',
@@ -62,6 +62,10 @@ async function task(page: Page) {
     expect(bound.ok()).toBe(true);
   }
   await page.reload();
+  await page
+    .getByRole('group', { name: '프로젝트 목록' })
+    .getByRole('button', { name: /^등록 연결 검증/ })
+    .click();
   await page.getByRole('button', { name: '새 등록 작업', exact: true }).click();
   await expect(page).toHaveURL(/task=/);
   const taskId = new URL(page.url()).searchParams.get('task');

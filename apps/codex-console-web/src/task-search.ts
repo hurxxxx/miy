@@ -8,6 +8,7 @@ export function useTaskSearch(
   templateId?: string | null,
   retry = 0,
   enabled = true,
+  scope?: { projectId?: string; appId?: string },
 ) {
   const [search, setSearch] = useState({
     key: '',
@@ -16,8 +17,10 @@ export function useTaskSearch(
     failed: false,
     checkedAt: null as number | null,
   });
-  const remote = !!query || !!templateId;
-  const key = JSON.stringify([templateId ?? null, query]);
+  const projectId = scope?.projectId;
+  const appId = scope?.appId;
+  const remote = !!query || !!templateId || !!projectId || !!appId;
+  const key = JSON.stringify([templateId ?? null, query, projectId, appId]);
   useEffect(() => {
     if (!enabled || !remote) return;
     const controller = new AbortController();
@@ -30,7 +33,7 @@ export function useTaskSearch(
     }));
     const timer = window.setTimeout(() => {
       void api<Task[]>(
-        `/overview?search=${encodeURIComponent(query)}${templateId ? `&template_id=${encodeURIComponent(templateId)}` : ''}`,
+        `/overview?search=${encodeURIComponent(query)}${templateId ? `&template_id=${encodeURIComponent(templateId)}` : ''}${projectId ? `&project_id=${encodeURIComponent(projectId)}` : ''}${appId ? `&app_id=${encodeURIComponent(appId)}` : ''}`,
         undefined,
         'GET',
         controller.signal,
@@ -54,6 +57,6 @@ export function useTaskSearch(
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [enabled, remote, key, query, templateId, tasks, retry]);
+  }, [enabled, remote, key, query, templateId, tasks, retry, projectId, appId]);
   return { remote, key, search };
 }

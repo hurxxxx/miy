@@ -9,10 +9,20 @@ from pathlib import Path
 from jsonschema import Draft7Validator
 from sqlalchemy import or_, select, update
 
-from . import agents, app_sources, attachments, git, planning, remote_environments, store, workbench
+from . import (
+    agents,
+    app_sources,
+    attachments,
+    git,
+    planning,
+    remote_environments,
+    store,
+    task_activity,
+    workbench,
+)
 from .auth import digest
 from .errors import ConsoleError
-from .models import Agent, DevelopmentUsage, Item, Operation, PendingRequest, Task
+from .models import Agent, DevelopmentUsage, Item, Operation, PendingRequest, Task, now
 from .rpc import CONTRACT, CodexRPC
 from .toolchain_profiles import is_sdk_profile
 
@@ -1565,10 +1575,20 @@ class Runtime:
                             db.scalars(
                                 select(Item)
                                 .where(Item.task_id == task.id, Item.turn_id == turn["id"])
-                                .order_by(Item.id)
+                                .order_by(task_activity.item_order(), Item.id)
                             )
                         )
                         store.project_plan(db, task, turn["id"], [r.payload for r in rows])
+                    if status == "completed":
+                        for item in db.scalars(
+                            select(Item).where(Item.task_id == task.id, Item.turn_id == turn["id"])
+                        ):
+                            if (
+                                item.payload.get("type") == "agentMessage"
+                                and item.payload.get("phase") == "final_answer"
+                                and not item.payload.get("completed_at")
+                            ):
+                                item.payload = {**item.payload, "completed_at": now().isoformat()}
                     if task.stage == "implement":
                         if status == "completed" and task.workspace_id:
                             from .workspaces import queue_refresh

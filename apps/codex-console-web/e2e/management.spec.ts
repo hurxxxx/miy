@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { submitNewTask } from './task-submission';
+import { openNewTask, submitNewTask } from './task-submission';
 
 test('monitoring links to templates without running commands and task history stays usable on mobile', async ({
   page,
@@ -23,21 +23,18 @@ test('monitoring links to templates without running commands and task history st
   expect(await (await page.request.get('api/overview')).json()).toHaveLength(
     before.length,
   );
-  await page
-    .locator('#console-sidebar')
-    .getByRole('button', { name: '새 작업', exact: true })
-    .click();
+  await openNewTask(page);
   await page.getByLabel('작업 제목').fill('모니터링 후 작업');
   await submitNewTask(page);
   await expect(page.getByLabel('실행 모드')).toHaveValue('plan');
-  await expect(page.getByLabel('현재 실행 상태')).toContainText('준비됨');
+  await expect(page.getByLabel('현재 실행 상태')).toContainText('시작 대기');
   const taskId = new URL(page.url()).searchParams.get('task');
   const task = await (await page.request.get(`api/tasks/${taskId}`)).json();
   expect(task.thread_id).toBeNull();
   expect(task.executor).toBe('session');
   await page
     .getByRole('navigation', { name: 'Workbench 메뉴' })
-    .getByRole('button', { name: /^세션(?:\s+\d+)?$/ })
+    .getByRole('button', { name: /^작업 기록(?:\s+\d+)?$/ })
     .click();
   const card = page.locator('.overview-task').filter({ hasText: task.title });
   await card.getByRole('button', { name: '고정', exact: true }).click();
@@ -50,7 +47,7 @@ test('monitoring links to templates without running commands and task history st
   await expect(
     page
       .locator('#console-sidebar')
-      .getByRole('button', { name: '새 작업', exact: true }),
+      .getByRole('button', { name: '앱 만들기', exact: true }),
   ).toBeVisible();
   expect(
     await page.evaluate(

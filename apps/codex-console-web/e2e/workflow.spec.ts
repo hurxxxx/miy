@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { submitNewTask } from './task-submission';
+import { openNewTask, submitNewTask } from './task-submission';
 
 let completionId: string | null = null;
 let completionOrigin = '';
@@ -51,10 +51,7 @@ test('native plan, implementation, diff and refresh recovery', async ({
     .getByLabel('본인 전용 비밀번호')
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await page
-    .getByRole('button', { name: '새 작업', exact: true })
-    .first()
-    .click();
+  await openNewTask(page);
   await page.getByLabel('작업 제목').fill('인사말 기능 개발');
   await submitNewTask(page);
   await expect(page.getByLabel('실행 모드')).toHaveValue('plan');
@@ -86,7 +83,9 @@ test('native plan, implementation, diff and refresh recovery', async ({
   await page.getByRole('dialog').getByLabel('실행 권한').selectOption('yolo');
   await page.getByRole('dialog').getByRole('button', { name: '취소' }).click();
   await expect(
-    page.getByText('Implemented the greeting.', { exact: false }),
+    page
+      .locator('.messages')
+      .getByText('Implemented the greeting.', { exact: false }),
   ).toHaveCount(0);
   await page
     .getByRole('button', { name: '이 계획으로 실행', exact: true })
@@ -117,9 +116,11 @@ test('native plan, implementation, diff and refresh recovery', async ({
   await expect(page.getByLabel('현재 실행 상태')).toContainText('진행 중');
   await releaseCompletion(page, implementation);
   await expect(
-    page.getByText('Implemented the greeting.', { exact: false }),
+    page
+      .locator('.messages')
+      .getByText('Implemented the greeting.', { exact: false }),
   ).toBeVisible();
-  await page.getByRole('button', { name: '브랜치', exact: true }).click();
+  await page.getByRole('button', { name: '변경사항', exact: true }).click();
   await expect(
     page.getByRole('button', { name: /greeting.txt/ }),
   ).toBeVisible();
@@ -131,14 +132,14 @@ test('native plan, implementation, diff and refresh recovery', async ({
   expect(page.url()).toBe(url);
   await expect(page.getByLabel('실행 모드')).toHaveValue('implement');
   await expect(page.getByLabel('실행 권한')).toHaveValue('yolo');
-  await page.getByRole('button', { name: '실행 결과', exact: true }).click();
+  await page.getByRole('button', { name: '실행 기록', exact: true }).click();
   await expect(
     page.getByLabel('결과물').getByText('종료 코드 0'),
   ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: '결과물', exact: true }).click();
   await expect(
-    page.getByRole('button', { name: '실행 결과', exact: true }),
+    page.getByRole('button', { name: '실행 기록', exact: true }),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -168,10 +169,7 @@ test('server work survives closing the browser tab and restores progress and exe
     .getByLabel('본인 전용 비밀번호')
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await page
-    .getByRole('button', { name: '새 작업', exact: true })
-    .first()
-    .click();
+  await openNewTask(page);
   await page.getByLabel('작업 제목').fill('백그라운드 작업 확인');
   await submitNewTask(page);
   await page.getByRole('button', { name: '설정 변경' }).click();
@@ -200,7 +198,9 @@ test('server work survives closing the browser tab and restores progress and exe
   );
   await expect(returned.getByLabel('현재 실행 상태')).toContainText('진행 중');
   await releaseCompletion(returned, plan);
-  await expect(returned.getByLabel('현재 실행 상태')).toContainText('준비됨');
+  await expect(returned.getByLabel('현재 실행 상태')).toContainText(
+    '계획 검토 필요',
+  );
   await returned
     .getByRole('navigation', { name: '결과물' })
     .getByRole('button', { name: '계획', exact: true })
@@ -229,9 +229,22 @@ test('server work survives closing the browser tab and restores progress and exe
   ).toBe(true);
 });
 
-test('late status, guidance, and recovery surfaces do not reflow the workspace', async ({
+test('execution popovers preserve layout and recovery remains visible above the workspace', async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  // Exercise the extra toolbar row without depending on other tests creating a skill.
+  await page.route('**/api/tasks/*/skills', (route) =>
+    route.fulfill({
+      json: [
+        {
+          name: 'workspace-review',
+          description: 'Review the workspace',
+          path: '/fixture/SKILL.md',
+        },
+      ],
+    }),
+  );
   const box = async (selector: string) => {
     const value = await page.locator(selector).boundingBox();
     expect(value).not.toBeNull();
@@ -259,14 +272,14 @@ test('late status, guidance, and recovery surfaces do not reflow the workspace',
     .getByLabel('본인 전용 비밀번호')
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await page
-    .getByRole('button', { name: '새 작업', exact: true })
-    .first()
-    .click();
+  await openNewTask(page);
   await page.getByLabel('작업 제목').fill('레이아웃 안정성 확인');
   await submitNewTask(page);
-  // Measure the loaded workspace, after the initial Git summary occupies its row.
-  await expect(page.locator('.task-header .git-summary')).toBeVisible();
+  // Technical metadata is deliberately collapsed; the workspace title anchors the ready state.
+  await expect(
+    page.getByRole('heading', { name: '레이아웃 안정성 확인' }),
+  ).toBeVisible();
+  await expect(page.getByLabel('작업 절차 사용')).toBeVisible();
 
   const closedSettings = await layout();
   const promptBefore = await box('.composer textarea');
@@ -296,14 +309,32 @@ test('late status, guidance, and recovery surfaces do not reflow the workspace',
   );
   await expect(page.locator('.execution-progress')).toBeVisible();
   const running = await layout();
-  expectStable(idle, running);
+  // The reported current step adds a line to the status area. The workspace
+  // boundaries and composer stay anchored while the message viewport shrinks.
+  for (const key of ['conversation', 'composer', 'results'] as const) {
+    expect(Math.abs(running[key].y - idle[key].y)).toBeLessThan(1);
+    expect(Math.abs(running[key].height - idle[key].height)).toBeLessThan(1);
+  }
+  await expect(page.locator('.execution-current-step strong')).toBeVisible();
+  expect(running.messages.y).toBeGreaterThanOrEqual(
+    running.status.y + running.status.height,
+  );
+  expect(running.messages.y + running.messages.height).toBeLessThanOrEqual(
+    running.composer.y + 1,
+  );
 
   await page.locator('.execution-progress summary').click();
   await expect(page.locator('.execution-progress')).toHaveAttribute('open', '');
   expectStable(running, await layout());
 
   await releaseCompletion(page, completion);
-  await expect(page.getByLabel('현재 실행 상태')).toContainText('준비됨');
+  await expect(page.getByLabel('현재 실행 상태')).toContainText(
+    '결과 확인 가능',
+  );
+  await page
+    .getByRole('navigation', { name: '결과물' })
+    .getByRole('button', { name: '계획', exact: true })
+    .click();
   const footerBefore = await box('.document-footer');
   await page.getByRole('button', { name: '문서 편집' }).click();
   await page.getByLabel('문서 편집').fill('Unsaved document draft');
@@ -331,7 +362,18 @@ test('late status, guidance, and recovery surfaces do not reflow the workspace',
   );
   await page.reload();
   await expect(page.locator('.runtime-notice')).toBeVisible();
-  expectStable(beforeNotice, await layout());
+  const afterNotice = await layout();
+  expect(afterNotice.conversation.y).toBeGreaterThan(
+    beforeNotice.conversation.y,
+  );
+  const notice = await box('.runtime-notice');
+  expect(notice.y + notice.height).toBeLessThanOrEqual(
+    afterNotice.conversation.y,
+  );
+  expect(afterNotice.composer.height).toBeGreaterThan(100);
+  expect(
+    afterNotice.composer.y + afterNotice.composer.height,
+  ).toBeLessThanOrEqual(page.viewportSize()!.height);
 });
 
 test('execution controls stay separated on a narrow desktop workspace', async ({
@@ -343,10 +385,7 @@ test('execution controls stay separated on a narrow desktop workspace', async ({
     .getByLabel('본인 전용 비밀번호')
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await page
-    .getByRole('button', { name: '새 작업', exact: true })
-    .first()
-    .click();
+  await openNewTask(page);
   await page.getByLabel('작업 제목').fill('좁은 화면 컨트롤 확인');
   await submitNewTask(page);
 
@@ -381,7 +420,9 @@ test('execution controls stay separated on a narrow desktop workspace', async ({
   await expect(page.getByRole('button', { name: '중단' })).toBeVisible();
   await expectSeparated();
   await releaseCompletion(page, completion);
-  await expect(page.getByLabel('현재 실행 상태')).toContainText('준비됨');
+  await expect(page.getByLabel('현재 실행 상태')).toContainText(
+    '결과 확인 가능',
+  );
 });
 
 test('planning answers ordinary questions without creating documents and shows a read-only branch tab', async ({
@@ -392,10 +433,7 @@ test('planning answers ordinary questions without creating documents and shows a
     .getByLabel('본인 전용 비밀번호')
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await page
-    .getByRole('button', { name: '새 작업', exact: true })
-    .first()
-    .click();
+  await openNewTask(page);
   await page.getByLabel('작업 제목').fill('일반 대화와 브랜치 표시 확인');
   await submitNewTask(page);
   await expect(page.getByLabel('실행 모드')).toHaveValue('plan');
@@ -407,16 +445,20 @@ test('planning answers ordinary questions without creating documents and shows a
     page.getByRole('button', { name: '보내기', exact: true }).click(),
   );
   await expect(
-    page.getByText('This is a general answer; saved plan is unchanged.'),
+    page
+      .locator('.messages')
+      .getByText('This is a general answer; saved plan is unchanged.'),
   ).toBeVisible();
-  await expect(page.getByLabel('현재 실행 상태')).toContainText('준비됨');
+  await expect(page.getByLabel('현재 실행 상태')).toContainText(
+    '결과 확인 가능',
+  );
   const taskId = new URL(page.url()).searchParams.get('task');
   const detail = await (await page.request.get(`api/tasks/${taskId}`)).json();
   expect(detail.revisions).toEqual([]);
   expect(
     await page.getByRole('button', { name: '병합 요청', exact: true }).count(),
   ).toBe(0);
-  await page.getByRole('button', { name: '브랜치', exact: true }).click();
+  await page.getByRole('button', { name: '변경사항', exact: true }).click();
   await expect(page.locator('.workspace-path')).toBeVisible();
   expect(await page.getByLabel('대상 브랜치').count()).toBe(0);
   await page.setViewportSize({ width: 390, height: 844 });
@@ -465,17 +507,14 @@ for (const viewport of [
       .getByLabel('본인 전용 비밀번호')
       .fill('console-tests-only-password');
     await page.getByRole('button', { name: '로그인', exact: true }).click();
-    await page
-      .getByRole('button', { name: '새 작업', exact: true })
-      .first()
-      .click();
+    await openNewTask(page);
     await page
       .getByLabel('작업 제목')
       .fill(`Branch scrolling ${viewport.width}`);
     await submitNewTask(page);
     if (viewport.width < 960)
       await page.getByRole('button', { name: '결과물', exact: true }).click();
-    await page.getByRole('button', { name: '브랜치', exact: true }).click();
+    await page.getByRole('button', { name: '변경사항', exact: true }).click();
     const panel = page.locator('.git-workspace');
     await expect(panel.locator('.file-list button')).toHaveCount(18);
     const panelBox = await panel.boundingBox();
@@ -541,13 +580,10 @@ test('Git refresh updates files and the selected diff without a task state chang
     .getByLabel('본인 전용 비밀번호')
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await page
-    .getByRole('button', { name: '새 작업', exact: true })
-    .first()
-    .click();
+  await openNewTask(page);
   await page.getByLabel('작업 제목').fill('Refresh files and diff');
   await submitNewTask(page);
-  await page.getByRole('button', { name: '브랜치', exact: true }).click();
+  await page.getByRole('button', { name: '변경사항', exact: true }).click();
   const panel = page.locator('.git-workspace');
   const selected = panel.getByRole('button', { name: /selected.txt/ });
   await selected.click();

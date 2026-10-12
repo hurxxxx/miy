@@ -72,29 +72,50 @@ test('failed refreshes retain observations and drafts while invalidating current
     .getByLabel('본인 전용 비밀번호')
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await page.getByRole('button', { name: /^플래너 개인 계획/ }).click();
+  await page.getByRole('button', { name: '플래너', exact: true }).click();
   await expect(page.getByText(/^개발 리비전 CI: success/)).toBeVisible();
-  await expect(page.getByText(/^연결됨/)).toHaveCount(2);
+  await page.getByRole('button', { name: '사용량·예산', exact: true }).click();
+  await expect(
+    page
+      .getByRole('region', { name: '월별 사용량·예산', exact: true })
+      .getByText(/^연결됨/),
+  ).toBeVisible();
+  await page.getByRole('button', { name: '사용량·예산', exact: true }).click();
   await page.getByRole('button', { name: '예산 편집', exact: true }).click();
   await page.getByLabel('개발 토큰 예산', { exact: true }).fill('3456');
   failing = true;
   const refresh = page
     .getByRole('main')
     .getByRole('button', { name: '새로고침', exact: true });
-  await refresh.click();
-  await expect(page.getByText(/^연결할 수 없음/)).toHaveCount(2);
-  await expect(page.getByText(/^연결됨/)).toHaveCount(0);
-  await expect(page.getByText(/^개발 리비전 CI: success/)).toHaveCount(0);
-  await expect(
-    page.getByText('현재 상태 확인 불가', { exact: true }),
-  ).toBeVisible();
+  const polled = page.waitForResponse(
+    (r) =>
+      r.url().endsWith('/api/workbench/apps/planner/usage') &&
+      r.status() === 503,
+  );
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event('visibilitychange')),
+  );
+  await polled;
   await expect(page.getByLabel('개발 토큰 예산', { exact: true })).toHaveValue(
     '3456',
   );
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: '취소', exact: true })
+    .click();
+  await expect(page.getByText(/^연결할 수 없음/)).toHaveCount(2);
+  await expect(page.getByText(/^연결됨/)).toHaveCount(0);
+  await expect(page.getByText(/^개발 리비전 CI: success/)).toHaveCount(0);
+  await page.getByRole('button', { name: '개요', exact: true }).click();
+  await expect(
+    page.getByText('현재 상태 확인 불가', { exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: '개요', exact: true }).click();
   await expect(
     page.getByRole('main').getByText(revision.slice(0, 12), { exact: true }),
   ).toBeVisible();
   failing = false;
+  await page.locator('.navigation-tools > summary').click();
   await page
     .getByRole('navigation', { name: 'Workbench 메뉴' })
     .getByRole('button', { name: '플랫폼 관리', exact: true })
@@ -120,14 +141,16 @@ test('budget polling preserves the draft and original version across concurrent 
     .getByLabel('본인 전용 비밀번호')
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await page.getByRole('button', { name: /^플래너 개인 계획/ }).click();
+  await page.getByRole('button', { name: '플래너', exact: true }).click();
+  await page.getByRole('button', { name: '사용량·예산', exact: true }).click();
   await page.getByRole('button', { name: '예산 편집', exact: true }).click();
   const draft = page.getByLabel('개발 토큰 예산', { exact: true });
   await draft.fill('2345');
 
   const other = await context.newPage();
   await other.goto('./?view=apps');
-  await other.getByRole('button', { name: /^플래너 개인 계획/ }).click();
+  await other.getByRole('button', { name: '플래너', exact: true }).click();
+  await other.getByRole('button', { name: '사용량·예산', exact: true }).click();
   await other.getByRole('button', { name: '예산 편집', exact: true }).click();
   await other.getByLabel('개발 토큰 예산', { exact: true }).fill('6789');
   await other.getByRole('button', { name: '저장', exact: true }).click();
@@ -135,10 +158,13 @@ test('budget polling preserves the draft and original version across concurrent 
     other.getByText('토큰 예산: 6,789', { exact: true }),
   ).toBeVisible();
 
-  await page
-    .getByRole('main')
-    .getByRole('button', { name: '새로고침', exact: true })
-    .click();
+  const polled = page.waitForResponse((r) =>
+    r.url().endsWith('/api/workbench/apps/planner/usage'),
+  );
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event('visibilitychange')),
+  );
+  await polled;
   await expect(
     page.getByText('토큰 예산: 6,789', { exact: true }),
   ).toBeVisible();
@@ -155,7 +181,10 @@ test('budget polling preserves the draft and original version across concurrent 
     await page.request.get('api/workbench/apps/planner/usage')
   ).json();
   expect(current.budget.development_tokens).toBe(6789);
-  await page.getByRole('button', { name: '예산 편집', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: '취소', exact: true })
+    .click();
   await page.getByRole('button', { name: '예산 편집', exact: true }).click();
   await expect(draft).toHaveValue('6789');
   await other.close();
@@ -175,8 +204,10 @@ test('Workbench connects app maintenance to Studio without granting deployment a
   await navigation
     .getByRole('button', { name: '앱 관리 센터', exact: true })
     .click();
-  await page.getByRole('button', { name: /^플래너 개인 계획/ }).click();
+  await page.getByRole('button', { name: '플래너', exact: true }).click();
+  await page.getByRole('button', { name: '사용량·예산', exact: true }).click();
   await expect(page.getByText('금액 미제공', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '문제 관리', exact: true }).click();
   await page.getByRole('button', { name: '문제 등록', exact: true }).click();
   const title = `일정 패치 ${Date.now()}`;
   await page.getByLabel('문제·패치 제목').fill(title);
@@ -186,15 +217,15 @@ test('Workbench connects app maintenance to Studio without granting deployment a
   await page.getByLabel('목표 일정').fill('2025-01-01');
   await page.getByRole('button', { name: '저장', exact: true }).click();
   await expect(page.getByText(title, { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '사용량·예산', exact: true }).click();
   await page.getByRole('button', { name: '예산 편집', exact: true }).click();
   await page.getByLabel('개발 토큰 예산', { exact: true }).fill('1000');
   const refreshed = page.waitForResponse((response) =>
-    response.url().endsWith('/api/workbench/catalog'),
+    response.url().endsWith('/api/workbench/apps/planner/usage'),
   );
-  await page
-    .getByRole('main')
-    .getByRole('button', { name: '새로고침', exact: true })
-    .click();
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event('visibilitychange')),
+  );
   await refreshed;
   await expect(page.getByLabel('개발 토큰 예산', { exact: true })).toHaveValue(
     '1000',
@@ -204,10 +235,13 @@ test('Workbench connects app maintenance to Studio without granting deployment a
   await expect(
     page.getByRole('heading', { name: '플래너', exact: true }),
   ).toBeVisible();
+  await page.getByRole('button', { name: '문제 관리', exact: true }).click();
   await expect(page.getByText(title, { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '사용량·예산', exact: true }).click();
   await expect(
     page.getByText('토큰 예산: 1,000', { exact: true }),
   ).toBeVisible();
+  await page.getByRole('button', { name: '문제 관리', exact: true }).click();
   const patch = page.locator('.wb-patch').filter({ hasText: title });
   await patch.getByRole('button', { name: '패치 준비', exact: true }).click();
   await expect(
@@ -223,6 +257,7 @@ test('Workbench connects app maintenance to Studio without granting deployment a
   await expect(page.getByLabel('요청 내용 입력')).toContainText(
     'Investigate this maintenance item',
   );
+  await page.locator('.navigation-tools > summary').click();
   await navigation
     .getByRole('button', { name: '플랫폼 관리', exact: true })
     .click();
@@ -245,7 +280,8 @@ test('new app project records reuse rationale and opens a plan with its own cont
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await page
-    .getByRole('button', { name: '새 앱 프로젝트', exact: true })
+    .getByRole('button', { name: '앱 만들기', exact: true })
+    .first()
     .click();
   await page.getByLabel('프로젝트 이름', { exact: true }).fill('검토 워크플로');
   await page
@@ -265,6 +301,8 @@ test('new app project records reuse rationale and opens a plan with its own cont
   await expect(
     page.getByRole('heading', { name: '검토 워크플로', exact: true }),
   ).toBeVisible();
+  // Project detail and the new task share a title; wait for task navigation.
+  await expect(page).toHaveURL(/task=[0-9a-f-]+/);
   const id = new URL(page.url()).searchParams.get('task');
   const task = await (await page.request.get(`api/tasks/${id}`)).json();
   expect(task.context.app_id).toBe(appId);
@@ -291,9 +329,10 @@ test('owner connects an independent checkout and develops it after catalog reloa
     .locator('form')
     .filter({ has: page.getByLabel('저장소 작업 경로') });
   await form.getByRole('button', { name: '앱 소스 연결', exact: true }).click();
-  await expect(page.getByRole('button', { name: /^My app/ })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'My app', exact: true }),
+  ).toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: /^My app/ }).click();
   await expect(page.getByLabel('저장소 작업 경로')).toHaveValue(
     source.repository_root,
   );
@@ -316,7 +355,8 @@ test('new project prepares an app source and recovers its result without enablin
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await page
-    .getByRole('button', { name: '새 앱 프로젝트', exact: true })
+    .getByRole('button', { name: '앱 만들기', exact: true })
+    .first()
     .click();
   await page.getByLabel('프로젝트 이름', { exact: true }).fill('내 메모 준비');
   await page
@@ -340,6 +380,10 @@ test('new project prepares an app source and recovers its result without enablin
   expect(task.context.app_execution_boundary).toBe('planning_only');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('./?view=studio');
+  await page
+    .getByRole('group', { name: '프로젝트 목록' })
+    .getByRole('button', { name: /^내 메모 준비/ })
+    .click();
   let project = page
     .locator('.stack')
     .filter({ has: page.getByText('내 메모 준비', { exact: true }) })

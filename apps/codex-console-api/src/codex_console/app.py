@@ -26,12 +26,13 @@ from . import (
     registration,
     routing,
     store,
+    task_activity,
     templates,
     workbench,
 )
 from .config import Settings
 from .errors import ConsoleError
-from .models import Agent, Event, Task, database
+from .models import Agent, Event, Revision, Task, database
 from .rpc import CodexRPC
 from .runtime import Runtime
 from .schemas import (
@@ -512,9 +513,18 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
 
     @app.get("/api/overview", dependencies=secured, response_model=list[TaskOut])
     @app.get("/api/tasks", dependencies=secured, response_model=list[TaskOut])
-    def tasks(search: str = Query(default="", max_length=200), template_id: UUID | None = None):
+    def tasks(
+        search: str = Query(default="", max_length=200),
+        template_id: UUID | None = None,
+        project_id: UUID | None = None,
+        app_id: str | None = Query(default=None, max_length=80),
+    ):
         with app.state.factory() as db:
             query = select(Task)
+            if project_id is not None:
+                query = query.where(Task.context["project_id"].as_string() == str(project_id))
+            if app_id is not None:
+                query = query.where(Task.context["app_id"].as_string() == app_id)
             if template_id is not None:
                 query = query.where(
                     Task.executor == "templates",
@@ -530,6 +540,15 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
                     or_(
                         Task.pinned.is_(True),
                         Task.status.in_((*store.ACTIVE, "uncertain", "failed")),
+                        (Task.stage == "plan")
+                        & (Task.status == "idle")
+                        & select(Revision.id)
+                        .where(
+                            Revision.task_id == Task.id,
+                            Revision.kind == "plan",
+                            Revision.id > func.coalesce(Task.approved_revision, 0),
+                        )
+                        .exists(),
                         Task.id.in_(
                             select(Agent.task_id).where(
                                 Agent.parent_thread_id.is_not(None),
@@ -541,9 +560,9 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
                     )
                 )
             )
-            return [
-                store.task_out(task, db) for task in {t.id: t for t in [*recent, *tracked]}.values()
-            ]
+            rows = {t.id: t for t in [*recent, *tracked]}
+            summaries = task_activity.summaries(db, rows)
+            return [store.task_out(task, db, summary=summaries[task.id]) for task in rows.values()]
 
     @app.post("/api/tasks", dependencies=secured, response_model=TaskDetail)
     def new_task(body: NewTask, request: Request):

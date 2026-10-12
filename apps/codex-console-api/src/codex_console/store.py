@@ -1,6 +1,6 @@
 from sqlalchemy import delete, func, or_, select, update
 
-from . import planning, remote_environments
+from . import planning, remote_environments, task_activity
 from .errors import ConsoleError
 from .models import (
     Agent,
@@ -254,13 +254,16 @@ def implementation_authorized(db, task):
     )
 
 
-def task_out(task, db=None):
+def task_out(task, db=None, *, summary=None):
     return {
         "id": task.id,
         "workspace_id": task.workspace_id,
         "title": task.title,
         "executor": task.executor,
         "template_snapshot": task.template_snapshot,
+        "summary": summary
+        if summary is not None
+        else (task_activity.summaries(db, [task.id])[task.id] if db else None),
         "stage": task.stage,
         "status": task.status,
         "thread_id": task.thread_id,
@@ -325,7 +328,10 @@ def detail(factory, task_id, settings):
         task = require_task(db, task_id)
         recent = list(
             db.scalars(
-                select(Item).where(Item.task_id == task_id).order_by(Item.id.desc()).limit(2001)
+                select(Item)
+                .where(Item.task_id == task_id)
+                .order_by(task_activity.item_order().desc(), Item.id.desc())
+                .limit(2001)
             )
         )
         items = [{**row.payload, "turn_id": row.turn_id} for row in reversed(recent[:2000])]
@@ -388,6 +394,7 @@ def detail(factory, task_id, settings):
                 )
             ],
             "items": items,
+            "results": task_activity.results(db, task_id),
             "attachments": [
                 attachment_out(row)
                 for row in db.scalars(
@@ -404,9 +411,9 @@ def detail(factory, task_id, settings):
             "requests": [
                 {"id": r.id, "method": r.method, "payload": r.payload}
                 for r in db.scalars(
-                    select(PendingRequest).where(
-                        PendingRequest.task_id == task_id, PendingRequest.state == "pending"
-                    )
+                    select(PendingRequest)
+                    .where(PendingRequest.task_id == task_id, PendingRequest.state == "pending")
+                    .order_by(PendingRequest.created_at, PendingRequest.id)
                 )
             ],
             "event_id": db.scalar(select(func.max(Event.id)).where(Event.task_id == task_id)) or 0,
@@ -451,17 +458,26 @@ def upsert_item(db, task, turn_id, payload):
             safe[key] = bounded_item_text(task, safe, key, safe[key])
     row = db.scalar(select(Item).where(Item.task_id == task.id, Item.item_id == item_id))
     if row:
+        if row.turn_id == turn_id:
+            for key in ("completed_at", "history_order"):
+                if key in row.payload:
+                    safe[key] = row.payload[key]
+        row.turn_id = turn_id
         row.payload = safe
     else:
         db.add(Item(task_id=task.id, item_id=item_id, turn_id=turn_id, payload=safe))
+    return item_id
 
 
 def reconcile_history(db, task, turns):
     # The official thread is canonical. The projection is replaceable, never fed back as history.
-    db.execute(delete(Item).where(Item.task_id == task.id))
+    existing = list(db.execute(select(Item.id, Item.item_id).where(Item.task_id == task.id)))
+    retained = {}
     for turn in turns[-100:]:
         for item in turn.get("items", []):
-            upsert_item(db, task, turn["id"], item)
+            item_id = upsert_item(db, task, turn["id"], item)
+            if item_id is not None:
+                retained.setdefault(item_id, len(retained))
             if item.get("type") == "userMessage" and item.get("clientId"):
                 db.execute(
                     update(Operation)
@@ -471,6 +487,17 @@ def reconcile_history(db, task, turns):
                     )
                     .values(state="accepted")
                 )
+    # Keep physical identities and completion metadata while restoring native
+    # order independently: missed older items must precede retained answers.
+    # This metadata is server-owned and excluded from the native input whitelist.
+    db.flush()
+    for row in db.scalars(select(Item).where(Item.task_id == task.id)):
+        if row.item_id in retained:
+            row.payload = {**row.payload, "history_order": retained[row.item_id]}
+    # Insert before deleting so subsequent live IDs exceed the history length.
+    removed = [row_id for row_id, item_id in existing if item_id not in retained]
+    for start in range(0, len(removed), 200):
+        db.execute(delete(Item).where(Item.id.in_(removed[start : start + 200])))
 
 
 def recover_startup(factory, executor="session"):

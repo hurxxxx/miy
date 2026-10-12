@@ -37,6 +37,7 @@ const task: Detail = {
     files: 200,
     selection: 20,
   },
+  results: [],
   items: [],
   history_truncated: false,
   requests: [],

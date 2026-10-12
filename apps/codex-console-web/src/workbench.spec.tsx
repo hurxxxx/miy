@@ -7,7 +7,7 @@ import {
   within,
 } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { api } from './api';
+import { api, type Task } from './api';
 import { translate } from './i18n';
 import { suggestAppId } from './project-defaults';
 import {
@@ -77,6 +77,111 @@ beforeEach(() => {
     throw new Error('Unexpected API request');
   });
 });
+
+async function openProject(title: string) {
+  const list = await screen.findByRole('group', { name: 'Project list' });
+  fireEvent.click(
+    await within(list).findByRole('button', { name: new RegExp(title) }),
+  );
+}
+
+it.each(['studio', 'apps'] as const)(
+  'keeps the last recorded result reachable after new work starts in %s',
+  async (area) => {
+    const project = {
+      id: '8171b884-af40-4917-bc5d-f9b707f18516',
+      app_id: 'calendar-helper',
+      title: 'Team calendar',
+      summary: 'Coordinate schedules',
+      created_at: '2026-10-11T00:00:00Z',
+    };
+    const latest: Task = {
+      id: 'new-work',
+      title: 'Add filters',
+      status: 'running',
+      stage: 'implement',
+      thread_id: null,
+      turn_id: null,
+      root: '/repo',
+      isolated: false,
+      approved_revision: null,
+      error_code: null,
+      updated_at: '2026-10-12T12:00:00Z',
+      permissions: 'ask',
+      pinned: false,
+      agents: [],
+      pending_count: 0,
+      executor: 'session',
+      context: { project_id: project.id, app_id: project.app_id },
+    };
+    const prior: Task = {
+      ...latest,
+      id: 'recorded-work',
+      title: 'Calendar keyboard navigation',
+      status: 'idle',
+      updated_at: '2026-10-01T12:00:00Z',
+      summary: {
+        latest_result: {
+          item_id: 'answer',
+          turn_id: 'previous',
+          excerpt: 'Keyboard navigation is ready.',
+          completed_at: null,
+        },
+        pending_kinds: [],
+      },
+    };
+    const original = vi.mocked(api).getMockImplementation()!;
+    vi.mocked(api).mockImplementation(async (...args) => {
+      if (args[0] === '/workbench/catalog')
+        return {
+          items: [apps[1]],
+          projects: [project],
+          source_dirty: false,
+          checked_at: latest.updated_at,
+          activity: {
+            apps: {
+              [project.app_id]: {
+                latest_task: latest,
+                latest_result_task: prior,
+              },
+            },
+            projects: {
+              [project.id]: { latest_task: latest, latest_result_task: prior },
+            },
+          },
+        } as never;
+      if (args[0].startsWith('/overview?')) return [latest, prior] as never;
+      return original(...args);
+    });
+    const openTask = vi.fn();
+    render(
+      <WorkbenchApps
+        area={area}
+        t={translate('en-US')}
+        tasks={[latest]}
+        openTask={openTask}
+        startTask={vi.fn()}
+        newTask={vi.fn()}
+      />,
+    );
+    if (area === 'studio') await openProject(project.title);
+    else
+      fireEvent.click(
+        await screen.findByRole('button', {
+          name: 'Calendar helper',
+        }),
+      );
+    const section = (
+      await screen.findByRole('heading', { name: 'Latest result' })
+    ).parentElement!;
+    fireEvent.click(
+      within(section).getByRole('button', {
+        name: /Calendar keyboard navigation/,
+      }),
+    );
+    expect(openTask).toHaveBeenCalledWith(prior.id);
+  },
+);
 
 it('starts a new MIY app in its managed work environment without preparing another repository', async () => {
   let projectCreated = false;
@@ -168,9 +273,7 @@ it('starts a new MIY app in its managed work environment without preparing anoth
       startTask={startTask}
     />,
   );
-  fireEvent.click(
-    await screen.findByRole('button', { name: 'New app project' }),
-  );
+  fireEvent.click(await screen.findByRole('button', { name: 'Build an app' }));
   fireEvent.change(screen.getByLabelText('Project title'), {
     target: { value: project.title },
   });
@@ -236,9 +339,7 @@ it('creates a new Korean work project from its name and requirements without tec
       startTask={startTask}
     />,
   );
-  fireEvent.click(
-    await screen.findByRole('button', { name: 'New app project' }),
-  );
+  fireEvent.click(await screen.findByRole('button', { name: 'Build an app' }));
   fireEvent.change(screen.getByLabelText('Project title'), {
     target: { value: title },
   });
@@ -293,9 +394,7 @@ it('preserves an advanced app identifier override when the work name changes', a
       startTask={vi.fn()}
     />,
   );
-  fireEvent.click(
-    await screen.findByRole('button', { name: 'New app project' }),
-  );
+  fireEvent.click(await screen.findByRole('button', { name: 'Build an app' }));
   fireEvent.change(screen.getByLabelText('Project title'), {
     target: { value: '장비 관리' },
   });
@@ -359,6 +458,7 @@ it('checks the selected independent project connection before creating its devel
       startTask={startTask}
     />,
   );
+  await openProject('Independent project');
   fireEvent.click(
     await screen.findByRole('button', { name: 'Continue development' }),
   );
@@ -453,9 +553,10 @@ it('offers source preparation for new projects and keeps development disabled un
       newTask={vi.fn()}
     />,
   );
-  const project = (await screen.findByText('New project')).closest(
-    '.stack',
-  ) as HTMLElement;
+  await openProject('New project');
+  const project = await screen.findByRole('region', {
+    name: 'Selected project',
+  });
   expect(
     (
       within(project).getByRole('button', {
@@ -538,9 +639,8 @@ it('keeps one prepared source form through its parent catalog refresh without re
       newTask={vi.fn()}
     />,
   );
-  const panel = (await screen.findByText(project.title)).closest(
-    '.stack',
-  ) as HTMLElement;
+  await openProject(project.title);
+  const panel = await screen.findByRole('region', { name: 'Selected project' });
   fireEvent.click(
     within(panel).getByRole('button', { name: 'Prepare app source' }),
   );
@@ -577,7 +677,7 @@ it('keeps one prepared source form through its parent catalog refresh without re
   await act(async () => {
     refreshResponses[0]({ ...catalog, source_revision: revision });
   });
-  await screen.findByTitle(revision);
+  await waitFor(() => expect(catalogReads).toBe(2));
   expect(
     screen.getAllByRole('form', { name: 'Prepare app source' }),
   ).toHaveLength(1);
@@ -646,6 +746,7 @@ it('allows a bound project to recheck a source collision without exposing export
       newTask={vi.fn()}
     />,
   );
+  await openProject('Conflicting app');
   const button = await screen.findByRole('button', {
     name: 'Check registration status',
   });
@@ -879,8 +980,9 @@ it('discovers an unconfigured app with the manifest label and icon and explains 
       newTask={vi.fn()}
     />,
   );
+  fireEvent.click(await screen.findByRole('button', { name: /앱 목록/ }));
   const picker = await screen.findByRole('button', {
-    name: '지원서 검토 등록된 앱',
+    name: '지원서 검토',
   });
   expect(
     picker.querySelector('svg')?.classList.contains('lucide-clipboard-check'),
@@ -891,6 +993,7 @@ it('discovers an unconfigured app with the manifest label and icon and explains 
   expect(screen.queryByRole('button', { name: /일정 도우미/ })).toBeNull();
   fireEvent.click(picker);
   const detail = screen.getByRole('region', { name: '선택한 앱' });
+  fireEvent.click(within(detail).getByRole('button', { name: '연결 설정' }));
   expect(
     within(detail).getByRole('heading', { name: '지원서 검토' }),
   ).toBeTruthy();
@@ -927,11 +1030,13 @@ it('uses configured source for development without claiming preview or deploymen
       newTask={vi.fn()}
     />,
   );
+  fireEvent.click(await screen.findByRole('button', { name: /App catalog/ }));
   fireEvent.click(
     await screen.findByRole('button', {
-      name: 'Calendar helper Source available',
+      name: 'Calendar helper',
     }),
   );
+  fireEvent.click(screen.getByRole('button', { name: 'Connection settings' }));
   expect(
     screen.getByText('Preview configured; availability not verified'),
   ).toBeTruthy();
@@ -971,7 +1076,7 @@ it('connects an explicit owner-selected source without inferring a path', async 
       newTask={vi.fn()}
     />,
   );
-  await screen.findByText('지원서 검토');
+  await screen.findByRole('button', { name: /앱 목록/ });
   fireEvent.click(screen.getByRole('button', { name: '앱 소스 연결' }));
   fireEvent.change(screen.getByLabelText('앱 식별자'), {
     target: { value: 'new-independent-app' },
@@ -1036,9 +1141,10 @@ it('keeps a connected source visible while preventing work without an executor',
       newTask={vi.fn()}
     />,
   );
+  fireEvent.click(await screen.findByRole('button', { name: /App catalog/ }));
   fireEvent.click(
     await screen.findByRole('button', {
-      name: 'Calendar helper Source available',
+      name: 'Calendar helper',
     }),
   );
   expect(
@@ -1051,7 +1157,8 @@ it('keeps a connected source visible while preventing work without an executor',
   }) as HTMLButtonElement;
   expect(develop.disabled).toBe(true);
   fireEvent.click(develop);
-  await screen.findByText('Deployment: Unknown');
+  fireEvent.click(screen.getByRole('button', { name: 'Connection settings' }));
+  await screen.findByText('Release configured; deployment not verified');
   expect(
     screen.queryByRole('button', { name: 'Plan preview deployment' }),
   ).toBeNull();

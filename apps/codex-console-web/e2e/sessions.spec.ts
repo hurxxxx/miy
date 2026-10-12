@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { submitNewTask } from './task-submission';
+import { openNewTask, submitNewTask } from './task-submission';
 
 test('sessions restores search, scroll and drafts across workspace navigation', async ({
   page,
@@ -10,7 +10,7 @@ test('sessions restores search, scroll and drafts across workspace navigation', 
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await expect(
-    page.getByRole('heading', { name: '세션', exact: true }),
+    page.getByRole('heading', { name: '작업 기록', exact: true }),
   ).toBeVisible();
   const sidebar = page.locator('#console-sidebar');
   const prefix = `목록 복원 검증 ${Date.now()}`;
@@ -29,7 +29,7 @@ test('sessions restores search, scroll and drafts across workspace navigation', 
   const first = `세션 전환 첫 작업 ${Date.now()}`;
   const second = `세션 전환 다음 작업 ${Date.now()}`;
   for (const title of [first, second]) {
-    await sidebar.getByRole('button', { name: '새 작업', exact: true }).click();
+    await openNewTask(page);
     await page.getByLabel('작업 제목').fill(title);
     await submitNewTask(page);
     await expect(page.getByRole('heading', { name: title })).toBeVisible();
@@ -76,7 +76,7 @@ test('sessions restores search, scroll and drafts across workspace navigation', 
     )
     .toBeCloseTo(offset, 0);
   // Clicking the selected menu again must not disable future scroll recording.
-  await sidebar.getByRole('button', { name: /^세션(?:\s+\d+)?$/ }).click();
+  await sidebar.getByRole('button', { name: /^작업 기록(?:\s+\d+)?$/ }).click();
   await list.locator('.session-title').nth(19).scrollIntoViewIfNeeded();
   const nextOffset = await page
     .locator('.sessions-view')
@@ -117,7 +117,7 @@ test('sessions restores search, scroll and drafts across workspace navigation', 
   await list.getByRole('button', { name: new RegExp(second) }).click();
   await expect(page.getByRole('heading', { name: second })).toBeFocused();
   await page.getByRole('button', { name: '메뉴 열기' }).click();
-  await sidebar.getByRole('button', { name: '세션', exact: true }).click();
+  await sidebar.getByRole('button', { name: '작업 기록', exact: true }).click();
   await expect(page.locator('.sidebar.open')).toHaveCount(0);
   await expect(page.getByLabel('세션 검색')).toHaveValue(second);
   await page

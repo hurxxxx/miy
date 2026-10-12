@@ -725,3 +725,329 @@ def test_connected_catalog_uses_platform_display_identity_for_checkout_apps(clie
     assert item["title"] == "Registered planner"
     assert item["title_translations"] == {"ko-KR": "동일한 앱 이름"}
     assert item["icon_key"] == "puzzle" and item["source_status"] == "ready"
+
+
+def test_activity_projects_and_results_are_not_lost_outside_recent_200(client, app_catalog):
+    from codex_console.models import Item, Task
+
+    project = client.post(
+        "/api/workbench/projects",
+        json={
+            "app_id": "planner",
+            "title": "Planner extension",
+            "summary": "Improve planning",
+            "reuse_decision": "extend",
+            "reuse_notes": "Use the existing planner",
+        },
+    ).json()
+    old = new_task(client, "Old but useful result")
+    with client.app.state.factory.begin() as db:
+        task = db.get(Task, old["id"])
+        task.context = {"project_id": project["id"], "app_id": "planner"}
+        task.updated_at = now() - timedelta(days=30)
+        db.add(
+            Item(
+                task_id=task.id,
+                item_id="old-answer",
+                turn_id="old-turn",
+                payload={
+                    "id": "old-answer",
+                    "type": "agentMessage",
+                    "phase": "final_answer",
+                    "text": "Recorded result from an older project",
+                },
+            )
+        )
+        for i in range(205):
+            db.add(Task(title=f"Unrelated {i}", root=old["root"]))
+    recent = client.get("/api/overview").json()
+    assert old["id"] not in {task["id"] for task in recent}
+    catalog = client.get("/api/workbench/catalog").json()
+    activity = catalog["activity"]["projects"][project["id"]]
+    assert activity["latest_task"]["id"] == old["id"]
+    assert activity["latest_result_task"]["summary"]["latest_result"]["excerpt"] == (
+        "Recorded result from an older project"
+    )
+    assert activity["latest_task"]["summary"]["project_title"] == "Planner extension"
+    assert catalog["activity"]["apps"]["planner"]["latest_result_task"]["id"] == old["id"]
+    for params in ({"project_id": project["id"]}, {"app_id": "planner"}):
+        assert [row["id"] for row in client.get("/api/overview", params=params).json()] == [
+            old["id"]
+        ]
+    assert client.get("/api/overview", params={"project_id": str(uuid4())}).json() == []
+    assert (
+        client.get("/api/overview", params={"app_id": "planner", "search": "Unrelated"}).json()
+        == []
+    )
+    assert client.get("/api/tasks", params={"project_id": "invalid"}).status_code == 422
+
+    from codex_console.models import Revision
+
+    with client.app.state.factory.begin() as db:
+        revision = Revision(task_id=old["id"], kind="plan", version=1, body="Review this old plan")
+        db.add(revision)
+        db.flush()
+        revision_id = revision.id
+    assert old["id"] in {row["id"] for row in client.get("/api/overview").json()}
+    with client.app.state.factory.begin() as db:
+        db.get(Task, old["id"]).approved_revision = revision_id
+    assert old["id"] not in {row["id"] for row in client.get("/api/overview").json()}
+
+    # Activity on an older result must not replace the latest recorded result.
+    other = new_task(client, "Newer answer in another task")
+    with client.app.state.factory.begin() as db:
+        db.get(Task, old["id"]).updated_at = now()
+        task = db.get(Task, other["id"])
+        task.context = {"project_id": project["id"], "app_id": "planner"}
+        task.updated_at = now() - timedelta(days=1)
+        db.add(
+            Item(
+                task_id=task.id,
+                item_id="new-answer",
+                turn_id="new-turn",
+                payload={
+                    "type": "agentMessage",
+                    "phase": "final_answer",
+                    "text": "Newest recorded result",
+                },
+            )
+        )
+    activity = client.get("/api/workbench/catalog").json()["activity"]["projects"][project["id"]]
+    assert activity["latest_task"]["id"] == old["id"]
+    assert activity["latest_result_task"]["id"] == other["id"]
+
+
+def test_recovering_old_result_preserves_completion_and_latest_project_result(client, app_catalog):
+    from codex_console.models import Item, Task
+
+    project = client.post(
+        "/api/workbench/projects",
+        json={
+            "app_id": "planner",
+            "title": "Planner extension",
+            "summary": "Improve planning",
+            "reuse_decision": "extend",
+            "reuse_notes": "Use the existing planner",
+        },
+    ).json()
+    tasks = []
+    for title in ("Old result", "New result"):
+        task = send_message(client, new_task(client, title)).json()
+        item = {"id": "answer", "type": "agentMessage", "phase": "final_answer", "text": title}
+        notify(client, task, "item/completed", {"item": item})
+        notify(
+            client, task, "turn/completed", {"turn": {"id": task["turn_id"], "status": "completed"}}
+        )
+        with client.app.state.factory.begin() as db:
+            db.get(Task, task["id"]).context = {"project_id": project["id"], "app_id": "planner"}
+        tasks.append((task, item))
+    old, answer = tasks[0]
+    newer = tasks[1][0]
+    before = client.get(f"/api/tasks/{old['id']}").json()["results"][0]
+    assert before["completed_at"]
+    with client.app.state.factory.begin() as db:
+        original_id = db.scalar(
+            select(Item.id).where(Item.task_id == old["id"], Item.item_id == "answer")
+        )
+        db.add(
+            Item(
+                task_id=old["id"], item_id="stale", turn_id=old["turn_id"], payload={"type": "plan"}
+            )
+        )
+    client.app.state.runtime.rpc.threads[old["thread_id"]]["turns"] = [
+        {
+            "id": "missed-old-turn",
+            "status": "completed",
+            "items": [
+                {
+                    "id": "missed-old-answer",
+                    "type": "agentMessage",
+                    "phase": "final_answer",
+                    "text": "Unobserved older result",
+                    "history_order": 1000000,
+                }
+            ],
+        },
+        {
+            "id": old["turn_id"],
+            "status": "completed",
+            "items": [
+                {"id": "native-user", "type": "userMessage", "content": []},
+                {
+                    "id": "missed-same-turn",
+                    "type": "agentMessage",
+                    "phase": "final_answer",
+                    "text": "Earlier answer in the same turn",
+                },
+                answer,
+            ],
+        },
+    ]
+    for _ in range(2):
+        response = client.post(f"/api/tasks/{old['id']}/recover", json={})
+        assert response.status_code == 200
+        assert response.json()["results"][0] == before
+        assert response.json()["results"][1]["text"] == "Unobserved older result"
+        assert response.json()["results"][1]["completed_at"] is None
+        assert [item["id"] for item in response.json()["items"]] == [
+            "missed-old-answer",
+            "native-user",
+            "missed-same-turn",
+            "answer",
+        ]
+        assert response.json()["summary"]["latest_result"]["item_id"] == "answer"
+        with client.app.state.factory() as db:
+            rows = list(db.scalars(select(Item).where(Item.task_id == old["id"])))
+            assert {row.item_id for row in rows} == {
+                "answer",
+                "native-user",
+                "missed-old-answer",
+                "missed-same-turn",
+            }
+            assert next(row.id for row in rows if row.item_id == "answer") == original_id
+        activity = client.get("/api/workbench/catalog").json()["activity"]
+        assert activity["projects"][project["id"]]["latest_result_task"]["id"] == newer["id"]
+        assert activity["apps"]["planner"]["latest_result_task"]["id"] == newer["id"]
+
+    # A delayed native replay keeps server-owned ordering, and a new live turn
+    # appends after recovered history and becomes the latest recorded result.
+    from codex_console import store
+
+    with client.app.state.factory.begin() as db:
+        store.upsert_item(db, db.get(Task, old["id"]), old["turn_id"], answer)
+    replayed = client.get(f"/api/tasks/{old['id']}").json()
+    assert replayed["results"][0] == before
+    assert replayed["items"][-1]["id"] == "answer"
+    active = send_message(client, replayed).json()
+    notify(
+        client,
+        active,
+        "item/completed",
+        {"item": {**answer, "id": "live-answer", "text": "New live answer"}},
+    )
+    notify(
+        client, active, "turn/completed", {"turn": {"id": active["turn_id"], "status": "completed"}}
+    )
+    detail = client.get(f"/api/tasks/{old['id']}").json()
+    assert detail["items"][-1]["id"] == "live-answer"
+    assert [row["text"] for row in detail["results"]] == [
+        "New live answer",
+        "Old result",
+        "Unobserved older result",
+    ]
+    activity = client.get("/api/workbench/catalog").json()["activity"]
+    assert activity["projects"][project["id"]]["latest_result_task"]["id"] == old["id"]
+
+
+def test_result_history_keeps_turn_evidence_and_does_not_invent_legacy_completion(client):
+    from codex_console.models import Item, Revision, Task
+
+    task = new_task(client)
+    with client.app.state.factory.begin() as db:
+        for turn in ("older", "newer"):
+            db.add(
+                Item(
+                    task_id=task["id"],
+                    item_id=f"{turn}-answer",
+                    turn_id=turn,
+                    payload={
+                        "type": "agentMessage",
+                        "phase": "final_answer",
+                        "text": f"{turn} result",
+                    },
+                )
+            )
+            db.add(
+                Item(
+                    task_id=task["id"],
+                    item_id=f"{turn}-command",
+                    turn_id=turn,
+                    payload={
+                        "type": "commandExecution",
+                        "command": f"check {turn}",
+                        "exitCode": 0 if turn == "older" else 1,
+                    },
+                )
+            )
+            db.add(
+                Item(
+                    task_id=task["id"],
+                    item_id=f"{turn}-change",
+                    turn_id=turn,
+                    payload={
+                        "type": "fileChange",
+                        "changes": [{"path": f"{turn}.py"}],
+                    },
+                )
+            )
+        db.add(
+            Item(
+                task_id=task["id"],
+                item_id="comment",
+                turn_id="newer",
+                payload={
+                    "type": "agentMessage",
+                    "phase": "commentary",
+                    "text": "Still working",
+                },
+            )
+        )
+        db.add(Revision(task_id=task["id"], kind="plan", version=1, body="Review me"))
+        db.get(Task, task["id"]).updated_at = now()
+    detail = client.get(f"/api/tasks/{task['id']}").json()
+    assert [row["text"] for row in detail["results"]] == ["newer result", "older result"]
+    assert detail["results"][0]["commands"][0]["exitCode"] == 1
+    assert detail["results"][1]["changed_files"] == ["older.py"]
+    assert all(row["completed_at"] is None for row in detail["results"])
+    assert detail["summary"]["latest_plan"]["version"] == 1
+    assert detail["summary"]["latest_result"]["item_id"] == "newer-answer"
+    with client.app.state.factory.begin() as db:
+        for i in range(55):
+            db.add(
+                Item(
+                    task_id=task["id"],
+                    item_id=f"command-{i}",
+                    turn_id="newer",
+                    payload={
+                        "type": "commandExecution",
+                        "command": f"check {i}",
+                    },
+                )
+            )
+    detail = client.get(f"/api/tasks/{task['id']}").json()
+    assert len(detail["results"][0]["commands"]) == 50
+    assert detail["results"][0]["evidence_truncated"]
+    assert not detail["results"][1]["evidence_truncated"]
+
+
+def test_completed_result_timestamp_survives_item_replay_and_pending_kinds_are_explicit(client):
+    from codex_console.models import PendingRequest
+
+    task = send_message(client, new_task(client)).json()
+    item = {"id": "final", "type": "agentMessage", "phase": "final_answer", "text": "Done"}
+    notify(client, task, "item/completed", {"item": item})
+    before = client.get(f"/api/tasks/{task['id']}").json()
+    assert before["results"][0]["completed_at"] is None
+    notify(client, task, "turn/completed", {"turn": {"id": task["turn_id"], "status": "completed"}})
+    completed = client.get(f"/api/tasks/{task['id']}").json()
+    timestamp = completed["results"][0]["completed_at"]
+    assert timestamp
+    notify(client, task, "item/completed", {"item": item})
+    assert client.get(f"/api/tasks/{task['id']}").json()["results"][0]["completed_at"] == timestamp
+    with client.app.state.factory.begin() as db:
+        for i, method in enumerate(
+            ("item/tool/requestUserInput", "item/commandExecution/requestApproval")
+        ):
+            db.add(
+                PendingRequest(
+                    task_id=task["id"],
+                    thread_id=task["thread_id"],
+                    turn_id=task["turn_id"],
+                    rpc_id=str(i),
+                    generation="fixture",
+                    method=method,
+                    payload={},
+                )
+            )
+    row = client.get("/api/overview").json()[0]
+    assert set(row["summary"]["pending_kinds"]) == {"question", "approval"}

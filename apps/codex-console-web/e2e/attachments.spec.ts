@@ -1,11 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
-import { submitNewTask } from './task-submission';
+import { openNewTask, submitNewTask } from './task-submission';
 
 async function newTask(page: Page, title: string) {
-  await page
-    .getByRole('button', { name: '새 작업', exact: true })
-    .first()
-    .click();
+  await openNewTask(page);
   await page.getByLabel('작업 제목').fill(title);
   await submitNewTask(page);
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
@@ -23,7 +20,7 @@ test('library files are selected per message, retained on failure, and cleared a
   page,
 }) => {
   await newTask(page, '선택 첨부 확인');
-  await page.getByRole('button', { name: '파일', exact: true }).click();
+  await page.getByRole('button', { name: '파일 첨부', exact: true }).click();
   await page.locator('.attachment-library input[type=file]').setInputFiles([
     {
       name: '설계-A.unknown',
@@ -39,9 +36,14 @@ test('library files are selected per message, retained on failure, and cleared a
   const first = page.getByRole('checkbox', { name: /설계-A/ });
   const second = page.getByRole('checkbox', { name: /설계-B/ });
   await expect(second).toBeEnabled();
-  await expect(first).not.toBeChecked();
+  await expect(first).toBeChecked();
+  await second.uncheck();
+  await first.uncheck();
+  await page.getByRole('button', { name: '선택 완료' }).click();
   await expect(page.locator('.composer .attachment-badge')).toHaveCount(0);
+  await page.getByRole('button', { name: '파일 첨부', exact: true }).click();
   await first.check();
+  await page.getByRole('button', { name: '선택 완료' }).click();
   await page.getByLabel('요청 내용 입력').fill('첨부 자료를 참고해줘');
   await page.route(
     '**/api/tasks/*/messages',
@@ -69,8 +71,10 @@ test('library files are selected per message, retained on failure, and cleared a
   await expect(page.locator('.user-message .attachment-badge')).toContainText(
     '설계-A',
   );
+  await page.getByRole('button', { name: '파일 첨부', exact: true }).click();
   await expect(first).not.toBeChecked();
   await expect(second).not.toBeChecked();
+  await page.getByRole('button', { name: '선택 완료' }).click();
   await expect(
     page.getByRole('button', { name: '보내기', exact: true }),
   ).toBeVisible();
@@ -85,7 +89,7 @@ test('library files are selected per message, retained on failure, and cleared a
   await expect(page.locator('.user-message .attachment-badge')).toContainText(
     '설계-A',
   );
-  await page.getByRole('button', { name: '파일', exact: true }).click();
+  await page.getByRole('button', { name: '파일 첨부', exact: true }).click();
   await expect(first).not.toBeChecked();
   await expect(second).not.toBeChecked();
   const download = page.waitForEvent('download');
@@ -97,6 +101,7 @@ test('library files are selected per message, retained on failure, and cleared a
     .getByRole('button', { name: '파일 삭제', exact: true })
     .click();
   await expect(first).toHaveCount(0);
+  await page.getByRole('button', { name: '선택 완료' }).click();
   await expect(page.locator('.user-message .attachment-badge')).toContainText(
     '삭제됨',
   );
@@ -124,16 +129,18 @@ test('composer uploads select files, attachment-only messages work, and tasks do
   await expect(page.locator('.user-message .attachment-badge')).toContainText(
     '원본',
   );
-  await page.getByRole('button', { name: '파일', exact: true }).click();
+  await page.getByRole('button', { name: '파일 첨부', exact: true }).click();
   await page.getByRole('checkbox', { name: /원본/ }).check();
+  await page.getByRole('button', { name: '선택 완료' }).click();
   const previousUrl = page.url();
   await newTask(page, '다른 작업');
   await expect(page.locator('.composer .attachment-badge')).toHaveCount(0);
-  await page.getByRole('button', { name: '파일', exact: true }).click();
+  await page.getByRole('button', { name: '파일 첨부', exact: true }).click();
   await expect(page.getByRole('checkbox', { name: /원본/ })).toHaveCount(0);
   await page.goto(previousUrl);
-  await page.getByRole('button', { name: '파일', exact: true }).click();
+  await page.getByRole('button', { name: '파일 첨부', exact: true }).click();
   await expect(page.getByRole('checkbox', { name: /원본/ })).not.toBeChecked();
+  await page.getByRole('button', { name: '선택 완료' }).click();
   const transfer = await page.evaluateHandle(() => {
     const value = new DataTransfer();
     value.items.add(new File(['dragged reference'], '끌어놓기.xyz'));
@@ -145,7 +152,9 @@ test('composer uploads select files, attachment-only messages work, and tasks do
   await expect(page.locator('.composer .attachment-badge')).toContainText(
     '끌어놓기.xyz',
   );
-  await expect(page.getByLabel('현재 실행 상태')).toContainText('준비됨');
+  await expect(page.getByLabel('현재 실행 상태')).toContainText(
+    '결과 확인 가능',
+  );
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
     await page.evaluate(
@@ -157,6 +166,7 @@ test('composer uploads select files, attachment-only messages work, and tasks do
 test('restores unsent files and an explicit skill across tasks without repeating sent input', async ({
   page,
 }) => {
+  await page.locator('.navigation-tools > summary').click();
   await page
     .getByRole('navigation', { name: 'Workbench 메뉴' })
     .getByRole('button', { name: '지침·스킬', exact: true })

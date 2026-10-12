@@ -187,7 +187,7 @@ export function SessionsView({
         if (scrollPosition && !restoreScroll.current)
           scrollPosition.current = event.currentTarget.scrollTop;
       }}
-      title={t(templateId ? 'Template run history' : 'Sessions')}
+      title={t(templateId ? 'Template run history' : 'Work history')}
       description={t(
         'Find conversations, follow running work, and respond to requests.',
       )}
@@ -440,12 +440,26 @@ function SessionRun({
             <span>{task.title}</span>
           </button>
         </h2>
-        <p className="agent-run-path">
-          <Folder size={13} aria-hidden="true" />
-          <span className="sr-only">{t('Workspace')}</span>
-          <code>{task.root}</code>
-          {task.isolated && <span>{t('Isolated workspace')}</span>}
+        <p className="session-project">
+          {task.summary?.project_title ||
+            (typeof task.context?.app_id === 'string'
+              ? task.context.app_id
+              : t('General work'))}
         </p>
+        {task.summary?.latest_result && (
+          <p className="session-result-excerpt">
+            {task.summary.latest_result.excerpt}
+          </p>
+        )}
+        <details className="session-source">
+          <summary>{t('Technical details')}</summary>
+          <p className="agent-run-path">
+            <Folder size={13} aria-hidden="true" />
+            <span className="sr-only">{t('Workspace')}</span>
+            <code>{task.root}</code>
+            {task.isolated && <span>{t('Isolated workspace')}</span>}
+          </p>
+        </details>
         <div className="agent-run-meta">
           <span>
             {t(

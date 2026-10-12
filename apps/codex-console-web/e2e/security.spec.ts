@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { submitNewTask } from './task-submission';
+import { openNewTask, submitNewTask } from './task-submission';
 
 test('untrusted conversation content stays inert and private APIs require authentication', async ({
   page,
@@ -26,10 +26,7 @@ test('untrusted conversation content stays inert and private APIs require authen
     .getByLabel('본인 전용 비밀번호')
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await page
-    .getByRole('button', { name: '새 작업', exact: true })
-    .first()
-    .click();
+  await openNewTask(page);
   await page.getByLabel('작업 제목').fill('Security boundary verification');
   await submitNewTask(page);
   const content =
