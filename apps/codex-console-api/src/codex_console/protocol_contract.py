@@ -78,6 +78,12 @@ REMOTE_SCHEMA_NAMES = (
     "DynamicToolCallParams",
     "DynamicToolCallResponse",
 )
+HISTORY_SCHEMA_NAMES = (
+    "ThreadTurnsListParams",
+    "ThreadTurnsListResponse",
+    "ThreadItemsListParams",
+    "ThreadItemsListResponse",
+)
 
 
 def supports_contract_version(output: str, minimum: str) -> bool:
@@ -154,6 +160,23 @@ def build_remote_contract(version: str, source: Path) -> dict:
 def remote_schemas_are_compatible(contract: dict, source: Path) -> bool:
     try:
         current = build_remote_contract(contract["codexVersion"], source)
+    except (json.JSONDecodeError, KeyError, OSError, StopIteration, TypeError):
+        return False
+    return current["compatibilityHashes"] == contract.get("compatibilityHashes")
+
+
+def build_history_contract(version: str, source: Path) -> dict:
+    schemas = {name: _read_schema(source, name) for name in HISTORY_SCHEMA_NAMES}
+    return {
+        "codexVersion": version,
+        "compatibilityHashes": {name: _fingerprint(schema) for name, schema in schemas.items()},
+        "schemas": schemas,
+    }
+
+
+def history_schemas_are_compatible(contract: dict, source: Path) -> bool:
+    try:
+        current = build_history_contract(contract["codexVersion"], source)
     except (json.JSONDecodeError, KeyError, OSError, StopIteration, TypeError):
         return False
     return current["compatibilityHashes"] == contract.get("compatibilityHashes")

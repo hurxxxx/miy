@@ -11,6 +11,35 @@ from codex_console.errors import ConsoleError
 from codex_console.models import MessageAttachment, Operation, Task, WorkspaceLease
 
 
+def test_partial_answer_is_displayed_without_completing_or_publishing_a_plan(client):
+    task = send_message(client, new_task(client)).json()
+    document = {"kind": "plan", "base_version": 0, "body": "Partial proposal", "summary": "Draft"}
+    item = {
+        "id": "partial-answer",
+        "type": "agentMessage",
+        "phase": "partial_answer",
+        "text": planning_text("Still working", [document]),
+    }
+    notify(client, task, "item/completed", {"item": item})
+    endpoint = f"/api/tasks/{task['id']}"
+    state = client.get(endpoint).json()
+    assert state["status"] == "running"
+    assert state["revisions"] == []
+    displayed = next(row for row in state["items"] if row["id"] == item["id"])
+    assert displayed["phase"] == "partial_answer"
+    with client.app.state.factory() as db:
+        assert db.get(WorkspaceLease, 1).task_id == task["id"]
+
+    notify(client, task, "turn/completed", {"turn": {"id": task["turn_id"], "status": "completed"}})
+    state = client.get(endpoint).json()
+    assert state["status"] == "idle"
+    assert state["revisions"] == []
+
+    task = send_message(client, state).json()
+    final = complete(client, task, "Final actionable plan")
+    assert [revision["body"] for revision in final["revisions"]] == ["Final actionable plan"]
+
+
 def test_pre_submission_failure_can_retry_same_request_and_attachment(client, monkeypatch):
     task = new_task(client)
     runtime = client.app.state.runtime

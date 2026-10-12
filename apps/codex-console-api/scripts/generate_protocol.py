@@ -1,14 +1,20 @@
 """Generate the request contracts we use from the pinned official Codex binary."""
 
 import argparse
+import json
 import subprocess
 import tempfile
 from pathlib import Path
 
-from codex_console.protocol_contract import render_contract, supports_contract_version
+from codex_console.protocol_contract import (
+    build_history_contract,
+    render_contract,
+    supports_contract_version,
+)
 
-VERSION = "0.159.2"
+VERSION = "0.162.1"
 TARGET = Path(__file__).resolve().parents[1] / "src/codex_console/protocol.json"
+HISTORY_TARGET = TARGET.with_name("history_protocol.generated.json")
 
 
 def main():
@@ -27,11 +33,20 @@ def main():
             check=True,
         )
         generated = render_contract(VERSION, Path(directory))
+        history = json.dumps(
+            build_history_contract(VERSION, Path(directory)),
+            ensure_ascii=False,
+            sort_keys=True,
+            indent=2,
+        ) + "\n"
     if args.check:
         if not TARGET.exists() or TARGET.read_text() != generated:
             raise SystemExit("Codex protocol contract drift")
+        if not HISTORY_TARGET.exists() or HISTORY_TARGET.read_text() != history:
+            raise SystemExit("Codex history protocol contract drift")
     else:
         TARGET.write_text(generated)
+        HISTORY_TARGET.write_text(history)
 
 
 if __name__ == "__main__":

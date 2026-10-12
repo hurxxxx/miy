@@ -433,9 +433,11 @@ native 연결을 사용하며 코어 Task의 host 실행과 분리한다. 환경
 host 스킬 입력도 `app_host_skills_unavailable`로 거부한다. 일반 코어 Task의 지침·스킬 기능과
 소유자의 원본 Codex 설정은 바꾸지 않는다. 연결된 SDK 앱 Task에는 아래의 더 좁은 격리 계약이 적용된다.
 
-이 경로는 **Codex 0.160.1 정확 버전**의 실험적 native 환경 RPC를 사용한다. 코어/템플릿의
-기존 0.159.2 소비 계약과 별도인 `remote_protocol.generated.json`으로 환경·동적 도구의
-스키마도 검증한다. 생성 계약 검사는 `python3 scripts/generate-codex-remote-contract.py --check`다.
+이 경로는 **Codex 0.160.1 정확 버전**의 실험적 native 환경 RPC를 사용한다. 일반 콘솔의
+0.162.1 소비 계약과 별도로 `remote_core_protocol.generated.json`에서 controller의 기본 RPC를,
+`remote_protocol.generated.json`에서 환경·동적 도구의 스키마를 검증한다. SDK의 원본 관리 정책을
+읽는 baseline controller도 같은 0.160.1 계약을 사용한다. 생성 계약 검사는
+`python3 scripts/generate-codex-remote-contract.py --binary /absolute/pinned/codex-0.160.1 --check`다.
 app-server의 환경 조회 응답은 executor 버전을 노출하지 않으므로 매 연결·재연결 전에 동일한
 capability와 공식 exec-server `initialize`로 원격 0.160.1/cwd를 읽기 전용 확인한다. 이 좁은 검사는
 프로비저닝 검사기의 클라이언트를 재사용하며 10초와 응답 64 KiB 상한을 적용한다. 같은 endpoint에서
@@ -530,9 +532,10 @@ ASCII 문자·숫자·`._/@-`만 허용하고 실제 canonical 경로·소유권
 [native-pin.json](../../../ops/codex-console/executor/native-pin.json)이 소유한다. 설치 전에
 SHA512 dist integrity와 SHA256을 확인하고 **전체 layout**을 root 소유·앱/일반 사용자가 변경할 수
 없는 캐시(예: `/opt/miy/codex-0.160.1`)에 보존한다. npm scripts·자동 다운로드·mutable global CLI를
-사용하지 않는다. host `MIY_CODEX_CONSOLE_BINARY`도 검증된 이 패키지의 실제 vendor binary를
-명시적으로 선택해야 한다. 같은 binary가 코어에도 사용되므로 기존 0.159.2 소비 계약과 별도
-0.160.1 remote 계약을 모두 확인한다. template binary의 기존 선택은 별도로 유지한다.
+사용하지 않는다. host `MIY_CODEX_CONSOLE_REMOTE_BINARY`는 검증된 이 패키지의 실제 vendor binary를
+명시적으로 선택해야 한다. 일반 콘솔의 `MIY_CODEX_CONSOLE_BINARY`와 template binary 선택은
+별도로 유지한다. remote 기본 RPC와 supplemental 계약을 모두 같은 0.160.1 binary에서 확인한다.
+remote binary가 미설정이면 기존 binary 선택을 사용하지만 정확한 0.160.1 검사를 통과해야 한다.
 
 backend는 systemd private network를 상속한 outer bubblewrap에서 user/PID/IPC/UTS를 분리하고
 capability를 제거한다. 필요한 vendor·dash·libc·loader만 read-only, checkout 하나만 writable,
@@ -1019,6 +1022,7 @@ turn ID·상태·시각이며, 현재 실행 중인 turn이라는 뜻은 아니�
 | `MIY_CODEX_CONSOLE_MANAGEMENT_PORT`  | `19367` | 관리 UI/API의 loopback 포트                                                 |
 | `MIY_CODEX_CONSOLE_TEMPLATE_PORT`    | `19368` | 독립 템플릿 실행 API                                                        |
 | `MIY_CODEX_CONSOLE_TEMPLATE_BINARY`  | 미설정  | 버전별 디렉터리에 설치한 호환 CLI의 절대 파일 경로. `templates` 역할에 필수 |
+| `MIY_CODEX_CONSOLE_REMOTE_BINARY` | 미설정 | 원격·SDK controller의 검증된 0.160.1 vendor binary 절대 경로. 일반·템플릿 CLI와 독립적으로 선택 |
 | `MIY_CODEX_CONSOLE_MAX_ACTIVE_TASKS` | `3`     | 동시에 접수할 root 작업 수, 1~16                                            |
 | `MIY_CODEX_CONSOLE_MONITOR_SERVICES` | `[]`    | 소유자가 등록하는 서비스 JSON 배열, 최대 64개                               |
 
@@ -1062,21 +1066,20 @@ health 응답은 16 KiB, supervisor 출력은 4 KiB, 개별 probe는 5초로 제
 
 공식 [App Server](https://learn.chatgpt.com/docs/app-server)와
 [Subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents)의 native
-thread/turn/plan/approval을 사용한다. 0.159.2 생성 계약의 `collabAgentToolCall`,
+thread/turn/plan/approval을 사용한다. 0.162.1 생성 계약의 `collabAgentToolCall`,
 `parentThreadId`, `sessionId`, `thread/list`의 ancestor 필터로 연결을 확인한다.
 하위 thread 관찰은 `thread/read/list`만 사용하고 resume하지 않는다. 누락된 알림은 10초마다
 조회해 보완한다. 에이전트 생성·역할 배정·재시도 스케줄러는 콘솔에서 구현하지 않는다.
 [공식 worktree 기능](https://learn.chatgpt.com/docs/environments/git-worktrees)은 있으나
-0.159.2 App Server ClientRequest에는 worktree 생성 RPC가 없으므로 기존의 좁은 Git 준비
+0.162.1 App Server ClientRequest에는 worktree 생성 RPC가 없으므로 기존의 좁은 Git 준비
 helper만 유지한다. 이 helper는 서비스 운영을 실행하지 않는다.
 
 ## 실행 경계
 
 - 소유자 한 명, 설정한 Git 개발 체크아웃 하나를 대상으로 한다. 공개 가입이나 팀 공유는 없다.
-- 공식 `codex app-server`의 stdio 프로토콜을 사용한다. 기준 계약은 **0.159.2**이며,
+- 공식 `codex app-server`의 stdio 프로토콜을 사용한다. 기준 계약은 **0.162.1**이며,
   그 이상의 안정 CLI는 콘솔이 사용하는 요청·응답·알림 RPC 스키마가 기준 계약과 같을 때
   자동으로 허용한다.
-  **0.160.0**도 사용하는 RPC 스키마가 0.159.2와 동일하므로 이 기준 계약을 유지한다.
   더 오래된 버전·시험판·스키마가 달라진 버전은 실행 전에 차단한다. Codex가 구독 인증,
   토큰 갱신, 원본 대화와 도구 실행을 관리한다. 클라이언트는 인증 파일을 읽거나 복사하지 않는다.
 - 이 도구는 개인 코딩 에이전트 클라이언트다. miy 제품 앱의 생성형 호출, 공용 AI 공급자,
@@ -1228,7 +1231,7 @@ Python 버전만으로 SQLite 버전을 추정하지 말고 `python3 -c 'import 
 기존 서버의 공용 Python을 교체하지 않는다. `uv sync --python /absolute/path/to/python3`와
 릴리스 빌드의 두 번째 인자로 그 인터프리터를 지정한다.
 
-현재 사용자로 `codex login status`가 성공하는 Codex 0.159.2 이상의 안정 버전이 필요하다.
+현재 사용자로 `codex login status`가 성공하는 Codex 0.162.1 이상의 안정 버전이 필요하다.
 서비스는 연결 전에 설치된 CLI가 기준 RPC 계약과 호환되는지 검사한다.
 
 1. 소스·워크트리·릴리스 밖의 로컬 영구 디렉터리를 준비한다. SQLite 파일은 0600,
@@ -1495,11 +1498,11 @@ install -m 644 ops/codex-console/codex-console.service ops/codex-console/codex-c
 파일을 선택하고, 서비스는 그 Codex에 구독으로 로그인한 동일한 OS 계정으로 실행한다.
 전역 CLI 업데이트와 Workbench의 CLI 전환을 분리하며, 새 버전을 검증한 뒤 설정의 경로를
 명시적으로 바꾼다. 선택된 버전 디렉터리를 전역 CLI 업데이트 대상으로 재사용하지 않는다.
-독립 앱의 원격 실행을 연결하는 host binary는
+독립 앱의 원격 실행을 연결하는 `MIY_CODEX_CONSOLE_REMOTE_BINARY`는
 [표준 executor의 native pin 계약](#단일-checkout의-표준-executor-정의)에 따라 정확한
-고정 버전의 vendor binary를 선택하고, 기존 코어 RPC와 별도 remote 계약을 모두 확인한다.
+고정 버전의 vendor binary를 선택하고, remote 기본 RPC와 supplemental 계약을 모두 확인한다.
 템플릿용 CLI는 검증한 정확한 버전을 별도 디렉터리에 설치한다. 예를 들어
-`npm install --prefix /absolute/private/codex-0.159.2 --no-save @openai/codex@0.159.2`로
+`npm install --prefix /absolute/private/codex-0.162.1 --no-save @openai/codex@0.162.1`로
 설치한 뒤 `MIY_CODEX_CONSOLE_TEMPLATE_BINARY`를 그 디렉터리의
 `node_modules/@openai/codex/bin/codex.js`로 지정한다. 이 버전도 현재 생성 계약과 실제 구독
 smoke를 통과해야 한다. 해당 디렉터리를 일반 CLI 업데이트에 재사용하지 않는다. `.bin/codex`
@@ -1709,6 +1712,15 @@ JSON 중첩·불완전한 응답도 연결을 종료하며 미완료 요청을 �
 `null`인 정상 이벤트는 빈 문자열로 누적하며 연결을 종료하지 않는다. 이전 프로세스 세대의
 늦은 이벤트는 새 연결의 작업 상태에 반영하지 않는다.
 
+일반 호스트의 0.162.1 연결은 `thread/resume`에서 `excludeTurns: true`, 이력 조회에서
+`includeTurns: false`로 메타데이터를 받고 공식 `thread/turns/list`와 `thread/items/list`로
+이력을 읽는다. 한 항목씩 가져와 긴 대화 전체가 단일 4 MiB 메시지 한도를 넘지 않게 하며,
+원본 thread·turn·item·요청 client ID와 순서를 보존한다. 이력 합산은 64 MiB·1,000개 turn·
+20,000개 item·60초로 제한하고 반복 cursor와 다른 turn의 항목을 거부한다. 한도나 조회 실패는
+기존 상태 확인 경로로 처리하며 대화를 지우거나 요청을 자동 재전송하지 않는다.
+페이지 API의 생성 계약도 시작 전에 검사한다.
+원격 0.160.1 실행기와 SDK baseline probe는 기존 고정 계약과 조회 방식을 유지한다.
+
 ```bash
 pnpm check:codex-console-contract
 pnpm --dir apps/codex-console-web test
@@ -1748,17 +1760,16 @@ Codex 업그레이드 계약은 설치된 안정 CLI가 최소 버전 이상이�
 정확한 버전과 remote 스키마 검사도 충족해야 한다.
 
 공식 [App Server 스키마 생성](https://learn.chatgpt.com/docs/app-server#message-schema)은
-실행한 CLI 버전의 계약을 반환한다. 0.160.0의 `--experimental` 생성 결과는 콘솔이 검사하는
-모든 RPC와 그 참조 정의에서 0.159.2 기준과 일치한다. 어댑터와 `protocol.json`은 유지하며,
-버전만으로 허용하지 않는다. 시작 경로 회귀 검사는 두 안정 버전의 초기화와 시험판·최소 버전
+실행한 CLI 버전의 계약을 반환한다. 0.162.1의 `--experimental` 생성 결과로 기준 계약을
+검증하며, 버전만으로 허용하지 않는다. 시작 경로 회귀 검사는 호환 안정 버전의 초기화와 시험판·최소 버전
 미달·중첩 권한 정의 변경·누락·잘못된 JSON·스키마 생성 실패의 연결 전 차단을 확인한다.
-세션 CLI의 검증·릴리스 전환은 별도 고정 0.159.2 템플릿 CLI와 `template-current`를
+세션 CLI의 검증·릴리스 전환은 기존 설치의 별도 고정 템플릿 CLI와 `template-current`를
 교체하거나 재시작하지 않는다.
 
-0.159.2 기준은 공식 CLI의 `--experimental` 스키마로 생성한다. 이전 0.158.0 대비
-`CodexErrorInfo`에 `tooManyDenials`가 추가되고, turn의 오류 설명은 중단된 turn도 포함하도록
-변경됐다. 요청·승인·샌드박스 스키마는 동일하다. 추가 오류 종류는 기존 일반 실패 경로로 처리하고
-중단된 turn은 기존 중단 상태로 표시한다. 호환성 해시는 이 변경도 포함하며 드리프트 차단을 유지한다.
+0.162.1 계약은 메시지의 `partial_answer` phase와 턴의 `parentTurnId`·`rootTurnId` 등
+공식 스키마 변경을 포함한다. 부분 답변은 대화에 표시하지만 최종 계획이나 완료로 판정하지
+않으며, 기존 `final_answer`·`turn/completed` 경계를 유지한다. 승인·샌드박스 요청의 검증과
+전체 호환성 해시의 드리프트 차단도 유지한다.
 검사·재생성에는 서비스의 `MIY_CODEX_CONSOLE_BINARY`와 같은 CLI가 `PATH`에서 선택되는지
 확인한다. 재생성은 `scripts/generate_protocol.py`의 기준 버전과 정확히 같은 CLI에서만 허용한다.
 
@@ -1790,7 +1801,7 @@ management smoke는 두 root 요청의 동시 접수와 두 native subagent의 �
 다중 프로세스 자원 제한은 `test_templates.py`·`test_standalone.py`에서 별도로 검증한다.
 
 ```bash
-MIY_CODEX_CONSOLE_TEMPLATE_BINARY=/absolute/private/codex-0.159.2/node_modules/@openai/codex/bin/codex.js \
+MIY_CODEX_CONSOLE_TEMPLATE_BINARY=/absolute/private/codex-0.162.1/node_modules/@openai/codex/bin/codex.js \
   uv run --frozen --directory apps/codex-console-api python tests/live_template_smoke.py
 ```
 

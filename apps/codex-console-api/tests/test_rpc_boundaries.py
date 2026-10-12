@@ -7,21 +7,28 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from codex_console.errors import ConsoleError
-from codex_console.protocol_contract import COMPATIBILITY_SCHEMA_NAMES, build_contract
+from codex_console.protocol_contract import (
+    COMPATIBILITY_SCHEMA_NAMES,
+    HISTORY_SCHEMA_NAMES,
+    build_contract,
+    build_history_contract,
+)
 from codex_console.rpc import CodexRPC
 
 
 @pytest.mark.parametrize(
     ("version", "drift", "accepted"),
     [
-        ("0.159.2", None, True),
-        ("0.160.0", None, True),
-        ("0.159.1", None, False),
-        ("0.160.0-alpha.1", None, False),
-        ("0.160.0", "nested-permission", False),
-        ("0.160.0", "missing-permission", False),
-        ("0.160.0", "invalid-json", False),
-        ("0.160.0", "generation-failed", False),
+        ("0.162.1", None, True),
+        ("0.163.0", None, True),
+        ("0.162.0", None, False),
+        ("0.162.1-alpha.1", None, False),
+        ("0.163.0", "nested-permission", False),
+        ("0.163.0", "missing-permission", False),
+        ("0.163.0", "invalid-json", False),
+        ("0.163.0", "generation-failed", False),
+        ("0.163.0", "history-drift", False),
+        ("0.163.0", "missing-history", False),
     ],
 )
 def test_start_requires_stable_version_and_exact_contract_before_handshake(
@@ -36,9 +43,10 @@ def test_start_requires_stable_version_and_exact_contract_before_handshake(
     }
     baseline = tmp_path / "baseline"
     baseline.mkdir()
-    for name in COMPATIBILITY_SCHEMA_NAMES:
+    for name in (*COMPATIBILITY_SCHEMA_NAMES, *HISTORY_SCHEMA_NAMES):
         (baseline / f"{name}.json").write_text(json.dumps(schema))
-    monkeypatch.setattr(rpc_module, "CONTRACT", build_contract("0.159.2", baseline))
+    monkeypatch.setattr(rpc_module, "CONTRACT", build_contract("0.162.1", baseline))
+    monkeypatch.setattr(rpc_module, "HISTORY_CONTRACT", build_history_contract("0.162.1", baseline))
 
     async def run():
         calls = []
@@ -61,7 +69,7 @@ def test_start_requires_stable_version_and_exact_contract_before_handshake(
                 )
             if args[1:3] == ("app-server", "generate-json-schema"):
                 target = Path(args[-1])
-                for name in COMPATIBILITY_SCHEMA_NAMES:
+                for name in (*COMPATIBILITY_SCHEMA_NAMES, *HISTORY_SCHEMA_NAMES):
                     (target / f"{name}.json").write_text(json.dumps(schema))
                 permission = target / "PermissionsRequestApprovalResponse.json"
                 if drift == "nested-permission":
@@ -72,6 +80,12 @@ def test_start_requires_stable_version_and_exact_contract_before_handshake(
                     permission.unlink()
                 elif drift == "invalid-json":
                     permission.write_text("{")
+                elif drift == "history-drift":
+                    changed = json.loads((target / "ThreadItemsListParams.json").read_text())
+                    changed["definitions"]["Permissions"]["additionalProperties"] = True
+                    (target / "ThreadItemsListParams.json").write_text(json.dumps(changed))
+                elif drift == "missing-history":
+                    (target / "ThreadItemsListParams.json").unlink()
                 return SimpleNamespace(
                     returncode=1 if drift == "generation-failed" else 0,
                     wait=AsyncMock(return_value=0),

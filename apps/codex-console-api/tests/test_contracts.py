@@ -14,13 +14,14 @@ from codex_console.protocol_contract import (
     schemas_are_compatible,
     supports_contract_version,
 )
-from codex_console.rpc import CONTRACT
+from codex_console.rpc import CONTRACT, HISTORY_CONTRACT
 
 
 def test_generated_protocol_schemas_are_valid():
-    assert CONTRACT["codexVersion"] == "0.159.2"
-    assert supports_contract_version("codex-cli 0.159.2", CONTRACT["codexVersion"])
-    for schema in CONTRACT["schemas"].values():
+    assert CONTRACT["codexVersion"] == "0.162.1"
+    assert supports_contract_version("codex-cli 0.162.1", CONTRACT["codexVersion"])
+    assert HISTORY_CONTRACT["codexVersion"] == CONTRACT["codexVersion"]
+    for schema in (*CONTRACT["schemas"].values(), *HISTORY_CONTRACT["schemas"].values()):
         Draft7Validator.check_schema(schema)
 
 
@@ -32,11 +33,15 @@ def test_generated_protocol_schemas_are_valid():
         ("codex-cli 0.157.0", False),
         ("codex-cli 0.158.0", False),
         ("codex-cli 0.159.0", False),
-        ("codex-cli 0.159.2", True),
-        ("codex-cli 0.160.0", True),
+        ("codex-cli 0.159.2", False),
+        ("codex-cli 0.160.0", False),
+        ("codex-cli 0.162.0", False),
+        ("codex-cli 0.162.1", True),
+        ("codex-cli 0.163.0", True),
         ("codex-cli 1.0.0", True),
         ("codex-cli 0.158.0-alpha.1", False),
         ("codex-cli 0.159.0-alpha.1", False),
+        ("codex-cli 0.162.1-alpha.1", False),
         ("codex-cli latest", False),
     ],
 )
