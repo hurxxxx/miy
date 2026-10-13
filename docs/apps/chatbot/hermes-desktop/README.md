@@ -22,7 +22,7 @@ Hermes Desktop의 대화·도구 내역·결과 패널 구성을 miy 챗봇에 �
 - 기본 `chatbot.root`는 `conversationListPlacement: 'shell'`로 등록한다. 다른 앱에 임베딩하는 `ChatbotExperienceConfig`의 기본값은 `inline`이므로 소유 앱 메뉴와 대화 스코프를 보존한다.
 - sidebar 확장점과 포털은 DOM 배치만 담당한다. 목록과 실행 controller는 각각 하나이며 모바일 메뉴 선택 시 공통 `onNavigate`로 닫는다.
 - `@assistant-ui/react`의 공개 `ExternalStoreRuntime`에 miy turn/live 상태를 투영한다. 전송·중지·편집·재시도는 기존 controller를 호출한다. 모델 선택, 실행 전송, 승인, 영속 저장의 별도 소유자를 만들지 않는다.
-- 현재 의존성은 `@assistant-ui/react 0.15.18`이다. 실제 설치 기준은 [package.json](../../../../package.json)과 lockfile이며 `pnpm install --frozen-lockfile`을 사용한다. 버전을 바꿀 때 `ChatThreadRuntime.spec.tsx`의 메시지 ID 교체와 thread 복원 검사를 유지한다.
+- 현재 의존성은 `@assistant-ui/react 0.15.23`이다. 실제 설치 기준은 [package.json](../../../../package.json)과 lockfile이며 `pnpm install --frozen-lockfile`을 사용한다. 버전을 바꿀 때 `ChatThreadRuntime.spec.tsx`의 메시지 ID 교체와 thread 복원 검사를 유지한다.
 - native와 `durable_background` 복원, 앱별 custom renderer·기존 report/analysis 교체 의미는 각 소유 계약을 따른다. [AI Execution](../../../domains/ai/execution.md), [AI Write Policy](../../../domains/ai/write-policy.md).
 
 ## 파일 참조와 미리보기

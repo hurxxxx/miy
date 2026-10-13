@@ -4,3 +4,17 @@ packages:
   - "packages/*/*"
 minimumReleaseAge: 10080
 trustPolicy: no-downgrade
+
+# Keep legacy semver consumers on an attested release under trustPolicy.
+overrides:
+  semver@6.3.1: 7.8.5
+  # beta.6 pins 1.0.0, whose peer range excludes its own theme 2 dependency.
+  "@pierre/trees>@pierre/theming": 1.0.1
+  # Milkdown plugins and BlockNote must share ProseMirror class instances.
+  prosemirror-model: 1.25.12
+  prosemirror-transform: 1.12.2
+  prosemirror-view: 1.42.6
+
+# Reviewed existing lockfile integrity; owner-approved exact-version exception.
+trustPolicyExclude:
+  - "@pierre/theme@2.0.0"

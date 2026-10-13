@@ -29,7 +29,7 @@ export function createAuthenticatedCollabProvider({
     // Every disclosure must pass the server's current session and source ACL.
     disableBc: true,
   });
-  // y-websocket 3.0.0 emits connected synchronously before its initial Yjs sync.
+  // y-websocket 3.1.0 emits connected synchronously before its initial Yjs sync.
   // Register before the caller connects; the same handler authenticates retries.
   provider.on('status', ({ status }: { status: string }) => {
     if (status === 'connected') {
