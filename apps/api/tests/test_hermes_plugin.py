@@ -25,10 +25,14 @@ def plugin(monkeypatch, request):
         "hermes_constants": {"get_hermes_home": lambda: Path(profile)},
         "tools.approval": {
             "get_current_session_key": lambda **kwargs: run.get(),
+        },
+        "tools.approval_prompt": {
             "request_elicitation_consent": lambda *args, **kwargs: consent.append(args) or "accept",
         },
-        "tools.mcp_tool": {
+        "tools.mcp_tool_config": {
             "_interpolate_env_vars": lambda value: dict(value),
+        },
+        "tools.mcp_tool_schema": {
             "mcp_prefixed_tool_name": lambda server, tool: (
                 f"mcp__{server.replace('-', '_')}__{tool}"
             ),
@@ -246,7 +250,7 @@ def test_registered_native_tool_requires_admission_for_every_call(plugin, monkey
 
 @pytest.fixture
 def interactive_catalog(plugin, monkeypatch):
-    prefix = sys.modules["tools.mcp_tool"].mcp_prefixed_tool_name
+    prefix = sys.modules["tools.mcp_tool_schema"].mcp_prefixed_tool_name
 
     def internal(name):
         return prefix(plugin.server, name)
@@ -286,7 +290,9 @@ def interactive_catalog(plugin, monkeypatch):
     monkeypatch.setattr(plugin.module, "_rpc", rpc)
     monkeypatch.setattr(plugin.module, "_interactive_definitions", lambda config: list(definitions))
     for name, members in {
-        "tools.registry": {"registry": SimpleNamespace()},
+        "tools.registry": {"registry": SimpleNamespace(
+            get_toolset_for_tool=lambda name: "mcp-" + external_server if name == external else None,
+        )},
         "tools.tool_search": {"dispatch_tool_search": dispatch, "dispatch_tool_describe": dispatch},
     }.items():
         module = ModuleType(name)

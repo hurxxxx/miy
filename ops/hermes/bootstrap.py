@@ -45,6 +45,8 @@ def _apply_runtime_policy(config: dict[str, Any]) -> bool:
     """Bootstrap transport/lifecycle only; administrator DB owns model selection."""
     before = deepcopy(config)
     plugins = config.setdefault("plugins", {})
+    # Run context and the public environment objects stay in the native process.
+    plugins["isolation"] = "in_process"
     plugins["enabled"] = sorted(
         (set(plugins.get("enabled", [])) - {"owh_runtime", "mty_runtime"}) | {"miy_runtime"}
     )

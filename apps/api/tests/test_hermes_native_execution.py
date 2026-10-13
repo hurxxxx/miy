@@ -26,6 +26,7 @@ def native(monkeypatch):
     spec.loader.exec_module(bridge)
 
     class WorkspaceEnvironment:
+        env_type = "miy_sandbox"
         _hermes_backend_name = "miy_sandbox"
         _container = "isolated"
         _closed = False
@@ -43,21 +44,20 @@ def native(monkeypatch):
         pass
 
     environment = WorkspaceEnvironment()
-    state = SimpleNamespace(environment=environment, backend="miy_sandbox")
+    state = SimpleNamespace(environment=environment, provider=MIYSandbox())
     denied = {"approved": False, "outcome": "blocked"}
 
     def guard(code, env_type, has_host_access=False):
         return dict(denied)
 
     def get_environment(task_id):
-        return state.environment, state.backend
+        return state.environment
 
     modules = {
         "tools.approval": {"check_execute_code_guard": guard},
-        "tools.code_execution_tool": {"_get_or_create_env": get_environment},
-        "tools.terminal_tool": {
-            "_get_env_config": lambda: {"env_type": state.backend},
-            "_get_plugin_env_provider": lambda _: MIYSandbox(),
+        "agent.terminal_env_registry": {"get_provider": lambda _: state.provider},
+        "tools.terminal_tool_lifecycle": {
+            "ensure_task_env": get_environment,
             "get_active_env": lambda _: state.environment,
             "cleanup_vm": lambda _: pytest.fail("Unexpected cache cleanup"),
         },
@@ -75,17 +75,13 @@ def native(monkeypatch):
         monkeypatch.setitem(sys.modules, name, module)
         if name.startswith("tools."):
             setattr(tools, name.split(".")[-1], module)
-    # Unit doubles have their own source; the pinned-image smoke separately
-    # verifies the production fingerprints against the real native functions.
-    monkeypatch.setattr(bridge, "_GUARD_SHA256", bridge._fingerprint(guard))
-    monkeypatch.setattr(bridge, "_ENV_SHA256", bridge._fingerprint(get_environment))
-    bridge.install_code_guard()
     return SimpleNamespace(
         bridge=bridge,
         state=state,
         server=server,
         current=current,
         approval=tools.approval,
+        original_guard=guard,
         environment=environment,
     )
 
@@ -96,18 +92,16 @@ def invoke(native, tool, callback, run="run_first"):
     )
 
 
-def test_scoped_native_execution_resets_roles_and_cleans_after_timeout(native):
+def test_native_execution_keeps_upstream_guard_and_cleans_after_timeout(native):
     guard = native.approval.check_execute_code_guard
-    assert not guard("pass", "miy_sandbox")["approved"]
 
     def dispatch():
-        assert guard("pass", "miy_sandbox")["approved"]
-        assert not guard("pass", "local")["approved"]
-        assert not guard("pass", "miy_sandbox", has_host_access=True)["approved"]
+        assert native.approval.check_execute_code_guard is native.original_guard
+        assert native.bridge.file_write_environment.get() is None
         return '{"status":"success"}'
 
     assert json.loads(invoke(native, "execute_code", dispatch))["status"] == "success"
-    assert not guard("pass", "miy_sandbox")["approved"]
+    assert native.approval.check_execute_code_guard is guard
 
     def dispatch():
         assert native.bridge.file_write_environment.get() is native.environment
@@ -116,25 +110,26 @@ def test_scoped_native_execution_resets_roles_and_cleans_after_timeout(native):
 
     assert invoke(native, "patch", dispatch) == "saved"
     assert native.bridge.file_write_environment.get() is None
-    guard = native.approval.check_execute_code_guard
 
     def dispatch():
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            assert not pool.submit(guard, "pass", "miy_sandbox").result()["approved"]
         raise RuntimeError("synthetic failure")
 
     with pytest.raises(RuntimeError):
         invoke(native, "execute_code", dispatch)
-    assert not guard("pass", "miy_sandbox")["approved"]
+    assert native.approval.check_execute_code_guard is guard
     result = invoke(native, "execute_code", lambda: '{"status":"timeout"}')
     assert json.loads(result)["status"] == "timeout"
     assert native.environment._container is None
 
 
-@pytest.mark.parametrize("failure", ["object", "profile", "run"])
+@pytest.mark.parametrize("failure", ["backend", "provider", "missing", "object", "stamp", "profile", "run"])
 def test_stale_or_forged_environment_cannot_dispatch(native, failure):
     if failure == "backend":
-        native.state.backend = "local"
+        native.environment.env_type = "local"
+    elif failure == "provider":
+        native.state.provider = None
+    elif failure == "missing":
+        native.state.environment = None
     elif failure == "object":
         native.state.environment = SimpleNamespace(_container="host")
     elif failure == "stamp":
@@ -168,14 +163,40 @@ def test_parallel_recovery_never_retires_the_replacement(native, monkeypatch):
     def create(task_id):
         if native.state.environment is None:
             native.state.environment = type(previous)()
-        return native.state.environment, "miy_sandbox"
+        return native.state.environment
 
-    terminal = sys.modules["tools.terminal_tool"]
+    terminal = sys.modules["tools.terminal_tool_lifecycle"]
     monkeypatch.setattr(terminal, "get_active_env", get_active)
     monkeypatch.setattr(terminal, "cleanup_vm", cleanup)
-    monkeypatch.setattr(sys.modules["tools.code_execution_tool"], "_get_or_create_env", create)
+    monkeypatch.setattr(terminal, "ensure_task_env", create)
     with ThreadPoolExecutor(max_workers=2) as pool:
         results = list(pool.map(lambda _: invoke(native, "terminal", lambda: "ok"), [1, 2]))
     assert results == ["ok", "ok"]
     assert retired == [previous]
     assert native.state.environment is not previous and not native.state.environment._closed
+
+
+def test_file_boundary_is_reset_after_failed_dispatch(native):
+    def dispatch():
+        assert native.bridge.file_write_environment.get() is native.environment
+        raise RuntimeError("synthetic file failure")
+
+    with pytest.raises(RuntimeError):
+        invoke(native, "write_file", dispatch)
+    assert native.bridge.file_write_environment.get() is None
+
+
+def test_native_file_environment_must_match_verified_sandbox(native, monkeypatch):
+    monkeypatch.setattr(
+        sys.modules["tools.file_tools"], "_get_file_ops", lambda _: SimpleNamespace(env=object())
+    )
+    with pytest.raises(ValueError):
+        invoke(native, "patch", lambda: pytest.fail("Dispatch must be blocked"))
+
+
+def test_missing_task_identity_cannot_dispatch(native):
+    with pytest.raises(ValueError):
+        native.bridge.execute_native(
+            "execute_code", lambda: pytest.fail("Dispatch must be blocked"),
+            task_id=None, server=native.server, run_id="run_first",
+        )

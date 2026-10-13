@@ -9,8 +9,9 @@ from uuid import uuid4
 
 sys.path.insert(0, "/opt/hermes/plugins")
 from gateway.session_context import clear_session_vars, set_session_vars
-from tools import approval
 from miy_runtime import _request_write_consent
+from tools import approval, approval_context
+from tools.approval_context import reset_current_session_key, set_current_session_key
 
 logging.disable(logging.CRITICAL)
 
@@ -18,7 +19,7 @@ logging.disable(logging.CRITICAL)
 def check(choice, barrier=None):
     run_id = "run_" + uuid4().hex
     tokens = set_session_vars(platform="api_server", session_key=run_id)
-    token = approval.set_current_session_key(run_id)
+    token = set_current_session_key(run_id)
     notifications = []
 
     def notify(data):
@@ -58,7 +59,7 @@ def check(choice, barrier=None):
         ) == "decline"
     finally:
         approval.unregister_gateway_notify(run_id)
-        approval.reset_current_session_key(token)
+        reset_current_session_key(token)
         clear_session_vars(tokens)
 
 
@@ -67,7 +68,7 @@ with ThreadPoolExecutor(max_workers=2) as pool:
     futures = [pool.submit(check, choice, barrier) for choice in ("once", "deny")]
     for future in futures:
         future.result(timeout=20)
-with patch.object(approval, "_get_approval_timeout", lambda: 0):
+with patch.object(approval_context, "_get_approval_timeout", lambda: 0):
     check(None)
 for choice in ("session", "always"):
     check(choice)

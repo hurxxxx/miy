@@ -18,17 +18,23 @@ sys.path.insert(0, "/opt/hermes/plugins")
 import hermes_constants
 import miy_runtime
 from agent.tool_executor import execute_tool_calls_sequential
-from hermes_cli import config, middleware
+from hermes_cli import config, plugins
 from run_agent import AIAgent
-from tools import approval
-from tools.mcp_tool import mcp_prefixed_tool_name
+from tools.approval_context import set_current_session_key
+from tools.mcp_tool_schema import mcp_prefixed_tool_name
 from tools.registry import registry
 
 logging.disable(logging.CRITICAL)
+manager = plugins.PluginManager()
+manager._discovered = True
+context = plugins.PluginContext(plugins.PluginManifest(name="miy_runtime"), manager)
+context.register_middleware("tool_execution", miy_runtime.execute_tool)
 profile = "miy-" + uuid4().hex
 server_name = "miy-mcp-" + hashlib.sha256(profile.encode()).hexdigest()[:20] + "-internal"
 server = {"url": "http://synthetic.invalid", "headers": {"Authorization": "Bearer synthetic"}}
 toolset = "mcp-" + server_name
+external_server = server_name.removesuffix("internal") + "b" * 20 + "-external"
+foreign_server = "miy-mcp-" + "c" * 20 + "-" + "d" * 20 + "-external"
 names = {key: mcp_prefixed_tool_name(server_name, key) for key in ("app.read", "app.write", "app.archive")}
 scopes = {"run_read": ["app.read"], "run_empty": [], "run_all": ["app.read", "app.write"]}
 dispatched = []
@@ -62,7 +68,7 @@ def register(name):
 
 
 def call(agent, run_id, name, args):
-    approval.set_current_session_key(run_id)
+    set_current_session_key(run_id)
     messages = []
     message = SimpleNamespace(tool_calls=[SimpleNamespace(
         id="call_" + uuid4().hex,
@@ -84,11 +90,12 @@ with (
     tempfile.TemporaryDirectory() as home,
     patch.dict(os.environ, {"HERMES_HOME": str(Path(home) / profile)}),
     patch.object(config, "load_config", lambda *a, **kw: {
-        "mcp_servers": {server_name: server}, "platform_toolsets": {"api_server": [toolset]},
+        "mcp_servers": {server_name: server, external_server: server, foreign_server: server},
+        "platform_toolsets": {"api_server": [toolset, "mcp-" + external_server, "mcp-" + foreign_server]},
     }),
     patch.object(hermes_constants, "get_hermes_home", lambda: Path(home) / profile),
     patch.object(miy_runtime, "_rpc", rpc),
-    patch.object(middleware, "_get_middleware_callbacks", lambda kind: [miy_runtime.execute_tool] if kind == "tool_execution" else []),
+    patch.object(plugins, "get_plugin_manager", lambda: manager),
     patch.object(socket.socket, "connect", side_effect=AssertionError("Network access forbidden")),
     redirect_stdout(io.StringIO()),
     redirect_stderr(io.StringIO()),
@@ -130,5 +137,18 @@ with (
     fresh = call(agent, "run_all", "tool_describe", {"names": [names["app.archive"]]})
     assert set(fresh["tools"]) == {names["app.archive"]}, fresh
     assert "error" in call(agent, "run_unknown", "tool_search", {"queries": ["app"]})
+    long_names = {}
+    for configured in (external_server, foreign_server):
+        wire_name = mcp_prefixed_tool_name(configured, "external.read_with_a_long_name")
+        assert len(wire_name) == 64
+        long_names[configured] = wire_name
+        registry.register(
+            name=wire_name, toolset="mcp-" + configured,
+            schema={"name": wire_name, "description": "External read",
+                    "parameters": {"type": "object", "properties": {}}},
+            handler=lambda *a, **kw: (_ for _ in ()).throw(AssertionError("Discovery must not dispatch")),
+        )
+    described = call(agent, "run_all", "tool_describe", {"names": list(long_names.values())})
+    assert set(described["tools"]) == {long_names[external_server]}, described
 
-print("PASS: native agent executor scope, revocation, validation/correction, dispatch, stale catalog and refreshed catalog; no inference")
+print("PASS: native agent executor scope, revocation, validation/correction, dispatch, catalog refresh and long external MCP name isolation; no inference")

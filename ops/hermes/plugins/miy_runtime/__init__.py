@@ -15,7 +15,6 @@ from uuid import uuid4
 
 import httpx
 
-
 _INTERACTIVE_TOOLS = frozenset({
     "web_search", "web_extract", "tool_search", "tool_describe", "terminal",
     "process", "read_file", "write_file", "patch", "search_files", "skills_list",
@@ -43,7 +42,7 @@ def _interactive_definitions(config: dict) -> list[dict]:
 
 
 def _scoped_discovery(tool_name, args, *, config, server_name, server, run_id, execution):
-    from tools.mcp_tool import mcp_prefixed_tool_name
+    from tools.mcp_tool_schema import mcp_prefixed_tool_name
     from tools.registry import registry
     from tools.tool_search import dispatch_tool_describe, dispatch_tool_search
 
@@ -73,18 +72,23 @@ def _scoped_discovery(tool_name, args, *, config, server_name, server, run_id, e
                 "missing_count": len(missing),
             })
         internal_prefix = mcp_prefixed_tool_name(server_name, "")
-        external_prefixes = tuple(
-            mcp_prefixed_tool_name(name, "")
+        # Native wire names can be hash-clamped to 64 characters. Match their
+        # registered toolset rather than a separately clamped empty-tool prefix.
+        external_toolsets = {
+            "mcp-" + name
             for name in config.get("mcp_servers", {})
             if name != server_name and name.startswith(server_name.removesuffix("internal"))
-        )
+        }
         definitions = []
         for item in native:
             name = item["function"]["name"]
             if name.startswith(internal_prefix):
                 allowed = name in expected
             else:
-                allowed = name in _INTERACTIVE_TOOLS or name.startswith(external_prefixes)
+                allowed = (
+                    name in _INTERACTIVE_TOOLS
+                    or registry.get_toolset_for_tool(name) in external_toolsets
+                )
             if allowed:
                 definitions.append(item)
     dispatch = dispatch_tool_search if tool_name == "tool_search" else dispatch_tool_describe
@@ -94,17 +98,19 @@ def _scoped_discovery(tool_name, args, *, config, server_name, server, run_id, e
 def _request_write_consent(
     message: str, description: str, *, run_id: str, surface: str, arguments: dict,
 ) -> str:
-    """Bridge the pinned API elicitation gap without changing unattended guards.
+    """Preserve argument-bound, once-only API consent using the native wait queue.
 
-    v2026.8.31 registers an API run notifier but its public elicitation helper
-    excludes api_server. Reuse its queue/wait/interrupt lifecycle for that exact
-    run only. Remove this adapter when the public helper routes API notifiers.
+    v0.21.7 routes public elicitation to API notifiers, but cannot carry structured
+    arguments, disable session/permanent choices, or separate coalescing by args.
+    Remove this adapter when the public helper supports those per-call controls.
     """
     from gateway.session_context import get_session_env
     from tools import approval
 
     if get_session_env("HERMES_SESSION_PLATFORM", "") != "api_server":
-        return approval.request_elicitation_consent(message, description, surface=surface)
+        from tools.approval_prompt import request_elicitation_consent
+
+        return request_elicitation_consent(message, description, surface=surface)
     if not run_id.startswith("run_") or approval.get_current_session_key(default="") != run_id:
         return "decline"
     with approval._lock:
@@ -156,7 +162,7 @@ def runtime_transport():
 
 
 def _rpc(server: dict, run_id: str, method: str, params: dict) -> dict:
-    from tools.mcp_tool import _interpolate_env_vars
+    from tools.mcp_tool_config import _interpolate_env_vars
 
     # Management stores bearer tokens as profile-local ${VAR} references.
     # The pinned native resolver reads the current multiplexed secret scope.
@@ -249,7 +255,7 @@ def execute_tool(*, tool_name: str, args: dict, next_call, **context):
         from hermes_cli.config import load_config
         from hermes_constants import get_hermes_home
         from tools.approval import get_current_session_key
-        from tools.mcp_tool import mcp_prefixed_tool_name
+        from tools.mcp_tool_schema import mcp_prefixed_tool_name
 
         profile = get_hermes_home().name
         if not re.fullmatch(r"(?:miy|mty)-[0-9a-f]{32}(?:-local)?(?:-jobs)?", profile):
@@ -271,7 +277,8 @@ def execute_tool(*, tool_name: str, args: dict, next_call, **context):
             # required-argument validation rejects unwrapping. Preserve useful
             # native validation feedback only for currently admitted tools.
             # Never dispatch here: valid calls arrive under the underlying name.
-            from tools.tool_search import resolve_underlying_call, validate_deferred_call_args
+            from tools.tool_search import resolve_underlying_call
+            from tools.tool_search_validation import validate_deferred_call_args
 
             target, arguments, parse_error = resolve_underlying_call(args)
             if parse_error:
@@ -376,10 +383,8 @@ def execute_tool(*, tool_name: str, args: dict, next_call, **context):
 
 
 def register(ctx):
-    from .native_execution import install_code_guard
     from .sandbox import MIYSandbox
 
-    install_code_guard()
     ctx.register_terminal_environment_provider(MIYSandbox())
     ctx.register_middleware("llm_request", prepare_llm_request)
     ctx.register_middleware("tool_execution", execute_tool)

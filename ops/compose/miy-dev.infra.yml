@@ -155,7 +155,7 @@ services:
       - miy-dev-infra
 
   hermes-bootstrap:
-    image: nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
+    image: nousresearch/hermes-agent:stable@sha256:444b42594e7f467425872fc35e077a227d377f0fe0726bc818706d62175fad8b
     container_name: miy-dev-hermes-bootstrap
     network_mode: host
     restart: "no"
@@ -182,7 +182,7 @@ services:
       - ../hermes/bootstrap.py:/opt/miy-hermes/bootstrap.py:ro
 
   hermes-gateway:
-    image: nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
+    image: nousresearch/hermes-agent:stable@sha256:444b42594e7f467425872fc35e077a227d377f0fe0726bc818706d62175fad8b
     container_name: miy-dev-hermes-gateway
     network_mode: host
     restart: unless-stopped
@@ -236,7 +236,7 @@ services:
       start_period: 45s
 
   hermes-dashboard:
-    image: nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
+    image: nousresearch/hermes-agent:stable@sha256:444b42594e7f467425872fc35e077a227d377f0fe0726bc818706d62175fad8b
     container_name: miy-dev-hermes-dashboard
     network_mode: host
     restart: unless-stopped
@@ -276,7 +276,7 @@ services:
       start_period: 45s
 
   hermes-terminal-egress-client-init:
-    image: nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
+    image: nousresearch/hermes-agent:stable@sha256:444b42594e7f467425872fc35e077a227d377f0fe0726bc818706d62175fad8b
     container_name: miy-dev-hermes-terminal-egress-client-init
     user: "0:0"
     read_only: true
@@ -300,7 +300,7 @@ services:
     network_mode: none
 
   hermes-terminal-egress:
-    image: nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
+    image: nousresearch/hermes-agent:stable@sha256:444b42594e7f467425872fc35e077a227d377f0fe0726bc818706d62175fad8b
     container_name: miy-dev-hermes-terminal-egress
     restart: unless-stopped
     depends_on:
@@ -359,7 +359,7 @@ services:
       MIY_HERMES_MCP_SHARED_SECRET: ${MIY_HERMES_MCP_SHARED_SECRET:-}
       MIY_HERMES_TERMINAL_BROKER_INSTANCE_ID: dev-broker
       MIY_HERMES_TERMINAL_EGRESS_CLIENT_DIR: /run/miy-hermes-terminal-egress
-      MIY_HERMES_TERMINAL_IMAGE: nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
+      MIY_HERMES_TERMINAL_IMAGE: nousresearch/hermes-agent:stable@sha256:444b42594e7f467425872fc35e077a227d377f0fe0726bc818706d62175fad8b
       MIY_HERMES_TERMINAL_MCP_RELAY_BASE_URL: http://hermes-terminal-broker:18765/mcp
       MIY_HERMES_TERMINAL_MCP_SOCKET_PATH: /run/miy/hermes-terminal-mcp.sock
       MIY_HERMES_TERMINAL_PROFILE_ARCHIVE_MAX_BYTES: ${MIY_HERMES_TERMINAL_PROFILE_ARCHIVE_MAX_BYTES:-67108864}

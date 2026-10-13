@@ -13,14 +13,18 @@ from uuid import uuid4
 
 sys.path.insert(0, "/opt/hermes/plugins")
 import hermes_constants
-import model_tools
 import miy_runtime
+import model_tools
 from agent.terminal_env_registry import register_provider
-from hermes_cli import config, middleware
-from tools import approval
+from hermes_cli import config, middleware, plugins
+from tools.approval_context import set_current_session_key
 from tools.registry import registry
 
 logging.disable(logging.CRITICAL)
+manager = plugins.PluginManager()
+manager._discovered = True
+context = plugins.PluginContext(plugins.PluginManifest(name="miy_runtime"), manager)
+context.register_middleware("tool_execution", miy_runtime.execute_tool)
 profile = "miy-" + uuid4().hex
 server_name = "miy-mcp-" + hashlib.sha256(profile.encode()).hexdigest()[:20] + "-internal"
 server = {"url": "http://synthetic.invalid", "headers": {"Authorization": "Bearer synthetic"}}
@@ -54,14 +58,14 @@ with (
     patch.object(config, "load_config", lambda *a, **kw: {"mcp_servers": {server_name: server}}),
     patch.object(hermes_constants, "get_hermes_home", lambda: Path(home) / profile),
     patch.object(miy_runtime, "_rpc", rpc),
-    patch.object(middleware, "_get_middleware_callbacks", lambda kind: [miy_runtime.execute_tool] if kind == "tool_execution" else []),
+    patch.object(plugins, "get_plugin_manager", lambda: manager),
 ):
     miy_runtime.register(SimpleNamespace(
         register_terminal_environment_provider=register_provider,
         register_middleware=lambda *args: None,
         register_tool=registry.register,
     ))
-    approval.set_current_session_key("run_synthetic")
+    set_current_session_key("run_synthetic")
     found = call("tool_search", {"queries": ["submit result"]})
     assert set(found["tools"]) == {"miy_submit_result"}, found
     described = call("tool_describe", {"names": ["miy_submit_result", "miy_preview", "terminal"]})
@@ -73,7 +77,7 @@ with (
     assert len(submissions) == 2
     denied = call("tool_call", {"name": "miy_preview", "arguments": {"path": "index.html"}})
     assert "error" in denied, denied
-    approval.set_current_session_key("")
+    set_current_session_key("")
     assert "error" in call("tool_describe", {"names": ["miy_submit_result"]})
     assert "error" in call("tool_call", {"name": "miy_submit_result", "arguments": {"result": {"answer": 5}}})
     assert len(submissions) == 2

@@ -55,12 +55,12 @@ def _install_mcp_stubs(
     constants_module.get_hermes_home = lambda: Path("/profiles") / profile_name  # type: ignore[attr-defined]
     tools_module = ModuleType("tools")
     tools_module.__path__ = []  # type: ignore[attr-defined]
-    mcp_module = ModuleType("tools.mcp_tool")
+    mcp_module = ModuleType("tools.mcp_tool_discovery")
     mcp_module.discover_mcp_tools = lambda: calls.append("discover")  # type: ignore[attr-defined]
     mcp_module.get_mcp_status = lambda: status_rows  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "hermes_constants", constants_module)
     monkeypatch.setitem(sys.modules, "tools", tools_module)
-    monkeypatch.setitem(sys.modules, "tools.mcp_tool", mcp_module)
+    monkeypatch.setitem(sys.modules, "tools.mcp_tool_discovery", mcp_module)
     return calls
 
 

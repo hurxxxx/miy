@@ -6,33 +6,38 @@ Native dispatch, middleware chain, approvals, code kernel and file tools run.
 """
 
 import base64
-from concurrent.futures import ThreadPoolExecutor
-from contextvars import ContextVar
 import hashlib
 import json
 import logging
 import os
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
+from contextvars import ContextVar
+from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
 
 sys.path.insert(0, "/opt/hermes/plugins")
-import miy_runtime
-from miy_runtime.native_execution import install_code_guard
-from miy_runtime.sandbox import MIYSandbox
-from agent.terminal_env_registry import register_provider
-from hermes_cli import config, middleware
 import hermes_constants
+import miy_runtime
 import model_tools
-from tools import approval, terminal_tool
+from agent.terminal_env_registry import register_provider
+from hermes_cli import config, plugins
+from miy_runtime.sandbox import MIYSandbox
+from tools import approval
+from tools.approval_context import set_current_session_key
 from tools.interrupt import set_interrupt
+from tools.terminal_tool_lifecycle import cleanup_vm, get_active_env
 
 logging.disable(logging.CRITICAL)
+manager = plugins.PluginManager()
+manager._discovered = True
+context = plugins.PluginContext(plugins.PluginManifest(name="miy_runtime"), manager)
+context.register_middleware("tool_execution", miy_runtime.execute_tool)
 image = sys.argv[1]
 profile = "miy-" + uuid4().hex
 server_name = "miy-mcp-" + hashlib.sha256(profile.encode()).hexdigest()[:20] + "-internal"
@@ -76,7 +81,7 @@ def rpc(configured, run_id, method, params):
 
 def call(tool, args, conversation="first"):
     current.set(conversation)
-    approval.set_current_session_key(transport()[1])
+    set_current_session_key(transport()[1])
     result = model_tools.handle_function_call(
         tool, args, task_id=tasks[conversation],
         enabled_tools=["execute_code", "terminal", "read_file", "write_file", "patch"],
@@ -105,17 +110,30 @@ with (
         "TERMINAL_CONTAINER_PERSISTENT": "false",
     }),
     patch.object(config, "load_config", lambda *a, **kw: settings),
+    patch.object(config, "load_config_readonly", lambda *a, **kw: settings),
     patch.object(config, "read_raw_config", lambda *a, **kw: {"code_execution": settings["code_execution"]}),
     patch.object(hermes_constants, "get_hermes_home", lambda: Path(home) / profile),
     patch.object(miy_runtime, "_rpc", rpc),
     patch.object(miy_runtime, "runtime_transport", transport),
-    patch.object(middleware, "_get_middleware_callbacks", lambda kind: [miy_runtime.execute_tool] if kind == "tool_execution" else []),
+    patch.object(plugins, "get_plugin_manager", lambda: manager),
 ):
     register_provider(MIYSandbox())
-    install_code_guard()  # Checks real pinned source hashes, not mocks.
+    original_guard = approval.check_execute_code_guard
     try:
-        # Unattended guard remains denied outside an admitted miy tool call.
-        assert not approval.check_execute_code_guard("pass", "miy_sandbox")["approved"]
+        # Official classification handles isolated code and command approval.
+        # MIY admission is tested at dispatch, not by patching this native guard.
+        assert original_guard("pass", "miy_sandbox")["approved"]
+        assert not original_guard("pass", "local")["approved"]
+        # The built-in Docker backend examines has_host_access. Custom
+        # providers declare their isolation through skip_container_guards;
+        # check_sandbox verifies MIY creates no host bind mounts.
+        assert not original_guard("pass", "docker", has_host_access=True)["approved"]
+        blocked = miy_runtime.execute_tool(
+            tool_name="execute_code", args={"code": "pass"},
+            next_call=lambda: (_ for _ in ()).throw(AssertionError("Unadmitted dispatch")),
+            task_id=tasks["first"],
+        )
+        assert "Trusted Hermes run context" in json.loads(blocked)["error"]
         with ThreadPoolExecutor(max_workers=2) as pool:
             results = list(pool.map(
                 lambda name: call("execute_code", {"code": "print('MIY_NATIVE_CODE_OK')"}, name),
@@ -123,16 +141,23 @@ with (
             ))
         assert all(row.get("status") == "success" for row in results), results
         assert all("MIY_NATIVE_CODE_OK" in row.get("output", "") for row in results), results
-        first = terminal_tool.get_active_env(tasks["first"])
-        second = terminal_tool.get_active_env(tasks["second"])
+        first = get_active_env(tasks["first"])
+        second = get_active_env(tasks["second"])
         assert first._container != second._container
         print("PASS: unattended execute_code and concurrent conversation isolation", flush=True)
+        shell = call("terminal", {
+            "command": "mkdir -p /workspace/disposable; rm -rf /workspace/disposable; printf MIY_OFFICIAL_GUARD_OK",
+        })
+        assert shell.get("exit_code") == 0 and "MIY_OFFICIAL_GUARD_OK" in shell.get("output", ""), shell
+        assert approval.check_execute_code_guard is original_guard
+        print("PASS: official sandbox command/code approval and unadmitted dispatch denial", flush=True)
 
         write = call("write_file", {"path": "/workspace/proof.txt", "content": "before\n"})
         assert content("proof.txt") == "before\n", write
         changed = call("patch", {"path": "/workspace/proof.txt", "old_string": "before", "new_string": "after"})
         assert content("proof.txt") == "after\n", changed
         added = call("patch", {"mode": "patch", "patch": "*** Begin Patch\n*** Add File: /workspace/v4a.txt\n+v4a-before\n*** End Patch"})
+        assert "v4a.txt" in snapshots["first"], added
         assert content("v4a.txt").rstrip("\n") == "v4a-before", added
         moved = call("patch", {"mode": "patch", "patch": "*** Begin Patch\n*** Move File: /workspace/v4a.txt -> /workspace/v4a-moved.txt\n*** End Patch"})
         assert "v4a-moved.txt" in snapshots["first"] and content("v4a-moved.txt").rstrip("\n") == "v4a-before", moved
@@ -143,7 +168,7 @@ with (
         print("PASS: native write/patch, code tool RPC and durable file binding", flush=True)
 
         current.set("first")
-        approval.set_current_session_key(transport()[1])
+        set_current_session_key(transport()[1])
         first.execute("mkdir -p /tmp/outside; printf unchanged > /tmp/outside/target; ln -s /tmp/outside /workspace/escape; ln -s /tmp/outside/target /workspace/leaf")
         for path in ("/tmp/outside/target", "/workspace/escape/target", "/workspace/leaf", "/workspace/escape/new"):
             result = call("write_file", {"path": path, "content": "forbidden"})
@@ -171,7 +196,7 @@ with (
         assert "late.txt" not in snapshots["first"]
         print("PASS: timeout removes descendants; next call restores saved files", flush=True)
 
-        environment = terminal_tool.get_active_env(tasks["first"])
+        environment = get_active_env(tasks["first"])
         previous = environment._container
         worker = []
 
@@ -207,7 +232,7 @@ with (
     finally:
         for name, task in tasks.items():
             current.set(name)
-            approval.set_current_session_key(transport()[1])
-            environment = terminal_tool.get_active_env(task)
+            set_current_session_key(transport()[1])
+            environment = get_active_env(task)
             if environment is not None:
-                terminal_tool.cleanup_vm(environment._task_id)
+                cleanup_vm(environment._task_id)

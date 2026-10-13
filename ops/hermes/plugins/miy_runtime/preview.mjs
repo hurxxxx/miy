@@ -1,7 +1,7 @@
 // Chromium's public DevTools pipe; runs only in the disposable offline sandbox.
 import { spawn } from 'node:child_process';
 import { constants } from 'node:fs';
-import { open, realpath, readdir } from 'node:fs/promises';
+import { access, open, readFile, realpath, readdir } from 'node:fs/promises';
 import { extname } from 'node:path';
 
 const entry = process.argv[2];
@@ -45,12 +45,31 @@ const timer = setTimeout(() => {
 
 try {
   await read(entry);
-  const browserRoot = '/opt/hermes/.playwright';
-  const releases = (await readdir(browserRoot)).filter(name => name.startsWith('chromium_headless_shell-'));
-  if (releases.length !== 1) throw new Error('preview.browser_unavailable');
-  const folders = (await readdir(`${browserRoot}/${releases[0]}`)).filter(name => name.startsWith('chrome-headless-shell-'));
-  if (folders.length !== 1) throw new Error('preview.browser_unavailable');
-  const executable = `${browserRoot}/${releases[0]}/${folders[0]}/chrome-headless-shell`;
+  // The pinned official image seals PM's Chromium binary path at build time.
+  // It remains outside writable profiles and requires no runtime installer.
+  let executable;
+  try {
+    let browserRoot = '/opt/hermes/tools/';
+    try {
+      executable = (await readFile('/etc/hermes/agent-browser-executable-path', 'utf8')).trim();
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      // Existing gateways share this file before their image is recreated.
+      // Only the previous official image's sealed headless-shell layout is supported.
+      browserRoot = '/opt/hermes/.playwright/';
+      const releases = (await readdir(browserRoot)).filter(name => name.startsWith('chromium_headless_shell-'));
+      if (releases.length !== 1) throw new Error();
+      const folders = (await readdir(`${browserRoot}${releases[0]}`)).filter(name =>
+        name === 'chrome-linux' || name.startsWith('chrome-headless-shell-'));
+      if (folders.length !== 1) throw new Error();
+      const binary = folders[0] === 'chrome-linux' ? 'headless_shell' : 'chrome-headless-shell';
+      executable = `${browserRoot}${releases[0]}/${folders[0]}/${binary}`;
+    }
+    if (!(await realpath(executable)).startsWith(browserRoot)) throw new Error();
+    await access(executable, constants.X_OK);
+  } catch {
+    throw new Error('preview.browser_unavailable');
+  }
   browser = spawn(executable, ['--headless', '--remote-debugging-pipe',
     '--disable-background-networking', '--disable-component-update', '--no-first-run',
     '--no-proxy-server', '--host-resolver-rules=MAP * ~NOTFOUND',
@@ -83,11 +102,20 @@ try {
       const url = new URL(params.request.url);
       if (url.origin !== origin) throw new Error('External preview dependency blocked');
       const path = decodeURIComponent(url.pathname).slice(1);
+      // Full Chromium requests a default favicon even when HTML declares none.
+      // An absent implicit icon has no bearing on rendering saved dependencies.
+      if (url.pathname === '/favicon.ico' && params.resourceType === 'Other') {
+        try { await read(path); } catch (error) {
+          if (error.code !== 'ENOENT') throw error;
+          await call('Fetch.fulfillRequest', { requestId: params.requestId, responseCode: 204 });
+          return;
+        }
+      }
       const data = await read(path);
       const type = ({ '.html': 'text/html', '.htm': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',
         '.css': 'text/css', '.json': 'application/json', '.png': 'image/png',
         '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml',
-        '.webp': 'image/webp', '.gif': 'image/gif', '.woff2': 'font/woff2' })[extname(path).toLowerCase()];
+        '.webp': 'image/webp', '.gif': 'image/gif', '.ico': 'image/x-icon', '.woff2': 'font/woff2' })[extname(path).toLowerCase()];
       if (!type) throw new Error('Unsupported preview dependency type');
       await call('Fetch.fulfillRequest', { requestId: params.requestId, responseCode: 200,
         responseHeaders: [{ name: 'Content-Type', value: type },

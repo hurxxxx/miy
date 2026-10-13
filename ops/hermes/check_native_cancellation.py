@@ -10,14 +10,17 @@ profile volume, application database, Docker socket or credentials are used.
 import asyncio
 import importlib.util
 import json
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
 from gateway.platforms import api_server, api_server_runs
 from gateway.platforms.api_server_run_idempotency import RunIdempotencyStore
+from hermes_state import SessionDB
 
-spec = importlib.util.spec_from_file_location("miy_review_entry", "/opt/miy_gateway_entry.py")
+entry_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("/opt/miy_gateway_entry.py")
+spec = importlib.util.spec_from_file_location("miy_review_entry", entry_path)
 entry = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(entry)
 
@@ -44,6 +47,7 @@ async def check():
     with tempfile.TemporaryDirectory() as directory:
         adapter = api_server.APIServerAdapter.__new__(api_server.APIServerAdapter)
         adapter._api_key = "synthetic-native-control-key"
+        adapter._session_db = SessionDB(Path(directory) / "sessions.db")
         adapter._expected_api_key = lambda: adapter._api_key
         adapter._request_audit_log_suffix = lambda request: "synthetic request"
         adapter._model_name = "synthetic"
@@ -168,6 +172,7 @@ async def check():
         finally:
             api_server._api_request_profile.reset(profile_token)
             adapter._run_idempotency_store.close()
+            adapter._session_db.close()
 
 
 asyncio.run(check())

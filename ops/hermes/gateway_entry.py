@@ -1,6 +1,6 @@
 """Launch Hermes with profile-aware MCP discovery for API runs.
 
-Hermes v2026.8.31 keeps MCP connections and registration process-global. Its
+Hermes v0.21.7 keeps MCP connections and registration process-global. Its
 registration is safely idempotent by server name, but multiplex mode normally
 discovers only the launch profile. miy gives every managed profile
 globally unique MCP server names, so discovering the request profile before
@@ -29,7 +29,7 @@ _original_http_routes = api_server_runs._http_routes
 async def _cancel_run_admission(self, request, *, _api_server):
     """Resolve a lost acceptance without ever starting an agent.
 
-    v2026.8.31 exposes idempotency lookup only through creation, which creates
+    v0.21.7 exposes idempotency lookup only through creation, which creates
     on a miss. Reuse its atomic, scoped reservation store to fence a request
     still in flight with a cancelled record. A concurrent native admission
     either wins first (and returns its existing ID), or replays this record.
@@ -144,7 +144,7 @@ def _http_routes_with_cancellation(self):
 def _discover_request_profile_mcp() -> None:
     from hermes_cli.plugins import get_plugin_manager
     from hermes_constants import get_hermes_home
-    from tools.mcp_tool import discover_mcp_tools, get_mcp_status
+    from tools.mcp_tool_discovery import discover_mcp_tools, get_mcp_status
 
     discover_mcp_tools()
     profile_name = get_hermes_home().name

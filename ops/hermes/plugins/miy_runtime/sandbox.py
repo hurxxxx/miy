@@ -1,4 +1,4 @@
-"""Pinned v2026.8.31 official environment-provider extension.
+"""Official Hermes environment-provider extension for isolated MIY workspaces.
 
 DockerEnvironment unconditionally adds host credential/skill/cache bind mounts
 and has no switch to disable them. This small BaseEnvironment implementation
@@ -323,13 +323,14 @@ class WorkspaceEnvironment(BaseEnvironment):
 class MIYSandbox(TerminalEnvironmentProvider):
     name = "miy_sandbox"
     session_isolated_when_nonpersistent = True
-    skip_container_guards = False
+    skip_container_guards = True
 
     def is_available(self) -> bool:
         return shutil.which("docker") is not None
 
     def create_environment(
-        self, *, cwd, timeout, task_id, image=None, container_config=None
+        self, *, cwd, timeout, task_id="default", image=None, container_config=None,
+        **kwargs,
     ):
         from . import _rpc, runtime_transport
 

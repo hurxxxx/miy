@@ -37,3 +37,16 @@ def _load_bootstrap(monkeypatch, config: dict[str, Any]):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module, saved
+
+
+def test_runtime_reconciliation_keeps_native_context_and_preserves_model_approvals(monkeypatch):
+    config = {
+        "plugins": {"enabled": ["miy_runtime"], "isolation": "host"},
+        "model": {"provider": "custom:admitted", "model": "fixture"},
+        "approvals": {"unattended_mode": "deny", "mode": "manual"},
+    }
+    module, saved = _load_bootstrap(monkeypatch, config)
+    assert module._reconcile_runtime_config("miy-" + "a" * 32)
+    assert saved[0]["plugins"]["isolation"] == "in_process"
+    assert saved[0]["model"] == config["model"]
+    assert saved[0]["approvals"] == config["approvals"]

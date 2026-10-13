@@ -27,12 +27,11 @@ from miy_api.domains.hermes.research_sources import (
     disabled_research_source_domains,
     normalize_research_source_policy,
 )
-
-from miy_api.domains.hermes_terminal.legacy_policy import HERMES_MODEL, HERMES_FALLBACK_MODEL
+from miy_api.domains.hermes_terminal.legacy_policy import HERMES_FALLBACK_MODEL, HERMES_MODEL
 
 HERMES_IMAGE = (
-    "nousresearch/hermes-agent:v2026.8.31@"
-    "sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524"
+    "nousresearch/hermes-agent:stable@"
+    "sha256:444b42594e7f467425872fc35e077a227d377f0fe0726bc818706d62175fad8b"
 )
 HERMES_PROVIDER = "openrouter"
 PROFILE_NAME = "terminal"

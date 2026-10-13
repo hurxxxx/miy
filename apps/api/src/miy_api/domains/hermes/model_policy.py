@@ -44,7 +44,7 @@ class HermesModelPolicy:
     connection_id: str | None = None
 
     def __post_init__(self) -> None:
-        # v2026.8.31 only consumes provider extra_body on its OpenAI wire.
+        # The pinned Anthropic request builder has no provider extra_body input.
         # Do not snapshot a sampling setting the Anthropic transport drops.
         if self.api_mode == "anthropic_messages" and self.temperature is not None:
             raise LlmProviderError(
@@ -190,7 +190,7 @@ async def synchronize_model_policy(
                 )
             },
             "delegation": {"provider": "auto", "model": "", "base_url": "", "api_key": ""},
-            "plugins": {"enabled": ["miy_runtime"], "disabled": []},
+            "plugins": {"enabled": ["miy_runtime"], "disabled": [], "isolation": "in_process"},
             "terminal": {
                 "backend": "miy_sandbox",
                 "container_persistent": False,

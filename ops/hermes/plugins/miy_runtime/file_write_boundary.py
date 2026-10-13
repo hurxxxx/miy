@@ -25,6 +25,9 @@ def restrict():
         _fields_ = [("handled_access_fs", ctypes.c_uint64)]
 
     class PathRule(ctypes.Structure):
+        # Explicit packed layout keeps the kernel's 12-byte ABI and avoids
+        # Python 3.14's implicit-layout warning contaminating shell output.
+        _layout_ = "ms"
         _pack_ = 1
         _fields_ = [("allowed_access", ctypes.c_uint64), ("parent_fd", ctypes.c_int32)]
 

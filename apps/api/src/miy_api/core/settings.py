@@ -8,12 +8,11 @@ from dotenv import dotenv_values
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from miy_api.core.runtime_config_source import RuntimeConfigSettingsSource
 from miy_api.core.app_origins import exact_origin
 from miy_api.core.independent_delivery_settings import IndependentDeliveryTarget, validate_targets
 from miy_api.core.independent_workspace_settings import IndependentWorkspaceProfile
 from miy_api.core.registration_audience import registration_audience
-
+from miy_api.core.runtime_config_source import RuntimeConfigSettingsSource
 from miy_api.miy_desktop_update_manifest import (
     miy_desktop_update_dir_values,
 )
@@ -32,8 +31,8 @@ ENV_FILE = WORKSPACE_ROOT / ".env"
 DEFAULT_FRONTEND_DIST_DIR = str(WORKSPACE_ROOT / "dist" / "apps" / "web")
 DEFAULT_CONTENT_GRANT_SIGNING_KEY = "dev-content-grant-signing-key"
 DEFAULT_OPF_CHECKPOINT = "openai/privacy-filter"
-HERMES_RELEASE = "v2026.8.31"
-HERMES_IMAGE = "nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524"
+HERMES_RELEASE = "v0.21.7"
+HERMES_IMAGE = "nousresearch/hermes-agent:stable@sha256:444b42594e7f467425872fc35e077a227d377f0fe0726bc818706d62175fad8b"
 HERMES_PROVIDER = "openrouter"
 PRODUCTION_ENVIRONMENT = "production"
 PREVIEW_ENVIRONMENT = "preview"
