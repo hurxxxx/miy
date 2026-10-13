@@ -10,6 +10,8 @@ import { api, type Detail } from './api';
 import { translate } from './i18n';
 import { TaskHistory } from './task-history';
 
+vi.mock('./task-timeline', () => ({ TaskTimeline: () => null }));
+
 vi.mock('./api', async (original) => ({
   ...(await original<typeof import('./api')>()),
   api: vi.fn(),

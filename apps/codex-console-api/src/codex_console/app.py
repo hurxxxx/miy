@@ -330,6 +330,10 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
     workspaces.mount(app, secured)
     task_environments.install(app, secured)
     task_history.install(app, secured)
+    from . import task_timeline, tool_catalog
+
+    task_timeline.install(app, secured, runtime_for)
+    tool_catalog.install(app, secured)
 
     if role == "session":
 

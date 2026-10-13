@@ -1229,3 +1229,66 @@ textarea {color: inherit; background: transparent; resize: vertical; border: 0; 
   padding: 8px 0;
   border-bottom: 1px solid var(--ui-color-border);
 }
+
+/* Work summaries stay separate from detailed execution evidence. */
+.task-timeline {
+  border-bottom: 1px solid var(--ui-color-border);
+  padding-bottom: 20px;
+  margin: 16px 0 20px;
+}
+.timeline-segment,
+.tool-catalog-card {
+  border: 1px solid var(--ui-color-border);
+  border-radius: 12px;
+  padding: 16px;
+  min-width: 0;
+}
+.timeline-segment {
+  border-left: 3px solid var(--ui-color-accent);
+}
+.timeline-segment h3,
+.tool-catalog-card h2 {
+  margin: 0;
+  font-size: 15px;
+}
+.timeline-segment time {
+  font-size: 12px;
+  color: var(--ui-color-ink-muted);
+}
+.timeline-phase {
+  margin-top: 14px;
+}
+.timeline-phase p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 5px 0;
+}
+.timeline-merge,
+.merge-request {
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--ui-color-surface-subtle);
+}
+.merge-request p {
+  margin: 0;
+}
+.tool-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+.tool-catalog-card pre {
+  overflow: auto;
+  max-height: 360px;
+  font-size: 12px;
+  padding: 12px;
+}
+.tool-catalog-card p {
+  overflow-wrap: anywhere;
+}
+.tool-catalog-card summary,
+.timeline-segment summary {
+  cursor: pointer;
+}

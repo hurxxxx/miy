@@ -1,3 +1,4 @@
+import { MergeRequest, type MergeRequestData } from './merge-request';
 import { Button, Input } from '@miy/ui';
 import {
   ChevronDown,
@@ -86,7 +87,11 @@ export function GitWorkspace({
   locale,
   t,
   onError,
+  onMerge,
+  busy = false,
 }: {
+  onMerge?: (data: MergeRequestData) => Promise<boolean>;
+  busy?: boolean;
   task: Detail;
   git: ReturnType<typeof useGitState>;
   locale: Locale;
@@ -221,7 +226,8 @@ export function GitWorkspace({
               ? undefined
               : () => void changeLink(link.id)
           }
-          busy={saving}
+          busy={saving || busy}
+          onMerge={canLink ? onMerge : undefined}
         />
       ))}
     </div>
@@ -237,6 +243,7 @@ function GitCheckout({
   onError,
   unlink,
   busy,
+  onMerge,
 }: {
   task: Detail;
   link: GitLink;
@@ -245,6 +252,7 @@ function GitCheckout({
   t: Translate;
   onError: (error: unknown) => void;
   unlink?: () => void;
+  onMerge?: (data: MergeRequestData) => Promise<boolean>;
   busy: boolean;
 }) {
   const [open, setOpen] = useState(initiallyOpen);
@@ -313,6 +321,16 @@ function GitCheckout({
                 · {t('Checked')}{' '}
                 {new Date(state.checked_at).toLocaleTimeString(locale)}
               </small>
+              {onMerge && (
+                <MergeRequest
+                  task={task}
+                  linkId={link.id}
+                  refreshToken={state.checked_at}
+                  busy={busy}
+                  t={t}
+                  onMerge={onMerge}
+                />
+              )}
               <Changes
                 key={`${task.id}:${link.id}`}
                 task={task}

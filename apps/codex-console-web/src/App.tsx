@@ -1,3 +1,4 @@
+import { ToolCatalog } from './tool-catalog';
 import { RegistrationAuthorization } from './registration-authorization';
 import { AgentTree, ManagementView, useOverview } from './management';
 import { PageLayout } from './page-layout';
@@ -95,7 +96,8 @@ type ConsolePage =
   | 'workspace'
   | 'templates'
   | 'instructions'
-  | 'monitoring';
+  | 'monitoring'
+  | 'agent-tools';
 function readRoute(): {
   page: ConsolePage;
   task: string | null;
@@ -113,6 +115,7 @@ function readRoute(): {
       ? 'sessions'
       : view === 'templates' ||
           view === 'monitoring' ||
+          view === 'agent-tools' ||
           view === 'instructions' ||
           view === 'studio' ||
           view === 'apps' ||
@@ -441,13 +444,17 @@ export function App() {
     ) => {
       const taskId = requestedTaskId ?? selectedRef.current;
       if (!taskId) return false;
-      const payload = { attachment_ids: attachmentIds, ...data };
+      const payload = {
+        attachment_ids: suffix === 'merge' ? [] : attachmentIds,
+        ...data,
+      };
       const key = JSON.stringify([taskId, suffix, payload]);
       const id = requestKeys.current.get(key) ?? crypto.randomUUID();
       requestKeys.current.set(key, id);
       const ok = await act(async () => {
         const detail = await api<Detail>(`/tasks/${taskId}/${suffix}`, {
           ...payload,
+          ...(suffix === 'merge' ? { attachment_ids: undefined } : {}),
           operation_id: id,
         });
         requestKeys.current.delete(key);
@@ -469,7 +476,9 @@ export function App() {
               ? current
               : detail,
           );
-          setAttachmentIds([]);
+          setAttachmentIds((current) =>
+            current.filter((id) => !payload.attachment_ids.includes(id)),
+          );
         }
         await refreshTasks().catch(onError);
       });
@@ -1086,9 +1095,13 @@ export function App() {
             className="navigation-tools"
             open={
               toolsOpen ||
-              ['platform', 'templates', 'instructions', 'monitoring'].includes(
-                page,
-              )
+              [
+                'platform',
+                'templates',
+                'instructions',
+                'monitoring',
+                'agent-tools',
+              ].includes(page)
             }
             onToggle={(event) => setToolsOpen(event.currentTarget.open)}
           >
@@ -1099,6 +1112,7 @@ export function App() {
                 ['templates', 'Task templates', ListTodo],
                 ['instructions', 'Instructions and skills', BookOpen],
                 ['monitoring', 'Monitoring', Activity],
+                ['agent-tools', 'Codex tools', Code2],
               ] as const
             ).map(([id, label, Icon]) => (
               <button
@@ -1175,6 +1189,8 @@ export function App() {
           openTask={choose}
           startTask={startWorkbenchTask}
         />
+      ) : page === 'agent-tools' ? (
+        <ToolCatalog t={t} />
       ) : page === 'platform' ? (
         <WorkbenchPlatform
           t={t}
@@ -1798,6 +1814,15 @@ export function App() {
                 key={task.id}
                 task={task}
                 git={git}
+                busy={busy}
+                onMerge={async (data) => {
+                  const ok = await send('merge', {
+                    ...data,
+                    ...selectedExecution,
+                  });
+                  if (ok) setTab('checks');
+                  return ok;
+                }}
                 locale={locale}
                 t={t}
                 onError={onError}

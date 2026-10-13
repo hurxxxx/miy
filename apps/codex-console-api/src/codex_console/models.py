@@ -318,6 +318,22 @@ class TaskGitLink(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
 
 
+class TaskMilestone(Base):
+    __tablename__ = "console_task_milestones"
+    __table_args__ = (UniqueConstraint("task_id", "key"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    task_id: Mapped[str] = mapped_column(
+        ForeignKey("console_tasks.id", ondelete="CASCADE"), index=True
+    )
+    key: Mapped[str] = mapped_column(String(100))
+    title: Mapped[str] = mapped_column(String(200))
+    state: Mapped[str] = mapped_column(String(24), default="in_progress")
+    phases: Mapped[dict] = mapped_column(JSON, default=dict)
+    merge: Mapped[dict | None] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+
+
 class Operation(Base):
     __tablename__ = "console_operations"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)

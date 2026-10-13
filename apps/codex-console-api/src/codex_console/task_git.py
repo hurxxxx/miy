@@ -1,14 +1,12 @@
 """Explicit display-only Git associations; never infer ownership from shell prose."""
 
-import asyncio
-import json
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import select
 
-from . import agents, git, store
+from . import git, store
 from .errors import ConsoleError
 from .models import TaskGitLink
 
@@ -151,50 +149,3 @@ def listing(db, settings, task):
             entry["error_code"] = exc.code
         result.append(entry)
     return result
-
-
-async def handle(runtime, message, *, generation=None):
-    params = message.get("params", {})
-    if message.get("method") != "item/tool/call" or params.get("tool") != TOOL_NAME:
-        return False
-    rpc = runtime.rpc
-    if not rpc or (generation and generation != rpc.generation):
-        return True
-    success, result = False, {"error": "path_denied"}
-    try:
-        args = Arguments.model_validate(params.get("arguments"))
-        with runtime.factory() as db:
-            task = agents.task_for_thread(db, params.get("threadId"), executor=runtime.executor)
-            if not task or not runtime.owns(task) or runtime.remote_task_id is not None:
-                raise ConsoleError("path_denied", 403)
-            task_id = task.id
-        async with runtime.task_gate(task_id):
-
-            def execute():
-                with runtime.factory.begin() as db:
-                    task = store.require_task(db, task_id)
-                    native = db.get(agents.Agent, params.get("threadId"))
-                    if (
-                        runtime.rpc is not rpc
-                        or task.runtime_generation != rpc.generation
-                        or not native
-                        or native.turn_id != params.get("turnId")
-                        or native.status in (*agents.TERMINAL, "systemError")
-                    ):
-                        raise ConsoleError("path_denied", 403)
-                    runtime.require_allowed_task(task)
-                    if args.action == "register":
-                        return {"id": register(db, runtime.settings, task, args.root, "agent")}
-                    return {"links": listing(db, runtime.settings, task)}
-
-            result = await asyncio.to_thread(execute)
-            success = True
-    except (ConsoleError, ValidationError) as exc:
-        result = {"error": exc.code if isinstance(exc, ConsoleError) else "invalid_input"}
-    if runtime.rpc is not rpc or (generation and generation != rpc.generation):
-        return True
-    await rpc.respond(
-        message["id"],
-        {"success": success, "contentItems": [{"type": "inputText", "text": json.dumps(result)}]},
-    )
-    return True

@@ -289,6 +289,45 @@ def main(*, configure=None, install_fixture=None):
                 store.changed(db, task, "item/completed")
             return {"root": str(target), "unrelated": str(unrelated)}
 
+        @app.post(f"{settings.base_path}/__test__/integrate-timeline")
+        def integrate_timeline_fixture(body: dict):
+            from sqlalchemy import select
+
+            from codex_console import task_timeline
+            from codex_console.models import TaskMilestone
+
+            with app.state.factory.begin() as db:
+                task = store.require_task(db, body["task_id"])
+                assert task.status == "idle"
+                row = db.scalar(select(TaskMilestone).where(TaskMilestone.task_id == task.id))
+                assert row and row.merge
+                source = row.merge["source_root"]
+                destination = row.merge["target_root"]
+                for args in (["add", "."], ["commit", "-m", "Browser integration fixture"]):
+                    subprocess.run(["git", "-C", source, *args], check=True, capture_output=True)
+                head = subprocess.check_output(
+                    ["git", "-C", source, "rev-parse", "HEAD"], text=True
+                ).strip()
+                subprocess.run(
+                    ["git", "-C", destination, "merge", "--ff-only", head],
+                    check=True,
+                    capture_output=True,
+                )
+                task_timeline.execute(
+                    db,
+                    settings,
+                    task,
+                    task_timeline.Arguments(
+                        action="update",
+                        key=row.key,
+                        title=row.title,
+                        phase="validation",
+                        state="completed",
+                        summary="브라우저 테스트에서 병합 흐름과 작업 기록 보존 확인",
+                    ),
+                )
+            return {"ok": True}
+
         gate_id = None
 
         @app.post(f"{settings.base_path}/__test__/hold-completion")

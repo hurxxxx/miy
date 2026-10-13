@@ -1170,6 +1170,17 @@ export const translate = (locale: Locale): Translate =>
   });
 
 const errors: Record<string, Copy> = {
+  merge_workspace_changed:
+    'The checkout changed. Refresh Changes and check the merge target.',
+  merge_target_unavailable:
+    'Select a separate checkout in the configured development repository to request a merge.',
+  timeline_segment_completed:
+    'This work segment is complete. Start a new segment for follow-up work.',
+  merge_request_required: 'A merge request and Git verification are required.',
+  merge_verification_required:
+    'A merge request and Git verification are required.',
+  timeline_evidence_unavailable:
+    'The selected execution evidence is unavailable.',
   git_link_unavailable: 'Workspace unavailable',
   git_link_changed: 'Workspace unavailable',
   git_link_limit: 'Too many workspaces linked to this task.',

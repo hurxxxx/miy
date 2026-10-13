@@ -1447,6 +1447,7 @@ it.each([
       '작업 템플릿',
       '지침·스킬',
       '모니터링',
+      'Codex 도구',
     ]);
     expect(screen.queryByRole('list', { name: '최근 세션' })).toBeNull();
   },

@@ -1,3 +1,4 @@
+import { TaskTimeline } from './task-timeline';
 import { Button } from '@miy/ui';
 import {
   AlertTriangle,
@@ -26,6 +27,7 @@ const categories: { id: Category; label: Copy }[] = [
 
 function title(entry: Entry): Copy {
   const details = entry.details ?? {};
+  if (entry.event === 'task.timeline.updated') return 'Work summary updated';
   if (entry.event === 'question.pending') return 'Question requested';
   if (entry.event === 'question.sending') return 'Sending response';
   if (entry.event === 'question.answered') return 'Response delivered';
@@ -90,7 +92,7 @@ function title(entry: Entry): Copy {
   return labels[entry.event] ?? 'Work state updated';
 }
 
-function HistoryEntry({
+export function HistoryEntry({
   entry,
   task,
   t,
@@ -286,6 +288,7 @@ export function TaskHistory({ task, t }: { task: Detail; t: Translate }) {
           <History size={17} aria-hidden="true" />
         </Button>
       </header>
+      <TaskTimeline key={task.id} task={task} t={t} refreshToken={attempt} />
       <div
         className="history-filters"
         role="group"

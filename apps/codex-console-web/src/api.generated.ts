@@ -634,6 +634,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tasks/{task_id}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Timeline */
+        get: operations["timeline_api_tasks__task_id__timeline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{task_id}/merge-target": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Merge Target */
+        get: operations["merge_target_api_tasks__task_id__merge_target_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{task_id}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Merge */
+        post: operations["request_merge_api_tasks__task_id__merge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{task_id}/timeline/{segment_id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify From Ui */
+        post: operations["verify_from_ui_api_tasks__task_id__timeline__segment_id__verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tool-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tools */
+        get: operations["tools_api_tool_catalog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/monitor/host": {
         parameters: {
             query?: never;
@@ -1994,6 +2079,77 @@ export interface components {
             /** Cgroup Used */
             cgroup_used?: number | null;
         };
+        /** MergeInput */
+        MergeInput: {
+            /** Model */
+            model?: string | null;
+            /** Effort */
+            effort?: string | null;
+            /**
+             * Permissions
+             * @default ask
+             * @enum {string}
+             */
+            permissions: "ask" | "yolo";
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            /** Link Id */
+            link_id: string;
+            /** Expected Head */
+            expected_head: string;
+            /** Expected Branch */
+            expected_branch?: string | null;
+            /** Expected Target Head */
+            expected_target_head: string;
+            /** Expected Target Branch */
+            expected_target_branch: string;
+        };
+        /** MergeOut */
+        MergeOut: {
+            /** Source Root */
+            source_root: string;
+            /** Source Branch */
+            source_branch: string | null;
+            /** Source Head */
+            source_head: string;
+            /** Target Root */
+            target_root: string;
+            /** Target Branch */
+            target_branch: string;
+            /** Target Head */
+            target_head: string;
+            /**
+             * Verified
+             * @default false
+             */
+            verified: boolean;
+            /** Verified At */
+            verified_at?: string | null;
+            /** Integrated Head */
+            integrated_head?: string | null;
+            /** Source Commit */
+            source_commit?: string | null;
+            /** Error Code */
+            error_code?: string | null;
+        };
+        /** MergeTarget */
+        MergeTarget: {
+            /** Source Root */
+            source_root: string;
+            /** Source Branch */
+            source_branch: string | null;
+            /** Source Head */
+            source_head: string;
+            /** Target Root */
+            target_root: string;
+            /** Target Branch */
+            target_branch: string;
+            /** Target Head */
+            target_head: string;
+        };
         /** Message */
         Message: {
             /** Model */
@@ -2049,6 +2205,31 @@ export interface components {
             attachment_ids?: string[];
             /** Skill Names */
             skill_names?: string[];
+        };
+        /** MilestoneOut */
+        MilestoneOut: {
+            /** Id */
+            id: string;
+            /** Key */
+            key: string;
+            /** Title */
+            title: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "in_progress" | "needs_attention" | "completed";
+            /** Phases */
+            phases: {
+                [key: string]: components["schemas"]["PhaseOut"];
+            };
+            merge: components["schemas"]["MergeOut"] | null;
+            /** Created At */
+            created_at: string;
+            /** Updated At */
+            updated_at: string;
+            /** Evidence */
+            evidence: components["schemas"]["TaskHistoryItem"][];
         };
         /** ModelOut */
         ModelOut: {
@@ -2114,6 +2295,20 @@ export interface components {
              * @default true
              */
             ok: boolean;
+        };
+        /** PhaseOut */
+        PhaseOut: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "in_progress" | "needs_attention" | "completed";
+            /** Summary */
+            summary: string;
+            /** Evidence Ids */
+            evidence_ids: number[];
+            /** Updated At */
+            updated_at: string;
         };
         /** PlanReference */
         PlanReference: {
@@ -3087,6 +3282,29 @@ export interface components {
             preview: string;
             /** Updated At */
             updated_at: number;
+        };
+        /** TimelinePage */
+        TimelinePage: {
+            /** Items */
+            items: components["schemas"]["MilestoneOut"][];
+            /** Next Before */
+            next_before?: string | null;
+        };
+        /** ToolOut */
+        ToolOut: {
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "host" | "app_development" | "app_delivery" | "app_registration";
+            /** Input Schema */
+            input_schema: {
+                [key: string]: unknown;
+            };
         };
         /** UsageOut */
         UsageOut: {
@@ -4636,6 +4854,159 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    timeline_api_tasks__task_id__timeline_get: {
+        parameters: {
+            query?: {
+                before?: string | null;
+            };
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimelinePage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    merge_target_api_tasks__task_id__merge_target_get: {
+        parameters: {
+            query: {
+                link_id: string;
+            };
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeTarget"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_merge_api_tasks__task_id__merge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_from_ui_api_tasks__task_id__timeline__segment_id__verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+                segment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MilestoneOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tools_api_tool_catalog_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolOut"][];
                 };
             };
         };

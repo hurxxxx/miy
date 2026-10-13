@@ -1,5 +1,56 @@
 /** Copy for the work-oriented desktop navigation and result surfaces. */
 export const uxKorean = {
+  'Work summary updated': '작업 요약 갱신',
+  Validation: '검증',
+  Implementation: '구현',
+  'Loading…': '불러오는 중…',
+  'Codex tools': 'Codex 도구',
+  'Tools Workbench provides to Codex, with their purpose and input contract.':
+    'Workbench가 Codex에 제공하는 도구의 용도와 입력 형식을 확인합니다.',
+  'Tools are selected when a new conversation starts. Existing conversations may not have newly added tools. Codex built-in tools and external MCP tools are managed separately.':
+    '도구는 새 대화를 시작할 때 제공됩니다. 기존 대화에는 새 도구가 없을 수 있습니다. Codex 기본 도구와 외부 MCP 도구는 별도로 관리됩니다.',
+  'General and core development tasks': '일반 · 코어 개발 작업',
+  'App development tasks': '앱 개발 작업',
+  'App delivery tasks': '앱 전달 작업',
+  'App registration tasks': '앱 등록 작업',
+  'Link task branches and worktrees': '작업 브랜치·워크트리 연결',
+  'Record work summaries and check development merges':
+    '작업 요약 기록 · 개발 병합 확인',
+  'Inspect and save local app changes': '로컬 앱 변경 확인 · 저장',
+  'Inspect and deliver a development app': '개발 앱 확인 · 전달',
+  'Register a personal app': '개인 앱 등록',
+  'Search tools': '도구 검색',
+  'Tool instructions and inputs': '도구 지침 · 입력 형식',
+  'No matching tools.': '검색에 맞는 도구가 없습니다.',
+  'Work timeline': '작업 타임라인',
+  'Work started': '작업 시작',
+  'Work finished': '작업 마무리',
+  'Development integration': '개발 병합',
+  'Summaries are recorded by Codex. Completed work stays here while you continue the conversation.':
+    'Codex가 주요 진행 상황을 요약합니다. 완료된 구간을 남기고 같은 대화에서 후속 작업을 이어갈 수 있습니다.',
+  'No work summaries yet. Available timeline tools record meaningful transitions in new conversations.':
+    '아직 작업 요약이 없습니다. 새 대화에서는 타임라인 도구로 주요 진행 상황을 기록합니다.',
+  'Git integration verified': 'Git 병합 확인 완료',
+  'Git integration is not verified. Check conflicts, remaining changes or rewritten commits.':
+    'Git 병합이 확인되지 않았습니다. 충돌, 남은 변경 또는 재작성된 커밋을 확인하세요.',
+  'Merge requested. Completion will be checked against Git.':
+    '병합 요청을 기록했습니다. 실제 Git 상태로 완료 여부를 확인합니다.',
+  'Check merge': '병합 결과 확인',
+  'Development target': '개발 병합 대상',
+  'Send Codex a merge request in this conversation, following repository instructions and the selected execution settings.':
+    '저장소 지침과 현재 선택한 실행 설정에 따라 병합하도록 이 대화에 요청합니다.',
+  'Request development merge': '개발로 병합 요청',
+  'Select a separate checkout in the configured development repository to request a merge.':
+    '설정된 개발 저장소와 같은 저장소의 별도 체크아웃에서 병합을 요청할 수 있습니다.',
+  'The checkout changed. Refresh Changes and check the merge target.':
+    '체크아웃 상태가 바뀌었습니다. 변경사항을 새로고침하고 병합 대상을 확인하세요.',
+  'This work segment is complete. Start a new segment for follow-up work.':
+    '완료된 작업 구간입니다. 후속 작업은 새 구간으로 기록하세요.',
+  'A merge request and Git verification are required.':
+    '병합 요청과 Git 상태 확인이 필요합니다.',
+  'The selected execution evidence is unavailable.':
+    '선택한 실행 근거를 확인할 수 없습니다.',
+
   'Too many workspaces linked to this task.':
     '작업에 연결할 수 있는 경로 수를 초과했습니다.',
   'Enter the Git checkout root directory.':
