@@ -56,7 +56,14 @@ tool is unavailable, explain how to use Changes > Link branch or worktree when n
 When miy_task_timeline is available, record concise work segments at meaningful transitions:
 start, implementation, validation, integration, needs attention, and finish. List first on
 resuming, reuse the segment key, update a phase instead of adding duplicate summaries, and
-start a new segment for follow-up work after completion. Include only actual checks and
+start a new segment for each distinct user-facing change and for follow-up after completion.
+On updates supply headline and one_line when supported: a short action title and one sentence
+in the user's language explaining what changed, what is underway, or what needs a decision.
+For example, "질문 답변 화면 수정" / "대화 중 필요한 선택에 화면에서 답할 수 있게 했습니다."
+Avoid Git hashes, branch names, paths, commands and generic phase labels in these two fields;
+keep those details in summary and evidence. Use present tense for ongoing work and never
+claim a check or merge completed without its evidence. Older tool schemas can still use a
+plain-language title and summary. Include only actual checks and
 scoped evidence IDs from list; never secrets or raw prompts. A merge request supplies its
 segment key: update that segment and call verify_merge after integration. A successful turn
 alone is not proof of a merge. Never call an unavailable tool; existing threads can use the

@@ -7,7 +7,7 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import Query
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import select
 
 from . import agents, git, store, task_environments, task_git, task_history
@@ -28,7 +28,26 @@ class Arguments(BaseModel):
     phase: Phase | None = None
     state: State | None = None
     summary: str | None = Field(default=None, min_length=1, max_length=1000)
+    headline: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=80,
+        description="Plain-language action title, e.g. 질문 답변 화면 수정. "
+        "No branch names, hashes or commands.",
+    )
+    one_line: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=180,
+        description="One sentence about what changed or is happening, in the user's language. "
+        "Match the reported state; do not claim unchecked success.",
+    )
     evidence_ids: list[int] = Field(default_factory=list, max_length=20)
+
+    @field_validator("headline", "one_line", mode="before")
+    @classmethod
+    def single_line(cls, value):
+        return " ".join(value.split()) if isinstance(value, str) else value
 
     @model_validator(mode="after")
     def shape(self):
@@ -36,8 +55,18 @@ class Arguments(BaseModel):
             raise ValueError("A segment key is required")
         if self.action == "update" and not all((self.title, self.phase, self.state, self.summary)):
             raise ValueError("An update requires title, phase, state and summary")
+        if (self.headline is None) != (self.one_line is None):
+            raise ValueError("Supply headline and one_line together")
         if self.action != "update" and any(
-            (self.title, self.phase, self.state, self.summary, self.evidence_ids)
+            (
+                self.title,
+                self.phase,
+                self.state,
+                self.summary,
+                self.evidence_ids,
+                self.headline,
+                self.one_line,
+            )
         ):
             raise ValueError("Summary fields are only accepted for update")
         return self
@@ -51,7 +80,13 @@ def specs():
             "description": "Maintain concise task work segments. List when resuming to reuse keys "
             "and obtain task-scoped evidence IDs. Update the same key and phase at meaningful "
             "transitions, with real validation outcomes and blockers; avoid per-command calls. "
-            "Use a new key for follow-up work after completion. Summaries are agent reports, not "
+            "Use a new key for each distinct user-visible change or follow-up after completion. "
+            "Supply headline and one_line: describe the action and its user-visible effect "
+            "in plain language, not phase labels, commands, file paths or commit hashes. "
+            "For example: headline 질문 답변 화면 수정, "
+            "one_line 대화 중 필요한 선택에 화면에서 답할 수 있게 했습니다. "
+            "Use present tense for ongoing work; never claim pending checks passed. "
+            "Keep technical checks in summary and evidence_ids. Summaries are agent reports, not "
             "proof. A merge request supplies its key; verify_merge checks live Git ancestry before "
             "closing that segment. Never claim a merge from prose or a successful turn. This tool "
             "does not execute Git, close the conversation, authorize work, or expose credentials.",
@@ -61,6 +96,8 @@ def specs():
 
 
 class PhaseOut(BaseModel):
+    headline: str | None = None
+    one_line: str | None = None
     state: State
     summary: str
     evidence_ids: list[int]
@@ -191,6 +228,13 @@ def execute(db, settings, task, args):
             previous
             and all(previous[k] == getattr(args, k) for k in ("state", "summary", "evidence_ids"))
             and row.title == args.title
+            and (
+                args.headline is None
+                or (
+                    previous.get("headline") == args.headline
+                    and previous.get("one_line") == args.one_line
+                )
+            )
         ):
             return output(db, row)
         raise ConsoleError("timeline_segment_completed", 409)
@@ -219,7 +263,18 @@ def execute(db, settings, task, args):
         db.add(row)
         db.flush()
     entry = dict(state=args.state, summary=args.summary, evidence_ids=args.evidence_ids)
+    # Old native threads retain their earlier schema. Preserve a concise summary
+    # on identical retries, but never leave stale presentation copy on changed work.
     previous = row.phases.get(args.phase, {})
+    if args.headline is not None:
+        entry.update(headline=args.headline, one_line=args.one_line)
+    elif (
+        previous.get("headline")
+        and previous.get("summary") == args.summary
+        and previous.get("state") == args.state
+        and row.title == args.title
+    ):
+        entry.update(headline=previous["headline"], one_line=previous["one_line"])
     if row.title == args.title and all(previous.get(k) == v for k, v in entry.items()):
         return output(db, row)
     row.title = args.title

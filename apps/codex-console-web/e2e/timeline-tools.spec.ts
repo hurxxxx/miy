@@ -61,8 +61,10 @@ test('browses tools and requests, verifies and retains a development merge in th
   await expect(merge).toBeEnabled();
   await merge.click();
   await expect(
-    page.getByRole('heading', { name: '작업 타임라인', exact: true }),
+    page.getByRole('heading', { name: '한눈에 보는 작업 흐름', exact: true }),
   ).toBeVisible();
+  await expect(page.locator('.work-summary')).not.toContainText(fixture.root);
+  await page.getByText('단계별 상세 기록 · 실행 근거', { exact: true }).click();
   await expect(page.locator('.timeline-segment')).toHaveCount(1);
   await expect(page.locator('.timeline-segment')).toContainText(
     'Git 병합이 확인되지 않았습니다',
@@ -84,10 +86,94 @@ test('browses tools and requests, verifies and retains a development merge in th
   );
   await page.reload();
   await page.getByRole('button', { name: '작업 이력', exact: true }).click();
+  await expect(page.locator('.work-summary')).toContainText(
+    '개발 반영 결과 확인',
+  );
+  await page.getByText('단계별 상세 기록 · 실행 근거', { exact: true }).click();
   await expect(page.locator('.timeline-segment')).toContainText(
     'Git 병합 확인 완료',
   );
   await page.screenshot({
     path: test.info().outputPath('timeline.png'),
   });
+});
+
+test('shows readable work summaries and keeps technical details available on demand', async ({
+  page,
+}) => {
+  await page.goto('./');
+  await page
+    .getByLabel('본인 전용 비밀번호')
+    .fill('console-tests-only-password');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(page.locator('#console-sidebar')).toBeAttached();
+  const csrf = (await page.context().cookies()).find(
+    (cookie) => cookie.name === 'codex_console_csrf',
+  )!.value;
+  const headers = { origin: new URL(page.url()).origin, 'x-csrf-token': csrf };
+  const created = await page.request.post('api/tasks', {
+    headers,
+    data: { title: '작업 흐름 요약 확인' },
+  });
+  const task = await created.json();
+  const gate = await (
+    await page.request.post('__test__/hold-completion', { headers })
+  ).json();
+  try {
+    await page.request.post(`api/tasks/${task.id}/messages`, {
+      headers,
+      data: {
+        operation_id: crypto.randomUUID(),
+        text: 'Inspect this browser fixture',
+      },
+    });
+    const populated = await page.request.post('__test__/summary-timeline', {
+      headers,
+      data: { task_id: task.id },
+    });
+    expect(populated.ok()).toBe(true);
+    await page.goto(`./?task=${task.id}`);
+    await page.getByRole('button', { name: '작업 이력', exact: true }).click();
+    const overview = page.getByRole('region', {
+      name: '한눈에 보는 작업 흐름',
+      exact: true,
+    });
+    await expect(overview).toContainText('지금 진행 중인 작업');
+    await expect(overview.locator('li')).toHaveCount(3);
+    await expect(overview).toContainText('질문 답변 화면 수정');
+    await expect(overview).toContainText('작업별 브랜치 연결');
+    await expect(overview).not.toContainText('pnpm test');
+    await expect(page.locator('.work-summary-details')).not.toHaveAttribute(
+      'open',
+      '',
+    );
+    await page
+      .getByText('단계별 상세 기록 · 실행 근거', { exact: true })
+      .click();
+    await expect(page.locator('.timeline-segment').first()).toContainText(
+      'pnpm test',
+    );
+    await page
+      .getByText('단계별 상세 기록 · 실행 근거', { exact: true })
+      .click();
+    await overview
+      .getByRole('heading', { name: '한눈에 보는 작업 흐름' })
+      .scrollIntoViewIfNeeded();
+    await page.screenshot({ path: test.info().outputPath('work-summary.png') });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page
+      .getByRole('button', { name: '작업 이력 보기', exact: true })
+      .click();
+    await expect(overview).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+  } finally {
+    await page.request.post('__test__/release-completion', {
+      headers,
+      data: { id: gate.id },
+    });
+  }
 });

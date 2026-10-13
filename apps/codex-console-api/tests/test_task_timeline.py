@@ -266,3 +266,65 @@ def test_git_receipt_does_not_erase_reported_validation_blocker(client, reposito
     assert ok and result["merge"]["verified"] and result["state"] == "needs_attention"
     ok, result = call(client, task, {**args, "state": "completed", "summary": "Fixed and checked"})
     assert ok and result["state"] == "completed"
+
+
+def test_plain_language_summary_is_persisted_and_retries_do_not_duplicate_it(client):
+    task = send_message(client, new_task(client)).json()
+    args = dict(
+        action="update",
+        key="answer-ui",
+        title="Answer UI",
+        phase="implementation",
+        state="in_progress",
+        summary="Updated UI component, checks pending",
+        headline="질문 답변\n화면 수정",
+        one_line="화면에서   답변할 수 있도록 수정하고 있습니다.",
+    )
+    ok, result = call(client, task, args)
+    assert ok
+    phase = result["phases"]["implementation"]
+    assert phase["headline"] == "질문 답변 화면 수정"
+    assert phase["one_line"] == "화면에서 답변할 수 있도록 수정하고 있습니다."
+    with client.app.state.factory() as db:
+        count = db.scalar(select(func.count()).select_from(Event))
+    assert call(client, task, args)[0]
+    with client.app.state.factory() as db:
+        assert db.scalar(select(func.count()).select_from(Event)) == count
+    assert timeline(client, task)[0]["phases"]["implementation"] == phase
+    old_schema = {k: v for k, v in args.items() if k not in ("headline", "one_line")}
+    assert (
+        call(client, task, old_schema)[1]["phases"]["implementation"]["headline"]
+        == phase["headline"]
+    )
+    assert call(client, task, {**old_schema, "summary": "Checks now passed", "state": "completed"})[
+        0
+    ]
+    assert timeline(client, task)[0]["phases"]["implementation"]["headline"] is None
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"headline": "Missing description"},
+        {"headline": "x" * 81, "one_line": "description"},
+        {"headline": "title", "one_line": "x" * 181},
+        {"headline": "  \n", "one_line": "description"},
+    ],
+)
+def test_invalid_plain_language_summary_does_not_modify_the_timeline(client, fields):
+    task = send_message(client, new_task(client)).json()
+    ok, result = call(
+        client,
+        task,
+        dict(
+            action="update",
+            key="invalid",
+            title="Work",
+            phase="start",
+            state="in_progress",
+            summary="Started",
+            **fields,
+        ),
+    )
+    assert not ok and result["error"] == "invalid_input"
+    assert timeline(client, task) == []

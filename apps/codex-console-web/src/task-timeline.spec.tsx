@@ -61,6 +61,8 @@ beforeEach(() => vi.mocked(api).mockReset());
 it('shows reported validation separately from verified Git completion and preserves evidence', async () => {
   vi.mocked(api).mockResolvedValueOnce({ items: [row], next_before: null });
   render(<TaskTimeline task={task} t={t} />);
+  await screen.findByRole('heading', { name: '한눈에 보는 작업 흐름' });
+  fireEvent.click(screen.getByText('단계별 상세 기록 · 실행 근거'));
   await screen.findByText('검사 12개 통과');
   expect(screen.queryByText(/Git 병합 확인 완료/)).toBeNull();
   expect(screen.getByText('pnpm test')).toBeTruthy();

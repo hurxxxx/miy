@@ -1,5 +1,31 @@
 /** Copy for the work-oriented desktop navigation and result surfaces. */
 export const uxKorean = {
+  'Work at a glance': '한눈에 보는 작업 흐름',
+  'See what changed and what is happening, one work item at a time.':
+    '무엇을 바꿨고 지금 어떤 작업을 하는지 간단히 확인하세요.',
+  'Step details and evidence': '단계별 상세 기록 · 실행 근거',
+  'Work in progress now': '지금 진행 중인 작업',
+  'Work needing attention': '확인이 필요한 작업',
+  'Latest work update': '최근 작업 기록',
+  'Shown work': '표시된 작업',
+  'Planned work': '예정',
+  'Last reported in progress': '마지막 보고: 진행 중',
+  'Apply the changes to development': '작업 내용을 개발에 반영',
+  'The requested changes are included in development.':
+    '요청한 변경 사항이 개발에 반영되었습니다.',
+  'The development merge still needs checking.':
+    '개발 반영이 끝났는지 확인이 필요합니다.',
+  'The changes have been requested for development integration.':
+    '작업한 내용을 개발에 반영하도록 요청했습니다.',
+  'Waiting for the next progress update.':
+    '다음 진행 상황이 기록되기를 기다리고 있습니다.',
+  'Showing the last reported plan until work summaries are available.':
+    '아직 작업 요약이 없어 마지막으로 보고된 작업 계획을 표시합니다.',
+  'The work flow will appear here when progress is reported.':
+    '작업 진행 상황이 기록되면 이곳에서 흐름을 확인할 수 있습니다.',
+  'Recent work is shown first. Load earlier work below.':
+    '최근 작업부터 표시합니다. 아래에서 이전 작업도 불러올 수 있습니다.',
+
   'Work summary updated': '작업 요약 갱신',
   Validation: '검증',
   Implementation: '구현',

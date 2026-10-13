@@ -2298,6 +2298,10 @@ export interface components {
         };
         /** PhaseOut */
         PhaseOut: {
+            /** Headline */
+            headline?: string | null;
+            /** One Line */
+            one_line?: string | null;
             /**
              * State
              * @enum {string}

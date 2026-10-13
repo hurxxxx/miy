@@ -1293,3 +1293,26 @@ textarea {color: inherit; background: transparent; resize: vertical; border: 0; 
 .timeline-segment summary {
   cursor: pointer;
 }
+
+.work-summary { min-width: 0; }
+.work-summary-heading, .work-summary-item-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.work-summary-heading h2 { margin: 0; }
+.work-summary-count, .work-summary-state { font-size: 11px; color: var(--ui-color-ink-muted); flex-shrink: 0; }
+.work-summary > p { font-size: 12px; line-height: 1.6; }
+.work-summary-source { color: var(--ui-color-ink-muted); }
+.work-summary-focus { display: grid; gap: 6px; margin: 16px 0 20px; padding: 14px 16px; border: 1px solid var(--ui-color-border); background: var(--ui-color-surface-subtle); border-radius: 10px; }
+.work-summary-focus > span { font-size: 11px; font-weight: 600; color: var(--ui-color-ink-muted); }
+.work-summary-focus > strong { font-size: 14px; overflow-wrap: anywhere; }
+.work-summary-focus > p { margin: 0; font-size: 12px; line-height: 1.6; }
+.work-summary-list { list-style: none; margin: 16px 0 0; padding: 0; }
+.work-summary-list > li { position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; padding-bottom: 22px; }
+.work-summary-list > li:not(:last-child)::before { content: ''; position: absolute; top: 24px; bottom: 0; left: 11px; border-left: 1px solid var(--ui-color-border); }
+.work-summary-dot { width: 24px; height: 24px; border: 1px solid var(--ui-color-border); border-radius: 50%; display: grid; place-items: center; color: var(--ui-color-ink-muted); background: var(--ui-color-surface); }
+.work-summary-list > li[data-state='completed'] .work-summary-dot { color: var(--ui-color-accent); background: var(--ui-color-surface-subtle); }
+.work-summary-list > li[data-state='in_progress'] .work-summary-dot { color: var(--ui-color-accent); border-color: var(--ui-color-accent); }
+.work-summary-item-heading { min-height: 24px; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+.work-summary-item-heading h3 { margin: 0; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.work-summary-list article > p { margin: 4px 0 6px; color: var(--ui-color-ink-muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.work-summary-list time { color: var(--ui-color-ink-muted); font-size: 11px; }
+.work-summary-details > summary { cursor: pointer; padding: 12px 0; border-top: 1px solid var(--ui-color-border); font-size: 12px; font-weight: 600; }
+.work-summary-details > .stack { margin-top: 8px; }

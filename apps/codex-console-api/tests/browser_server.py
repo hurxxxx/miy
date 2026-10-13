@@ -289,6 +289,50 @@ def main(*, configure=None, install_fixture=None):
                 store.changed(db, task, "item/completed")
             return {"root": str(target), "unrelated": str(unrelated)}
 
+        @app.post(f"{settings.base_path}/__test__/summary-timeline")
+        def summary_timeline_fixture(body: dict):
+            from codex_console import task_timeline
+
+            entries = [
+                (
+                    "answers",
+                    "질문 답변 화면 수정",
+                    "대화 중 필요한 선택에 화면에서 답할 수 있게 했습니다.",
+                    "completed",
+                ),
+                (
+                    "branches",
+                    "작업별 브랜치 연결",
+                    "이 작업과 관련된 변경 사항을 모아 볼 수 있게 했습니다.",
+                    "completed",
+                ),
+                (
+                    "summary",
+                    "작업 흐름을 보기 쉽게 정리",
+                    "작업별 제목과 한 줄 요약을 타임라인에 표시하고 있습니다.",
+                    "in_progress",
+                ),
+            ]
+            with app.state.factory.begin() as db:
+                task = store.require_task(db, body["task_id"])
+                for key, headline, description, state in entries:
+                    task_timeline.execute(
+                        db,
+                        settings,
+                        task,
+                        task_timeline.Arguments(
+                            action="update",
+                            key=key,
+                            title=headline,
+                            phase="finish" if state == "completed" else "implementation",
+                            state=state,
+                            summary="Browser fixture detail: pnpm test; no live inference.",
+                            headline=headline,
+                            one_line=description,
+                        ),
+                    )
+            return {"ok": True}
+
         @app.post(f"{settings.base_path}/__test__/integrate-timeline")
         def integrate_timeline_fixture(body: dict):
             from sqlalchemy import select
@@ -324,6 +368,8 @@ def main(*, configure=None, install_fixture=None):
                         phase="validation",
                         state="completed",
                         summary="브라우저 테스트에서 병합 흐름과 작업 기록 보존 확인",
+                        headline="개발 반영 결과 확인",
+                        one_line="작업한 내용을 개발에 반영하고 화면에서 결과를 확인했습니다.",
                     ),
                 )
             return {"ok": True}
