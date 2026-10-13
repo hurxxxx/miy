@@ -1275,6 +1275,7 @@ textarea {color: inherit; background: transparent; resize: vertical; border: 0; 
 }
 .tool-catalog-grid {
   display: grid;
+  align-items: start;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   gap: 16px;
   margin-top: 20px;
