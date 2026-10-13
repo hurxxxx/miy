@@ -1061,13 +1061,16 @@ HTTP 개발 사이트를 유지하면서 별도 TLS 프록시 포트를 연결�
 실행 파일을 명시적으로 선택하고, 검증 명령도 같은 파일을 사용한다. 전역 CLI 업데이트와
 Workbench의 CLI 전환을 분리하며, 최소 버전·선택 RPC 스키마와 원격 실행의 고정 버전 계약은
 [서비스 실행](docs/apps/codex-console/README.md#서비스로-실행)과 [검증과 복구](docs/apps/codex-console/README.md#검증과-복구)를 따른다.
+Workbench 기본 설치는 Linux/systemd 기준이며 macOS 개인 개발 환경은 별도 [호스트 LaunchAgent 설치](docs/apps/codex-console/macos.md)를
+사용한다. Docker는 Workbench의 필수 실행 환경이 아니며, 기존 컨테이너 설치는 같은 문서의
+데이터 이전 절차로 대화·첨부·Codex 세션을 보존한 뒤 전환한다.
 시작 시 RPC 스키마 호환성을 검사하며
 기본 개발·복구 기능에는 Platform API 키나 miy AI 공급자 설정을 요구하지 않는다. 운영 앱 집계 연결은 아래 별도 조회 키를 사용한다.
 CLI 업데이트 뒤 `codex_version_mismatch`가 발생하면 [생성 계약 검증과 갱신](docs/apps/codex-console/README.md#검증과-복구)을
 수행하고 콘솔 전용 릴리스를 교체한다. 기존 고정 템플릿 CLI와 `template-current`는 별도 검증·업데이트 범위가 아니면 유지한다.
 
 - [독립 저장소와 백업](docs/apps/codex-console/README.md#독립-저장소와-백업)에 따라 영구 데이터 경로·0600 권한·online backup을 준비한다. Python에 포함된 SQLite의 WAL 수정 버전을 확인한다. 기존 PostgreSQL 설치는 원본을 보존하며 검증된 이전 도구로 복사한다.
-- 콘솔의 `.env`와 웹 비밀번호를 준비하고 migration·정적 UI 빌드·관리/세션/템플릿 세 systemd 서비스의
+- 콘솔의 `.env`와 웹 비밀번호를 준비하고 migration·정적 UI 빌드·관리/세션/템플릿 세 서비스(Linux systemd, macOS launchd)의
   자동 시작을 완료한다. [서비스와 작업 현황](docs/apps/codex-console/README.md#서비스와-작업-현황)의
   세 포트·management 단일 프록시 경로·읽기 전용 모니터·병렬 작업 제한을 설정한다. 템플릿 실행기는 별도 고정 CLI와 `template-current` 릴리스를 사용한다.
 - 앱 운영 집계를 제공할 설치는 [운영 조회와 개발 화면 연결](docs/apps/codex-console/README.md#운영-조회와-개발-화면-연결)에 따라 MIY 조회 API를 먼저 배포하고 전용 키·origin을 Workbench 환경 파일에 설치한다. `glab`은 서비스 OS 사용자로 내부 GitLab에 인증한다. Studio·앱 관리·플랫폼 화면, 미설정/권한 거부 표시, 기존 작업, SQLite 백업·복원을 확인한다.

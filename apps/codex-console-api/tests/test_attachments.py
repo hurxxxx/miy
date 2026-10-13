@@ -99,6 +99,26 @@ def test_only_selected_files_are_sent_and_cache_is_rebuildable(client, settings)
     complete(client, task)
 
 
+def test_resuming_after_cache_relocation_reports_only_previously_sent_files(client, settings):
+    task = new_task(client)
+    sent = upload(client, task, "sent.txt", b"sent contents").json()
+    upload(client, task, "unselected.txt", b"not selected")
+    task = complete(client, message(client, task, [sent["id"]]).json())
+    previous = settings.attachment_cache
+    settings.attachment_cache = previous.with_name("host-attachment-cache")
+    task = message(client, task, text="Continue after moving the service").json()
+    params = latest_input(client, "thread/resume")
+    instruction = params["developerInstructions"]
+    assert str(settings.attachment_cache) in instruction
+    assert str(previous) not in instruction
+    assert "sent.txt" in instruction and "unselected.txt" not in instruction
+    assert "sent contents" not in instruction
+    assert (
+        list(settings.attachment_cache.rglob("file-sent.txt"))[0].read_bytes() == b"sent contents"
+    )
+    complete(client, task)
+
+
 def test_steer_and_implementation_use_explicit_selection(client):
     task = plan(client)
     first = upload(client, task, "first.data").json()

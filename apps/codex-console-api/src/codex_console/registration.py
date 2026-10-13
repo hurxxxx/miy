@@ -10,7 +10,6 @@ import secrets
 import stat
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Literal
 from urllib.parse import parse_qs, urlencode, urlsplit
 from uuid import UUID, uuid4
@@ -23,7 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from . import auth, registration_source, store
 from .errors import ConsoleError
 from .models import RegistrationIntent, Task, WebSession, now
-from .storage import database_path, private_file
+from .storage import database_path
 
 PREFIX = "/api/v1/independent-apps/bootstrap-authorizations"
 CALLBACK = "/api/registration-authorizations/callback"
@@ -180,7 +179,6 @@ def secret(settings, request_id, kind, value=None, *, remove=False):
     if kind not in ("verifier", "token"):
         raise ValueError("Unknown credential type")
     with vault(settings) as directory:
-        path = Path(f"/proc/self/fd/{directory}") / name
         if remove:
             try:
                 info = os.stat(name, dir_fd=directory, follow_symlinks=False)
@@ -196,7 +194,12 @@ def secret(settings, request_id, kind, value=None, *, remove=False):
                 pass
             return None
         if value is not None:
-            fd = private_file(path, exclusive=True)
+            fd = os.open(
+                name,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
+                0o600,
+                dir_fd=directory,
+            )
         else:
             fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=directory)
         try:

@@ -168,8 +168,10 @@ def prepare(factory, settings, task_id):
                 ),
             )
         )
-        for row in rows:
-            materialize(root, row)
+        return [
+            {"name": row.name, "path": str(materialize(root, row)), "bytes": row.size}
+            for row in rows
+        ]
 
 
 def inputs(factory, settings, task_id, operation_id, text):

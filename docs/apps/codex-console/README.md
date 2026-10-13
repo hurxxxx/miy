@@ -1331,8 +1331,8 @@ Docker 중첩 mount에서 체크아웃 디렉터리만 UID 0으로 보이는 경
 #### 새 브랜치 준비 helper
 
 `python -m codex_console.task_setup --config /absolute/private/task-setup.json`을 고정 명령으로 설정한다.
-helper는 Linux/Docker에서 실행하며 `0600` 설정의 `source`, `worktree_root`, `runtime_root`, `uv`, `pnpm`,
-`python` 절대 경로를 사용한다. `runtime_root`는 소스·worktree 밖의 보호된 Linux 저장소다.
+helper는 Linux 또는 macOS 호스트에서 실행하며 `0600` 설정의 `source`, `worktree_root`, `runtime_root`, `uv`, `pnpm`,
+`python` 절대 경로를 사용한다. `runtime_root`는 소스·worktree 밖의 보호된 호스트 저장소다.
 API는 서버가 생성한 Task ID·정확한 root·source·기준 revision만 표준 입력 JSON으로 전달한다.
 
 설정은 작업의 `.env.example`에서 생성하며 개발·운영 `.env`를 복사하지 않는다. 선택적인 `postgres` 설정은
@@ -1342,7 +1342,7 @@ API는 서버가 생성한 Task ID·정확한 root·source·기준 revision만 �
 추가 서비스는 해당 작업의 명시적인 격리 프로파일로 연결해야 한다. helper는 서비스 시작·migration·seed를 실행하지 않는다.
 
 pnpm은 `--frozen-lockfile --ignore-scripts`, 각 Python 프로젝트는 `uv sync --frozen`으로 준비한다.
-패키지 store와 `.venv`는 Linux 저장소의 Task별 경로를 사용하며 쓰기 가능한 의존성 디렉터리를 공유하지 않는다.
+패키지 store와 `.venv`는 해당 OS 저장소의 Task별 경로를 사용하며 쓰기 가능한 의존성 디렉터리를 공유하지 않는다.
 선택적인 `venv_seeds`는 프로젝트별 `path`와 일치하는 `lock_sha256`을 검증한 뒤 복사하고 frozen sync로 확인한다.
 필요하면 `pythons`에 프로젝트별 Python 경로를 지정한다. 설치 명령과 로그를 브라우저·Codex 프롬프트에 전달하지 않는다.
 
@@ -1381,6 +1381,11 @@ miy 서버에서는 기준 ref를 `origin/dev`, 워크트리 경로를 체크아
 구성에 맞춘다. 전용 DB는 모든 설치에 필요하며 migration은 기존 비콘솔 테이블이 있으면 거부한다.
 
 ## 설치
+
+이 문서의 기본 구성은 **Linux 호스트의 Python·Codex 및 systemd**다. Docker는 Workbench의
+필수 실행 환경이 아니다. macOS는 별도 [호스트 설치 문서](macos.md)를 사용한다. Docker로 Workbench를
+실행하면 명령도 Linux 컨테이너 안에서 실행되며, 공유한 소스 경로만 호스트와 같은 파일이다.
+YOLO는 Codex의 내부 제한을 해제할 뿐 컨테이너 경계를 제거하거나 Docker 소켓을 연결하지 않는다.
 
 사전 준비는 [INSTALL.md](../../../INSTALL.md)를 따른다. Node·pnpm과 Python·uv 버전은
 저장소의 package.json 및 각 앱의 pyproject.toml/lock을 사용한다. Python 3.12에 포함된
@@ -1635,11 +1640,17 @@ DB에서 사본을 복원한다. 원본을 삭제하면 DB 바이너리와 읽�
 12바이트/자와 나머지 필드 4 KiB를 합친 바이트 제한을 적용한다.
 
 전용 DB 백업에 첨부 원본도 포함되므로 용량·보존 정책을 함께 관리한다. 캐시는 원본 백업이
-아니다. 캐시 경로는 원본 Codex 이력의 파일 경로를 유지하도록 업데이트 때 변경하지 않는다.
-다른 서버로 복원할 때도 같은 절대 경로를 준비한다. 경로를 바꿨다면 보관된 파일을 다시 선택해
-전송한다. 자료 삭제는 기존 Codex 대화나 과거 DB 백업에서 이미 읽힌 내용을 지우지 않는다.
+아니다. 일반 업데이트에서는 캐시 경로를 유지한다. 호스트 이전으로 경로가 달라지면 대화 재개 시
+해당 작업에 **이미 전송했던** 파일만 원본 DB에서 복구하고 새 경로를 Codex에 전달한다.
+업로드만 하고 선택하지 않은 파일과 다른 작업의 파일은 포함하지 않는다. 과거 메시지의 경로를
+고쳐 쓰지 않으며 자료 삭제는 기존 Codex 대화나 과거 DB 백업에서 이미 읽힌 내용을 지우지 않는다.
 
 ## 서비스로 실행
+
+기본 서비스 구성은 Linux/systemd다. Mac에서 직접 실행할 때는 별도
+[macOS 호스트 설치](macos.md)의 LaunchAgent와 데이터 이전 절차를 따른다.
+
+### Linux 호스트 서비스
 
 개발 중인 소스를 서비스가 직접 읽지 않도록 새 릴리스 디렉터리를 만든다.
 다음은 사용자의 홈 디렉터리에 설치하는 예다. 이미 존재하는 릴리스는 덮어쓰지 않는다.

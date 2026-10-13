@@ -10,6 +10,7 @@ import os
 import re
 import stat
 import subprocess
+import sys
 import zlib
 from contextlib import ExitStack, contextmanager
 from datetime import UTC
@@ -263,22 +264,35 @@ def git(descriptor, row, *arguments, data=None):
         "GIT_COMMITTER_DATE": timestamp,
     }
     try:
+        command = [
+            "git",
+            "--no-pager",
+            "-c",
+            "core.hooksPath=/dev/null",
+            "-c",
+            "core.fsmonitor=false",
+            "-c",
+            "commit.gpgsign=false",
+            "-c",
+            "diff.external=",
+        ]
+        if sys.platform == "darwin":
+            # macOS has no /proc directory handles. A fresh, isolated Python
+            # process anchors cwd by fd before exec, avoiding preexec_fn in threads.
+            command = [
+                sys.executable,
+                "-I",
+                "-S",
+                "-c",
+                "import os,sys;os.fchdir(int(sys.argv[1]));"
+                "os.execvpe(sys.argv[2],sys.argv[2:],os.environ)",
+                str(descriptor),
+                *command,
+            ]
+        else:
+            command += ["-C", f"/proc/self/fd/{descriptor}"]
         result = subprocess.run(
-            [
-                "git",
-                "--no-pager",
-                "-c",
-                "core.hooksPath=/dev/null",
-                "-c",
-                "core.fsmonitor=false",
-                "-c",
-                "commit.gpgsign=false",
-                "-c",
-                "diff.external=",
-                "-C",
-                f"/proc/self/fd/{descriptor}",
-                *arguments,
-            ],
+            [*command, *arguments],
             input=data,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
@@ -333,6 +347,11 @@ def metadata_safe(descriptor, row):
 def initialize_git(descriptor, row):
     if stat_at(descriptor, ".git") is None:
         git(descriptor, row, "init", "--template=", "--initial-branch=main", "--object-format=sha1")
+        if sys.platform == "darwin":
+            # Keep the starter's audited config identical across filesystems.
+            for name in ("core.ignorecase", "core.precomposeunicode"):
+                git(descriptor, row, "config", "--local", "--replace-all", name, "false")
+                git(descriptor, row, "config", "--local", "--unset-all", name)
     metadata_safe(descriptor, row)
     git(descriptor, row, "config", "--local", "remote.origin.url", row.repository)
     git(
@@ -412,14 +431,16 @@ def verify_git(descriptor, row, entries):
 
 
 def publish(parent, source, destination):
-    # POSIX rename may replace an existing empty directory. Require Linux no-replace semantics.
+    # POSIX rename may replace an existing empty directory. Require atomic no-replace.
     libc = ctypes.CDLL(None, use_errno=True)
-    rename = getattr(libc, "renameat2", None)
+    rename = getattr(libc, "renameatx_np" if sys.platform == "darwin" else "renameat2", None)
     if rename is None:
         raise ConsoleError("app_setup_publish_unsupported", 503)
     rename.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
     rename.restype = ctypes.c_int
-    if rename(parent, source.encode(), parent, destination.encode(), 1) != 0:
+    # Darwin RENAME_EXCL=4; Linux RENAME_NOREPLACE=1.
+    flag = 4 if sys.platform == "darwin" else 1
+    if rename(parent, source.encode(), parent, destination.encode(), flag) != 0:
         code = ctypes.get_errno()
         if code in (errno.EEXIST, errno.ENOTEMPTY):
             raise ConsoleError("app_setup_conflict", 409)

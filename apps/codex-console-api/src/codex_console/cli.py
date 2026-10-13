@@ -1,6 +1,7 @@
 import argparse
 import getpass
 import json
+import os
 import stat
 from pathlib import Path
 
@@ -16,6 +17,23 @@ from .config import Settings
 from .models import Owner, WebSession, database
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def load_environment(path):
+    """Load an explicitly selected service file without shell evaluation."""
+    from dotenv import dotenv_values
+
+    info = path.lstat()
+    if (
+        not path.is_absolute()
+        or not stat.S_ISREG(info.st_mode)
+        or info.st_uid != os.getuid()
+        or info.st_nlink != 1
+        or stat.S_IMODE(info.st_mode) & 0o077
+    ):
+        raise ValueError("Use a private 0600 environment file owned by the service user")
+    values = dotenv_values(path, interpolate=False)
+    os.environ.update({key: value for key, value in values.items() if value is not None})
 
 
 def migrate(url, revision="head"):
@@ -66,7 +84,10 @@ def main():
     parser.add_argument(
         "--source-env", type=Path, help="Private env file of the old PostgreSQL console"
     )
+    parser.add_argument("--env-file", type=Path, help="Private service environment file")
     args = parser.parse_args()
+    if args.env_file:
+        load_environment(args.env_file)
     if args.command == "openapi":
         print(json.dumps(create_app().openapi(), ensure_ascii=False))
         return

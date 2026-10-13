@@ -1,7 +1,7 @@
-"""Fixed Linux/Docker dependency preparation for owner-operated core worktrees.
+"""Fixed host dependency preparation for owner-operated core worktrees.
 
 No source-provided shell commands, production env copies or service startup.
-The operator config selects private Linux storage and optional development DB
+The operator config selects private host storage and optional development DB
 provisioning. Dependency installers use committed lockfiles, with pnpm scripts off.
 """
 
@@ -102,8 +102,8 @@ def development_database(config, state, task_id):
 
 
 def prepare(config, request):
-    if sys.platform != "linux":
-        raise ValueError("Prepare in the configured Linux/Docker runtime")
+    if sys.platform not in ("linux", "darwin"):
+        raise ValueError("Prepare in the configured Linux or macOS runtime")
     task_id = str(UUID(request["task_id"]))
     source = Path(config["source"])
     root = Path(request["root"])
@@ -165,7 +165,7 @@ def prepare(config, request):
             + "\n".join(f"{key}={value}" for key, value in overrides.items())
             + "\n",
         )
-    # Package bytes are stored on Linux, while workspace links stay task-local.
+    # Package bytes stay on this host, while workspace links stay task-local.
     store = state / "pnpm"
     private_write(state / "progress.json", json.dumps({"step": "javascript"}))
     seed = source / "node_modules/.pnpm"
