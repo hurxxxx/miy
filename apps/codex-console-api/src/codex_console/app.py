@@ -236,6 +236,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
                     "/api/overview",
                     "/api/monitor",
                     "/api/instructions",
+                    "/api/tool-catalog",
                 )
             ) or (path == "/api/session" and request.method == "DELETE"):
                 # Reject unauthenticated requests before reading or forwarding their bodies.
@@ -1018,6 +1019,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
                     "/api/monitor",
                     "/api/templates",
                     "/api/instructions",
+                    "/api/tool-catalog",
                     "/api/workbench",
                     "/api/registration-authorizations",
                 )

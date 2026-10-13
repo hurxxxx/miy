@@ -2,6 +2,7 @@ import json
 import subprocess
 from uuid import uuid4
 
+import pytest
 from conftest import complete, new_task, send_message
 from sqlalchemy import func, select
 from test_task_git import link, worktree
@@ -58,6 +59,7 @@ def merge_request(client, task, target):
     )
 
 
+@pytest.mark.parametrize("client_role", ["combined", "management"], indirect=True)
 def test_tool_catalog_uses_native_specs_and_requires_auth(client):
     response = client.get("/api/tool-catalog")
     assert response.status_code == 200
