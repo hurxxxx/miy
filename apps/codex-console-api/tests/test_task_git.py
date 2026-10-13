@@ -111,6 +111,15 @@ def test_native_registration_tool_is_task_bound_and_display_only(client, reposit
     }
     client.portal.call(runtime.server_request, message)
     assert runtime.rpc.responses[-1][1]["success"] is True
+    registered = json.loads(runtime.rpc.responses[-1][1]["contentItems"][0]["text"])
+    # A later review or a retry can recover the same association without duplicating it.
+    client.portal.call(runtime.server_request, message)
+    assert json.loads(runtime.rpc.responses[-1][1]["contentItems"][0]["text"]) == registered
+    message["params"]["arguments"] = {"action": "list"}
+    client.portal.call(runtime.server_request, message)
+    listed = json.loads(runtime.rpc.responses[-1][1]["contentItems"][0]["text"])["links"]
+    assert [row["id"] for row in listed] == ["root", registered["id"]]
+    assert listed[1]["root"] == str(target) and listed[1]["state"]["changed"] == 1
     with client.app.state.factory() as db:
         rows = list(db.scalars(select(TaskGitLink)))
         assert len(rows) == 1 and rows[0].task_id == task["id"] and rows[0].source == "agent"

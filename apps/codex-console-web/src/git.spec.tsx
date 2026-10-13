@@ -75,7 +75,7 @@ it('groups only linked checkouts and binds each diff to its link identity', asyn
 it('links an explicit path and unlinks without a Git mutation', async () => {
   render(<View />);
   await screen.findByText('/project/worktrees/fix');
-  fireEvent.click(screen.getByText('작업에 경로 연결'));
+  fireEvent.click(screen.getByRole('button', { name: '브랜치·워크트리 연결' }));
   fireEvent.change(screen.getByLabelText('Git 체크아웃 경로'), {
     target: { value: '/project/worktrees/new' },
   });
@@ -89,10 +89,18 @@ it('links an explicit path and unlinks without a Git mutation', async () => {
   );
   await waitFor(() =>
     expect(
-      screen.getAllByRole('button', { name: '연결 해제' })[0],
+      screen.getByRole('button', { name: '연결 해제: /project/dev' }),
     ).toHaveProperty('disabled', false),
   );
-  fireEvent.click(screen.getAllByRole('button', { name: '연결 해제' })[1]);
+  expect(screen.queryByLabelText('Git 체크아웃 경로')).toBeNull();
+  // Unlink stays available when the file list and diff are collapsed.
+  fireEvent.click(
+    screen.getByRole('button', { name: /detached HEAD.*worktrees\/fix/ }),
+  );
+  expect(screen.queryByText('diff:two')).toBeNull();
+  fireEvent.click(
+    screen.getByRole('button', { name: '연결 해제: /project/worktrees/fix' }),
+  );
   await waitFor(() =>
     expect(api).toHaveBeenCalledWith(
       '/tasks/task-a/git-links/two',

@@ -55,7 +55,9 @@ test('restores a missed question and displays only the linked detached worktree 
   await expect(submit).toBeInViewport();
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.getByRole('button', { name: '변경사항', exact: true }).click();
-  await page.getByText('작업에 경로 연결', { exact: true }).click();
+  await page
+    .getByRole('button', { name: '브랜치·워크트리 연결', exact: true })
+    .click();
   await page.getByLabel('Git 체크아웃 경로').fill(paths.root);
   await page.getByRole('button', { name: '경로 연결', exact: true }).click();
   await expect(
@@ -70,6 +72,17 @@ test('restores a missed question and displays only the linked detached worktree 
     .filter({ hasText: paths.root });
   await checkout.getByRole('button', { name: /README.md/ }).click();
   await expect(checkout.locator('.diff-content')).toBeAttached();
+  await checkout.getByRole('button', { name: /detached HEAD/ }).click();
+  await checkout
+    .getByRole('button', { name: `연결 해제: ${paths.root}`, exact: true })
+    .click();
+  await expect(checkout).toHaveCount(0);
+  await page
+    .getByRole('button', { name: '브랜치·워크트리 연결', exact: true })
+    .click();
+  await page.getByLabel('Git 체크아웃 경로').fill(paths.root);
+  await page.getByRole('button', { name: '경로 연결', exact: true }).click();
+  await expect(checkout).toContainText('변경 파일 13');
   await page.reload();
   await expect(
     page.getByRole('radio', { name: '정책 유지', exact: true }),

@@ -1161,17 +1161,37 @@ textarea {color: inherit; background: transparent; resize: vertical; border: 0; 
   border: 1px solid var(--ui-color-border);
   border-radius: 8px;
 }
-.git-checkout > summary {
-  padding: 12px;
+.git-checkout-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+}
+.git-checkout-unlink {flex-shrink: 0;}
+.git-checkout-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  border: 0;
+  border-radius: 4px;
+  padding: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
   overflow-wrap: anywhere;
 }
-.git-checkout > summary > * {
-  margin-right: 8px;
+.git-checkout-toggle:hover {background: var(--ui-color-surface-hover);}
+.git-checkout-toggle:focus-visible {
+  outline: 2px solid var(--ui-color-info);
+  outline-offset: 2px;
 }
-.git-checkout > summary .workspace-path {
-  display: block;
-  margin-top: 6px;
+.git-checkout-toggle .workspace-path {
+  flex-basis: 100%;
 }
 .git-checkout-body {
   padding: 12px;
@@ -1181,8 +1201,10 @@ textarea {color: inherit; background: transparent; resize: vertical; border: 0; 
   flex: none;
   overflow: visible;
 }
-.git-link-form form {
-  padding: 12px 0;
+.git-link-form {
+  padding: 12px;
+  border: 1px solid var(--ui-color-border);
+  border-radius: 8px;
 }
 .async-question {
   padding: 8px 0;

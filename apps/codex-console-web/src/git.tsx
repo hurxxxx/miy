@@ -1,6 +1,12 @@
 import { Button, Input } from '@miy/ui';
-import { GitBranch, RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ChevronDown,
+  ChevronRight,
+  GitBranch,
+  Plus,
+  RefreshCw,
+} from 'lucide-react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { api, type Detail, type GitState } from './api';
 import { type Locale, type Translate } from './i18n';
 import { Changes } from './views';
@@ -88,7 +94,13 @@ export function GitWorkspace({
   t: Translate;
 }) {
   const [root, setRoot] = useState('');
+  const [linking, setLinking] = useState(false);
   const [saving, setSaving] = useState(false);
+  const formId = useId();
+  const canLink =
+    !task.context?.source_binding &&
+    !task.context?.app_id &&
+    !task.context?.project_id;
   const changeLink = async (id?: string) => {
     if (saving) return;
     setSaving(true);
@@ -98,7 +110,10 @@ export function GitWorkspace({
         id ? undefined : { root: root.trim() },
         id ? 'DELETE' : 'POST',
       );
-      if (!id) setRoot('');
+      if (!id) {
+        setRoot('');
+        setLinking(false);
+      }
       await git.refresh();
     } catch (error) {
       onError(error);
@@ -116,6 +131,17 @@ export function GitWorkspace({
         <h2>
           {t('Task workspaces')} · {git.links.length}
         </h2>
+        {canLink && (
+          <Button
+            variant="secondary"
+            aria-expanded={linking}
+            aria-controls={formId}
+            onClick={() => setLinking(!linking)}
+          >
+            <Plus size={14} aria-hidden="true" />
+            {t('Link branch or worktree')}
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="icon"
@@ -129,6 +155,45 @@ export function GitWorkspace({
       <p className="context-note">
         {t('Changes include all current edits in each linked checkout.')}
       </p>
+      {canLink && linking && (
+        <form
+          id={formId}
+          className="git-link-form stack"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void changeLink();
+          }}
+        >
+          <p className="context-note">
+            {t(
+              'Enter a checkout folder to display its current branch and changes.',
+            )}
+          </p>
+          <label>
+            {t('Git checkout path')}
+            <Input
+              autoFocus
+              value={root}
+              maxLength={2048}
+              placeholder={task.root}
+              disabled={saving}
+              onChange={(event) => setRoot(event.target.value)}
+            />
+          </label>
+          <div className="git-summary">
+            <Button type="submit" disabled={saving || !root.trim()}>
+              {t('Link workspace')}
+            </Button>
+            <Button
+              variant="ghost"
+              disabled={saving}
+              onClick={() => setLinking(false)}
+            >
+              {t('Cancel')}
+            </Button>
+          </div>
+        </form>
+      )}
       {git.failed ? (
         <p role="alert">{t('Could not load Git state.')}</p>
       ) : (
@@ -159,33 +224,6 @@ export function GitWorkspace({
           busy={saving}
         />
       ))}
-      {!task.context?.source_binding &&
-        !task.context?.app_id &&
-        !task.context?.project_id && (
-          <details className="git-link-form">
-            <summary>{t('Link workspace to task')}</summary>
-            <form
-              className="stack"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void changeLink();
-              }}
-            >
-              <label>
-                {t('Git checkout path')}
-                <Input
-                  value={root}
-                  maxLength={2048}
-                  placeholder={task.root}
-                  onChange={(event) => setRoot(event.target.value)}
-                />
-              </label>
-              <Button type="submit" disabled={saving || !root.trim()}>
-                {t('Link workspace')}
-              </Button>
-            </form>
-          </details>
-        )}
     </div>
   );
 }
@@ -210,26 +248,48 @@ function GitCheckout({
   busy: boolean;
 }) {
   const [open, setOpen] = useState(initiallyOpen);
+  const bodyId = useId();
   const state = link.state;
   return (
-    <details
-      className="git-checkout"
-      open={open}
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
-      <summary>
-        <GitBranch size={14} aria-hidden="true" />
-        <strong>
-          {state
-            ? (state.branch ??
-              `${t('Detached HEAD')} · ${state.head?.slice(0, 8) ?? t('No commits')}`)
-            : t('Workspace unavailable')}
-        </strong>
-        <span>{state && `${t('Changed files')} ${state.changed}`}</span>
-        <code className="workspace-path">{link.root}</code>
-      </summary>
+    <div className="git-checkout">
+      <div className="git-checkout-header">
+        <button
+          type="button"
+          className="git-checkout-toggle"
+          aria-expanded={open}
+          aria-controls={bodyId}
+          onClick={() => setOpen(!open)}
+        >
+          {open ? (
+            <ChevronDown size={14} aria-hidden="true" />
+          ) : (
+            <ChevronRight size={14} aria-hidden="true" />
+          )}
+          <GitBranch size={14} aria-hidden="true" />
+          <strong>
+            {state
+              ? (state.branch ??
+                `${t('Detached HEAD')} · ${state.head?.slice(0, 8) ?? t('No commits')}`)
+              : t('Workspace unavailable')}
+          </strong>
+          <span>{state && `${t('Changed files')} ${state.changed}`}</span>
+          <code className="workspace-path">{link.root}</code>
+        </button>
+        {unlink && (
+          <Button
+            className="git-checkout-unlink"
+            variant="ghost"
+            disabled={busy}
+            aria-label={`${t('Unlink workspace')}: ${link.root}`}
+            title={t('Unlinking keeps the branch and files intact.')}
+            onClick={unlink}
+          >
+            {t('Unlink workspace')}
+          </Button>
+        )}
+      </div>
       {open && (
-        <div className="stack git-checkout-body">
+        <div id={bodyId} className="stack git-checkout-body">
           {state ? (
             <>
               <span>
@@ -265,13 +325,8 @@ function GitCheckout({
           ) : (
             <p role="status">{t('Workspace unavailable')}</p>
           )}
-          {unlink && (
-            <Button variant="ghost" disabled={busy} onClick={unlink}>
-              {t('Unlink workspace')}
-            </Button>
-          )}
         </div>
       )}
-    </details>
+    </div>
   );
 }

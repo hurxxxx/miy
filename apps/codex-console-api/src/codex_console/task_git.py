@@ -33,7 +33,11 @@ def specs():
             "type": "function",
             "name": TOOL_NAME,
             "description": "Register or list Git checkouts used by this task in its Changes panel. "
-            "Register each additional checkout/worktree after creating or selecting it. "
+            "Register an additional checkout/worktree after creating or first using it. "
+            "On resuming Git work, reviewing changes, or a related user request, list links "
+            "and register missing paths verified relevant to the current work. "
+            "Registration is idempotent; reuse known links and avoid redundant calls. "
+            "Do not register unrelated checkouts or paths the user asked to leave unlinked. "
             "This only records a display association; it does not change cwd, permissions or Git. "
             "Supply its canonical absolute repository root, including detached worktrees.",
             "inputSchema": Arguments.model_json_schema(),

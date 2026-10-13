@@ -22,7 +22,11 @@ export const uxKorean = {
     '각 연결 경로의 현재 변경 전체를 표시합니다.',
   'No Git workspace linked to this task.':
     '이 작업에 연결된 Git 경로가 없습니다.',
-  'Link workspace to task': '작업에 경로 연결',
+  'Link branch or worktree': '브랜치·워크트리 연결',
+  'Enter a checkout folder to display its current branch and changes.':
+    '체크아웃 폴더 경로를 입력하면 현재 브랜치와 변경사항을 표시합니다.',
+  'Unlinking keeps the branch and files intact.':
+    '연결을 해제해도 브랜치와 파일은 유지됩니다.',
   'Git checkout path': 'Git 체크아웃 경로',
   'Link workspace': '경로 연결',
   'Unlink workspace': '연결 해제',
