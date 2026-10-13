@@ -73,6 +73,7 @@ beforeEach(() => {
     items: [],
     history_truncated: false,
     requests: [],
+    async_questions: [],
     revisions: [],
   };
   gitState = {
@@ -121,6 +122,10 @@ beforeEach(() => {
       return { connected: true, auth_type: 'chatgpt' };
     if (path === `/tasks/${taskId}`) return detail;
     if (path === `/tasks/${taskId}/git`) return gitState;
+    if (path === `/tasks/${taskId}/git-links`)
+      return [
+        { id: 'root', root: detail.root, source: 'initial', state: gitState },
+      ];
     if (path === `/tasks/${taskId}/implement`)
       return submit(body as Record<string, unknown>);
     if (path === `/tasks/${taskId}/messages`)

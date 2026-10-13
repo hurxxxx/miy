@@ -12,7 +12,7 @@ from uuid import uuid4
 import uvicorn
 from conftest import PASSWORD, FakeRPC
 
-from codex_console import instructions
+from codex_console import instructions, store
 from codex_console.app import create_app
 from codex_console.auth import password_hash
 from codex_console.cli import migrate
@@ -199,6 +199,7 @@ def main(*, configure=None, install_fixture=None):
             origin=f"http://127.0.0.1:{port}",
             base_path=os.environ.get("MIY_CODEX_CONSOLE_BASE_PATH", ""),
             workspace=root,
+            worktree_root=directory / "worktrees",
             app_source_roots=[app_source.parent],
             app_creation_roots=[app_source.parent],
             # BrowserRPC owns this synthetic endpoint; it never opens a transport.
@@ -239,6 +240,54 @@ def main(*, configure=None, install_fixture=None):
         @app.get(f"{settings.base_path}/__test__/app-source")
         def app_source_fixture():
             return {"repository_root": str(app_source)}
+
+        @app.post(f"{settings.base_path}/__test__/questions-git")
+        def questions_git_fixture(body: dict):
+            with app.state.factory.begin() as db:
+                task = store.require_task(db, body["task_id"])
+                assert task.status == "idle" and task.thread_id and task.turn_id
+                target = settings.worktree_root / task.id
+                unrelated = settings.worktree_root / (task.id + "-unrelated")
+                for checkout in (target, unrelated):
+                    subprocess.run(
+                        [
+                            "git",
+                            "-C",
+                            str(root),
+                            "worktree",
+                            "add",
+                            "--detach",
+                            str(checkout),
+                            "HEAD",
+                        ],
+                        check=True,
+                        capture_output=True,
+                    )
+                (target / "README.md").write_text("Updated library fixture\n")
+                for index in range(12):
+                    (target / f"update-{index}.txt").write_text("Fixture dependency update\n")
+                item = {
+                    "id": "fixture-async-input",
+                    "type": "agentMessage",
+                    "phase": "final_answer",
+                    "delivery": "async",
+                    "text": "패키지 예외를 허용할까요?",
+                    "questions": [
+                        {"title": "패키지 예외를 허용할까요?", "options": ["허용", "정책 유지"]}
+                    ],
+                }
+                # Emulate the old projection; only official history retains the question fields.
+                store.upsert_item(
+                    db,
+                    task,
+                    task.turn_id,
+                    {k: v for k, v in item.items() if k not in {"delivery", "questions"}},
+                )
+                app.state.runtime.rpc.threads[task.thread_id]["turns"] = [
+                    {"id": task.turn_id, "status": "completed", "items": [item]}
+                ]
+                store.changed(db, task, "item/completed")
+            return {"root": str(target), "unrelated": str(unrelated)}
 
         gate_id = None
 

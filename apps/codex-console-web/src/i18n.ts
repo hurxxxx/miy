@@ -1170,6 +1170,10 @@ export const translate = (locale: Locale): Translate =>
   });
 
 const errors: Record<string, Copy> = {
+  git_link_unavailable: 'Workspace unavailable',
+  git_link_changed: 'Workspace unavailable',
+  git_link_limit: 'Too many workspaces linked to this task.',
+  git_root_required: 'Enter the Git checkout root directory.',
   workspace_unconfigured:
     'An administrator must connect the MIY development environment before starting this work.',
   workspace_busy:

@@ -280,6 +280,37 @@ class RequestOut(BaseModel):
     payload: dict[str, Any]
 
 
+class AsyncQuestionPrompt(Input):
+    title: str = Field(min_length=1, max_length=16000)
+    options: list[str] | None = Field(default=None, max_length=20)
+
+
+class AsyncQuestionOut(BaseModel):
+    id: str
+    item_id: str
+    turn_id: str
+    questions: list[AsyncQuestionPrompt]
+    state: Literal["pending", "unconfirmed", "sending", "uncertain", "answered", "dismissed"]
+    answers: dict[str, list[str]] | None = None
+
+
+class AsyncQuestionAnswer(Input):
+    action: Literal["answer", "dismiss"] = "answer"
+    answers: dict[str, list[str]] | None = None
+
+
+class TaskGitLinkInput(Input):
+    root: str = Field(min_length=1, max_length=2048)
+
+
+class TaskGitLinkOut(BaseModel):
+    id: str
+    root: str
+    source: Literal["initial", "agent", "user"]
+    state: GitStatusOut | None = None
+    error_code: str | None = None
+
+
 class TaskHistoryItem(BaseModel):
     id: int
     event: str
@@ -299,6 +330,7 @@ class TaskDetail(TaskOut):
     items: list[dict[str, Any]]
     history_truncated: bool
     requests: list[RequestOut]
+    async_questions: list[AsyncQuestionOut] = []
     event_id: int
     attachments: list["AttachmentOut"]
     attachment_limits: "AttachmentLimits"

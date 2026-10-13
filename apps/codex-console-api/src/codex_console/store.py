@@ -102,7 +102,9 @@ def project_plan(db, task, turn_id, items):
         finals = [
             item
             for item in items
-            if item.get("type") == "agentMessage" and item.get("phase") == "final_answer"
+            if item.get("type") == "agentMessage"
+            and item.get("phase") == "final_answer"
+            and not item.get("questions")
         ]
         structured = planning.parse(finals[-1].get("text", "")) if finals else None
         document = (
@@ -282,6 +284,8 @@ def implementation_permissions(settings, task):
 
 
 def task_out(task, db=None, *, summary=None):
+    from .async_questions import pending_count
+
     return {
         "id": task.id,
         "workspace_id": task.workspace_id,
@@ -307,10 +311,13 @@ def task_out(task, db=None, *, summary=None):
         "context": task.context,
         "pinned": task.pinned,
         "agents": agent_list(db, task.id) if db else [],
-        "pending_count": db.scalar(
-            select(func.count())
-            .select_from(PendingRequest)
-            .where(PendingRequest.task_id == task.id, PendingRequest.state == "pending")
+        "pending_count": (
+            db.scalar(
+                select(func.count())
+                .select_from(PendingRequest)
+                .where(PendingRequest.task_id == task.id, PendingRequest.state == "pending")
+            )
+            + pending_count(db, task.id)
         )
         if db
         else 0,
@@ -347,6 +354,7 @@ def attachment_out(row):
 
 
 def detail(factory, task_id, settings):
+    from . import async_questions
     from .attachments import limits
 
     with factory() as db:
@@ -441,6 +449,7 @@ def detail(factory, task_id, settings):
                     .order_by(PendingRequest.created_at, PendingRequest.id)
                 )
             ],
+            "async_questions": async_questions.output(db, task_id),
             "event_id": db.scalar(select(func.max(Event.id)).where(Event.task_id == task_id)) or 0,
         }
 
@@ -453,7 +462,7 @@ def bounded_item_text(task, payload, key, value):
     return value[-100000:]
 
 
-def upsert_item(db, task, turn_id, payload):
+def upsert_item(db, task, turn_id, payload, *, recovered=False):
     item_id = payload.get("id")
     if not isinstance(item_id, str) or len(item_id) > 200:
         return
@@ -461,7 +470,7 @@ def upsert_item(db, task, turn_id, payload):
     kind = payload.get("type")
     keys = {
         "userMessage": ("id", "clientId", "type", "content"),
-        "agentMessage": ("id", "type", "text", "phase"),
+        "agentMessage": ("id", "type", "text", "phase", "delivery", "questions"),
         "plan": ("id", "type", "text"),
         "commandExecution": (
             "id",
@@ -478,6 +487,9 @@ def upsert_item(db, task, turn_id, payload):
     if not keys:
         return
     safe = {key: payload[key] for key in keys if key in payload}
+    from .async_questions import observe
+
+    observe(db, task, turn_id, safe, recovered=recovered)
     for key in ("text", "aggregatedOutput"):
         if isinstance(safe.get(key), str):
             safe[key] = bounded_item_text(task, safe, key, safe[key])
@@ -500,7 +512,7 @@ def reconcile_history(db, task, turns):
     retained = {}
     for turn in turns[-100:]:
         for item in turn.get("items", []):
-            item_id = upsert_item(db, task, turn["id"], item)
+            item_id = upsert_item(db, task, turn["id"], item, recovered=True)
             if item_id is not None:
                 retained.setdefault(item_id, len(retained))
             if item.get("type") == "userMessage" and item.get("clientId"):

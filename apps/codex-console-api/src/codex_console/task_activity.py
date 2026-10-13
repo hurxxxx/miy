@@ -3,7 +3,15 @@
 from sqlalchemy import func, select
 
 from . import planning
-from .models import Item, Maintenance, PendingRequest, Revision, Task, WorkbenchProject
+from .models import (
+    AsyncQuestion,
+    Item,
+    Maintenance,
+    PendingRequest,
+    Revision,
+    Task,
+    WorkbenchProject,
+)
 
 
 def result_text(payload):
@@ -18,6 +26,8 @@ def final_predicate():
     return (
         Item.payload["type"].as_string() == "agentMessage",
         Item.payload["phase"].as_string() == "final_answer",
+        Item.payload["questions"].as_string().is_(None)
+        | (Item.payload["questions"].as_string() == "[]"),
     )
 
 
@@ -46,7 +56,15 @@ def summaries(db, task_ids):
     ids = list(task_ids)
     output = {key: {"latest_plan": None, "latest_result": None, "pending_kinds": []} for key in ids}
     for start in range(0, len(ids), 200):
+        from .async_questions import pending_condition
+
         batch = ids[start : start + 200]
+        for task_id in db.scalars(
+            select(AsyncQuestion.task_id)
+            .where(AsyncQuestion.task_id.in_(batch), *pending_condition())
+            .distinct()
+        ):
+            output[task_id]["pending_kinds"].append("question")
         for task_id, title in db.execute(
             select(Task.id, WorkbenchProject.title)
             .join(WorkbenchProject, Task.context["project_id"].as_string() == WorkbenchProject.id)

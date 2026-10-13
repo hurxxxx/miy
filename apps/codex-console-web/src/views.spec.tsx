@@ -41,6 +41,7 @@ const task: Detail = {
   items: [],
   history_truncated: false,
   requests: [],
+  async_questions: [],
   revisions: [
     {
       id: 1,

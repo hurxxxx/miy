@@ -437,7 +437,7 @@ class CodexRPC:
                         or "error" in message
                     ):
                         raise TypeError("Invalid protocol method envelope")
-                    if self.remote_environment and message["method"] == "item/tool/call":
+                    if message["method"] == "item/tool/call":
                         if "id" not in message:
                             raise TypeError("Dynamic tools require a request identity")
                         Draft7Validator(

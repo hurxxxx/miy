@@ -1097,6 +1097,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tasks/{task_id}/questions/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh Questions */
+        post: operations["refresh_questions_api_tasks__task_id__questions_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{task_id}/questions/{question_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Answer Question */
+        post: operations["answer_question_api_tasks__task_id__questions__question_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{task_id}/git-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Git Links */
+        get: operations["git_links_api_tasks__task_id__git_links_get"];
+        put?: never;
+        /** Link Git */
+        post: operations["link_git_api_tasks__task_id__git_links_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{task_id}/git-links/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Unlink Git */
+        delete: operations["unlink_git_api_tasks__task_id__git_links__link_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tasks/{task_id}/changes": {
         parameters: {
             query?: never;
@@ -1318,6 +1387,46 @@ export interface components {
             deployment_status: "configured" | "unconfigured";
             /** Limitations */
             limitations?: ("source_not_configured" | "source_missing" | "source_invalid" | "executor_not_configured" | "preview_not_configured" | "release_not_configured")[];
+        };
+        /** AsyncQuestionAnswer */
+        AsyncQuestionAnswer: {
+            /**
+             * Action
+             * @default answer
+             * @enum {string}
+             */
+            action: "answer" | "dismiss";
+            /** Answers */
+            answers?: {
+                [key: string]: string[];
+            } | null;
+        };
+        /** AsyncQuestionOut */
+        AsyncQuestionOut: {
+            /** Id */
+            id: string;
+            /** Item Id */
+            item_id: string;
+            /** Turn Id */
+            turn_id: string;
+            /** Questions */
+            questions: components["schemas"]["AsyncQuestionPrompt"][];
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "pending" | "unconfirmed" | "sending" | "uncertain" | "answered" | "dismissed";
+            /** Answers */
+            answers?: {
+                [key: string]: string[];
+            } | null;
+        };
+        /** AsyncQuestionPrompt */
+        AsyncQuestionPrompt: {
+            /** Title */
+            title: string;
+            /** Options */
+            options?: string[] | null;
         };
         /** AttachmentLimits */
         AttachmentLimits: {
@@ -2634,6 +2743,11 @@ export interface components {
             history_truncated: boolean;
             /** Requests */
             requests: components["schemas"]["RequestOut"][];
+            /**
+             * Async Questions
+             * @default []
+             */
+            async_questions: components["schemas"]["AsyncQuestionOut"][];
             /** Event Id */
             event_id: number;
             /** Attachments */
@@ -2665,6 +2779,26 @@ export interface components {
              * @default false
              */
             read_only: boolean;
+        };
+        /** TaskGitLinkInput */
+        TaskGitLinkInput: {
+            /** Root */
+            root: string;
+        };
+        /** TaskGitLinkOut */
+        TaskGitLinkOut: {
+            /** Id */
+            id: string;
+            /** Root */
+            root: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "initial" | "agent" | "user";
+            state?: components["schemas"]["GitStatusOut"] | null;
+            /** Error Code */
+            error_code?: string | null;
         };
         /** TaskHistoryItem */
         TaskHistoryItem: {
@@ -5443,9 +5577,176 @@ export interface operations {
             };
         };
     };
-    changes_api_tasks__task_id__changes_get: {
+    refresh_questions_api_tasks__task_id__questions_refresh_post: {
         parameters: {
             query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    answer_question_api_tasks__task_id__questions__question_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+                question_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AsyncQuestionAnswer"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    git_links_api_tasks__task_id__git_links_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskGitLinkOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    link_git_api_tasks__task_id__git_links_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskGitLinkInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskGitLinkOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unlink_git_api_tasks__task_id__git_links__link_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskGitLinkOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    changes_api_tasks__task_id__changes_get: {
+        parameters: {
+            query?: {
+                link_id?: string | null;
+            };
             header?: never;
             path: {
                 task_id: string;
@@ -5476,7 +5777,9 @@ export interface operations {
     };
     git_status_api_tasks__task_id__git_get: {
         parameters: {
-            query?: never;
+            query?: {
+                link_id?: string | null;
+            };
             header?: never;
             path: {
                 task_id: string;
@@ -5509,6 +5812,7 @@ export interface operations {
         parameters: {
             query: {
                 path: string;
+                link_id?: string | null;
             };
             header?: never;
             path: {

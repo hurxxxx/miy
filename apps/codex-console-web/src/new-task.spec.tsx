@@ -51,6 +51,7 @@ const task: Detail = {
   items: [],
   history_truncated: false,
   requests: [],
+  async_questions: [],
   event_id: 0,
   attachments: [],
   attachment_limits: { file_bytes: 1, task_bytes: 1, files: 1, selection: 1 },

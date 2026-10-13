@@ -287,6 +287,37 @@ class PendingRequest(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
 
 
+class AsyncQuestion(Base):
+    __tablename__ = "console_async_questions"
+    __table_args__ = (UniqueConstraint("task_id", "item_id"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    task_id: Mapped[str] = mapped_column(
+        ForeignKey("console_tasks.id", ondelete="CASCADE"), index=True
+    )
+    thread_id: Mapped[str] = mapped_column(String(160))
+    turn_id: Mapped[str] = mapped_column(String(160))
+    item_id: Mapped[str] = mapped_column(String(200))
+    questions: Mapped[list] = mapped_column(JSON)
+    execution: Mapped[dict] = mapped_column(JSON)
+    state: Mapped[str] = mapped_column(String(24), default="pending")
+    answers: Mapped[dict | None] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+
+
+class TaskGitLink(Base):
+    __tablename__ = "console_task_git_links"
+    __table_args__ = (UniqueConstraint("task_id", "root"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    task_id: Mapped[str] = mapped_column(
+        ForeignKey("console_tasks.id", ondelete="CASCADE"), index=True
+    )
+    root: Mapped[str] = mapped_column(Text)
+    common_dir: Mapped[str] = mapped_column(Text)
+    git_dir: Mapped[str] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(String(24))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
+
+
 class Operation(Base):
     __tablename__ = "console_operations"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)

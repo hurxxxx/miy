@@ -163,13 +163,19 @@ export function RequestForm({
   t,
   disabled,
   onAnswer,
+  initialAnswers,
+  submitLabel,
 }: {
   request: Pending;
   t: Translate;
   disabled: boolean;
   onAnswer: (id: string, response: unknown) => void;
+  initialAnswers?: Record<string, string>;
+  submitLabel?: Copy;
 }) {
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, string>>(
+    initialAnswers ?? {},
+  );
   const params = request.payload;
   const questions = Array.isArray(params.questions)
     ? params.questions.map(record)
@@ -284,7 +290,7 @@ export function RequestForm({
           disabled || questions.some((q) => !answers[string(q.id)]?.trim())
         }
       >
-        {t('Submit answers')}
+        {t(submitLabel ?? 'Submit answers')}
       </Button>
     </form>
   );
@@ -444,11 +450,13 @@ export function Changes({
   refreshToken,
   t,
   onError,
+  linkId,
 }: {
   task: Detail;
   refreshToken?: string;
   t: Translate;
   onError: (error: unknown) => void;
+  linkId?: string;
 }) {
   const [changes, setChanges] = useState<Change[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -461,7 +469,7 @@ export function Changes({
     const controller = new AbortController();
     setListState((current) => (current === 'ready' ? 'refreshing' : 'loading'));
     void api<Change[]>(
-      `/tasks/${task.id}/changes`,
+      `/tasks/${task.id}/changes${linkId ? `?link_id=${encodeURIComponent(linkId)}` : ''}`,
       undefined,
       undefined,
       controller.signal,
@@ -484,7 +492,15 @@ export function Changes({
         }
       });
     return () => controller.abort();
-  }, [task.id, task.root, task.status, refreshToken, onError, listAttempt]);
+  }, [
+    task.id,
+    task.root,
+    task.status,
+    refreshToken,
+    onError,
+    listAttempt,
+    linkId,
+  ]);
   useEffect(() => {
     if (listState !== 'ready') return;
     if (!selected) {
@@ -497,7 +513,7 @@ export function Changes({
     setDiffState('loading');
     const controller = new AbortController();
     void api<Diff>(
-      `/tasks/${task.id}/diff?path=${encodeURIComponent(selected)}`,
+      `/tasks/${task.id}/diff?path=${encodeURIComponent(selected)}${linkId ? `&link_id=${encodeURIComponent(linkId)}` : ''}`,
       undefined,
       undefined,
       controller.signal,
@@ -522,6 +538,7 @@ export function Changes({
     listState,
     onError,
     diffAttempt,
+    linkId,
   ]);
   return (
     <div className="changes-pane">

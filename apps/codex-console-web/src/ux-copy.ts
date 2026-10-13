@@ -1,5 +1,32 @@
 /** Copy for the work-oriented desktop navigation and result surfaces. */
 export const uxKorean = {
+  'Too many workspaces linked to this task.':
+    '작업에 연결할 수 있는 경로 수를 초과했습니다.',
+  'Enter the Git checkout root directory.':
+    'Git 체크아웃의 최상위 폴더를 입력하세요.',
+  'Async questions': '비동기 질문',
+  'Answer and continue': '답변하고 계속',
+  'Dismiss question': '질문 닫기',
+  'Question dismissed': '닫은 질문',
+  'Question history': '질문 이력',
+  'Restore questions from conversation': '대화에서 질문 복원',
+  'Previous response unknown. You can answer again or dismiss this question.':
+    '과거 응답 여부를 확인할 수 없습니다. 다시 답변하거나 질문을 닫을 수 있습니다.',
+  'Response delivery is being checked. Recover execution before retrying.':
+    '응답 전달 여부를 확인해야 합니다. 실행 상태를 확인한 뒤 다시 시도하세요.',
+  'Response delivery needs checking': '응답 전달 확인 필요',
+  'Git workspace linked': 'Git 작업 경로 연결',
+  'Git workspace unlinked': 'Git 작업 경로 연결 해제',
+  'Task workspaces': '이 작업의 Git 경로',
+  'Changes include all current edits in each linked checkout.':
+    '각 연결 경로의 현재 변경 전체를 표시합니다.',
+  'No Git workspace linked to this task.':
+    '이 작업에 연결된 Git 경로가 없습니다.',
+  'Link workspace to task': '작업에 경로 연결',
+  'Git checkout path': 'Git 체크아웃 경로',
+  'Link workspace': '경로 연결',
+  'Unlink workspace': '연결 해제',
+  'Workspace unavailable': '경로 사용 불가',
   'Close notification': '알림 닫기',
   Notification: '알림',
   'Task notifications': '작업 알림',

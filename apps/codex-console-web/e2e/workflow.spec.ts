@@ -132,14 +132,17 @@ test('native plan, implementation, diff and refresh recovery', async ({
   expect(page.url()).toBe(url);
   await expect(page.getByLabel('실행 모드')).toHaveValue('implement');
   await expect(page.getByLabel('실행 권한')).toHaveValue('yolo');
-  await page.getByRole('button', { name: '실행 기록', exact: true }).click();
+  await page.getByRole('button', { name: '작업 이력', exact: true }).click();
   await expect(
-    page.getByLabel('결과물').getByText('종료 코드 0'),
+    page
+      .getByRole('region', { name: '작업 이력', exact: true })
+      .getByText('종료 코드 0', { exact: true })
+      .first(),
   ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: '결과물', exact: true }).click();
   await expect(
-    page.getByRole('button', { name: '실행 기록', exact: true }),
+    page.getByRole('button', { name: '작업 이력', exact: true }),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -434,7 +437,9 @@ test('planning answers ordinary questions without creating documents and shows a
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await openNewTask(page);
-  await page.getByLabel('작업 이름 (선택)').fill('일반 대화와 브랜치 표시 확인');
+  await page
+    .getByLabel('작업 이름 (선택)')
+    .fill('일반 대화와 브랜치 표시 확인');
   await submitNewTask(page);
   await expect(page.getByLabel('실행 모드')).toHaveValue('plan');
   await expect(page.locator('.git-summary')).toContainText('dev');
@@ -484,7 +489,7 @@ for (const viewport of [
       status: 'M',
       old_path: null,
     }));
-    await page.route('**/api/tasks/*/changes', (route) =>
+    await page.route('**/api/tasks/*/changes?*', (route) =>
       route.fulfill({ json: files }),
     );
     await page.route('**/api/tasks/*/diff?*', (route) => {
@@ -557,7 +562,7 @@ test('Git refresh updates files and the selected diff without a task state chang
 }) => {
   await page.clock.install();
   let version = 1;
-  await page.route('**/api/tasks/*/changes', (route) =>
+  await page.route('**/api/tasks/*/changes?*', (route) =>
     route.fulfill({
       json: [
         { path: 'selected.txt', status: 'M', old_path: null },

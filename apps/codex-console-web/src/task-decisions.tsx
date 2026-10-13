@@ -1,6 +1,6 @@
 import { Button, FeedbackProvider, useFeedback } from '@miy/ui';
 import { useEffect, useRef, useState } from 'react';
-import { type Detail } from './api';
+import { active, type Detail } from './api';
 import type { Translate } from './i18n';
 import { RequestForm } from './views';
 
@@ -9,6 +9,8 @@ type Props = {
   t: Translate;
   busy: boolean;
   onAnswer: (id: string, response: unknown) => Promise<boolean>;
+  onAsyncAnswer?: (id: string, response: unknown) => Promise<boolean>;
+  onRefreshQuestions?: () => Promise<boolean>;
 };
 
 export function TaskDecisions(props: Props) {
@@ -21,7 +23,160 @@ export function TaskDecisions(props: Props) {
       }}
     >
       <DecisionRequests {...props} />
+      <AsyncDecisions {...props} />
     </FeedbackProvider>
+  );
+}
+
+function AsyncDecisions({
+  task,
+  t,
+  busy,
+  onAsyncAnswer,
+  onRefreshQuestions,
+}: Props) {
+  const questions = task.async_questions ?? [];
+  const [sending, setSending] = useState<string | null>(null);
+  const inFlight = useRef(false);
+  const feedback = useFeedback();
+  const submit = async (id: string, body: unknown) => {
+    if (!onAsyncAnswer || inFlight.current || busy) return;
+    inFlight.current = true;
+    setSending(id);
+    try {
+      const ok = await onAsyncAnswer(id, body);
+      feedback.show({
+        title: t(
+          ok
+            ? 'Response received. Following the next step.'
+            : 'Response was not confirmed. Check the current request before retrying.',
+        ),
+        tone: ok ? 'success' : 'warning',
+      });
+    } catch {
+      feedback.show({
+        title: t(
+          'Response was not confirmed. Check the current request before retrying.',
+        ),
+        tone: 'warning',
+      });
+    } finally {
+      inFlight.current = false;
+      setSending(null);
+    }
+  };
+  const pending = questions.filter(
+    (q) => !['answered', 'dismissed'].includes(q.state),
+  );
+  const history = questions.filter((q) =>
+    ['answered', 'dismissed'].includes(q.state),
+  );
+  if (!questions.length && !task.thread_id) return null;
+  return (
+    <section
+      className="async-decisions stack"
+      aria-label={t('Async questions')}
+    >
+      {pending.length > 0 && (
+        <h2>
+          {t('Your response is needed')} · {pending.length}
+        </h2>
+      )}
+      {pending.map((q) => (
+        <div className="async-question" key={q.id}>
+          {q.state === 'unconfirmed' && (
+            <p className="context-note">
+              {t(
+                'Previous response unknown. You can answer again or dismiss this question.',
+              )}
+            </p>
+          )}
+          {['sending', 'uncertain'].includes(q.state) && (
+            <p role="status">
+              {t(
+                'Response delivery is being checked. Recover execution before retrying.',
+              )}
+            </p>
+          )}
+          <RequestForm
+            t={t}
+            request={{
+              id: q.id,
+              method: 'item/tool/requestUserInput',
+              payload: {
+                questions: q.questions.map((question, i) => ({
+                  id: String(i),
+                  header: `${t('Question')} ${i + 1}`,
+                  question: question.title,
+                  options: (question.options ?? []).map((label) => ({ label })),
+                })),
+              },
+            }}
+            initialAnswers={Object.fromEntries(
+              Object.entries(q.answers ?? {}).map(([id, values]) => [
+                id,
+                values[0] ?? '',
+              ]),
+            )}
+            submitLabel={
+              active(task) ? 'Submit answers' : 'Answer and continue'
+            }
+            disabled={
+              busy ||
+              !!sending ||
+              ['starting', 'uncertain'].includes(task.status) ||
+              ['sending', 'uncertain'].includes(q.state)
+            }
+            onAnswer={(id, response) => {
+              void submit(id, response);
+            }}
+          />
+          <Button
+            variant="ghost"
+            disabled={
+              busy || !!sending || ['sending', 'uncertain'].includes(q.state)
+            }
+            onClick={() => {
+              void submit(q.id, { action: 'dismiss' });
+            }}
+          >
+            {t('Dismiss question')}
+          </Button>
+        </div>
+      ))}
+      {(history.length > 0 || onRefreshQuestions) && (
+        <details className="question-history">
+          <summary>{t('Question history')}</summary>
+          {history.map((q) => (
+            <article key={q.id}>
+              <strong>
+                {t(
+                  q.state === 'answered'
+                    ? 'Response delivered'
+                    : 'Question dismissed',
+                )}
+              </strong>
+              {q.questions.map((prompt, i) => (
+                <div key={i}>
+                  <p>{prompt.title}</p>
+                  <p>{q.answers?.[String(i)]?.join('\n')}</p>
+                </div>
+              ))}
+            </article>
+          ))}
+          {onRefreshQuestions && (
+            <Button
+              disabled={busy || !!sending}
+              onClick={() => {
+                void onRefreshQuestions();
+              }}
+            >
+              {t('Restore questions from conversation')}
+            </Button>
+          )}
+        </details>
+      )}
+    </section>
   );
 }
 

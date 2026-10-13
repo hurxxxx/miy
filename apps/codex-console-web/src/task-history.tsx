@@ -26,6 +26,14 @@ const categories: { id: Category; label: Copy }[] = [
 
 function title(entry: Entry): Copy {
   const details = entry.details ?? {};
+  if (entry.event === 'question.pending') return 'Question requested';
+  if (entry.event === 'question.sending') return 'Sending response';
+  if (entry.event === 'question.answered') return 'Response delivered';
+  if (entry.event === 'question.dismissed') return 'Question dismissed';
+  if (entry.event === 'question.delivery_failed')
+    return 'Response delivery needs checking';
+  if (entry.event === 'task.git_linked') return 'Git workspace linked';
+  if (entry.event === 'task.git_unlinked') return 'Git workspace unlinked';
   if (entry.event === 'request.pending')
     return details.request_kind === 'question'
       ? 'Question requested'

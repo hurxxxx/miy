@@ -105,3 +105,85 @@ it('keeps the response draft and suppresses duplicate submissions while delivery
     screen.getByRole('heading', { name: '응답을 기다리고 있어요' }),
   ).toBeTruthy();
 });
+
+const asyncTask = {
+  ...task,
+  requests: [],
+  status: 'idle',
+  thread_id: 'native-thread',
+  async_questions: [
+    {
+      id: 'async-one',
+      item_id: 'native-item',
+      turn_id: 'native-turn',
+      state: 'pending',
+      questions: [
+        { title: '예외를 허용할까요?', options: ['허용', '정책 유지'] },
+      ],
+    },
+  ],
+} as Detail;
+
+it('shows an async question after completion and sends only an explicit answer', async () => {
+  const answer = vi.fn().mockResolvedValue(true);
+  render(
+    <TaskDecisions
+      task={asyncTask}
+      t={t}
+      busy={false}
+      onAnswer={vi.fn()}
+      onAsyncAnswer={answer}
+    />,
+  );
+  const submit = screen.getByRole('button', { name: '답변하고 계속' });
+  expect(submit).toHaveProperty('disabled', true);
+  expect(answer).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('radio', { name: '정책 유지' }));
+  fireEvent.click(submit);
+  fireEvent.click(submit);
+  await waitFor(() => expect(answer).toHaveBeenCalledTimes(1));
+  expect(answer).toHaveBeenCalledWith('async-one', {
+    answers: { '0': ['정책 유지'] },
+  });
+});
+
+it('separates unanswered recovered questions, uncertain delivery and completed history', () => {
+  const row = asyncTask.async_questions[0];
+  render(
+    <TaskDecisions
+      task={{
+        ...asyncTask,
+        async_questions: [
+          { ...row, state: 'unconfirmed' },
+          {
+            ...row,
+            id: 'uncertain',
+            state: 'uncertain',
+            questions: [{ title: '전달 확인', options: [] }],
+          },
+          {
+            ...row,
+            id: 'answered',
+            state: 'answered',
+            answers: { '0': ['정책 유지'] },
+            questions: [{ title: '이전 질문', options: [] }],
+          },
+        ],
+      }}
+      t={t}
+      busy={false}
+      onAnswer={vi.fn()}
+      onAsyncAnswer={vi.fn()}
+    />,
+  );
+  expect(screen.getByText(/과거 응답 여부를 확인할 수 없습니다/)).toBeTruthy();
+  expect(screen.getByText(/응답 전달 여부를 확인해야 합니다/)).toBeTruthy();
+  const cards = document.querySelectorAll('.async-question');
+  expect(cards).toHaveLength(2);
+  expect(
+    within(cards[1] as HTMLElement).getByRole('button', {
+      name: '답변하고 계속',
+    }),
+  ).toHaveProperty('disabled', true);
+  expect(screen.queryByRole('group', { name: '이전 질문' })).toBeNull();
+});

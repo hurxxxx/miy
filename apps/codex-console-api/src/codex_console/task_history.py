@@ -68,6 +68,9 @@ def native_details(method, params):
             isinstance(row, dict) and len(str(row.get("path") or "")) > 500 for row in changes
         )
     elif kind == "agentMessage":
+        if item.get("questions"):
+            data["visible"] = False
+            return data
         data["visible"] = method == "item/completed" and item.get("phase") == "final_answer"
     elif kind == "plan":
         data["visible"] = method == "item/completed"
@@ -87,8 +90,16 @@ def page(db, task_id, *, before=None, limit=50, category="all"):
         query = query.where(Event.id < before)
     if category == "requests":
         query = query.where(
-            Event.kind.in_(
-                ("request.pending", "request.answered", "request.sent", "serverRequest/resolved")
+            or_(
+                Event.kind.like("question.%"),
+                Event.kind.in_(
+                    (
+                        "request.pending",
+                        "request.answered",
+                        "request.sent",
+                        "serverRequest/resolved",
+                    )
+                ),
             )
         )
     elif category == "tools":

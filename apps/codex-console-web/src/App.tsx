@@ -1437,6 +1437,10 @@ export function App() {
               t={t}
               busy={busy}
               onAnswer={(id, response) => mutate(`requests/${id}`, response)}
+              onAsyncAnswer={(id, response) =>
+                mutate(`questions/${id}`, response)
+              }
+              onRefreshQuestions={() => mutate('questions/refresh', {})}
             />
             {typeof task.context?.workspace_id === 'string' && (
               <details className="workspace-tools">
@@ -1791,6 +1795,7 @@ export function App() {
             )}
             {tab === 'branch' && (
               <GitWorkspace
+                key={task.id}
                 task={task}
                 git={git}
                 locale={locale}

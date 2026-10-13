@@ -16,6 +16,7 @@ from starlette.requests import ClientDisconnect
 
 from . import (
     agents,
+    async_questions,
     attachments,
     auth,
     git,
@@ -28,13 +29,14 @@ from . import (
     store,
     task_activity,
     task_environments,
+    task_git,
     task_history,
     templates,
     workbench,
 )
 from .config import Settings
 from .errors import ConsoleError
-from .models import Agent, Event, Revision, Task, database
+from .models import Agent, Event, Operation, Revision, Task, TaskGitLink, database
 from .rpc import CodexRPC
 from .runtime import Runtime
 from .schemas import (
@@ -43,6 +45,7 @@ from .schemas import (
     AccountOut,
     AgentOut,
     Answer,
+    AsyncQuestionAnswer,
     AttachmentOut,
     ChangeOut,
     DeviceLoginOut,
@@ -63,6 +66,8 @@ from .schemas import (
     SessionOut,
     SkillOut,
     TaskDetail,
+    TaskGitLinkInput,
+    TaskGitLinkOut,
     TaskOut,
     TaskPreferences,
     ThreadPage,
@@ -835,32 +840,122 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
         )
         return store.detail(app.state.factory, task_id, app.state.settings)
 
-    @app.get("/api/tasks/{task_id}/changes", dependencies=secured, response_model=list[ChangeOut])
-    def changes(task_id: str):
+    @app.post(
+        "/api/tasks/{task_id}/questions/refresh", dependencies=secured, response_model=TaskDetail
+    )
+    async def refresh_questions(task_id: str, request: Request):
+        registration.session_gate(app.state.factory, task_id, request.cookies.get(auth.COOKIE))
+        runtime = runtime_for(task_id)
+        with app.state.factory() as db:
+            task = store.require_task(db, task_id)
+            runtime.require_allowed_task(task)
+            thread_id = task.thread_id
+        if thread_id:
+            rpc = await runtime.authenticated_rpc()
+            result = await rpc.call("thread/read", {"threadId": thread_id, "includeTurns": True})
+            thread = result.get("thread", {})
+            if thread.get("id") != thread_id:
+                raise ConsoleError("thread_unavailable", 409)
+            async with runtime.task_gate(task_id):
+                with app.state.factory.begin() as db:
+                    task = store.require_task(db, task_id)
+                    if task.thread_id != thread_id:
+                        raise ConsoleError("thread_unavailable", 409)
+                    for turn in thread.get("turns", []):
+                        for item in turn.get("items", []):
+                            if item.get("type") == "agentMessage" and item.get("questions"):
+                                store.upsert_item(db, task, turn["id"], item, recovered=True)
+                            if item.get("type") == "userMessage" and item.get("clientId"):
+                                operation = db.get(Operation, item["clientId"])
+                                if operation and operation.task_id == task.id:
+                                    operation.state = "accepted"
+                    store.changed(db, task, "question.refreshed")
+        return store.detail(app.state.factory, task_id, app.state.settings)
+
+    @app.post(
+        "/api/tasks/{task_id}/questions/{question_id}",
+        dependencies=secured,
+        response_model=TaskDetail,
+    )
+    async def answer_question(
+        task_id: str, question_id: str, body: AsyncQuestionAnswer, request: Request
+    ):
+        registration.session_gate(app.state.factory, task_id, request.cookies.get(auth.COOKIE))
+        await async_questions.answer(
+            runtime_for(task_id),
+            task_id,
+            question_id,
+            body,
+            session_hash=auth.digest(request.cookies.get(auth.COOKIE) or ""),
+        )
+        return store.detail(app.state.factory, task_id, app.state.settings)
+
+    @app.get(
+        "/api/tasks/{task_id}/git-links", dependencies=secured, response_model=list[TaskGitLinkOut]
+    )
+    def git_links(task_id: str):
         with app.state.factory() as db:
             task = store.require_task(db, task_id)
             runtime_for(task_id).require_allowed_task(task, environment_ready=False)
-            if task_environments.git_status(task) is not None:
+            return task_git.listing(db, app.state.settings, task)
+
+    @app.post(
+        "/api/tasks/{task_id}/git-links", dependencies=secured, response_model=list[TaskGitLinkOut]
+    )
+    def link_git(task_id: str, body: TaskGitLinkInput):
+        with app.state.factory.begin() as db:
+            task = store.require_task(db, task_id)
+            runtime_for(task_id).require_allowed_task(task, environment_ready=False)
+            task_git.register(db, app.state.settings, task, body.root, "user")
+            return task_git.listing(db, app.state.settings, task)
+
+    @app.delete(
+        "/api/tasks/{task_id}/git-links/{link_id}",
+        dependencies=secured,
+        response_model=list[TaskGitLinkOut],
+    )
+    def unlink_git(task_id: str, link_id: str):
+        with app.state.factory.begin() as db:
+            task = store.require_task(db, task_id)
+            runtime_for(task_id).require_allowed_task(task, environment_ready=False)
+            row = db.get(TaskGitLink, link_id)
+            if not row or row.task_id != task_id:
+                raise ConsoleError("git_link_unavailable", 404)
+            db.delete(row)
+            store.changed(db, task, "task.git_unlinked", details={"link_id": link_id})
+            db.flush()
+            return task_git.listing(db, app.state.settings, task)
+
+    @app.get("/api/tasks/{task_id}/changes", dependencies=secured, response_model=list[ChangeOut])
+    def changes(task_id: str, link_id: str | None = Query(default=None, max_length=36)):
+        with app.state.factory() as db:
+            task = store.require_task(db, task_id)
+            runtime_for(task_id).require_allowed_task(task, environment_ready=False)
+            if link_id is None and task_environments.git_status(task) is not None:
                 return []
-            root = Path(task.root)
+            root = task_git.resolve(db, app.state.settings, task, link_id)
         return git.changes(root)
 
     @app.get("/api/tasks/{task_id}/git", dependencies=secured, response_model=GitStatusOut)
-    def git_status(task_id: str):
+    def git_status(task_id: str, link_id: str | None = Query(default=None, max_length=36)):
         with app.state.factory() as db:
             task = store.require_task(db, task_id)
             runtime_for(task_id).require_allowed_task(task, environment_ready=False)
-            if (status := task_environments.git_status(task)) is not None:
+            if link_id is None and (status := task_environments.git_status(task)) is not None:
                 return status
-            root = Path(task.root)
+            root = task_git.resolve(db, app.state.settings, task, link_id)
         return git.status(root)
 
     @app.get("/api/tasks/{task_id}/diff", dependencies=secured, response_model=DiffOut)
-    def diff(task_id: str, path: str = Query(max_length=2048)):
+    def diff(
+        task_id: str,
+        path: str = Query(max_length=2048),
+        link_id: str | None = Query(default=None, max_length=36),
+    ):
         with app.state.factory() as db:
             task = store.require_task(db, task_id)
             runtime_for(task_id).require_allowed_task(task)
-            root = Path(task.root)
+            root = task_git.resolve(db, app.state.settings, task, link_id)
         return git.diff(root, path)
 
     @app.get("/api/overview/events", dependencies=secured)
