@@ -69,6 +69,10 @@ macOS에서는 Linux `/proc` 메모리 관측이 제공되지 않으며 디스�
 - 작업 준비 helper의 Python·uv·pnpm·private runtime 경로도 Mac 도구로 바꾼다. 이전 Linux
   의존성 캐시는 보존하되 호스트에서 실행하지 않는다. `task_setup`은 Linux/macOS에서 동일한
   lockfile·작업별 격리 규칙으로 새 의존성을 준비하며 서비스를 임의로 시작하지 않는다.
+  이미 준비된 worktree도 확인한다. Linux runtime을 가리키는 `.venv` 링크와 `node_modules`는
+  작업이 idle일 때 소스 밖에 보관하고, 같은 Task ID·root·revision으로 호스트 helper를 다시
+  실행한다. Git 변경과 작업별 `.env`·DB는 유지하고, 새 Python이 Darwin용인지와 `ready.json`을
+  확인한 뒤 작업을 이어 간다. 이전의 준비 완료 표시만으로 OS 의존성을 재사용하지 않는다.
 - Docker의 Workbench 세 서비스는 자동 재시작을 끄고, 기존 Compose 기본 시작 대상에서도
   제외한다. 두 실행기가 같은 대화 저장소를 동시에 사용하지 않게 한다. 데이터 볼륨 삭제나
   `compose down -v`는 이전 절차에 포함하지 않는다.
