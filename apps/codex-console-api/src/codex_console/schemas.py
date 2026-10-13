@@ -37,10 +37,41 @@ class TaskContext(Input):
     release_unit: str | None = Field(default=None, max_length=120)
 
 
+TaskEnvironmentKind = Literal["general", "development", "branch", "existing_branch", "production"]
+
+
+class TaskEnvironmentOption(BaseModel):
+    kind: TaskEnvironmentKind
+    root: str | None
+    available: bool
+    reason: str | None = None
+    base_ref: str | None = None
+    read_only: bool = False
+
+
+class TaskWorktreeOption(BaseModel):
+    branch: str
+    root: str
+    available: bool
+    reason: str | None = None
+
+
 class NewTask(Input):
     title: str = Field(min_length=1, max_length=200)
     context: TaskContext | None = None
     isolate: bool = False
+    environment: TaskEnvironmentKind | None = None
+    branch_name: str | None = Field(default=None, min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def explicit_environment(self):
+        if self.environment is not None and (self.context is not None or self.isolate):
+            raise ValueError("Select an environment or an existing app context, not both")
+        if self.branch_name is not None and self.environment not in {"branch", "existing_branch"}:
+            raise ValueError("A branch name requires a branch environment")
+        if self.environment == "existing_branch" and self.branch_name is None:
+            raise ValueError("Select an existing worktree branch")
+        return self
 
 
 class TaskPreferences(Input):
@@ -135,6 +166,7 @@ class Implement(ExecutionOptions):
 
 
 class GitStatusOut(BaseModel):
+    available: bool = True
     root: str
     branch: str | None
     head: str | None
@@ -246,6 +278,18 @@ class RequestOut(BaseModel):
     id: str
     method: str
     payload: dict[str, Any]
+
+
+class TaskHistoryItem(BaseModel):
+    id: int
+    event: str
+    created_at: str
+    details: dict[str, Any] | None = None
+
+
+class TaskHistoryPage(BaseModel):
+    items: list[TaskHistoryItem]
+    next_before: int | None = None
 
 
 class TaskDetail(TaskOut):

@@ -241,10 +241,12 @@ export function ExecutionStatus({
   task,
   connected,
   t,
+  openHistory,
 }: {
   task: Detail;
   connected: boolean;
   t: Translate;
+  openHistory?: () => void;
 }) {
   const progress = record(task.progress);
   const steps = Array.isArray(progress.steps) ? progress.steps.map(record) : [];
@@ -296,6 +298,15 @@ export function ExecutionStatus({
           </span>
         </details>
       </div>
+      {openHistory && (
+        <Button
+          variant="ghost"
+          className="execution-history-button"
+          onClick={openHistory}
+        >
+          {t('View task history')}
+        </Button>
+      )}
       <p className="execution-current-step">
         {executing(task) &&
           currentStep(task, t) !== t('No current step reported') && (

@@ -76,6 +76,7 @@ beforeEach(() => {
     revisions: [],
   };
   gitState = {
+    available: true,
     root: '/repo/dev',
     branch: 'dev',
     head: 'a'.repeat(40),

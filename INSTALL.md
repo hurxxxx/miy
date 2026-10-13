@@ -117,6 +117,7 @@ Git과 CA 인증서가 없으면 Linux 배포판의 패키지 관리자로 먼�
 | `upstream` | `https://github.com/hurxxxx/miy.git` | 원본 코드와 업데이트를 가져오는 곳              |
 | `origin`   | 조직 내부 GitLab 프로젝트            | 내부 변경사항, MR, CI와 배포 기준을 관리하는 곳 |
 
+위 표는 고객사 설치의 원격 구성이다. 플랫폼 코어 개발은 아래 2.0절의 GitHub 구성을 사용한다.
 원격 역할과 브랜치·게시 권한은 [저장소 정책](AGENTS.md#git-and-delivery)을 따른다.
 기존 설치를 miy로 옮길 때는 새 저장소 주소로 clone하기 전에
 [miy 이름 전환 절차](docs/domains/release/README.md#miy-naming-cutover)를 따른다.
@@ -125,6 +126,28 @@ Git과 CA 인증서가 없으면 Linux 배포판의 패키지 관리자로 먼�
 최소 첫 실행은 `miy/dev`에서 준비한다. 내부 GitLab의 `main` 등록 뒤 개발·운영 경로를 함께
 준비하는 설치에서는 2.5절에 따라 `miy/prod`를 만든다. 작업별 체크아웃은 필요할 때
 `miy/worktrees/<작업명>`에 추가한다.
+
+### 2.0. 플랫폼 코어 개발: GitHub `dev`에 게시
+
+플랫폼 코어 개발 환경은 GitHub `hurxxxx/miy`를 쓰기용 `origin`으로 사용하며,
+고객사 협업·배포용 GitLab과 CI Runner 설치가 개발의 전제 조건은 아니다.
+요청받은 코어 변경은 영향 범위 검사 후 `dev`에 커밋하고 직접 fast-forward push할 수 있다.
+원격 보호 규칙·필수 리뷰·CI와 `main` 병합·운영 배포의 별도 승인 조건은 그대로 적용한다.
+`upstream`은 원본 조회용으로 유지하고 쓰기 대상은 `origin`으로 구분한다.
+
+기존 `origin`이 없는 코어 개발 체크아웃에서는 다음과 같이 연결한다.
+고객사 GitLab `origin`이 이미 있으면 이 명령으로 덮어쓰지 않는다.
+
+```bash
+git remote add origin https://github.com/hurxxxx/miy.git
+git config remote.pushDefault origin
+git fetch origin dev
+git branch --set-upstream-to=origin/dev dev
+```
+
+요청 범위의 파일만 커밋한 뒤 `git push origin dev`를 사용한다.
+원격 `dev`가 앞서 있으면 변경을 보존하여 통합한 후 다시 검증하며, force push하지 않는다.
+Linux 개발 도구·서비스 준비는 2.4절 이후를 따른다.
 
 ### 2.1. 조직 최초 도입: GitHub 원본에서 시작
 
@@ -1227,8 +1250,17 @@ git log --oneline origin/dev..upstream/main
 
 ### Workbench 작업별 환경의 추가 준비
 
+일반 Codex 대화·코어 개발·새 브랜치·운영 점검은 Workbench의 **새 작업**에서 시작한다.
+Workbench 전용 환경 파일의 `MIY_CODEX_CONSOLE_PROJECT_ROOT`에 Linux 프로젝트 루트,
+`MIY_CODEX_CONSOLE_PRODUCTION_WORKSPACE`에 별도 `prod` 체크아웃을 명시한다. 운영 점검은 읽기 전용이며
+일반 작업에서도 운영 경로를 수정할 수 없도록 OS 권한 또는 Docker 읽기 전용 mount로 보호한다.
+새 브랜치는 고정 `MIY_CODEX_CONSOLE_BRANCH_SETUP_COMMAND`와 Linux 의존성 저장소를 준비한 설치에서만
+사용할 수 있다. 설정 예제와 준비·재시도·서비스 실행의 구분은
+[새 작업의 대상 선택](docs/apps/codex-console/README.md#새-작업의-대상-선택)을 따른다.
+이 코어 개발 기능은 아래의 고객사 GitLab·앱 SDK managed workspace 설정 없이 사용할 수 있다.
+
 작업별 기능 브랜치·SDK 실행은 기본 비활성이다. Core Alembic
-`independent_archive_20261011`을 포함한 현재 head와 Workbench SQLite `console_sqlite_0009`, 별도 Workbench
+`independent_archive_20261011`을 포함한 현재 head와 Workbench SQLite `console_sqlite_0010`, 별도 Workbench
 release를 함께 준비한다. `MIY_INDEPENDENT_APP_WORKSPACE_PROFILES`는 Core 소유 저장소·이미지·
 scratch/state 경로와 준비된 HTTPS/loopback 슬롯만 포함한다. Workbench에는
 `MIY_CODEX_CONSOLE_MANAGED_WORKSPACES_ENABLED`와 보호된 managed helper 고정 argv를 설정한다.

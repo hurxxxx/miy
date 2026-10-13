@@ -46,7 +46,7 @@ The catalog checker validates discovered skill metadata, size budgets, local lin
 
 There are no project startup snapshots, post-tool checks, stop gates, retry loops, or validation caches. Run affected checks explicitly and report their result. Product contracts and CI checks remain authoritative; removing automatic feedback does not waive them.
 
-`.codex/rules/project.rules` owns native command policy, including direct upstream pushes, GitHub issue mutations, and direct production Compose mutations. An allow rule does not grant task authorization. Rules load at startup; validate candidates with `codex execpolicy check` and restart to load changed rules.
+`.codex/rules/project.rules` owns native command policy, including permitted core-development `git push origin dev`, read-only `upstream`, GitHub issue mutations, and direct production Compose mutations. Root `AGENTS.md` owns task authorization, including core `dev` commit/push permission; an allow rule does not expand that scope. Rules load at startup; validate candidates with `codex execpolicy check` and restart to load changed rules.
 
 Hooks are limited deterministic checks, not a complete security boundary. Patch protection cannot cover arbitrary shell writes, hosted tools, wrappers, or every external mutation. Do not add a second shell parser or lifecycle engine. Native sandbox/authorization and server enforcement remain necessary.
 

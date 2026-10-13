@@ -18,8 +18,10 @@ from codex_console.rpc import CONTRACT, HISTORY_CONTRACT
 
 
 def test_generated_protocol_schemas_are_valid():
-    assert CONTRACT["codexVersion"] == "0.162.1"
-    assert supports_contract_version("codex-cli 0.162.1", CONTRACT["codexVersion"])
+    assert supports_contract_version("codex-cli " + CONTRACT["codexVersion"], "0.162.1")
+    assert supports_contract_version(
+        "codex-cli " + CONTRACT["codexVersion"], CONTRACT["codexVersion"]
+    )
     assert HISTORY_CONTRACT["codexVersion"] == CONTRACT["codexVersion"]
     for schema in (*CONTRACT["schemas"].values(), *HISTORY_CONTRACT["schemas"].values()):
         Draft7Validator.check_schema(schema)
@@ -46,7 +48,7 @@ def test_generated_protocol_schemas_are_valid():
     ],
 )
 def test_codex_contract_requires_a_stable_minimum_version(output, expected):
-    assert supports_contract_version(output, CONTRACT["codexVersion"]) is expected
+    assert supports_contract_version(output, "0.162.1") is expected
 
 
 @pytest.mark.parametrize("name", COMPATIBILITY_SCHEMA_NAMES)

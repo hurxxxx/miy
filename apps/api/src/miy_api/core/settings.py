@@ -156,7 +156,7 @@ class Settings(BaseSettings):
         validation_alias="MIY_DRAWIO_BIND_HOST",
     )
     drawio_image_tag: str = Field(
-        default="30.2.5",
+        default="32.4.1",
         validation_alias="MIY_DRAWIO_IMAGE_TAG",
     )
     drawio_port: int = Field(

@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import hashlib
 import json
+import os
 import re
 import weakref
 from pathlib import Path
@@ -147,6 +148,9 @@ class Runtime:
         return gate
 
     def require_stage(self, task, stage):
+        from . import task_environments
+
+        task_environments.require_stage(task, stage)
         context = task.context or {}
         unbound_project = (
             context.get("project_id")
@@ -170,7 +174,7 @@ class Runtime:
             raise ConsoleError("executor_mismatch", 409)
         return task
 
-    def require_allowed_task(self, task):
+    def require_allowed_task(self, task, *, environment_ready=True):
         if task.executor != self.executor:
             raise ConsoleError("executor_mismatch", 409)
         if not self.owns(task):
@@ -178,10 +182,15 @@ class Runtime:
         app_sources.require_task_source(self.settings, task)
         if self.remote_task_id is not None:
             remote_environments.for_task(self.settings, task)
+        from . import task_environments
+
+        production = task_environments.require_task(self.settings, task, ready=environment_ready)
         self.settings.require_allowed_paths(
-            task.root,
-            task.last_execution_root,
-            task.previous_execution_root,
+            *(
+                ()
+                if production
+                else (task.root, task.last_execution_root, task.previous_execution_root)
+            ),
             self.settings.workspace,
             self.settings.worktree_root,
         )
@@ -390,6 +399,31 @@ class Runtime:
             if task.previous_permissions and task.previous_execution_root:
                 granted.append((task.previous_permissions, task.previous_execution_root))
         config = await self.configuration(rpc, root)
+        if (task.context or {}).get("task_environment"):
+            binary = Path(self.settings.binary)
+            shell_values = (
+                {"PATH": str(binary.parent) + os.pathsep + os.environ.get("PATH", "")}
+                if binary.is_absolute()
+                else {}
+            )
+            config.update(
+                {
+                    "shell_environment_policy.include_only": [
+                        "PATH",
+                        "HOME",
+                        "LANG",
+                        "LC_ALL",
+                        "TERM",
+                        "TMPDIR",
+                        "SSH_AUTH_SOCK",
+                        "CODEX_HOME",
+                    ],
+                    "shell_environment_policy.set": shell_values,
+                    "shell_environment_policy.experimental_use_profile": False,
+                    "features.shell_snapshot": False,
+                    "features.shell_snapshot_v2": False,
+                }
+            )
         app_task = bool(
             (task.context or {}).get("app_id") or (task.context or {}).get("project_id")
         )
@@ -534,7 +568,13 @@ class Runtime:
         if self.remote_task_id is not None and attachment_ids:
             raise ConsoleError("app_executor_attachments_unsupported", 422)
         with self.factory() as db:
-            self.require_stage(self.require_task(db, task_id), stage)
+            from . import task_environments
+
+            task = self.require_task(db, task_id)
+            self.require_stage(task, stage)
+            allowed = task_environments.implementation_permissions(self.settings, task)
+            if stage == "implement" and allowed is not None and permissions not in allowed:
+                raise ConsoleError("permission_denied", 403)
         operation_digest = self.start_digest(
             task_id,
             text,
@@ -1399,7 +1439,12 @@ class Runtime:
                     "threadId": request.thread_id or task.thread_id,
                     "turnId": request.turn_id,
                 }
-                store.changed(db, task, "request.answered")
+                receipt = {
+                    "request_id": request_id,
+                    "request_kind": "question" if request.method == QUESTION else "approval",
+                    "decision": answer.decision,
+                }
+                store.changed(db, task, "request.answered", details=receipt)
             await rpc.respond(rpc_id, result)
             if cancel_permission_turn:
                 await rpc.call("turn/interrupt", turn_params)
@@ -1414,7 +1459,7 @@ class Runtime:
                 native = db.get(Agent, request.thread_id or task.thread_id)
                 if native:
                     native.flags = []
-                store.changed(db, task, "request.sent")
+                store.changed(db, task, "request.sent", details=receipt)
 
     async def on_disconnect(self, reason="codex_disconnected", *, generation=None):
         self.invalidate_observations(generation)
@@ -1605,7 +1650,9 @@ class Runtime:
                         store.release(db, task.id)
                 else:
                     return
-                store.changed(db, task, method)
+                from . import task_history
+
+                store.changed(db, task, method, details=task_history.native_details(method, params))
             if method == "turn/completed":
                 self.schedule_workspace_refresh(task_id)
 
@@ -1674,7 +1721,12 @@ class Runtime:
                         native.flags = [
                             "waitingOnUserInput" if method == QUESTION else "waitingOnApproval"
                         ]
-                    store.changed(db, task, "request.pending")
+                    store.changed(
+                        db,
+                        task,
+                        "request.pending",
+                        details={"request_kind": "question" if method == QUESTION else "approval"},
+                    )
                     return
             if method == "item/permissions/requestApproval":
                 await self.rpc.respond(request_id, {"permissions": {}, "scope": "turn"})

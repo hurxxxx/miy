@@ -566,6 +566,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/task-environments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Task Environment Options */
+        get: operations["task_environment_options_api_task_environments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/task-environments/worktrees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Existing Worktree Options */
+        get: operations["existing_worktree_options_api_task_environments_worktrees_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{task_id}/prepare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Task Environment */
+        post: operations["retry_task_environment_api_tasks__task_id__prepare_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{task_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Task History */
+        get: operations["task_history_api_tasks__task_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/monitor/host": {
         parameters: {
             query?: never;
@@ -1544,6 +1612,11 @@ export interface components {
         };
         /** GitStatusOut */
         GitStatusOut: {
+            /**
+             * Available
+             * @default true
+             */
+            available: boolean;
             /** Root */
             root: string;
             /** Branch */
@@ -1920,6 +1993,10 @@ export interface components {
              * @default false
              */
             isolate: boolean;
+            /** Environment */
+            environment?: ("general" | "development" | "branch" | "existing_branch" | "production") | null;
+            /** Branch Name */
+            branch_name?: string | null;
         };
         /** Ok */
         Ok: {
@@ -2568,6 +2645,47 @@ export interface components {
              */
             results: components["schemas"]["TaskResult"][];
         };
+        /** TaskEnvironmentOption */
+        TaskEnvironmentOption: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "general" | "development" | "branch" | "existing_branch" | "production";
+            /** Root */
+            root: string | null;
+            /** Available */
+            available: boolean;
+            /** Reason */
+            reason?: string | null;
+            /** Base Ref */
+            base_ref?: string | null;
+            /**
+             * Read Only
+             * @default false
+             */
+            read_only: boolean;
+        };
+        /** TaskHistoryItem */
+        TaskHistoryItem: {
+            /** Id */
+            id: number;
+            /** Event */
+            event: string;
+            /** Created At */
+            created_at: string;
+            /** Details */
+            details?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** TaskHistoryPage */
+        TaskHistoryPage: {
+            /** Items */
+            items: components["schemas"]["TaskHistoryItem"][];
+            /** Next Before */
+            next_before?: number | null;
+        };
         /** TaskOut */
         TaskOut: {
             /** Id */
@@ -2683,6 +2801,17 @@ export interface components {
              * @default []
              */
             pending_kinds: ("question" | "approval" | "other")[];
+        };
+        /** TaskWorktreeOption */
+        TaskWorktreeOption: {
+            /** Branch */
+            branch: string;
+            /** Root */
+            root: string;
+            /** Available */
+            available: boolean;
+            /** Reason */
+            reason?: string | null;
         };
         /** TemplateCatalog */
         TemplateCatalog: {
@@ -4258,6 +4387,112 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkspaceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    task_environment_options_api_task_environments_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskEnvironmentOption"][];
+                };
+            };
+        };
+    };
+    existing_worktree_options_api_task_environments_worktrees_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskWorktreeOption"][];
+                };
+            };
+        };
+    };
+    retry_task_environment_api_tasks__task_id__prepare_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: unknown;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    task_history_api_tasks__task_id__history_get: {
+        parameters: {
+            query?: {
+                before?: number | null;
+                limit?: number;
+                category?: "all" | "execution" | "requests" | "tools";
+            };
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskHistoryPage"];
                 };
             };
             /** @description Validation Error */

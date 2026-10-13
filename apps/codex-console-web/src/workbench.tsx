@@ -161,6 +161,7 @@ export function WorkbenchApps({
   tasks,
   openTask,
   startTask,
+  newTask,
   newProjectRequest = 0,
   onNewProjectOpened,
   activityFailed = false,
@@ -453,8 +454,12 @@ export function WorkbenchApps({
           </Button>
           {area === 'studio' && (
             <>
+              <Button variant="primary" onClick={newTask} disabled={!newTask}>
+                <Plus size={16} />
+                {t('New task')}
+              </Button>
               <Button
-                variant="primary"
+                variant="secondary"
                 aria-expanded={newProject}
                 onClick={() => {
                   setNewProject((value) => !value);
@@ -462,7 +467,7 @@ export function WorkbenchApps({
                 }}
               >
                 <Plus size={16} />
-                {t('Build an app')}
+                {t('Create app project')}
               </Button>
             </>
           )}
@@ -758,7 +763,7 @@ export function WorkbenchApps({
                       browser === 'projects' && (
                         <p>
                           {t(
-                            'Describe the app you need. Review its plan, follow the work and find the result here.',
+                            'Ask Codex to create, improve, investigate or simply talk. Continue your work here.',
                           )}
                         </p>
                       )}

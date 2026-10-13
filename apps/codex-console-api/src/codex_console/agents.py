@@ -187,6 +187,7 @@ def project(db, task, thread_id, method, params, *, generation=None):
             parent_thread_id=None,
         )
         db.add(row)
+    previous = (row.status, row.flags, row.progress)
     turn_id = params.get("turnId") or params.get("turn", {}).get("id")
     if method == "thread/status/changed":
         state(row, params.get("status", {}))
@@ -282,7 +283,19 @@ def project(db, task, thread_id, method, params, *, generation=None):
         row.turn_id = turn_id
     row.updated_at = now()
     db.flush()
-    store.changed(db, task, "agent.updated")
+    store.changed(
+        db,
+        task,
+        "agent.updated",
+        details={
+            "visible": bool(
+                row.parent_thread_id and previous != (row.status, row.flags, row.progress)
+            ),
+            "agent_name": row.name[:80],
+            "agent_status": row.status,
+            "steps": (row.progress or {}).get("steps", [])[:100] if row.parent_thread_id else [],
+        },
+    )
 
 
 def request_is_current(db, task, request):

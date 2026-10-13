@@ -52,7 +52,7 @@ test('native plan, implementation, diff and refresh recovery', async ({
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await openNewTask(page);
-  await page.getByLabel('작업 제목').fill('인사말 기능 개발');
+  await page.getByLabel('작업 이름 (선택)').fill('인사말 기능 개발');
   await submitNewTask(page);
   await expect(page.getByLabel('실행 모드')).toHaveValue('plan');
   await expect(
@@ -170,7 +170,7 @@ test('server work survives closing the browser tab and restores progress and exe
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await openNewTask(page);
-  await page.getByLabel('작업 제목').fill('백그라운드 작업 확인');
+  await page.getByLabel('작업 이름 (선택)').fill('백그라운드 작업 확인');
   await submitNewTask(page);
   await page.getByRole('button', { name: '설정 변경' }).click();
   await expect(page.getByLabel('모델')).toContainText('another-model');
@@ -273,7 +273,7 @@ test('execution popovers preserve layout and recovery remains visible above the 
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await openNewTask(page);
-  await page.getByLabel('작업 제목').fill('레이아웃 안정성 확인');
+  await page.getByLabel('작업 이름 (선택)').fill('레이아웃 안정성 확인');
   await submitNewTask(page);
   // Technical metadata is deliberately collapsed; the workspace title anchors the ready state.
   await expect(
@@ -386,7 +386,7 @@ test('execution controls stay separated on a narrow desktop workspace', async ({
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await openNewTask(page);
-  await page.getByLabel('작업 제목').fill('좁은 화면 컨트롤 확인');
+  await page.getByLabel('작업 이름 (선택)').fill('좁은 화면 컨트롤 확인');
   await submitNewTask(page);
 
   const expectSeparated = async () => {
@@ -434,7 +434,7 @@ test('planning answers ordinary questions without creating documents and shows a
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await openNewTask(page);
-  await page.getByLabel('작업 제목').fill('일반 대화와 브랜치 표시 확인');
+  await page.getByLabel('작업 이름 (선택)').fill('일반 대화와 브랜치 표시 확인');
   await submitNewTask(page);
   await expect(page.getByLabel('실행 모드')).toHaveValue('plan');
   await expect(page.locator('.git-summary')).toContainText('dev');
@@ -509,7 +509,7 @@ for (const viewport of [
     await page.getByRole('button', { name: '로그인', exact: true }).click();
     await openNewTask(page);
     await page
-      .getByLabel('작업 제목')
+      .getByLabel('작업 이름 (선택)')
       .fill(`Branch scrolling ${viewport.width}`);
     await submitNewTask(page);
     if (viewport.width < 960)
@@ -581,7 +581,7 @@ test('Git refresh updates files and the selected diff without a task state chang
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await openNewTask(page);
-  await page.getByLabel('작업 제목').fill('Refresh files and diff');
+  await page.getByLabel('작업 이름 (선택)').fill('Refresh files and diff');
   await submitNewTask(page);
   await page.getByRole('button', { name: '변경사항', exact: true }).click();
   const panel = page.locator('.git-workspace');

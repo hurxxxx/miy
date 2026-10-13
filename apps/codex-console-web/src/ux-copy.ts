@@ -1,5 +1,134 @@
 /** Copy for the work-oriented desktop navigation and result surfaces. */
 export const uxKorean = {
+  'Close notification': '알림 닫기',
+  Notification: '알림',
+  'Task notifications': '작업 알림',
+  'Confirmed activity remains available in task history.':
+    '확인된 진행 내역은 작업 이력에서 다시 볼 수 있습니다.',
+  'Task history': '작업 이력',
+  'View task history': '작업 이력 보기',
+  'All activity': '전체',
+  'Execution and progress': '실행·진행',
+  'Questions and approvals': '질문·승인',
+  'Commands and files': '명령·파일',
+  'Question requested': '질문 도착',
+  'Approval requested': '승인 요청 도착',
+  'Response requested': '응답 요청 도착',
+  'Sending response': '응답 전송 시작',
+  'Response delivered': '응답 전달 완료',
+  'Decline response delivered': '거절 응답 전달 완료',
+  'Cancel response delivered': '취소 응답 전달 완료',
+  'Execution failed': '실행 실패',
+  'Execution interrupted': '실행 중단',
+  'Execution completed': '실행 완료',
+  'Execution finished': '실행 종료',
+  'Command started': '명령 실행 시작',
+  'Command finished': '명령 실행 종료',
+  'File changes recorded': '파일 변경 기록',
+  'Final response recorded': '최종 답변 기록',
+  'Plan recorded': '계획 기록',
+  'Work item started': '작업 항목 시작',
+  'Work item completed': '작업 항목 종료',
+  'Task created': '작업 생성',
+  'Preparing execution': '실행 준비',
+  'Execution started': '실행 시작',
+  'Progress updated': '진행 단계 업데이트',
+  'Interruption requested': '중단 요청',
+  'Execution connection lost': '실행 연결 끊김',
+  'Execution state recovered': '실행 상태 확인 완료',
+  'Plan updated': '계획 업데이트',
+  'Request resolved': '요청 종료',
+  'Task environment updated': '작업 환경 업데이트',
+  'Environment preparation retried': '환경 준비 재시도',
+  'Conversation imported': '대화 불러오기',
+  'Conversation reconnected': '대화 다시 연결',
+  'Agent joined the work': '에이전트 작업 참여',
+  'Agent work finished': '에이전트 작업 종료',
+  'Agent progress updated': '에이전트 진행 업데이트',
+  'Work state updated': '작업 상태 업데이트',
+  'This history detail was shortened.':
+    '긴 이력의 상세 내용 일부가 생략되었습니다.',
+  'Progress, responses and execution evidence remain available after a refresh.':
+    '진행 단계·응답·실행 내역은 새로고침 후에도 유지됩니다.',
+  'Refresh task history': '작업 이력 새로고침',
+  'Filter task history': '작업 이력 필터',
+  'Loading task history…': '작업 이력을 불러오고 있습니다…',
+  'No activity recorded in this category yet.':
+    '아직 이 유형의 작업 이력이 없습니다.',
+  'Earlier activity includes its event and time; detailed snapshots were not recorded.':
+    '기존 이력은 이벤트와 시각만 남아 있어 당시의 상세 진행 내용은 표시하지 않습니다.',
+  'Loading earlier activity…': '이전 이력을 불러오고 있습니다…',
+  'Load earlier activity': '이전 이력 더 보기',
+  'General task': '일반 작업',
+  'Work in development': '개발 환경에서 작업',
+  'Work in a new branch': '새 브랜치에서 작업',
+  'Work in an existing branch': '기존 브랜치에서 작업',
+  'Work in production': '운영 환경에서 작업',
+  'Talk, research, organize documents or ask Codex to handle a task.':
+    '대화·조사·문서 정리 등 원하는 작업을 Codex에게 요청합니다.',
+  'Continue development and maintenance in the current development checkout.':
+    '현재 개발 환경에서 개발과 유지보수를 이어갑니다.',
+  'Create a branch and prepare its settings and dependencies in a separate workspace.':
+    '별도 작업 공간에 브랜치를 만들고 설정과 의존성을 준비합니다.',
+  'Continue in an existing worktree, keeping its changes, settings and dependencies.':
+    '기존 워크트리의 변경 사항과 설정·의존성을 유지하면서 작업을 이어갑니다.',
+  'Existing worktree branch': '기존 워크트리 브랜치',
+  'Select a branch': '브랜치를 선택하세요',
+  'Loading worktree branches…': '워크트리 브랜치를 확인하고 있습니다…',
+  'No existing worktree branches. Create a new branch to start.':
+    '기존 워크트리 브랜치가 없습니다. 새 브랜치를 만들어 시작하세요.',
+  'This opens a new conversation in the selected worktree. Open the previous task from work history to keep its conversation.':
+    '선택한 워크트리에서 새 대화를 시작합니다. 이전 대화를 이어가려면 작업 기록에서 기존 작업을 여세요.',
+  'Refresh branch list': '브랜치 목록 새로고침',
+  'Environment not ready': '환경 준비 필요',
+  'The selected worktree branch is unavailable. Refresh the branch list.':
+    '선택한 워크트리 브랜치를 사용할 수 없습니다. 브랜치 목록을 새로고침하세요.',
+  'Inspect the production checkout in read-only mode. Changes and deployment follow a separate approval process.':
+    '운영 경로를 읽기 전용으로 점검합니다. 변경과 배포는 별도 승인 절차로 진행합니다.',
+  'Where would you like to work?': '어디에서 작업할까요?',
+  'Loading task environments…': '작업 환경을 확인하고 있습니다…',
+  'Could not load task environments.': '작업 환경을 확인하지 못했습니다.',
+  'This environment is not configured or is unavailable.':
+    '설정되지 않았거나 사용할 수 없는 환경입니다.',
+  'Branch name (optional)': '브랜치 이름 (선택)',
+  'Base branch': '기준 브랜치',
+  'An empty name generates a unique branch. Work starts after environment preparation.':
+    '이름을 비우면 자동으로 생성합니다. 환경 준비가 끝난 뒤 작업할 수 있습니다.',
+  'What would you like to do?': '무엇을 할까요?',
+  'Ask a question, describe a change or explain what you need.':
+    '질문이나 수정할 내용 등 원하는 작업을 설명해 주세요.',
+  'Task name (optional)': '작업 이름 (선택)',
+  'Creating task…': '작업을 만들고 있습니다…',
+  'Open task': '작업 열기',
+  'Read-only inspection': '읽기 전용 점검',
+  'Environment preparation failed. Retry preparation to continue.':
+    '환경 준비에 실패했습니다. 다시 준비한 뒤 작업을 이어갈 수 있습니다.',
+  'Preparing the new branch…': '새 브랜치를 준비하고 있습니다…',
+  'Preparing settings and dependencies…': '설정과 의존성을 준비하고 있습니다…',
+  'Retry environment preparation': '환경 준비 다시 시도',
+  'Create app project': '앱 프로젝트 만들기',
+  'Ask Codex to create, improve, investigate or simply talk. Continue your work here.':
+    'Codex와 대화하거나 개발·유지보수·조사를 시작하세요. 진행 중인 작업도 여기서 이어갈 수 있습니다.',
+  'This task uses a folder without Git. Conversation and file work remain available.':
+    'Git 저장소가 없는 폴더입니다. 대화와 파일 작업을 계속할 수 있습니다.',
+  'The selected task environment is unavailable.':
+    '선택한 작업 환경을 사용할 수 없습니다.',
+  'The task environment has changed. Check its configured path and branch.':
+    '작업 환경이 변경되었습니다. 설정된 경로와 브랜치를 확인하세요.',
+  'Wait for environment preparation or retry the failed preparation.':
+    '환경 준비가 끝날 때까지 기다리거나 실패한 준비를 다시 시도하세요.',
+  'Production tasks support read-only inspection. Use a development task for changes.':
+    '운영 작업은 읽기 전용 점검을 지원합니다. 수정은 개발 작업에서 진행하세요.',
+  'Enter a valid new branch name.':
+    '사용할 수 있는 새 브랜치 이름을 입력하세요.',
+  'This branch already exists. Choose another name.':
+    '이미 존재하는 브랜치입니다. 다른 이름을 입력하세요.',
+  'Branch environment setup is not configured.':
+    '새 브랜치 환경 준비 기능이 설정되지 않았습니다.',
+  'Task environment preparation failed. Retry preparation.':
+    '작업 환경 준비에 실패했습니다. 환경 준비를 다시 시도하세요.',
+  'Task environment preparation was interrupted. Retry preparation.':
+    '작업 환경 준비가 중단되었습니다. 환경 준비를 다시 시도하세요.',
   'Last reported steps': '마지막으로 보고된 진행 단계',
   'Open this work to answer its pending requests.':
     '작업을 열고 대기 중인 질문이나 승인 요청을 확인하세요.',

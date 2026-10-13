@@ -1375,6 +1375,22 @@ const errors: Record<string, Copy> = {
   app_source_unavailable:
     'App source is not available. Review its registration before starting development.',
   invalid_input: 'Check the entered values.',
+  task_environment_unavailable: 'The selected task environment is unavailable.',
+  task_environment_changed:
+    'The task environment has changed. Check its configured path and branch.',
+  task_environment_not_ready:
+    'Wait for environment preparation or retry the failed preparation.',
+  production_read_only:
+    'Production tasks support read-only inspection. Use a development task for changes.',
+  invalid_branch_name: 'Enter a valid new branch name.',
+  branch_exists: 'This branch already exists. Choose another name.',
+  worktree_unavailable:
+    'The selected worktree branch is unavailable. Refresh the branch list.',
+  branch_setup_unconfigured: 'Branch environment setup is not configured.',
+  branch_setup_failed:
+    'Task environment preparation failed. Retry preparation.',
+  branch_setup_interrupted:
+    'Task environment preparation was interrupted. Retry preparation.',
   input_too_large: 'The request body is too large. Reduce the input and retry.',
   input_timeout:
     'The request upload timed out. Check the task state before retrying.',

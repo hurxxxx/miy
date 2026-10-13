@@ -8,9 +8,10 @@
 
 ## Git And Delivery
 
-- Internal work uses GitLab `origin`; GitHub `upstream` contains the original project. Upstream contributions require explicit scope; direct upstream pushes remain disabled.
+- Platform core development uses GitHub `https://github.com/hurxxxx/miy.git` as writable `origin`; GitLab and CI Runner are not prerequisites for this environment. Customer installations use their internal GitLab `origin` for collaboration and delivery. GitHub `upstream` remains a read-only source-update remote.
 - Work in `dev`; `prod` is reserved for production `main`. Preserve protected `dev` as the persistent integration branch and release MR source. Isolate unrelated dirty work without deleting it.
-- Commit, push, MR mutation, merge, production checkout updates, deployment, and destructive cleanup require explicit current authorization. Leave local work uncommitted by default. An implementation request alone does not authorize publication or deployment.
+- For requested platform core development changes, committing and direct fast-forward pushing to GitHub `dev` are permitted without another approval question after affected checks. Include other agents' changes only when the user includes them in scope; preserve ongoing work outside that scope. Never force-push or bypass remote branch protections, required reviews, or CI.
+- Publishing other branches, PR/MR mutation, merge, production checkout updates, deployment, and destructive cleanup require explicit current authorization. Customer installation publication follows its authorized GitLab workflow. Development commit/push permission does not authorize production changes.
 - Never bypass required reviews, CI, authentication, generated contracts, or release gates to make a change pass.
 
 ## Platform Boundaries

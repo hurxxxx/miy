@@ -30,7 +30,7 @@ test('sessions restores search, scroll and drafts across workspace navigation', 
   const second = `세션 전환 다음 작업 ${Date.now()}`;
   for (const title of [first, second]) {
     await openNewTask(page);
-    await page.getByLabel('작업 제목').fill(title);
+    await page.getByLabel('작업 이름 (선택)').fill(title);
     await submitNewTask(page);
     await expect(page.getByRole('heading', { name: title })).toBeVisible();
     if (title === first)

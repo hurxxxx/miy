@@ -123,13 +123,15 @@ def _fingerprint(schema: dict) -> str:
     return sha256(canonical.encode()).hexdigest()
 
 
-def build_contract(version: str, source: Path) -> dict:
+def build_contract(version: str, source: Path, *, include_compatibility_schemas=False) -> dict:
     schemas = {name: _read_schema(source, name) for name in COMPATIBILITY_SCHEMA_NAMES}
     result = {
         "codexVersion": version,
         "compatibilityHashes": {name: _fingerprint(schema) for name, schema in schemas.items()},
         "schemas": {name: schemas[name] for name in VALIDATED_SCHEMA_NAMES},
     }
+    if include_compatibility_schemas:
+        result["compatibilitySchemas"] = schemas
     return result
 
 
@@ -140,12 +142,77 @@ def render_contract(version: str, source: Path) -> str:
     return rendered + "\n"
 
 
+_DOCUMENTATION_KEYS = frozenset({"description", "title", "$schema"})
+_AUTHORITY_WORDS = ("approval", "permission", "sandbox")
+
+
+def _wire_shape(value):
+    """Documentation changes do not change the accepted wire values."""
+    if isinstance(value, dict):
+        return {
+            k: _wire_shape(v)
+            for k, v in value.items()
+            if k not in _DOCUMENTATION_KEYS or not isinstance(v, str)
+        }
+    if isinstance(value, list):
+        return [_wire_shape(v) for v in value]
+    return value
+
+
+def _compatible_extension(expected, actual, *, authority=False) -> bool:
+    if authority:
+        return _wire_shape(expected) == _wire_shape(actual)
+    if type(expected) is not type(actual):
+        return False
+    if isinstance(expected, dict):
+        expected, actual = _wire_shape(expected), _wire_shape(actual)
+        if expected.keys() != actual.keys():
+            return False
+        for key, value in expected.items():
+            candidate = actual[key]
+            if key in ("properties", "definitions"):
+                if not isinstance(candidate, dict) or not value.keys() <= candidate.keys():
+                    return False
+                if any(
+                    any(word in name.lower() for word in _AUTHORITY_WORDS)
+                    for name in candidate.keys() - value.keys()
+                ):
+                    return False
+                for name, item in value.items():
+                    locked = any(word in name.lower() for word in _AUTHORITY_WORDS)
+                    if not _compatible_extension(item, candidate[name], authority=locked):
+                        return False
+            elif not _compatible_extension(value, candidate):
+                return False
+        return True
+    if isinstance(expected, list):
+        return len(expected) == len(actual) and all(
+            _compatible_extension(a, b) for a, b in zip(expected, actual, strict=True)
+        )
+    return expected == actual
+
+
 def schemas_are_compatible(contract: dict, source: Path) -> bool:
     try:
-        current = build_contract(contract["codexVersion"], source)
+        current = build_contract(
+            contract["codexVersion"],
+            source,
+            include_compatibility_schemas="compatibilitySchemas" in contract,
+        )
     except (json.JSONDecodeError, KeyError, OSError, StopIteration, TypeError):
         return False
-    return current["compatibilityHashes"] == contract.get("compatibilityHashes")
+    baseline = contract.get("compatibilitySchemas")
+    if baseline is None:
+        return current["compatibilityHashes"] == contract.get("compatibilityHashes")
+    return all(
+        name in baseline
+        and _compatible_extension(
+            baseline[name],
+            current["compatibilitySchemas"][name],
+            authority=any(word in name.lower() for word in _AUTHORITY_WORDS),
+        )
+        for name in COMPATIBILITY_SCHEMA_NAMES
+    )
 
 
 def build_remote_contract(version: str, source: Path) -> dict:
@@ -179,4 +246,10 @@ def history_schemas_are_compatible(contract: dict, source: Path) -> bool:
         current = build_history_contract(contract["codexVersion"], source)
     except (json.JSONDecodeError, KeyError, OSError, StopIteration, TypeError):
         return False
-    return current["compatibilityHashes"] == contract.get("compatibilityHashes")
+    baseline = contract.get("schemas")
+    if baseline is None:
+        return current["compatibilityHashes"] == contract.get("compatibilityHashes")
+    return all(
+        name in baseline and _compatible_extension(baseline[name], current["schemas"][name])
+        for name in HISTORY_SCHEMA_NAMES
+    )

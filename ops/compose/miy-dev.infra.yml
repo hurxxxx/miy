@@ -101,7 +101,7 @@ services:
       - miy-dev-infra
 
   livekit:
-    image: livekit/livekit-server:latest
+    image: livekit/livekit-server:v1.13.9@sha256:d0c04791bf63ca8dcea123571827d56ba9504bd57c8d5de60ee03b5408cc3154
     container_name: miy-dev-livekit
     restart: unless-stopped
     environment:
@@ -123,7 +123,7 @@ services:
       - miy-dev-infra
 
   drawio:
-    image: jgraph/drawio:${MIY_DRAWIO_IMAGE_TAG:-30.2.5}
+    image: jgraph/drawio:${MIY_DRAWIO_IMAGE_TAG:-32.4.1}
     container_name: miy-dev-drawio
     restart: unless-stopped
     ports:
@@ -141,7 +141,7 @@ services:
     build:
       context: ../..
       dockerfile: ops/bento/Dockerfile
-    image: miy-bento:${MIY_BENTO_IMAGE_TAG:-1.0.17}
+    image: miy-bento:${MIY_BENTO_IMAGE_TAG:-1.2.7}
     container_name: miy-dev-bento
     restart: unless-stopped
     ports:

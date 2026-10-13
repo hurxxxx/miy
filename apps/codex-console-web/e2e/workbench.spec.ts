@@ -280,7 +280,7 @@ test('new app project records reuse rationale and opens a plan with its own cont
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await page
-    .getByRole('button', { name: '앱 만들기', exact: true })
+    .getByRole('button', { name: '앱 프로젝트 만들기', exact: true })
     .first()
     .click();
   await page.getByLabel('프로젝트 이름', { exact: true }).fill('검토 워크플로');
@@ -355,7 +355,7 @@ test('new project prepares an app source and recovers its result without enablin
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await page
-    .getByRole('button', { name: '앱 만들기', exact: true })
+    .getByRole('button', { name: '앱 프로젝트 만들기', exact: true })
     .first()
     .click();
   await page.getByLabel('프로젝트 이름', { exact: true }).fill('내 메모 준비');

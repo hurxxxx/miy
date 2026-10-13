@@ -308,7 +308,7 @@ export function TaskResults({
               </details>
             )}
             <Button variant="ghost" onClick={openChecks}>
-              {t('Open execution records')}
+              {t('View task history')}
             </Button>
           </section>
           <section className="result-evidence">

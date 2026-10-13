@@ -14,9 +14,16 @@ prefix_rule(
     not_match = ["gh issue view 7"],
 )
 prefix_rule(
+    pattern = ["git", "push", "origin", "dev"],
+    decision = "allow",
+    justification = "Platform core development may publish requested dev changes to its GitHub origin under AGENTS.md; remote protections, required checks, and production authorization remain in force.",
+    match = ["git push origin dev"],
+    not_match = ["git push origin main", "git push upstream dev"],
+)
+prefix_rule(
     pattern = ["git", "push", "upstream"],
     decision = "forbidden",
-    justification = "Direct upstream pushes are disabled; use the explicitly authorized GitHub feature-branch and PR workflow for upstream contributions.",
+    justification = "Upstream is a read-only source-update remote. Publish permitted platform core dev changes to GitHub origin; customer installations publish through their authorized GitLab origin workflow.",
     match = ["git push upstream dev"],
     not_match = ["git fetch upstream", "git push origin dev"],
 )

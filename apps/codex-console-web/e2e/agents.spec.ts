@@ -18,7 +18,7 @@ test('unified sessions preserves status filters and search with legacy and Codex
   ).toBeVisible();
   await openNewTask(page);
   const title = `목록 복귀 검증 ${Date.now()}`;
-  await page.getByLabel('작업 제목').fill(title);
+  await page.getByLabel('작업 이름 (선택)').fill(title);
   await submitNewTask(page);
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
   const taskUrl = page.url();

@@ -51,13 +51,7 @@ import {
   type ThreadPage,
 } from './api';
 import { errorCopy, translate, type Copy, type Locale } from './i18n';
-import {
-  Command,
-  Confirm,
-  Documents,
-  MessageItem,
-  type DocumentDraft,
-} from './views';
+import { Confirm, Documents, MessageItem, type DocumentDraft } from './views';
 import { AttachmentBadges, FileLibrary } from './attachments';
 import { CodexUpdateGuide } from './codex-update';
 import { Templates } from './templates';
@@ -70,6 +64,8 @@ import { Instructions } from './instructions';
 import { WorkspacePanel } from './workspaces';
 import { TaskResults } from './task-results';
 import { TaskDecisions } from './task-decisions';
+import { TaskHistory } from './task-history';
+import { NewTaskDialog, TaskEnvironmentStatus } from './new-task';
 import { WorkspaceDivider } from './workspace-divider';
 import { AgentActivity } from './agent-activity';
 import { needsAttention, executing, running, taskStatus } from './agent-state';
@@ -87,7 +83,7 @@ const tabs: { id: Tab; label: Copy }[] = [
   { id: 'result', label: 'Results' },
   { id: 'plan', label: 'Plan' },
   { id: 'branch', label: 'Changes' },
-  { id: 'checks', label: 'Execution records' },
+  { id: 'checks', label: 'Task history' },
 ];
 
 type SessionTab = 'sessions' | 'codex' | null;
@@ -151,7 +147,6 @@ export function App() {
   const [sessionFailed, setSessionFailed] = useState(false);
   const [password, setPassword] = useState('');
   const [page, setPage] = useState<ConsolePage>(() => readRoute().page);
-  const [isolate, setIsolate] = useState(false);
   const drafts = useRef(new Map<string, string>());
   const selectionDrafts = useRef(
     new Map<string, { attachmentIds: string[]; skillNames: string[] }>(),
@@ -201,11 +196,9 @@ export function App() {
   const [importThread, setImportThread] = useState<Thread | null>(null);
   const [confirmInactive, setConfirmInactive] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
-  const [newProjectRequest, setNewProjectRequest] = useState(0);
-  const [conversationWidth, setConversationWidth] = useState(40);
+  const [conversationWidth, setConversationWidth] = useState(50);
   const [extraInstruction, setExtraInstruction] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [skillCatalog, setSkillCatalog] = useState<{
     taskId: string;
@@ -904,7 +897,8 @@ export function App() {
         ? task.permissions === 'yolo'
         : selectedExecution.permissions === 'yolo')
     : false;
-  const composerPlanningHelp = !!task && stage === 'plan' && !taskIsActive;
+  const composerPlanningHelp =
+    !!task && (taskIsActive ? task.stage === 'plan' : stage === 'plan');
 
   if (!authenticated)
     return (
@@ -1053,12 +1047,11 @@ export function App() {
           size="comfortable"
           fullWidth
           onClick={() => {
-            navigate('studio');
-            setNewProjectRequest((value) => value + 1);
+            setNewOpen(true);
           }}
         >
           <Plus size={16} />
-          {t('Build an app')}
+          {t('New task')}
         </Button>
         <nav
           className="console-navigation"
@@ -1175,8 +1168,6 @@ export function App() {
         <WorkbenchApps
           key={page}
           area={page}
-          newProjectRequest={page === 'studio' ? newProjectRequest : 0}
-          onNewProjectOpened={() => setNewProjectRequest(0)}
           activityFailed={overviewFailed}
           newTask={() => setNewOpen(true)}
           t={t}
@@ -1311,67 +1302,85 @@ export function App() {
           }
         >
           <div className="task-header">
-            <div>
-              <Button
-                className="workspace-back"
-                variant="ghost"
-                onClick={() => {
-                  const projectId = task.context?.project_id;
-                  if (typeof projectId !== 'string') {
-                    navigate('sessions');
-                    return;
-                  }
-                  navigate('studio');
-                  window.history.replaceState(
-                    null,
-                    '',
-                    `?view=studio&project=${encodeURIComponent(projectId)}`,
-                  );
-                }}
-              >
-                <ArrowLeft size={14} aria-hidden="true" />
-                {t(
-                  typeof task.context?.project_id === 'string'
-                    ? 'Back to project'
-                    : 'Back to sessions',
-                )}
-              </Button>
-              <p className="workspace-context">
-                {task.summary?.project_title ||
-                  (typeof task.context?.app_id === 'string'
-                    ? task.context.app_id
-                    : t('General work'))}{' '}
-                ·{' '}
-                {t(
-                  task.context?.purpose === 'deployment'
-                    ? 'Deployment work'
-                    : 'Development work',
-                )}
-              </p>
-              <h1 ref={workspaceHeading} tabIndex={-1}>
-                {task.title}
-              </h1>
-              <div className="task-meta">
-                <span>{t(taskStatus(task))}</span>
-                <span>·</span>
-                <span title={task.root}>
-                  {task.root.split('/').at(-1)}
-                  {task.isolated && ` · ${t('Isolated checkout')}`}
-                </span>
-                <span className="connection">
-                  <span className={`dot ${connected ? 'online' : ''}`} />
+            <div className="task-header-main">
+              <div className="workspace-breadcrumb">
+                <Button
+                  className="workspace-back"
+                  variant="ghost"
+                  onClick={() => {
+                    const projectId = task.context?.project_id;
+                    if (typeof projectId !== 'string') {
+                      navigate('sessions');
+                      return;
+                    }
+                    navigate('studio');
+                    window.history.replaceState(
+                      null,
+                      '',
+                      `?view=studio&project=${encodeURIComponent(projectId)}`,
+                    );
+                  }}
+                >
+                  <ArrowLeft size={14} aria-hidden="true" />
                   {t(
-                    connected
-                      ? 'Live updates connected'
-                      : 'Live updates reconnecting',
+                    typeof task.context?.project_id === 'string'
+                      ? 'Back to project'
+                      : 'Back to sessions',
                   )}
-                </span>
+                </Button>
+                {!task.context?.task_environment && (
+                  <p className="workspace-context">
+                    {task.summary?.project_title ||
+                      (typeof task.context?.app_id === 'string'
+                        ? task.context.app_id
+                        : t('General work'))}{' '}
+                    ·{' '}
+                    {t(
+                      task.context?.purpose === 'deployment'
+                        ? 'Deployment work'
+                        : 'Development work',
+                    )}
+                  </p>
+                )}
               </div>
-              <details className="task-git-summary">
-                <summary>{t('Technical details')}</summary>
-                <GitSummary state={git.state} t={t} />
-                <code>{task.root}</code>
-              </details>
+              <div className="workspace-title-row">
+                <h1 ref={workspaceHeading} tabIndex={-1}>
+                  {task.title}
+                </h1>
+                <div className="task-meta">
+                  <span>{t(taskStatus(task))}</span>
+                  {!task.context?.task_environment && (
+                    <span title={task.root}>
+                      {task.root.split('/').at(-1)}
+                      {task.isolated && ` · ${t('Isolated checkout')}`}
+                    </span>
+                  )}
+                  <span className="connection">
+                    <span className={`dot ${connected ? 'online' : ''}`} />
+                    {t(
+                      connected
+                        ? 'Live updates connected'
+                        : 'Live updates reconnecting',
+                    )}
+                  </span>
+                </div>
+              </div>
+              <div className="workspace-context-row">
+                <TaskEnvironmentStatus
+                  key={task.id}
+                  task={task}
+                  t={t}
+                  refresh={() => {
+                    void refreshTask(task.id).catch(onError);
+                    void refreshTasks().catch(onError);
+                  }}
+                />
+                <details className="task-git-summary">
+                  <summary>{t('Technical details')}</summary>
+                  <GitSummary state={git.state} t={t} />
+                  <code>{task.root}</code>
+                </details>
+              </div>
             </div>
             {(task.error_code || task.status === 'uncertain') && (
               <div className="runtime-notice" role="status">
@@ -1413,7 +1422,15 @@ export function App() {
             </button>
           </div>
           <section className="conversation" aria-label={t('Conversation')}>
-            <ExecutionStatus task={task} connected={connected} t={t} />
+            <ExecutionStatus
+              task={task}
+              connected={connected}
+              t={t}
+              openHistory={() => {
+                setTab('checks');
+                setMobileView('results');
+              }}
+            />
             <TaskDecisions
               key={task.id}
               task={task}
@@ -1782,76 +1799,21 @@ export function App() {
               />
             )}
             {tab === 'checks' && (
-              <div className="checks-pane">
-                <p className="muted">
-                  {t(
-                    'Command results are execution evidence. Read the final response for tests run and checks skipped.',
-                  )}
-                </p>
-                {task.items
-                  .filter((item) => item.type === 'commandExecution')
-                  .map((item, index) => (
-                    <Command key={index} item={item} t={t} />
-                  ))}
-                {!task.items.some(
-                  (item) => item.type === 'commandExecution',
-                ) && (
-                  <p className="empty-result">
-                    {t('No commands have run yet.')}
-                  </p>
-                )}
-              </div>
+              <TaskHistory key={task.id} task={task} t={t} />
             )}
           </aside>
         </main>
       )}
-      <Dialog
+      <NewTaskDialog
         open={newOpen}
         onOpenChange={setNewOpen}
-        title={t('New task')}
-        closeLabel={t('Close')}
-      >
-        <form
-          className="stack"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void act(async () => {
-              const next = await api<Detail>('/tasks', {
-                title,
-                isolate,
-              });
-              await refreshTasks();
-              choose(next.id);
-              setNewOpen(false);
-              setTitle('');
-            });
-          }}
-        >
-          <label htmlFor="task-title">{t('Task title')}</label>
-          <Input
-            id="task-title"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            required
-            maxLength={200}
-          />
-          <label>
-            <input
-              type="checkbox"
-              checked={isolate}
-              onChange={(e) => setIsolate(e.target.checked)}
-            />
-            {t('Isolate this task for parallel work')}
-          </label>
-          <Button
-            variant="primary"
-            type="submit"
-            disabled={busy || !title.trim()}
-          >
-            {t('Create task')}
-          </Button>
-        </form>
-      </Dialog>
+        t={t}
+        created={(next, prompt) => {
+          drafts.current.set(next.id, prompt);
+          choose(next.id);
+          void refreshTasks().catch(onError);
+        }}
+      />
       <Confirm
         open={!!planToApprove}
         title="Execute the saved plan?"

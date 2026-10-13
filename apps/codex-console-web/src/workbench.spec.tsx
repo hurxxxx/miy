@@ -273,7 +273,7 @@ it('starts a new MIY app in its managed work environment without preparing anoth
       startTask={startTask}
     />,
   );
-  fireEvent.click(await screen.findByRole('button', { name: 'Build an app' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Create app project' }));
   fireEvent.change(screen.getByLabelText('Project title'), {
     target: { value: project.title },
   });
@@ -339,7 +339,7 @@ it('creates a new Korean work project from its name and requirements without tec
       startTask={startTask}
     />,
   );
-  fireEvent.click(await screen.findByRole('button', { name: 'Build an app' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Create app project' }));
   fireEvent.change(screen.getByLabelText('Project title'), {
     target: { value: title },
   });
@@ -394,7 +394,7 @@ it('preserves an advanced app identifier override when the work name changes', a
       startTask={vi.fn()}
     />,
   );
-  fireEvent.click(await screen.findByRole('button', { name: 'Build an app' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Create app project' }));
   fireEvent.change(screen.getByLabelText('Project title'), {
     target: { value: '장비 관리' },
   });

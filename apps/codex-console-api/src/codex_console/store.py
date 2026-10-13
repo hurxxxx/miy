@@ -1,6 +1,8 @@
+from pathlib import Path
+
 from sqlalchemy import delete, func, or_, select, update
 
-from . import planning, remote_environments, task_activity
+from . import planning, remote_environments, task_activity, task_history
 from .errors import ConsoleError
 from .models import (
     Agent,
@@ -173,9 +175,9 @@ def recover_document(db, task, turns):
             return
 
 
-def changed(db, task, kind):
+def changed(db, task, kind, *, details=None):
     task.updated_at = now()
-    db.add(Event(task_id=task.id, kind=kind))
+    db.add(Event(task_id=task.id, kind=kind, details=task_history.snapshot(task, kind, details)))
 
 
 def lease(db, task_id, *, workspace, stage="implement", limit=3):
@@ -197,6 +199,20 @@ def lease(db, task_id, *, workspace, stage="implement", limit=3):
     if exclusive and (task.context or {}).get("purpose", "development") != "development":
         wanted["operations"] = True
     for item in leases:
+        if item.resource.startswith("workspace:"):
+            leased = Path(item.resource.removeprefix("workspace:"))
+            requested = Path(str(workspace))
+            if (
+                leased.is_absolute()
+                and requested.is_absolute()
+                and (leased.is_relative_to(requested) or requested.is_relative_to(leased))
+                and (
+                    exclusive
+                    or item.exclusive
+                    or require_task(db, item.task_id).status == "uncertain"
+                )
+            ):
+                raise ConsoleError("workspace_busy")
         if item.resource in wanted and (
             item.exclusive
             or wanted[item.resource]
@@ -251,6 +267,17 @@ def implementation_authorized(db, task):
         and operation.task_id == task.id
         and operation.kind == "execute"
         and operation.state == "accepted"
+    )
+
+
+def implementation_permissions(settings, task):
+    from . import task_environments
+
+    choices = task_environments.implementation_permissions(settings, task)
+    return (
+        choices
+        if choices is not None
+        else remote_environments.implementation_permissions(settings, task)
     )
 
 
@@ -371,9 +398,7 @@ def detail(factory, task_id, settings):
         failed = db.get(Operation, task.current_operation_id) if task.current_operation_id else None
         return {
             **task_out(task, db),
-            "implementation_permissions": remote_environments.implementation_permissions(
-                settings, task
-            ),
+            "implementation_permissions": implementation_permissions(settings, task),
             "failed_request_text": failed.display_text
             if failed and failed.state == "failed" and task.status == "failed"
             else task.template_snapshot.get("text")

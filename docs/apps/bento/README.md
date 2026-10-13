@@ -5,9 +5,9 @@ miy embeds official `bento/slides` single-HTML runtime in a separate-origin ifra
 ## Pinned Runtime
 
 - Source: <https://github.com/nyblnet/bento>
-- Release: `v1.0.17`
-- Revision: `efc0fab48ed1a9531bb1ae2a652a091832f64254`
-- Release SHA-256: `06026f088399a7422696ef122f424f09d4735fd128ae398392af31ce50ebdf9b`
+- Release: `v1.2.7`
+- Revision: `29ca06550a78c292ca25e4d1e3cdb81e67a83bae`
+- Release SHA-256: `fdb1afc21a5defea75a1bb5390e5f34eeb2c35658c6bed9c62cb2ef3f997d64c`
 - License: MIT
 
 `ops/bento/Dockerfile` verifies release/license/notice checksums and adds only the Work Hub bridge.
@@ -55,7 +55,7 @@ docker compose --env-file .env.example -f ops/compose/miy-dev.infra.yml up -d --
 - Bridge protocol v2 carries explicit `readOnly` derived from server `can_edit` (missing access is
   read-only). Old protocol envelopes are rejected. Publish the web and rebuilt Bento image together;
   do not reuse a v1 bridge image with the v2 host.
-- Bento v1.0.17 selects its official `readonly: true` player only at boot. `loadDoc()` cannot
+- Bento v1.2.7 selects its official `readonly: true` player only at boot. `loadDoc()` cannot
   switch modes; no public option disables the runtime's IndexedDB recovery/version/asset stores.
   The bridge uses the official serializer's shell and replaces only inert `#bento-doc` JSON. It
   boots every content document in an opaque child iframe **without `allow-same-origin`**. The outer

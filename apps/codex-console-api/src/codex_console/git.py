@@ -14,6 +14,31 @@ from .errors import ConsoleError
 MAX_BYTES = 2 * 1024 * 1024
 
 
+def mounted_directory_options(root: Path) -> list[str]:
+    """Trust only a root-owned mount point with this owner's real Git metadata.
+
+    Nested Docker bind mounts can report UID 0 on the checkout directory while
+    its .git belongs to the service owner. Never trust a wildcard, foreign
+    metadata or a symlink; source adapters still enforce their own Git policy.
+    """
+    if os.getuid() == 0:
+        return []
+    for candidate in (root, *root.parents):
+        metadata = candidate / ".git"
+        try:
+            info = metadata.lstat()
+        except FileNotFoundError:
+            continue
+        if (
+            candidate.stat().st_uid == 0
+            and info.st_uid == os.getuid()
+            and (stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode))
+        ):
+            return ["-c", f"safe.directory={candidate}"]
+        break
+    return []
+
+
 def git(root: Path, *args: str, limit: int = MAX_BYTES, transport: bool = False) -> bytes:
     env = {k: os.environ[k] for k in ("PATH", "LANG") if k in os.environ}
     env.update(
@@ -57,6 +82,7 @@ def git(root: Path, *args: str, limit: int = MAX_BYTES, transport: bool = False)
         [
             "git",
             "--no-pager",
+            *mounted_directory_options(Path(root)),
             "-c",
             "core.hooksPath=/dev/null",
             "-c",
@@ -243,6 +269,7 @@ def prepare_workspace(
     base_ref: str,
     worktree_root: Path,
     validate_target=None,
+    branch_name: str | None = None,
 ) -> tuple[Path, bool]:
     """Create an explicitly requested isolated checkout; native turns need no Git preflight."""
     target = worktree_root / f"codex-{task_id}"
@@ -262,7 +289,11 @@ def prepare_workspace(
         ):
             raise ConsoleError("workspace_unavailable")
     worktree_root.mkdir(parents=True, exist_ok=True)
-    git(workspace, "worktree", "add", "--detach", str(target), base.decode().strip())
+    if branch_name is None:
+        git(workspace, "worktree", "add", "--detach", str(target), base.decode().strip())
+    else:
+        git(workspace, "check-ref-format", "--branch", branch_name)
+        git(workspace, "worktree", "add", "-b", branch_name, str(target), base.decode().strip())
     return target / relative, True
 
 

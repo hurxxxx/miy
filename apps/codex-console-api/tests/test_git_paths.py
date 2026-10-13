@@ -8,6 +8,30 @@ from codex_console import git
 from codex_console.errors import ConsoleError
 
 
+@pytest.mark.skipif(os.getuid() == 0, reason="Root has no mapped service ownership boundary")
+def test_nested_mount_trust_requires_owned_git_metadata(repository, monkeypatch):
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    original = Path.stat
+
+    def mapped(path, *args, **kwargs):
+        return SimpleNamespace(st_uid=0) if path == repository else original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", mapped)
+    assert git.mounted_directory_options(repository) == ["-c", f"safe.directory={repository}"]
+    original_lstat = Path.lstat
+
+    def foreign(path):
+        info = original_lstat(path)
+        if path == repository / ".git":
+            return SimpleNamespace(st_uid=os.getuid() + 1, st_mode=info.st_mode)
+        return info
+
+    monkeypatch.setattr(Path, "lstat", foreign)
+    assert git.mounted_directory_options(repository) == []
+
+
 def test_parent_symlink_to_repository_secrets_is_not_exposed(client, repository):
     docs = repository / "docs"
     docs.mkdir()
@@ -83,7 +107,9 @@ def test_git_source_evidence_does_not_follow_replacement_objects(repository):
     def local(*args, data=None):
         return subprocess.run(
             ["git", "-C", str(repository), *args],
-            input=data, check=True, capture_output=True,
+            input=data,
+            check=True,
+            capture_output=True,
         ).stdout
 
     original = local("show", "HEAD:hello.txt")

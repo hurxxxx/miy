@@ -92,7 +92,7 @@ function installBentoBridge() {
   function bootDocument(documentJson, requestedReadOnly) {
     if (accessMode !== null && accessMode !== requestedReadOnly) return;
     accessMode = requestedReadOnly;
-    // v1.0.17 has no public setting to disable IndexedDB recovery/assets, and
+    // v1.2.7 has no public setting to disable IndexedDB recovery/assets, and
     // loadDoc cannot switch to the official presentation-only player. Boot the
     // serialized official runtime in an opaque sandbox; the outer editor never
     // receives content. This also prevents cross-account browser persistence.

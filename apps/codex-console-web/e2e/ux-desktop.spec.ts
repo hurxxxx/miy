@@ -19,7 +19,7 @@ for (const viewport of [
     await openNewTask(page);
     await page
       .getByRole('dialog')
-      .getByLabel('작업 제목')
+      .getByLabel('작업 이름 (선택)')
       .fill('고객 문의 앱 개선');
     await submitNewTask(page);
     await expect(
@@ -155,10 +155,10 @@ for (const viewport of [
     const divider = page.getByRole('separator', {
       name: '대화와 결과 영역 크기 조절',
     });
-    await expect(divider).toHaveAttribute('aria-valuenow', '40');
+    await expect(divider).toHaveAttribute('aria-valuenow', '50');
     await divider.focus();
     await page.keyboard.press('ArrowRight');
-    await expect(divider).toHaveAttribute('aria-valuenow', '45');
+    await expect(divider).toHaveAttribute('aria-valuenow', '55');
     await page.keyboard.press('Home');
     await expect(divider).toHaveAttribute('aria-valuenow', '30');
     await page.keyboard.press('ArrowRight');
@@ -185,7 +185,7 @@ for (const viewport of [
     await page
       .getByRole('button', { name: '답변 보내기', exact: true })
       .click();
-    await expect(page.locator('.decision-area')).toContainText(
+    await expect(page.getByRole('region', { name: /작업 알림/ })).toContainText(
       '응답을 전달했습니다.',
     );
     await expect(
@@ -200,6 +200,18 @@ for (const viewport of [
     await expect(page.getByLabel('요청 내용 입력')).toHaveValue(
       '선택한 필터를 기억해 주세요.',
     );
+    const stable = await page.locator('.composer').boundingBox();
+    const messages = await page.locator('.messages').boundingBox();
+    await expect(
+      page
+        .getByRole('region', { name: /작업 알림/ })
+        .getByText(
+          '응답을 전달했습니다. 다음 진행 상황을 확인할 수 있습니다.',
+          { exact: true },
+        ),
+    ).toBeHidden({ timeout: 10000 });
+    expect(await page.locator('.composer').boundingBox()).toEqual(stable);
+    expect(await page.locator('.messages').boundingBox()).toEqual(messages);
     await page.getByLabel('이전 결과 선택').selectOption('previous');
     await expect(page.locator('.result-document')).toContainText(
       '문의 목록과 상태별 검색을 구현했습니다.',

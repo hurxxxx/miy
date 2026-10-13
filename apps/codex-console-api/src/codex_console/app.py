@@ -27,6 +27,8 @@ from . import (
     routing,
     store,
     task_activity,
+    task_environments,
+    task_history,
     templates,
     workbench,
 )
@@ -97,6 +99,8 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
         engine, factory = database(app.state.settings.database_url)
         app.state.factory = factory
         app.state.upload_slots = asyncio.Semaphore(2)
+        app.state.task_environment_jobs = {}
+        app.state.task_environment_gate = asyncio.Semaphore(1)
         from .storage import SCHEMA, process_guard
 
         guard = contextlib.ExitStack()
@@ -126,6 +130,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
                     from . import workspaces
 
                     workspaces.recover_startup(factory)
+                    task_environments.recover_startup(factory)
                 runtime = Runtime(runtime_settings, factory, rpc_factory, executor=executor)
                 app.state.runtime = runtime
             if role in ("combined", "management"):
@@ -164,6 +169,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
             async with contextlib.AsyncExitStack() as closing:
                 closing.callback(engine.dispose)
                 closing.callback(guard.close)
+                closing.push_async_callback(task_environments.stop, app)
                 if template_runtime:
                     closing.push_async_callback(template_runtime.close)
                 if runtime:
@@ -317,6 +323,8 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
     from . import workspaces
 
     workspaces.mount(app, secured)
+    task_environments.install(app, secured)
+    task_history.install(app, secured)
 
     if role == "session":
 
@@ -565,7 +573,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
             return [store.task_out(task, db, summary=summaries[task.id]) for task in rows.values()]
 
     @app.post("/api/tasks", dependencies=secured, response_model=TaskDetail)
-    def new_task(body: NewTask, request: Request):
+    async def new_task(body: NewTask, request: Request):
         context = body.context.model_dump(mode="json") if body.context else None
         if context and context.get("service_id"):
             service = next(
@@ -593,6 +601,18 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
             )
             db.add(task)
             db.flush()
+            if body.environment is not None:
+                task_environments.configure(
+                    app.state.settings, task, body.environment, body.branch_name, db=db
+                )
+                if body.environment == "branch":
+                    store.lease(
+                        db,
+                        task.id,
+                        workspace=Path(task.root),
+                        stage="implement",
+                        limit=app.state.settings.max_active_tasks,
+                    )
             workbench.link_task(db, task)
             registration.create(db, task, request.cookies.get(auth.COOKIE))
             if body.isolate:
@@ -609,6 +629,8 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
                 task.root, task.worktree_owned = str(root), isolated
             store.changed(db, task, "task.created")
             task_id = task.id
+        if body.environment == "branch":
+            task_environments.schedule(app, task_id)
         return store.detail(app.state.factory, task_id, app.state.settings)
 
     @app.get("/api/tasks/{task_id}/agents", dependencies=secured, response_model=list[AgentOut])
@@ -817,7 +839,9 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
     def changes(task_id: str):
         with app.state.factory() as db:
             task = store.require_task(db, task_id)
-            runtime_for(task_id).require_allowed_task(task)
+            runtime_for(task_id).require_allowed_task(task, environment_ready=False)
+            if task_environments.git_status(task) is not None:
+                return []
             root = Path(task.root)
         return git.changes(root)
 
@@ -825,7 +849,9 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
     def git_status(task_id: str):
         with app.state.factory() as db:
             task = store.require_task(db, task_id)
-            runtime_for(task_id).require_allowed_task(task)
+            runtime_for(task_id).require_allowed_task(task, environment_ready=False)
+            if (status := task_environments.git_status(task)) is not None:
+                return status
             root = Path(task.root)
         return git.status(root)
 
@@ -888,6 +914,7 @@ def create_app(settings=None, *, rpc_factory=CodexRPC, role="combined"):
             or r.path.startswith(
                 (
                     "/api/session",
+                    "/api/task-environments",
                     "/api/overview",
                     "/api/monitor",
                     "/api/templates",

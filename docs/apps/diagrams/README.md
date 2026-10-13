@@ -30,7 +30,7 @@ Draw.io runs as a separate container. API stores diagram XML and PNG previews.
 
 ## Read-only viewing
 
-Server `can_edit` selects the official draw.io 30.2.5 chromeless lightbox (`chrome=0`,
+Server `can_edit` selects the official draw.io 32.4.1 chromeless lightbox (`chrome=0`,
 `lightbox=1`) with embed JSON loading. Read-only sessions set `autosave:0`, `noSaveBtn=1`,
 `saveAndExit=0`, and `noExitBtn=1`; the title is read-only and host save handlers recheck
 current edit permission. The official base EditorUi overrides `graph.isEnabled()` to false

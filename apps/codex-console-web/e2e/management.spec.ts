@@ -24,7 +24,7 @@ test('monitoring links to templates without running commands and task history st
     before.length,
   );
   await openNewTask(page);
-  await page.getByLabel('작업 제목').fill('모니터링 후 작업');
+  await page.getByLabel('작업 이름 (선택)').fill('모니터링 후 작업');
   await submitNewTask(page);
   await expect(page.getByLabel('실행 모드')).toHaveValue('plan');
   await expect(page.getByLabel('현재 실행 상태')).toContainText('시작 대기');
@@ -47,7 +47,7 @@ test('monitoring links to templates without running commands and task history st
   await expect(
     page
       .locator('#console-sidebar')
-      .getByRole('button', { name: '앱 만들기', exact: true }),
+      .getByRole('button', { name: '새 작업', exact: true }),
   ).toBeVisible();
   expect(
     await page.evaluate(

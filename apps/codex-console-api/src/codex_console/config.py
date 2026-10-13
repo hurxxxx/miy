@@ -101,6 +101,33 @@ class Settings(BaseSettings):
     origin: str = Field(validation_alias="MIY_CODEX_CONSOLE_ORIGIN")
     base_path: str = Field(default="", validation_alias="MIY_CODEX_CONSOLE_BASE_PATH")
     workspace: Path = Field(validation_alias="MIY_CODEX_CONSOLE_WORKSPACE")
+    project_root: Path | None = Field(
+        default=None, validation_alias="MIY_CODEX_CONSOLE_PROJECT_ROOT"
+    )
+    production_workspace: Path | None = Field(
+        default=None, validation_alias="MIY_CODEX_CONSOLE_PRODUCTION_WORKSPACE"
+    )
+    branch_setup_command: list[str] = Field(
+        default_factory=list,
+        max_length=16,
+        validation_alias="MIY_CODEX_CONSOLE_BRANCH_SETUP_COMMAND",
+    )
+
+    @field_validator("project_root", "production_workspace", mode="before")
+    @classmethod
+    def optional_core_root(cls, value):
+        return None if value is None or value == "" else value
+
+    @field_validator("branch_setup_command")
+    @classmethod
+    def trusted_branch_setup_command(cls, value):
+        if value and (
+            not Path(value[0]).is_absolute()
+            or any(not arg or len(arg) > 4096 or "\0" in arg for arg in value)
+        ):
+            raise ValueError("Use a fixed absolute operator-owned branch setup command")
+        return value
+
     managed_workspaces_enabled: bool = Field(
         default=False, validation_alias="MIY_CODEX_CONSOLE_MANAGED_WORKSPACES_ENABLED"
     )
@@ -355,6 +382,22 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def protected_locations(self):
+        for name in ("project_root", "production_workspace"):
+            value = getattr(self, name)
+            if value is not None:
+                if not value.is_absolute() or value.resolve() != value:
+                    raise ValueError("Task environment paths must be canonical absolute paths")
+        if self.project_root is not None and (
+            self.project_root == self.workspace
+            or not self.workspace.is_relative_to(self.project_root)
+        ):
+            raise ValueError("Project root must contain the development checkout")
+        if self.production_workspace is not None and (
+            self.production_workspace == self.workspace
+            or self.project_root is None
+            or self.production_workspace.parent != self.project_root
+        ):
+            raise ValueError("Production must be a separate checkout under project root")
         if not self.worktree_root.expanduser().is_absolute():
             raise ValueError("Worktree storage must be absolute")
         self.worktree_root = self.worktree_root.expanduser().resolve()

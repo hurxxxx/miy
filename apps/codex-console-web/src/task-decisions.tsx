@@ -1,28 +1,51 @@
-import { Button } from '@miy/ui';
+import { Button, FeedbackProvider, useFeedback } from '@miy/ui';
 import { useEffect, useRef, useState } from 'react';
 import { type Detail } from './api';
 import type { Translate } from './i18n';
 import { RequestForm } from './views';
 
-export function TaskDecisions({
-  task,
-  t,
-  busy,
-  onAnswer,
-}: {
+type Props = {
   task: Detail;
   t: Translate;
   busy: boolean;
   onAnswer: (id: string, response: unknown) => Promise<boolean>;
-}) {
+};
+
+export function TaskDecisions(props: Props) {
+  return (
+    <FeedbackProvider
+      labels={{
+        close: props.t('Close notification'),
+        item: props.t('Notification'),
+        region: props.t('Task notifications'),
+      }}
+    >
+      <DecisionRequests {...props} />
+    </FeedbackProvider>
+  );
+}
+
+function DecisionRequests({ task, t, busy, onAnswer }: Props) {
+  const feedback = useFeedback();
   const [selected, setSelected] = useState<string | null>(null);
-  const [notice, setNotice] = useState<'sent' | 'failed' | null>(null);
   const sending = useRef(false);
   const submitted = useRef<string | null>(null);
   const region = useRef<HTMLElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const current =
     task.requests.find((row) => row.id === selected) ?? task.requests[0];
+  const receipt = (accepted: boolean) =>
+    feedback.show({
+      title: t(
+        accepted
+          ? 'Response received. Following the next step.'
+          : 'Response was not confirmed. Check the current request before retrying.',
+      ),
+      tone: accepted ? 'success' : 'warning',
+      announcement: accepted ? 'polite' : 'assertive',
+      dedupeKey: `response:${task.id}`,
+      description: t('Confirmed activity remains available in task history.'),
+    });
   useEffect(() => {
     if (
       !submitted.current ||
@@ -48,14 +71,6 @@ export function TaskDecisions({
       className="decision-area"
       aria-label={t('Your next decisions')}
     >
-      <p role="status" className="decision-receipt">
-        {notice &&
-          t(
-            notice === 'sent'
-              ? 'Response received. Following the next step.'
-              : 'Response was not confirmed. Check the current request before retrying.',
-          )}
-      </p>
       {current && (
         <>
           <div className="work-section-heading">
@@ -100,10 +115,9 @@ export function TaskDecisions({
                   if (sending.current || busy) return;
                   sending.current = true;
                   submitted.current = id;
-                  setNotice(null);
                   void onAnswer(id, response)
-                    .then((accepted) => setNotice(accepted ? 'sent' : 'failed'))
-                    .catch(() => setNotice('failed'))
+                    .then(receipt)
+                    .catch(() => receipt(false))
                     .finally(() => {
                       sending.current = false;
                     });

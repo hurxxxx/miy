@@ -27,7 +27,7 @@ test('untrusted conversation content stays inert and private APIs require authen
     .fill('console-tests-only-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await openNewTask(page);
-  await page.getByLabel('작업 제목').fill('Security boundary verification');
+  await page.getByLabel('작업 이름 (선택)').fill('Security boundary verification');
   await submitNewTask(page);
   const content =
     '<img src=x onerror="window.consoleInjected=true">\n\n' +

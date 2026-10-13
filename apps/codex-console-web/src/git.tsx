@@ -55,7 +55,7 @@ export function GitSummary({
   state: GitState | null;
   t: Translate;
 }) {
-  if (!state) return null;
+  if (!state || state.available === false) return null;
   return (
     <div className="git-summary" role="group" aria-label={t('Git workspace')}>
       <GitBranch size={14} aria-hidden="true" />
@@ -100,7 +100,13 @@ export function GitWorkspace({
         </Button>
       </div>
       <code className="workspace-path">{task.root}</code>
-      {state ? (
+      {state?.available === false ? (
+        <p>
+          {t(
+            'This task uses a folder without Git. Conversation and file work remain available.',
+          )}
+        </p>
+      ) : state ? (
         <>
           <GitSummary state={state} t={t} />
           <code>{state.head ?? t('No commits')}</code>

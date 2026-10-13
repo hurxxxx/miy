@@ -238,6 +238,8 @@ def require_task_source(settings, task):
 
 
 def task_workspace(settings, task):
+    if (task.context or {}).get("task_environment"):
+        return Path(task.root)
     if task.worktree_owned:
         return settings.worktree_root / f"codex-{task.id}"
     source = (task.context or {}).get("source_binding")

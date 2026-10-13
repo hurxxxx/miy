@@ -3,7 +3,7 @@ import { openNewTask, submitNewTask } from './task-submission';
 
 async function newTask(page: Page, title: string) {
   await openNewTask(page);
-  await page.getByLabel('작업 제목').fill(title);
+  await page.getByLabel('작업 이름 (선택)').fill(title);
   await submitNewTask(page);
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
 }

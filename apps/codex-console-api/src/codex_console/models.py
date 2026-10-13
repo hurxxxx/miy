@@ -389,6 +389,7 @@ class Event(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     task_id: Mapped[str] = mapped_column(ForeignKey("console_tasks.id", ondelete="CASCADE"))
     kind: Mapped[str] = mapped_column(String(80))
+    details: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=now)
     __table_args__ = (
         Index("ix_console_events_task_id_id", "task_id", "id"),
